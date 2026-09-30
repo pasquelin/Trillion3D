@@ -46,7 +46,7 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   // the branch that skips the unlit view.
   assert.match(
     BLEND_SHADER,
-    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^}]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
+    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
   );
   assert.match(
     WATER_COMPOSITE_SHADER,
@@ -61,7 +61,9 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
 
 test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {
   // A diagnostic view's surface declares itself fog-free (`materialBinding.test.ts`).
-  const fogAt = CLUSTER_FRAGMENT.indexOf('\nif(!fogFree&&!reflectionCapture)rgb=fogged(rgb);');
+  const fogAt = CLUSTER_FRAGMENT.indexOf(
+    '\nif(!fogFree&&!reflectionCapture&&!reflectionOutput)rgb=fogged(rgb);',
+  );
   assert.ok(fogAt > CLUSTER_FRAGMENT.indexOf('if(lit)rgb+=mirrorLighting('));
   assert.ok(fogAt > 0);
   // A depth material's ramp is written over the fogged colour.

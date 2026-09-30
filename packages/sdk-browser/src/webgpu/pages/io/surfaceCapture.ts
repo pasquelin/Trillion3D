@@ -1,3 +1,4 @@
+import { wantsSubsurface, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import {
   SURFACE_BYTES_PER_PIXEL,
@@ -25,7 +26,12 @@ function copySurfaces(
     eye = rt.run.gate.cam.eye;
   if (!rt.vis.visEnabled || !gpu.surfaces || !gpu.depthTexture)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  const owned = createSurfaceBuffer(gpuDevice, options.width, options.height);
+  const owned = createSurfaceBuffer(
+    gpuDevice,
+    options.width,
+    options.height,
+    gpu.surfaces.hasSubsurface,
+  );
   let depth: GPUTexture;
   try {
     depth = gpuDevice.createTexture({
@@ -74,6 +80,18 @@ function copySurfaces(
       options.width,
       options.height,
     ]);
+  encoder.copyBufferToBuffer(
+    gpu.surfaces.shadingOffset,
+    0,
+    owned.shadingOffset,
+    0,
+    owned.shadingOffset.size,
+  );
+  encoder.copyTextureToTexture(
+    { texture: gpu.surfaces.subsurface },
+    { texture: owned.subsurface },
+    owned.hasSubsurface ? [options.width, options.height] : [1, 1],
+  );
   gpuDevice.queue.submit([encoder.finish()]);
   return result;
 }
@@ -92,11 +110,11 @@ export async function captureSurfaceView(
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  // The surfaces and their depth. Temporal-antialiasing history stays allocated during capture:
-  // it counts with it.
+  // The owned surfaces and depth. Other views and temporal histories stay live and are
+  // charged once by the device ledger during admission, not again as owned capture bytes.
   const reserve =
     checkSurfaceSize(gpuDevice, options.width, options.height, SURFACE_BYTES_PER_PIXEL + 4) +
-    (rt.gpu.temporal?.historyBytes ?? 0);
+    (wantsSubsurface(rt) ? options.width * options.height * SUBSURFACE_BYTES : SUBSURFACE_BYTES);
   // Capture entry: the camera comes from the host like an image's, and the engine reads it as
   // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
   // written into rather than the one the camera declares for the host's own canvas.

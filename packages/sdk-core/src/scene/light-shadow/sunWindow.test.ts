@@ -10,10 +10,10 @@ import {
   shadowTableEntries,
   shadowTableStride,
   sunEntries,
-  sunEntry,
   sunLevelEntries,
   tableEntriesOf,
 } from './virtual.ts';
+import { sunEntry } from './pageModel.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { LIGHT_KIND } from '../light/contracts.ts';
 import { VIEW } from './lightShadow.fixture.ts';

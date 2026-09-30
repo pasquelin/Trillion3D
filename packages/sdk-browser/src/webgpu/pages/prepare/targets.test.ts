@@ -1,3 +1,4 @@
+import { runtime } from './targets.fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -23,38 +24,6 @@ const native = (width: number, height: number) => ({
   renderHeight: height,
   apart: false,
 });
-
-/** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
-function runtime(reflective = false) {
-  const resized: number[][] = [],
-    failures: string[] = [];
-  const temporal = {
-    frame: { hasHistory: true, stillFrames: 5 },
-    resize(w: number, h: number) {
-      resized.push([w, h]);
-      return true;
-    },
-    release() {},
-    dispose() {},
-  };
-  const rt = {
-    setup: { reserveHiz: true },
-    run: { diagnostic: 'beauty' },
-    layout: {
-      rows: {
-        packedCount: reflective ? 1 : 0,
-        packedRecs: reflective ? [{ material: surfaceOf(standardSurface({ roughness: 0 })) }] : [],
-      },
-    },
-    blendState: { blendGpu: [] },
-    context: {},
-    gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
-    capture: { capturing: false },
-    capabilities: { unsupported: [] as string[] },
-    diag: { diagnosticFailure: (phase: string) => failures.push(phase) },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, temporal, resized, failures };
-}
 
 // The defect this test catches: a 288 MiB ceiling, sampled once on this Mac, refused 4K and the
 // compute raster at 2496×1404 (`SURFACE_BUDGET: 415 MB > 288 MiB`, 18 Sept. 2026) on a machine that
@@ -99,15 +68,38 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
 // #365: a blended scene pays for the share target only when a debug view or the temporal pass reads it.
 test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
   const { rt } = runtime();
-  const base = frameTargetAllocation(rt, native(64, 32));
+  // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
+  const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256;
+  const base = frameTargetAllocation(rt, native(64, 32)) + 64 * 32 * 8 - 8 + cone;
   const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base, 'blends alone: as before');
+  assert.equal(
+    frameTargetAllocation(rt, native(64, 32)),
+    base,
+    'forward reflection source and cone hierarchy, no opaque history',
+  );
   rt.vis.asIsShown = true;
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'a debug view shown');
   rt.vis.asIsShown = false;
   rt.gpu.temporalWanted = true;
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
+});
+
+test('rough opaque receivers allocate their own history, while a resize releases it', () => {
+  const { rt } = runtime(true);
+  rt.layout.rows.packedRecs[0]!.material = surfaceOf(standardSurface({ roughness: 0.5 }));
+  Object.assign(rt, { vis: {}, capture: { capturing: false } });
+  const gpu = fakeDevice({ limits: { maxTextureDimension2D: 8192 } });
+  rt.gpu.device = gpu.device;
+  const size = native(64, 32);
+  const bytes = frameTargetAllocation(rt, size);
+  assert.equal(bytes, frameTargetBytes(64, 32, true) + 64 * 32 * 40 + 80 + 160);
+  makeTargets(rt, gpu.device, size, bytes);
+  const old = rt.gpu.reflection!.history!;
+  assert.equal(old.bytes, 64 * 32 * 32);
+  makeTargets(rt, gpu.device, native(32, 16), frameTargetAllocation(rt, native(32, 16)));
+  assert.throws(() => old.image, /DISPOSED/);
+  assert.equal(rt.gpu.reflection!.history!.bytes, 32 * 16 * 32);
 });
 
 // #1162: with no debug view the frame targets hold no share texture and cost none; with one, the
@@ -153,7 +145,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       targetSize: [32, 32],
       allocatedSize: [32, 32],
       displaySize: [32, 32],
-      surfaces: {},
+      surfaces: { hasSubsurface: false },
       reflection: { active: false },
       targetGrant: undefined,
     },
@@ -175,7 +167,7 @@ test('a frame drawn below the display costs its render targets and one display c
   Object.assign(rt.gpu, {
     colorTexture: {},
     displayTexture: {},
-    surfaces: {},
+    surfaces: { hasSubsurface: false },
     feedbackTexture: {},
     reflection: { active: false },
     allocatedSize: [32, 16],

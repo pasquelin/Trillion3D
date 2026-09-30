@@ -1,3 +1,5 @@
+import { stochasticReflectionShader } from '../../reflections/sampleWgsl.ts';
+import { REFLECTION_RESOLVE_WGSL } from '../../reflections/resolveWgsl.ts';
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by the name of its module, each
  * variant a pass can compile under its own name: the diagnostic and water additions, the DAG's
@@ -22,6 +24,11 @@ import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
 import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
+import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
+import { SHADOW_WORDS_WGSL } from '../../webgpu/shadow/wordsWgsl.ts';
+import { SHADOW_FRESH_WGSL } from '../../webgpu/shadow/freshWgsl.ts';
+import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
+import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
@@ -42,7 +49,7 @@ import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestW
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
-import { MIP_SHADER } from '../../texture/mips.ts';
+import { MIP_SHADER, mipShader } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
@@ -60,8 +67,27 @@ import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpu
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
 
+/** Every runtime reflection combination: lighting lobe, binding width and request mode. */
+function reflectionVariants() {
+  const variants: Record<string, string> = {};
+  for (const bounce of [false, true])
+    for (const narrow of [false, true])
+      for (const subgroup of [false, true]) {
+        let shader = contractLightingShader(bounce, narrow);
+        if (subgroup) shader = withSubgroupShadowRequests(shader);
+        const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}_${subgroup ? 'SUBGROUP' : 'PLAIN'}`;
+        variants[`${key}_SOURCE`] = reflectionSource(shader);
+        variants[`${key}_TRACE`] = stochasticReflectionShader(shader, !bounce);
+        variants[`${key}_HISTORY_COMPOSE`] = withScreenReflections(shader, !bounce, true);
+      }
+  return variants;
+}
+
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
+  ...reflectionVariants(),
+  REFLECTION_RESOLVE_WGSL,
+  MIP_DEPTH_SHADER: mipShader(true),
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
@@ -124,6 +150,11 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
   ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
+  ALLOCATION_WGSL,
+  SHADOW_WORDS_WGSL,
+  SHADOW_FRESH_WGSL,
+  SHADOW_FRESH_CULL_WGSL,
+  SHADOW_DEMAND_WGSL,
   TAA_FLAGLESS_SHADER: taaShader(false),
   TAA_UPSCALE_SHADER: taaUpscaleShader(true),
   TAA_UPSCALE_FLAGLESS_SHADER: taaUpscaleShader(false),

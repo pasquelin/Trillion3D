@@ -1,3 +1,5 @@
+import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
+import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
 import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { createDeferredLightingLayout } from './setup.ts';
@@ -171,6 +173,8 @@ export async function createDeferredProgram(
       if (sources.direct) {
         if (!lights) throw new Error('the contract program binds no declared-light buffer');
         entries.push(
+          { binding: SHADING_OFFSET_BINDING, resource: { buffer: surface.shadingOffset } },
+          { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
           { binding: 6, resource: { buffer: lights } },
           { binding: 7, resource: { buffer: tiles } },
           { binding: 8, resource: { buffer: slices } },

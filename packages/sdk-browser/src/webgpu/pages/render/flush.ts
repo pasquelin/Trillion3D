@@ -3,7 +3,8 @@ import { collectPendingUrls } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
 import { outputColorDiagnostic } from '../helpers.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
-import { bounceState, directLightingState } from './encodeLights.ts';
+import { directLightingState } from './encodeLights.ts';
+import { bounceState } from '../state/bounce.ts';
 import { compilingContract } from '../prepare/lightResources.ts';
 import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
@@ -25,7 +26,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
       budgetLimited: run.coverageBudgetLimited,
     },
     directLighting: { version: 1, ...directLightingState(rt) },
-    bounce: { version: 1, ...bounceState(rt) },
+    bounce: { version: 1, ...bounceState(rt.bounce) },
     sunFarShadows: { version: 1, ...sunFarState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,

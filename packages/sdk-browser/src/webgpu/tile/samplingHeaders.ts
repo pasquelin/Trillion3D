@@ -3,7 +3,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts';
-import { SAMPLE_FILTER_MASK } from './sampling.ts';
+import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts';
 
 /** True when the texture at `slot` of a page table has a filter word: it is read through its
  *  filter rule. Slot 0, the fill texel, never has one. */

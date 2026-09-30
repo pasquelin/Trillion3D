@@ -4,6 +4,7 @@
 // (`addressingGpuPage.ts`) and the parented camera (`parented-camera-gpu.ts`) use it. Playwright
 // and esbuild are the repo's dev dependencies: the engine proves itself, with no other project
 // on the machine.
+import { computeReadback } from './computeReadback.ts';
 import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
@@ -12,6 +13,7 @@ import { openGpuDevice } from './webgpuDevice.ts';
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
 
 declare global {
+  var computeReadback: typeof import('./computeReadback.ts').computeReadback;
   var ouvrirAppareil: typeof openGpuDevice;
   var openGpuDevice: typeof import('./webgpuDevice.ts').openGpuDevice;
   var namedBufferEntries: typeof import('../../../packages/sdk-browser/src/gpu/core/computeBindings.ts').namedBufferEntries;
@@ -22,10 +24,11 @@ declare global {
  * builder, so a probe lays its buffers out under their shader names, never by position.
  */
 export const PAGE_INIT_SCRIPT = `globalThis.ouvrirAppareil = globalThis.openGpuDevice = ${openGpuDevice};
-globalThis.namedBufferEntries = ${namedBufferEntries};`;
+globalThis.namedBufferEntries = ${namedBufferEntries};
+globalThis.computeReadback = ${computeReadback};`;
 
 /**
- * Bundles a page module for the browser and returns the bundle text: as an IIFE under `nomGlobal`
+ * Bundles a page module for the browser and returns the bundle text: as an IIFE under `globalName`
  * for `dansPageWebgpu`, or as an ES module (`format: 'esm'`) when the page loads it via `import()`.
  * Bundle options — target, platform — are those of every reproduction: writing them here is what
  * stops two of them compiling for two different targets with nothing saying so.
@@ -33,27 +36,27 @@ globalThis.namedBufferEntries = ${namedBufferEntries};`;
 export async function bundlePage(
   input: string,
   // Only read below for `format: 'iife'`; every ESM caller may omit it.
-  nomGlobal?: string,
+  globalName?: string,
   { format = 'iife', workerUrls = false }: { format?: Format; workerUrls?: boolean } = {},
 ) {
-  const paquet = await esbuild.build({
+  const bundle = await esbuild.build({
     entryPoints: [input],
     bundle: true,
     // IIFE bundles have no import.meta; worker siblings resolve from the served page.
     ...(workerUrls ? { define: { 'import.meta.url': 'globalThis.location.href' } } : {}),
     write: false,
     format,
-    ...(format === 'iife' ? { globalName: nomGlobal } : {}),
+    ...(format === 'iife' ? { globalName: globalName } : {}),
     platform: 'browser',
     target: 'es2022',
     logLevel: 'error',
   });
-  return paquet.outputFiles[0].text;
+  return bundle.outputFiles[0].text;
 }
 
 /**
- * Serves an empty page on a free port, opens it in Chromium and evaluates `fonction(argument)`
- * there. `fonction` runs in the page: it sees only its argument, serialised, and returns JSON.
+ * Serves an empty page on a free port, opens it in Chromium and evaluates `callback(argument)`
+ * there. `callback` runs in the page: it sees only its argument, serialised, and returns JSON.
  * The device opener and `globalThis.namedBufferEntries` are installed ahead of time
  * (`PAGE_INIT_SCRIPT`), since a serialised function does not see its module's scope.
  *
@@ -62,7 +65,7 @@ export async function bundlePage(
  * uncaught page errors come to fill).
  */
 export async function dansPageWebgpu<A, R>(
-  fonction: (argument: A) => R | Promise<R>,
+  callback: (argument: A) => R | Promise<R>,
   argument: A,
   options: {
     titre?: string;
@@ -71,9 +74,9 @@ export async function dansPageWebgpu<A, R>(
     resources?: Readonly<Record<string, string>>;
   } = {},
 ) {
-  const { titre = 'Trillion3D WebGPU', script = null } = options;
+  const { titre: title = 'Trillion3D WebGPU', script = null } = options;
   const pageErrors = options.erreursPage;
-  const { server, port } = await blankPageServer(titre, script, options.resources);
+  const { server, port } = await blankPageServer(title, script, options.resources);
   const closeServer = () => new Promise<void>((done) => server.close(() => done()));
   // A refused launch closes the server too: a probe imported outside its run ends, never hangs.
   const browser = await launchChrome({ headless: true }).catch(async (error: unknown) => {
@@ -94,7 +97,7 @@ export async function dansPageWebgpu<A, R>(
       fn: (argument: A) => R | Promise<R>,
       arg: A,
     ) => Promise<R>;
-    return await evaluate(fonction, argument);
+    return await evaluate(callback, argument);
   } finally {
     await browser.close();
     await closeServer();

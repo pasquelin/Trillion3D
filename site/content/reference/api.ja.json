@@ -433,8 +433,7 @@
       "near": "描画される最も近い距離。",
       "far": "描画される最も遠い距離。",
       "zoom": "拡大率。",
-      "orthographic": "正投影カメラの視野ボックス。",
-      "viewTile": "このカメラが描く、より広いビューのタイル。ない場合はビュー全体を描画する。"
+      "orthographic": "正投影カメラの視野ボックス。"
     }
   },
   "CameraParameters": {
@@ -1619,7 +1618,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "バッファ内のライトのフィールド。その基点からの浮動小数点数の位置として。",
-    "description": "ライトあたり4つの`vec4f`。",
+    "description": "ライトあたり5つの`vec4f`。",
     "members": {
       "position": "それが立っている場所。",
       "range": "それがどこまで届くか。",
@@ -1632,7 +1631,8 @@
       "castsShadow": "影を落とすかどうか。",
       "cosInner": "スポットライトの内側の円錐。半影が始まる位置: それがない場合は円錐自身の端。",
       "halfWidth": "矩形ライトの半幅の軸 — `right`にその幅の半分を掛けたもの — 、そして半高。",
-      "halfHeight": "矩形の高さの半分。"
+      "halfHeight": "矩形の高さの半分。",
+      "emitterRadius": "ポイントまたはスポット光源の半径。矩形専用の形状成分と格納位置を共有する。"
     }
   },
   "LIGHT_KIND": {
@@ -1866,6 +1866,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -1885,7 +1887,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     },
     "members": {
       "isMaterial": "常に`true`: 他の何かとマテリアルを区別する。",
@@ -1912,7 +1916,8 @@
       "physics": "これをまとう物体の物理素材プリセット。",
       "density": "kg/m³。物体の質量に使う。",
       "friction": "物理の摩擦。",
-      "restitution": "物理の反発。"
+      "restitution": "物理の反発。",
+      "subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。"
     }
   },
   "MaterialParameters": {
@@ -1933,6 +1938,8 @@
       "ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "thickness": "透ける表面がどれだけ厚いか。",
       "clearcoat": "上に塗られた透明なニス: 0から1。",
+      "anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -1952,7 +1959,9 @@
       "physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "density": "kg/m³。体積を掛けると質量になる。",
       "friction": "物体のすべりにくさ。0 以上。",
-      "restitution": "物体の弾み具合。0 から 1。"
+      "restitution": "物体の弾み具合。0 から 1。",
+      "subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "MathPath": {
@@ -3019,7 +3028,7 @@
       "range": "ポイント、スポット、矩形: エネルギーがちょうどゼロになる範囲、メートル単位。",
       "coneAngle": "スポットの開き角。",
       "penumbra": "スポットのみ: 円錐のうち、その縁から内側に向かって光が`[0, 1]`でフェードする割合; これがなければ縁は`spotEdgeSoftness`にわたって柔らかくなる。",
-      "emitterRadius": "ポイントとスポットのみ: 光源を収める外殻の半径、メートル単位。実際の光源は必ず何か(ランタンのガラス、反射板、傘)に収められており、その外殻は他と同じジオメトリだ: このフィールドがなければ、それは自分自身の光のシャドウマップに入り込み、それを無効にしてしまう。宣言されれば、それはそのマップの近平面になり、光源からその半径より近くにあるものは、そこで影を落とさなくなる。これはライトの性質であって、オブジェクト名やマテリアルの種類では決してない: エンジンは表面しか知らない。厳密に正で、かつ範囲より厳密に小さくなければならない; 省略された場合は何も変わらない。",
+      "emitterRadius": "ポイントとスポットのみ: 光源を収める外殻の半径、メートル単位。実際の光源は必ず何か(ランタンのガラス、反射板、傘)に収められており、その外殻は他と同じジオメトリだ: このフィールドがなければ、それは自分自身の光のシャドウマップに入り込み、それを無効にしてしまう。この球の内部にあるフラグメントは影を落とさない。マップの近平面は引き続き照射範囲に依存する。ポイントライトでは、この半径は接触付近で影を硬くするフィルターの光源サイズも決める。 これはライトの性質であって、オブジェクト名やマテリアルの種類では決してない: エンジンは表面しか知らない。厳密に正で、かつ範囲より厳密に小さくなければならない; 省略された場合は何も変わらない。",
       "right": "矩形のみ: `direction`に垂直な、その幅が走る単位軸。",
       "size": "矩形のみ: その幅と高さ、メートル単位。",
       "castsShadow": "影を落とすかどうか。"
@@ -3269,7 +3278,7 @@
       "receive": "要求レポートが戻りました。次の計画がそれを読みます。新しいものは未読のものを置き換えます。",
       "commit": "フレームのリストのページ `[from, to)` がエンコードされました。ページ `from + i` は `modes[i]` で描かれ、誰かが読む前に描画が完了します。最後のバッチがリストを閉じます。",
       "resize": "別のサイズのプール。ページは保持され、配列は作り直される。各ページの移動先を返す。",
-      "sunWindow": "セッションが使用する太陽のクリップマップの一辺あたりのページ数（`referenceMode.ts`）。"
+      "gpu": "GPU による割り当て（`mirror.ts`）：GPU がページを割り当てるかどうかと、ホストが GPU に求めるもの。"
     }
   },
   "ShadowStaleReason": {
@@ -3517,9 +3526,13 @@
       "baseMetal": "RGBがベースカラー、Aが金属度。",
       "normalRough": "XYZがワールド法線、Aが粗さ。",
       "emissiveAo": "RGBが発光、Aがアンビエントオクルージョン。",
-      "flags": "0 背景、1 非ライティング（霧あり）、2 読み取り、3 そのまま表示: 診断、法線または深度のビュー。",
+      "flags": "0 背景、1 非ライティング（霧あり）、2 読み取り、3 そのまま表示: 診断、法線または深度のビュー。 4と5は拡散モデルとトゥーンモデル（`./surfaceModel.ts`）。",
       "views": "そのGPUテクスチャビュー群。",
-      "dispose": "それを解放する。"
+      "dispose": "それを解放する。",
+      "shadingOffset": "完全精度の影受信面オフセット。G-bufferと併せて書き込まれる。",
+      "subsurface": "薄い表面の独立した透過色。無効時は値がゼロの1×1テクスチャ。",
+      "subsurfaceView": "薄い表面の透過テクスチャのビュー。",
+      "hasSubsurface": "薄い表面の透過用ターゲットがフルサイズかどうか。"
     }
   },
   "SurfaceCapture": {
@@ -5949,6 +5962,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -5968,7 +5983,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshPhysical": {
@@ -5990,6 +6007,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6009,7 +6028,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshBasic": {
@@ -6031,6 +6052,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6050,7 +6073,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshPhong": {
@@ -6072,6 +6097,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6091,7 +6118,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshLambert": {
@@ -6113,6 +6142,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6132,7 +6163,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshToon": {
@@ -6154,6 +6187,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6173,7 +6208,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshNormal": {
@@ -6195,6 +6232,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6214,7 +6253,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshMatcap": {
@@ -6236,6 +6277,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6255,7 +6298,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshDepth": {
@@ -6277,6 +6322,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6296,7 +6343,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.points": {
@@ -6318,6 +6367,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6337,7 +6388,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.line": {
@@ -6359,6 +6412,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6378,7 +6433,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.lineDashed": {
@@ -6400,6 +6457,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6419,7 +6478,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.sprite": {
@@ -6441,6 +6502,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6460,7 +6523,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.shadow": {
@@ -6482,6 +6547,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6501,7 +6568,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "metric": {
@@ -7565,7 +7634,8 @@
       "layoutEpoch": "そのフレームが読んだテーブルレイアウト（`ShadowTable.layoutEpoch`）。",
       "stamp": "そのフレームをエンコードした時点の計画のスタンプ（`ShadowPlan.stamp`）。",
       "count": "要求したエントリ数。`entries` に入る数より多いこともあり、残りは次のフレームで再要求します。",
-      "entries": "要求したエントリ。最大で先頭の `count` 個。"
+      "entries": "要求したエントリ。最大で先頭の `count` 個。",
+      "pool": "GPU が割り当てるとき、そのフレームの割り当て後の GPU アロケーターのプール。"
     }
   },
   "VehicleDriver": {

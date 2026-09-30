@@ -1,3 +1,4 @@
+import { PHYSICAL_GLSL } from './physicalGlsl.ts';
 import { SCREEN_REFLECTION_GLSL } from '../../reflections/screenGlsl.ts';
 import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
@@ -68,6 +69,7 @@ export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;precision highp int;precision highp isampler2D;const float PI=${PI},INVERSE_PI=${INVERSE_PI};
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
+uniform vec3 subsurfaceFactor;uniform sampler2D subsurfaceMap;uniform mat3 subsurfaceUv;uniform int subsurfaceChannel;vec3 thinSubsurface;
 uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform float mipBias;uniform bool covering,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides,surfaceModel;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
@@ -86,6 +88,7 @@ vec3 specularLobe(vec3 L,vec3 V,vec3 N,vec3 f0,float rough){float alpha=rough*ro
 float nl=clamp(dot(N,L),0.0,1.0),nv=clamp(dot(N,V),0.0,1.0),nh=clamp(dot(N,H),0.0,1.0),vh=clamp(dot(V,H),0.0,1.0);vec3 F=fresnel(f0,vh);
 float a2=alpha*alpha,gv=nl*sqrt(a2+(1.0-a2)*(nv*nv)),gl=nv*sqrt(a2+(1.0-a2)*(nl*nl)),Vis=0.5/max(gv+gl,1e-6);
 float d=(nh*nh)*(a2-1.0)+1.0,D=INVERSE_PI*a2/(d*d);return F*(Vis*D);}
+${PHYSICAL_GLSL}
 float rangeWindow(float distance,float range){if(range<=0.0)return 1.0;float r=distance/range;return pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}
 float attenuation(float distance,float range,float decay){float falloff=1.0/max(pow(distance,decay),0.01);
 if(range>0.0){float r=distance/range,r2=r*r,s=clamp(1.0-r2*r2,0.0,1.0);falloff*=s*s;}return falloff;}
@@ -105,16 +108,19 @@ ${LINE_DASH_GLSL}
 // are weighted once, occlusion last; diffuse, then specular. A diffuse or toon surface takes each
 // lamp through modelLight, the WebGPU path's formula: no specular, occlusion on its light too.
 vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 diffuse=base*(1.0-metal),f0=mix(vec3(0.04),base,metal);
-vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0);${LIGHT_LOOP_GLSL}
+vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0),coat=vec3(0.0);${LIGHT_LOOP_GLSL}
 vec4 positionRange=lightRecord(i,0),directionKind=lightRecord(i,1),colorIntensity=lightRecord(i,2),cone=lightRecord(i,3);
 int kind=int(directionKind.w);if(kind==3){irradiance+=colorIntensity.rgb;continue;}
-if(kind==${WEBGL_RECT_KIND}){direct+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough,ao);continue;}
+if(kind==${WEBGL_RECT_KIND}){vec3 rectCoat;direct+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough,ao,rectCoat);coat+=rectCoat;continue;}
 vec3 L,color=colorIntensity.rgb;if(kind==0)L=directionKind.xyz;else{vec3 toLight=positionRange.xyz-viewPosition;L=normalize(toLight);
 if(kind==2){float s=spotFactor(dot(L,directionKind.xyz),cone.x,cone.y);if(s<=0.0)continue;color=color*s;}
 color*=attenuation(length(toLight),positionRange.w,cone.z);}
+direct+=thinSubsurface*max(-dot(N,L),0.0)*INVERSE_PI*color;
 if(surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon}){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}
-vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
-irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
+if(physicalRead.z>0.0)coat+=physicalRead.z*max(dot(coatNormal,L),0.0)*color*specularLobe(L,V,coatNormal,vec3(0.04),physicalRead.w);
+vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*(physicalRead.x>0.0?anisotropicLobe(L,V,N,f0,rough):specularLobe(L,V,N,f0,rough));direct+=E*(INVERSE_PI*diffuse);}
+vec3 through=(irradiance+probeIrradiance(-N))*thinSubsurface*INVERSE_PI*ao;
+irradiance+=probeIrradiance(N);return through+((direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular)*coatAttenuation(V)+coat;}
 ${SCREEN_REFLECTION_GLSL}
 ${TRANSMISSION_GLSL}
 void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;
@@ -125,16 +131,24 @@ float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(rou
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
 float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=normalize(viewNormal);if(faceSides!=0)N*=facing;}
 float rough=min(max(roughFactor*roughSample,${ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
+coatNormal=N;
 if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st),mipBias).xyz*2.0-1.0;n.xy*=normalScale;
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));vec3 T=frame.T,B=frame.B;if(faceSides==2&&!flatShaded){T*=facing;B*=facing;}N=normalize(mat3(T,B,N)*n);}
+physicalFrame(N);
+thinSubsurface=clamp(subsurfaceFactor,0.0,1.0);
+if((mapMask&16384)!=0)thinSubsurface*=texture(subsurfaceMap,mapUv(subsurfaceUv,sourceUv(subsurfaceChannel)),mipBias).rgb;
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x)),mipBias).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y)),mipBias).rgb;else rgb+=emissiveFactor;
-if(lit)rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition);
-if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
+// A mirror resolve pass draws a receiver to write its single trace, and nothing else it shades:
+// the reflection is traced once into the reduced image instead of once per sample over it.
+if(lit&&!reflectionOutput){rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition)*coatAttenuation(V);
+if(physicalRead.z>0.0)rgb+=physicalRead.z*mirrorLighting(vec3(0.0),0.0,physicalRead.w,coatNormal,V,viewPosition);}
+if(!fogFree&&!reflectionCapture&&!reflectionOutput)rgb=fogged(rgb);
 if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
-float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
+float alpha=base.a;if(transmissive&&!reflectionOutput){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
+if(reflectionOutput)rgb=reflectedRadiance(viewPosition,N,reflect(-V,N),rough);
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
 
 /** Replaces `from` in `text`, which must hold it once: a variant never drifts off its source. */

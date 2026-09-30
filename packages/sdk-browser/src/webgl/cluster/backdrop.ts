@@ -9,6 +9,8 @@
 import { refuseCluster } from './refusal.ts';
 import { allocated } from '../core/allocation.ts';
 import { halfFloatTargets } from '../core/renderTarget.ts';
+import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
+import type { WebglReflectionPyramid } from '../../reflections/pyramidGl.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
@@ -30,13 +32,30 @@ export class WebglClusterBackdrop {
   /** Texture units of the colour and depth copies, the ones the program's samplers name. */
   private colorUnit: number;
   private depthUnit: number;
-  constructor(gl: WebGL2RenderingContext, units: readonly [number, number]) {
+  private mips?: WebglReflectionPyramid;
+  /** Bilinear filtering of the colour copy, for a target a later pass samples between texels
+   *  (the reduced mirror resolve); `false` for a source traced texel by texel. */
+  private linear: boolean;
+  constructor(
+    gl: WebGL2RenderingContext,
+    units: readonly [number, number],
+    mips?: WebglReflectionPyramid,
+    linear = false,
+  ) {
     this.gl = gl;
+    this.mips = mips;
     [this.colorUnit, this.depthUnit] = units;
+    this.linear = linear;
   }
   /** Bytes the two copies hold: half-float colour (8) and 24-bit depth (4) per pixel. */
   get bytes() {
-    return this.width * this.height * 12;
+    let extra = this.mips?.bytes ?? 0;
+    if (this.mips)
+      for (let level = 1; level < mipLevelCountFor(this.width, this.height); level++) {
+        const [w, h] = levelSize(this.width, this.height, level);
+        extra += w * h * 8;
+      }
+    return this.width * this.height * 12 + extra;
   }
   /** Viewport origin of the frame being drawn: fragment coordinates minus it are backdrop texels. */
   get originX() {
@@ -45,13 +64,14 @@ export class WebglClusterBackdrop {
   get originY() {
     return this.savedViewport[1];
   }
-  private texture(internalFormat: number, width: number, height: number) {
+  private texture(internalFormat: number, width: number, height: number, levels = 1) {
     const gl = this.gl,
       texture = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texStorage2D(gl.TEXTURE_2D, 1, internalFormat, width, height);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texStorage2D(gl.TEXTURE_2D, levels, internalFormat, width, height);
+    const filter = this.linear ? gl.LINEAR : gl.NEAREST;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     return texture;
@@ -62,7 +82,12 @@ export class WebglClusterBackdrop {
     this.dispose();
     const reason = backdropFormatReason(gl);
     if (reason) refuseCluster(reason);
-    this.color = this.texture(gl.RGBA16F, width, height);
+    this.color = this.texture(
+      gl.RGBA16F,
+      width,
+      height,
+      this.mips ? mipLevelCountFor(width, height) : 1,
+    );
     this.depth = this.texture(gl.DEPTH_COMPONENT24, width, height);
     this.framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -74,11 +99,11 @@ export class WebglClusterBackdrop {
     allocated(gl, 'target', () => (this.width = this.height = 0));
   }
   /**
-   * Binds the backdrop, sized to the current viewport and cleared to the linear background
-   * colour (black for any other background), remembering the frame's own target, viewport and
-   * scissor. Draw, then `end()`.
+   * Binds the backdrop, sized to `size` when given — the reduced mirror resolve — and otherwise
+   * to the current viewport, cleared to the linear background colour (black for any other
+   * background), remembering the frame's own target, viewport and scissor. Draw, then `end()`.
    */
-  begin(background: WebglClusterScene['background']) {
+  begin(background: WebglClusterScene['background'], size?: readonly [number, number]) {
     const gl = this.gl,
       { colorUnit, depthUnit } = this,
       // A texture background carries no colour: the union says `object` for it.
@@ -86,8 +111,8 @@ export class WebglClusterBackdrop {
     this.savedViewport.set(gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.savedFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
     this.savedScissor = gl.isEnabled(gl.SCISSOR_TEST);
-    const width = Math.max(1, this.savedViewport[2]),
-      height = Math.max(1, this.savedViewport[3]);
+    const width = Math.max(1, size?.[0] ?? this.savedViewport[2]),
+      height = Math.max(1, size?.[1] ?? this.savedViewport[3]);
     // Created on the depth unit, so no material unit is disturbed; then both units are
     // released: the program's samplers still name the two copies, from the previous frame or
     // from their creation, and drawing into a bound texture is a feedback loop the context refuses.
@@ -114,6 +139,8 @@ export class WebglClusterBackdrop {
     gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
     if (this.savedScissor) gl.enable(gl.SCISSOR_TEST);
     this.savedFramebuffer = null;
+    if (this.color && this.depth)
+      this.mips?.encode(this.color, this.depth, this.width, this.height);
   }
   /** Binds the two copies on the units the transmission samplers read. */
   bind() {
@@ -124,6 +151,7 @@ export class WebglClusterBackdrop {
     gl.bindTexture(gl.TEXTURE_2D, this.depth);
   }
   dispose() {
+    this.mips?.dispose();
     const gl = this.gl;
     if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
     if (this.color) gl.deleteTexture(this.color);

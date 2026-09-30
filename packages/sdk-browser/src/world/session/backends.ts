@@ -95,6 +95,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     reference: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
+    admitGpuMemory: options.admitGpuMemory,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
