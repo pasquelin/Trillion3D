@@ -35,8 +35,8 @@ Two nuances not visible in the table:
   8.
 - **Residency budget is counted in bytes, as the reference's** — a fixed 512 MB by default,
   excluding root pages, which are always resident **(2)**. Ours: `geometryPoolBytes`, 512 MiB
-  default, converted to slots sized to the largest page, never below root coverage (`pinned`,
-  `docs/FORMAT.md`). Two differences in our favour: an in-session change keeps what fits the new
+  default, converted to slots sized to the largest page, never below its minimum capacity: the root
+  cover and the group each root replaces ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool)). Two differences in our favour: an in-session change keeps what fits the new
   pool where the reference flushes, and a full pool is a counter (`geometryPoolSaturated`) and a
   coarser cut, not an exception or a log warning.
 

@@ -489,11 +489,12 @@ first imported into the cache:
 
 `<import-key>` hashes every input file, the driver's name and version, **every other file the reader
 opened** (the `.mtl` an OBJ cites, absence included) **and every image path the texture resolution
-tried** — path, existence, bytes: an image's presence picks the intermediate glTF's URI, and leaving
-images out once served a scene compiled before its image existed. An unchanged source and driver is
-imported once and reused (`import-source/reused`); a touched, deleted or new material library **or
-texture** gives another key. The import manifest lists only the files the reader opened; what the
-resolution kept is in `images`. The compile then treats the import like a hand-made glTF folder.
+tried** — path, existence, bytes: the reader never opens an image, but its presence picks the
+intermediate glTF's URI, and leaving images out once served a scene compiled before its image
+existed. An unchanged source and driver is imported once and reused (`import-source/reused`); a
+touched, deleted or new material library **or texture** gives another key. The import manifest lists
+only the files the reader opened; what the resolution kept is in `images`. The compile then treats
+the import like a hand-made glTF folder.
 
 What is carried:
 
