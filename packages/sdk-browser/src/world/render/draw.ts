@@ -1,4 +1,8 @@
-import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
+import {
+  EngineError,
+  explorerSwitch,
+  type GpuPassTimings,
+} from '../../../../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
@@ -64,7 +68,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   // WebGL2 cannot timestamp a pass: the timer wraps each contiguous pass the draw path names, in
   // order, whenever the context grants the extension; the frame metrics and the step profile read
   // them (`frameTimer.ts`).
-  const profiled = session.options.stageProfile === true;
+  const profiled = explorerSwitch(session.options, 'stageProfile');
   const gpuTimer = webglSurface && !directGpu ? createWebglFrameTimer(webglSurface.context) : null;
   const gpu = { frameMs: null as number | null, passes: null as GpuPassTimings | null };
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
