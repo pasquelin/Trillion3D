@@ -54,7 +54,6 @@ export function resolvedDisplay({
     ],
     {
       reflectionView: { enabled: [enabled, 0, 0, 0] },
-      mix: (a: number[], b: number[], t: number) => a.map((x, i) => x + (b[i] - x) * t),
       mirrorWeight: weight,
       screenReflection: () => (calls.traced++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
       screenReflectionCone: () => (calls.traced++, hit ? [...FILTERED, 1] : [0, 0, 0, 0]),

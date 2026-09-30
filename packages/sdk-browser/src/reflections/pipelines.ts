@@ -11,7 +11,6 @@ export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
   layout: GPUBindGroupLayout,
-  bounce: boolean,
 ) {
   const source = await createCheckedShaderModule(
     device,
