@@ -33,25 +33,25 @@ The geometry is the foundation; the lighting is what it is for.
 
 Parity means four things, and none of them is a pixel count:
 
-|                              |                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| **Fixed budgets**            | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
-| **Residency by the frame**   | what stays on the GPU is what the frame actually read, pages and texture tiles alike  |
-| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them           |
-| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed                             |
+|  |  |
+| --- | --- |
+| **Fixed budgets** | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
+| **Residency by the frame** | what stays on the GPU is what the frame actually read, pages and texture tiles alike |
+| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them |
+| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed |
 
 ## What it does
 
-| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
-| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                                                                                                                                        |
-| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                                                                                                                                   |
-| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                                                                                                                                              |
-| **Lighting**           | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the level chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                  |
-| **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                                                                                                                                            |
-| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped                                                                                                                                                                                                                                              |
-| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                                                                                                                                        |
+| Area | Implemented scope |
+| --- | --- |
+| **Native compiler** | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
+| **Cache** | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected |
+| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing |
+| **Textures** | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled |
+| **Lighting** | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the level chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
+| **Memory** | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile |
+| **Fallbacks** | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped |
+| **Jobs** | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics |
 
 ## Quick start
 
@@ -105,11 +105,11 @@ packages/asset-compiler-rust/target/release/trillion3d-compiler --jobs jobs.json
 Every consumer imports `trillion3d`. Conditional exports provide common maths and contracts in
 all environments, rendering APIs to browser bundlers, and native preparation APIs to Node.
 
-| Environment       | Available API                                                                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy                                                                                                                             |
-| Node              | Common API plus native compiler process adapter and compilation jobs                                                                                                                        |
-| Browser bundler   | Common API plus `createWorld` and its families (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, …) |
+| Environment | Available API |
+| --- | --- |
+| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy |
+| Node | Common API plus native compiler process adapter and compilation jobs |
+| Browser bundler | Common API plus `createWorld` and its families (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, …) |
 
 An application owns the canvas, its resource URLs and controller disposal; the world owns its own
 loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts
@@ -137,15 +137,15 @@ Node adapter → Native Rust compiler
 Core: contracts · jobs · cancellation · diagnostics · safety policy
 ```
 
-| Directory                                                      | Responsibility                                                   |
-| -------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI                               |
-| [`packages/page-codec`](packages/page-codec)                   | Reference geometry-page encoder used to test the browser decoder |
-| [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
-| [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
-| [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
-| [`bench/runner`](bench/runner)                                 | The bench: one harness, campaigns and the HTML report            |
-| [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
+| Directory | Responsibility |
+| --- | --- |
+| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI |
+| [`packages/page-codec`](packages/page-codec) | Reference geometry-page encoder used to test the browser decoder |
+| [`packages/sdk-core`](packages/sdk-core) | Platform-independent TypeScript contracts and policies |
+| [`packages/sdk-node`](packages/sdk-node) | Native process and filesystem integration |
+| [`packages/sdk-browser`](packages/sdk-browser) | Browser rendering and GPU resource adapters |
+| [`bench/runner`](bench/runner) | The bench: one harness, campaigns and the HTML report |
+| [`tests`](tests) | Public package integration tests and GPU proofs |
 
 ## Measuring
 
@@ -191,15 +191,15 @@ The geometry, the temporal antialiasing and the memory budgets are the foundatio
 for is **real-time dynamic global illumination, reflections and shadows** — reached by
 stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighting-the-target-and-the-stages)):
 
-| Stage | Content                                                                             | State                                                      |
-| ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| L0    | Direct lighting and sun costed on the bench                                         | done — the sun costs its shadow sampling, not its cascades |
-| L1    | Screen traces: reflections and short bounce from the rendered HDR, depth and normal | next                                                       |
-| L2    | Stochastic direct lighting denoised by TAA: dozens of lights at the price of one    | planned                                                    |
-| L3    | Virtual shadow pages from the hardware raster, only the pages seen, cached          | planned                                                    |
-| L4    | Cooked global distance field traversed in compute, reading a surface cache          | planned                                                    |
-| L5    | World radiance probes in cascades                                                   | planned                                                    |
-| L6    | Reflections through the distance field reading the cache                            | planned                                                    |
+| Stage | Content | State |
+| --- | --- | --- |
+| L0 | Direct lighting and sun costed on the bench | done — the sun costs its shadow sampling, not its cascades |
+| L1 | Screen traces: reflections and short bounce from the rendered HDR, depth and normal | next |
+| L2 | Stochastic direct lighting denoised by TAA: dozens of lights at the price of one | planned |
+| L3 | Virtual shadow pages from the hardware raster, only the pages seen, cached | planned |
+| L4 | Cooked global distance field traversed in compute, reading a surface cache | planned |
+| L5 | World radiance probes in cascades | planned |
+| L6 | Reflections through the distance field reading the cache | planned |
 
 Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3D/issues); an issue is closed once it is done.
 

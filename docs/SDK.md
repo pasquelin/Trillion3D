@@ -39,12 +39,12 @@ Trillion3D owns every package it builds under `packages/` ([package architecture
 Version 0.2.0 exposes one consumer specifier, `trillion3d`. The source facade has three
 environment branches:
 
-| Resolver context                        | Source facade             | Public surface                | Declaration constraints                                                               |
-| --------------------------------------- | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
-| Node ESM with NodeNext                  | `packages/sdk/node.mts`   | Common and native compilation | Node types are allowed; DOM and WebGPU types are not introduced by the common branch. |
-| Browser bundler with TypeScript Bundler | `packages/sdk/browser.ts` | Common and browser rendering  | Browser and WebGPU declarations are allowed; no `node:*` module is reachable.         |
-| Worker or common code                   | `packages/sdk/index.ts`   | Common maths and contracts    | Compiles without DOM or WebGPU declarations.                                          |
-| Unknown environment or fallback         | `packages/sdk/index.ts`   | Common maths and contracts    | The safe default never exposes browser or Node APIs by accident.                      |
+| Resolver context | Source facade | Public surface | Declaration constraints |
+| --- | --- | --- | --- |
+| Node ESM with NodeNext | `packages/sdk/node.mts` | Common and native compilation | Node types are allowed; DOM and WebGPU types are not introduced by the common branch. |
+| Browser bundler with TypeScript Bundler | `packages/sdk/browser.ts` | Common and browser rendering | Browser and WebGPU declarations are allowed; no `node:*` module is reachable. |
+| Worker or common code | `packages/sdk/index.ts` | Common maths and contracts | Compiles without DOM or WebGPU declarations. |
+| Unknown environment or fallback | `packages/sdk/index.ts` | Common maths and contracts | The safe default never exposes browser or Node APIs by accident. |
 
 SSR resolves the Node branch. It therefore exposes native and common APIs, and does not expose
 browser rendering APIs. Importing any branch has no startup action: it does not create a renderer,
@@ -282,8 +282,8 @@ glass.blending = blending.normal;
 world.toneMapping = toneMapping.aces;
 ```
 
-| Family                                                                                                                                                                                                                          | Members                                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Family | Members |
+| --- | --- |
 | `geometry`, `material`, `light`, `effect`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
 
 Eight families exist because geometry here is **cut into pages** the engine moves in and out of
@@ -333,16 +333,16 @@ world.camera.set(pose.fromBounds(math.box3().setFromObject(set)));
 batch.composeMatrix4(outputs, positions, quaternions, scales, 1000);
 ```
 
-| Family       | Members                                                                                       | What it does                                                                       |
-| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                                       | geometry in pages: what enters and leaves memory according to what the frame reads |
-| `budget`     | `memory`, `geometryPool`, `texturePool`                                                       | the fixed envelopes that are not exceeded                                          |
-| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                                            | what the image cost, never estimated                                               |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work                                                           |
-| `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised                               |
-| `capture`    | `surface`, `buffer`                                                                           | an image taken aside, at another resolution, without touching the view             |
-| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                                   |
-| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                                      |
+| Family | Members | What it does |
+| --- | --- | --- |
+| `page` | `createStreamer`, `createCache`, `httpSource`, `decode` | geometry in pages: what enters and leaves memory according to what the frame reads |
+| `budget` | `memory`, `geometryPool`, `texturePool` | the fixed envelopes that are not exceeded |
+| `metric` | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler` | what the image cost, never estimated |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work |
+| `capability` | `detect`, `lighting` | what the machine grants, before an image is promised |
+| `capture` | `surface`, `buffer` | an image taken aside, at another resolution, without touching the view |
+| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path |
+| `batch` | `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
@@ -479,16 +479,16 @@ double the gestures — and they follow `world.camera` when it is replaced. Sett
 previous controller and builds the next; `.enabled` turns the current one off without losing it.
 Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html) and [character with physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
 
-| `world.controls.kind` | Motion                                         | Gestures                                                            |
-| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
-| `'orbit'`             | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
-| `'fly'`               | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
-| `'firstPerson'`       | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
-| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space`   |
-| `'vehicle'`           | none: drives `world.controls.vehicle`          | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake           |
-| `'trackball'`         | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
-| `'panZoom'`           | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
-| `'none'` (default)    | camera posed by the host                       | none                                                                |
+| `world.controls.kind` | Motion | Gestures |
+| --- | --- | --- |
+| `'orbit'` | orbit around `target`, world up kept | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
+| `'fly'` | six degrees of freedom | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look |
+| `'firstPerson'` | pointer-locked walk, horizon level | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift` |
+| `'character'` | a body that walks, runs, jumps and falls | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space` |
+| `'vehicle'` | none: drives `world.controls.vehicle` | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake |
+| `'trackball'` | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms |
+| `'panZoom'` | planar view, no rotation | drag slides, wheel and pinch zoom, arrow keys pan |
+| `'none'` (default) | camera posed by the host | none |
 
 All of them publish `object.position`, `addEventListener('change')`, `removeEventListener` and
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
@@ -713,11 +713,11 @@ to npm. Browser bundlers must honour the standard `browser` export condition. No
 select the Node branch. A resolver with no platform condition receives the safe common branch, which
 contains no DOM, WebGPU, filesystem or process API.
 
-| Task               | Examples                                                                                                                                                             |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
+| Task | Examples |
+| --- | --- |
+| Common API | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
 | Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `trillion3d-compile` CLI |
-| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                            |
+| Browser rendering | `createWorld` and the families it hands a page, plus `detectCapabilities` |
 
 For a strict browser TypeScript project, enable the `browser` condition explicitly; without it,
 Bundler resolution selects the platform-neutral common declarations, which do not contain
@@ -985,11 +985,11 @@ the adaptive threshold and the shadow range.
 
 #### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
 
-| Function                                    | Computes                                                                                                                                                               | Witness call                          | Proof                  |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------------- |
-| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
-| `sideOf(material)`                          | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | the host's double-side test           | `materialSide.test.ts` |
-| `materialSide(material)`                    | the host constant itself, for the diagnostic materials still built with the host library                                                                               | —                                     | `materialSide.test.ts` |
+| Function | Computes | Witness call | Proof |
+| --- | --- | --- | --- |
+| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
+| `sideOf(material)` | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | the host's double-side test | `materialSide.test.ts` |
+| `materialSide(material)` | the host constant itself, for the diagnostic materials still built with the host library | — | `materialSide.test.ts` |
 
 ### Batch functions
 
@@ -1002,23 +1002,23 @@ repeats its unit function, which stays the oracle; how to lay out and reuse the 
 from the range of the per-run medians over three runs (PR #105); the three exceptions are declared
 on their line.
 
-| Function                                                                                    | Computes                                                                                      | Witness loop                              | Proof                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                                              | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept                               | `for … frustum.intersectsBox(box)`        | bench `Frustum.intersectsBox batch` (×1.1)                                                                                                                                  |
-| `sphereFromBoundsBatch(out, boxes, n)`                                                      | four values per box, `sphereFromBounds`                                                       | `for … box.getBoundingSphere(s)`          | bench `Box3.getBoundingSphere batch` (×2.2)                                                                                                                                 |
-| `boxUnionBatch(into, boxes, n)`                                                             | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                                              | `for … box.union(b)`                      | bench `Box3.union batch` (×1.9)                                                                                                                                             |
-| `boxTransformBatch(out, boxes, mats[], n)`                                                  | `out[i] = boxTransform(boxes[i], mats[i])`                                                    | `for … box.applyMatrix4(m)`               | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
-| `boxTransformUnionBatch(into, boxes, mats[], n)`                                            | transform then union, one pass, one scratch box                                               | `Box3.setFromObject`                      | bench `Box3 transform and union batch` (×1.8)                                                                                                                               |
-| `multiplyMatrix4Batch(out[], a[], b[], n)`                                                  | `out[i] = a[i] · b[i]`, sub-views                                                             | `for … m.multiplyMatrices(a, b)`          | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`)                   |
-| `invertMatrix4Batch(out[], mats[], n, singular?)`                                           | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]`           | `for … m.invert()`                        | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2                       |
-| `normalMatrix3Batch(out, mats[], n)`                                                        | nine values per matrix, `normalMatrix3`                                                       | `for … n.getNormalMatrix(m)`              | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2         |
-| `composeMatrix4Batch(out, positions, quaternions, scales, n)`                               | `T · R · S` per element, all flat or all sub-views                                            | `for … m.compose(p, q, s)`                | bench `Matrix4.compose batch` (×1.5)                                                                                                                                        |
-| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)`                    | the reverse, `decomposeMatrix4`                                                               | `for … m.decompose(p, q, s)`              | bench `Matrix4.decompose batch` (×1.1)                                                                                                                                      |
-| `transformPointsBatch(out, m, points, n)`                                                   | `n` points by one affine matrix, `transformAffinePoint`                                       | `for … v.applyMatrix4(m)`                 | bench `Vector3.applyMatrix4 batch` (×1.4)                                                                                                                                   |
-| `transformPointsByMatricesBatch(out, mats[], points, n)`                                    | `n` points, one matrix each                                                                   | `for … v[i].applyMatrix4(mats[i])`        | bench `Vector3.applyMatrix4 per-instance batch` (×1.9)                                                                                                                      |
-| `transformDirectionsBatch(out, m, dirs, n)`                                                 | upper 3×3 then normalize, `transformDirectionVector3`                                         | `for … v.transformDirection(m)`           | bench `Vector3.transformDirection batch` (×1.3)                                                                                                                             |
-| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)`                    | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()`       | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1          |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4`           | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-browser/src/math/batchHierarchy.test.ts`: JavaScript, WebAssembly (`math_hierarchy.rs`) and the witness's `updateMatrixWorld`, same bits                      |
+| Function | Computes | Witness loop | Proof |
+| --- | --- | --- | --- |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)` | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1) |
+| `sphereFromBoundsBatch(out, boxes, n)` | four values per box, `sphereFromBounds` | `for … box.getBoundingSphere(s)` | bench `Box3.getBoundingSphere batch` (×2.2) |
+| `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
+| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
+| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
+| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2 |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
+| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)` | the reverse, `decomposeMatrix4` | `for … m.decompose(p, q, s)` | bench `Matrix4.decompose batch` (×1.1) |
+| `transformPointsBatch(out, m, points, n)` | `n` points by one affine matrix, `transformAffinePoint` | `for … v.applyMatrix4(m)` | bench `Vector3.applyMatrix4 batch` (×1.4) |
+| `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
+| `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
+| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-browser/src/math/batchHierarchy.test.ts`: JavaScript, WebAssembly (`math_hierarchy.rs`) and the witness's `updateMatrixWorld`, same bits |
 
 No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
 batches are for hosts until a measured share says otherwise.
