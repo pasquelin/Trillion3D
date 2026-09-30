@@ -138,7 +138,7 @@ async function proveBundledInstalledOutput(
 export interface InstalledBrowserModesProof {
   direct: InstalledBrowserProof;
   bundled: { bundle: EmittedBrowserBundle; proof: InstalledBrowserProof };
-  cdn: InstalledBrowserProof & { physicsRequests: string[] };
+  cdn: InstalledBrowserProof & { physicsRequests: string[]; fluidRequests: string[] };
 }
 
 export async function proveInstalledBrowserModes(

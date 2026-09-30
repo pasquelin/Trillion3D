@@ -11,6 +11,7 @@ import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { fluidCode } from '../../fluids/particleCode.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
@@ -122,7 +123,25 @@ test('an engine that draws nothing on the host surface is refused by name', () =
   assert.throws(() => compose(backend, null), /HOST_DRAW_UNSUPPORTED:mute/);
 });
 
-test('WebGL2 steps the pools ahead of the engine, which draws an image they moved in', () => {
+/** The fluids' code, fetched on the first pool (`particleCode.ts`), arrived. */
+const particleCodeArrived = () => (fluidCode.get(), fluidCode.settled());
+
+test('a pool waits for its code, fetched on its first image, and the frame draws on meanwhile', async () => {
+  const { gl, names } = createTestContext({ answers: { getExtension: () => ({}) } });
+  const pool = new ParticlePool({ capacity: 8 });
+  const compose = createFrameComposer(gl, camera, { particles: [pool] });
+  const { backend, outputs } = engine();
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  compose(backend, null);
+  assert.deepEqual([outputs.length, names().includes('drawArraysInstanced')], [1, false]);
+  await fluidCode.settled();
+  compose(backend, null);
+  assert.equal(outputs.length, 2);
+  assert.ok(names().includes('drawArraysInstanced'), 'once arrived, what it staged is drawn');
+});
+
+test('WebGL2 steps the pools ahead of the engine, which draws an image they moved in', async () => {
+  await particleCodeArrived();
   const { gl, calls, names } = createTestContext({ answers: { getExtension: () => ({}) } });
   const [pool, pools] = [new ParticlePool({ capacity: 8 }), [] as ParticlePool[]];
   pools.push(pool);
@@ -146,7 +165,8 @@ test('WebGL2 steps the pools ahead of the engine, which draws an image they move
   assert.equal(outputs.length, 3, 'a pool let go: its particles never put back');
 });
 
-test('a WebGL2 refusal is heard once by name, and the session draws on without the pools', () => {
+test('a WebGL2 refusal is heard once by name, and the session draws on without the pools', async () => {
+  await particleCodeArrived();
   const cases = [
     [{ getExtension: () => null }, 'render 32-bit floats'],
     [{ getExtension: () => ({}), getError: () => 'INVALID_OPERATION' }, 'depth it cannot copy'],

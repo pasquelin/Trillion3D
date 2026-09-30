@@ -1,10 +1,33 @@
+import { readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import type { Plugin } from 'esbuild';
 
+/** The CDN bundle's chunks, each named after the module it holds: `trillion3d-<module>-<hash>.js`. */
+export const CHUNK_PREFIX = 'trillion3d-';
+
 /** The modules that stay chunks of their own in the CDN bundle, fetched on first use: the optional
- *  families. Physics, whose session starts its worker and its WebAssembly (`worldPhysics.ts`). */
-const FAMILY_MODULES = ['sdk-browser/src/physics/session.js'];
+ *  families. Physics, whose session starts its worker and its WebAssembly (`worldPhysics.ts`);
+ *  fluids, the water pass of a scene that transmits and the particle steps (`fluidCode.ts`), one
+ *  module: a family of several would share code with the core in as many more chunks. */
+export const FAMILY_MODULES = {
+  physics: ['sdk-browser/src/physics/session.js'],
+  fluids: ['sdk-browser/src/fluids/fluidCode.js'],
+};
+export type Family = keyof typeof FAMILY_MODULES;
+
+/** The chunk of each module of `family` in the bundle at `dist`, `undefined` where the build made
+ *  none: a module the core imports statically is folded into it. */
+export function familyChunks(dist: string, family: Family) {
+  const files = readdirSync(dist);
+  return FAMILY_MODULES[family].map((path) => {
+    const name = `${CHUNK_PREFIX}${basename(path, '.js')}-`;
+    const chunk = files.find(
+      (file) => file.startsWith(name) && /^[A-Z0-9]+\.js$/.test(file.slice(name.length)),
+    );
+    return { module: basename(path, '.js'), chunk };
+  });
+}
 
 const DYNAMIC_IMPORT = /\bimport\((["'])(\.{1,2}\/[^"']+)\1\)/g;
 
@@ -27,7 +50,9 @@ export function foldDynamicImports(source: string, keep: (specifier: string) => 
 
 /** The esbuild plugin folding every dynamic import under `root` but the families'. */
 export function foldPlugin(root: string): Plugin {
-  const families = FAMILY_MODULES.map((path) => resolve(root, path));
+  const families = Object.values(FAMILY_MODULES)
+    .flat()
+    .map((path) => resolve(root, path));
   return {
     name: 'fold-dynamic-imports',
     setup(build) {
