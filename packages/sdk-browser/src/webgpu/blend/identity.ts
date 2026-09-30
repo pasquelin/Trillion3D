@@ -10,7 +10,7 @@ import type { BlendGpuItem } from './state.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The deferred stand-ins' normal atlas: one row of zeros (`../visibility/receiver.ts`). */
-const emptyNormals = (rt: WebgpuPagesRuntime) => rt.gpu.deferred?.placeholders.receiver[5];
+const emptyNormals = (rt: WebgpuPagesRuntime) => rt.gpu.deferred?.placeholders.emptyNormals;
 
 /** One resource contract for construction and invalidation, with owners read lazily. */
 export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
