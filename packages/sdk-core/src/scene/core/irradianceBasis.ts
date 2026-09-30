@@ -61,6 +61,22 @@ export function irradianceShader(coefficient: (k: number) => string, normal: str
 }
 
 /**
+ * Radiance along the unit direction named `direction`, convolved with a zonal lobe: each
+ * coefficient times its harmonic, band `l` scaled by the component `x`, `y` or `z` of the vector
+ * named `bands` (a GGX lobe's zonal moments, `reflectionProbeBands`). Not clamped, as above.
+ */
+export function filteredRadianceShader(
+  coefficient: (k: number) => string,
+  direction: string,
+  bands: string,
+) {
+  return IRRADIANCE_TERMS.map(
+    (term, k) =>
+      `${coefficient(k)}*((${term.polynomial(direction)})*${term.basis}*${bands}.${k === 0 ? 'x' : k < 4 ? 'y' : 'z'})`,
+  ).join('+');
+}
+
+/**
  * The statements that add one radiance sample `radiance`, arriving from the unit direction named
  * `direction`, to the nine accumulators `target(k)`: each takes the radiance times its harmonic.
  * The caller scales the sums by the quadrature weight (`4π / samples` for a uniform sphere).

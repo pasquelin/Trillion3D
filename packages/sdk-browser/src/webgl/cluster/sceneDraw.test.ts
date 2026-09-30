@@ -3,12 +3,11 @@ import assert from 'node:assert/strict';
 import { createSceneDraw } from './sceneDraw.ts';
 import { sourcePassDraws } from './sourcePass.fixture.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
-import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
+import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { Scene } from '../../world/core/scene.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { readHostDrawCamera } from '../../camera/world.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -16,13 +15,14 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 const FLOATS = { getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null) };
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
+const POLISHED = { roughness: 0.2 }; // under the reflection cutoff: a source pass too (#1341)
 
-function mesh(corners: number, renderOrder: number, surface = new GraphSurface('standard')) {
+function mesh(corners: number, order: number, surface = new GraphSurface('standard', POLISHED)) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
   const made = new Mesh(geometry, surface);
-  made.renderOrder = renderOrder;
+  made.renderOrder = order;
   made.frustumCulled = false;
   return made;
 }
