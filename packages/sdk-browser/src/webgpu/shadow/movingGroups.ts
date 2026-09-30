@@ -15,8 +15,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowPageGroup } from './freshGroups.ts';
 import { createMovingGroupPlan, groupBlockSide } from './movingGroupPlan.ts';
 
-const READ = 'read-only-storage',
-  WRITE = 'storage';
+const READ: GPUBufferBindingType = 'read-only-storage',
+  WRITE: GPUBufferBindingType = 'storage';
 /** Bytes of the faces the groups read: every region's, before the pass order (`pageQuads.ts`). */
 const FACES = MAX_SHADOW_REGIONS * SHADOW_FACE_STRIDE;
 
@@ -61,16 +61,22 @@ export async function createShadowMovingGroups(device: GPUDevice) {
     usage: storage | GPUBufferUsage.INDIRECT,
   });
   const grouping = createMovingGroupPlan(),
-    { words, grouped, passOf, bitsOf } = grouping;
+    { words, passOf, bitsOf } = grouping;
   let groups = 0,
     pairs: GPUBuffer | undefined,
-    bound: unknown[] = [],
+    bound: {
+      indirect?: GPUBuffer;
+      visibleIndirect?: GPUBuffer;
+      pairs?: GPUBuffer;
+      kept?: GPUBuffer;
+      visible?: GPUBuffer;
+    } = {},
     pairGroup: GPUBindGroup | undefined,
     drawGroups: [GPUBindGroup | undefined, GPUBindGroup | undefined] = [undefined, undefined];
 
   return {
-    /** 1 for a region of the batch its group draws: `drawRegionCasters` skips it. */
-    grouped,
+    /** Non-zero for a region of the batch its group draws: `drawRegionCasters` skips it. */
+    grouped: words,
     /**
      * Groups the batch's `count` regions (`tested`, whether the occlusion test ran) and files their
      * pairs, after the cull and the occlusion test. Returns the groups made: none, nothing encoded.
@@ -90,10 +96,21 @@ export async function createShadowMovingGroups(device: GPUDevice) {
           usage: GPUBufferUsage.STORAGE,
         });
       }
-      const visible = occlusion?.visibleIndirect ?? cull.indirect,
-        key = [cull.indirect, visible, pairs, cull.kept, occlusion?.visible];
-      if (key.some((part, k) => part !== bound[k])) {
-        bound = key;
+      const visible = occlusion?.visibleIndirect ?? cull.indirect;
+      if (
+        bound.indirect !== cull.indirect ||
+        bound.visibleIndirect !== visible ||
+        bound.pairs !== pairs ||
+        bound.kept !== cull.kept ||
+        bound.visible !== occlusion?.visible
+      ) {
+        bound = {
+          indirect: cull.indirect,
+          visibleIndirect: visible,
+          pairs,
+          kept: cull.kept,
+          visible: occlusion?.visible,
+        };
         pairGroup = undefined;
         drawGroups = [undefined, undefined];
       }
@@ -145,8 +162,10 @@ export async function createShadowMovingGroups(device: GPUDevice) {
         }));
         pass.setViewport(x, y, block, block, 0, 1);
         pass.setScissorRect(x, y, block, block);
-        pass.setBindGroup(0, pageGroup);
-        pass.setBindGroup(1, shadows.faceGroup, [0]);
+        if (!drawn) {
+          pass.setBindGroup(0, pageGroup);
+          pass.setBindGroup(1, shadows.faceGroup, [0]);
+        }
         pass.setBindGroup(2, group);
         pass.setPipeline(draws.opaque);
         pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);

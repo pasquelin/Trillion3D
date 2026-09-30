@@ -8,11 +8,7 @@ import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGr
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { adoptShadowPool, askShadowPool } from './poolSize.ts';
-import {
-  createPoolDemand,
-  followDemand,
-  type PoolDemand,
-} from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { followDemand } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 
 /** The static layer let go, with its pyramids: no page keeps casters in it any more, and the next
  *  move of an object builds one for the pool in place (`encodeShadows.ts`). One still being made
@@ -24,20 +20,6 @@ export function releaseStaticLayer(lights: WebgpuLightState) {
   lights.staticLayerPending = false;
 }
 
-/** What each light state's pool follows between reports (`followDemand`), the pages it last
- *  asked the device for — a refused size is not asked again until the demand asks another —,
- *  whether it is held at its ceiling, and the frame the view came to rest, −1 while it moves. */
-type HeldDemand = PoolDemand & { asked: number; ceiling: boolean; restFrom: number };
-const demands = new WeakMap<WebgpuLightState, HeldDemand>();
-const demandOf = (lights: WebgpuLightState) => {
-  let demand = demands.get(lights);
-  if (!demand) {
-    demand = { ...createPoolDemand(), asked: 0, ceiling: false, restFrom: -1 };
-    demands.set(lights, demand);
-  }
-  return demand;
-};
-
 /**
  * The first frame whose asks no page need of frame `frame` evicts (`allocWgsl.ts`): this one, or,
  * while the pool is held at its ceiling — the scene asks more than it can grow to — and the view
@@ -46,7 +28,7 @@ const demandOf = (lights: WebgpuLightState) => {
  * rests instead of drawing pages again every frame (#1345, PR #1359's first risk).
  */
 export function shadowKeptFrom(lights: WebgpuLightState, frame: number) {
-  const demand = demandOf(lights);
+  const demand = lights.poolDemand;
   demand.restFrom = lights.plan.resting ? (demand.restFrom < 0 ? frame : demand.restFrom) : -1;
   return demand.ceiling && demand.restFrom >= 0 ? demand.restFrom : frame;
 }
@@ -75,7 +57,7 @@ export function followShadowDemand(rt: WebgpuPagesRuntime) {
     device = rt.gpu.device;
   if (!atlas?.texture || !device || grantPending(lights.shadowGrant) || rt.capture.capturing)
     return;
-  const demand = demandOf(lights),
+  const demand = lights.poolDemand,
     wanted = followDemand(lights.plan, demand);
   if (!demand.over) demand.ceiling = false;
   if (wanted === undefined) return;
@@ -83,12 +65,13 @@ export function followShadowDemand(rt: WebgpuPagesRuntime) {
     { pool } = lights.plan;
   // No light casts: nothing asked, and the next report is weighed once one does.
   if (!ask) return;
-  const { side, layers } = ask.target;
+  const { side, layers } = ask.target,
+    pages = side ** 2 * layers,
+    held = pages === demand.asked || (side === pool.side && layers === pool.layers);
   // What the demand asks past the pool, it can no longer grow to: held at its ceiling.
-  demand.ceiling = demand.over;
-  if (side ** 2 * layers === demand.asked || (side === pool.side && layers === pool.layers)) return;
-  demand.ceiling = false;
-  demand.asked = side ** 2 * layers;
+  demand.ceiling = demand.over && held;
+  if (held) return;
+  demand.asked = pages;
   releaseStaticLayer(lights);
   const done = resizeTo(rt, atlas, device, ask).catch((error: unknown) => {
     if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);

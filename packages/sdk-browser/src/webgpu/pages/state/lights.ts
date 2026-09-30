@@ -24,6 +24,10 @@ import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
+import {
+  createPoolDemand,
+  type PoolDemand,
+} from '../../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
@@ -37,6 +41,8 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
   shadowGrant: DeviceGrant | undefined;
+  /** What the pool follows between reports (`../../shadow/poolResize.ts`, `followDemand`). */
+  poolDemand: PoolDemand;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** Per pixel, the pages the resolve reads, mapped on the GPU (`demandPass.ts`, `allocPass.ts`). */
@@ -129,6 +135,7 @@ export function createWebgpuLightState(
     tiles: undefined,
     shadows: undefined,
     shadowGrant: undefined,
+    poolDemand: createPoolDemand(),
     pageRequests: undefined,
     demand: undefined,
     allocation: undefined,
