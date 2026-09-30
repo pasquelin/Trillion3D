@@ -8,7 +8,13 @@
  */
 import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
 import { firstUse, storedPositions } from './pagePositions.ts';
-import { deformCells, deformHeader, packDeformation, type PageTarget } from './pageDeform.ts';
+import {
+  deformCells,
+  deformHeader,
+  MORPH_WORDS,
+  packDeformation,
+  type PageTarget,
+} from './pageDeform.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -120,7 +126,7 @@ export function encodeGeometryPage(
       cells.forEach((cell, i) => (cell.uv[set] = q.cells.slice(i * 2, i * 2 + 2)));
     }
   }
-  const deform = deformCells(attributes, targets, original, positionExponent);
+  const deform = deformCells(attributes, targets, original);
   cells.forEach((cell, i) => (cell.d = deform.fields[i]));
   flags |= (deform.skin ? 16 : 0) | (targets.length ? 32 : 0);
   const { distinct: unique, ranks: remap } = firstUse(cells, (cell) => JSON.stringify(cell));
@@ -159,7 +165,7 @@ export function encodeGeometryPage(
     deform,
     unique.map((cell) => cell.d ?? []),
   );
-  const headerWords = HEADER_WORDS + deform.morphs.length * 9,
+  const headerWords = HEADER_WORDS + deform.morphs.length * MORPH_WORDS,
     data = new Uint8Array((headerWords + pack.words.length) * 4),
     head = new DataView(data.buffer);
   const record = (at: number, q: QuantizedGrid | null, n: number, exponent: number) => {
@@ -178,7 +184,7 @@ export function encodeGeometryPage(
   head.setFloat32(80, error, true);
   head.setUint32(84, cornerBits, true);
   head.setUint32(88, stored.length, true);
-  deformHeader(head, deform, (at, grid) => record(at, grid, 3, grid.exponent));
+  deformHeader(head, deform, (at, grid) => record(at, grid, 3, grid.exponent), HEADER_WORDS);
   pack.words.forEach((word, i) => head.setUint32((headerWords + i) * 4, word, true));
   let floats = 3 + (deform.skin ? 2 * deform.skin.influences : 0) + 6 * targets.length;
   for (const [, size, bit] of ATTRIBUTES) if (flags & bit) floats += size;

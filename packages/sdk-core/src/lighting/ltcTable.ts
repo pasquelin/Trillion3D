@@ -13,9 +13,13 @@ const CELL_FLOATS = 8;
 /** Values kept per cell: the first six of the eight. */
 const KEPT = 6;
 
-/** The nearest half float of `value`, its sixteen bits. */
+const f32 = new Float32Array(1),
+  u32 = new Uint32Array(f32.buffer);
+
+/** The nearest half float of `value`, its sixteen bits: no allocation, a per-frame reader calls it. */
 export function toHalf(value: number) {
-  const bits = new Uint32Array(Float32Array.of(value).buffer)[0];
+  f32[0] = value;
+  const bits = u32[0];
   const sign = (bits >>> 16) & 0x8000,
     exponent = ((bits >>> 23) & 0xff) - 112,
     mantissa = bits & 0x7fffff;

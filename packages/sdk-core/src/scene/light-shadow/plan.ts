@@ -14,22 +14,21 @@ import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowMirror } from './mirror.ts';
 import { createShadowThresholds } from './thresholds.ts';
+import { SUN_WINDOW, shadowTableEntries } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
+ * The shadow scheduler of the virtual maps. The shading records the pages it reads; their report, read back frames later, allocates what is
+ * missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws every stale page the image reads, all of them
+ * in that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what it holds changed —, and the pool is the
+ * only limit. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(poolSide: number, layers = 1) {
-  const pool = createShadowPool(poolSide, layers),
-    table = createShadowTable(pool.pages),
-    sun = createSunLevels(),
+export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_WINDOW) {
+  const pool = createShadowPool(poolSide, layers, shadowTableEntries(sunWindow)),
+    table = createShadowTable(pool.pages, sunWindow),
+    sun = createSunLevels(sunWindow),
     records = createShadowRecords(table, pool, sun),
     changes = createShadowChanges(pool.pages),
     counts = createShadowCounts(),
@@ -50,6 +49,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
   const shadowPlan = {
+    /** Pages a side of a sun's clipmap a session runs with (`referenceMode.ts`). */
+    sunWindow,
     /** The page table: one word per virtual page, and the range each light holds in it. */
     table,
     /** The physical pages of the pool and the virtual page each one holds. */
@@ -117,8 +118,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       resting = still;
       restFrame = quiet ? (restFrame < 0 ? frame : restFrame) : -1;
       if (!still) views++;
-      // A full pool keeps the pages its cycle named: the rest's first frame, else this one.
-      const cycle = quiet ? restFrame : frame;
+      // At rest a full pool keeps its first frame's pages; moving, the latest report's (#26).
+      const held = quiet ? restFrame : undefined;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       gpu.noteFrame(frame, !quiet);
       changes.settled();
@@ -134,7 +135,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
           footprints.widened = 0;
           footprints.missed(read, nowMs, frame);
-          requests.consume(read, nowMs, frame, cycle);
+          requests.consume(read, nowMs, frame, held ?? frame);
           counts.staled(STALE_BY.footprint, footprints.widened);
           const settled = read.stamp === before && requests.complete && !footprints.widened;
           if (settled) settledStamp = stampOf(store);
@@ -143,7 +144,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
       gpu.asks.count = 0;
-      requests.floors(posed, view, nowMs, frame, cycle, gpu.on ? gpu.asks : undefined);
+      requests.floors(posed, view, nowMs, frame, held, gpu.on ? gpu.asks : undefined);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];

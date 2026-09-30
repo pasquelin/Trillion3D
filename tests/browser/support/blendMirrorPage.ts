@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../../packages/sdk-browser/src/reflections/gpu.ts';
+import { reflectionLayout } from '../../../packages/sdk-browser/src/reflections/layout.ts';
 import { BLEND_SHADER } from '../../../packages/sdk-browser/src/webgpu/blend/shader.ts';
 import { createWebgpuBlendPipelines } from '../../../packages/sdk-browser/src/webgpu/blend/pipelines.ts';
 import { BLEND_BINDINGS as B } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
