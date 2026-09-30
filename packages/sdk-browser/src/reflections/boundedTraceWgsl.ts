@@ -1,7 +1,3 @@
-/** Depth reads a rough reflection ray may spend, whatever the resolution or the scene (#33): the
- *  cost of a rough pixel is fixed, never the projected ray's length in pixels. */
-export const ROUGH_TRACE_READS = 16;
-
 /**
  * The rough trace's screen march. A mirror walks every pixel its ray crosses (`traceShader.ts`); a
  * rough sample is one of many a history averages, so it spends a fixed budget instead: one read per
@@ -11,11 +7,14 @@ export const ROUGH_TRACE_READS = 16;
  * adapters are the mirror's (`screenWgsl.ts`).
  */
 export const ROUGH_TRACE_WGSL = `
+// Depth reads a rough reflection ray may spend, whatever the resolution or the scene (#33): the
+// cost of a rough pixel is fixed, never the projected ray's length in pixels.
+const ROUGH_TRACE_READS:i32=16;
 fn roughMarch(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f,jitter:f32)->vec4f{
  let origin=vec2i(floor(start));
- let reads=clamp(ceil(max(abs(delta.x),abs(delta.y))),1.0,${ROUGH_TRACE_READS}.0);
+ let reads=clamp(ceil(max(abs(delta.x),abs(delta.y))),1.0,f32(ROUGH_TRACE_READS));
  var entered:f32=0.0;
- for(var i:i32=0;i<${ROUGH_TRACE_READS};i++){
+ for(var i:i32=0;i<ROUGH_TRACE_READS;i++){
   if(f32(i)>=reads){break;}
   let exited=min(1.0,(f32(i)+jitter)/reads);
   let pixel=vec2i(floor(start+delta*exited));

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ROUGH_TRACE_READS, ROUGH_TRACE_WGSL } from './boundedTraceWgsl.ts';
-import { functionsOf } from '../texture/shaderRule.fixture.ts';
+import { ROUGH_TRACE_WGSL } from './boundedTraceWgsl.ts';
+import { functionsOf, wgslConstants } from '../texture/shaderRule.fixture.ts';
+
+const { ROUGH_TRACE_READS } = wgslConstants(ROUGH_TRACE_WGSL);
 
 // Execute the shipped march, translating only vector constructors, comparisons and declarations.
 const march = functionsOf(ROUGH_TRACE_WGSL, ['roughMarch'])
@@ -13,7 +15,7 @@ const march = functionsOf(ROUGH_TRACE_WGSL, ['roughMarch'])
   .replace('start+delta*exited', 'add(start,delta,exited)');
 const run = new Function(`
  const vec2i=v=>({x:Math.trunc(v.x),y:Math.trunc(v.y)}),floor=v=>({x:Math.floor(v.x),y:Math.floor(v.y)});
- const f32=Number,min=Math.min,max=Math.max,ceil=Math.ceil,abs=Math.abs;
+ const ROUGH_TRACE_READS=${ROUGH_TRACE_READS},f32=Number,min=Math.min,max=Math.max,ceil=Math.ceil,abs=Math.abs;
  const clamp=(v,lo,hi)=>min(max(v,lo),hi),mix=(a,b,t)=>a+(b-a)*t;
  const add=(s,d,t)=>({x:s.x+d.x*t,y:s.y+d.y*t});
  const vec4f=(color,hit)=>hit===undefined?null:color;
