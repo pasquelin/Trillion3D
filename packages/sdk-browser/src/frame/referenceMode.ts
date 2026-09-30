@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 import {
   DEFAULT_FOV,
@@ -67,7 +68,7 @@ export function referenceOptions(options: MeasuredWorldOptions): {
   if (!options.reference) return { options, reference: null };
   // A resize would change the tile plan under the reference: a reference is a still capture of a
   // fixed size, never a live canvas.
-  if (options.interactive)
+  if (explorerSwitch(options, 'interactive'))
     throw new EngineError(
       'REFERENCE_INTERACTIVE',
       'Reference mode draws a fixed size: open it without `interactive`',
