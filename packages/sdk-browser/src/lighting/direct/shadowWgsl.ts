@@ -178,17 +178,6 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
-/** The neighbours of page \`home\` a tap reads across the \`edge\` axes, toward \`step\`: along x,
- *  along y and across the corner (\`shadowNeighbour\`). Shared by \`shadowPcf\` and the PCSS filter
- *  (\`lampSoftCompare\`). */
-struct ShadowNeighbours{x:vec4f,y:vec4f,d:vec4f,}
-fn shadowNeighbours(m:ShadowMap,home:vec2i,step:vec2i,edge:vec2<bool>,offset:vec3f,word:u32,t:vec2f)->ShadowNeighbours{
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word,t);}
- return ShadowNeighbours(nx,ny,nd);
-}
 /** \`shadowCompare\` at \`at\` split along the home page's seams (\`up\`): each page's share of the
  *  footprint, \`saturate(0.5 + distance to the seam)\`, read in that page, the neighbours \`n\` on
  *  the \`edge\` axes. Shared by \`shadowPcf\` and the PCSS filter (\`lampSoftCompare\`). */
