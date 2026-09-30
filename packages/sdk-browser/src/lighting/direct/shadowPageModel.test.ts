@@ -6,7 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGES, sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { regionRect } from '../../../../sdk-core/src/scene/light-shadow/volume.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
@@ -21,21 +20,18 @@ import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { contractLightingShader } from '../deferred/shaders.ts';
 import { SHADOW_READ_AT_WGSL } from './shadowFactorWgsl.ts';
-import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
-import { shadowDemandWgsl } from '../../webgpu/shadow/demandWgsl.ts';
-import { allocationWgsl } from '../../webgpu/shadow/allocWgsl.ts';
-import { shadowFreshWgsl } from '../../webgpu/shadow/freshWgsl.ts';
+import {
+  BLEND_SHADER,
+  PAGE_MODEL_WGSL,
+  WATER_COMPOSITE_SHADER,
+  SHADOW_DEMAND_WGSL,
+  ALLOCATION_WGSL,
+  SHADOW_FRESH_WGSL,
+} from '../../gpu/core/shaderTexts.fixture.ts';
+import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/rankSpan.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { lampMipOffset } from '../../../../sdk-core/src/scene/light-shadow/pageModel.fixture.ts';
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
-
-const AGE_CAP = 255;
-const RANK_SPAN = 128;
-const PAGE_MODEL_WGSL = pageModelWgsl();
-const WATER_COMPOSITE_SHADER = waterCompositeShader();
-const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
-const ALLOCATION_WGSL = allocationWgsl();
-const SHADOW_FRESH_WGSL = shadowFreshWgsl();
+import { AGE_CAP } from '../../../../sdk-core/src/scene/light-shadow/ageCap.ts';
 
 type Formula = (...args: number[]) => number;
 const shipped = shaderRun<Record<string, Formula>>(PAGE_MODEL_WGSL, PAGE_MODEL_FUNCTIONS, {});

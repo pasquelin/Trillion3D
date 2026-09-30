@@ -4,10 +4,11 @@
  * GPU would. What the GPU itself does is the recette's (`tests/browser/probes/particles-step-*`).
  */
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
+import { PARTICLE_WORKGROUP } from './particlesWgsl.ts';
+import { PARTICLE_ROW } from './particleRow.ts';
 import { createWebglParticles } from './webglParticles.ts';
-
-const PARTICLE_ROW = 512;
 
 const f = Math.fround;
 
@@ -57,6 +58,22 @@ function move(state: ArrayLike<number>, staged: ArrayLike<number>, i: number, ri
     p[3] = f(p[3] + dt);
   }
   return p;
+}
+
+/** The WebGPU step as `PARTICLES_WGSL` runs it: one invocation per dispatched slot. */
+export function webgpuModel(capacity: number) {
+  const state = new Float32Array(capacity * PARTICLE_FLOATS);
+  return {
+    particle: (i: number) => [...state.subarray(i * PARTICLE_FLOATS, (i + 1) * PARTICLE_FLOATS)],
+    /** One dispatch of `groups` workgroups, handed the `words` and `records` writes. */
+    step(words: FakeWrite, records: FakeWrite | undefined, groups: number) {
+      const bytes = new Uint8Array(written(words)).buffer,
+        ring = [...new Uint32Array(bytes, 16, 3), ...new Float32Array(bytes, 0, 4)];
+      const staged = records ? written(records) : new Float32Array();
+      for (let i = 0; i < Math.min(ring[2], groups * PARTICLE_WORKGROUP); i++)
+        state.set(move(state, staged, i, ring), i * PARTICLE_FLOATS);
+    },
+  };
 }
 
 /** The WebGL2 step as `PARTICLES_GLSL` runs it, from one target into the other. */

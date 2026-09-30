@@ -6,6 +6,40 @@ import { linearToSrgb } from '../../../../sdk-core/src/math/index.ts';
 
 export type Rgba = readonly [number, number, number, number];
 
+/** A blend factor of WebGPU, applied to one channel `c` (3 is alpha). */
+function factor(name: GPUBlendFactor, src: Rgba, dst: Rgba, c: number) {
+  const table: Partial<Record<GPUBlendFactor, number>> = {
+    zero: 0,
+    one: 1,
+    src: src[c],
+    'one-minus-src': 1 - src[c],
+    'src-alpha': src[3],
+    'one-minus-src-alpha': 1 - src[3],
+    dst: dst[c],
+    'dst-alpha': dst[3],
+  };
+  const value = table[name];
+  if (value === undefined) throw new Error(`factor ${name} is not modelled`);
+  return value;
+}
+
+/** What `state` writes for `src` over `dst`. */
+export function blend(state: GPUBlendState, src: Rgba, dst: Rgba): Rgba {
+  const channel = (c: number) => {
+    const part = c === 3 ? state.alpha : state.color;
+    assert.equal(part.operation ?? 'add', 'add');
+    return (
+      src[c] * factor(part.srcFactor ?? 'one', src, dst, c) +
+      dst[c] * factor(part.dstFactor ?? 'zero', src, dst, c)
+    );
+  };
+  return [channel(0), channel(1), channel(2), channel(3)];
+}
+
+/** What `target` holds after `src` over `dst`: `dst` where its write mask is off. */
+export const written = (target: GPUColorTargetState, src: Rgba, dst: Rgba) =>
+  target.writeMask === 0 ? dst : blend(target.blend!, src, dst);
+
 /** The witness's tone curve of a linear colour: three@0.174's ACES filmic fit, clamped. */
 export function filmic([r, g, b]: readonly number[]): number[] {
   const c = [r, g, b].map((v) => v / 0.6);
@@ -26,6 +60,12 @@ export const srgb = (rgb: readonly number[]) => rgb.map(linearToSrgb);
 
 /** The witness's display value of a linear colour: its tone curve, then sRGB. */
 export const display = (rgb: readonly number[]) => srgb(filmic(rgb));
+
+/** The display value of `colour`, opaque. */
+export const shown = (colour: Rgba): Rgba => {
+  const [r, g, b] = display(colour);
+  return [r, g, b, 1];
+};
 
 /** `actual` within `within` of `expected`, channel by channel. */
 export const close = (

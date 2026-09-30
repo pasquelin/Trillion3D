@@ -4,9 +4,13 @@ import {
   blendVariantPipeline,
   composesOffscreen,
   countsBlendOverdraw,
+  DIAGNOSTIC_BLEND_WGSL,
   resolveDiagnosticGpuVariant,
   selectionRepeat,
 } from './gpuVariant.ts';
+import type { DiagnosticGpuVariant } from './gpuVariant.ts';
+import { requestsComputeRaster } from './gpuGeometry.ts';
+import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts';
 
 test('no variant requested: nothing to check, nothing to mount', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined);
@@ -29,6 +33,34 @@ test('an unknown name is refused, even under "trace"', () => {
     () => resolveDiagnosticGpuVariant('transparents-rapides', 'trace'),
     /DIAGNOSTIC_GPU_VARIANT_UNKNOWN/,
   );
+});
+
+test('each variant neutralises a single factor, and its stage exists in the module', () => {
+  const attendu: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
+    {
+      'blend-flat': { entryPoint: 'fsPlat', writeMask: 0xf },
+      'blend-vertices': { entryPoint: 'fsJete', writeMask: 0xf },
+      'blend-no-colour': { entryPoint: 'fs', writeMask: 0 },
+      'blend-overdraw': { entryPoint: 'fsPlat', writeMask: 0 },
+    };
+  // Any other variant — presentation, cut, geometry — leaves blend its production stage.
+  const production = { entryPoint: 'fs', writeMask: 0xf };
+  for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
+    const pipeline = blendVariantPipeline(variant);
+    assert.deepEqual(pipeline, attendu[variant] ?? production, variant);
+    if (pipeline.entryPoint !== 'fs')
+      assert.match(DIAGNOSTIC_BLEND_WGSL, new RegExp(`@fragment fn ${pipeline.entryPoint}\\(`));
+  }
+});
+
+test('counting, off-screen presentation and the compute raster are turned on only by their variant', () => {
+  const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw);
+  const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
+  const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
+  assert.deepEqual(comptant, ['blend-overdraw']);
+  assert.deepEqual(horsEcran, ['present-offscreen']);
+  assert.deepEqual(calcul, ['raster-compute', 'raster-hybrid']);
+  assert.equal(requestsComputeRaster(undefined), false);
 });
 
 test('only the two cut variants re-encode it, and each its share', () => {

@@ -2,8 +2,8 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import type { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import type { Cut } from './worldCuts.ts';
+import { markRewritten } from './rewrittenRanges.ts';
 
 /** The lists of drawn triangles, the host attribute each is and its floats per vertex. */
 export const LISTS = [
@@ -58,25 +58,6 @@ export function copyRanges(held: DrawnTriangles, next: DrawnTriangles, ranges: V
   for (const { name, from, count } of ranges) {
     const [field, , width] = LISTS[INDEX[name]];
     held[field]!.set(next[field]!.subarray(from * width, (from + count) * width), from * width);
-  }
-}
-
-/** Marks `ranges` of `geometry`'s lists written: a reader that uploads them sends those alone —
- *  the WebGL2 draw, which clears them; the WebGPU path is handed the ranges themselves. */
-function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]) {
-  for (const { name, from, count } of ranges) {
-    const list = geometry.attributes[name] as BufferAttribute,
-      start = from * list.itemSize,
-      end = (from + count) * list.itemSize;
-    // One range held, the union of those no reader took yet: a list nobody uploads never grows.
-    const [held] = list.updateRanges;
-    if (!held) list.addUpdateRange(start, end - start);
-    else {
-      const first = Math.min(held.start, start);
-      held.count = Math.max(held.start + held.count, end) - first;
-      held.start = first;
-    }
-    list.needsUpdate = true;
   }
 }
 

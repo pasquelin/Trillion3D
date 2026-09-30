@@ -17,8 +17,7 @@ import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/
 import { withScreenErrorVariant } from '../../../packages/sdk-browser/src/gpu/dag/shader/error.ts';
 import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { compileKernels, KernelText } from './dagKernelsCompilePage.ts';
-
-const SCREEN_ERROR_VARIANTS = ['certifiee', 'reference'] as const;
+import { SCREEN_ERROR_VARIANTS } from '../../../packages/sdk-core/src/lod/screenErrorVariants.ts';
 
 declare global {
   var dagKernels: { compileKernels: typeof compileKernels };

@@ -1,14 +1,18 @@
-// The occlusion history of the table's rows (#428): a table that grew forgets the rows that
-// entered, and a new age sends every row once.
+// A moved model forgets and sends its own rows, not the terrain rows between them (#428). The
+// table used to keep one dirty interval: a model whose rows sit at both ends of the table dropped
+// the occlusion history of every row in between and sent them all again, each image it moved.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts';
+import { uploadClusterSpheres } from '../shadow/bounds.ts';
+import { moveRootRows } from '../pages/render/movedRoot.ts';
 import { createWebgpuRowState } from '../row/state.ts';
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { uploadDirtyRows } from '../pages/render/dirtyRows.ts';
 
 const ROWS = 1000,
   MODEL_ROWS = [3, 4, 400, 401, 402, 997];
@@ -88,6 +92,30 @@ function scatteredScene() {
   const sum = (counts: number[]) => counts.reduce((a, b) => a + b, 0);
   return { rt, model, forgotten, corners, table, spheres, sum };
 }
+
+test('a model scattered across the table forgets and sends its own rows, run by run', () => {
+  const { rt, model, forgotten, corners, table, spheres, sum } = scatteredScene();
+  assert.equal(moveRootRows(rt, model), MODEL_ROWS.length);
+  const { rows } = rt.layout;
+  // The span still bounds the marks: first and last rows of the model.
+  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997]);
+  uploadClusterSpheres(rt, rt.gpu.device!);
+  uploadRowCorners(rt);
+  uploadDirtyRows(rt);
+  assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows forgotten of the 995 spanned');
+  assert.deepEqual(spheres(), [2, 3, 1], 'the same 6 shadow spheres sent');
+  assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent');
+  assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent');
+  assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()));
+  assert.equal(rows.dirtyTo, -1, 'every mark consumed');
+  assert.equal(rows.dirtyMarks.indexOf(1), -1);
+  // A still image: nothing marked, nothing forgotten, nothing sent.
+  uploadRowCorners(rt);
+  uploadDirtyRows(rt);
+  assert.equal(sum(forgotten), 6);
+  assert.equal(sum(table()), 6);
+  assert.equal(rt.timing.encodeCounts.rowsUploaded, 0);
+});
 
 test('a table that grew forgets the rows that entered; a new age sends every row once', () => {
   const { rt, forgotten, corners } = scatteredScene();

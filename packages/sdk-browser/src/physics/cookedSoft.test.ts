@@ -14,8 +14,7 @@ import { startModule } from './module.fixture.ts';
 import { addSoft, at, settle, softWorld } from './soft.fixture.ts';
 import { cooked, landed, streamedModel } from './tiles.fixture.ts';
 import { FLAT } from './records.fixture.ts';
-
-const SOFT_WORDS = 22;
+import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts';
 
 /** The golden cooked cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares in the xy plane,
  *  its vertices row by row from (−0.5, −0.5), pinned at its top corners, bend 0.01 rad/(N·m). */

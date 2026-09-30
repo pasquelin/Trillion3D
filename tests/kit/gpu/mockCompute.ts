@@ -2,9 +2,6 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
-import { evaluateDrawCompact } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
-import { indirectForDraw } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
-import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { compactDrawnPages } from './globals.ts';
 import {
   simulateBlendExpansion,
@@ -14,17 +11,23 @@ import {
 import {
   SELECTION_HEADER_WORDS,
   childBase,
-  residentReadbackBytes,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
 import { runShadowPass } from '../../../packages/sdk-browser/src/webgpu/shadow/freshRun.fixture.ts';
-import { residentFlags } from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts';
-import { writeTriangleTotals } from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
-
-const VIEW_FLAGS_WORD = 54;
+import {
+  residentFlags,
+  writeTriangleTotals,
+} from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts';
+import {
+  evaluateDrawCompact,
+  indirectForDraw,
+  type DrawItem,
+} from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
+import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts';
+import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/viewFlagsWord.ts';
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
 const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
@@ -186,7 +189,7 @@ export function simulateComputeDispatch(
   // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads.
   const [list, at] = light
     ? [result.pageIds, SELECTION_HEADER_WORDS]
-    : [result.requestWords, residentReadbackBytes(selectionListCap(packed.pageCount)) / 4];
+    : [result.requestWords, stagedRequestsWord(selectionListCap(packed.pageCount))];
   ints[0] = list.length;
   ints.set(list, at);
 }

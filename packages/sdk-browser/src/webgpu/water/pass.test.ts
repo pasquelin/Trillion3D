@@ -14,10 +14,8 @@ import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
 import { dropVis } from '../pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
-const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
-const WATER_BYTES_PER_PIXEL = 8 + 4;
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts';
+import { WATER_BYTES_PER_PIXEL } from '../transparent/waterBytes.ts';
 
 /** The prepared scene, its frame targets, and a real water pass built on a counting device. */
 async function mounted() {

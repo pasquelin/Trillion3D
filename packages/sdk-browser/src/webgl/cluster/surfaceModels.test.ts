@@ -20,8 +20,7 @@ import {
   updateCameraFrame,
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { DIRECT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
-
-const NORMAL_VIEW_COLOR = 'N*0.5+0.5';
+import { NORMAL_VIEW_COLOR } from '../../scene/normalViewColor.ts';
 
 type Vector = number[];
 type Scope = NonNullable<Parameters<typeof runShaderText>[1]>;

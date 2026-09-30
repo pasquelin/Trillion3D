@@ -10,12 +10,13 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { CLUSTER_WORDS, COLD_WORDS as PAGE_CONE_FLOATS, coldBase } from './layout.ts';
 import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import type { DagRoot } from './types.ts';
 import { ruleResidency } from './readiness.fixture.ts';
-import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 const pages = scenePages(1024, 6);
 const PLACEMENTS = 12;
@@ -37,6 +38,19 @@ const unshared = (roots: DagRoot[]) =>
     ...root,
     culling: { ...root.culling!, nodes: root.culling!.nodes.slice() },
   }));
+
+test('twelve placements of one primitive store its records once', () => {
+  const packed = packDagSelection(placedRoots());
+  assert.equal(packed.pageCount, PLACEMENTS * pages.length);
+  assert.equal(packed.recordCount, pages.length);
+  assert.equal(packed.clusters.length, pages.length * CLUSTER_WORDS);
+  const alone = packDagSelection(unshared(placedRoots()));
+  assert.equal(alone.recordCount, PLACEMENTS * pages.length);
+  // Hot records shrink by the placement count; the cold buffer keeps one working word per page.
+  assert.equal(alone.clusters.byteLength / packed.clusters.byteLength, PLACEMENTS);
+  const words = coldBase(packed.pageCount) + pages.length * PAGE_CONE_FLOATS;
+  assert.equal(packed.pageCones.length, words);
+});
 
 test('every page decodes the same record, owner and placement shared or not', () => {
   const shared = dagRecords(packDagSelection(placedRoots())),

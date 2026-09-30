@@ -7,6 +7,7 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { PARTICLE_DRAW_PASS as P, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { encodeParticles } from './webgpuParticles.ts';
+import { createWebgpuParticles } from './webgpuParticleSystem.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
@@ -75,6 +76,19 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   });
   const over = 'one-minus-src-alpha'; // fire keeps the coverage, smoke covers
   assert.deepEqual(blends, ['one zero one', `${over} one ${over}`]);
+});
+
+test('WebGPU: a draw that cannot compile is heard, and the next step keeps its pools refused', async () => {
+  const heard: unknown[] = [],
+    { device } = fakeDevice(),
+    [smoke] = scene();
+  device.createRenderPipelineAsync = () => Promise.reject(new Error('NO_PIPELINE'));
+  const step = createWebgpuParticles(device, (e) => heard.push(e));
+  await tick();
+  const { encoder, log } = renderRecorder();
+  assert.equal(step.draw([smoke], ...frame(encoder)), 0);
+  step.run([smoke], encoder);
+  assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0]);
 });
 
 test('WebGPU without the visibility buffer refuses the pools by name, heard once, and frees the step', () => {

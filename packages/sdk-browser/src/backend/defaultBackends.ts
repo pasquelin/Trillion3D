@@ -2,6 +2,7 @@ import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.t
 import type { BackendFactory } from './types.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
+import { autonomousCacheReady } from './autonomousCacheReady.ts';
 
 /** What renders when the host named nothing, and why that path and not another. */
 export type BackendChoice = {
@@ -15,11 +16,6 @@ export type BackendChoice = {
   /** Id of the backend that draws, or `null` when the host named the list itself. */
   renderer: string | null;
 };
-
-/** True when the cache carries what the autonomous WebGL2 path reads. */
-function autonomousCacheReady(metadata: ClusterManifest) {
-  return typeof metadata.autonomousScene === 'string' && metadata.autonomousScene.length > 0;
-}
 
 /** A choice before its default: a path is not autonomous unless it says so. */
 type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>;

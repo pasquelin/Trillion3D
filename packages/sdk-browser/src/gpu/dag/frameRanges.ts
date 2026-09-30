@@ -1,11 +1,8 @@
-import { storageBufferCap, uniformStride } from '../../residency/pools.ts';
-import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts';
+import { uniformStride } from '../../residency/pools.ts';
+import { FRAME_VEC4 } from './types.ts';
 import { primitiveWordAt } from './worlds.ts';
 import { dagGroupEntries } from './shader/bindings.ts';
-
-/** Bytes one primitive holds in a camera cut's `frames`: the host's row, then what `dagPrepare`
- *  derives (`shader/primitiveWgsl.ts`), which the host never writes. */
-const PRIMITIVE_BYTES = (FRAME_VEC4 + PRIMITIVE_VEC4) * 16;
+import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts';
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4;
 /** Bytes of one primitive's world matrix in `worlds`. */
@@ -13,24 +10,6 @@ const WORLD_BYTES = 64;
 
 /** Bytes of one range's `frames`; a range holds at least one primitive. */
 export const framesBytes = (count: number) => count * PRIMITIVE_BYTES;
-
-/**
- * THE RANGES A CAMERA CUT'S `frames` IS SPLIT IN on this device. Each primitive holds
- * `PRIMITIVE_BYTES`, and one storage buffer holds and binds at most `storageBufferCap` bytes: past
- * it, one table could be neither created nor bound, and the scene would not draw. So the table is
- * cut into ranges of as many primitives as one buffer holds, each its own buffer and bind group —
- * its `worlds` too, a sixth of its bytes, so the matrices never outgrow a binding either —,
- * and the kernels that read a primitive's words run once per range, each on the primitives of its
- * range (`encode.ts`). A scene the device holds whole is one range: the layout, the kernels
- * (`SPLIT`, `shader/viewsWgsl.ts`) and the dispatches of before.
- */
-function cameraFrameRanges(limits: Parameters<typeof storageBufferCap>[0], worldCount: number) {
-  const per = Math.max(1, Math.floor(storageBufferCap(limits) / PRIMITIVE_BYTES));
-  const ranges: { first: number; count: number }[] = [];
-  for (let first = 0; first < worldCount; first += per)
-    ranges.push({ first, count: Math.min(per, worldCount - first) });
-  return ranges;
-}
 
 /** The `range` words of a `frames` that holds all `worldCount` primitives: a probe's. */
 export const wholeRange = (worldCount: number) => new Uint32Array([0, worldCount, 0, 0]);

@@ -8,22 +8,10 @@
  * the matrix the raster, shading and blend read, never the engine camera — selection,
  * its planes and its screen-error threshold see none of this jitter.
  */
+import { halton } from './halton.ts';
 
 /** Cycle length: eight Halton (2,3) positions, those of the reference. */
 export const TAA_SAMPLES = 8;
-
-/** The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1). */
-function halton(index: number, base: number) {
-  let result = 0,
-    fraction = 1 / base,
-    i = index;
-  while (i > 0) {
-    result += fraction * (i % base);
-    i = Math.floor(i / base);
-    fraction /= base;
-  }
-  return result;
-}
 
 /**
  * Jitter phases of a frame drawn `render` pixels wide and shown `display` wide (FSR 2's phase

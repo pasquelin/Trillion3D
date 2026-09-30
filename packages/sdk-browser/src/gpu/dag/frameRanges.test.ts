@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { framesBytes } from './frameRanges.ts';
+import { storageBufferCap } from '../../residency/pools.ts';
 import { createDagResources } from './resources.ts';
 import { packDagSelection } from './selection.ts';
 import { primitiveWordAt } from './worlds.ts';
@@ -13,6 +14,21 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
+import { cameraFrameRanges } from './cameraRanges.ts';
+
+test('the ranges cover every primitive once, each within one binding', () => {
+  const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 };
+  const ranges = cameraFrameRanges(limits, 1_000_000);
+  assert.equal(ranges.length, Math.ceil(1_000_000 / Math.floor((64 << 20) / 384)));
+  let next = 0;
+  for (const { first, count } of ranges) {
+    assert.equal(first, next, 'no gap, no overlap');
+    assert.ok(framesBytes(count) <= storageBufferCap(limits));
+    next += count;
+  }
+  assert.equal(next, 1_000_000);
+  assert.deepEqual(cameraFrameRanges(limits, 100_000), [{ first: 0, count: 100_000 }]);
+});
 
 /** Forty-eight placements of the fixture's primitive, on a device whose binding holds `per`. */
 async function split(per: number) {

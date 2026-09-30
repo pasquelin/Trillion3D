@@ -10,8 +10,7 @@ import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-
-const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
+import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
 
 /** Every call an object receives, by name, in order. */
 function recorder<T>() {

@@ -1,5 +1,6 @@
 import type { VisMaterial } from '../types.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { SHADOWLESS_ROOT } from './shadowlessRoot.ts';
 
 /**
  * THE SPRITE: where a corner of a sprite's quad (`drawnSprite`, sdk-core `drawnSprite.ts`) stands
@@ -67,9 +68,6 @@ export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
 export const SPRITE_ROOT = 1;
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2;
-/** The root mark's bit on a root whose mesh, or the row placing it, says `castShadow = false`
- *  (`PlacementRows.shadowless`): no light cut opens it either. */
-const SHADOWLESS_ROOT = 4;
 /** The bits of a root that casts no shadow: what every light cut tests (`castsNoShadow`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
