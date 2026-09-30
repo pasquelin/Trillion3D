@@ -139,7 +139,7 @@ export async function createDeferredLighting(
         const colorAttachments: GPURenderPassColorAttachment[] = [
           { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
         ];
-        const source = reflected && reflection.sourceTarget;
+        const source = reflected && reflection.source?.target;
         if (source) colorAttachments.push({ ...colorAttachments[0], view: source });
         const pass = encoder.beginRenderPass({ label: DEFERRED_LIGHTING_PASS, colorAttachments });
         pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
