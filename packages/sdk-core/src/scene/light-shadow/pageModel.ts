@@ -22,7 +22,7 @@ const PCF_EDGE_TEXELS = 1.5;
  * It also decodes an entry back into its page, as the GPU allocator maps it (#1275), and ranks it.
  * The page formulas over `o`, by their WGSL names.
  */
-export function pageModel<V>(o: PageOps<V>, window = SUN_WINDOW) {
+export function pageModel<V>(o: PageOps<V>, windowPages = SUN_WINDOW) {
   const ring = (v: V, n: V) => o.mod(o.add(o.mod(v, n), n), n);
   const texel = (level: V) => o.exp2(o.toFloat(level));
   const page = o.float(SHADOW_PAGE),
@@ -52,9 +52,9 @@ export function pageModel<V>(o: PageOps<V>, window = SUN_WINDOW) {
       o.add(o.mul(ring(y, pages), pages), ring(x, pages)),
     /** Entry of page `(x, y)` of a map `pages` wide, row by row. */
     shadowFacePageEntry: (pages: V, x: V, y: V) => o.add(o.mul(y, pages), x),
-    /** First entry of sun `level`: its slot in the ring of `SUN_LEVELS`, a window `window²` wide. */
+    /** First entry of sun `level`: its slot in the ring of `SUN_LEVELS`, an extent `windowPages²` wide. */
     shadowSunLevelEntry: (level: V) =>
-      o.mul(ring(level, o.int(SUN_LEVELS)), o.int(window * window)),
+      o.mul(ring(level, o.int(SUN_LEVELS)), o.int(windowPages * windowPages)),
     /** First entry of `mip` of lamp `face`: the faces before it, then its finer mips — `S²`, `S²/4`,
      *  … pages, `4 (S² − p²) / 3` together for `p = S >> mip`, exact for a side `S` a power of two. */
     shadowLampMapEntry: (face: V, mip: V) =>
@@ -154,7 +154,7 @@ export const PAGES = /* @__PURE__ */ pageModel(NUMBERS);
 export const ringOf = (v: number, n: number) => PAGES.shadowRing(v, n);
 
 /** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base, for a
- *  clipmap window of `pages` a side — the session's, the constant by default. */
+ *  clipmap extent of `pages` a side — the session's, the constant by default. */
 export const sunEntry = (level: number, ax: number, ay: number, pages = SUN_WINDOW) =>
   PAGES.shadowRing(level, SUN_LEVELS) * pages * pages + PAGES.shadowRingPageEntry(pages, ax, ay);
 

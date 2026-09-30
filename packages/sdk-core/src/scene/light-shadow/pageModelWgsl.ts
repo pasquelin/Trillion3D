@@ -85,17 +85,17 @@ export const PAGE_MODEL_FUNCTIONS = Object.keys(SIGNATURES) as Array<keyof PageM
 
 /**
  * The page model as the shaders compile it (`pageModel.ts`): the layout constants they index
- * with — the sun window a session runs with, the ordinary constant by default —, then one
+ * with — the sun extent a session runs with, the ordinary constant by default —, then one
  * function per formula, each the printed formula the scheduler evaluates.
  */
-export const pageModelWgsl = (window = SUN_WINDOW) => {
-  const printed = pageModel(PAGE_OPS_WGSL, window) as unknown as Record<
+export const pageModelWgsl = (windowPages = SUN_WINDOW) => {
+  const printed = pageModel(PAGE_OPS_WGSL, windowPages) as unknown as Record<
     string,
     (...names: string[]) => string
   >;
   return `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
-const SUN_WINDOW_PAGES:i32=${window};
+const SUN_WINDOW_PAGES:i32=${windowPages};
 const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
 const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
 ${PAGE_MODEL_FUNCTIONS.map((name) => {
@@ -106,5 +106,5 @@ ${PAGE_MODEL_FUNCTIONS.map((name) => {
 }).join('\n')}`;
 };
 
-/** The page model of the ordinary window: what a session without reference mode compiles. */
+/** The page model of the ordinary extent: what a session without reference mode compiles. */
 export const PAGE_MODEL_WGSL = pageModelWgsl();
