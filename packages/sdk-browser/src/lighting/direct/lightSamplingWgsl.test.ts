@@ -19,12 +19,12 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   // moving tile whose list holds no shadowed light reads the tile pass's one-word flag (#1249).
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!tileShadowed\(tile,tilesX\)\)\{return clusterLighting\(rgb,metal,rough,N,V,P,ao,pixel\);\}\s*return sampledTileLighting\(/,
+    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!tileShadowed\(tile,tilesX\)\)\{return clusterLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,pixel\);\}\s*return sampledTileLighting\(/,
   );
-  // The flag is one read of the record, never a walk of its lights: no per-pixel loop remains.
-  assert.match(
-    DIRECT_LIGHTING_WGSL,
-    /fn tileShadowed\(tile:vec2u,tilesX:u32\)->bool\{\s*return tileLights\[\(tile\.y\*tilesX\+tile\.x\)\*TILE_STRIDE\+TILE_SHADOW_BASE\]!=0u;\s*\}/,
+  // The flag is one read of the record beside its count, never a walk of its lights.
+  assert.doesNotMatch(
+    DIRECT_LIGHTING_WGSL.slice(DIRECT_LIGHTING_WGSL.indexOf('fn tileShadowed')).split('\n}')[0],
+    /for\(/,
   );
   assert.doesNotMatch(DIRECT_LIGHTING_WGSL, /listShadowed/);
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
@@ -39,11 +39,11 @@ test('a moving resolve reads the tile pass flag once, never the list, to choose 
   const layout = tileLayout(LIGHT_TILES_SHADER);
   const STRIDE = layout.stride,
     SHADOW = layout.shadowBase;
-  // Two tiles one pixel wide: the second tile's flag word decides the branch, alone.
-  const run = (flag: number) => {
+  // Two tiles one pixel wide: the second tile's count and flag word decide the branch, alone.
+  const run = (flag: number, kept = 8) => {
     const words = new Uint32Array(STRIDE * 2);
     words[0] = 8; // tile 0: a list of 8, between LIGHT_SAMPLES and TILE_LIGHTS
-    words[STRIDE] = 8;
+    words[STRIDE] = kept;
     words[STRIDE + SHADOW] = flag;
     const { contractLighting } = shaderFunctions<{
       contractLighting: (...args: unknown[]) => number;
@@ -59,6 +59,10 @@ test('a moving resolve reads the tile pass flag once, never the list, to choose 
   };
   assert.equal(run(0), 1, 'no shadowed light: the exact full sum the still image shows');
   assert.equal(run(1), 2, 'a shadowed light: the drawn resolve, unchanged');
+  // A list the drawn resolve would sum in full anyway takes the still image's call, as the list
+  // walk it replaces answered (#1290's image ko): within the sample budget, or past the list.
+  assert.equal(run(1, LIGHT_SETTINGS.samplesPerPixel), 1, 'within the budget: the full sum');
+  assert.equal(run(1, LIGHT_SETTINGS.tileLights + 1), 1, 'past the list: the full sum');
 });
 
 test('the tile pass flag marks a list that holds a shadowed light (#1249)', () => {

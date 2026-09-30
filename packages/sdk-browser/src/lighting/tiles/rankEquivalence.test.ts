@@ -150,10 +150,9 @@ test('the narrow pass: masks and light array of one list, no pool (#849)', () =>
   assert.equal(narrow.words * 32, MAX, 'one mask bit per light of a list');
   assert.match(LIGHT_TILES_NARROW_SHADER, new RegExp(`items:array<DirectLight,${MAX}>`));
   assert.match(LIGHT_TILES_NARROW_SHADER, /lightCount=min\(lights\.count,TILE_LIGHTS\);/);
-  assert.doesNotMatch(
-    LIGHT_TILES_NARROW_SHADER,
-    /var<storage,read_write> pool|counted|storageBarrier/,
-  );
+  // No pool; its one storage barrier is the light grid's, which reads the list back (#1249).
+  assert.doesNotMatch(LIGHT_TILES_NARROW_SHADER, /var<storage,read_write> pool|counted/);
+  assert.equal(LIGHT_TILES_NARROW_SHADER.split('storageBarrier()').length - 1, 1);
   // One batch, written straight at its rank: no batch loop, no room to track (#822's shape).
   assert.doesNotMatch(
     LIGHT_TILES_NARROW_SHADER,
