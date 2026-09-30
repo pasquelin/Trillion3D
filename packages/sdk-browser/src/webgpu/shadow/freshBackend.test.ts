@@ -11,7 +11,7 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';

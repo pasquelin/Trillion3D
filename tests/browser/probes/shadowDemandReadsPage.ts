@@ -15,7 +15,7 @@ import {
 } from '../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
 import { writeShadowRecords } from '../../../packages/sdk-browser/src/webgpu/shadow/pages.ts';
 import { createShadowRecordPack } from '../../../packages/sdk-browser/src/gpu/shadow/recordPack.ts';
-import { SHADOW_TABLE_OFFSET } from '../../../packages/sdk-browser/src/gpu/shadow/shadowData.fixture.ts';
+import { SHADOW_TABLE_OFFSET } from '../../../packages/sdk-browser/src/gpu/shadow/atlas.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import {
   createSceneLightContractBuffer,

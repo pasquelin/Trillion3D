@@ -1,11 +1,14 @@
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import {
+  GROUP_BLEND_COMMANDS,
+  GROUP_BLEND_FIRST_WORD,
   GROUP_CAPACITY_WORD,
   GROUP_TABLE_WORDS,
   GROUP_WORDS,
   SHADOW_REGION_INDIRECT_BYTES,
 } from '../../gpu/shadow/batchBudget.ts';
 import { shadowBatchWrites } from '../../gpu/shadow/batchWrites.ts';
+import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
 import { SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -25,10 +28,10 @@ const READ: GPUBufferBindingType = 'read-only-storage',
  * occlusion test, one workgroup per region files its kept places into its group's pairs and counts
  * them into its group's two commands; each pass then draws a group's opaque casters, and its cutout
  * ones, in one indirect draw each, and the transmittance layer's pass its blended ones
- * (`drawBlend`), instead of one each a page. A sun page draws the texels its own viewport drew, to
- * the bit; a lamp page within one ulp of them (`groupPlace.test.ts`). A lamp page on a device that
- * cannot clip by distances, and a batch with no group or without what a group binds, keeps a draw a
- * page (`drawRegionCasters`).
+ * (`drawBlend`) — those of the groups that keep one —, instead of one each a page. A sun page draws
+ * the texels its own viewport drew, to the bit; a lamp page within one ulp of them
+ * (`groupPlace.test.ts`). A batch with no group or without what a group binds keeps a draw a page
+ * (`drawRegionCasters`).
  */
 export async function createShadowMovingGroups(device: GPUDevice) {
   const module = await createCheckedShaderModule(
@@ -37,7 +40,7 @@ export async function createShadowMovingGroups(device: GPUDevice) {
     'SHADOW_GROUP_PAIRS',
   );
   const layout = device.createBindGroupLayout({
-    entries: [READ, READ, READ, WRITE, WRITE].map((type, binding) => ({
+    entries: [READ, READ, READ, WRITE, WRITE, READ, READ].map((type, binding) => ({
       binding,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type },
@@ -56,7 +59,7 @@ export async function createShadowMovingGroups(device: GPUDevice) {
   });
   const args = device.createBuffer({
     label: 'Trillion3D shadow moving group commands v1',
-    size: MAX_SHADOW_REGIONS * SHADOW_REGION_INDIRECT_BYTES,
+    size: (GROUP_BLEND_COMMANDS + MAX_SHADOW_REGIONS * DRAW_INDIRECT_WORDS) * 4,
     usage: storage | GPUBufferUsage.INDIRECT,
   });
   const grouping = createMovingGroupPlan(),
@@ -116,7 +119,10 @@ export async function createShadowMovingGroups(device: GPUDevice) {
       }
       pairGroup ??= device.createBindGroup({
         layout,
-        entries: [table, cull.indirect, visible, args, pairs].map((buffer, binding) => ({
+        entries: [
+          ...[table, cull.indirect, visible, args, pairs],
+          ...[cull.kept, occlusion?.visible ?? cull.kept],
+        ].map((buffer, binding) => ({
           binding,
           resource: { buffer },
         })),
@@ -124,8 +130,10 @@ export async function createShadowMovingGroups(device: GPUDevice) {
       const writes = shadowBatchWrites(device);
       writes.write(table, 0, words, 0, count);
       writes.write(table, MAX_SHADOW_REGIONS * 4, words, MAX_SHADOW_REGIONS, groups * GROUP_WORDS);
-      writes.write(table, GROUP_CAPACITY_WORD * 4, words, GROUP_CAPACITY_WORD, 1);
+      words[GROUP_BLEND_FIRST_WORD] = rt.layout.rows.blendFirst;
+      writes.write(table, GROUP_CAPACITY_WORD * 4, words, GROUP_CAPACITY_WORD, 2);
       encoder.clearBuffer(args, 0, groups * SHADOW_REGION_INDIRECT_BYTES);
+      encoder.clearBuffer(args, GROUP_BLEND_COMMANDS * 4, groups * DRAW_INDIRECT_STRIDE);
       const pass = encoder.beginComputePass({ label: 'Trillion3D shadow moving groups' });
       pass.setPipeline(pairsPass);
       pass.setBindGroup(0, pairGroup);

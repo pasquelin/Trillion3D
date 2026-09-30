@@ -1,6 +1,10 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_FACE_STRIDE, SHADOW_REGION_INDIRECT_BYTES } from '../../gpu/shadow/batchBudget.ts';
+import {
+  GROUP_BLEND_COMMANDS,
+  SHADOW_FACE_STRIDE,
+  SHADOW_REGION_INDIRECT_BYTES,
+} from '../../gpu/shadow/batchBudget.ts';
 import { GROUP_LAYER, GROUP_TESTED } from '../../gpu/shadow/groupWgsl.ts';
 import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -29,10 +33,11 @@ export type MovingGroupsHeld = {
 
 /**
  * THE DRAWS OF A BATCH'S MOVING GROUPS (#1345), into a pool pass and into the transmittance
- * layer's: each group in its block's viewport — its layer's for a lamp (`GROUP_LAYER`), each
- * caster clipped to its page by distances (`SHADOW_GROUP_LAMP_WGSL`) —, side by side (`OPAQUE` to
- * `COLOUR`), a pipeline set when it changes. Group 2 is made once per list kind, and per pool
- * layer for the blended casters, until what it binds changes (`forget`, the one way they go).
+ * layer's: each group in its block's viewport — its layer's for a lamp (`GROUP_LAYER`) —, side by
+ * side (`OPAQUE` to `COLOUR`), a pipeline, a viewport and group 2 set when they change. The blended
+ * sides draw each group's blended command, which draws nothing for a group of opaque casters alone
+ * (`SHADOW_GROUP_PAIRS_WGSL`). Group 2 is made once per list kind, and per pool layer for the
+ * blended casters, until what it binds changes (`forget`, the one way they go).
  */
 export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld) {
   /** Group 2 of the draws by list kind, then of the blended ones by pool layer and kind. */
@@ -92,25 +97,37 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
       scale = side < DEPTH ? 1 : 2,
       texels = rt.lights.plan.pool.side * SHADOW_PAGE,
       sunBlock = groupBlockSide(texels),
-      offset = side === CUTOUT ? DRAW_INDIRECT_STRIDE : 0;
+      blended = side >= DEPTH;
     let drawn = 0,
-      bound: GPURenderPipeline | undefined;
+      bound: GPURenderPipeline | undefined,
+      viewport = -1,
+      group: GPUBindGroup | undefined;
     for (let g = 0; g < held.groups; g++) {
       if (passOf[g] !== k) continue;
       const bits = bitsOf[g],
         block = bits & GROUP_LAYER ? texels : sunBlock,
         x = (bits & 1 ? texels - block : 0) / scale,
         y = (bits & 2 ? texels - block : 0) / scale,
-        pipeline = pipelineOf(rt, side, !!(bits & GROUP_LAYER));
-      pass.setViewport(x, y, block / scale, block / scale, 0, 1);
-      pass.setScissorRect(x, y, block / scale, block / scale);
+        pipeline = pipelineOf(rt, side, !!(bits & GROUP_LAYER)),
+        lists = groupOf(rt, side, bits & GROUP_TESTED ? 1 : 0, at);
+      // A group's viewport is one of five: its block's corner bits, or its whole layer.
+      if ((bits & (GROUP_LAYER | 3)) !== viewport) {
+        viewport = bits & (GROUP_LAYER | 3);
+        pass.setViewport(x, y, block / scale, block / scale, 0, 1);
+        pass.setScissorRect(x, y, block / scale, block / scale);
+      }
       if (first && !drawn) {
         pass.setBindGroup(0, shadowPageGroup(rt, device)!);
         pass.setBindGroup(1, rt.lights.shadows!.faceGroup, [0]);
       }
       if (pipeline !== bound) pass.setPipeline((bound = pipeline));
-      pass.setBindGroup(2, groupOf(rt, side, bits & GROUP_TESTED ? 1 : 0, at));
-      pass.drawIndirect(held.args, g * SHADOW_REGION_INDIRECT_BYTES + offset);
+      if (lists !== group) pass.setBindGroup(2, (group = lists));
+      pass.drawIndirect(
+        held.args,
+        blended
+          ? GROUP_BLEND_COMMANDS * 4 + g * DRAW_INDIRECT_STRIDE
+          : g * SHADOW_REGION_INDIRECT_BYTES + (side === CUTOUT ? DRAW_INDIRECT_STRIDE : 0),
+      );
       drawn++;
     }
     return drawn;

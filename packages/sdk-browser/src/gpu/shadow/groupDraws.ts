@@ -1,6 +1,7 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { casterPrimitive } from './casterPrimitive.ts';
+import { clipsLampGroups } from './depthModule.ts';
 import { shadowTransmittanceDraws, transmittanceGroupLayout } from './transmittanceDraws.ts';
 
 /** Group 2's bindings of the moving groups' draws (`groupWgsl.ts`): the faces, read at the
@@ -15,16 +16,17 @@ const BINDINGS = [4, 5, 6, 7];
  * (`shadowTransmittanceDraws`) from the group's entries, against the pool's depth (binding 0 of
  * `blendLayout`). Group 0 is the page rows the GPU pages' draws bind (`pageLayout`,
  * `freshDraws.ts`), group 1 the faces', group 2 its own (`layout`, `blendLayout`). A lamp group's
- * draws the same from their clipped vertex entries (`SHADOW_GROUP_LAMP_WGSL`), made when the device
- * clips by distances (`lamps`). Compiled off the frame by `prepare` and `prepareBlend`, or at their
- * first use (`preparedPipeline`).
+ * draws are the sun's, or, where the device clips by distances (`lamps`), their clipped vertex
+ * entries (`SHADOW_GROUP_LAMP_WGSL`), which spare the overdraw past the page the fragment discards.
+ * Compiled off the frame by `prepare` and `prepareBlend`, or at their first use
+ * (`preparedPipeline`).
  */
 export function shadowGroupDraws(
   device: GPUDevice,
   module: GPUShaderModule,
   pageLayout: GPUBindGroupLayout,
   faceLayout: GPUBindGroupLayout,
-  lamps = false,
+  lamps = clipsLampGroups(device),
 ) {
   const entries = BINDINGS.map((binding) => ({
     binding,
@@ -60,23 +62,21 @@ export function shadowGroupDraws(
     made: undefined as { opaque: GPURenderPipeline; cutout: GPURenderPipeline } | undefined,
     blended: undefined as readonly [GPURenderPipeline, GPURenderPipeline] | undefined,
   });
-  // A sun group's draws; a lamp group's where the device clips each caster to its page.
+  // A sun group's draws; a lamp group's own where the device clips each caster to its page.
   const kinds = [kind('group'), ...(lamps ? [kind('group_lamp')] : [])];
   return {
     layout,
     blendLayout,
-    /** Whether lamp pages are grouped: the device clips their casters to their pages. */
-    lamps,
     prepare: () => Promise.all(kinds.flatMap((k) => [k.opaque.prepare(), k.cutout.prepare()])),
     prepareBlend: () => Promise.all(kinds.map((k) => k.blend.prepare())),
     /** The opaque and cutout draws of a sun's group, or a lamp's (`lamp`). */
     made: (lamp = false) => {
-      const k = kinds[+lamp];
+      const k = kinds[+lamp] ?? kinds[0];
       return (k.made ??= { opaque: k.opaque.get(), cutout: k.cutout.get() });
     },
     /** The transmittance layer's two draws of a sun's group or a lamp's, depth then colour. */
     blended: (lamp = false) => {
-      const k = kinds[+lamp];
+      const k = kinds[+lamp] ?? kinds[0];
       return (k.blended ??= k.blend.made().draws);
     },
   };

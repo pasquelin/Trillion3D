@@ -12,7 +12,6 @@ import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { DRAWN_HOST } from './poolDrawn.ts';
 import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
-import { writeShadowTable } from '../../gpu/shadow/shadowData.ts';
 
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
 const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
@@ -84,8 +83,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     /** Pairs the latest snapshot's frame counted, kept or not: what the kept list grows to
      *  (`pairGrowth.ts`). */
     pairNeed: 0,
-    /** The GPU pool and its table as the host's `plan` holds them now: into `data`'s table. */
-    seed(plan: ShadowPlan, data: GPUBuffer) {
+    /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
+    seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
       const { pool, records, table } = plan,
         at = (field: (typeof POOL_FIELDS)[number]) => POOL_FIELDS.indexOf(field) * pages;
       fields.set(pool.owner, at('owner'));
@@ -100,7 +99,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       fields.fill(DRAWN_HOST, at('drawnBy'), at('drawnBy') + pages);
       device.queue.writeBuffer(state, 0, new Uint32Array(POOL_COUNTS.length));
       device.queue.writeBuffer(state, POOL_COUNTS.length * 4, fields);
-      writeShadowTable(device.queue, data, table, 0, table.heldEntries);
+      device.queue.writeBuffer(data, tableOffset, table.words);
       allocation.seeded = true;
     },
     /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the
@@ -151,7 +150,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       };
       flush((first, runs) => {
         // The whole table: every page the host maps, once.
-        if (runs === table.heldEntries)
+        if (runs === table.entries)
           for (let page = 0; page < pool.pages; page++) {
             if (pool.owner[page] >= 0) send(pool.owner[page]);
           }
