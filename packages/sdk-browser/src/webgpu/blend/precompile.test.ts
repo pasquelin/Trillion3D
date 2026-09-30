@@ -22,7 +22,7 @@ function items(blendings: (number | undefined)[], transmissive: boolean[] = []) 
 }
 
 test('the declared modes are normal, then every mode a non-transmissive item names, in rank', () => {
-  assert.deepEqual(declaredBlendModes([]), ['normal']);
+  assert.deepEqual(declaredBlendModes([]), [], 'no transparent item, no blend program (#1362)');
   const all = items([...BLEND_MODES].reverse().map(hostBlending));
   assert.deepEqual(declaredBlendModes(all), BLEND_MODES);
   const glass = items([hostBlending('additive'), hostBlending('multiply')], [true, false]);
@@ -58,8 +58,8 @@ test('a precompiled mode is drawn without a compile; a mode a draw compiled firs
 test('the fallback pass precompiles, off the frame, the very pipeline a draw would compile', async () => {
   const lazy = fakeDevice(),
     eager = fakeDevice();
-  const drawnLazily = createWebgpuPagesPipelines(lazy.device, 256).pipelineBlend;
-  const precompiled = createWebgpuPagesPipelines(eager.device, 256).pipelineBlend;
+  const drawnLazily = (await createWebgpuPagesPipelines(lazy.device, 256)).pipelineBlend;
+  const precompiled = (await createWebgpuPagesPipelines(eager.device, 256)).pipelineBlend;
   const modes = declaredBlendModes(items(BLEND_MODES.map(hostBlending)));
   await precompiled.precompile(modes);
   const compiledAtPrepare = eager.renderPipelines.length;

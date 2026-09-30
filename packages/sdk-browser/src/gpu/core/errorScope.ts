@@ -42,15 +42,25 @@ export async function validationScope<T>(
   return { value, error: await device.popErrorScope() };
 }
 
-/** What `build` made, or `undefined` when it made nothing or the device refused part of it. */
+/** What `build` made, or `undefined` when it made nothing or the device refused part of it — a
+ *  pipeline compiled off the thread is refused by its promise, not in the scope. */
 export async function validated<T>(
   device: GPUDevice,
   build: () => T | undefined | Promise<T | undefined>,
   filter: GPUErrorFilter = 'validation',
 ): Promise<T | undefined> {
-  const { value, error } = await validationScope(device, build, filter);
-  return error ? undefined : value;
+  try {
+    const { value, error } = await validationScope(device, build, filter);
+    return error ? undefined : value;
+  } catch (error) {
+    if (pipelineRefused(error)) return undefined;
+    throw error;
+  }
 }
+
+/** A pipeline the device refused to compile off the thread (`GPUPipelineError`). */
+const pipelineRefused = (error: unknown) =>
+  typeof GPUPipelineError !== 'undefined' && error instanceof GPUPipelineError;
 
 /**
  * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and

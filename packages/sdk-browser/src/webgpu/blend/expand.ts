@@ -3,6 +3,7 @@ import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts';
 import { namedBufferEntries } from '../../gpu/core/computeBindings.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
 import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS, UNI_WORDS } from './runs.ts';
 
@@ -133,8 +134,11 @@ export async function createBlendExpand(
       if (await shaderFailed(module)) return undefined;
       const layout = device.createBindGroupLayout({ entries: blendExpandBindEntries() });
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-      const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
-        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
+      // Compiled together, off the thread (#1362).
+      const pipelines = await Promise.all(
+        BLEND_EXPAND_ENTRIES.map((entryPoint) =>
+          buildComputePipeline(device, { layout: pipelineLayout, compute: { module, entryPoint } }),
+        ),
       );
       // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
       // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
