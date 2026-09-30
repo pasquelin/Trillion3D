@@ -69,6 +69,7 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
     'browser',
     CAMERA,
   ),
+  gap('ViewTile', 'type', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser', CAMERA),
   gap('materialSide', 'value', 'packages/sdk-browser/src/scene/materialSide.ts', 'browser', ENUMS),
   gap(
     'normalizedLinearDeterminant',

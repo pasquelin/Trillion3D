@@ -19,7 +19,7 @@ export function shadowTableHostBytes(poolPages: number, entries = ENTRIES) {
  * The words are the GPU buffer's mirror, and a frame uploads only the words it changed, grouped
  * in contiguous runs. Each slice owns a fixed span of `SHADOW_TABLE_STRIDE` words, the largest
  * range a light needs: a light's range starts at its slice's span, so every slice finds room and
- * no shadow light is ever denied for want of table. The window is the session's: a reference one
+ * no shadow light is ever denied for want of table. The extent is the session's: a reference one
  * raises it (`referenceMode.ts`), the ordinary constant by default.
  */
 export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
