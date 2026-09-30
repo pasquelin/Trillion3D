@@ -24,8 +24,9 @@ const poissonWgsl = (name: string, scale: number) =>
 /**
  * The PCF's tap count and taps, a texel apart: also the PCSS disk's (`lampSoftWgsl.ts`), whose
  * pages the per-pixel demand marks (`../../webgpu/shadow/demandWgsl.ts`). The same every image,
- * as the reference engine's filtered virtual shadow map lookups: no per-frame turn, so nothing the TAA must
- * average away; its jitter moves the receiver's sample over the pixel, which the history filters.
+ * as the reference engine's filtered (PCF) virtual shadow map lookup — unlike its SMRT, whose per-frame random
+ * rays TSR denoises, nothing here is left for the TAA to average; its jitter moves the receiver's
+ * sample over the pixel, which the history filters.
  */
 export const PCF_TAPS_WGSL = `const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const POISSON_RADIUS:f32=${POISSON_RADIUS};

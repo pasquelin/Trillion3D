@@ -2,7 +2,7 @@
  * The view's `jitter` words (`VIEW_WGSL`) of an image the TAA jitters by `jitter` pixels
  * (`taaJitter`), or of one it does not (`null`): where the jitter moved the image, in pixels, rows
  * down — what `pixelLevel` takes back out —, then two zero words. No shadow filter turns with the
- * phase (#1363): its taps are the same every image, as the reference engine's filtered lookups. Written `into`
+ * phase (#1363): its taps are the same every image, as the reference engine's filtered (PCF) lookups. Written `into`
  * at word `at`: the view's own words, a frame allocates nothing.
  */
 export function shadowJitterWords<T extends { [word: number]: number } = number[]>(
