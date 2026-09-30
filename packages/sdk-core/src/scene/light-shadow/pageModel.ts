@@ -8,6 +8,8 @@ import {
   SHADOW_PAGE,
   SUN_LEVELS,
   SUN_WINDOW,
+  shadowEntrySpan,
+  shadowTableEntries,
 } from './virtual.ts';
 
 /** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
@@ -141,7 +143,7 @@ export function pageModel<V>(o: PageOps<V>, windowPages = SUN_WINDOW) {
     shadowPcfStep: (t: V, first: V) =>
       o.pick(o.ge(o.sub(t, first), o.float(SHADOW_PAGE / 2)), o.int(1), o.int(-1)),
     ...pageViewModel(o),
-    ...pageKeyModel(o),
+    ...pageKeyModel(o, shadowEntrySpan(shadowTableEntries(windowPages))),
   };
 }
 

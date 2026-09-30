@@ -1,6 +1,7 @@
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { linearToSrgb8, srgbToLinear } from '../../../sdk-core/src/math/primitives/color.ts';
 import type { ViewTile } from '../camera/engineCamera.ts';
+import { devicePixels } from '../backend/common.ts';
 
 /**
  * THE TILED SUPERSAMPLING OF THE REFERENCE (#1281). A frame drawn at `factor` samples per output
@@ -49,8 +50,8 @@ export function referenceTilePlan(
   factor = REFERENCE_TILE_FACTOR,
   maxTiles = REFERENCE_MAX_TILES,
 ): ReferenceTilePlan {
-  const outW = Math.max(1, Math.floor(width * pixelRatio)),
-    outH = Math.max(1, Math.floor(height * pixelRatio));
+  const outW = Math.max(1, devicePixels(width, pixelRatio)),
+    outH = Math.max(1, devicePixels(height, pixelRatio));
   let samples = Math.max(1, Math.floor(factor)),
     cols: number,
     rows: number;
@@ -148,10 +149,21 @@ export function placeTile(
     );
 }
 
+/** Refuses a reference drawn from a shadow pool the device shrank (`shadowResolutionBias` above
+ *  0): such an image never passes for the reference. */
+export function assertFullShadowPool(bias: number | null | undefined) {
+  if (bias)
+    throw new EngineError(
+      'REFERENCE_SHADOWS_REDUCED',
+      'The shadow pool runs below its full size: no reference image is drawn from it',
+      { shadowResolutionBias: bias },
+    );
+}
+
 /**
  * The reference image drawn by the engine's own captures: one `captureView` per tile, the camera
  * carrying the tile's projection, each result box-filtered and placed in linear light. Refused
- * while the shadow pool runs below its full size (the same barrier as `referenceCapture`).
+ * while the shadow pool runs below its full size (`assertFullShadowPool`).
  */
 export function referenceTilesCapture(
   captureView: (width: number, height: number) => Promise<Uint8Array>,
@@ -160,13 +172,7 @@ export function referenceTilesCapture(
   shadowBias: () => number | null | undefined,
 ) {
   return async () => {
-    const bias = shadowBias();
-    if (bias)
-      throw new EngineError(
-        'REFERENCE_SHADOWS_REDUCED',
-        'The shadow pool runs below its full size: no reference image is drawn from it',
-        { shadowResolutionBias: bias },
-      );
+    assertFullShadowPool(shadowBias());
     const out = new Uint8Array(plan.width * plan.height * 4);
     for (const tile of plan.tiles) {
       const target = tile.width * plan.factor;
