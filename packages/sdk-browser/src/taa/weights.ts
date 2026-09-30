@@ -17,6 +17,13 @@ function blackmanHarris(distance: number) {
   return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x);
 }
 
+/** The same window in WGSL, for the still image drawn below the display (`upscaleWgsl.ts`). */
+export const BLACKMAN_HARRIS_WGSL = `
+fn blackmanHarris(d:f32)->f32{
+ let x=clamp(d,0.0,1.0)*${Math.PI}+${Math.PI};
+ return 0.35875-0.48829*cos(x)+0.14128*cos(2.0*x)-0.01168*cos(3.0*x);
+}`;
+
 /**
  * Write the nine normalised weights at `out[at..]`, from jitter `(jx, jy)` in pixels. A
  * point that lands at the centre of a pixel of the shifted image would, without jitter, be `jx`
