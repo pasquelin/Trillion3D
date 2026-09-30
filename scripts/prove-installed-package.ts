@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Metafile } from 'esbuild';
 import { evidenceSummary, installedEvidence } from './installed-package-evidence.ts';
@@ -50,7 +50,8 @@ try {
     built = currentCompilerExecutable(undefined, {});
   }
   const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, root, fixture);
-  const { filename: archive } = packed;
+  const archive = join(fixture, basename(packed.filename)); // where the CDN proof unpacks it
+  if (release) writeFileSync(archive, readFileSync(packed.filename));
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
   // The consumer installs the package alone: since #275 it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
