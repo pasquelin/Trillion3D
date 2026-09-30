@@ -12,10 +12,8 @@
 //   tests/browser/probes/lighting-normal-small-scale.ts
 import assert from 'node:assert/strict';
 import { NORMAL_TRANSFORM_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
-import {
-  INVERSE_TRANSPOSE_BEFORE_WGSL,
-  INVERSE_TRANSPOSE_WGSL,
-} from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts';
 import { campagne, construireCas, ecart, luminance } from './lightingNormalCases.ts';
 import type { CasNormale } from './lightingNormalCases.ts';
 import { eclairageGpu } from './lightingNormalGpu.ts';
@@ -30,7 +28,7 @@ if (import.meta.main) {
     livre: INVERSE_TRANSPOSE_WGSL,
     before: INVERSE_TRANSPOSE_BEFORE_WGSL,
     name: 'NORMAL_TRANSFORM_WGSL (standardLighting.ts)',
-    origine: 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
+    origine: 'packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts',
     marqueur: 'abs(det)<1e-20',
   });
 

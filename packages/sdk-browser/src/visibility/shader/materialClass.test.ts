@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  CLASS_DEPTH_UNITS,
-  CLASS_FEATURE,
-  MATERIAL_CLASS_KEYS,
-  MATERIAL_CLASS_WGSL,
-  materialClassKey,
-} from './materialClass.ts';
+import { MATERIAL_CLASS_KEYS, MATERIAL_CLASS_WGSL, materialClassKey } from './materialClass.ts';
 import {
   FLAG_HAS_COLOR,
   FLAG_HAS_MAP,
@@ -19,6 +13,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts';
 import { createWebgpuShadePipelines } from '../../webgpu/visibility/pipelines.ts';
+import { CLASS_DEPTH_UNITS, CLASS_FEATURE } from './classWords.ts';
 
 const noMaps = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 };
 const { HAS_UV, HAS_MAP, HAS_MASK, HAS_ROUGH, HAS_NORMAL_MAP, HAS_VERTEX_NORMAL } = CLASS_FEATURE;

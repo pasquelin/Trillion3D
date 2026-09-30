@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { colorBytesPerSample } from './colorBytes.ts';
+import { colorBytesPerSample } from './colorBytes.fixture.ts';
 
 test('colour bytes per sample follow WebGPU: each cost aligned to its own alignment, in order', () => {
   // An 8-bit four-channel target costs 8; a 32-bit one aligns to 4 after an 8-bit one.

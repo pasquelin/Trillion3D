@@ -24,16 +24,6 @@ export const PAGE_FOOTPRINT_EMPTY = 2 ** (4 * PAGE_FOOTPRINT_EDGE_BITS) - 1;
  *  its texel — the one thing a readback says of a texel. Above every table entry. */
 export const SHADOW_REQUEST_MISS = 2 ** 31;
 
-/** The footprint of the texels `[x0, x1] × [y0, y1]` of a page, relative to its first texel —
- *  a rectangle not empty —, widened outward to whole steps and clamped to the page. */
-export function pageFootprint(x0: number, y0: number, x1: number, y1: number) {
-  const last = 2 ** PAGE_FOOTPRINT_EDGE_BITS - 1,
-    bits = PAGE_FOOTPRINT_EDGE_BITS;
-  const low = (v: number) => clamp(Math.floor(v / PAGE_FOOTPRINT_STEP), 0, last);
-  const high = (v: number) => clamp(last + 1 - Math.ceil(v / PAGE_FOOTPRINT_STEP), 0, last);
-  return low(x0) | (low(y0) << bits) | (high(x1) << (2 * bits)) | (high(y1) << (3 * bits));
-}
-
 /** The footprint covering both `a` and `b`: each edge the fewer steps in. */
 export function footprintUnion(a: number, b: number) {
   let union = 0;

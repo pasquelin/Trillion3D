@@ -4,12 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
+import { chooseBackends } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import { referenceBackend } from '../../../../bench/witnesses/referenceBackend.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
+import { autonomousCacheReady } from './autonomousCacheReady.ts';
 
 const cache = (autonomousScene: string | null) =>
   ({ autonomousScene, primitives: [] }) as unknown as ClusterManifest;

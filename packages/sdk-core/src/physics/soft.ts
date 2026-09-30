@@ -5,6 +5,7 @@ import { readPoints } from '../world/geometry/bounds.ts';
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts';
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts';
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
+import { softSettings } from './softSettings.ts';
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
  *  a volume (its closed triangles, held up by the gas inside). */
@@ -98,21 +99,6 @@ export const softOf = (option: PhysicsOption) =>
   typeof option === 'object' && isSoftType(option.type)
     ? softSettings(option as SoftBodyOptions)
     : null;
-
-/** Reads a soft body's options, refusing a value out of its range. */
-export function softSettings(o: SoftBodyOptions): SoftSettings {
-  const rigid = o as unknown as PhysicsBodyOptions;
-  for (const name of ['shape', 'sensor', 'ccd', 'decorative'] as const)
-    if (rigid[name] !== undefined) throw new RangeError(`A soft body takes no ${name}.`);
-  if (rigid.damping?.angular !== undefined)
-    throw new RangeError('A soft body takes no angular damping: its vertices do not turn.');
-  const { pins = [], mass, stretch = 0, bend = Infinity } = o;
-  const pressure = o.type === 'volume' ? o.pressure : 0;
-  for (const [name, value] of Object.entries({ stretch, bend, mass, pressure }))
-    if (value !== undefined && !(value >= 0))
-      throw new RangeError(`A soft body's ${name} is 0 and up: ${value}.`);
-  return { type: o.type, pins: [...pins], mass, stretch, bend, pressure };
-}
 
 /** A soft body ready for the SOFT command, and how the geometry's vertices map onto its own. */
 export interface SoftRecord {

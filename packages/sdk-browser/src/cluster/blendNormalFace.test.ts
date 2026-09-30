@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, SHADE_SHADER } from '../visibility/buffer.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
+import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 /**
  * The two shaders and how each tests the two material bits: blend reads its flat flags word per

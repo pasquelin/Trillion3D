@@ -1,4 +1,5 @@
 import type { createGpuPageReader } from './reader.ts';
+import { type EvictionOrder } from './evictionOrder.ts';
 
 /** One page held in the GPU page pool. */
 export interface ResidentPage {
@@ -13,8 +14,6 @@ export interface ResidentPage {
   /** How many times its slot was reused. */
   generation: number;
 }
-/** An eviction order, its keys read one at a time as victims are taken. */
-export type EvictionOrder = { readonly count: number; keyAt(at: number): string };
 export type GpuPageContext = {
   device: GPUDevice;
   pageBytes: number;

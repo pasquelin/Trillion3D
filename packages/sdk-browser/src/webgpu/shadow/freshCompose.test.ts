@@ -14,6 +14,7 @@ import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
   LAMP,
+  SHADOW_TABLE_STRIDE,
   SUN,
   VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
@@ -21,11 +22,10 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
   SHADOW_PAGE,
-  SHADOW_TABLE_STRIDE,
   pageOrigin,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACE_STRIDE } from '../../gpu/shadow/batchBudget.ts';
-import { SHADOW_FACE_READ_WORDS, createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
+import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import {
   FRESH_CLEAR,
   FRESH_FACE_WORDS,
@@ -38,8 +38,9 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
-import { DRAWN_GPU } from './poolWgsl.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
+import { DRAWN_GPU } from './poolDrawn.ts';
+import { SHADOW_FACE_READ_WORDS } from '../../gpu/shadow/faceReadWords.ts';
 
 const SIDE = 16;
 const close = (gpu: number, host: number, what: string) =>

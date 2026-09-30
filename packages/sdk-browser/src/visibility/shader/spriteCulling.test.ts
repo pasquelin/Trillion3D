@@ -6,7 +6,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { dagCulling } from '../../page/selection/helpers.fixture.ts';
 import { cpuUrls, kernelUrls, packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
-import { DAG_SELECTION_SHADER } from '../../gpu/dag/selection.ts';
+import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts';
 import { neverCulled, spriteMark } from './spriteWgsl.ts';
 

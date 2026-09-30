@@ -1,16 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import { CATMULL_ROM_WGSL, CURRENT_SHARE_WGSL, REACTIVE_MAX } from './historyWgsl.ts';
-import { AS_IS_SHARE_SHADER, REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
-import { blendTargets } from '../webgpu/blend/pipelines.ts';
-import { PARTICLE_DRAW_WGSL, particleTargets } from '../particles/webgpuParticleDraw.ts';
+import { CATMULL_ROM_WGSL, CURRENT_SHARE_WGSL } from './historyWgsl.ts';
+import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTaaFrameState } from './frameState.ts';
 import { writeTaaView } from './view.ts';
 import type { EngineCamera } from '../camera/world.ts';
+import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
+import { AS_IS_SHARE_SHADER } from '../lighting/deferred/asIsShareWgsl.ts';
+import { REACTIVE_MAX } from './reactive.ts';
+import { blendTargets } from '../webgpu/blend/blendTargets.ts';
+import { particleTargets } from '../particles/particleTargets.ts';
+import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts';
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number };
 const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {});
