@@ -37,10 +37,13 @@ export function askedPages(plan: ShadowPlan) {
 export const demandPoolPages = (asked: number) =>
   Math.max(SEED_POOL_PAGES, Math.ceil(2 * HEADROOM * asked));
 
-/** What the pool follows between reports: the last report weighed, how many in a row asked for a
- *  pool half as large, the most they asked, whether the last one asked more than the pool
- *  holds (`over`), and whether a report sized the pool yet (`sized`). */
-export const createPoolDemand = () => ({ latest: -1, low: 0, peak: 0, over: false, sized: false });
+/** What the pool follows between reports: the last report weighed and the pages it asked, how
+ *  many in a row asked for a pool half as large, the most they asked, whether the last one asked
+ *  more than the pool holds (`over`), and whether a report sized the pool yet (`sized`). */
+export const createPoolDemand = () => ({
+  ...{ latest: -1, read: -1, low: 0, peak: 0 },
+  ...{ over: false, sized: false },
+});
 export type PoolDemand = ReturnType<typeof createPoolDemand>;
 
 /**
@@ -48,8 +51,10 @@ export type PoolDemand = ReturnType<typeof createPoolDemand>;
  * The first report sizes the pool granted before it — the budget's, no demand yet — to what it
  * asked. Then it grows as soon as a report asks more than half of it — the two reports it holds
  * would not fit —, and shrinks once `SHRINK_REPORTS` reports in a row asked for a pool at most half
- * as large, to the most they asked; or at once under a view at rest (`resting`), which asks what
- * it will keep asking and sends no report once its image holds. Each report is weighed once.
+ * as large, to the most they asked; or at once under a view at rest (`resting`) whose report asks
+ * as many pages as the one before — a scene at rest, which asks what it will keep asking and sends
+ * no report once its image holds; a moving world under a still camera asks more, then fewer. Each
+ * report is weighed once.
  */
 export function followDemand(plan: ShadowPlan, demand: PoolDemand, resting = false) {
   const latest = plan.requests.latest;
@@ -59,7 +64,9 @@ export function followDemand(plan: ShadowPlan, demand: PoolDemand, resting = fal
     pages = plan.pool.pages,
     wanted = demandPoolPages(asked);
   demand.over = 2 * asked > pages;
-  if (!demand.sized || (resting && 2 * wanted <= pages)) {
+  const quiet = resting && asked === demand.read;
+  demand.read = asked;
+  if (!demand.sized || (quiet && 2 * wanted <= pages)) {
     demand.sized = true;
     demand.low = demand.peak = 0;
     return wanted;
