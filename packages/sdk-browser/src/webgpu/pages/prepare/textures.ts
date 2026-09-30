@@ -18,22 +18,22 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/tileTexture.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 
-/** Tiles each lane's textures would hold at full residency: their tails and streamed entries. The
- *  white fill (slot 0) of an atlas that never took a map asks none: no layer is allocated before
- *  the first map, the fill read from the white stand-in meanwhile (`lanes.ts`). */
-export const laneDemand = (textures: readonly TileTexture[]) => {
-  const demand = laneCounts();
-  if (textures.length === 1) return demand;
-  for (const texture of textures)
-    if (!texture.retired) demand[texture.lane] += 1 + texture.layout.entries;
-  return demand;
+/** `each` of the live textures, summed per lane. The white fill (slot 0) never opens a lane: it
+ *  counts only in one a map opens, read from the white stand-in otherwise (`lanes.ts`), so no
+ *  layer is allocated before the first map. */
+const perLane = (textures: readonly TileTexture[], each: (texture: TileTexture) => number) => {
+  const counts = laneCounts(),
+    [fill] = textures;
+  for (const texture of textures.slice(1))
+    if (!texture.retired) counts[texture.lane] += each(texture);
+  if (fill && counts[fill.lane]) counts[fill.lane] += each(fill);
+  return counts;
 };
+/** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
+export const laneDemand = (textures: readonly TileTexture[]) =>
+  perLane(textures, (texture) => 1 + texture.layout.entries);
 /** Textures per lane: the tails the pool keeps resident whole, one tile each. */
-export const laneTails = (textures: readonly TileTexture[]) => {
-  const tails = laneCounts();
-  for (const texture of textures) if (!texture.retired) tails[texture.lane]++;
-  return tails;
-};
+export const laneTails = (textures: readonly TileTexture[]) => perLane(textures, () => 1);
 
 /** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
 export const catalogueReport = (textures: readonly TileTexture[]) => ({
