@@ -3189,6 +3189,13 @@
   "ScreenErrorVariant": {
     "summary": "클러스터의 화면 오차가 어떻게 측정되는가: 증명된 상한인지, 참조 공식인지."
   },
+  "ShadowAsks": {
+    "summary": "호스트가 GPU 할당자에게 요청하는 항목으로, 픽셀이 요청하는 것(`floors`)과는 별개입니다.",
+    "members": {
+      "entries": "요청된 항목이며, 기껏해야 처음 `count`개입니다.",
+      "count": "`entries` 중 채워진 개수입니다."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "그림자 아틀라스 읽기가 공개하는 것: 그 크기, 거기에 쓰인 것, 그 지문.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "조명의 셰이딩이 읽는 그림자 레코드의 float 값: 램프 면 행렬 6개 — 태양은 그곳에 깊이 범위들, 각각 `zNear, zFar`(`recordPack.ts`) —, 다음 태양의 광평면 좌표계 — `right, zNear`, `up, zFar`, `axis`, 그리고 현재 범위의 슬롯 —, 다음 각 클립맵 슬롯의 창 원점을 정수 두 개로, 다음 헤더 `vec4f`: 면(램프) 또는 레벨(태양), 램프의 탄젠트 반화각 또는 태양의 가장 세밀한 레벨, 램프의 근평면, 레코드의 페이지 테이블 첫 항목."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "한 프레임 할당 후 GPU 할당자의 풀입니다(`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "각 물리 페이지가 매핑하는 항목이며, 빈 페이지는 −1입니다.",
+      "requested": "각 페이지가 마지막으로 요청된 프레임입니다.",
+      "allocated": "그 프레임이 매핑한 페이지와, 페이지가 없었던 항목입니다.",
+      "refused": "그 프레임에 페이지가 없었던 항목입니다.",
+      "drawn": "그 프레임이 GPU가 그리도록 나열한 페이지입니다(`listDraw`).",
+      "listings": "풀의 시작 이후 모든 프레임이 나열한 페이지입니다. 어떤 프레임의 목록과도 함께 움직이며, 자체 스냅샷이 유실되었든 아니든 그렇습니다."
+    }
   },
   "ShadowRequestReport": {
     "summary": "셰이딩이 한 프레임에 읽은 것: 요청한 테이블 항목, 순서 없음.",

@@ -20,6 +20,7 @@ function gap(
 
 const CAMERA = 'site/content/entries/camera.ts';
 const ENUMS = 'site/content/entries/enumsRuntime.ts';
+const INTERNALS = 'site/content/entries/internals.ts';
 const MATRIX = 'site/content/entries/matrix.ts';
 
 export const DOCUMENTED_GAPS: ExportRow[] = [
@@ -77,6 +78,20 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
     MATRIX,
   ),
   gap('readCameraWorld', 'value', 'packages/sdk-browser/src/camera/world.ts', 'browser', CAMERA),
+  gap(
+    'ShadowAsks',
+    'type',
+    'packages/sdk-core/src/scene/light-shadow/requests.ts',
+    'core',
+    INTERNALS,
+  ),
+  gap(
+    'ShadowPoolSnapshot',
+    'type',
+    'packages/sdk-core/src/scene/light-shadow/mirror.ts',
+    'core',
+    INTERNALS,
+  ),
   gap('sideOf', 'value', 'packages/sdk-browser/src/scene/materialSide.ts', 'browser', ENUMS),
   gap(
     'writeEngineCamera',
