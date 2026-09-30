@@ -37,7 +37,6 @@ const catalogue = (): PageRec[] => {
       declaration: [],
       placementIndex: 0,
       renderOrder: 0,
-      attached: true,
     });
   return pages;
 };

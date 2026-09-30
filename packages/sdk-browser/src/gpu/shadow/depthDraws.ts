@@ -1,5 +1,6 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { casterPrimitive } from './casterPrimitive.ts';
 
 /**
  * The pool's three draws of a region's casters (#965), one pipeline layout and the depth shader's
@@ -14,10 +15,9 @@ export function shadowDepthDraws(
   layout: GPUPipelineLayout,
 ) {
   // A near or far plane the hardware clips a sun caster against mints unsnapped corners from the
-  // snapped ones, whose sum with the pool origin rounds differently at each origin (#26). Depth
-  // clipping off clamps z and mints none; the x/y clip corners are already origin-independent. A
-  // device without the feature keeps the old path.
-  const clipControl = device.features.has('depth-clip-control');
+  // snapped ones, whose sum with the pool origin rounds differently at each origin (#26);
+  // `casterPrimitive` disables the clip on a device that allows it. A device without the feature
+  // keeps the old path.
   const pipeline = (label: string, entryPoint: string, fragment: boolean) =>
     preparedPipeline(device, {
       label,
@@ -26,11 +26,7 @@ export function shadowDepthDraws(
       // No colour target: the fragment stage exists only to discard an opacity-mask cutout or the
       // emitter envelope, and returns nothing.
       ...(fragment && { fragment: { module, entryPoint: 'shadow_fs', targets: [] } }),
-      primitive: {
-        topology: 'triangle-list',
-        cullMode: 'none',
-        ...(clipControl && { unclippedDepth: true }),
-      },
+      primitive: casterPrimitive(device, { topology: 'triangle-list', cullMode: 'none' }),
       depthStencil: {
         format: 'depth32float',
         depthWriteEnabled: true,

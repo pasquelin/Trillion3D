@@ -30,7 +30,7 @@ function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
 function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: number) {
   const root: ClusterRoot<PageRec> = {
     ...template,
-    pages: template.pages.map((page) => ({ ...page, mesh: undefined, attached: false })),
+    pages: template.pages.map((page) => ({ ...page })),
     worldBox: template.worldBox && new Float64Array(BOX_VALUES),
     stretch: undefined,
     stretchKey: undefined,
