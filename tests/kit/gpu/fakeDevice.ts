@@ -38,6 +38,13 @@ export function fakeDevice({
     copies: FakeCopy[] = [],
     textureCopies: FakeTextureCopy[] = [],
     textureWrites: GPUTexelCopyTextureInfo[] = [],
+    // Each texture write with its bytes, layout and extent, for a test that replays them.
+    texelWrites: {
+      destination: GPUTexelCopyTextureInfo;
+      data: ReturnType<typeof copyOf>;
+      layout: GPUTexelCopyBufferLayout;
+      size: GPUExtent3D;
+    }[] = [],
     imageCopies: GPUCopyExternalImageDestInfo[] = [],
     // The error scopes open, innermost last, each with the first error raised under it.
     scopes: Array<object | null> = [],
@@ -154,7 +161,15 @@ export function fakeDevice({
       ) {
         writes.push({ buffer, offset, data: copyOf(data), dataOffset, size });
       },
-      writeTexture: (destination: GPUTexelCopyTextureInfo) => void textureWrites.push(destination),
+      writeTexture: (
+        destination: GPUTexelCopyTextureInfo,
+        data: BufferSource,
+        layout: GPUTexelCopyBufferLayout,
+        size: GPUExtent3D,
+      ) => {
+        textureWrites.push(destination);
+        texelWrites.push({ destination, data: copyOf(data), layout, size });
+      },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),
       submit() {},
@@ -172,6 +187,7 @@ export function fakeDevice({
     copies,
     textureCopies,
     textureWrites,
+    texelWrites,
     imageCopies,
     destroyed,
     scopes,

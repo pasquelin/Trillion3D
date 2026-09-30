@@ -32,6 +32,7 @@ function recordingDevice() {
         destroy: () => void (buffer.freed = true),
       };
     },
+    createTexture: () => ({ createView: () => ({}), destroy: () => {} }),
     createCommandEncoder: () => ({
       copyBufferToBuffer: (
         from: object,
@@ -50,6 +51,18 @@ function recordingDevice() {
         at = 0,
         size = data.length,
       ) => void writes.push([buffer, offset, [...data.subarray(at, at + size)]]),
+      // The normals ride in the pool's float atlas (#1410): a write of its floats, row by row.
+      writeTexture: (
+        { texture }: GPUTexelCopyTextureInfo,
+        data: Float32Array,
+        { offset = 0 }: GPUTexelCopyBufferLayout,
+        [width, rows]: number[],
+      ) =>
+        void writes.push([
+          texture,
+          offset,
+          [...data.subarray(offset / 4, offset / 4 + width * rows)],
+        ]),
       submit: () => {},
     },
   } as unknown as GPUDevice;

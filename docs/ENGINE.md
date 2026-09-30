@@ -447,9 +447,10 @@ Thin two-sided transmission uses an independent color, optionally textured, thro
 material, direct-light and bounce paths. Its WebGPU storage image costs 8 bytes per pixel only while
 such a material is active (an 8-byte stand-in otherwise); it adds no G-buffer render target. The
 model follows the public Epic Two Sided Foliage description. Shadow receiver correction uses
-Boubekeur/Alexa's tangent-plane Phong projection, stored as three f32 offsets (12 bytes per pixel),
-without changing visible vertices, raster depth or silhouettes; it is separate from the Chiang et
-al. BRDF shadow-terminator correction.
+Boubekeur/Alexa's tangent-plane Phong projection, recomputed from the visibility buffer where the
+lighting and the shadow demand read it — no per-pixel target —, without changing visible vertices,
+raster depth or silhouettes; it is separate from the Chiang et al. BRDF shadow-terminator
+correction.
 
 ## Fog
 

@@ -9,8 +9,9 @@ import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelSh
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
 export const BOUNCE_SURFACE_BINDING = 20;
 
-/** Posed hits read the surface cache. An owned leaf's hit evaluates the lighting at its owner's
- *  transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
+/** Posed hits read the surface cache, an atlas (`atlas.ts`) whose padding texels, never written,
+ *  hold zero — what a texel past the cache returns. An owned leaf's hit evaluates the lighting at
+ *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
 export const SURFACE_RAY_WGSL = `
 ${SURFACE_IRRADIANCE_WGSL}
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
@@ -26,8 +27,9 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
   return vec4f(proxyOwnerAlbedo(hit.owner)*lighting*INVERSE_PI,hit.distance);
  }
  let texel=hit.triangle*2u+face;
- if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
- return vec4f(surface[texel].rgb,hit.distance);
+ let size=textureDimensions(surface);
+ if(texel>=size.x*size.y){return vec4f(0.0,0.0,0.0,hit.distance);}
+ return vec4f(textureLoad(surface,vec2u(texel%size.x,texel/size.x),0).rgb,hit.distance);
 }`;
 
 /** The rough GGX prefilter convolves the existing radiance probe coefficients;
@@ -36,7 +38,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  * `filteredReflectedRadiance` is the filtered lobe alone, never a proxy ray: what a rough
  * reflection sample's miss reads (#33, `reflections/sampleWgsl.ts`). */
 export const bounceReflectionWgsl = (binding: number) => `
-@group(0) @binding(${binding}) var<storage,read> surface:array<vec4f>;
+@group(0) @binding(${binding}) var surface:texture_2d<f32>;
 ${SURFACE_RAY_WGSL}
 ${mirrorWeightShader('wgsl')}
 ${PROBE_REFLECTION_FILTER_WGSL}

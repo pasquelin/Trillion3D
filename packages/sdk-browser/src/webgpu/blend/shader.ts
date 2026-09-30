@@ -17,7 +17,7 @@ import { BLEND_BINDINGS } from '../core/bindLayout.ts';
 import { BLEND_ITEM_WGSL } from './items.ts';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import { FLAG_HAS_COLOR, FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
-import { PAGE_INFO_STRUCT_WGSL, VERT_NORMAL_WGSL } from '../../visibility/shader/pageWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
@@ -38,10 +38,9 @@ ${BLEND_ITEM_WGSL}
 ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
-@group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
+${normalAtlasWgsl(BLEND_BINDINGS.normals)}
 ${PAGE_INFO_STRUCT_WGSL}
 ${PAGE_GEOMETRY_WGSL}
-${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance, pages)}
