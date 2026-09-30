@@ -195,6 +195,9 @@ export interface BackendContext {
   pageRoundTripMs?: () => number; // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
+  /** Each model's world roots, with its world `DagRoot` (`dag`): the one cut draws it in place of
+   *  a far cell's object roots (#1238). Absent from a cache that publishes none. */
+  worldRoots?: readonly import('../scene/worldRoots.ts').WorldRootsHold[];
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';
