@@ -1,8 +1,9 @@
 import { SPRITE_GLSL } from './spriteWgsl.ts';
+import { IMPOSTOR_PI } from '../../../../sdk-core/src/impostor/switch.ts';
 
 /** The WebGL2 twin of `impostorWgsl.ts` (one atlas, one switch, one card): same arithmetic, same
  *  order, and the shared sprite basis (`spriteAt` of `spriteWgsl.ts`) for the camera-facing quad. */
-export const IMPOSTOR_SWITCH_GLSL = `const float IMPOSTOR_PI=3.141592653589793;
+const IMPOSTOR_SWITCH_GLSL = `const float IMPOSTOR_PI=${IMPOSTOR_PI};
 float impostorSwitchDepth(float radius,float triangles,float coverage,float frameSide,float focal){
  float zTex=2.0*radius*focal/frameSide;
  float zTri=radius*focal*sqrt(coverage*IMPOSTOR_PI/triangles);
@@ -10,14 +11,14 @@ float impostorSwitchDepth(float radius,float triangles,float coverage,float fram
 }`;
 
 /** The octahedral mapping and the three-frame weights, GLSL, the mirror of `IMPOSTOR_MATH_WGSL`. */
-export const IMPOSTOR_MATH_GLSL = `
+const IMPOSTOR_MATH_GLSL = `
 float impSide(float x){return x<0.0?-1.0:1.0;}
 vec2 impOctEncode(vec3 d,float hemi){
  vec3 o=d/(abs(d.x)+abs(d.y)+abs(d.z));
  vec2 folded=vec2(impSide(o.x)*(1.0-abs(o.z)),impSide(o.z)*(1.0-abs(o.x)));
  vec2 full=o.y<0.0?folded:o.xz;
- vec3 hd=vec3(d.x,max(d.y,0.001),d.z);
- vec3 ho=hd/(abs(hd.x)+max(hd.y,0.001)+abs(hd.z));
+ vec3 hd=vec3(d.x,max(d.y,0.0),d.z);
+ vec3 ho=hd/(abs(hd.x)+max(hd.y,0.0)+abs(hd.z));
  return hemi==1.0?vec2(ho.x+ho.z,ho.z-ho.x):full;
 }
 vec3 impOctDecode(vec2 f,float hemi){
@@ -26,7 +27,7 @@ vec3 impOctDecode(vec2 f,float hemi){
  vec3 hemiDir=normalize(vec3(hx,1.0-abs(hx)-abs(hz),hz));
  vec2 u=f*2.0-1.0;
  float y=1.0-abs(u.x)-abs(u.y);
- vec3 folded=vec3(impSide(u.x)*(1.0-abs(u.y)),y,impSide(u.y)*(1.0-abs(u.x)));
+ vec3 folded=normalize(vec3(impSide(u.x)*(1.0-abs(u.y)),y,impSide(u.y)*(1.0-abs(u.x))));
  vec3 full=y>=0.0?normalize(vec3(u.x,y,u.y)):folded;
  return hemi==1.0?hemiDir:full;
 }
@@ -35,7 +36,7 @@ vec3 impWeights(vec2 f){
 }`;
 
 /** The tap and the blend, GLSL, sampling the three atlas maps the program declares. */
-export const IMPOSTOR_TAP_GLSL = `
+const IMPOSTOR_TAP_GLSL = `
 mat3 impBasis(vec3 n){
  vec3 up=abs(n.y)>0.999?vec3(0.0,0.0,1.0):vec3(0.0,1.0,0.0);
  vec3 x=normalize(cross(up,n));

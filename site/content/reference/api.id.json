@@ -538,7 +538,8 @@
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
-      "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya."
+      "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
+      "impostors": "Atlas impostor per mesh yang dipanggang oleh kompilator (#817); tidak ada pada cache sebelum impostor."
     }
   },
   "ClusterStructure": {
@@ -3435,6 +3436,7 @@
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
+      "impostors": "Atlas impostor per mesh yang dipanggang oleh kompilator (#817); tidak ada pada cache sebelum impostor.",
       "binary": "Berkas binernya.",
       "primitives": "Primitifnya.",
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya."
@@ -3888,6 +3890,7 @@
       "atlas": "Atlas mana.",
       "level": "Tingkat mana.",
       "format": "Format mana.",
+      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`, #1239). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
       "range": "Byte level blok yang dibaca sendiri — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range; server yang mengabaikannya menjawab dengan seluruh berkas."
     }
   },

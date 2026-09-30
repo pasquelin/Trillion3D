@@ -868,7 +868,8 @@
       "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa.",
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
-      "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è."
+      "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori."
     }
   },
   "clusterSphereValid": {
@@ -5768,6 +5769,7 @@
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori.",
       "binary": "Il file binario.",
       "primitives": "Le sue primitive.",
       "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa."
@@ -6321,6 +6323,7 @@
       "atlas": "Quale atlante.",
       "level": "Quale livello.",
       "format": "Quale formato.",
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`, #1239). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
       "range": "I byte di un livello a blocchi da leggere da soli — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range; un server che la ignora risponde con il file intero."
     }
   },

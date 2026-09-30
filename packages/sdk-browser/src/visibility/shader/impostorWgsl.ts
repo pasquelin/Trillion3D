@@ -1,7 +1,5 @@
 import { SPRITE_WGSL } from './spriteWgsl.ts';
-
-/** π, the same literal as the CPU oracle (`sdk-core/src/impostor/switch.ts`), so both round the same. */
-export const IMPOSTOR_PI = 3.141592653589793;
+import { IMPOSTOR_PI } from '../../../../sdk-core/src/impostor/switch.ts';
 
 /**
  * The switch in WGSL, f32 mirror of sdk-core `impostorSwitchDepth` (#817, "When to switch"; proof at
@@ -30,8 +28,8 @@ fn impOctEncode(d:vec3f,hemi:f32)->vec2f{
  let o=d/(abs(d.x)+abs(d.y)+abs(d.z));
  let folded=vec2f(impSide(o.x)*(1.0-abs(o.z)),impSide(o.z)*(1.0-abs(o.x)));
  let full=select(o.xz,folded,o.y<0.0);
- let hd=vec3f(d.x,max(d.y,0.001),d.z);
- let ho=hd/(abs(hd.x)+max(hd.y,0.001)+abs(hd.z));
+ let hd=vec3f(d.x,max(d.y,0.0),d.z);
+ let ho=hd/(abs(hd.x)+max(hd.y,0.0)+abs(hd.z));
  return select(full,vec2f(ho.x+ho.z,ho.z-ho.x),hemi==1.0);
 }
 /** Grid coordinates \`f\` in [0,1]² back to a unit direction, the inverse of \`impOctEncode\`. */
@@ -41,7 +39,7 @@ fn impOctDecode(f:vec2f,hemi:f32)->vec3f{
  let hemiDir=normalize(vec3f(hx,1.0-abs(hx)-abs(hz),hz));
  let u=f*2.0-1.0;
  let y=1.0-abs(u.x)-abs(u.y);
- let folded=vec3f(impSide(u.x)*(1.0-abs(u.y)),y,impSide(u.y)*(1.0-abs(u.x)));
+ let folded=normalize(vec3f(impSide(u.x)*(1.0-abs(u.y)),y,impSide(u.y)*(1.0-abs(u.x))));
  let full=select(folded,normalize(vec3f(u.x,y,u.y)),y>=0.0);
  return select(full,hemiDir,hemi==1.0);
 }
@@ -51,7 +49,7 @@ fn impWeights(f:vec2f)->vec3f{
 }`;
 
 /** x, y, n of a frame's capture plane (\`basis\` of \`octahedron.rs\`); the ray on it, one-step parallax. */
-export const IMPOSTOR_TAP_WGSL = `
+const IMPOSTOR_TAP_WGSL = `
 /** The card samples three atlas maps and one sampler the pass declares: colour+coverage,
  *  normal+depth, packed ORM. */
 fn impBasis(n:vec3f)->mat3x3f{

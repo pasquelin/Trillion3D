@@ -5,7 +5,7 @@
  *
  * One card per switched root. A root is identified by its compiled mesh number (`Primitive.mesh`),
  * the same number the compiler keys its `impostors` entries by
- * (`asset-compiler-rust/src/impostor/stage.rs`): there is no second mesh table. The switch is the
+ * (`packages/asset-compiler-rust/src/impostor/stage.rs`): there is no second mesh table. The switch is the
  * engine's one oracle (`switch.ts`), never a per-scene constant: `f` is the engine's focal length
  * in pixels (`pixelScaleOf`), `z` the pivot's view distance (as `orderPendingUrls` measures it),
  * `R`, `T`, `c` and `r_f` only from the baked manifest.
@@ -71,6 +71,16 @@ export function impostorBakedByMesh(
   return byMesh;
 }
 
+const EMPTY_MESHES: Map<number, ImpostorMesh> = new Map();
+/** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
+const bakedBySection = new WeakMap<ImpostorSection, Map<number, ImpostorMesh>>();
+function bakedLookup(section: ImpostorSection | undefined): Map<number, ImpostorMesh> {
+  if (!section) return EMPTY_MESHES;
+  let byMesh = bakedBySection.get(section);
+  if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)));
+  return byMesh;
+}
+
 /**
  * Plans the impostor tier for one view: every root whose mesh has a baked entry and whose switch
  * holds yields a card and is marked suppressed. `view` maps world to view space (column-major) and
@@ -84,7 +94,7 @@ export function planImpostors(
 ): ImpostorPlan {
   const switched = new Uint8Array(roots.length),
     cards: ImpostorCard[] = [];
-  const byMesh = impostorBakedByMesh(section);
+  const byMesh = bakedLookup(section);
   if (!byMesh.size) return { cards, switched };
   const point = new Float64Array(3);
   for (let rank = 0; rank < roots.length; rank++) {
