@@ -118,10 +118,11 @@ test('the contract program and its reflections ask per subgroup exactly when gra
       surface = { views: () => [view, view, view, view] } as unknown as SurfaceBuffer;
     lighting.bind(surface, view, view, true);
     await lighting.settle();
-    // Lighting, reflection source, stochastic trace and final resolve share the request rule.
+    // Lighting, stochastic trace and final resolve share the request rule; the reflection source
+    // reprojects the last image and lights nothing (#1342).
     const [light, ...reflections] = codes.filter((code) => code.includes('fn requestShadowPage('));
     assert.equal(light, features.length ? SUBGROUP_SHADER : DIRECT_LIGHTING_SHADER);
-    assert.equal(reflections.length, 3);
+    assert.equal(reflections.length, 2);
     for (const code of reflections)
       assert.equal(code.includes(SUBGROUP_REQUEST_WGSL), features.length > 0);
   }

@@ -1,11 +1,13 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { reflectionLayout } from './layout.ts';
-import { reflectionSource, withScreenReflections } from './screenWgsl.ts';
+import { withScreenReflections } from './screenWgsl.ts';
+import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './source.ts';
 import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';
 
-/** Frozen source and final resolve are separate programs: no uniform can change between
+/** The source reprojects the last lit image (`source.ts`): no pass here lights a surface but the
+ * final one. Source and final resolve are separate programs: no uniform can change between
  * two encoded passes through queue.writeBuffer before their shared submission. */
 export async function reflectionPipelines(
   device: GPUDevice,
@@ -14,7 +16,7 @@ export async function reflectionPipelines(
 ) {
   const source = await createCheckedShaderModule(
     device,
-    reflectionSource(shader),
+    REFLECTION_SOURCE_WGSL,
     'REFLECTION_SOURCE',
   );
   const final = await createCheckedShaderModule(
@@ -50,7 +52,13 @@ export async function reflectionPipelines(
       targets,
     ),
     resolveLayout,
-    source: await makeFullscreenPipeline(device, source, layout, 'lightSurface', targets),
+    source: await makeFullscreenPipeline(
+      device,
+      source,
+      reflectionSourceLayout(device),
+      'reprojectReflectionSource',
+      targets,
+    ),
     final: await makeFullscreenPipeline(
       device,
       final,
