@@ -134,9 +134,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
+  // A refused deformation import is a geometry failure, told below: no compute without its code.
+  const deformationCode = vis.deformationCode;
   vis.deformationCompute =
-    allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation
-      ? await vis.deformationCode!.createDeformationCompute(gpuDevice)
+    deformationCode && (allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation)
+      ? await deformationCode.createDeformationCompute(gpuDevice)
       : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;
