@@ -3632,7 +3632,7 @@
       "baseMetal": "Warna dasar RGB, metalness A.",
       "normalRough": "Normal dunia XYZ, roughness A.",
       "emissiveAo": "Emisi RGB, ambient occlusion A.",
-      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman. 4 dan 5 adalah model difus dan toon (`./surfaceModel.ts`).",
+      "flags": "Tiga bit rendah: 0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman. 4 dan 5 adalah model difus dan toon (`./surfaceModel.ts`). Di atasnya, tanda: 16 texel emisi dan oklusi selain (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 transmisi tipis, 128 tanpa kabut.",
       "views": "View tekstur GPU-nya.",
       "dispose": "Membebaskannya.",
       "subsurface": "Warna transmisi permukaan tipis yang independen; tekstur nol 1×1 saat dinonaktifkan.",
