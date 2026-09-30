@@ -6,8 +6,15 @@ import { createPageRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { LAMP_MIPS, PAGE_INDEX_MASK, PAGE_MAPPED, SUN_LEVELS } from './virtual.ts';
-import { lampEntry, lampFacesOf, ringOf, sunEntry, tableEntriesOf } from './virtual.ts';
+import {
+  LAMP_MIPS,
+  PAGE_INDEX_MASK,
+  PAGE_MAPPED,
+  SUN_LEVELS,
+  lampFacesOf,
+  tableEntriesOf,
+} from './virtual.ts';
+import { lampEntry, ringOf, sunEntry } from './pageModel.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
 type Counts = ReturnType<typeof createShadowCounts>;

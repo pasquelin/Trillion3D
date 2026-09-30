@@ -126,3 +126,22 @@ test('a blended caster read from its geometry page takes its row without an inde
   casters.refresh();
   assert.equal(rows.blendRowOf[1], rows.blendFirst);
 });
+
+test('turning volume transmission off invalidates the existing colored shadow at equal opacity', () => {
+  const pages = catalogue(0.5);
+  Object.assign(pages.glass, {
+    family: 'physical',
+    transmission: 1,
+    thickness: 0.4,
+    needsUpdate: true,
+  });
+  const { rows, casters, restaled } = mount(pages, 1);
+  casters.refresh();
+  assert.equal(casters.used, 1);
+  Object.assign(pages.glass, { transmission: 0, needsUpdate: true });
+  rows.tableEpoch++;
+  casters.refresh();
+  assert.equal(casters.used, 1, 'the same row now casts an opacity shadow');
+  assert.equal(restaled.length, 1, 'cached volume tint must be redrawn');
+  assert.equal(restaled[0], pages[1]);
+});

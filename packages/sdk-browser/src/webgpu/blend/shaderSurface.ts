@@ -17,7 +17,7 @@ import { FACING_SHIFT } from './facing.ts';
  */
 export const BLEND_SURFACE_WGSL = `
 ${COTANGENT_FRAME_WGSL}
-struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,}
+struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,}
 fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  let flags=in.ids.y;
  let sampled=(flags&${FLAG_SAMPLED}u)!=0u;
@@ -36,7 +36,7 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  var N=uniteOuZero(-cross(q0,q1));
  let face=select(-1.0,1.0,front);
  if((flags&16u)!=0u){
-  N=uniteOuZero(in.normal);
+  N=uniteOuZero(in.normal.xyz);
   if((flags&2u)!=0u){N*=face;}
  }
  let sample=colorSample(in.ids.x,in.uv,gradX,gradY,sampled);
@@ -52,13 +52,15 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
   // sign, as on the geometric normal above.
   let frame=cotangentFrame(N,q0,q1,gradX,gradY);
   var T=-frame.T;var B=-frame.B;
-  if((flags&2048u)!=0u){T=uniteOuZero(in.tangent);B=uniteOuZero(in.bitangent);}
+  if((flags&2048u)!=0u){T=uniteOuZero(in.tangent.xyz);B=uniteOuZero(in.bitangent.xyz);}
   if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
   N=uniteOuZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,gradX,gradY,sampled).rgb;}
  if(alpha<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front)){discard;}
- return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request);
+ var thin=clamp(vec3f(in.normal.w,in.tangent.w,in.bitangent.w),vec3f(0.0),vec3f(1.0));
+ if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
+ return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);
 }
 `;

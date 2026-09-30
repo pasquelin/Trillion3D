@@ -67,6 +67,7 @@ export function settledRt() {
         counts: { pendingPages: 0, cachedPages: 0, poolPages: 0 },
         pool: { refetched: 0 },
         requests: { counts: { requested: 0 } },
+        gpu: { drawn: 0 },
       },
       store: { count: 0 },
       shadowsUpdated: 0,

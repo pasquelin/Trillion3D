@@ -26,11 +26,9 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
-
 /** The view uniform of the pass (`uniforms.ts`), for the two forward stages here and the water
  *  composite; `exposure` and `toneCurve` are the composition's (`displayFilter.ts`). */
 export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
-
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
@@ -76,7 +74,7 @@ ${SPRITE_WGSL}
 // \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
 // above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec4f,@location(4) tangent:vec4f,@location(5) bitangent:vec4f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
 // An instance draws a paged cluster compaction kept, or a piece of indices of an unpaged primitive,
 // as the list plan expansion wrote it (expandWgsl.ts), both read through \`pageGeometryWgsl.ts\`.
@@ -98,7 +96,8 @@ ${FACING_WGSL}
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
- out.emissive=vec4f(it.emissive.xyz,0.0);
+ out.emissive=vec4f(it.emissive.xyz,it.subsurface.w);
+ out.normal.w=it.subsurface.x;out.tangent.w=it.subsurface.y;out.bitangent.w=it.subsurface.z;
  var page:PageInfo;
  page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;
  var count=it.indexCount-slot.y;
@@ -118,7 +117,7 @@ ${FACING_WGSL}
   if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
- if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
+ if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal.xyz=vec3f(0.0,0.0,1.0);out.tangent.xyz=vec3f(0.0);out.bitangent.xyz=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
  if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
@@ -138,17 +137,17 @@ ${FACING_WGSL}
  }
  let corner=local%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
- out.normal=vec3f(0.0);
- if((flags&16u)!=0u){out.normal=xformNormal(it.world,pageNormal(page,h,v));}
- out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);
- if((flags&256u)!=0u){out.normal=-out.normal;}
+ out.normal.xyz=vec3f(0.0);
+ if((flags&16u)!=0u){out.normal.xyz=xformNormal(it.world,pageNormal(page,h,v));}
+ out.tangent.xyz=vec3f(0.0);out.bitangent.xyz=vec3f(0.0);
+ if((flags&256u)!=0u){out.normal.xyz=-out.normal.xyz;}
  // A page stores no tangent: an item that reads one reads it as floats, and a quantized one never
  // carries the flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
  if((flags&2048u)!=0u){
   let t=vertT(page.vertexBase,v);
-  out.tangent=uniteOuZero((it.world*vec4f(t.xyz,0.0)).xyz);
-  if((flags&256u)!=0u){out.tangent=-out.tangent;}
-  out.bitangent=uniteOuZero(cross(out.normal,out.tangent)*t.w);
+  out.tangent.xyz=uniteOuZero((it.world*vec4f(t.xyz,0.0)).xyz);
+  if((flags&256u)!=0u){out.tangent.xyz=-out.tangent.xyz;}
+  out.bitangent.xyz=uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w);
  }
  out.uv=pageUv(page,h,v);
  return out;
@@ -181,10 +180,12 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  if(!unlit){
   if((flags&1u)!=0u){
    let m=clamp(s.metal,0.0,1.0);
-   shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
    let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
    surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
+   thinSubsurface=s.subsurface;
+   shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+   if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.

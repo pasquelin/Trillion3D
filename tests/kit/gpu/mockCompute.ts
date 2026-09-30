@@ -25,6 +25,7 @@ import {
 import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
+import { runShadowPass } from '../../../packages/sdk-browser/src/webgpu/shadow/freshRun.fixture.ts';
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
 const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
@@ -60,6 +61,8 @@ export function simulateComputeDispatch(
   offsets?: readonly number[],
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
+  // The GPU allocation of shadow pages, the host's table words and the GPU's own pages: run.
+  if (computeBind && runShadowPass(computePipeline?.entryPoint, computeBind)) return;
   if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
     return simulateTransparentCompaction(computeBind);
   if (computePipeline?.entryPoint === 'writeBlendRuns' && computeBind)

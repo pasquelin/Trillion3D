@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { createSunLevels } from './sunLevels.ts';
 import { writeSunSquare } from './sunFaces.ts';
 import { writeFace, writeLampPage } from './faces.ts';
-import { SHADOW_PAGE, lampPagesAt, sunPageMetres } from './virtual.ts';
+import { SHADOW_PAGE, lampPagesAt } from './virtual.ts';
+import { sunPageMetres } from './pageModel.ts';
 import type { SceneLight } from '../light/contracts.ts';
 import { VIEW } from './lightShadow.fixture.ts';
 

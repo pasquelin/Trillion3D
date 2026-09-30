@@ -1,4 +1,3 @@
-import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -9,8 +8,7 @@ import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
  * THE TRANSMITTANCE LAYER of the shadow pool: what the translucent casters let through, at half
  * the pool's resolution — one texel for each 2 × 2 depth texels, at the same place, so the same
  * pages and the same page table address it (texel / 2). Two textures:
- * - the transmittance, `rgba8unorm`: RGB is `Π(1 − coverage)`, grey today, laid out for a tinted
- *   transmission (#33) to colour it;
+ * - the transmittance, `rgba8unorm`: RGB is the product of uncovered light and the declared tinted transmission;
  * - the nearest translucent depth, `depth32float`, like the pool's.
  *
  * The shading multiplies the PCF's result by the transmittance, filtered once at the footprint's
@@ -48,22 +46,13 @@ export const TRANSMITTANCE_BLEND: GPUBlendState = { color: MULTIPLY, alpha: MULT
 /**
  * True when a blended surface casts at all: asked to (`transparentShadow`; unasked, see-through
  * casts nothing, as the reference solution leaves translucent materials), drawn over what is behind
- * it (normal blending), not transmissive, and stopping some light. Additive stops none; transmissive
- * tints what crosses it (#33, on this same layer); fully transparent stops nothing: no caster row.
+ * it (normal blending), and stopping some light. Additive stops none; transmissive
+ * tints what crosses it on this same layer; fully transparent stops nothing: no caster row.
  */
 export const castsBlendShadow = (s: PageSurface) =>
-  s.transparentShadow && s.blending === 'normal' && !(s.transmission > 0) && s.opacity > 0;
+  s.transparentShadow && s.blending === 'normal' && s.opacity > 0;
 
-/**
- * The texel a blended caster writes: `1 − coverage`, the coverage being its opacity times its
- * colour map's alpha, read like the cutout's (`maskAlpha`, `../../webgpu/tile/wgsl.ts`).
- * Requires `PageInfo` and `maskAlpha`.
- */
-export const BLEND_TRANSMITTANCE_WGSL = `fn blendTransmittance(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{
- var coverage=page.blendCoverage;
- if((page.flags&${FLAG_HAS_UV | FLAG_HAS_MAP}u)==${FLAG_HAS_UV | FLAG_HAS_MAP}u){coverage*=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u);}
- return vec4f(1.0-coverage);
-}`;
+export { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 
 /**
  * The layer's read, bound at \`binding\` and the number after it: \`shadowThroughLit\`, which the PCF
@@ -81,23 +70,27 @@ export const shadowThroughWgsl = (
  * page-local texels: the page's content alone decides, wherever the pool puts it (#831). Where
  * the receiver is in front of all four, no transmittance is read.
  */
-fn shadowThrough(page:vec3f,local:vec2f,reference:f32)->f32{
+var<private> shadowTransmission:vec3f=vec3f(1.0);
+fn shadowThrough(page:vec3f,local:vec2f,reference:f32)->vec3f{
  let h=clamp(0.5*local,vec2f(0.5),vec2f(0.5*SHADOW_PAGE-0.5))-0.5;
  let i=vec2i(page.xy)/2+vec2i(floor(h));let f=h-floor(h);let l=i32(page.z);
  let x=vec2i(1,0);let y=vec2i(0,1);
  let d=vec4f(textureLoad(shadowTranslucentDepth,i,l,0),textureLoad(shadowTranslucentDepth,i+x,l,0),textureLoad(shadowTranslucentDepth,i+y,l,0),textureLoad(shadowTranslucentDepth,i+x+y,l,0));
  let behind=vec4f(reference)<d;
- if(!any(behind)){return 1.0;}
- let t=vec4f(textureLoad(shadowTransmittance,i,l,0).r,textureLoad(shadowTransmittance,i+x,l,0).r,textureLoad(shadowTransmittance,i+y,l,0).r,textureLoad(shadowTransmittance,i+x+y,l,0).r);
- let s=select(vec4f(1.0),t,behind);
- return mix(mix(s.x,s.y,f.x),mix(s.z,s.w,f.x),f.y);
+ if(!any(behind)){return vec3f(1.0);}
+ let a=select(vec3f(1.0),textureLoad(shadowTransmittance,i,l,0).rgb,behind.x);
+ let b=select(vec3f(1.0),textureLoad(shadowTransmittance,i+x,l,0).rgb,behind.y);
+ let c=select(vec3f(1.0),textureLoad(shadowTransmittance,i+y,l,0).rgb,behind.z);
+ let e=select(vec3f(1.0),textureLoad(shadowTransmittance,i+x+y,l,0).rgb,behind.w);
+ return mix(mix(a,b,f.x),mix(c,e,f.x),f.y);
 }
 /** The PCF's \`lit\` at map texel \`t\` of the page whose first map texel is \`first\`, placed by
  *  \`offset\` (\`shadowOffset\`), times the layer there, read once per footprint (its taps lie within
  *  a texel of \`t\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
 fn shadowThroughLit(offset:vec3f,first:vec2f,t:vec2f,reference:f32,lit:f32)->f32{
  if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}
- return lit*shadowThrough(offset+vec3f(first,0.0),t-first,reference);
+ shadowTransmission=shadowThrough(offset+vec3f(first,0.0),t-first,reference);
+ return lit;
 }`;
 
 /**
