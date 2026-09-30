@@ -46,6 +46,9 @@ export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   );
 }
 
+/** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
+export const REFLECTION_VIEW_BYTES = 80;
+
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
@@ -71,11 +74,11 @@ export function createScreenReflection(
     if (active && cone) pyramid = createReflectionConePyramid(device, color, depth);
     if (active && rough) history = createReflectionHistory(device, width, height);
     uniform = device.createBuffer({
-      size: 80,
+      size: REFLECTION_VIEW_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const heldUniform = uniform;
-    const packed = new Float32Array(20);
+    const packed = new Float32Array(REFLECTION_VIEW_BYTES / 4);
     const packedBits = new Uint32Array(packed.buffer);
     const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
     const groupFor = () => {

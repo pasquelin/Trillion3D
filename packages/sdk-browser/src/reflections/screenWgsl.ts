@@ -12,7 +12,8 @@ const SCREEN_RADIANCE: ScreenRadiance = {
 };
 
 const screenReflectionWgsl = (filtered?: string) => `
-// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller.
+// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
+// rough trace's seed.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
 @group(1) @binding(0) var reflectionColor:texture_2d<f32>;
 @group(1) @binding(1) var reflectionDepth:texture_depth_2d;

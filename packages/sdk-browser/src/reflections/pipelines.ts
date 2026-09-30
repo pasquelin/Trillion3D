@@ -13,6 +13,7 @@ export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
   layout: GPUBindGroupLayout,
+  { unboundedReflections = false }: { unboundedReflections?: boolean } = {},
 ) {
   const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }];
   const resolveLayout = reflectionResolveLayout(device);
@@ -25,7 +26,11 @@ export async function reflectionPipelines(
   ) => makeFullscreenPipeline(device, await module, bind, entryPoint, targets);
   const [trace, resolve, source, final] = await Promise.all([
     program(
-      createCheckedShaderModule(device, stochasticReflectionShader(shader), 'REFLECTION_TRACE'),
+      createCheckedShaderModule(
+        device,
+        stochasticReflectionShader(shader, unboundedReflections),
+        'REFLECTION_TRACE',
+      ),
       [layout, reflectionLayout(device)],
       'traceRoughReflection',
     ),
