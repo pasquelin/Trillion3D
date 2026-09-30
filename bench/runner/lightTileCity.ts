@@ -11,7 +11,7 @@ import {
   rayParameter,
   type Vec3,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightTileColumnOracle.ts';
+import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
 
 export type Light = { centre: Vec3; radius: number };
 /** `blocks`: each block's building height by `blockIndex`, 0 for an empty block. */
