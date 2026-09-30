@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/recordPack.ts';
 import { growKeptList, keptList } from '../../gpu/shadow/keptList.ts';
+import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { growPairList, keptPairs } from './pairGrowth.ts';
@@ -15,7 +16,13 @@ const ROW_BYTES = 4 * MAX_SHADOW_REGIONS;
 
 /** A runtime of `casterSlots` table rows whose latest frame counted `need` pairs, its kept list at
  *  the table's rows, and the diagnostics it says. */
-function runtime(device: GPUDevice, need: number, casterSlots = 8, heldBytes = 0) {
+function runtime(
+  device: GPUDevice,
+  need: number,
+  casterSlots = 8,
+  heldBytes = 0,
+  transmittanceDenied = true,
+) {
   const targets = { kept: keptList(device, casterSlots), capacity: casterSlots },
     offsets = device.createBuffer({ size: (MAX_SHADOW_REGIONS + 1) * 4, usage: 0 });
   const cull = {
@@ -33,6 +40,8 @@ function runtime(device: GPUDevice, need: number, casterSlots = 8, heldBytes = 0
       cull,
       memory: createShadowMemory(),
       pageRequests: { bytes: heldBytes, allocation: { pairNeed: need } },
+      plan: { pool: { side: 8, layers: 1 } },
+      transmittanceDenied,
     },
     layout: { rows: { casterSlots }, growing: undefined as Promise<unknown> | undefined },
     gpu: { device },
@@ -86,6 +95,14 @@ test('a list past the shadow grant is not asked of the device', async () => {
   assert.deepEqual(rt.lights.memory.events, ['pairs-over-grant']);
   await grow();
   assert.deepEqual(said, ['shadow-memory'], 'said once');
+});
+
+test('a list leaves the transmittance layer still to come its share of the grant', async () => {
+  const fake = fakeDevice(),
+    held = SHADOW_GRANT_BYTES - shadowTransmittanceBytes(8, 1),
+    { rt, grow } = runtime(fake.device, 10 * keptPairs(8), 8, held, false);
+  assert.equal(await grow(), 8, 'the list stays as it was');
+  assert.deepEqual(rt.lights.memory.events, ['pairs-over-grant']);
 });
 
 test('the kept list never grows past what one storage binding holds', async () => {

@@ -1,6 +1,8 @@
 import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../gpu/core/tableGrowth.ts';
+import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 import {
   admitShadowBytes,
@@ -8,6 +10,7 @@ import {
   noteShadowPressure,
   shadowPoolHeld,
 } from './memoryGrant.ts';
+import { transmittanceSettled } from './transmittanceGrant.ts';
 import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -61,10 +64,22 @@ export function growPairList(rt: WebgpuPagesRuntime) {
   const rows = keptRows(layout.rows.casterSlots, need, device.limits),
     bytes = listBytes(rows - cull.capacity, !!lights.occlusion);
   if (bytes <= 0 || rows <= (asking.get(cull) ?? 0)) return;
+  // The transmittance layer still to come keeps its share, as the static layer leaves it
+  // (`staticLayerGranted`): a grown list never takes the blended casters' shadows.
+  const { side, layers } = lights.plan.pool,
+    reserve = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers);
   // Past the grant, said once: a later frame asks again, silently, what the grant may hold by then.
   const admitted = memory.events.includes('pairs-over-grant')
-    ? admitShadowBytes(memory, shadowPoolHeld(lights), bytes)
-    : grantsShadowLayer(lights, diag.engineDiagnostic, 'pairs-over-grant', PAST_GRANT, bytes);
+    ? admitShadowBytes(memory, shadowPoolHeld(lights), bytes, SHADOW_GRANT_BYTES, reserve)
+    : grantsShadowLayer(
+        lights,
+        diag.engineDiagnostic,
+        'pairs-over-grant',
+        PAST_GRANT,
+        bytes,
+        SHADOW_GRANT_BYTES,
+        reserve,
+      );
   if (!admitted) return;
   asking.set(cull, rows);
   const { occlusion } = lights,

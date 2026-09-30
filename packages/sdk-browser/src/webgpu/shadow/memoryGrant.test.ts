@@ -43,6 +43,17 @@ test('a static layer past the grant is never made, and said by name', () => {
   assert.equal(lights.memory.bias, 0, 'a layer not made costs no resolution');
 });
 
+test('a static layer asks too for the pair rows its occlusion list follows the cull to', () => {
+  // #1363: the cull's kept list grown for the GPU pages' pairs; the occlusion test the layer
+  // brings grows its list to the cull's rows (`followOcclusion`), counted in the grant.
+  const lights = createWebgpuLightState(8),
+    say = () => {};
+  const layer = shadowAtlasBytes(8) + shadowTransmittanceBytes(8);
+  lights.memory.pairBytes = 1024;
+  assert.equal(staticLayerGranted(lights, say, layer + 2048), true, 'held and asked: twice');
+  assert.equal(staticLayerGranted(lights, say, layer + 2047), false, 'its list is asked for');
+});
+
 /** The floor and its caster, the caster moved each frame; `refuse` has the device refuse the
  *  static layer as out of memory. Returns what each moving frame drew, and what was said. */
 async function movingCaster(refuse: boolean) {
