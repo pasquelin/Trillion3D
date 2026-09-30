@@ -9,6 +9,7 @@ import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
 import type { HeldResidency } from '../../page/cut/held.ts';
 import type { WebglViewState } from './views.ts';
+import { createPageDraws, type PageDraws } from './pageDraws.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's
@@ -27,9 +28,12 @@ export function createImageCut(options: {
   pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
   /** The rule's readiness of the placements, moved by the pool's loads and releases. */
   held: HeldResidency;
+  /** The per-instance draw state the layout posts ranks on; an engine without one makes its own. */
+  draws?: PageDraws;
 }) {
   const { roots, view, pool, held } = options;
-  const requests = createAutonomousRequests(roots, options.revision, held);
+  const draws = options.draws ?? createPageDraws(roots);
+  const requests = createAutonomousRequests(roots, options.revision, held, draws);
   // Cut request and result, allocated once: an image allocates nothing here, and the cut writes
   // the drawn view's `desired` itself instead of being copied into it.
   const selectOptions = {
