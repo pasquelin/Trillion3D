@@ -1,5 +1,5 @@
 // #1249: a moving image whose tile list holds no shadowed light walks it once, `L` evaluations a
-// pixel, where the drawn resolve walked it three times and shaded four more, `3·L + 4`; a list with
+// pixel, where the drawn resolve walks it twice and shades four more, `2·L + 4` (#1369); a list with
 // a shadowed light is drawn as before. Counted on the shipped WGSL, over a sponza-sized atrium.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +18,7 @@ test('the atrium is ray-cast with near and far surfaces, most of the view covere
   assert.ok(covered > 0.6 * depths.length && covered < depths.length, `${covered} covered`);
 });
 
-test('an unshadowed moving list costs its length, not three walks and four shades', () => {
+test('an unshadowed moving list costs its length, not two walks and four shades', () => {
   const s = countSampled(
     view,
     depths,
@@ -26,7 +26,7 @@ test('an unshadowed moving list costs its length, not three walks and four shade
     lights.map(() => -1),
   );
   assert.equal(s.moving, s.list, 'L evaluations a pixel');
-  assert.ok(s.develop > 2.5 * s.list, `develop drew: ${s.develop} for ${s.list}`);
+  assert.ok(s.develop > 2 * s.list, `develop drew: ${s.develop} for ${s.list}`);
 });
 
 test('a list with a shadowed light is drawn as before, the others summed in full', () => {
@@ -48,5 +48,5 @@ test('a list with a shadowed light is drawn as before, the others summed in full
     one.moving > one.list && one.moving < one.develop,
     'only the tiles a shadowed lamp reaches draw',
   );
-  assert.equal(LIGHT_SETTINGS.samplesPerPixel, 4, 'the 3·L + 4 of the issue');
+  assert.equal(LIGHT_SETTINGS.samplesPerPixel, 4, 'the 2·L + 4 of the drawn resolve');
 });
