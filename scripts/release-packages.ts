@@ -172,10 +172,9 @@ export function publishRelease(options: {
   const { out, run, publish, published = npmPublished } = options;
   const release = readRelease(out);
   if (publish && !release.publishable) throw new Error('the release was packed private');
-  const done = release.archives.map(({ name }) => published(`${name}@${release.version}`));
-  const pending = release.archives.filter((_archive, index) => !done[index]);
-  const skipped = release.archives.filter((_archive, index) => done[index]).map(({ name }) => name);
+  const done = release.archives.filter(({ name }) => published(`${name}@${release.version}`));
+  const pending = release.archives.filter((archive) => !done.includes(archive));
   for (const { filename } of pending) run('npm', ['publish', filename, '--dry-run'], out);
   if (publish) for (const { filename } of pending) run('npm', ['publish', filename], out);
-  return { ...release, skipped };
+  return { ...release, skipped: done.map(({ name }) => name) };
 }

@@ -50,5 +50,8 @@ if (step === 'pack') {
   const release = publishRelease({ out, run: run(true), publish });
   for (const name of release.skipped)
     console.log(`${name}@${release.version}: already on npm, skipped`);
-  console.log(`${release.version}: ${publish ? 'published' : 'dry run, nothing published'}`);
+  const count = release.archives.length - release.skipped.length;
+  console.log(
+    `${release.version}: ${publish ? `${count} published` : 'dry run, nothing published'}`,
+  );
 }
