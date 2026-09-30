@@ -144,7 +144,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   assert.deepEqual(observed, backend.visibilityIds());
   const image = compareImages(
     backend.rasterRgba(),
-    shadeVisibility(expected, pages, roots, cameraMoteur(cam), [32, 32]),
+    shadeVisibility(expected, pages, locations, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
   const maps = textures.find((t) => t.format === 'rgba8unorm-srgb');

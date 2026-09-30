@@ -54,13 +54,20 @@ export function mountCutAdopter(options: {
   const desired: PageRec[] = [],
     shown: PageRec[] = [],
     drawn: PageRec[] = [];
+  // The packed ranks of the lists, rank by rank (#1235): one record may serve several placements.
+  const desiredPacked: number[] = [],
+    shownPacked: number[] = [],
+    drawnPacked: number[] = [];
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
   const adopter = createWebgpuCutAdopter({
     selection: options.selection,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     drawn,
+    drawnPacked,
     uniforms: options.uniforms,
     delta: createCutDelta(packedPages, desired),
     drawnDelta,
@@ -70,5 +77,5 @@ export function mountCutAdopter(options: {
     onDrawnMirrored: options.onDrawnMirrored ?? (() => {}),
     onAhead: options.onAhead ?? (() => {}),
   });
-  return { adopter, desired, shown, drawn };
+  return { adopter, desired, desiredPacked, shown, shownPacked, drawn, drawnPacked };
 }
