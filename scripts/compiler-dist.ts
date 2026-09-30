@@ -13,13 +13,13 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts';
+import { rustHost, rustTool } from './build-wasm.ts';
 import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CRATE = join(ROOT, 'packages/asset-compiler-rust');
-const rust = (args: string[]) => execFileSync('rustc', args, { encoding: 'utf8' }).trim();
 /** The Rust target of this machine, which the build names so that the flags reach no build script. */
-const TARGET = /^host: (\S+)$/m.exec(rust(['-vV']))?.[1] ?? '';
+const TARGET = rustHost();
 /** A path as the flags carry it: forward slashes, which every platform's toolchain reads. */
 const slashed = (path: string) => path.replaceAll('\\', '/');
 
@@ -52,9 +52,7 @@ rmSync(profiles, { recursive: true, force: true });
 mkdirSync(profiles, { recursive: true });
 compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${slashed(profiles)}`]));
 const merged = join(profiles, 'merged.profdata');
-const tools = join(rust(['--print', 'sysroot']), 'lib/rustlib', TARGET, 'bin');
-const profdata = join(tools, `llvm-profdata${process.platform === 'win32' ? '.exe' : ''}`);
-execFileSync(profdata, ['merge', '-o', merged, profiles], { stdio: 'inherit' });
+execFileSync(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], { stdio: 'inherit' });
 const compiler = build('dist', [`-Cprofile-use=${slashed(merged)}`]);
 const record: HashRecord = {
   compiler: platform,

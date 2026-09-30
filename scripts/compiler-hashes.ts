@@ -15,9 +15,9 @@
  *   node scripts/compiler-hashes.ts <compiler> <record.json> [<name>]
  *   node scripts/compiler-hashes.ts --compare [--colliders-may-differ] <reference> <record>...
  */
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts';
 import { compileFullCache } from './native-compiler.ts';
 import { COOKED_SCENES } from './site-caches.ts';
@@ -57,16 +57,16 @@ function comparable(bytes: Buffer, file: string, cache: string): Buffer | string
  *  names and contents with `<sha>` for a SHA-256. The lock of a finished cook is skipped. */
 export function cacheFingerprint(cache: string, prefix: string): Record<string, string> {
   const hashes = new Map<string, string[]>();
-  const files = readdirSync(cache, { recursive: true }).map(String);
+  const files = readdirSync(cache, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && !entry.name.endsWith('.lock'))
+    .map((entry) => relative(cache, join(entry.parentPath, entry.name)));
   const colliders = new Set(
     files
       .filter((file) => file.endsWith('physics.json'))
       .flatMap((file) => readFileSync(join(cache, file), 'utf8').match(SHA) ?? []),
   );
   for (const file of files) {
-    const path = join(cache, file);
-    if (file.endsWith('.lock') || !statSync(path).isFile()) continue;
-    const content = comparable(readFileSync(path), file, cache);
+    const content = comparable(readFileSync(join(cache, file)), file, cache);
     const text = typeof content === 'string' ? content.replaceAll(SHA, '<sha>') : content;
     const collider = colliders.has(OBJECT.exec(file)?.[1] ?? '') ? COLLIDER : '';
     const name = `${prefix}/${file.replaceAll('\\', '/').replaceAll(SHA, '<sha>')}${collider}`;
