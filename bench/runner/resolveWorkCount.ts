@@ -6,7 +6,7 @@
 // - `setup`: the pixels that set up a shadow read — eight neighbour depths for the unjittered
 //   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`, #1410):
 //   develop at every lit pixel, now where the cell's list holds a shadowed light (`cellShadowed`).
-// - `weights`: `lightWeight` evaluations of a drawn list (`sampledTileLighting`): three walks of
+// - `weights`: `lightWeight` evaluations of a drawn list (`sampledSliceLighting`): three walks of
 //   its `L` lights on develop, two now.
 // - `shaded`: lights shaded in full (`declaredLight`): a full sum's `L`, a drawn list's at most
 //   `LIGHT_SAMPLES`.

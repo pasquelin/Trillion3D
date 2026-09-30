@@ -145,9 +145,7 @@ export const declaredLightingWgsl = (
 ) => `
 ${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding, pages)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
- let cells=vec2u(uni.lightTiles);
- var cell=TILE_NO_SLICE;
- if(cells.x>0u&&cells.y>0u){cell=gridCell(pixel,z,cells);}
+ let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
  if(cell==TILE_NO_SLICE){return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count));}
  return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(cell));
 }`;
