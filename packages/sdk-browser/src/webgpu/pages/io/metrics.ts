@@ -18,10 +18,10 @@ import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 /** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
 export function vertexBytesOf(
   gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
-  vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv'>,
+  vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'vertexPool'>,
 ) {
-  // The normals ride in the position buffer (#1410): counted with it.
-  return gpu.vertexBytes + (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0);
+  const normals = vis.vertexPool?.normalBytes ?? 0; // the pool's normal atlas (#1410)
+  return gpu.vertexBytes + (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + normals;
 }
 
 export function metricsOf(rt: WebgpuPagesRuntime) {

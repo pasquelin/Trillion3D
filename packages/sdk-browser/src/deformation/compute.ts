@@ -1,7 +1,13 @@
-import { DEFORMATION_COMPUTE_WGSL, deformationBindings } from './computeWgsl.ts';
+import {
+  DEFORMATION_COMPUTE_WGSL,
+  DEFORMATION_NORMALS,
+  deformationBindings,
+} from './computeWgsl.ts';
+
+/** A binding of the stage: a buffer, or the normal atlas's view (`DEFORMATION_NORMALS`). */
+type DeformationResource = GPUBuffer | GPUTextureView;
 import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
 import { DEFORMATION_PASS } from './pass.ts';
-import type { BufferRange } from '../webgpu/core/liveEntries.ts';
 
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {
@@ -20,22 +26,25 @@ export async function createDeformationCompute(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const imageWords = new Uint32Array(4);
-  const wholeBuffers: BufferRange[] = [];
-  const held: { buffers: readonly BufferRange[]; group: GPUBindGroup }[] = [];
-  const moved = (buffers: readonly BufferRange[], slot: number) => {
+  const wholeBuffers: DeformationResource[] = [];
+  const held: { buffers: readonly DeformationResource[]; group: GPUBindGroup }[] = [];
+  const moved = (buffers: readonly DeformationResource[], slot: number) => {
     if (!held[slot]) return true;
     for (let i = 0; i < buffers.length; i++) if (buffers[i] !== held[slot].buffers[i]) return true;
     return false;
   };
-  const bind = (buffers: readonly BufferRange[], slot: number) => {
+  const bind = (buffers: readonly DeformationResource[], slot: number) => {
     if (moved(buffers, slot))
       held[slot] = {
         buffers: [...buffers],
         group: device.createBindGroup({
           layout,
-          entries: [...buffers, image].map((range, binding) => ({
+          entries: [...buffers, image].map((resource, binding) => ({
             binding,
-            resource: 'buffer' in range ? range : { buffer: range },
+            resource:
+              binding === DEFORMATION_NORMALS
+                ? (resource as GPUTextureView)
+                : { buffer: resource as GPUBuffer },
           })),
         }),
       };
@@ -43,7 +52,7 @@ export async function createDeformationCompute(device: GPUDevice) {
   };
   const encode = (
     encoder: GPUCommandEncoder,
-    buffers: readonly BufferRange[],
+    buffers: readonly DeformationResource[],
     rows: number,
     frame: number,
     whole?: { table: GPUBuffer; count: number },
