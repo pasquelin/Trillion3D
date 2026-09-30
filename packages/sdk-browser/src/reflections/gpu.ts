@@ -11,6 +11,11 @@ import {
   type ReflectionHistoryFrame,
 } from './historyRuntime.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
+import {
+  createReflectionSource,
+  type ReflectionSource,
+  type ReflectionSourceInputs,
+} from './source.ts';
 
 const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surface));
 const roughReflecting = (surface: PageSurface) => {
@@ -67,8 +72,11 @@ export function createScreenReflection(
   let uniform: GPUBuffer | undefined;
   let history: ReflectionHistory | undefined;
   let pyramid: ReturnType<typeof createReflectionConePyramid> | undefined;
+  let reprojection: ReflectionSource | undefined;
   try {
-    if (active && cone) pyramid = createReflectionConePyramid(device, color, depth);
+    // The rough trace walks the cone's depth bounds; its radiance levels only where a cone reads.
+    if (active && (cone || rough))
+      pyramid = createReflectionConePyramid(device, color, depth, cone);
     if (active && rough) history = createReflectionHistory(device, width, height);
     uniform = device.createBuffer({
       size: 80,
@@ -95,6 +103,7 @@ export function createScreenReflection(
       groups.set(image, group);
       return group;
     };
+    if (active) reprojection = createReflectionSource(device, width, height, depth);
     groupFor();
     return {
       active,
@@ -104,14 +113,21 @@ export function createScreenReflection(
       },
       history,
       pyramid,
-      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`). */
+      /** The reprojection's bind group (`source.ts`): none before an image gave its inputs. */
+      get sourceGroup() {
+        return reprojection?.group;
+      },
+      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
+       *  `source`, what the last lit image is reprojected from. */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
+        source?: ReflectionSourceInputs,
       ) {
         if (history && frame) history.prepare(frame, matrix, drawn);
+        reprojection?.update(matrix, drawn, source);
         packed.set(matrix);
         packed[16] = active && enabled ? 1 : 0;
         packed[17] = drawn[0];
@@ -124,11 +140,13 @@ export function createScreenReflection(
         heldUniform.destroy();
         history?.dispose();
         pyramid?.dispose();
+        reprojection?.dispose();
       },
     };
   } catch (error) {
     color.destroy();
     uniform?.destroy();
+    reprojection?.dispose();
     history?.dispose();
     pyramid?.dispose();
     throw error;

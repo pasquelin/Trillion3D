@@ -25,6 +25,7 @@ vec2 reflectionSize(){return vec2(textureSize(reflectionColor,0));}
 float reflectionDepthAt(ivec2 p){return texelFetch(reflectionDepth,p,0).r;}
 float reflectionClearDepth(){return 1.0;}
 vec3 reflectionColorAt(ivec2 p){return texelFetch(reflectionColor,p,0).rgb;}
+vec4 reflectionHitAt(ivec2 p){return vec4(reflectionColorAt(p),1.0);}
 ${screenTraceShader('glsl')}
 ${mirrorWeightShader('glsl')}
 float reflectionLastMip(){return floor(log2(max(reflectionSize().x,reflectionSize().y)));}

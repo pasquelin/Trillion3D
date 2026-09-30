@@ -4,7 +4,8 @@ import { shaderLanguage } from '../math/shaderLanguage.ts';
  * Clip the homogeneous ray to all six planes before division. Depth is linear along
  * the projected segment; each visited pixel tests that segment's depth interval.
  * Work is bounded by the viewport's width plus height, with no world-space step/thickness.
- * The adapters supply a canonical [0,w] depth, texture-oriented Y and frozen radiance. */
+ * The adapters supply a canonical [0,w] depth, texture-oriented Y and the hit's radiance, whose
+ * alpha 0 is a pixel the source cannot answer: a miss. */
 const TRACE = `
 fn reflectionExit(c:vec4f,d:vec4f)->f32{
  var end:f32=1e30;
@@ -50,7 +51,7 @@ fn screenReflection(P:vec3f,R:vec3f)->vec4f{
    var before:f32=mix(a.z,b.z,entered);
    var after:f32=mix(a.z,b.z,exited);
    if(z!=reflectionClearDepth()&&z>=min(before,after)&&z<=max(before,after)){
-    return vec4f(reflectionColorAt(pixel),1.0);
+    return reflectionHitAt(pixel);
    }
   }
   if(exited>=1.0){break;}
