@@ -20,11 +20,13 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
       world,
     ),
   ]);
-  const rec = { min: [-1, -1, -1], max: [1, 1, 1], placementIndex: 0, packedIndex: 0 } as PageRec;
+  const rec = { min: [-1, -1, -1], max: [1, 1, 1] } as unknown as PageRec;
   const root = {
     world,
     pages: [rec],
     reach: 0,
+    // The record is packed rank 0 of this one placement (#1235).
+    packedBase: 0,
     localBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
     worldBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
   };
@@ -64,10 +66,10 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
   weights[0] = 1;
   updateWebgpuDeformation(rt, camera);
   assert.deepEqual(dirty, [0], 'the unrelated caster is left alone');
-  const sphere = packClusterSpheres([rec], [root], new Float32Array(4), 0, 0);
+  const sphere = packClusterSpheres([rec], [root], new Float32Array(4), 0, 0, () => 0);
   assert.ok(sphere[3] >= 101, 'the GPU cull and shadow occlusion sphere contains maximum reach');
   const box = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
-  growClusterBox(rec, [root], box);
+  growClusterBox(rec, [root], box, 0);
   assert.ok(box[0] <= -101 && box[3] >= 101, 'CPU light selection contains the same displacement');
   assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101]);
   dirty.length = 0;

@@ -12,7 +12,11 @@ import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
  */
 export type WebglViewState = {
   shown: PageRec[];
+  /** The packed rank of each shown page, rank by rank (#1235): one record serves many placements. */
+  shownPacked: number[];
   desired: PageRec[];
+  /** The packed rank of each desired page, rank by rank. */
+  desiredPacked: number[];
   requested: PageRec[];
   motion: CameraMotion;
   /** The main view's is the host's own array, which a resize writes. */
@@ -20,7 +24,9 @@ export type WebglViewState = {
 };
 export const VIEW_KEYS = [
   'shown',
+  'shownPacked',
   'desired',
+  'desiredPacked',
   'requested',
   'motion',
   'viewport',
@@ -29,7 +35,9 @@ export const VIEW_KEYS = [
 /** A view of `viewport` that has drawn nothing yet: no cut, no motion. */
 const blankView = (viewport: [number, number] | undefined): WebglViewState => ({
   shown: [],
+  shownPacked: [],
   desired: [],
+  desiredPacked: [],
   requested: [],
   motion: {},
   viewport,

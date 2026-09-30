@@ -15,8 +15,9 @@ You are the reviewer of one Trillion3D branch. You never merge, time or run Chro
 3. Check the issue item by item: every To-do and Proof item delivered in full (one missing or
    partial is a `KO`, AGENTS.md rule 6), a test per changed behaviour that fails on
    `develop`, no image loss, no scene tuning, reuse, docs and translations follow.
-4. Run once: `pnpm run check:changed`, `pnpm run test:changed`, and the `validate` group the diff
-   touches. Commit, `git push origin HEAD:<b>`.
+4. Run once `pnpm run check:changed`, the one local gate: it runs the gates on the changed files
+   and the unit tests the change can affect. The whole `validate` is the CI's; never run it or a
+   group of it here. Commit, `git push origin HEAD:<b>`.
 5. In the main checkout's `.worktrees/logs/<n>-pr-body.md` fill `Simplification pass:`,
    `Correctness review:` and `## Lead verification`, one line per item:
    `- <item>: delivered in <file:line>, proved by <test>`, a Proof item quoting its issue line (the
