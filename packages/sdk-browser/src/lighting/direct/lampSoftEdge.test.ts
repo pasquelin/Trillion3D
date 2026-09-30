@@ -11,7 +11,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts';
 import { shadowJitterWords } from '../deferred/view.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
 
 type V = number[];
 /** A face `SIDE` texels wide seeing +z, 90° across; the lamp at the origin, near 0.1, range 100. */
