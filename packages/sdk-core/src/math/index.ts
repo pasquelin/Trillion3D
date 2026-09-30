@@ -9,7 +9,12 @@ export {
   multiplyMatrix4,
 } from './matrix/matrix4.ts';
 export { invertMatrix4 } from './matrix/matrix4Inverse.ts';
-export { composeMatrix4, decomposeMatrix4 } from './matrix/matrix4Trs.ts';
+export {
+  basisMatrix4,
+  composeMatrix4,
+  decomposeMatrix4,
+  uniformScaleMatrix4,
+} from './matrix/matrix4Trs.ts';
 export { normalMatrix3 } from './matrix/matrix3.ts';
 export { SINGULAR_DETERMINANT_WGSL, linearPartScale } from './matrix/singular.ts';
 export {
@@ -60,7 +65,13 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from './batch/batch.ts';
-export { type MathPath, type MathPathMetrics, type MathPathMode } from './path/contracts.ts';
+export {
+  MATH_PATH_CONTRACT,
+  type MathPath,
+  type MathPathMetrics,
+  type MathPathMode,
+  type MathPathOperation,
+} from './path/contracts.ts';
 export { createPathGovernor, type PathGovernor } from './path/governor.ts';
 export {
   FRUSTUM_PLANE_VALUES,
@@ -116,4 +127,9 @@ export {
   viewToRenderOrigin,
   worldToRenderOrigin,
 } from './primitives/renderOrigin.ts';
-export { axisAngleQuaternion } from './matrix/quaternion.ts';
+export {
+  axisAngleQuaternion,
+  multiplyQuaternion,
+  normalizeQuaternion,
+  rotateByQuaternion,
+} from './matrix/quaternion.ts';
