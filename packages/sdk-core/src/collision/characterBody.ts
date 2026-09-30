@@ -103,8 +103,13 @@ export function createCharacterBody(settings: CharacterSettings) {
     if (length === 0) return;
     const reach = Math.max(1, settings.capsuleRadius / length);
     // A micrometre of rise is the arithmetic's, not a step.
-    if (stepOver(dx * reach, dz * reach) && capsule.feet[1] > start[1] + 1e-6)
-      return void stepOver(dx, dz);
+    if (
+      stepOver(dx * reach, dz * reach) &&
+      capsule.feet[1] > start[1] + 1e-6 &&
+      stepOver(dx, dz) &&
+      capsule.feet[1] > start[1] + 1e-6
+    )
+      return;
     capsule.feet.set(kept.subarray(0, 3));
     velocity.set(kept.subarray(3));
   };
