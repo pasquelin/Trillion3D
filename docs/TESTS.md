@@ -46,12 +46,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 ## 2. The Four Commands
 
-| Command             | What it runs                                                         |
-| ------------------- | -------------------------------------------------------------------- |
-| `pnpm test`         | every unit, integration, kit, bench-runner and script test           |
+| Command | What it runs |
+| --- | --- |
+| `pnpm test` | every unit, integration, kit, bench-runner and script test |
 | `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
-| `pnpm run validate` | full pre-merge validation gate                                       |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
+| `pnpm run validate` | full pre-merge validation gate |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
@@ -248,21 +248,21 @@ least five times, comparing identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
-| `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
-| `pnpm run check:english`      | No new French word in the code: a count per package that only goes down      |
-| `pnpm run check:translations` | No translation left behind when its English changes                          |
-| `pnpm run check:thumbnails`   | Report, not a gate: the examples the recette still has to capture            |
-| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
-| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
-| `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
-| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+| Command | Role |
+| --- | --- |
+| `pnpm run check:lines` | Maximum 200 physical lines per maintained JS/TS/Rust file |
+| `pnpm run check:duplicates` | No duplicated blocks ≥ 8 lines and ≥ 64 tokens |
+| `pnpm run check:helpers` | No small helper copied into a second module of the same package |
+| `pnpm run check:english` | No new French word in the code: a count per package that only goes down |
+| `pnpm run check:translations` | No translation left behind when its English changes |
+| `pnpm run check:thumbnails` | Report, not a gate: the examples the recette still has to capture |
+| `pnpm run check:structure` | sdk-core typed without DOM; the boundary tests run in the unit suite |
+| `pnpm run check:unused` | Dead exports and files (`knip`) |
+| `pnpm run check:no-js` | No JavaScript source under `site/`: the site is TypeScript |
+| `pnpm run check:docs-three` | Three.js named only in witness, benchmark, measurement or migration sections |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git |
+| `pnpm run check:site-types` | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
+| `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |
 
 `check:english` counts, per package, the French words of `scripts/french-words.ts` in the
 identifiers, comments and strings of every source file, the strings a program reads named there as
