@@ -7,12 +7,11 @@ import {
 } from './resolveWgsl.ts';
 import {
   historyConfidence,
-  sameVersions,
   REFLECTION_LIGHTING_VERSIONS,
   REFLECTION_PLACEMENT_VERSIONS,
   type ReflectionHistoryFrame,
 } from './historyFrame.ts';
-import { sameElements } from '../math/matrixElements.ts';
+import { sameElements, sameValues } from '../math/matrixElements.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 
 /** Owns only the reflection mean and its metadata; placement data remains shared.
@@ -86,8 +85,8 @@ export function createReflectionHistory(
       drawn: readonly number[] = [width, height],
     ) {
       const resized = drawnWidth !== drawn[0] || drawnHeight !== drawn[1];
-      const moved = !sameVersions(epoch, next.epoch);
-      const relit = !sameVersions(lighting, next.lighting);
+      const moved = !sameValues(epoch, next.epoch);
+      const relit = !sameValues(lighting, next.lighting);
       const reprojects = next.motion !== next.pages;
       const changed = resized || moved || relit;
       const resets = resized || relit;

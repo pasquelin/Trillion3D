@@ -10,12 +10,6 @@ import {
 export const REFLECTION_PLACEMENT_VERSIONS = 7;
 export const REFLECTION_LIGHTING_VERSIONS = 2;
 
-/** Whether two version lists hold the same numbers. */
-export function sameVersions(held: ArrayLike<number>, now: ArrayLike<number>) {
-  for (let i = 0; i < held.length; i++) if (held[i] !== now[i]) return false;
-  return true;
-}
-
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
   pages: GPUBuffer;

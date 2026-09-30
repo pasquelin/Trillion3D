@@ -1,7 +1,8 @@
 import { writeReprojection } from '../taa/view.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { REFLECTION_SOURCE_VIEW_BYTES, reflectionSourceLayout } from './sourceWgsl.ts';
-import { REFLECTION_PLACEMENT_VERSIONS, sameVersions } from './historyFrame.ts';
+import { REFLECTION_PLACEMENT_VERSIONS } from './historyFrame.ts';
+import { sameValues } from '../math/matrixElements.ts';
 
 /** The last unfogged image (8 bytes), and the last depth and identifiers (4 each) the history
  *  resolve reads too; the reprojected source itself (8) is `gpu.ts`'s. */
@@ -99,7 +100,7 @@ export function createReflectionSource(
           const live = inputs.motion !== inputs.pages;
           writeReprojection(packed, last, matrix, inputs.eye, drawn);
           packed[36] = kept ? 1 : 0;
-          packed[37] = !live && placed && !sameVersions(placement, inputs.placement) ? 1 : 0;
+          packed[37] = !live && placed && !sameValues(placement, inputs.placement) ? 1 : 0;
           packed[38] = live ? 1 : 0;
           packed[40] = lastDrawn[0];
           packed[41] = lastDrawn[1];
