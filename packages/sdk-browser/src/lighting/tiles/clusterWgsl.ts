@@ -42,7 +42,7 @@ fn clusterSliceSpan(distance:f32,radius:f32,front:f32,back:f32)->vec2u{
  *  factor (`z = nearPlane / distance`). The slice index is a ratio of these, so that factor
  *  cancels and the resolve needs no near plane; the pass multiplies it back in where the light
  *  radius is compared (`clusterBins`). */
-export const clusterDistanceWgsl = `
+const clusterDistanceWgsl = `
 fn clusterDistance(z:f32)->f32{return ${DEPTH_NEAR}.0/max(z,1e-9);}`;
 
 /** The cluster functions, shared by the tile pass and the resolve. */
@@ -68,22 +68,24 @@ var<workgroup> sliceStart:array<u32,CLUSTER_SLICES>;
 var<workgroup> clusterAxis:vec3f;
 var<workgroup> clusterFront:f32;
 var<workgroup> clusterBack:f32;
-/** The centre ray of the tile pass's frame, pointing away from the eye: the view axis the slices
- *  are measured along. Reversed depth, so the near plane has the greater depth value. */
+/** First pool word of the tile's bins, \`TILE_NO_SLICE\` when it has none: thread zero's, shared in
+ *  workgroup memory so no lane reads back another's storage write. */
+var<workgroup> clusterFirst:u32;
+/** The view axis, pointing away from the eye: the normal of the near plane, the axis the depth
+ *  buffer measures along. A jittered matrix shifts the plane's points, never its normal, so the
+ *  light's axis distance and the pixel's depth are read on the same axis. */
 fn clusterForward()->vec3f{
- let near=unproject(vec3f(0.0,0.0,${DEPTH_NEAR}.0));
- let deep=unproject(vec3f(0.0,0.0,COLUMN_DEPTH));
- return normalize(deep-near);
+ let centre=unproject(vec3f(0.0,0.0,${DEPTH_NEAR}.0));
+ let normal=normalize(cross(unproject(vec3f(1.0,0.0,${DEPTH_NEAR}.0))-centre,unproject(vec3f(0.0,1.0,${DEPTH_NEAR}.0))-centre));
+ return select(-normal,normal,dot(normal,unproject(vec3f(0.0,0.0,COLUMN_DEPTH))-centre)>0.0);
 }
-/** The near-plane distance of the camera the pass's inverse view-projection carries: the length of
- *  the centre ray's near point, in the pass's frame (the eye at its origin). The light radius is a
- *  length in metres, so the pass measures in metres; the resolve's ratio never needs this. */
-fn clusterNear()->f32{return length(unproject(vec3f(0.0,0.0,${DEPTH_NEAR}.0)));}
 /** Thread zero: the view axis and the tile's front and back distances, in metres, the lanes then
- *  share. The light radius is a length, so the near factor goes back into the normalized depths. */
+ *  share. The light radius is a length, so the near-plane distance — the near plane's offset along
+ *  the axis, in the pass's frame (the eye at its origin) — goes back into the normalized depths;
+ *  the resolve's ratio never needs it. */
 fn clusterFrame(nearZ:u32,farZ:u32){
  clusterAxis=clusterForward();
- let nearPlane=clusterNear();
+ let nearPlane=dot(unproject(vec3f(0.0,0.0,${DEPTH_NEAR}.0)),clusterAxis);
  clusterFront=nearPlane*clusterDistance(bitcast<f32>(nearZ));
  clusterBack=nearPlane*clusterDistance(bitcast<f32>(farZ));
 }
@@ -98,12 +100,16 @@ fn clusterLightReaches(base:u32,index:u32,slice:u32)->bool{
 /** Writes the record's depth words and cluster flag, and (when there is room) the bins. Runs after
  *  the tile compaction, in uniform control flow: every lane reaches each barrier. */
 fn clusterBins(base:u32,lane:u32){
- let kept=tiles[base];
- tiles[base+TILE_DEPTH_BASE]=atomicLoad(&nearest);
- tiles[base+TILE_DEPTH_BASE+1u]=atomicLoad(&farthest);
- if(lane==0u){tiles[base+TILE_CLUSTER_FLAG]=0u;}
+ let kept=workgroupUniformLoad(&counted).x;
+ // The compaction's list writes, made by every lane, land before the lanes read the list back.
+ storageBarrier();
+ if(lane==0u){
+  tiles[base+TILE_DEPTH_BASE]=atomicLoad(&nearest);
+  tiles[base+TILE_DEPTH_BASE+1u]=atomicLoad(&farthest);
+  tiles[base+TILE_CLUSTER_FLAG]=0u;
+  clusterFirst=TILE_NO_SLICE;
+ }
  if(lane<CLUSTER_SLICES){sliceCount[lane]=0u;}
- workgroupBarrier();
  let on=kept>0u&&kept<=TILE_LIGHTS&&bitcast<f32>(atomicLoad(&farthest))>0.0;
  if(lane==0u&&on){clusterFrame(atomicLoad(&nearest),atomicLoad(&farthest));}
  workgroupBarrier();
@@ -121,16 +127,18 @@ fn clusterBins(base:u32,lane:u32){
   var at=0xffffffffu;
   if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
   if(at<pool.capacity&&total<=pool.capacity-at){
+   clusterFirst=pool.start+at;
    for(var s=0u;s<CLUSTER_SLICES;s++){
-    tiles[base+TILE_CLUSTER_BASE+2u*s]=sliceStart[s]+pool.start;
+    tiles[base+TILE_CLUSTER_BASE+2u*s]=clusterFirst+sliceStart[s];
     tiles[base+TILE_CLUSTER_BASE+2u*s+1u]=sliceCount[s];
    }
    tiles[base+TILE_CLUSTER_FLAG]=1u;
-  }
+  }else{atomicStore(&pool.overflow,1u);}
  }
  workgroupBarrier();
- if(tiles[base+TILE_CLUSTER_FLAG]!=0u&&lane<CLUSTER_SLICES){
-  var at=tiles[base+TILE_CLUSTER_BASE+2u*lane];
+ let first=clusterFirst;
+ if(first!=TILE_NO_SLICE&&lane<CLUSTER_SLICES){
+  var at=first+sliceStart[lane];
   for(var i=0u;i<kept;i++){
    if(clusterLightReaches(base,i,lane)){
     tiles[at]=tiles[base+TILE_OPAQUE_BASE+i];
@@ -158,15 +166,11 @@ fn clusterLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,
  let slice=clusterSliceIndex(clusterDistance(z),front,back);
  let first=tileLights[base+TILE_CLUSTER_BASE+2u*slice];
  let count=tileLights[base+TILE_CLUSTER_BASE+2u*slice+1u];
- var result=vec3f(0.0);
- for(var index=0u;index<count;index++){
-  result+=declaredLight(directLights.items[tileLights[first+index]],rgb,metal,rough,N,V,P,ao);
- }
- return result;
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(first,count));
 }`;
 
 /** The tile pass's addition: the cluster functions and the binning, wide path only. */
-export const clusterPassWgsl = () => `${CLUSTER_LEADING_WGSL}
+export const clusterPassWgsl = `${CLUSTER_LEADING_WGSL}
 ${clusterBinsWgsl}`;
 
 /** Slices, exposed for tests and for the documentation of the setting. */

@@ -152,10 +152,8 @@ export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 ${clusterResolveWgsl}
-/** Contribution of the contract lights to the pixel, tile by tile and light by light. A resolve
- *  reads the pixel's cluster (clusterLighting, #1249) on a still image and on a moving one whose
- *  tile list holds no shadowed light; a tile that wrote no cluster reads its own opaque list, and
- *  the sample budget keeps the shadowed path. */
+/** Contribution of the contract lights to the pixel: its cluster (#1249), or on a moving image
+ *  whose tile holds a shadowed light, the sampled path. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
  let tile=pixelTile(pixel);
