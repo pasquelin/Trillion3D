@@ -37,7 +37,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       true,
       undefined,
       blendWritesShare(rt),
-      rt.lights.plan.sunWindow,
+      rt.context.sunWindow,
     );
     vis.blendBindGroupLayout = built.blendBindGroupLayout;
     vis.blendPipelines = built.blendPipelines;
