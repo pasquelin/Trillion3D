@@ -61,9 +61,13 @@ ${clusterSliceIndexWgsl}`;
  * depth atomics and the pool are those of the tile pass (`./shader.ts`).
  */
 export const clusterBinsWgsl = `
-/** Per-slice kept counts, filled by one lane each, then prefix-summed by thread zero. */
+/** Per-slice kept counts, filled by one lane each, then prefix-summed by thread zero. The view
+ *  axis and the tile's front and back distances are computed once, by thread zero. */
 var<workgroup> sliceCount:array<u32,CLUSTER_SLICES>;
 var<workgroup> sliceStart:array<u32,CLUSTER_SLICES>;
+var<workgroup> clusterAxis:vec3f;
+var<workgroup> clusterFront:f32;
+var<workgroup> clusterBack:f32;
 /** The centre ray of the tile pass's frame, pointing away from the eye: the view axis the slices
  *  are measured along. Reversed depth, so the near plane has the greater depth value. */
 fn clusterForward()->vec3f{
@@ -75,12 +79,20 @@ fn clusterForward()->vec3f{
  *  the centre ray's near point, in the pass's frame (the eye at its origin). The light radius is a
  *  length in metres, so the pass measures in metres; the resolve's ratio never needs this. */
 fn clusterNear()->f32{return length(unproject(vec3f(0.0,0.0,${DEPTH_NEAR}.0)));}
+/** Thread zero: the view axis and the tile's front and back distances, in metres, the lanes then
+ *  share. The light radius is a length, so the near factor goes back into the normalized depths. */
+fn clusterFrame(nearZ:u32,farZ:u32){
+ clusterAxis=clusterForward();
+ let nearPlane=clusterNear();
+ clusterFront=nearPlane*clusterDistance(bitcast<f32>(nearZ));
+ clusterBack=nearPlane*clusterDistance(bitcast<f32>(farZ));
+}
 /** Whether light \`i\` of the tile's opaque list reaches slice \`slice\`. The sun has no range: it
  *  reaches every slice. */
-fn clusterLightReaches(base:u32,index:u32,slice:u32,forward:vec3f,frontD:f32,backD:f32)->bool{
+fn clusterLightReaches(base:u32,index:u32,slice:u32)->bool{
  let light=lights.items[tiles[base+TILE_OPAQUE_BASE+index]];
  if(isSun(light)){return true;}
- let reach=clusterSliceSpan(dot(light.positionRange.xyz-view.origin.xyz,forward),light.positionRange.w,frontD,backD);
+ let reach=clusterSliceSpan(dot(light.positionRange.xyz-view.origin.xyz,clusterAxis),light.positionRange.w,clusterFront,clusterBack);
  return slice>=reach.x&&slice<reach.y;
 }
 /** Writes the record's depth words and cluster flag, and (when there is room) the bins. Runs after
@@ -93,22 +105,14 @@ fn clusterBins(base:u32,lane:u32){
  if(lane<CLUSTER_SLICES){sliceCount[lane]=0u;}
  workgroupBarrier();
  let on=kept>0u&&kept<=TILE_LIGHTS&&bitcast<f32>(atomicLoad(&farthest))>0.0;
- var forward=vec3f(0.0,0.0,1.0);
- var frontD=0.0;
- var backD=0.0;
- if(on){
-  forward=clusterForward();
-  let nearPlane=clusterNear();
-  // The light radius is metres: the pass measures in metres too, the near factor put back in.
-  frontD=nearPlane*clusterDistance(bitcast<f32>(atomicLoad(&nearest)));
-  backD=nearPlane*clusterDistance(bitcast<f32>(atomicLoad(&farthest)));
-  if(lane<CLUSTER_SLICES){
-   var count=0u;
-   for(var i=0u;i<kept;i++){
-    if(clusterLightReaches(base,i,lane,forward,frontD,backD)){count=count+1u;}
-   }
-   sliceCount[lane]=count;
+ if(lane==0u&&on){clusterFrame(atomicLoad(&nearest),atomicLoad(&farthest));}
+ workgroupBarrier();
+ if(on&&lane<CLUSTER_SLICES){
+  var count=0u;
+  for(var i=0u;i<kept;i++){
+   if(clusterLightReaches(base,i,lane)){count=count+1u;}
   }
+  sliceCount[lane]=count;
  }
  workgroupBarrier();
  if(lane==0u&&on){
@@ -128,7 +132,7 @@ fn clusterBins(base:u32,lane:u32){
  if(tiles[base+TILE_CLUSTER_FLAG]!=0u&&lane<CLUSTER_SLICES){
   var at=tiles[base+TILE_CLUSTER_BASE+2u*lane];
   for(var i=0u;i<kept;i++){
-   if(clusterLightReaches(base,i,lane,forward,frontD,backD)){
+   if(clusterLightReaches(base,i,lane)){
     tiles[at]=tiles[base+TILE_OPAQUE_BASE+i];
     at=at+1u;
    }
