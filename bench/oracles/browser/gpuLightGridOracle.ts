@@ -1,8 +1,7 @@
 /**
  * Oracle of the light grid's cells (#1369), a line-by-line port of
- * packages/sdk-browser/src/lighting/tiles/{boundsWgsl,shader}.ts, every operation rounded to f32:
- * a column's planes, a light's span of depth slices, a cell's bounds and the test of a light's
- * range sphere against them. `inverseViewProjection` is column-major and maps to the frame of
+ * packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts, every operation rounded to f32: a
+ * column's planes and section, and the run of its slices a light's range sphere meets. `inverseViewProjection` is column-major and maps to the frame of
  * `origin` (`tileViewInverse`), where points are given (`toTileFrame`); `depthRows` are the render
  * matrix's depth and w rows in that frame (`tileDepthRows`).
  */
@@ -27,8 +26,6 @@ export const GRID: Grid = {
   slices: LIGHT_SETTINGS.gridSlices,
   perOctave: LIGHT_SETTINGS.gridSlicesPerOctave,
 };
-/** `SLICE_PAD`: the relative margin a cell's depth range is widened by on each side. */
-export const SLICE_PAD = 1 / 256;
 
 const f = Math.fround;
 const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)];
@@ -54,30 +51,23 @@ function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 
 
 /** `gridSlice`: the slice of a pixel of depth `z`, `perOctave` a doubling of its view depth. */
 export const gridSlice = (z: number, grid = GRID) =>
-  Math.trunc(Math.min(Math.max(f(-f(Math.log2(Math.max(z, 1e-30))) * grid.perOctave), 0), grid.slices - 1));
+  Math.trunc(
+    Math.min(Math.max(f(-f(Math.log2(Math.max(z, 1e-30))) * grid.perOctave), 0), grid.slices - 1),
+  );
 
-/** `sliceDepths`: the depth of a slice's front and back, each widened by `SLICE_PAD`; the near
- *  plane in front of the first, nothing behind the last (0: the background). */
-export function sliceDepths(slice: number, grid = GRID) {
-  const at = (s: number) => f(2 ** f(-s / grid.perOctave));
-  const front = slice === 0 ? DEPTH_NEAR : f(at(slice) * f(1 + SLICE_PAD));
-  const back = slice === grid.slices - 1 ? 0 : f(at(slice + 1) * f(1 - SLICE_PAD));
-  return { front, back };
-}
-
-export function cellCorner(view: TileView, cell: [number, number], corner: number, z: number, grid = GRID) {
+export function cellCorner(
+  view: TileView,
+  cell: [number, number],
+  corner: number,
+  z: number,
+  grid = GRID,
+) {
   const edge = (t: number, far: number, extent: number) =>
     far ? Math.min(f(((t + 1) * grid.cell) / extent), 1) : f((t * grid.cell) / extent);
   const x = edge(cell[0], corner & 1, view.width);
   const y = edge(cell[1], corner & 2, view.height);
   return unproject(view.inverseViewProjection, f(f(x * 2) - 1), f(1 - f(y * 2)), f(z));
 }
-
-/** The box of a set of points: the min and max of each axis. */
-export const boxOf = (points: Vec3[]): Box => ({
-  lo: map((a) => Math.min(...points.map((p) => p[a]))),
-  hi: map((a) => Math.max(...points.map((p) => p[a]))),
-});
 
 function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
   const n = scale(normal, f(1 / f(Math.sqrt(dot(normal, normal)))));
@@ -106,7 +96,7 @@ export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
   return dot(clamped, clamped) <= f(radius * radius);
 }
 
-/** `sphereInColumn`: within the four sides and past the near plane. */
+/** `sphereInColumn`: not wholly behind any of the column's planes. */
 export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) =>
   column.every((plane) => !sphereBehind(plane, centre, radius));
 
@@ -116,39 +106,6 @@ function depthOf(view: TileView, p: Vec3) {
   const row = (o: number) =>
     f(f(f(f(f(r[o]) * p[0]) + f(f(r[o + 1]) * p[1])) + f(f(r[o + 2]) * p[2])) + f(r[o + 3]));
   return { z: row(0), w: row(4) };
-}
-
-/** `sliceSpan`: the slices a sphere's view depths fall in, one more on each side. */
-export function sliceSpan(view: TileView, column: Plane[], centre: Vec3, radius: number, grid = GRID) {
-  const away = column[4].n;
-  const front = depthOf(view, sub(centre, scale(away, radius)));
-  const back = depthOf(view, add(centre, scale(away, radius)));
-  const first = front.w > 0 ? gridSlice(f(front.z / front.w), grid) : 0;
-  const last = back.w > 0 ? gridSlice(f(back.z / back.w), grid) : grid.slices - 1;
-  return [Math.max(first, 1) - 1, Math.min(last + 1, grid.slices - 1)];
-}
-
-/** `cellBounds`: a cell's front and back planes, parallel to the near one, and its box. */
-export function cellBounds(view: TileView, cell: [number, number], slice: number, column: Plane[], grid = GRID) {
-  const { front, back } = sliceDepths(slice, grid);
-  const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((c) =>
-    cellCorner(view, cell, c & 3, c & 4 ? back : front, grid),
-  );
-  const away = column[4].n;
-  return {
-    front: { n: away, w: -dot(away, corners[0]) } as Plane,
-    back: { n: scale(away, -1), w: dot(away, corners[4]) } as Plane,
-    box: boxOf(corners),
-    last: slice === grid.slices - 1,
-  };
-}
-
-/** `cellHit`: a sphere already in the column touches the cell's slab and box; the last slice is
- *  unbounded behind, the column's alone. */
-export function cellHit(bounds: ReturnType<typeof cellBounds>, centre: Vec3, radius: number) {
-  if (sphereBehind(bounds.front, centre, radius)) return false;
-  if (bounds.last) return true;
-  return !sphereBehind(bounds.back, centre, radius) && sphereTouchesBox(bounds.box, centre, radius);
 }
 
 /** `columnFrame`: the column's axes — across, down, into the view — and, along each lateral
@@ -169,7 +126,12 @@ export function columnFrame(view: TileView, cell: [number, number], column: Plan
   };
   return {
     axes: [across, down, into] as const,
-    edges: [edge(across, true, 0, 2), edge(across, false, 1, 3), edge(down, true, 0, 1), edge(down, false, 2, 3)],
+    edges: [
+      edge(across, true, 0, 2),
+      edge(across, false, 1, 3),
+      edge(down, true, 0, 1),
+      edge(down, false, 2, 3),
+    ],
     tn,
   };
 }
@@ -183,7 +145,15 @@ export const NEWTON_STEPS = 4;
  *  where `f(t) ≤ r²`: an interval. Newton's steps on a convex function never pass its root, so
  *  each end, stepped from the sphere's own depth extent, stays outside the interval: the run holds
  *  every slice the sphere meets, one slice more on each side. */
-export function lightRun(view: TileView, frame: ReturnType<typeof columnFrame>, centre: Vec3, radius: number, grid = GRID) {
+export function lightRun(
+  view: TileView,
+  frame: ReturnType<typeof columnFrame>,
+  centre: Vec3,
+  radius: number,
+  grid = GRID,
+) {
+  if (!(radius > 0)) return null;
+  if (radius > 3e38) return [0, grid.slices - 1];
   const [across, down, into] = frame.axes;
   const r = f(radius * 1.001);
   const ct = dot(into, centre);
