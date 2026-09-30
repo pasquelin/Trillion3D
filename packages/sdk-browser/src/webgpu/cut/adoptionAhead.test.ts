@@ -35,7 +35,7 @@ test('each new readback hands its requests ahead to their tier, an empty list on
   const offered: number[][] = [];
   let peeked = readback([0, 1], [4, 5]);
   const uniforms = posed(true);
-  const { adopter, desired } = mountCutAdopter({
+  const { adopter, desiredPacked } = mountCutAdopter({
     packedPages: fixturePages(6),
     uniforms,
     selection: () => peekOnly(() => peeked),
@@ -44,7 +44,7 @@ test('each new readback hands its requests ahead to their tier, an empty list on
   adopter.adopt();
   assert.deepEqual(offered, [[4, 5]]);
   assert.deepEqual(
-    desired.map((page) => page.packedIndex),
+    Array.from(desiredPacked),
     [0, 1],
     'what is ahead is never part of the camera cut',
   );

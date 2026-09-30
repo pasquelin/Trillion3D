@@ -5,7 +5,7 @@ import { barycentricAt, signedArea } from '../visibility/projection.ts';
 import type { VisPage } from '../visibility/buffer.ts';
 import type { HizPyramid } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/placements.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 
 /**
  * Visbuffer Hi-Z pyramid: far background, reduce toward farthest. The pyramid is flat: one buffer
@@ -27,14 +27,14 @@ export function buildHizPyramid(
 export function visibilityDepth(
   ids: Uint32Array,
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
 ) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(DEPTH_CLEAR);
-  const frame = createVisibilityFrame(pages, roots, cam, width, height);
+  const frame = createVisibilityFrame(pages, locations, cam, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const triangle = frame.triangle(ids[y * width + x]);

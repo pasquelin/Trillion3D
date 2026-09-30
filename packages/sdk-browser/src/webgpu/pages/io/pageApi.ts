@@ -6,6 +6,15 @@ import type { ArrivalPlan } from '../../../page/integration/host.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
 
+/** Names to the rank journal every packed instance of `rec`: they all share its pool address. */
+function touchInstances(
+  rows: Pick<WebgpuPagesCore['layout']['rows'], 'pageIndicesByUrl' | 'touchPage'>,
+  rec: PageRec,
+) {
+  const pages = rows.pageIndicesByUrl.get(pageAddress(rec));
+  if (pages) for (let i = 0; i < pages.length; i++) rows.touchPage(pages[i]);
+}
+
 /**
  * Takes the bytes of one request; each cluster it carries gets its own view at its own offset.
  *
@@ -46,12 +55,9 @@ export function acceptPage(
     run.pageArrayEpoch++;
     run.gate.resourcesChanged();
   }
-  if (planned && plan) for (let i = 0; i < plan.pageCount; i++) rows.touchPage(plan.pages[i]);
-  else
-    for (let i = 0; i < recs.length; i++) {
-      const page = rows.pageIndexOf(recs[i]);
-      if (page !== undefined) rows.touchPage(page);
-    }
+  // Every instance of each record is named: one record serves all its primitive's placements
+  // (#1235), and each placement's row and cut readiness follow its own packed rank.
+  for (let i = 0; i < recs.length; i++) touchInstances(rows, recs[i]);
   // The sample is a function, not an object: its three sweeps of the cluster list — a packet holds
   // hundreds — run only if "trace" detail is requested. Built ahead, it cost those sweeps on every
   // arrived page, including when nobody was reading them.
@@ -105,13 +111,12 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   run.pageArrayEpoch++;
   run.gate.resourcesChanged();
   for (let i = 0; i < recs.length; i++) {
-    const rec = recs[i],
-      page = rows.pageIndexOf(rec);
+    const rec = recs[i];
     rec.array = undefined;
     rec.indexBytes = rec.triangles * 12;
     // A cluster's bytes are what make it drawable the same way as its cache slot: the page is named
-    // AFTER the drop, so what rereads it does read the page without bytes.
-    if (page !== undefined) rows.touchPage(page);
+    // AFTER the drop, so what rereads it does read the page without bytes — every instance of it.
+    touchInstances(rows, rec);
     const address = pageAddress(rec);
     sourceBytes.delete(address);
     gpu.cache?.unload?.(address);

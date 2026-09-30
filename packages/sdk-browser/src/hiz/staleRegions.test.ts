@@ -9,7 +9,8 @@ import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibility/buffer.ts';
 import { applyTemporalHiz, type HizPage, type TemporalHizState } from './hiz.ts';
 import { staleTemporalBox } from './staleRegions.ts';
-import type { Placements } from '../page/selection/placements.ts';
+import { locatedBy } from '../page/selection/placements.fixture.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { seeded } from '../host/world/randomTree.fixture.ts';
@@ -34,7 +35,7 @@ function scene(draw: () => number) {
   const roots = pages.map((page) => ({ world: page.matrix }));
   return {
     pages,
-    roots,
+    locations: locatedBy(roots),
     dispose: () => (quads.forEach((q) => q.geometry.dispose()), surface.dispose()),
   };
 }
@@ -45,26 +46,32 @@ function worldBox(page: Page) {
   return [page.min.map((v, k) => v + t[k]), page.max.map((v, k) => v + t[k])];
 }
 
-const shade = (pages: Page[], roots: Placements) =>
-  shadeVisibility(rasterVisibilityIds(pages, roots, cam, SIZE), pages, roots, cam, SIZE);
+const shade = (pages: Page[], locations: PageLocations) =>
+  shadeVisibility(rasterVisibilityIds(pages, locations, cam, SIZE), pages, locations, cam, SIZE);
 
-function sameImage(pages: Page[], roots: Placements, shown: Page[], label: string) {
-  assert.equal(compareImages(shade(pages, roots), shade(shown, roots)).maxChannelError, 0, label);
+function sameImage(pages: Page[], locations: PageLocations, shown: Page[], label: string) {
+  // The shown list is placed by its own roots, one per page: the locations follow the sublist.
+  const shownLocations = locatedBy(shown.map((page) => ({ world: page.matrix })));
+  assert.equal(
+    compareImages(shade(pages, locations), shade(shown, shownLocations)).maxChannelError,
+    0,
+    label,
+  );
 }
 
 test('a moved root stales its region alone, and the image is every page shaded', () => {
   const draw = seeded(1404);
   let heldFrames = 0;
   for (let round = 0; round < 12; round++) {
-    const { pages, roots, dispose } = scene(draw);
+    const { pages, locations, dispose } = scene(draw);
     const develop: TemporalHizState = {},
       branch: TemporalHizState = {};
     for (let frame = 0; frame < 8; frame++) {
       if (branch.pyramid) heldFrames++;
-      const d = applyTemporalHiz(pages, roots, cam, SIZE, develop).shown as Page[];
-      const b = applyTemporalHiz(pages, roots, cam, SIZE, branch).shown as Page[];
-      sameImage(pages, roots, d, `develop, round ${round} frame ${frame}`);
-      sameImage(pages, roots, b, `branch, round ${round} frame ${frame}`);
+      const d = applyTemporalHiz(pages, locations, cam, SIZE, develop).shown as Page[];
+      const b = applyTemporalHiz(pages, locations, cam, SIZE, branch).shown as Page[];
+      sameImage(pages, locations, d, `develop, round ${round} frame ${frame}`);
+      sameImage(pages, locations, b, `branch, round ${round} frame ${frame}`);
       // One page moves: develop drops the pyramid, the branch stales where it was and is.
       const mover = pages[1 + Math.floor(draw() * (pages.length - 1))];
       const [oldMin, oldMax] = worldBox(mover);
@@ -80,7 +87,7 @@ test('a moved root stales its region alone, and the image is every page shaded',
 });
 
 test('edge boxes: none, ±0, ±Inf, NaN, one round the eye', () => {
-  const { pages, roots, dispose } = scene(seeded(7));
+  const { pages, locations, dispose } = scene(seeded(7));
   const edges: [number[], number[]][] = [
     [
       [-0, -0, -0],
@@ -105,14 +112,14 @@ test('edge boxes: none, ±0, ±Inf, NaN, one round the eye', () => {
   ];
   for (const [k, [min, max]] of edges.entries()) {
     const history: TemporalHizState = {};
-    applyTemporalHiz(pages, roots, cam, SIZE, history);
+    applyTemporalHiz(pages, locations, cam, SIZE, history);
     staleTemporalBox(history, min, max);
     assert.equal(!!history.pyramid, k < 2, 'a non-finite box drops the whole pyramid');
     if (history.pyramid) assert.equal(history.stale?.length, 1);
     sameImage(
       pages,
-      roots,
-      applyTemporalHiz(pages, roots, cam, SIZE, history).shown as Page[],
+      locations,
+      applyTemporalHiz(pages, locations, cam, SIZE, history).shown as Page[],
       `edge ${k}`,
     );
     assert.equal(history.stale?.length ?? 0, 0, 'the next pyramid starts clean');
