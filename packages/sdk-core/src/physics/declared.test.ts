@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts';
 import { declaredMass, declaredShape } from './declared.ts';
 import { SHAPE } from './layout.ts';
+import { near } from '../math/near.fixture.ts';
 
 const one = { x: 1, y: 1, z: 1 };
 const body = (
@@ -18,10 +19,6 @@ const body = (
     motion,
     shape,
   }) as unknown as CookedBody;
-const near = (actual: readonly number[] | undefined, expected: number[], label: string) => {
-  assert.equal(actual?.length, expected.length, label);
-  actual!.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${label}: ${actual}`));
-};
 
 test('an implicit shape is its primitive at the body scale, defaults filled in', () => {
   const at = (shape: ImplicitShape, s = one) => declaredShape(body(shape), s);
