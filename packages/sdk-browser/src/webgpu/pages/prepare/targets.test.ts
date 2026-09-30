@@ -1,4 +1,4 @@
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/source.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
 import { runtime } from './targets.fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,7 +63,7 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
   const { rt } = runtime(true);
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + REFLECTION_SOURCE_VIEW_BYTES + 80,
+    frameTargetBytes(64, 32, true) + 64 * 32 * 24 + REFLECTION_SOURCE_VIEW_BYTES + 80,
   );
 });
 
@@ -74,7 +74,7 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256;
   const base =
     frameTargetAllocation(rt, native(64, 32)) +
-    64 * 32 * 8 -
+    64 * 32 * 24 -
     8 +
     REFLECTION_SOURCE_VIEW_BYTES +
     cone;

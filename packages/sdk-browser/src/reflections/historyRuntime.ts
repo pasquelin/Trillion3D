@@ -1,5 +1,9 @@
 import { writeReprojection } from '../taa/view.ts';
-import { createReflectionHistoryTargets, type ReflectionMetadata } from './historyTargets.ts';
+import {
+  createReflectionHistoryTargets,
+  type ReflectionMetadata,
+  type ReflectionPrevious,
+} from './historyTargets.ts';
 import {
   REFLECTION_RESOLVE_VIEW_BYTES,
   REFLECTION_HISTORY_WEIGHT,
@@ -16,7 +20,10 @@ export interface ReflectionHistoryFrame {
   motion: GPUBuffer;
   /** The render origin the motion is written at, where both matrices are anchored. */
   eye: ArrayLike<number>;
+  /** What placed the reflected points (`reflectionFrame.ts`): its change is followed. */
   epoch: string;
+  /** What lit them, lights and materials: its change resets the history. */
+  lighting: string;
   seed: number;
   frame: number;
   /** Unjittered camera; jitter must not reopen a completed filter window. */
@@ -26,8 +33,13 @@ export interface ReflectionHistoryFrame {
 /** Owns only the reflection mean and its metadata; placement data remains shared.
  * A repeated frame with unchanged sources reuses its resolved result, rather than
  * blending it twice against metadata that has already advanced. */
-export function createReflectionHistory(device: GPUDevice, width: number, height: number) {
-  const targets = createReflectionHistoryTargets(device, width, height);
+export function createReflectionHistory(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  kept: ReflectionPrevious,
+) {
+  const targets = createReflectionHistoryTargets(device, width, height, kept);
   let uniform: GPUBuffer;
   try {
     uniform = device.createBuffer({
@@ -43,6 +55,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
   const previous = new Float64Array(16),
     camera = new Float64Array(16);
   let epoch = '',
+    lighting = '',
     frame = -1,
     written = false,
     rank = 0,
@@ -74,7 +87,8 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
      *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_WEIGHT`;
-     *  without, it resets it. A new drawn extent always does. */
+     *  without, it resets it. A relit source (lights, materials) and a new drawn extent always do:
+     *  no motion brings an old lighting to the new one. */
     prepare(
       next: ReflectionHistoryFrame,
       projection: ArrayLike<number>,
@@ -82,20 +96,22 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     ) {
       const resized = drawnWidth !== drawn[0] || drawnHeight !== drawn[1];
       const moved = next.epoch !== epoch;
+      const relit = next.lighting !== lighting;
       const reprojects = next.motion !== next.pages;
-      const resets = resized || (moved && !reprojects);
+      const resets = resized || relit || (moved && !reprojects);
       drawnWidth = drawn[0];
       drawnHeight = drawn[1];
       const cameraChanged = !sameElements(camera, next.camera);
       reuse =
         !resized &&
         !moved &&
+        !relit &&
         !cameraChanged &&
         written &&
         sameElements(previous, projection) &&
         (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
       if (reuse) return;
-      if (moved || resized || cameraChanged) stableFrames = 0;
+      if (moved || relit || resized || cameraChanged) stableFrames = 0;
       if (resets) {
         written = false;
         rank = 0;
@@ -104,6 +120,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       camera.set(next.camera);
       matrix = projection;
       epoch = next.epoch;
+      lighting = next.lighting;
       frame = next.frame;
       writeReprojection(packed, written ? previous : projection, projection, next.eye, drawn);
       packed[36] = written ? 1 : 0;

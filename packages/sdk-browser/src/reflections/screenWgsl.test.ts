@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { withScreenReflections } from './screenWgsl.ts';
-import { REFLECTION_SOURCE_WGSL } from './source.ts';
+import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts';
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';

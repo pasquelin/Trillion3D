@@ -19,12 +19,14 @@ function reflectingRt() {
 
 test('a shadow page landing changes the reflected source epoch without a host mutation', () => {
   const rt = reflectingRt();
-  const previous = reflectionFrame(rt)!.epoch;
+  const { epoch: previous, lighting } = reflectionFrame(rt)!;
   const revisions = { ...rt.run.gate.revisions };
   rt.lights.shadowPages = 2;
   noteShadowFrame(rt.lights);
   assert.deepEqual(rt.run.gate.revisions, revisions);
   assert.notEqual(reflectionFrame(rt)!.epoch, previous);
+  // #1342: a shadow page follows a placement or the camera; only lights and materials relight.
+  assert.equal(reflectionFrame(rt)!.lighting, lighting, 'a shadow page keeps the lighting');
   const landed = reflectionFrame(rt)!.epoch;
   rt.lights.shadowPages = 0;
   noteShadowFrame(rt.lights);
