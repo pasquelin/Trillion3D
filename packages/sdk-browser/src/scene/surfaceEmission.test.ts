@@ -10,12 +10,12 @@ import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts';
 import { UNLIT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { shadowDemandWgsl } from '../webgpu/shadow/demandWgsl.ts';
+import { EMISSIVE_AO_FLAG_WGSL, SURFACE_EMISSIVE_AO_WGSL } from './surfaceEmission.ts';
 import {
-  EMISSIVE_AO_FLAG_WGSL,
   EMISSIVE_AO_SURFACE_FLAG,
-  SURFACE_EMISSIVE_AO_WGSL,
-} from './surfaceEmission.ts';
-import { FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from './surfaceModel.ts';
+  FOG_FREE_SURFACE_FLAG,
+  SURFACE_MODEL_MASK,
+} from './surfaceModel.ts';
 import { SUBSURFACE_FLAG } from './subsurface.ts';
 
 type Texel = number[];

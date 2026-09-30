@@ -3632,7 +3632,7 @@
       "baseMetal": "Màu nền RGB, tính kim loại A.",
       "normalRough": "Pháp tuyến thế giới XYZ, độ nhám A.",
       "emissiveAo": "Phát sáng RGB, occlusion môi trường xung quanh A.",
-      "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu. 4 và 5 là mô hình khuếch tán và toon (`./surfaceModel.ts`).",
+      "flags": "Ba bit thấp: 0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu. 4 và 5 là mô hình khuếch tán và toon (`./surfaceModel.ts`). Phía trên là các dấu: 16 một texel phát xạ và che khuất khác (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 truyền qua mỏng, 128 không sương mù.",
       "views": "Các view kết cấu GPU của nó.",
       "dispose": "Giải phóng nó.",
       "subsurface": "Màu truyền sáng độc lập của bề mặt mỏng; dùng kết cấu 1×1 có giá trị bằng 0 khi tắt.",

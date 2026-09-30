@@ -1,3 +1,5 @@
+import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts';
+
 /**
  * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING (#1369).
  *
@@ -17,7 +19,6 @@
  * as-is surface (`AS_IS_FLAG`, a debug view) never carries the bit, keeping its flag whole: nothing
  * reads its occlusion, and its emission is zero.
  */
-export const EMISSIVE_AO_SURFACE_FLAG = 16;
 
 /** The bit a surface written with `emissive` and `ao` carries (the material pass). */
 export const EMISSIVE_AO_FLAG_WGSL = `

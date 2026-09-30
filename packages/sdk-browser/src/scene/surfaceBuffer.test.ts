@@ -8,8 +8,7 @@ import {
   frameTargetBytes,
   createSurfaceBuffer,
 } from './surfaceBuffer.ts';
-import { SURFACE_MODEL } from './surfaceModel.ts';
-import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceEmission.ts';
+import { EMISSIVE_AO_SURFACE_FLAG, SURFACE_MODEL } from './surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 
 test('a surface rejects an invalid or off-device size, and nothing else: no byte ceiling', () => {
