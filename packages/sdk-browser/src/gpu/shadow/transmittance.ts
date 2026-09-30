@@ -52,8 +52,6 @@ export const TRANSMITTANCE_BLEND: GPUBlendState = { color: MULTIPLY, alpha: MULT
 export const castsBlendShadow = (s: PageSurface) =>
   s.transparentShadow && s.blending === 'normal' && s.opacity > 0;
 
-export { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
-
 /**
  * The layer's read, bound at \`binding\` and the number after it: \`shadowThroughLit\`, which the PCF
  * of \`../../lighting/direct/shadowWgsl.ts\` calls once per pixel. Requires \`SHADOW_PAGE\` there.

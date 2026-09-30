@@ -8,6 +8,7 @@
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts';
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts';
 import { GraphTexture, isGraphTexture } from '../../host/graph/texture.ts';
 import {
   HOST_COLOUR_SPACE_LINEAR,
@@ -52,10 +53,7 @@ export const HOST_MAPS = [
   'matcap',
   'gradientMap',
   'subsurfaceMap',
-  'anisotropyMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
+  ...PHYSICAL_MAP_FIELDS,
 ];
 /** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
  *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
