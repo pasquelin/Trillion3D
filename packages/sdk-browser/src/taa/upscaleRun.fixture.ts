@@ -32,6 +32,8 @@ export interface UpscaleFrame {
   layerHistory?: (uv: number[]) => number[];
   /** The image moves (`view.jitter.z`): the history is read and blended as in motion. */
   moving?: boolean;
+  /** The current image's share (`view.params.x`): 0.25 when absent. */
+  share?: number;
   /** The reactive value the blends and particles wrote, per texel. */
   reactive?: (x: number, y: number) => number;
   /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`, #573). */
@@ -77,7 +79,12 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
       prevViewProj: frame.prevViewProj ?? IDENTITY,
       invViewProj: IDENTITY,
       viewport: [W, H, 1 / W, 1 / H],
-      params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
+      params: [
+        frame.share ?? 0.25,
+        frame.history ? 1 : 0,
+        frame.motion ? 1 : 0,
+        frame.layerHistory ? 1 : 0,
+      ],
       render: [w, h, 1 / w, 1 / h],
       jitter: [...jitter, frame.moving ? 1 : 0, 0],
       eye: [0, 0, 0, 0],

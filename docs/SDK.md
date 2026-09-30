@@ -430,9 +430,11 @@ on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsu
 
 `world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the fraction
 of the display per axis the image is drawn at before temporal antialiasing rebuilds it: `'auto'` lets the frame budget, the display's refresh interval, choose it between 0.5 and 1,
-`{ min, max }` bounds that choice, a number fixes it; a still image is drawn at the maximum, the
-native image. Written, it takes effect at the next frame, no target remade by the controller's
-steps. Read, it is the scale of the last image drawn. WebGL2, which keeps no history, resamples the
+`{ min, max }` bounds that choice, a number fixes it. A still image over budget is drawn below the
+display too, and its jitter phases rebuild the display's detail; the controller learns from the
+whole-frame GPU time, or from the frame interval on a device without GPU timestamps. The render
+targets follow the drawn size, on a ladder of eighths of the display. Written, it takes effect at
+the next frame. Read, it is the scale of the last image drawn. WebGL2, which keeps no history, resamples the
 image to the display instead (Lanczos-2) and so never lowers it unless asked: its `'auto'` holds 1,
 and only a `{ min }` below 1 or a fixed scale draws below the display (its capabilities list
 `temporal upscaling` as unsupported).

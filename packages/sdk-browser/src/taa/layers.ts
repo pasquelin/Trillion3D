@@ -47,8 +47,7 @@ export const taaOut = (asIs: boolean, filtered: boolean, mixed = false, count?: 
 export const STILL_WEIGHT_MAX = 16;
 /** The weight `count` in eight bits, finer near zero where the first images weigh most; read
  *  back by `stillWeightIn`. */
-export const stillWeightOut = (count: string) =>
-  `sqrt(saturate(${count}/${STILL_WEIGHT_MAX}.0))`;
+export const stillWeightOut = (count: string) => `sqrt(saturate(${count}/${STILL_WEIGHT_MAX}.0))`;
 export const stillWeightIn = (stored: string) => `${stored}*${stored}*${STILL_WEIGHT_MAX}.0`;
 
 /** The layers' four textures in a `filtered` resolve's layout. */
