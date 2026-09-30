@@ -5,7 +5,7 @@ import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
-import { WATER_BINDINGS, WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from './compositeWgsl.ts';
+import { WATER_BINDINGS, waterCompositeShader, waterRoutedShader } from './compositeWgsl.ts';
 import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 
@@ -44,7 +44,7 @@ export const createWaterSurfacePipelines = (
   );
 
 /** Layout of the composite: the deferred bounce layout — the water word, a colour, in the flags'
- *  place —, then what `WATER_COMPOSITE_SHADER` alone declares. */
+ *  place —, then what `waterCompositeShader` alone declares. */
 export function createWaterCompositeLayout(device: GPUDevice) {
   const b = WATER_BINDINGS,
     fragment = GPUShaderStage.FRAGMENT,
@@ -68,8 +68,16 @@ export function createWaterCompositeLayout(device: GPUDevice) {
  * transmission pass was — source alpha over what the frame already holds, which at a water pixel is
  * the frozen backdrop itself. A pixel with no water discards, and the target keeps its value.
  */
-export async function createWaterCompositePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
-  const module = await createCheckedShaderModule(device, WATER_COMPOSITE_SHADER, 'WATER_COMPOSITE');
+export async function createWaterCompositePipeline(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  sunWindow?: number,
+) {
+  const module = await createCheckedShaderModule(
+    device,
+    waterCompositeShader(sunWindow),
+    'WATER_COMPOSITE',
+  );
   return makeFullscreenPipeline(
     device,
     module,
@@ -102,10 +110,14 @@ export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterRoutedTargets(fa
  * today's composite plus, as an extra output, the coverage the blend pass and the particles also
  * write — green 1 over what the pixel holds.
  */
-function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+function createWaterSharePipeline(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  sunWindow?: number,
+) {
   const module = device.createShaderModule({
     label: 'WATER_COMPOSITE',
-    code: WATER_COMPOSITE_SHADER,
+    code: waterCompositeShader(sunWindow),
   });
   return device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout, reflectionLayout(device)] }),
@@ -115,11 +127,19 @@ function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroupLayout)
   });
 }
 
-/** The composite of an image with display layers (`WATER_ROUTED_SHADER`), made by the first one:
+/** The composite of an image with display layers (`waterRoutedShader`), made by the first one:
  *  the HDR target blended as above, then the tint and the added value of a normal layer; with a
  *  share, the reactive value last. */
-function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGroupLayout, share = false) {
-  const module = device.createShaderModule({ label: 'WATER_ROUTED', code: WATER_ROUTED_SHADER });
+function createWaterRoutedPipeline(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  share: boolean,
+  sunWindow?: number,
+) {
+  const module = device.createShaderModule({
+    label: 'WATER_ROUTED',
+    code: waterRoutedShader(sunWindow),
+  });
   const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
   return device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts }),
@@ -144,12 +164,13 @@ export function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   base: GPURenderPipeline,
+  sunWindow?: number,
 ) {
   const made = [base, undefined, undefined, undefined] as (GPURenderPipeline | undefined)[];
   // The display route is the low bit, the share the one above: 0 base, 1 routed, 2 share, 3 both.
   const at = (filtered: boolean, share: boolean) =>
     (made[+filtered + 2 * +share] ??= filtered
-      ? createWaterRoutedPipeline(device, layout, share)
-      : createWaterSharePipeline(device, layout));
+      ? createWaterRoutedPipeline(device, layout, share, sunWindow)
+      : createWaterSharePipeline(device, layout, sunWindow));
   return { at };
 }
