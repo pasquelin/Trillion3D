@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { cross, subtract } from '../../../../sdk-core/src/math/primitives/vectorTuple.ts';
 import { SHADING_POINT_WGSL } from './shadingPoint.ts';
+import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 
 type V = number[];
 const { shadingPointOffset } = shaderRun<{
@@ -43,7 +45,11 @@ test('receiver projects onto interpolated vertex tangent planes and keeps flat s
   });
   assert.ok(actual[2] > 0, 'a convex smooth patch raises the shadow receiver');
   const flipped = shadingPointOffset(P, bary, ...vertices, ...normals.map((n) => n.map((x) => -x)));
-  assert.deepEqual(flipped, actual, 'two-sided normal sign does not move the projected position');
+  assert.deepEqual(
+    flipped.map(Math.abs),
+    [0, 0, 0],
+    'seen from its other side, the patch is concave',
+  );
   assert.deepEqual(
     shadingPointOffset(vertices[0], [1, 0, 0], ...vertices, ...normals).map(Math.abs),
     [0, 0, 0],
@@ -72,4 +78,41 @@ test('degenerate normals and world translations preserve a finite receiver displ
     shadingPointOffset(move(point), bary, ...vertices.map(move), ...normals),
     shadingPointOffset(point, bary, ...vertices, ...normals),
   );
+});
+
+test('the receiver never falls behind its triangle: a concave patch keeps its point (#1344)', () => {
+  const vertices = [
+    [0, 0, 0],
+    [2, 0, 0],
+    [0, 2, 0],
+  ];
+  // A dish's face: its normals lean toward each other.
+  const concave = [
+    [0.3, 0.3, 1],
+    [-0.3, 0, 1],
+    [0, -0.3, 1],
+  ].map(unit);
+  assert.deepEqual(
+    shadingPointOffset([0.6, 1, 0], [0.2, 0.3, 0.5], ...vertices, ...concave).map(Math.abs),
+    [0, 0, 0],
+  );
+  // Any triangle, any normals on one side of it: the receiver stays on or in front of it.
+  const next = mulberry32(1344),
+    random = () => next() * 2 - 1;
+  for (let i = 0; i < 500; i++) {
+    const p = [0, 1, 2].map(() => [random(), random(), random()].map((x) => x * 4));
+    const face = cross(subtract(p[1], p[0]), subtract(p[2], p[0]));
+    const n = [0, 1, 2].map(() => unit(face.map((x) => x + random() * Math.hypot(...face))));
+    const w = [Math.abs(random()), Math.abs(random()), Math.abs(random())];
+    const bary = w.map((x) => x / (w[0] + w[1] + w[2]));
+    const P = [0, 1, 2].map((j) => bary.reduce((v, b, k) => v + b * p[k][j], 0));
+    const offset = shadingPointOffset(P, bary, ...p, ...n);
+    const front = Math.sign(
+      dot(
+        face,
+        n[0].map((x, j) => x + n[1][j] + n[2][j]),
+      ),
+    );
+    assert.ok(front * dot(offset, face) >= 0, `triangle ${i}: receiver behind its surface`);
+  }
 });
