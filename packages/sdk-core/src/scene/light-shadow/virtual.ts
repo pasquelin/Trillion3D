@@ -89,7 +89,7 @@ export const shadowTableStride = (pages: number) =>
 export const shadowTableEntries = (pages: number) => MAX_SHADOW_SLICES * shadowTableStride(pages);
 /** The power of two past every entry of a table of `entries`: the field an entry takes in a sort
  *  key (`shadowNeedKey`) and the mask that reads it back (`poolWgsl.ts`). The ordinary table is a
- *  power of two, so it is its own span; a raised window's is the next power. */
+ *  power of two, so it is its own span; a raised extent's is the next power. */
 export const shadowEntrySpan = (entries: number) => 2 ** Math.ceil(Math.log2(entries));
 export const SUN_LEVEL_ENTRIES = sunLevelEntries(SUN_WINDOW);
 export const SUN_ENTRIES = sunEntries(SUN_WINDOW);
