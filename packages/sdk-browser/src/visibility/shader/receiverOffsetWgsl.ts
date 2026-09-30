@@ -12,7 +12,7 @@ import {
   PAGE_INFO_STRUCT_WGSL,
   VERT_NORMAL_WGSL,
 } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 
 /**
@@ -51,14 +51,15 @@ const RECEIVER_OFFSET_FN_WGSL = `fn receiverOffset(pixel:vec2f)->vec3f{
  return shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
 }`;
 
-/** What the receiver offset binds, in binding order from the pass's first number. */
+/** What the receiver offset binds, in binding order from the pass's first number: never the
+ *  texture coordinates, which it does not read — four storage buffers, which the lighting and the
+ *  demand hold within their eight (`bindBudget.test.ts`). */
 export const RECEIVER_BINDINGS = [
   'vis',
   'uniform',
   'pages',
   'indices',
   'positions',
-  'uvs',
   'normals',
 ] as const;
 
@@ -74,9 +75,8 @@ ${at('uniform')} var<uniform> uni:ShadeUni;
 ${at('pages')} var<storage,read> pages:array<PageInfo>;
 ${at('indices')} var<storage,read> indices:array<u32>;
 ${at('positions')} var<storage,read> positions:array<f32>;
-${at('uvs')} var<storage,read> uvs:array<f32>;
 ${at('normals')} var<storage,read> normals:array<f32>;
-${PAGE_GEOMETRY_WGSL}
+${PAGE_POINTS_WGSL}
 ${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
