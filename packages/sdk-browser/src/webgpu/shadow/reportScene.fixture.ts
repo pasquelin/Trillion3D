@@ -40,7 +40,7 @@ export function reportScene(poolSide: number, lights: SceneLight[], drawn: numbe
     writeLamp: noop,
     writeSun: noop,
     clearRecord: noop,
-    holdTable: noop,
+    tableEntries: 0,
   } as never;
   const worldBox = Float64Array.of(-50, 0, -50, 50, 10, 50);
   Object.assign(rt, {

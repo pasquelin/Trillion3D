@@ -56,10 +56,13 @@ image rests (`ceilingHold.test.ts`).
 
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest
 range a light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`) for the 64. The GPU holds only the windows of the slices claimed (#1345,
-`gpu/shadow/shadowData.ts`), as the reference engine gives page-table entries only to the lights that have a
-virtual shadow map: a sun alone holds 256 KiB; a light whose slice reaches past grows the buffer,
-its words copied, never shrunk (a freed slice's pages may linger in the GPU pool until evicted).
+(`SHADOW_TABLE_ENTRIES`) for the 64. The host and the GPU hold only the windows of the slices
+claimed and one ahead (#1345, `gpu/shadow/shadowData.ts`), as the reference engine gives page-table entries only
+to the lights that have a virtual shadow map: a sun alone holds 512 KiB, not 16 MiB. The GPU's
+grows by doubling, by the tables' own path under the device's out-of-memory check
+(`webgpu/shadow/shadowTableGrowth.ts`), its words copied with the swap, the host's words after it;
+a light whose window is not held yet lights unshadowed, counted, until then. Never shrunk (a freed
+slice's pages may linger in the GPU pool until evicted).
 The GPU total's shadow share counts the whole table with the pool
 (`SHADOW_POOL_BYTES`, 902 MiB); less the batches' 5.2 MiB reserve, that share is the shadows' one
 grant (`SHADOW_GRANT_BYTES`, 896 MiB: the largest pool, its static layer, its transmittance layer,

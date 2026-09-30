@@ -14,6 +14,7 @@ import { sceneCastsBlended } from '../../shadow/transmittanceGrant.ts';
 import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 import { createShadowDemand } from '../../shadow/demandPass.ts';
 import { createShadowAllocation } from '../../shadow/allocPass.ts';
+import { followShadowTable, preparedShadowTable } from '../../shadow/shadowTableGrowth.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -53,8 +54,9 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadows = await createGpuShadowAtlas(
       device,
       vis.visBindGroupLayout,
-      lights.plan.table.heldEntries,
+      preparedShadowTable(lights),
     );
+    followShadowTable(lights, lights.shadows.tableEntries);
     lights.cull = await createGpuShadowCull(device, casterSlots);
     lights.pageQuads = await createShadowPageQuads(device, lights.shadows.faceUniform);
   } catch (error) {

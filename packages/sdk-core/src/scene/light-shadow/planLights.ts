@@ -37,7 +37,8 @@ export function planLights(
     let slice = store.sliceOf(slot);
     if (slice < 0) {
       slice = records.claim();
-      // Every slice is held: this light lights unshadowed, and the frame counts it.
+      // Every slice is held, or the GPU table not yet grown to the next: this light lights
+      // unshadowed, and the frame counts it.
       if (slice < 0) {
         counts.unslicedCasters++;
         continue;

@@ -32,7 +32,7 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 /**
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
  * buffer holding every light's record then the page table (`shadowData.ts`), `tableEntries` words
- * long until a light's slice reaches past them (`holdTable`); the buffer the
+ * long until a light's slice reaches past them (`growTable`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
  * budget's pool, then the pages the scene reads size it (`poolDemand.ts`), the shading reading the
@@ -97,10 +97,12 @@ export async function createGpuShadowAtlas(
       get bufferBytes() {
         return shadowBufferBytes(data.entries);
       },
-      /** Grows the table to `entries` words, a light's slice reaching past it (`shadowData.ts`). */
-      holdTable(entries: number) {
-        atlas.allocationBytes += data.hold(entries);
+      /** Table words the GPU's table holds. */
+      get tableEntries() {
+        return data.entries;
       },
+      /** The table grown for `wanted` words (`shadowData.ts`), its bytes counted once in place. */
+      growTable: (wanted: number) => data.grow(wanted, (bytes) => (atlas.allocationBytes += bytes)),
       /** Host mirror of the records: what the shading rereads. */
       records: records as Readonly<Float32Array>,
       /** Compiles the pool's draws off the frame (`shadowDepthDraws`), at prepare. */
