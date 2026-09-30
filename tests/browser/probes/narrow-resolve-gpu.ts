@@ -95,6 +95,8 @@ if (import.meta.main) {
         record(false, small.reach, 60),
         { narrow: false, words: everyLight },
         record(false, missing, 60),
+        // The same list through the program with no shadow code, the scene holding no shadow slot.
+        { ...record(false, small.reach, 60), unshadowed: true },
       ],
     },
     {
@@ -114,7 +116,12 @@ if (import.meta.main) {
       runs.map((records) => records.length),
       SCENES.map((s) => s.records.length),
     );
-    const [[narrow, wide, every, dropped], [pool, overflow]] = runs;
+    const [[narrow, wide, every, dropped, unshadowed], [pool, overflow]] = runs;
+    assert.deepEqual(
+      unshadowed,
+      wide,
+      'the program with no shadow code sums the same, bit for bit',
+    );
     assert.deepEqual(narrow, wide, 'the narrow resolve sums what the wide one does, bit for bit');
     assert.deepEqual(wide, every, 'the list sums what every light does, bit for bit');
     assert.deepEqual(pool, overflow, 'a pool slice sums what every light does, bit for bit');

@@ -9,7 +9,8 @@ const STOCHASTIC_REFLECTION_WGSL = `${GGX_REFLECTION_SAMPLE_WGSL}
  let at=vec2i(pixel.xy);let flag=textureLoad(flags,at,0).r&${SURFACE_MODEL_MASK}u;
  if(flag==0u||flag==1u||flag==3u||flag==4u||flag==5u){return vec4f(0.0);}
  let nr=textureLoad(normalRough,at,0);
- if(nr.a<=${ROUGHNESS_FLOOR}){return vec4f(0.0);}
+ // Mirrors take the exact ray; past the cutoff the display reads the environment alone (#1341).
+ if(nr.a<=${ROUGHNESS_FLOOR}||screenReflectionFade(nr.a)==0.0){return vec4f(0.0);}
  let P=worldAt(pixel.xy,textureLoad(depth,at,0));
  shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),textureLoad(depth,at,0))-P);
  shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
@@ -24,8 +25,8 @@ const STOCHASTIC_REFLECTION_WGSL = `${GGX_REFLECTION_SAMPLE_WGSL}
 }`;
 
 /** The trace borrows the same lighting/proxy bindings as the final resolve. */
-export function stochasticReflectionShader(shader: string, direct: boolean) {
-  const source = withScreenReflections(shader, direct);
+export function stochasticReflectionShader(shader: string) {
+  const source = withScreenReflections(shader);
   return (
     source + (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) + STOCHASTIC_REFLECTION_WGSL
   );

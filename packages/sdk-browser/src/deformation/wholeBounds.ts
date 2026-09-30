@@ -1,18 +1,14 @@
 import { boxTransform, boxUnionBatch } from '../../../sdk-core/src/index.ts';
-import { boxGrow } from '../../../sdk-core/src/math/primitives/box.ts';
+import { boxEquals, boxGrow } from '../../../sdk-core/src/math/primitives/box.ts';
 import { readHostBox } from '../host/boxBounds.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { SessionDeformation } from './session.ts';
-import { noteDeformedBounds } from '../webgpu/pages/render/movedBatch.ts';
+import { noteDeformedBounds } from '../webgpu/pages/render/movedGeometry.ts';
 import { refitBlendHierarchy } from '../webgpu/blend/hierarchy.ts';
 
 const local = new Float64Array(6),
   before = new Float64Array(6);
 
-function sameBox(a: ArrayLike<number>, b: ArrayLike<number>) {
-  for (let i = 0; i < 6; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
 /**
  * Whole-copy bounds use the same measured reach as clustered placements and dirty only their
  * region. A record that did not change can still be carried by its node (`worldsMoved`): a skin
@@ -37,7 +33,7 @@ export function updateWholeDeformationBounds(
     boxGrow(local, 0, local, 0, deformation.reachOfWorld(item.matrix));
     boxTransform(box, 0, local, 0, item.matrix.elements);
     item.bounds = box;
-    const same = sameBox(box, before);
+    const same = boxEquals(box, 0, before, 0);
     if (!same) rewritten = true;
     else if (!changed) continue;
     boxUnionBatch(before, box, 1);

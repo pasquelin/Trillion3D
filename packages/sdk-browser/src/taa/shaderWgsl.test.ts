@@ -4,9 +4,9 @@ import { taaShader } from './shaderWgsl.ts';
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts';
 import { taaReprojectWgsl } from './shaderWgsl.ts';
+import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 const TAA_REPROJECT_WGSL = taaReprojectWgsl();
-const TAA_SHADER = taaShader(true);
 const TAA_WEIGHTS = 12;
 
 test('shader bindings are those of the layout, and the uniform has the declared size', () => {
@@ -47,7 +47,9 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
 test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
   const flagless = taaShader(false);
   assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|shareHistory|shareLo|keptShare/);
-  const outputs = (text: string) => [...text.matchAll(/TaaOut\((.*),vec2f\((.*),tag\)\);\}?$/gm)];
+  const outputs = (text: string) => [
+    ...text.matchAll(/TaaOut\((.*),vec4f\((.*),tag,0\.0,0\.0\)\);\}?$/gm),
+  ];
   const kept = outputs(TAA_SHADER),
     zero = outputs(flagless);
   assert.equal(zero.length, 3);
@@ -59,7 +61,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
   const flagged = new Set(TAA_SHADER.split('\n'));
   const own = flagless.split('\n').filter((line) => !flagged.has(line));
   assert.equal(own.length, 3, 'only its three outputs are its own');
-  for (const line of own) assert.match(line, /TaaOut\(.*,vec2f\(0\.0,tag\)\);\}?$/);
+  for (const line of own) assert.match(line, /TaaOut\(.*,vec4f\(0\.0,tag,0\.0,0\.0\)\);\}?$/);
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
 });

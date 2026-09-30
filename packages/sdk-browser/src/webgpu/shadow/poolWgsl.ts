@@ -7,6 +7,7 @@ import {
   shadowTableEntries,
   shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
 
 /** Mask of a listed request entry: every bit below the miss flag (`shadowRequestWgsl.ts`, bit 31),
  *  which lies above the most a `pages`-window table addresses. The ordinary window's table is a
@@ -27,11 +28,6 @@ export const POOL_FIELDS = [
   'generation',
   'drawnBy',
 ] as const;
-/** Whose draw a page holds for its entry: the host's (`pool.drew`), none yet — mapped by the GPU
- *  —, or the GPU's own (`freshWgsl.ts`), which the host has not seen. */
-export const DRAWN_HOST = 0;
-const DRAWN_NONE = 1,
-  DRAWN_GPU = 2;
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
  *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. */

@@ -16,9 +16,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import { FLAG_HAS_COLOR } from '../../visibility/types.ts';
 import { prepareWebgpuBlend } from '../blend/prepare.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
-import { blendShader } from '../blend/shader.ts';
-
-const BLEND_SHADER = blendShader();
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 /** `vertColor(id)` of the shader, on the floats of a bound UV buffer. */
 function vertColor(uvs: Float32Array, id: number) {
