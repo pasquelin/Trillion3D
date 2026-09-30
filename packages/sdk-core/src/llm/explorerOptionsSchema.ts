@@ -4,15 +4,15 @@ import { explorerSwitch } from '../runtime/explorerSwitches.ts';
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
- * Enables LLMs to understand, validate, and tune the 3D engine configuration. Each on/off default is
- * the engine's own (`explorerSwitch`), read through a pure call so a bundle that never reads the
- * schema drops it.
+ * Enables LLMs to understand, validate, and tune the 3D engine configuration.
  */
 export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
   description:
     'Initialization options for the Trillion3D rendering engine (openMeasuredWorld). Configures virtualized geometry (clusters streamed through a DAG), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting, and virtual shadow maps.',
   properties: {
+    // Each on/off default is the engine's own (`explorerSwitch`), read through a pure call so a
+    // bundle that never reads the schema drops it.
     interactive: {
       type: 'boolean',
       default: /* @__PURE__ */ explorerSwitch({}, 'interactive'),
