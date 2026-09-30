@@ -540,8 +540,13 @@ marks.remove();
 
 ## Installation and environment API
 
-The package is private, installed from this repository or a local tarball, not published to npm;
-its export conditions are in [Entry points](#entry-points).
+The package is not on npm yet. From its first release, an application installs it with
+`npm install trillion3d`, which takes only its machine's compiler package
+([COMPILER.md](COMPILER.md#platform-packages)); the portal's
+[Install page](https://www.trillion3d.com/#/en/learn/install) goes from the install to a drawn
+model. Its export conditions are in [Entry points](#entry-points). The licence is PolyForm
+Noncommercial 1.0.0 ([LICENSE](../LICENSE)): free for noncommercial use; a commercial use needs a
+licence from the owner.
 
 | Task | Examples |
 | --- | --- |
@@ -576,6 +581,9 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection; `-- --bundle` emits and
 checks the same output, each module beside the chunk that fetches it, without a browser.
+`node scripts/prove-install-page.ts` walks the portal's Install page through in a clean folder: its
+commands, the packed archive standing in for the registry, compile the example's morphing cube and
+its page draws it in Chrome, served with the page's two headers.
 
 ### Install requirements: the package alone, the witnesses beside the bench
 
