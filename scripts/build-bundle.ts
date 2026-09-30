@@ -4,7 +4,7 @@
 // root of `dist/`, what it starts or fetches by its own URL (`besideModule`, `import.meta.url`):
 // the three workers, each one standalone module, the WebAssembly modules, and the optional
 // families' chunks, fetched on first use (`bundle-fold.ts`). A page loads it with one import.
-import { copyFileSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, type BuildOptions } from 'esbuild';
@@ -33,12 +33,13 @@ const written = (name: string) =>
 /** Removes an earlier build's bundle, before the build fingerprints `dist/`
  *  (`write-build-provenance.ts`), which describes the unbundled modules alone. */
 export function cleanBundle(dist: string) {
+  if (!existsSync(dist)) return;
   for (const entry of readdirSync(dist, { withFileTypes: true }))
     if (entry.isFile() && written(entry.name)) rmSync(join(dist, entry.name));
 }
 
+/** Run by `build.ts` after `cleanBundle`, which the build provenance needs first. */
 async function buildBundle(dist: string) {
-  cleanBundle(dist);
   const common: BuildOptions = {
     bundle: true,
     format: 'esm',
@@ -49,19 +50,21 @@ async function buildBundle(dist: string) {
     outdir: dist,
     logLevel: 'warning',
   };
-  await build({
-    ...common,
-    entryPoints: { [BUNDLE_ENTRY.replace(/\.js$/, '')]: join(dist, 'sdk/browser.js') },
-    splitting: true,
-    chunkNames: `${CHUNK_PREFIX}[name]-[hash]`,
-    plugins: [foldPlugin(dist)],
-  });
-  // A worker runs alone: nothing it holds is shared with the page's module.
-  await build({
-    ...common,
-    entryNames: '[name]',
-    entryPoints: WORKERS.map((path) => join(dist, path)),
-  });
+  await Promise.all([
+    build({
+      ...common,
+      entryPoints: { [BUNDLE_ENTRY.replace(/\.js$/, '')]: join(dist, 'sdk/browser.js') },
+      splitting: true,
+      chunkNames: `${CHUNK_PREFIX}[name]-[hash]`,
+      plugins: [foldPlugin(dist)],
+    }),
+    // A worker runs alone: nothing it holds is shared with the page's module.
+    build({
+      ...common,
+      entryNames: '[name]',
+      entryPoints: WORKERS.map((path) => join(dist, path)),
+    }),
+  ]);
   for (const path of MODULES) copyFileSync(join(dist, path), join(dist, basename(path)));
 }
 
