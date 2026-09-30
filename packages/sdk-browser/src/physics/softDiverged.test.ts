@@ -12,8 +12,9 @@ import { stateDump } from './stateDump.fixture.ts';
  *  order is the accepted route (boss's yes, 29 Sept., #934). */
 const DEVELOP_MOTION = 'd54edc7d4da4d89a53292e152a575d5760cd6b3326128592eb1a87f280200692';
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it, the
- *  events in the engine's canonical pair-key order (`contacts.cpp`), not Jolt's callback order
- *  (#934). */
+ *  events in the order the engine sent them: the merged records in the engine's canonical pair-key
+ *  order (`contacts.cpp`), the leaves written outside that merge appended as they come, not Jolt's
+ *  callback order (#934). */
 const FULL_DUMP = '014b9452cc734f7693069b276dafa8988e189f4db86bc362104041364f3d3c9c';
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch', async () => {
