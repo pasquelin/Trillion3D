@@ -1,8 +1,8 @@
 /**
  * The npm release of `trillion3d` and its five compiler packages (#1354), in the steps the
  * `Release` workflow runs: `packRelease` stages the compilers the `Compiler` workflow built and packs
- * the six packages at one version; `publishRelease` refuses an incomplete or already published
- * release, dry-runs the six publications, and only then, when asked, publishes them.
+ * the six packages at one version; `publishRelease` refuses an incomplete release, skips a package
+ * already published at that version, dry-runs the rest, and only then, when asked, publishes them.
  */
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -155,26 +155,25 @@ export const npmPublished: Lookup = (spec) => {
 };
 
 /**
- * Publishes the release packed in `out`: refused whole when a package is missing or one of its
- * versions is already published, every publication dry-run first, and published for real only
- * when `publish` is asked of a release packed `publishable` — so a failure found by a dry run
- * leaves nothing published.
+ * Publishes the release packed in `out`, refused whole when a package or archive is missing. A
+ * package already on npm at this version is skipped, never published twice, so that a rerun of a
+ * publication stopped halfway publishes the rest, still the compilers before `trillion3d`. Every
+ * remaining publication is dry-run first, and published for real only when `publish` is asked of a
+ * release packed `publishable`. Returns the release and the packages skipped.
  */
 export function publishRelease(options: {
   out: string;
   run: Run;
   publish: boolean;
   published?: Lookup;
-}): Release {
+}): Release & { skipped: string[] } {
   const { out, run, publish, published = npmPublished } = options;
   const release = readRelease(out);
-  const already = release.archives.filter(({ name }) => published(`${name}@${release.version}`));
-  if (already.length > 0)
-    throw new Error(
-      `already published at ${release.version}: ${already.map(({ name }) => name).join(', ')}`,
-    );
   if (publish && !release.publishable) throw new Error('the release was packed private');
-  for (const { filename } of release.archives) run('npm', ['publish', filename, '--dry-run'], out);
-  if (publish) for (const { filename } of release.archives) run('npm', ['publish', filename], out);
-  return release;
+  const done = release.archives.map(({ name }) => published(`${name}@${release.version}`));
+  const pending = release.archives.filter((_archive, index) => !done[index]);
+  const skipped = release.archives.filter((_archive, index) => done[index]).map(({ name }) => name);
+  for (const { filename } of pending) run('npm', ['publish', filename, '--dry-run'], out);
+  if (publish) for (const { filename } of pending) run('npm', ['publish', filename], out);
+  return { ...release, skipped };
 }

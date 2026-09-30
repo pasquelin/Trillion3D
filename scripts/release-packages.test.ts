@@ -137,20 +137,23 @@ test('the publication dry-runs the six, then publishes them only when asked', ()
   for (const { root } of [dry, real]) rmSync(root, { recursive: true });
 });
 
-// Behaviour: a version already on the registry, or an archive missing, stops the publication
-// before any npm command.
-test('the publication refuses a version already published or a missing archive', () => {
+// Behaviour: a package already on npm at this version is skipped, so that a rerun of a publication
+// stopped halfway publishes the rest in order; an archive missing stops it before any npm command.
+test('the publication skips a version already published and refuses a missing archive', () => {
   const release = packed(true);
-  assert.throws(
-    () =>
-      publishRelease({
-        out: release.out,
-        run: release.run,
-        publish: true,
-        published: (spec) => spec === '@trillion3d/compiler-linux-x64@1.0.0',
-      }),
-    /already published at 1\.0\.0: @trillion3d\/compiler-linux-x64/,
-  );
+  const done = new Set(releaseNames().slice(0, 2).map((name) => `${name}@1.0.0`));
+  const result = publishRelease({
+    out: release.out,
+    run: release.run,
+    publish: true,
+    published: (spec) => done.has(spec),
+  });
+  assert.deepEqual(result.skipped, releaseNames().slice(0, 2));
+  const rest = releaseNames()
+    .slice(2)
+    .map((name) => `npm publish ${name.replace(/\W/g, '-')}.tgz`);
+  assert.deepEqual(release.commands, [...rest.map((c) => `${c} --dry-run`), ...rest]);
+  release.commands.length = 0;
   rmSync(join(release.out, 'trillion3d.tgz'));
   assert.throws(
     () =>
