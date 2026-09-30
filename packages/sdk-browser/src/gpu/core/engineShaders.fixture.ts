@@ -8,6 +8,7 @@ import { withScreenErrorVariant } from '../dag/shader/error.ts';
 import { drawShader } from '../draw/shader.ts';
 import { ROW_MAP_SHADER } from '../draw/lightRowsWgsl.ts';
 import { HIZ_SHADER } from '../hiz/shader.ts';
+import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts';
 import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
@@ -107,6 +108,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DRAW_SHADER: drawShader(2),
   ROW_MAP_SHADER,
   HIZ_SHADER,
+  MATERIAL_TILES_SHADER,
   PARTITION_SHADER,
   RASTER: rasterSource(4096, 16),
   RESOLVE,
