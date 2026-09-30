@@ -29,6 +29,8 @@ const evaluate = new Function(`
   const sampleBounce=()=>enabled?Math.PI/4:0;
   // Constant probe radiance isolates the transition from the separately tested SH filter.
   const filteredProbeReflection=()=>enabled?0.25:0;
+  // With no probe yet, the environment answers (#1341).
+  const environmentReflection=()=>0.5;
   function proxyReflectionRay(P,N,R){${scalarBody('proxyReflectionRay')}}
   function reflectedRadiance(P,N,R,rough){${scalarBody('reflectedRadiance')}}
   function mirrorLighting(rgb,metal,rough,N,V,P){${scalarBody('mirrorLighting')}}
@@ -85,8 +87,8 @@ test('diffuse/toon, disabled bounce and proxy misses retain their reflection con
       assert.equal(evaluate(rough, model).mirrorRays, 0);
     }
     assert.deepEqual(evaluate(rough, 0, false), {
-      mirror: 0,
-      water: 0,
+      mirror: 0.5,
+      water: 0.5,
       mirrorRays: 0,
       waterRays: 0,
     });

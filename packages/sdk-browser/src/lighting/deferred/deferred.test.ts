@@ -2,60 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting } from './deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-
-function gpuHarness() {
-  const { device, buffers, writes, destroyed, bindGroups } = fakeDevice();
-  const passes: {
-    descriptor: GPURenderPassDescriptor;
-    pipeline?: GPURenderPipeline;
-    draws: number[];
-    ended: boolean;
-  }[] = [];
-  const encoder = {
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      const record: {
-        descriptor: GPURenderPassDescriptor;
-        pipeline?: GPURenderPipeline;
-        draws: number[];
-        ended: boolean;
-      } = { descriptor, draws: [], ended: false };
-      passes.push(record);
-      return {
-        setPipeline(pipeline: GPURenderPipeline) {
-          record.pipeline = pipeline;
-        },
-        setBindGroup() {},
-        draw(vertices: number) {
-          record.draws.push(vertices);
-        },
-        end() {
-          record.ended = true;
-        },
-      };
-    },
-  } as unknown as GPUCommandEncoder;
-  const view = () => ({}) as GPUTextureView;
-  // Stable views, as a real surface keeps: a composition is keyed by the flags view it reads.
-  const surfaceViews = [view(), view(), view(), view()],
-    surface = { views: () => surfaceViews } as unknown as SurfaceBuffer;
-  return {
-    device,
-    bindGroups,
-    encoder,
-    view,
-    surface,
-    passes,
-    /** Each view uniform write, as the floats it sent. */
-    get writes() {
-      return writes.map((write) => written(write) as Float32Array);
-    },
-    /** Whether the view uniform, the first buffer made, was destroyed. */
-    get destroyed() {
-      return destroyed.includes(buffers[0]!);
-    },
-  };
-}
+import { gpuHarness } from './contractLighting.fixture.ts';
 
 test('composition presents and preserves the capture target in one fullscreen draw', async () => {
   const h = gpuHarness(),

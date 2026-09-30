@@ -133,6 +133,7 @@ export function submitColorCopy(
       drawCalls: run.gpuDrawCalls,
       renderScale: rt.scale.drawn,
       scaleSteered: rt.scale.steered,
+      scaleStill: rt.scale.still,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });
