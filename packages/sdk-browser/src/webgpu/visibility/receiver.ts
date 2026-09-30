@@ -94,6 +94,7 @@ export function receiverPlaceholders(device: GPUDevice) {
   const resources: ReceiverResources = [vis.createView(), uniform, page, page, page, normals.view];
   return {
     resources,
+    normals: normals.view,
     dispose() {
       normals.texture.destroy();
       vis.destroy();

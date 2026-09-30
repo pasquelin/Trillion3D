@@ -41,7 +41,7 @@ export const offsetOf = (name: PoolList, count: number, vertex: number) =>
 
 /** What a growth of `from` vertices to `to` copies in buffer `key`, in floats: `[source,
  *  destination, count]` per region — the vertices, the colour tail when the UVs carry one, and
- *  the deformation block. The normal atlas is copied whole (`copyFloatAtlas`). */
+ *  the deformation block. The normal atlas is written again from its geometries (`geometryPool.ts`). */
 export function growthCopies(
   key: BufferKey,
   from: number,

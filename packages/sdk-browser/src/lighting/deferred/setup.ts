@@ -177,6 +177,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     surfaceCache: surfaceCache.createView(),
     proxy,
     receiver: receiver.resources,
+    /** The empty normal atlas: what a transparent item without normals reads (zeros). */
+    emptyNormals: receiver.normals,
     dispose() {
       receiver.dispose();
       tiles.destroy();
