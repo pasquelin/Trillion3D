@@ -2918,8 +2918,10 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
-      "tileLights": "Lichter, die die Liste einer Bildschirmkachel hält, in jeder ihrer zwei Tiefenscheiben: ihr Speicher ist dieser, pro Kachel, was die Szene auch hält. Eine Kachel, die mehr Lichter erreichen, nimmt deren Indizes aus einem Pool von der Größe der Ansicht und durchläuft genau diese; eine, für die der Pool keinen Platz hat, durchläuft jedes Licht der Szene — die sie verfehlen, addieren eine exakte Null —, sodass nie ein Licht verloren geht (X2).",
-      "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
+      "tileLights": "Die längste Liste einer Zelle des Lichtgitters, aus der ein BEWEGTES Bild zieht (X2): darüber hinaus werden die Lichter der Zelle vollständig summiert. Eine Szene mit höchstens so vielen Lichtern wird mit einem Lichtarray dieser Länge beleuchtet. Die Liste einer Zelle enthält jedes Licht, das sie erreicht, gleich wie viele, in einem Pool von der Größe der Ansicht; eine Zelle, für die der Pool keinen Platz mehr hat, durchläuft alle Lichter der Szene — die sie verfehlen, addieren eine exakte Null —, sodass nie ein Licht verloren geht.",
+      "tileSize": "Seitenlänge einer Zelle des Lichtgitters in Pixeln.",
+      "gridSlices": "Tiefenscheiben des Lichtgitters: hinter der letzten reicht eine Zelle bis ins Unendliche.",
+      "gridSlicesPerOctave": "Scheiben des Lichtgitters je Verdopplung der Sichttiefe, ab der nahen Ebene.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
       "pcfTaps": "PCF-Abtastungen pro Pixel und pro Schattenlicht (X2).",

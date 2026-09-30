@@ -1657,8 +1657,10 @@
     "summary": "Configurações publicadas de iluminação direta.",
     "description": "Essas são escolhas de produto nomeadas, não constantes enterradas: todo limite em tempo de execução as relê, e o diagnóstico as publica como estão.",
     "members": {
-      "tileLights": "Luzes que a lista de um ladrilho de tela mantém, em cada uma de suas duas fatias de profundidade: sua memória é esta, por ladrilho, o que quer que a cena tenha. Um ladrilho alcançado por mais luzes toma seus índices de um pool do tamanho da vista e percorre exatamente essas; um para o qual o pool não tem mais espaço percorre todas as luzes da cena — as que não o alcançam somam um zero exato —, então nenhuma luz é perdida (X2).",
-      "tileSize": "Lado em pixels de um ladrilho de tela da lista de luzes.",
+      "tileLights": "A lista mais longa de uma célula da grade de luzes da qual uma imagem EM MOVIMENTO sorteia (X2): além dela, as luzes da célula são somadas por inteiro. Uma cena de no máximo esse número de luzes é iluminada com um array de luzes desse comprimento. A lista de uma célula contém cada luz que a alcança, quantas forem, numa reserva do tamanho da vista; uma célula para a qual a reserva não tem mais espaço percorre todas as luzes da cena — as que não a alcançam somam um zero exato —, de modo que nenhuma luz se perde.",
+      "tileSize": "Lado em pixels de uma célula da grade de luzes.",
+      "gridSlices": "Fatias de profundidade da grade de luzes: além da última, uma célula vai até o infinito.",
+      "gridSlicesPerOctave": "Fatias da grade de luzes por duplicação da profundidade de vista, a partir do plano próximo.",
       "samplesPerPixel": "Luzes sombreadas por completo — leitura de sombra incluída — por pixel de uma imagem EM MOVIMENTO (X2): as outras são pesadas sem sua sombra, e as sombreadas são desenhadas em proporção, então a estimativa é não enviesada e o antisserrilhamento temporal a faz convergir. Uma imagem parada sombreia toda luz do seu ladrilho e converge para a soma exata; ali, esse número não tem papel nenhum.",
       "shadowPage": "Lado de uma página de sombra, em texels: a unidade do pool físico, dos mapas virtuais e da invalidação. Um objeto em movimento só invalida as páginas que a sua caixa projetada cobre.",
       "pcfTaps": "Amostras PCF por pixel e por luz com sombra (X2).",

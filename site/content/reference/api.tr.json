@@ -1657,8 +1657,10 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
-      "tileLights": "Bir ekran karosunun listesinin iki derinlik diliminin her birinde tuttuğu ışıklar: belleği, sahne ne tutarsa tutsun, karo başına budur. Daha fazla ışığın ulaştığı bir karo, onların dizinlerini görünüm boyutunda bir havuzdan alır ve tam olarak onları dolaşır; havuzda yer bulamayan bir karo sahnenin her ışığını dolaşır — onu ıskalayanlar tam bir sıfır ekler —, böylece hiçbir ışık kaybolmaz (X2).",
-      "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
+      "tileLights": "HAREKETLİ bir görüntünün örnekleme yaptığı ışık ızgarası hücresinin en uzun listesi (X2): bunun ötesinde hücrenin ışıkları tamamen toplanır. En fazla bu kadar ışık içeren bir sahne bu uzunlukta bir ışık dizisiyle aydınlatılır. Bir hücrenin listesi, sayısı ne olursa olsun ona ulaşan her ışığı görünüm boyutunda bir havuzda tutar; havuzda yer kalmayan bir hücre sahnenin bütün ışıklarını dolaşır — ona ulaşmayanlar tam bir sıfır ekler —, böylece hiçbir ışık kaybolmaz.",
+      "tileSize": "Işık ızgarası hücresinin piksel cinsinden kenarı.",
+      "gridSlices": "Işık ızgarasının derinlik dilimleri: sonuncusunun ötesinde bir hücre sonsuza uzanır.",
+      "gridSlicesPerOctave": "Yakın düzlemden itibaren görüş derinliğinin her iki katına çıkışı başına ışık ızgarası dilimleri.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
       "pcfTaps": "Piksel ve gölgeli ışık başına PCF örneği (X2).",
