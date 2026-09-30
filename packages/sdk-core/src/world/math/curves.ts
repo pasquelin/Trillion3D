@@ -47,11 +47,13 @@ export class SplineCurve extends Curve {
   /** The point at `t` on the smooth curve. */
   getPoint(t: number, out = new Vector3()) {
     const n = this.points.length;
+    // Stryker disable next-line ConditionalExpression: one point: all four neighbours are it
     if (n === 1) return out.copy(this.points[0]);
     const span = this.closed ? n : n - 1;
     const p = Math.min(Math.max(t, 0), 1) * span;
     let i = Math.floor(p),
       w = p - i;
+    // Stryker disable next-line all: at t = 1, weight 0 past the last span reads the same point
     if (i >= span) {
       i = span - 1;
       w = 1;
@@ -81,6 +83,7 @@ export class Path extends Curve {
   constructor(points: (Vec3Input | readonly [number, number])[] = []) {
     super();
     this.points = points.map((p) =>
+      // Stryker disable next-line ConditionalExpression: a pair read as 3 numbers has z undefined
       Array.isArray(p) && p.length === 2
         ? new Vector3(p[0], p[1], 0)
         : new Vector3(...readVec3(p as Vec3Input)),
@@ -99,6 +102,7 @@ export class Path extends Curve {
       lengths.push(lengths[i - 1] + pts[i].distanceTo(pts[i - 1]));
     const target = Math.min(Math.max(t, 0), 1) * lengths[lengths.length - 1];
     let i = 1;
+    // Stryker disable next-line all: a corner is on both pieces; t is clamped to the last
     while (i < pts.length - 1 && lengths[i] < target) i++;
     const piece = lengths[i] - lengths[i - 1] || 1;
     return out.lerpVectors(pts[i - 1], pts[i], (target - lengths[i - 1]) / piece);

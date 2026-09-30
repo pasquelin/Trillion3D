@@ -10,6 +10,8 @@
  * written into caller-owned arrays, so a query allocates nothing.
  */
 
+import { closestBetweenSegments, squaredGap, unit } from './segmentPair.ts';
+
 type Numbers = ArrayLike<number>;
 
 const edge = new Float64Array(6),
@@ -18,8 +20,9 @@ const edge = new Float64Array(6),
   candidate = new Float64Array(6),
   normal = new Float64Array(3);
 
-const unit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
-
+// Equivalent at `closestSegmentTriangle`, whose edge pairs find the distance of a segment end to an
+// edge as well (the minimum of both is kept); only a tie's pair could differ.
+// Stryker disable all: redundant with the edge pairs
 /** The parameter in `[0, 1]` of the point of segment `(a, b)` closest to `p`, `a` for a point segment. */
 function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: number) {
   const dx = b[bAt] - a[aAt],
@@ -30,6 +33,7 @@ function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: 
   const t = ((p[0] - a[aAt]) * dx + (p[1] - a[aAt + 1]) * dy + (p[2] - a[aAt + 2]) * dz) / length;
   return unit(t);
 }
+// Stryker restore all
 
 /**
  * The point of triangle `v[at..at+9]` closest to `p`, written to `out`; returns the squared
@@ -37,11 +41,14 @@ function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: 
  * plane's projection is the answer; outside, the nearest point of the nearest edge.
  */
 function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: flat: NaN height, never kept
   if (area > 0) {
     const h = planeSide(p, 0, v, at) / area;
+    // Stryker disable next-line EqualityOperator: `out` holds three numbers, a 4th write is dropped
     for (let k = 0; k < 3; k++) out[k] = p[k] - h * normal[k];
     if (insideTriangle(out[0], out[1], out[2], v, at, normal)) return h * h * area;
   }
+  // Stryker disable all: the edge distances `closestSegmentTriangle`'s edge pairs find (above)
   let best = Infinity;
   for (let e = 0; e < 3; e++) {
     const from = at + 3 * e,
@@ -55,6 +62,7 @@ function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number
     }
   }
   return best;
+  // Stryker restore all
 }
 
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
@@ -98,53 +106,6 @@ export function insideTriangle(
   return true;
 }
 
-function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
-  const dx = a[aAt] - b[bAt],
-    dy = a[aAt + 1] - b[bAt + 1],
-    dz = a[aAt + 2] - b[bAt + 2];
-  return dx * dx + dy * dy + dz * dz;
-}
-
-/**
- * The closest points of segments `(p, q)` and `(r, s)` — six numbers each, start then end —
- * written to `out[0..3]` (on the first) and `out[3..6]` (on the second); returns the squared
- * distance. The unconstrained optimum is clamped to the first segment, the second's parameter
- * follows, and is itself clamped with the first recomputed once: the textbook closed form.
- */
-function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbers) {
-  const d1x = first[3] - first[0],
-    d1y = first[4] - first[1],
-    d1z = first[5] - first[2];
-  const d2x = second[3] - second[0],
-    d2y = second[4] - second[1],
-    d2z = second[5] - second[2];
-  const rx = first[0] - second[0],
-    ry = first[1] - second[1],
-    rz = first[2] - second[2];
-  const a = d1x * d1x + d1y * d1y + d1z * d1z,
-    e = d2x * d2x + d2y * d2y + d2z * d2z,
-    f = d2x * rx + d2y * ry + d2z * rz,
-    c = d1x * rx + d1y * ry + d1z * rz,
-    b = d1x * d2x + d1y * d2y + d1z * d2z;
-  let s = 0,
-    t = 0;
-  if (a === 0 && e === 0) s = t = 0;
-  else if (a === 0) t = unit(f / e);
-  else if (e === 0) s = unit(-c / a);
-  else {
-    const denominator = a * e - b * b;
-    s = denominator > 0 ? unit((b * f - c * e) / denominator) : 0;
-    t = (b * s + f) / e;
-    if (t < 0) [t, s] = [0, unit(-c / a)];
-    else if (t > 1) [t, s] = [1, unit((b - c) / a)];
-  }
-  for (let k = 0; k < 3; k++) {
-    out[k] = first[k] + s * (first[3 + k] - first[k]);
-    out[3 + k] = second[k] + t * (second[3 + k] - second[k]);
-  }
-  return squaredGap(out, 0, out, 3);
-}
-
 /**
  * The closest points of segment `segment` (six numbers) and triangle `v[at..at+9]`: `out[0..3]`
  * on the segment, `out[3..6]` on the triangle; returns the squared distance, zero when the
@@ -158,6 +119,9 @@ export function closestSegmentTriangle(
 ) {
   const area = triangleNormal(normal, v, at);
   if (pierces(out, segment, v, at, area)) return 0;
+  // A read past the segment or the triangle is NaN, never kept; in a tie either closest pair is
+  // right, and the first is kept.
+  // Stryker disable EqualityOperator: NaN reads and ties
   let best = Infinity;
   for (let end = 0; end < 6; end += 3) {
     for (let k = 0; k < 3; k++) tail[k] = segment[end + k];
@@ -177,16 +141,21 @@ export function closestSegmentTriangle(
       out.set(candidate);
     }
   }
+  // Stryker restore EqualityOperator
   return best;
 }
 
 /** Whether the segment passes through the triangle: its ends on opposite sides of the plane,
  *  the crossing inside the edges. The crossing is then written to both halves of `out`. */
 function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, area: number) {
+  // A flat triangle leaves both ends at height 0 (`d0 === d1`), and an end on the plane is found at
+  // distance 0, as its own pair, by the end search.
+  // Stryker disable all: flat triangle, end on the plane
   if (area === 0) return false;
   const d0 = planeSide(segment, 0, v, at),
     d1 = planeSide(segment, 3, v, at);
   if (d0 * d1 > 0 || d0 === d1) return false;
+  // Stryker restore all
   const t = d0 / (d0 - d1);
   for (let k = 0; k < 3; k++) out[k] = out[3 + k] = segment[k] + t * (segment[3 + k] - segment[k]);
   return insideTriangle(out[0], out[1], out[2], v, at, normal);

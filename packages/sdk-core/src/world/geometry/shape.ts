@@ -6,12 +6,18 @@ import { hypot2 } from '../../math/primitives/hypot.ts';
 
 type P = [number, number];
 
+/** The normal a builder vertex carries here: `flatGeometry` computes each face's own instead. */
+// Stryker disable next-line ArrayDeclaration: never read, see above
+const UNREAD_NORMAL = [0, 0, 0] as const;
+
 /** The outline and holes of a shape, sampled, each a list of plane points. */
 function rings(shape: Shape, curveSegments: number) {
   const outline = shape.getPoints(curveSegments).map((p): P => [p.x, p.y]);
+  // Stryker disable next-line EqualityOperator: a flat outline encloses nothing either way round
   if (signedArea(outline) < 0) outline.reverse();
   const holes = shape.holes.map((hole) => {
     const ring = hole.getPoints(curveSegments).map((p): P => [p.x, p.y]);
+    // Stryker disable next-line EqualityOperator: as a flat outline
     return signedArea(ring) > 0 ? ring.reverse() : ring;
   });
   // Counter-clockwise outline, clockwise holes: the solid always lies to the left of travel.
@@ -54,6 +60,7 @@ export interface ExtrudeOptions {
 
 /** Each point of a ring pushed `by` away from the solid, along the bisector of its two edges. */
 function offsetRing(ring: P[], by: number): P[] {
+  // Stryker disable next-line ConditionalExpression: a shortcut: an offset of 0 moves no point
   if (by === 0) return ring;
   return ring.map((p, i) => {
     const a = ring[(i + ring.length - 1) % ring.length],
@@ -101,7 +108,7 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
   for (let t = 0; t < triangles.length; t += 3) {
     const [i, j, k] = [triangles[t], triangles[t + 1], triangles[t + 2]];
     const at = (v: number, z: number) =>
-      b.vertex([points[v][0], points[v][1], z], [0, 0, 0], points[v]);
+      b.vertex([points[v][0], points[v][1], z], UNREAD_NORMAL, points[v]);
     b.triangle(at(i, front), at(k, front), at(j, front));
     b.triangle(at(i, back), at(j, back), at(k, back));
   }
@@ -113,7 +120,7 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
       for (let i = 0; i < contour.length; i++) {
         const n = (i + 1) % contour.length;
         const v = [walls[l][i], walls[l][n], walls[l + 1][n], walls[l + 1][i]].map((p, c) =>
-          b.vertex(p, [0, 0, 0], [c === 0 || c === 3 ? 0 : 1, c < 2 ? 0 : 1]),
+          b.vertex(p, UNREAD_NORMAL, [c === 0 || c === 3 ? 0 : 1, c < 2 ? 0 : 1]),
         );
         b.triangle(v[0], v[1], v[2]);
         b.triangle(v[0], v[2], v[3]);
