@@ -79,6 +79,18 @@ test('pages the GPU draws itself change the reflected source epoch, a lost snaps
   assert.deepEqual(epochOf(rt), lost, 'a resized pool keeps the count');
 });
 
+test('#1346: while page draws run every frame, a snapshot read frames later still counts them', () => {
+  const rt = reflectingRt();
+  const plan = (rt.lights.plan = createShadowPlan(4));
+  const before = epochOf(rt);
+  // A moving view: each frame runs the page draws, and each snapshot comes back three frames on.
+  for (let frame = 0; frame < 6; frame++) {
+    plan.gpu.drew(frame);
+    if (frame >= 3) plan.gpu.hear(snapshot(frame - 3, 1, frame - 2));
+  }
+  assert.notDeepEqual(epochOf(rt), before, 'the pages drawn while moving land');
+});
+
 test('#1346: a page the GPU lists and has not drawn wakes neither the reflection nor the TAA; its draw does', () => {
   const gpu = fakeDevice();
   const rt = reflectingRt();
