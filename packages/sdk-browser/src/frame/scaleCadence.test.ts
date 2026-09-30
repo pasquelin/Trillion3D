@@ -160,3 +160,37 @@ test('another screen resets the clock: a move to 60 Hz drops nothing', () => {
     Reflect.deleteProperty(globalThis, 'devicePixelRatio');
   }
 });
+
+// #1343: a probe cut short by another screen left its lowered scale, which a still image never
+// raised again.
+test('a probe cut short by another screen puts the scale back', () => {
+  const screen = { width: 1728, height: 1117 };
+  Object.assign(globalThis, { screen, devicePixelRatio: 2 });
+  try {
+    const control = createScaleControl('auto');
+    let now = 0,
+      frame = 0;
+    for (; control.wanted() === 1 && frame < 600; frame++) {
+      control.drew(control.wanted(), true);
+      control.tick((now += HZ60));
+    }
+    assert.ok(control.wanted() < 1, 'a probe runs');
+    Object.assign(screen, { width: 2560, height: 1440 });
+    control.drew(control.wanted(), true, true);
+    control.tick((now += HZ60));
+    assert.equal(control.wanted(), 1);
+  } finally {
+    Reflect.deleteProperty(globalThis, 'screen');
+    Reflect.deleteProperty(globalThis, 'devicePixelRatio');
+  }
+});
+
+test('a device that holds 120 Hz without GPU times never drops for a probe', () => {
+  const control = createScaleControl('auto');
+  let now = 0;
+  for (let frame = 0; frame < 600; frame++) {
+    control.drew(control.wanted(), true);
+    control.tick((now += HZ120));
+    assert.equal(control.wanted(), 1, `frame ${frame}`);
+  }
+});
