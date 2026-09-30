@@ -150,8 +150,11 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
   ensureWebgpuShadeBindings(rt, gpuDevice);
-  const ab = shaders.shadeWithoutFeedback && (await families.diagnostics.load()); // a view's
-  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback!, classes);
+  const withoutFeedback = shaders.shadeWithoutFeedback; // a view's, on the diagnostics' code
+  if (withoutFeedback)
+    await (
+      await families.diagnostics.load()
+    ).prepareFeedbackAb(rt, gpuDevice, withoutFeedback, classes);
   vis.visEnabled =
     !!vis.visTexture &&
     !!vis.shadeBindGroup &&
