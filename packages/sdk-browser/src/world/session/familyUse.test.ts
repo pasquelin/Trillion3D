@@ -6,7 +6,8 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { createGuideSet } from '../../guides/guideSet.ts';
 import { families } from '../../host/families.ts';
 import { frameQueue } from '../render/frameQueue.fixture.ts';
-import { drawnOnArrival, frameFamilies, frameWaits, sessionFamilies } from './familyUse.ts';
+import { drawnOnArrival, frameWaits, sessionFamilies } from './familyUse.ts';
+import { frameFamilies } from './frameFamilies.ts';
 import { startInteractiveExplorer } from './interactive.ts';
 
 const turn = () => new Promise((wake) => setImmediate(wake));
