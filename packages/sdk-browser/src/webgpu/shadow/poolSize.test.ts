@@ -14,9 +14,9 @@ import { refusingDevice } from './poolDevice.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** A session whose device, `textureSide` texels wide, refuses, as out of memory, every texture
+/** A session whose device, 8192 texels wide, refuses, as out of memory, every texture
  *  past `limit` bytes; its atlas records the side it was sized at, and what the frame was told. */
-function session(viewport: [number, number], limit = Infinity, textureSide = 8192) {
+function session(viewport: [number, number], limit = Infinity) {
   installGpuGlobals();
   const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   lights.plan.setPageInvalidation(false);
@@ -25,7 +25,7 @@ function session(viewport: [number, number], limit = Infinity, textureSide = 819
   let texture: object | undefined,
     uncaptured = 0,
     changed = 0;
-  const gpu = refusingDevice(limit, { limits: { maxTextureDimension2D: textureSide } });
+  const gpu = refusingDevice(limit, { limits: { maxTextureDimension2D: 8192 } });
   gpu.device.addEventListener('uncapturederror', () => uncaptured++);
   lights.shadows = {
     get texture() {
