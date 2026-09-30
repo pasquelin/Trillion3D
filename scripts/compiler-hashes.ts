@@ -1,9 +1,12 @@
 /**
  * The fingerprint of the reference scenes' caches (#1352): every file a compiler writes for them,
- * with its SHA-256. A cache is named by its key, which hashes the compiler's own sources, so the
- * key is replaced by `<key>` in paths and contents: two compilers that write the same bytes under
- * their own key give the same fingerprint — the five platforms of one commit, and a branch against
- * `develop`.
+ * by the SHA-256 of its bytes, so that two compilers that cook the same bytes have the same one —
+ * the five platforms of one commit, and a branch against `develop`. What a cook writes beside its
+ * bytes is not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages`,
+ * as `compiler_manifest_pages` names it) and the folder it was written to. A name made of a
+ * SHA-256 — the cache key, which hashes the compiler's own sources, and each content-addressed
+ * file — reads `<sha>`: such files are still compared by content, the hashes of the files one
+ * pattern names listed together.
  *
  *   node scripts/compiler-hashes.ts <compiler> <record.json> [<name>]
  *   node scripts/compiler-hashes.ts --compare <reference.json> <record.json>...
@@ -29,21 +32,38 @@ export interface HashRecord {
 const ROOT = resolve(import.meta.dirname, '..');
 const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 
-/** Each file of the compiled cache `cache`, under `prefix`, with its SHA-256; the cache's key,
- *  read from its manifest, replaced by `<key>` in both. The lock of a finished cook is skipped. */
+const SHA = /[0-9a-f]{64}/g;
+/** What a run reports rather than builds: its times, its memory peak, the pages it found built. */
+const MEASURE = /Ms$|^peakRssBytes$|^reusedPages$/;
+
+/** A JSON file of `cache` without its run's measures, its folder read `<cache>`; other bytes as is. */
+function comparable(bytes: Buffer, file: string, cache: string): Buffer | string {
+  if (!file.endsWith('.json')) return bytes;
+  const document: unknown = JSON.parse(bytes.toString('utf8'), (key, value: unknown) => {
+    if (MEASURE.test(key)) return undefined;
+    if (typeof value !== 'string' || !value.includes(cache)) return value;
+    return value.replaceAll(cache, '<cache>').replaceAll('\\', '/');
+  });
+  return JSON.stringify(document);
+}
+
+/** Each file of the compiled cache `cache`, under `prefix`, by the SHA-256 of what is compared;
+ *  names and contents with `<sha>` for a SHA-256. The lock of a finished cook is skipped. */
 export function cacheFingerprint(cache: string, prefix: string): Record<string, string> {
-  const manifest = JSON.parse(readFileSync(join(cache, 'native/full/manifest.json'), 'utf8')) as {
-    key: string;
-  };
-  const files: Record<string, string> = {};
-  for (const file of readdirSync(cache, { recursive: true }).map(String).sort()) {
+  const hashes = new Map<string, string[]>();
+  for (const file of readdirSync(cache, { recursive: true }).map(String)) {
     const path = join(cache, file);
     if (file.endsWith('.lock') || !statSync(path).isFile()) continue;
-    const bytes = readFileSync(path).toString('latin1').replaceAll(manifest.key, '<key>');
-    const name = file.replaceAll('\\', '/').replaceAll(manifest.key, '<key>');
-    files[`${prefix}/${name}`] = sha256(Buffer.from(bytes, 'latin1'));
+    const content = comparable(readFileSync(path), file, cache);
+    const text = typeof content === 'string' ? content.replaceAll(SHA, '<sha>') : content;
+    const name = `${prefix}/${file.replaceAll('\\', '/').replaceAll(SHA, '<sha>')}`;
+    hashes.set(name, [...(hashes.get(name) ?? []), sha256(text)]);
   }
-  return files;
+  return Object.fromEntries(
+    [...hashes]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, list]) => [name, list.sort().join(' ')]),
+  );
 }
 
 /** Compiles every reference scene with `executable` into a fresh folder and fingerprints it. */
@@ -82,7 +102,8 @@ function compare(paths: string[]): boolean {
     const differing = differences(records[0], record);
     const size = record.bytes === undefined ? '' : `, ${(record.bytes / 2 ** 20).toFixed(1)} MiB`;
     const digest = sha256(JSON.stringify(record.files));
-    console.log(`${record.compiler}: ${Object.keys(record.files).length} files, ${digest}${size}`);
+    const files = Object.values(record.files).join(' ').split(' ').length;
+    console.log(`${record.compiler}: ${files} files, ${digest}${size}`);
     for (const file of differing) console.log(`  differs from ${records[0].compiler}: ${file}`);
     equal &&= differing.length === 0;
   }
@@ -94,7 +115,10 @@ if (import.meta.filename === process.argv[1]) {
   if (first === '--compare') {
     if (!compare(rest)) process.exit(1);
   } else {
-    const record: HashRecord = { compiler: rest[1] ?? first, files: referenceHashes(first) };
+    const record: HashRecord = {
+      compiler: rest[1] ?? first,
+      files: referenceHashes(resolve(first)),
+    };
     writeFileSync(rest[0], `${JSON.stringify(record, null, 2)}\n`);
   }
 }
