@@ -60,7 +60,12 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       continue;
     }
     const rec = recordOf(page);
-    if (!rec) continue;
+    // A rank the catalogue does not hold names no record: its corners stay zero, as an alignment
+    // entry's, so no stale rectangle survives from a previous table.
+    if (!rec) {
+      packed.fill(0, base, base + CORNER_VALUES);
+      continue;
+    }
     packPageCorners(packed, base, rec, rootOf(selectionRoots, rec).world);
     if (neverCulled(rec.material)) bits[entry >> 5] |= 1 << (entry & 31);
   }
