@@ -22,4 +22,12 @@ test('the lighting writes the source before camera fog and the mirror term, the 
 
 test('a lighting text the output cannot find refuses, never a silent source', () => {
   assert.throws(() => withReflectionSourceOutput('fn other(){}'), /UNMATCHED/);
+  // A mirror term the lighting no longer adds right before its fog: refused, never held.
+  const lit = withScreenReflections(DIRECT_LIGHTING_SHADER, true);
+  const moved = lit.replace(
+    '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);',
+    '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);rgb=rgb;',
+  );
+  assert.notEqual(moved, lit);
+  assert.throws(() => withReflectionSourceOutput(moved), /UNMATCHED/);
 });
