@@ -34,8 +34,9 @@ asked; the static layer waits for that size (`shadowPoolSized`), the pages drawn
 After each report the pool follows the demand (`webgpu/shadow/poolResize.ts`, #1208, #1345): a
 report that asks more than half the pool — the two reports it holds would not fit — grows it; one
 that asks for a pool at most half as large shrinks it to the most they asked, sixty reports in a
-row (`SHRINK_REPORTS`) under a moving view, at once under a view at rest — it asks what it keeps
-asking, and sends no report once its image holds. A resize is by the
+row (`SHRINK_REPORTS`) while anything moves, at once in a scene at rest — a still view whose report
+asks as many pages as the one before: it asks what it keeps asking, and sends no report once its
+image holds. A resize is by the
 same rule and grant, the frame held while the device answers: every page that
 fits keeps its entry, state and depth, copied texel for texel with its transmittance
 (`gpu/shadow/pageMoves.ts`), since reads are texel-exact (#831), so nothing is drawn again; a
