@@ -2,12 +2,10 @@ import { composeFace, shadowOrthographic } from './math.ts';
 import { FULL_FACE, writeBoxVolume } from './volume.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { PAGES, sunPageMetres } from './pageModel.ts';
-import { PAGE_FOOTPRINT_FULL, footprintRect } from './footprint.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
 const axis: [number, number, number] = [0, 0, 0];
 const boxCenter: [number, number, number] = [0, 0, 0];
-const culled = new Float64Array(4);
 
 /**
  * View-projection of a square of sun pages — `cells` pages of level `level` per side, top-left
@@ -20,9 +18,6 @@ const culled = new Float64Array(4);
  * projection maps it exactly onto the clip square, and the draw's viewport onto the physical
  * page. Depth runs from the near side (1) to the far side (0) of the range, reversed like the
  * camera's. Returns the planes the orthography published.
- *
- * A page drawn for a `footprint` (`footprint.ts`) culls its casters to that part of its square,
- * grown by `reach` texels; the projection stays the page's.
  */
 export function writeSunSquare(
   matrices: Float32Array,
@@ -35,8 +30,6 @@ export function writeSunSquare(
   ax: number,
   ay: number,
   cells = 1,
-  footprint = PAGE_FOOTPRINT_FULL,
-  reach = 0,
 ) {
   const f = slice * 9,
     { frame, depth } = sun;
@@ -52,9 +45,6 @@ export function writeSunSquare(
   }
   const planes = shadowOrthographic((cells * page) / 2, far);
   composeFace(matrices, matBase, eye, axis);
-  if (cull) {
-    const rect = footprintRect(culled, footprint, reach, FULL_FACE);
-    writeBoxVolume(cull, cullBase, boxCenter, (cells * page) / 2, far / 2, rect);
-  }
+  if (cull) writeBoxVolume(cull, cullBase, boxCenter, (cells * page) / 2, far / 2, FULL_FACE);
   return planes;
 }

@@ -2,7 +2,6 @@ import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES } from './virtual.ts';
 import { PAGES } from './pageModel.ts';
 import type { ShadowTable } from './table.ts';
 import { shadowPageArrays, shadowPageArraysBytes } from './poolPages.ts';
-import { PAGE_FOOTPRINT_EMPTY, footprintDrawn } from './footprint.ts';
 import { createEvictionOrder } from './poolOrder.ts';
 
 export { RANKS } from './poolOrder.ts';
@@ -17,9 +16,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a pool of `pages` allocates, per page 11·4 + 5 + 2·8, one bit per table entry. */
+/** Host bytes a pool of `pages` allocates, per page 11·4 + 4 + 2·8, one bit per table entry. */
 export const shadowPoolHostBytes = (pages: number, tableEntries = SHADOW_TABLE_ENTRIES) =>
-  pages * (11 * 4 + 5 + 2 * 8) + tableEntries / 8;
+  pages * (11 * 4 + 4 + 2 * 8) + tableEntries / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -80,22 +79,14 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
         pool.dirty[page] !== STALE_FULL && pool.layered[page] && pool.range[page] === drawn;
       return kept ? DRAW_DYNAMIC : DRAW_FULL;
     },
-    /** The page's draw in `mode`, in depth-range slot `drawn`, for `footprint` (`footprint.ts`)
-     *  — the receivers' it holds by default —, has landed: current, readable there. */
-    drew(
-      table: ShadowTable,
-      page: number,
-      mode: number,
-      drawn: number,
-      footprint = footprintDrawn(pool.footprint[page]),
-    ) {
+    /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable there. */
+    drew(table: ShadowTable, page: number, mode: number, drawn: number) {
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
       pool.layered[page] =
         mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
       pool.range[page] = drawn;
-      pool.footprint[page] = footprint;
-      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn, footprint));
+      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
@@ -162,7 +153,6 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
       }
       pool.owner[page] = entry;
       pool.valid[page] = pool.layered[page] = pool.dirty[page] = 0;
-      pool.footprint[page] = PAGE_FOOTPRINT_EMPTY;
       pool.stale(page, nowMs, frame);
       pool.requested[page] = reportFrame;
       table.write(entry, page | PAGE_MAPPED);

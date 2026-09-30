@@ -5626,7 +5626,7 @@
       "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
       "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
       "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
-      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, plage de profondeur d’un soleil, ou empreinte que ses receveurs ont agrandie.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -5658,7 +5658,7 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
-      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors de la partie de la page que lisent ses receveurs —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
+      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors du volume de la page pour laquelle ils ont été testés —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
     }
   },
@@ -6995,7 +6995,7 @@
       "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
       "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
       "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
-      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, plage de profondeur d’un soleil, ou empreinte que ses receveurs ont agrandie.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -7066,7 +7066,7 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
-      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors de la partie de la page que lisent ses receveurs —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
+      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors du volume de la page pour laquelle ils ont été testés —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
       "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine.",
       "gpuDeformationMs": "Durée GPU de la déformation pour la frame de `gpuPassMs` ; null avant mesure ou sans support."
