@@ -1,5 +1,6 @@
 // G1: `geometry.ts` detaches by the pages attached (`attachees`), not by a scan of the whole DAG.
 // Oracle: the version before batch G, in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
+// #1234: the per-instance draw state lives in a `PageDraws` table, never on the record.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -8,6 +9,7 @@ import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/au
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { makeRec, recRoots } from './pageRec.fixture.ts';
+import { createPageDraws } from './pageDraws.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -25,30 +27,36 @@ function environnement(
   allPages: PageRec[],
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
+  const roots = recRoots(undefined, allPages);
   return {
-    ...{ scene, roots: recRoots(), allPages, bootstrap: [] },
+    ...{ scene, roots, allPages, bootstrap: [] },
     ...{ views: { live: { shown }, lists: () => [shown] } },
-    ...{ byUrl: new Map(), descriptors: new Map(), baseMaterials: new Map() },
-    ...{ colorMaterials: new Map(), modifiedPages: new Set() },
+    ...{ byUrl: new Map(), descriptors: new Map() },
+    ...{ draws: createPageDraws(roots), colorMaterials: new Map(), modifiedPages: new Set() },
   };
 }
 
-/** Two sets of identical pages (same id, triangles), one for optimized implementation, one
- *  for the oracle: each `pilot` call moves both forward with the same list of pages
- *  displayed, then compare the attached set of the scene and the number of triangles submitted. */
+/** Two sets of identical pages (same id, triangles), one for the optimized implementation, one
+ *  for the oracle: each `pilot` call moves both forward with the same list of pages displayed, then
+ *  compare the attached set of the scene and the number of triangles submitted. */
 function scenario(count: number) {
+  const geometry = new G.Geometry();
   const recsA = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
   // The oracle reads the pose on the record, as records carried it before #1226: its root's.
   const world = recRoots()[0].world;
   const recsB = Array.from({ length: count }, (_, i) => ({
     ...makeRec(i, (i % 7) + 1),
     matrix: world,
+    geometry,
+    mesh: undefined,
+    attached: false,
   }));
   const sceneA = fakeScene(),
     sceneB = fakeScene();
   const shownA: PageRec[] = [],
     shownB: typeof recsB = [];
   const impl = createAutonomousGeometry(environnement(sceneA.scene, recsA, shownA));
+  for (const rec of recsA) impl.draws.drawing(rec).geometry = geometry;
   const oracle = referenceAutonomousSync({ scene: sceneB.scene, allPages: recsB, shown: shownB });
   return {
     pilote(indices: number[]) {
@@ -67,8 +75,8 @@ function scenario(count: number) {
       );
       for (let i = 0; i < count; i++)
         assert.equal(
-          sceneA.meshes.has(recsA[i].mesh),
-          sceneB.meshes.has(recsB[i].mesh),
+          sceneA.meshes.has(impl.draws.find(recsA[i])?.mesh as unknown as object),
+          sceneB.meshes.has(recsB[i].mesh as unknown as object),
           `attachment of page ${i} for ${JSON.stringify(indices)}`,
         );
       assert.equal(sceneA.meshes.size, sceneB.meshes.size);
@@ -132,14 +140,14 @@ test('an attached page wears the host declaration, not the engine surface record
   const declaration = G.standardSurface();
   const rec: PageRec = {
     ...makeRec(0, 1),
-    geometry: new G.Geometry() as PageRec['geometry'],
-    mesh: undefined,
     declaration,
     material: surfaceOf(declaration),
   };
   const shown = [rec];
-  createAutonomousGeometry(environnement(scene, [rec], shown)).sync();
-  const [attached] = [...meshes] as Required<PageRec>['mesh'][];
+  const env = environnement(scene, [rec], shown);
+  env.draws.drawing(rec).geometry = new G.Geometry();
+  createAutonomousGeometry(env).sync();
+  const [attached] = [...meshes] as G.Mesh[];
   assert.equal(attached.material, declaration);
   assert.equal((attached.material as G.GraphSurface).visible, true);
   declaration.dispose();
@@ -148,13 +156,12 @@ test('an attached page wears the host declaration, not the engine surface record
 test('the store keeps a page by page, checked against the catalogue even when nothing draws it', () => {
   const { scene } = fakeScene();
   const material = G.standardSurface();
-  const empty = { url: 'p.bin', array: undefined, geometry: undefined, placementIndex: 0 };
-  const recs = [0, 1].map((id) => ({ ...makeRec(id, 1), ...empty, packedIndex: id }));
+  const recs = [0, 1].map((id) => ({ ...makeRec(id, 1), url: 'p.bin', array: undefined }));
   const env = environnement(scene, recs, []);
   const descriptor = { vertexCount: 3, indexCount: 3, flags: 0 } as never;
   env.byUrl.set('p.bin', recs).set('empty.bin', []);
   env.descriptors.set('p.bin', descriptor).set('empty.bin', descriptor);
-  for (const rec of recs) env.baseMaterials.set(rec, material);
+  for (const rec of recs) env.draws.drawing(rec).material = material;
   env.modifiedPages.add('replaced.bin');
   const store = createAutonomousGeometry(env);
   // One placement laid out as `requests.ts` lays it: the cut's readiness follows the store's feed.

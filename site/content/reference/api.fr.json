@@ -868,7 +868,8 @@
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
-      "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
+      "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
+      "impostors": "Atlas d’imposteurs cuits par le compilateur, par maillage (#817) ; absents d’un cache compilé avant les imposteurs."
     }
   },
   "clusterSphereValid": {
@@ -1870,6 +1871,9 @@
       "gpuDeformationMs": "Durée GPU de la déformation pour la frame de `gpuPassMs` ; null avant mesure ou sans support."
     }
   },
+  "FramePass": {
+    "summary": "Nomme les passes de l’image en cours de dessin ; un appel ferme la précédente et ouvre la suivante."
+  },
   "frameStatistics": {
     "summary": "Fréquence et régularité des images à partir des temps entre elles."
   },
@@ -2537,7 +2541,8 @@
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels.",
       "displayWidth": "La largeur à laquelle l’image est montrée quand elle est dessinée en dessous (`world.renderScale`) : les niveaux de texture et les largeurs de ligne suivent le rapport. `width` en son absence.",
-      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
+      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture.",
+      "pass": "Nomme les passes GPU de ce dessin pour le chronomètre d’image, dans l’ordre, quand l’un lit (`../core/frameTimer.ts`) ; absent sur un dessin que rien ne mesure."
     }
   },
   "HostMaterial": {
@@ -5579,6 +5584,13 @@
   "SHADOW_PAGE": {
     "summary": "Côté d’une page de l’atlas, en texels : la case d’invalidation d’une face."
   },
+  "ShadowAsks": {
+    "summary": "Entrées que l’hôte demande à l’allocateur GPU, à côté de ce que demandent les pixels (`floors`).",
+    "members": {
+      "entries": "Les entrées demandées, au plus les `count` premières.",
+      "count": "Combien d’`entries` sont remplies."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Ce que publie une lecture de l’atlas d’ombres : sa taille, ce qui y est écrit, son empreinte.",
     "members": {
@@ -5765,6 +5777,7 @@
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
+      "impostors": "Atlas d’imposteurs cuits par le compilateur, par maillage (#817) ; absents d’un cache compilé avant les imposteurs.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle."
@@ -6318,6 +6331,7 @@
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
       "format": "Quel format.",
+      "url": "L’adresse propre du niveau, quand le cache en liste une — un niveau d’atlas d’imposteur (`maps.<name>.levels[k].url`, #1239). Lu par ce même lecteur, résolue contre `base`, à la place du modèle `textures.url` : un chargeur, un budget.",
       "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
@@ -7627,6 +7641,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear, zFar` chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis`, puis l’emplacement de la plage courante —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Le pool de l’allocateur GPU après l’allocation d’une image (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "L’entrée que mappe chaque page physique, −1 pour une page libre.",
+      "requested": "L’image dans laquelle chaque page a été demandée en dernier.",
+      "allocated": "Pages que cette image a mappées, et entrées pour lesquelles elle n’avait pas de page.",
+      "refused": "Entrées pour lesquelles cette image n’avait pas de page.",
+      "drawn": "Pages que cette image a listées pour que le GPU les dessine (`listDraw`).",
+      "listings": "Pages que chaque image a listées depuis la graine du pool : évolue avec la liste de toute image, que sa propre empreinte soit perdue ou non."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",
     "members": {
@@ -8103,5 +8128,162 @@
       "nodeName": "Le `name` du nœud à déplacer.",
       "matrix": "Sa pose monde, seize flottants en ordre colonne-majeur."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, un seul littéral pour cet oracle et le miroir WGSL, afin que les deux arrondissent le même nombre."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Format de la section `impostors` que lit une exécution (#817 partie 1, cuite par le compilateur)."
+  },
+  "ImpostorCard": {
+    "summary": "Une carte tournée vers la caméra que l’exécution dessine à la place des clusters d’une racine basculée.",
+    "members": {
+      "root": "Rang de la racine qu’elle remplace dans les `roots` du plan.",
+      "mesh": "Son numéro de maillage compilé.",
+      "world": "La matrice dans le monde de la racine, telle que fournie.",
+      "centre": "Pivot dans l’espace monde, le centre de la sphère englobante sous le monde de la racine.",
+      "radius": "Rayon dans l’espace monde `R = objectRadius × l’échelle monde de la racine`.",
+      "frames": "Images par côté.",
+      "hemi": "Si les images sont hemi-octaédriques supérieures.",
+      "maps": "Les trois cartes qu’échantillonne la carte : couleur+couverture, normale+profondeur, ORM empaqueté."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Un niveau stocké d’une carte d’atlas : un objet PNG sans perte, un par adresse de contenu.",
+    "members": {
+      "url": "Où sont lus les octets du niveau.",
+      "sha256": "Empreinte de ses octets.",
+      "bytes": "Sa taille.",
+      "width": "Sa largeur en texels.",
+      "height": "Sa hauteur en texels."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Une carte de l’atlas et sa chaîne de mipmaps, le niveau 0 d’abord.",
+    "members": {
+      "kind": "`coverage` pour la chaîne couleur, `data` pour les autres.",
+      "levels": "Chaque niveau que la cuisson a gardé."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Les trois cartes qu’échantillonne une carte : couleur et couverture, normale et profondeur, ORM empaqueté.",
+    "members": {
+      "colourCoverage": "Couleur de base (sRGB) et couverture dans l’alpha.",
+      "normalDepth": "Normale d’objet en `n·½+½` et profondeur `D` dans l’alpha.",
+      "orm": "Occultation, rugosité et métallicité."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Le verdict du compilateur sur un maillage dessiné : cuit, avec son atlas, ou refusé, avec sa raison.",
+    "members": {
+      "mesh": "Son numéro de maillage compilé.",
+      "sourceMesh": "Son numéro de maillage source.",
+      "name": "Son nom.",
+      "placements": "Combien de nœuds le placent.",
+      "masked": "Si un matériau du maillage coupe sa couverture en masque.",
+      "rootTriangles": "Les triangles de la racine du DAG, sommés sur les primitives du maillage.",
+      "radius": "Son rayon englobant en unités monde (rayon d’objet fois la plus grande échelle de placement).",
+      "status": "`baked` ou `refused`.",
+      "coverage": "Couverture moyenne des images, sur une entrée `baked` : `c` de la bascule.",
+      "hemi": "Si les images sont hemi-octaédriques supérieures.",
+      "frames": "Images par côté.",
+      "frameSide": "Côté d’image en texels : `r_f` de la bascule.",
+      "atlasSide": "Côté d’atlas en texels (`frames · frameSide`).",
+      "centre": "Pivot dans l’espace objet, le centre de la sphère englobante.",
+      "objectRadius": "Rayon englobant dans l’espace objet, avant l’échelle de placement.",
+      "bytes": "Octets de chaque niveau stocké.",
+      "maps": "Les trois cartes, sur une entrée `baked`.",
+      "switchDepth": "Les distances de référence cuites.",
+      "reason": "Pourquoi un maillage a été refusé : son code.",
+      "detail": "Une phrase donnant les nombres qui ont décidé d’un refus."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Le verdict de la bascule : les cartes à dessiner, et les racines dont elle supprime les clusters.",
+    "members": {
+      "cards": "Une carte par racine basculée, dans l’ordre des racines.",
+      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Ce dont le plan a besoin d’une racine : son numéro de maillage compilé et la matrice dans le monde qui la place.",
+    "members": {
+      "mesh": "Numéro de maillage compilé (`Primitive.mesh`) ; absent sur une racine qu’aucun imposteur ne peut remplacer.",
+      "world": "Matrice dans le monde du placement, en colonnes (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "La section `impostors` du manifeste : le verdict du compilateur sur chaque maillage dessiné.",
+    "members": {
+      "version": "Version du format.",
+      "frames": "Images par côté auxquelles chaque atlas de la section a été cuit.",
+      "focalPixels": "La distance focale en pixels avec laquelle la cuisson a jugé les distances.",
+      "textureLimit": "Plus grand côté d’atlas que détient une carte.",
+      "baked": "Combien de maillages ont été cuits.",
+      "refused": "Combien ont été refusés.",
+      "meshes": "Le verdict de chaque maillage, dans l’ordre source."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Les deux distances de référence cuites, en mètres aux `focalPixels` du manifeste (#817).",
+    "members": {
+      "texel": "`z_tex` : à partir d’ici, l’image fait au plus un texel par pixel.",
+      "triangles": "`z_tri` : à partir d’ici, la racine dépasse en nombre les pixels qu’elle couvre."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Les quatre nombres cuits que lit la bascule, plus l’échelle de placement.",
+    "members": {
+      "objectRadius": "Rayon englobant dans l’espace objet `objectRadius`.",
+      "rootTriangles": "Les triangles de la racine du DAG `T`.",
+      "coverage": "La couverture moyenne cuite `c`.",
+      "frameSide": "Le côté d’image en texels `r_f`.",
+      "maxWorldScale": "Plus grande échelle monde des placements du maillage ; un quand elle est inconnue."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Lève le refus de cache nommé que porte la section, ou la renvoie inchangée."
+  },
+  "cellWeights": {
+    "summary": "Les trois images qu’une vue à la position de grille `g` mélange, et leurs poids barycentriques."
+  },
+  "drawsImpostor": {
+    "summary": "Si l’imposteur dessine à `viewDepth`, la profondeur de vue du pivot en mètres."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Les maillages cuits de la section, indexés par leur numéro de maillage compilé ; les entrées refusées sont laissées de côté."
+  },
+  "impostorMeshBaked": {
+    "summary": "Si une entrée de maillage porte un atlas dessinable : `baked` avec ses trois cartes et un côté d’image."
+  },
+  "impostorRadius": {
+    "summary": "`R` : le rayon dans l’espace objet à la plus grande échelle monde qu’un placement du maillage lui donne."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` en mètres pour la distance focale `focalPixels` de l’exécution."
+  },
+  "impostorSwitchOf": {
+    "summary": "L’entrée de bascule que porte une entrée de manifeste cuite, ou `undefined` quand l’entrée est refusée ou qu’il lui manque l’un des quatre nombres.",
+    "description": "Un objet n’est éligible que lorsque son maillage a une entrée `baked`."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex` : la profondeur à partir de laquelle une image de `frameSide` texels fait au plus un texel par pixel."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri` : la profondeur à partir de laquelle les `rootTriangles` de la racine dépassent les pixels qu’elle couvre."
+  },
+  "octDecode": {
+    "summary": "Coordonnées de grille `f ∈ [0, 1]²` de retour vers une direction unitaire, l’inverse de `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Direction `d` vers le plan `[-1, 1]²` : l’octaèdre complet, ou le hemi-octaèdre supérieur."
+  },
+  "planImpostors": {
+    "summary": "Planifie l’étage d’imposteurs pour une vue : chaque racine dont le maillage a une entrée cuite et dont la bascule tient donne une carte et est marquée supprimée.",
+    "description": "`view` transforme le monde vers l’espace de vue (en colonnes) et `focalPixels` est l’unique distance focale du moteur en pixels au viewport de l’image."
+  },
+  "validateImpostorSection": {
+    "summary": "Une raison courte pour laquelle la section ne peut pas servir, ou `null`.",
+    "description": "Une section absente n’est pas une erreur : un cache antérieur à elle dessine chaque maillage en entier, comme avant. Une présente est refusée en bloc quand sa version est inconnue ou qu’une entrée `baked` manque des nombres dont sa bascule et sa carte ont besoin."
   }
 }

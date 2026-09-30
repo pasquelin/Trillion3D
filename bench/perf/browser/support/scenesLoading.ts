@@ -188,7 +188,6 @@ export function catalogueDePages({
       depthLayer: 0,
       placementIndex: 0,
       renderOrder: 0,
-      attached: true,
       cone: undefined,
     });
   }
