@@ -121,11 +121,7 @@ export function collectClusterPages(
           // Its world and row are its root's, found by its rank (`rootOf`).
           placementIndex: roots.length,
           renderOrder: order,
-          attached: false,
           cone: page.cone,
-          geometry: undefined,
-          mesh: undefined,
-          resident: false,
         };
         allPages.push(rec);
         return rec;
