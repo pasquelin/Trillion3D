@@ -10,6 +10,8 @@ import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture
 import { oracleBackend, wgslBackend } from '../page/cut/cutRuleBackends.fixture.ts';
 import { ruleChecks } from '../page/cut/cutRuleChecks.fixture.ts';
 import { coverFault } from '../page/cut/cutRule.fixture.ts';
+import { ruleDag } from '../page/cut/cutRule.fixture.ts';
+import { packDagSelection } from '../gpu/dag/pack.ts';
 import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
 
 const THRESHOLD = 0.1;
@@ -76,4 +78,21 @@ test('the WGSL proof cannot go green without the missing-finer-group term', () =
     () => ruleChecks(dag).randomFrames(wgslBackend(dag, THRESHOLD, forgets)),
     /not covered exactly once|drawn by/,
   );
+});
+
+test('the engine packing holds a manifest root and the world DAG in one cut (#1238)', () => {
+  const manifest = ruleDag(8),
+    world = worldDag();
+  // `packDagSelection` is the one packing the runtime uses (`webgpu/pages/prepare/prepare.ts`):
+  // the world DAG rides beside the manifest primitives as one more root, not a second selection.
+  const packed = packDagSelection([manifest, world]);
+  assert.equal(packed.worldCount, 2);
+  assert.equal(packed.pageCount, manifest.pages.length + world.pages.length);
+  // Each root's cut links point at its own pages, after the ones packed before it.
+  assert.equal(packed.cutLinks[0].pageBase, 0);
+  assert.equal(packed.cutLinks[0].pageCount, manifest.pages.length);
+  assert.equal(packed.cutLinks[1].pageBase, manifest.pages.length);
+  assert.equal(packed.cutLinks[1].pageCount, world.pages.length);
+  // The world DAG's group structure is packed with it: its residency reads it in the one cut.
+  assert.ok(packed.cutLinks[1].structure, 'the world DAG carries its structure into the packing');
 });

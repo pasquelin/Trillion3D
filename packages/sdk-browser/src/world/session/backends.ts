@@ -10,6 +10,7 @@ import type { BackendContext, BackendFactory, RenderBackend } from '../../backen
 import type { createExplorerPageSources } from './pageSources.ts';
 import type { ExplorerSession } from './session.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { WorldRootsHold } from '../../scene/worldRoots.ts';
 
 type Inputs = {
   source: Object3D;
@@ -26,8 +27,9 @@ type Inputs = {
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
   frameBudget?: BackendContext['frameBudget'];
-  /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
-  worldRoots: readonly { bytes(): number }[];
+  /** Each model's world roots: the pinned top, the bundles its placed cells hold (#1237), and the
+   *  world `DagRoot` the one cut draws in place of a far cell's object roots (#1238). */
+  worldRoots: readonly WorldRootsHold[];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
@@ -126,6 +128,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowsRefused: options.shadowsRefused ?? noticeShadowRefusal({ say: diagnose }),
     importedLightIds,
     frameBudget: inputs.frameBudget,
+    worldRoots: inputs.worldRoots,
   };
   for (const factory of factories) {
     const backend = factory(context);
