@@ -81,9 +81,10 @@ test('a region keeps every caster row its volume touches, the blended ones too',
 });
 
 /** Six listed pages of a pool of sixteen, three caster rows, room for `capacity` pairs; each
- *  region's volume holds the rows `holds(k)` says. The compose, the cull and the seal, run in
- *  turn: the pages picked, the pairs kept, and which listed page is readable and claimed. */
-function frame(capacity: number, holds: (k: number) => number[]) {
+ *  region's volume holds the rows `holds(k)` says; the last frame's pairs `overflowed` the list
+ *  or not. The compose, the cull and the seal, run in turn: the pages picked, the pairs kept, and
+ *  which listed page is readable and claimed. */
+function frame(capacity: number, holds: (k: number) => number[], overflowed = false) {
   const pages = 16,
     listed = 6,
     rows = 3;
@@ -104,6 +105,8 @@ function frame(capacity: number, holds: (k: number) => number[]) {
   }
   state[POOL_COUNTS.indexOf('drawn')] = listed;
   params.set([pages, 4, 1, rows, rows, rows, capacity]);
+  // The last frame's pair count, which the compose reads before it resets it.
+  if (overflowed) args.set([0, capacity, capacity + 1]);
   const bytes = (a: Uint32Array | Float32Array) => new Uint8Array(a.buffer);
   const fresh = (entry: string) =>
     runShadowFresh(
@@ -155,4 +158,14 @@ test('a region the pair list leaves short stays unread and unclaimed, the others
   const whole = drawn.filter((d) => d.readable);
   assert.ok(whole.length > 0 && whole.length <= 2, 'the regions whose three pairs landed');
   for (const d of drawn) assert.equal(d.claimed, d.readable, 'a short page is claimed by none');
+});
+
+test('after a frame the pair list overflowed, as many pages are picked as it holds every row of, and drawn', () => {
+  const { picked, drawn } = frame(7, () => [0, 1, 2], true);
+  assert.equal(picked.length, 2, 'two regions of three rows in a list of seven');
+  assert.deepEqual(
+    drawn.map((d) => d.readable),
+    drawn.map((_, p) => picked.includes(p)),
+    'every page picked is drawn whole',
+  );
 });
