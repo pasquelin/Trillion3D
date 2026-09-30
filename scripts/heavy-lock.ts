@@ -16,7 +16,7 @@ const HELD = 'TRILLION3D_HEAVY_LOCK';
 const LOW_PRIORITY = 10;
 
 /** Whether `env` is a local run, not the CI. */
-export function isLocalRun(env: NodeJS.ProcessEnv): boolean {
+function isLocalRun(env: NodeJS.ProcessEnv): boolean {
   return !env.CI;
 }
 
