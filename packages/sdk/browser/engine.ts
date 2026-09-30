@@ -67,6 +67,7 @@ export { detectCapabilities } from '../../sdk-browser/src/measurement/capabiliti
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts';
+export type { FramePass } from '../../sdk-browser/src/webgl/core/frameTimer.ts';
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts';
 export type {
   GeometryPool,

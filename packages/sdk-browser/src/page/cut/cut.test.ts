@@ -6,6 +6,7 @@ import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from './held.ts';
+import { createSelectionResult } from './state.ts';
 
 const ASK = {
   pixelError: 0,
@@ -101,19 +102,7 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
   const cam = wideCamera();
   const shown: PageRec[] = [];
   const wanted: PageRec[] = [];
-  const result = {
-    shown,
-    wanted,
-    visible: 0,
-    selectedTriangles: 0,
-    displayedTriangles: 0,
-    frustumRejected: 0,
-    nodesTested: 0,
-    lodLevel: 0,
-    complete: true,
-    uncoveredTriangles: 0,
-    pixelError: 0,
-  };
+  const result = createSelectionResult<PageRec>();
   const ask = { ...ASK, result, wanted };
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
   const second = selectVisiblePages(roots, cameraMoteur(cam), { ...ask }, shown);

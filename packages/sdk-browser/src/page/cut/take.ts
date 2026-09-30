@@ -39,9 +39,12 @@ function clipRecordBox(min: readonly number[], max: readonly number[]) {
 /** Keep a cluster in the requested cut when `wanted`, in the drawn one when `drawn`. A requested
  *  cluster not drawn leaves the cut incomplete: its nearest resident ancestor stands in for it. */
 function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, wanted: boolean, drawn: boolean) {
-  const triangles = rec.triangles;
+  const triangles = rec.triangles,
+    // The record decides, the packed rank names: the two lists stay parallel, rank by rank.
+    packed = rec.packedIndex ?? -1;
   if (wanted) {
-    s.wanted[s.wantedCount++] = rec;
+    s.wanted[s.wantedCount] = rec;
+    s.wantedPacked[s.wantedCount++] = packed;
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
@@ -50,7 +53,8 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, wanted: boolea
     if (wanted) s.complete = false;
     return;
   }
-  s.shown[s.shownCount++] = rec;
+  s.shown[s.shownCount] = rec;
+  s.shownPacked[s.shownCount++] = packed;
   s.shownTriangles += triangles;
 }
 

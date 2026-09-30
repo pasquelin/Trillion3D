@@ -92,8 +92,8 @@ test('with the timer extension, the frame metrics carry the GPU time of the imag
   assert.equal(metrics.gpuPassMs?.frame, 1, 'the sample names the image it timed');
   assert.deepEqual(
     gpuPassBlockTotals(metrics.gpuPassMs),
-    { visibilityMs: null, materialsMs: null, otherMs: null },
-    'no pass is timed, so no block reads a duration',
+    { visibilityMs: null, materialsMs: null, otherMs: 1.5 },
+    'a path that names no pass still publishes one whole-frame interval',
   );
   assert.equal(frame().gpuPassMs?.frame, 2, 'one sample per image timed');
 });

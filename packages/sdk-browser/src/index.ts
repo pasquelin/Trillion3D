@@ -113,7 +113,7 @@ export type {
 } from './diagnostic/channel.ts';
 export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts';
 export type { HostDrawCamera } from './camera/world.ts';
-export type { HostDrawOutput } from './webgl/core/renderTarget.ts';
+export type { FramePass, HostDrawOutput } from './webgl/core/renderTarget.ts';
 export type {
   GeometryPool,
   MemoryBudgets,
