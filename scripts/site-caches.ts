@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync 
 import { resolve } from 'node:path';
 import { firstNewer } from '../packages/sdk-node/src/compiler/freshness.mts';
 import { modelScenes } from './docs/examples/models.ts';
+import { heavyStep } from './heavy-lock.ts';
 import {
   compileFullCache,
   type FullCompile,
@@ -124,4 +125,5 @@ export function compileSiteCaches(required = true): void {
   for (const scene of stale) compileCache(scene);
 }
 
-if (import.meta.filename === process.argv[1]) compileSiteCaches();
+if (import.meta.filename === process.argv[1])
+  heavyStep('compile:caches', () => compileSiteCaches());
