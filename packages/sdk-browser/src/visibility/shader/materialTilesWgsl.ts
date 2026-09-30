@@ -17,6 +17,8 @@ import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
  * before (`classTriangle`, `shadeDeclWgsl.ts`).
  */
 export const MATERIAL_TILE_SIZE = 32;
+/** Tiles on one axis of `pixels`: `materialTilesX`'s count. */
+export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
 export const MATERIAL_TILE_SLOTS = 64;
 /** Lanes of a tile's workgroup per axis: a lane reads the tile's pixels that many apart. */
 const LANES = 8;

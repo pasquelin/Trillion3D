@@ -28,12 +28,12 @@ export const GRID: Grid = {
 };
 
 export const f = Math.fround;
-export const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)];
+const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)];
 export const add = (a: Vec3, b: Vec3) => map((i) => f(a[i] + b[i]));
 export const sub = (a: Vec3, b: Vec3) => map((i) => f(a[i] - b[i]));
 export const scale = (a: Vec3, s: number) => map((i) => f(a[i] * s));
 export const dot = (a: Vec3, b: Vec3) => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]));
-export const cross = (a: Vec3, b: Vec3): Vec3 => [
+const cross = (a: Vec3, b: Vec3): Vec3 => [
   f(f(a[1] * b[2]) - f(a[2] * b[1])),
   f(f(a[2] * b[0]) - f(a[0] * b[2])),
   f(f(a[0] * b[1]) - f(a[1] * b[0])),
