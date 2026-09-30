@@ -3,7 +3,8 @@ import { reflectionPlan } from '../../../reflections/gpu.ts';
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
 import { REFLECTION_HISTORY_BYTES_PER_PIXEL } from '../../../reflections/historyTargets.ts';
 import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/source.ts';
+import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
 import { checkSurfaceSize, frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts';
 import { wantsAsIsShare } from './asIsShareTarget.ts';
@@ -35,7 +36,10 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     (plan.pyramid
       ? reflectionConeAllocation(width, height, gpuDevice.limits, plan.cone).bytes
       : 0) +
-    (plan.active ? width * height * 8 + REFLECTION_SOURCE_VIEW_BYTES : 8) +
+    // The reprojected source (8 bytes a pixel) and what it is reprojected from (`source.ts`).
+    (plan.active
+      ? width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) + REFLECTION_SOURCE_VIEW_BYTES
+      : 8) +
     (plan.rough
       ? width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL + REFLECTION_RESOLVE_VIEW_BYTES
       : 0) +

@@ -7,10 +7,17 @@ import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import { contractLighting } from './contractLighting.fixture.ts';
 
+/** A screen reflection as the lighting sees it: `kept` hears each keep of the source's depth. */
+const reflectionOf = (view: GPUTextureView, active = true, more = {}, kept: string[] = []) =>
+  ({
+    ...{ active, view, group: {}, sourceTarget: {} as GPUTextureView, ...more },
+    keepSource: () => void kept.push('kept'),
+  }) as unknown as ScreenReflection;
+
 test('a reflecting image draws its reflection source, then the lighting, each under its label', async () => {
   const h = await contractLighting();
   const { lighting, encoder, target } = h;
-  const reflection = { active: true, view: target, group: {} } as unknown as ScreenReflection;
+  const reflection = reflectionOf(target);
   assert.equal(lighting.usesContract, true, 'the direct program reflects');
   lighting.light(encoder, target, reflection);
   assert.deepEqual(h.labels, [REFLECTION_SOURCE_PASS, DEFERRED_LIGHTING_PASS]);
@@ -21,7 +28,7 @@ test('a reflecting image draws its reflection source, then the lighting, each un
 test('the lighting counts exactly the passes it draws, mirror or not, contract or not', async () => {
   const h = await contractLighting();
   const { lighting, encoder, target: view, bind } = h;
-  const mirror = (active: boolean) => ({ active, view, group: {} }) as unknown as ScreenReflection;
+  const mirror = (active: boolean) => reflectionOf(view, active);
   for (const contract of [false, true]) {
     bind(contract);
     assert.equal(lighting.usesContract, contract);
@@ -49,9 +56,7 @@ test('only the final pass lights a surface: the source reprojects, the rough tra
       pass.end();
     },
   };
-  const reflection = {
-    ...{ active: true, view: target, group: {}, sourceGroup: {}, history },
-  } as unknown as ScreenReflection;
+  const reflection = reflectionOf(target, true, { sourceGroup: {}, history });
   lighting.light(encoder, target, reflection);
   const entries = h.passes.map(
     ({ pipeline }) => (pipeline as unknown as GPURenderPipelineDescriptor).fragment!.entryPoint,
@@ -62,5 +67,23 @@ test('only the final pass lights a surface: the source reprojects, the rough tra
     'resolveRoughReflection',
     'lightSurface',
   ]);
+  lighting.dispose();
+});
+
+// #1342: the source reprojected the HDR target, which by then held camera fog, the mirror term,
+// transparents, water and particles. The one lighting pass writes the source beside the lit image.
+test('the reflecting lighting pass writes the next source as its second target, once kept', async () => {
+  const h = await contractLighting();
+  const { lighting, encoder, target } = h;
+  const kept: string[] = [];
+  const reflection = reflectionOf(target, true, {}, kept);
+  lighting.light(encoder, target, reflection);
+  const lit = h.passes.at(-1)!;
+  assert.equal(lit.descriptor.label, DEFERRED_LIGHTING_PASS);
+  const views = Array.from(lit.descriptor.colorAttachments, (attachment) => attachment!.view);
+  assert.deepEqual(views, [target, reflection.sourceTarget]);
+  const pipeline = lit.pipeline as unknown as GPURenderPipelineDescriptor;
+  assert.equal(Array.from(pipeline.fragment!.targets).length, 2);
+  assert.deepEqual(kept, ['kept'], 'its depth and identifiers kept for the next image');
   lighting.dispose();
 });

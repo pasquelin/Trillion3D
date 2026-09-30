@@ -4,8 +4,9 @@ import { REFLECTION_SOURCE_PASS } from './sourcePass.ts';
 
 /**
  * Encode the source, then the rough trace and its resolve, borrowing the HDR target. The source is
- * the last image the target holds, read before the trace clears it: no lighting runs twice. The
- * trace draws one ray per 2 × 2 block, in the target's top-left quarter (`sampleWgsl.ts`).
+ * the last image's unfogged colour, which its lighting wrote as a second target: no lighting runs
+ * twice. The trace draws one ray per 2 × 2 block, in the target's top-left quarter
+ * (`sampleWgsl.ts`). The depth and identifiers both reprojections read are then this image's.
  */
 export function encodeReflectionSource(
   encoder: GPUCommandEncoder,
@@ -53,4 +54,5 @@ export function encodeReflectionSource(
     trace.end();
     reflection.history.encode(encoder, target, reflected.resolve, reflected.resolveLayout);
   }
+  reflection.keepSource(encoder);
 }

@@ -31,7 +31,8 @@ import {
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
 import { withScreenReflections } from '../../reflections/screenWgsl.ts';
-import { REFLECTION_SOURCE_WGSL } from '../../reflections/source.ts';
+import { withReflectionSourceOutput } from '../../reflections/sourceOutputWgsl.ts';
+import { REFLECTION_SOURCE_WGSL } from '../../reflections/sourceWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
@@ -84,7 +85,9 @@ function reflectionVariants() {
         if (subgroup) shader = withSubgroupShadowRequests(shader);
         const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}_${subgroup ? 'SUBGROUP' : 'PLAIN'}`;
         variants[`${key}_TRACE`] = stochasticReflectionShader(shader);
-        variants[`${key}_HISTORY_COMPOSE`] = withScreenReflections(shader, true);
+        variants[`${key}_HISTORY_COMPOSE`] = withReflectionSourceOutput(
+          withScreenReflections(shader, true),
+        );
       }
   return variants;
 }
