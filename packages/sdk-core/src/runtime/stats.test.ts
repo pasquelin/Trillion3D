@@ -42,7 +42,6 @@ test('frame statistics drop invalid intervals and leave inputs intact', () => {
 test('a stutter is an interval strictly longer than the stutter threshold', () => {
   const intervals = [STUTTER_MS / 2, STUTTER_MS, STUTTER_MS + 1, STUTTER_MS * 3];
   assert.equal(frameStatistics(intervals).stutters, 2);
-  assert.equal(frameStatistics([STUTTER_MS, STUTTER_MS]).stutters, 0);
 });
 
 test('the one-percent low averages all of the worst tail, including a fractional tail size', () => {

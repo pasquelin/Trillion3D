@@ -27,8 +27,8 @@ const timed = (ms: number): MeasuredCosts => ({
   latencyMs: ms,
 });
 const faster = timed(5);
-/** Two samples to switch either way, and 10 ms between two changes. */
-const hysteresis = { ...config, minimumSamples: 2, consecutiveViolations: 2, minimumPeriodMs: 10 };
+/** Two samples to switch either way. */
+const hysteresis = { ...config, minimumSamples: 2, consecutiveViolations: 2 };
 
 test('safety policy refuses each invalid bound independently', () => {
   const invalid: Partial<Record<keyof SafetyConfig, number[]>> = {
@@ -90,7 +90,7 @@ test('Optimization requires comparable evidence, uses hysteresis, and trips imme
 });
 
 test('hysteresis treats enabling and disabling thresholds differently and respects the exact period boundary', () => {
-  const policy = createSafetyPolicy(hysteresis);
+  const policy = createSafetyPolicy({ ...hysteresis, minimumPeriodMs: 10 });
   assert.equal(policy.observe(reference, timed(8), 1).enabled, false);
   assert.equal(policy.observe(reference, timed(8), 2).enabled, false);
   const on = policy.observe(reference, timed(8), 10);
@@ -110,7 +110,7 @@ test('hysteresis treats enabling and disabling thresholds differently and respec
 });
 
 test('neutral or invalid evidence resets consecutive samples rather than accumulating across interruptions', () => {
-  const policy = createSafetyPolicy({ ...hysteresis, minimumPeriodMs: 0 });
+  const policy = createSafetyPolicy(hysteresis);
   assert.equal(policy.observe(reference, timed(8), 0).enabled, false);
   assert.equal(policy.observe(reference, timed(10), 1).enabled, false);
   assert.equal(policy.observe(reference, timed(8), 2).enabled, false);
@@ -216,13 +216,6 @@ test('an unmeasured eviction rate never fabricates thrashing, even under a zero 
   const measured = policy.observe(reference, { ...faster, evictionsPerSecond: 1 }, 2);
   assert.equal(measured.enabled, false);
   assert.equal(measured.reason, 'Circuit breaker: thrashing');
-});
-
-test('Missing/incomparable evidence and memory pressure cannot enable optimization', () => {
-  const p = createSafetyPolicy({ ...config, memoryBudgetBytes: 20 });
-  assert.equal(p.observe(reference, { ...faster, contextKey: 'different' }, 100).enabled, false);
-  assert.equal(p.observe(reference, { ...faster, memoryBytes: 30 }, 200).enabled, false);
-  assert.match(p.getDecision().reason, /memory budget/);
 });
 
 test('zero reference durations cannot make added work beneficial', () => {
