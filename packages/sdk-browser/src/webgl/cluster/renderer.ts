@@ -16,6 +16,7 @@ import { BACKDROP_UNITS, ClusterMaterialPass } from './materialBinding.ts';
 import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { WebglClusterSubmission } from './submission.ts';
+import type { FramePass } from '../core/frameTimer.ts';
 import { WebglClusterDeformation, type DeformationSource } from './deformation.ts';
 
 export class WebglClusterRenderer {
@@ -63,26 +64,18 @@ export class WebglClusterRenderer {
     this.reflection = display?.reflection ?? target(gl);
     this.resolve =
       display?.resolve ?? new WebglClusterBackdrop(gl, REFLECTION_RESOLVE_UNITS, undefined, true);
+    const { textures, state, geometry, deformation } = this;
     this.pass = new ClusterMaterialPass({
       uniforms: new WebglClusterMaterialUniforms(gl, (name) => this.at(name)),
       matrices: new Matrix3UniformCache(gl, (name) => this.at(name)),
-      textures: this.textures,
-      state: this.state,
+      textures,
+      state,
       linear: !!display,
     });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
-    const parts = {
-      geometry: this.geometry,
-      state: this.state,
-      pass: this.pass,
-      deformation: this.deformation,
-    };
-    this.submission = new WebglClusterSubmission(
-      gl,
-      { ...parts, leaves: this.validation.leaves },
-      (name) => this.at(name),
-    );
+    const parts = { geometry, state, pass: this.pass, deformation, leaves: this.validation.leaves };
+    this.submission = new WebglClusterSubmission(gl, parts, (name) => this.at(name));
   }
   /** Triangles the frame submitted, every pass included. */
   get triangles() {
@@ -110,6 +103,7 @@ export class WebglClusterRenderer {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
+    pass?: FramePass,
   ) {
     const gl = this.gl,
       lightReason = unsupportedClusterLight(scene.lights);
@@ -134,6 +128,7 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('reflectionEnabled'), 0);
     gl.uniform1i(this.at('reflectionResolve'), 0);
     gl.uniform1i(this.at('reflectionOutput'), 0);
+    if (mirrors) pass?.('Trillion3D WebGL2 reflection capture');
     capture(gl, this.reflection, mirrors, this.at('reflectionCapture'), () => {
       this.setOutput(false);
       this.backdropSubmissions +=
@@ -144,6 +139,7 @@ export class WebglClusterRenderer {
     // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
     // units; the frozen source is bound again for the trace they aliased before it (#1292).
     if (mirroring.length) {
+      pass?.('Trillion3D WebGL2 reflection resolve');
       const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
       this.resolve.begin(null, reflectionResolveExtent(viewport[2], viewport[3]));
       this.reflection.bind();
@@ -159,6 +155,7 @@ export class WebglClusterRenderer {
       this.resolvePasses = 1;
     } else this.resolve.dispose();
     if (transmissive.length) {
+      pass?.('Trillion3D WebGL2 transmission backdrop');
       this.backdrop.begin(scene.background);
       this.setOutput(false);
       this.backdropSubmissions +=
@@ -170,16 +167,19 @@ export class WebglClusterRenderer {
     this.backdropPasses = (transmissive.length ? 1 : 0) + (mirrors ? 1 : 0);
     gl.uniform1i(this.at('reflectionEnabled'), mirrors ? 1 : 0);
     this.setOutput(srgbDestination);
+    pass?.('Trillion3D WebGL2 opaque');
     const submitted =
       this.submission.submit(meshes, camera, toneMapped) +
       this.submission.submit(diagnosticMeshes, camera, toneMapped);
     this.copySubmissions += this.submission.submit(plain, camera, toneMapped);
     if (transmissive.length) {
+      pass?.('Trillion3D WebGL2 transmission');
       this.backdrop.bind();
       this.pass.forget();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
       this.copySubmissions += this.submission.submit(transmissive, camera, toneMapped);
     }
+    pass?.('Trillion3D WebGL2 transparents');
     this.copySubmissions += this.submission.submit(blended, camera, toneMapped);
     return submitted;
   }
