@@ -51,8 +51,7 @@ export function createVertexPool(
   const label = (key: BufferKey) => `Trillion3D transparent geometry ${key}`;
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   let floats = floatsOf(size);
-  for (const count of Object.values(floats))
-    if (count * 4 > storageBufferCap(device.limits)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT');
+  if (!withinDevice(floats)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT');
   const make = (sizes: Buffers<number>) =>
     Object.fromEntries(
       BUFFERS.map((key) => [
