@@ -25,7 +25,7 @@ export const identityRoots = (): Identity => {
 };
 
 /** The placement tables of a list whose `i`-th page is placed by root `i` (#1235). */
-export function perPagePlacement(roots: Placements): PlacementIndex {
+function perPagePlacement(roots: Placements): PlacementIndex {
   const n = roots.length;
   return {
     baseOfRoot: Int32Array.from({ length: n }, (_, i) => i),
@@ -45,14 +45,4 @@ export function locatedBy(roots: Placements): PageLocations {
 /** Locations of `count` pages all placed by the single identity root. */
 export const identityLocations = (_count: number): PageLocations => identityRoots();
 
-/** No root at all: a closure over ids no placement names. */
-export const emptyPlacement: PlacementIndex = {
-  baseOfRoot: new Int32Array(0),
-  rootOfPacked: new Int32Array(0),
-};
 
-/** One root, rank 0, that places `count` packed ranks. */
-export const singlePlacement = (count: number): PlacementIndex => ({
-  baseOfRoot: Int32Array.from([0]),
-  rootOfPacked: new Int32Array(count),
-});

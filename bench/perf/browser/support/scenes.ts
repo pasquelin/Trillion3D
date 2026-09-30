@@ -16,7 +16,7 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
  *  oracles read on them as pages carried it before #1226. */
-export const roots = [{ world: new G.Matrix4() }];
+const roots = [{ world: new G.Matrix4() }];
 /** The one root placed, for the consumers that read a list through its locations (#1235). */
 export const located = (count: number): PageLocations => ({
   roots,
