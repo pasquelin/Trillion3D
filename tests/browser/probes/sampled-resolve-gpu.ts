@@ -106,7 +106,7 @@ if (import.meta.main) {
         records: [
           record(list, set.length, false, [shadowed]),
           record(list, set.length, true, [shadowed]),
-          // The program with no rectangle code, drawn too: the scene holds none (#1369).
+          // The program with no rectangle code, moving too: the scene holds none (#1369).
           { ...record(list, set.length, false, [shadowed]), rectless: true },
         ],
       },

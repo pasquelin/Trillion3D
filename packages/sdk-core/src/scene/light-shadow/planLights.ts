@@ -1,6 +1,5 @@
 import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
-import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
-import { baseOf } from '../light/fields.ts';
+import type { SceneLightStore } from '../light/store.ts';
 import type { createPageInvalidation } from './invalidate.ts';
 import type { createShadowCounts } from './counts.ts';
 import { castsShadow } from './casters.ts';
@@ -33,7 +32,7 @@ export function planLights(
   const { records, counts, sun, posed, invalidate } = state;
   for (let slot = 0; slot < store.count; slot++) {
     if (!castsShadow(store, slot)) continue;
-    const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
+    const rank = store.kindOf(slot);
     let slice = store.sliceOf(slot);
     if (slice < 0) {
       slice = records.claim();

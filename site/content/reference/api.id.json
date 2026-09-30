@@ -3135,6 +3135,7 @@
       "environmentPacked": "Iradiansi lingkungan seperti dibaca GPU, di belakang cahaya (`../core/environment.ts`).",
       "revision": "Dinaikkan pada setiap perubahan, per slot.",
       "sliceOf": "Irisan atlas sebuah cahaya hidup dalam buffer itu sendiri: tidak disimpan dua kali.",
+      "kindOf": "Jenis sebuah cahaya (`LIGHT_KIND`), dibaca dari buffer seperti irisannya.",
       "ids": "Nama cahaya tiap slot.",
       "count": "Berapa banyak cahaya.",
       "epoch": "Dinaikkan saat set cahaya berubah.",

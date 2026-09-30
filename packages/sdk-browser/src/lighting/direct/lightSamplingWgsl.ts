@@ -4,6 +4,11 @@ import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
 /** Ranks a sampled image cycles through: past that many, the offset walks the same path again. */
 export const SAMPLED_RANKS = 1024;
 
+/** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
+ *  scene that holds a rectangle (`declaredLightWgsl`, #1369). */
+const RECT_WEIGHT_WGSL = `
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`;
+
 /**
  * Sampled resolve of a tile's opaque light list, for a MOVING image that temporal
  * antialiasing accumulates. Every light of the list is weighed without its shadow — the
@@ -28,10 +33,6 @@ export const SAMPLED_RANKS = 1024;
  * the three weight walks would cost three times the full sum they estimate. The tile pass settles
  * that per-tile fact once, in its record; the resolve reads the flag, never the list.
  */
-/** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
- *  scene that holds a rectangle (`declaredLightWgsl`, #1369). */
-const RECT_WEIGHT_WGSL = `
- if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`;
 export const directLightSamplingWgsl = (rects = true) => `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
 const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
@@ -114,5 +115,3 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  }
  return result;
 }`;
-/** The sampled resolve of a program that shades rectangles (\`directLightSamplingWgsl\`). */
-export const DIRECT_LIGHT_SAMPLING_WGSL = directLightSamplingWgsl();
