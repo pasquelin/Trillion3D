@@ -1,72 +1,90 @@
+// #817 "When to switch": each depth is the distance at which its condition turns true, the switch
+// is the later of the two, and a manifest entry yields the switch input only when it is drawable.
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { near } from '../math/near.fixture.ts';
+import { bakedMesh } from './bakedMesh.fixture.ts';
 import {
+  IMPOSTOR_PI,
   drawsImpostor,
-  impostorRadius,
   impostorSwitchDepth,
   impostorSwitchOf,
   impostorTexelDepth,
   impostorTriangleDepth,
+  type ImpostorSwitchInput,
 } from './switch.ts';
-import type { ImpostorMesh } from '../contracts/impostor.ts';
 
-const mesh: ImpostorMesh = {
-  mesh: 3,
-  sourceMesh: 3,
-  name: 'tree',
-  placements: 1,
-  masked: true,
-  rootTriangles: 128,
-  radius: 2,
-  objectRadius: 2,
-  status: 'baked',
-  coverage: 0.5,
-  frames: 8,
-  frameSide: 64,
-  maps: {
-    colourCoverage: { kind: 'coverage', levels: [] },
-    normalDepth: { kind: 'data', levels: [] },
-    orm: { kind: 'data', levels: [] },
-  },
-};
+const FOCAL = 1117;
+/** Pixels across the object's disc, and pixels it covers, at depth `z`. */
+const across = (radius: number, z: number) => (2 * radius * FOCAL) / z;
+const covered = (radius: number, coverage: number, z: number) =>
+  coverage * IMPOSTOR_PI * ((radius * FOCAL) / z) ** 2;
 
-test('atlas resolution and covered triangle area independently delay the switch', () => {
-  assert.equal(impostorRadius(3), 3);
-  assert.equal(impostorRadius(3, 2), 6);
-  assert.equal(impostorTexelDepth(2, 8, 4), 2);
-  assert.ok(Math.abs(impostorTriangleDepth(1, 4, 1, 2) - Math.sqrt(Math.PI)) < 1e-14);
-  const sharpnessLimited = { objectRadius: 2, rootTriangles: 10000, coverage: 0.5, frameSide: 8 };
-  assert.equal(impostorSwitchDepth(sharpnessLimited, 4), 2);
-  assert.equal(drawsImpostor(sharpnessLimited, 4, 1.999), false);
-  assert.equal(drawsImpostor(sharpnessLimited, 4, 2), true);
-  assert.equal(drawsImpostor(sharpnessLimited, 4, 2.001), true);
-  const triangleLimited = { objectRadius: 1, rootTriangles: 4, coverage: 1, frameSide: 1000 };
-  assert.ok(Math.abs(impostorSwitchDepth(triangleLimited, 2) - Math.sqrt(Math.PI)) < 1e-14);
-  assert.equal(drawsImpostor(triangleLimited, 2, 1.7), false);
-  assert.equal(drawsImpostor(triangleLimited, 2, 1.8), true);
+const SHARPNESS_BOUND = { objectRadius: 2, rootTriangles: 1e6, coverage: 0.5, frameSide: 64 };
+const TRIANGLE_BOUND = { objectRadius: 2, rootTriangles: 10, coverage: 0.5, frameSide: 4096 };
+
+test('the texel depth is where one frame texel lands on one pixel', () => {
+  for (const [radius, frameSide] of [
+    [2, 64],
+    [0.6, 128],
+    [40, 256],
+  ])
+    near(
+      [across(radius, impostorTexelDepth(radius, frameSide, FOCAL))],
+      [frameSide],
+      'texels',
+      1e-9,
+    );
 });
 
-test('baked switch inputs carry their values and the supplied placement scale', () => {
-  assert.deepEqual(impostorSwitchOf(mesh), {
-    objectRadius: 2,
-    rootTriangles: 128,
-    coverage: 0.5,
-    frameSide: 64,
-    maxWorldScale: 1,
-  });
-  assert.deepEqual(impostorSwitchOf(mesh, 3), {
-    objectRadius: 2,
-    rootTriangles: 128,
-    coverage: 0.5,
-    frameSide: 64,
-    maxWorldScale: 3,
-  });
-  assert.equal(impostorSwitchOf({ ...mesh, status: 'refused' }), undefined);
-  assert.equal(impostorSwitchOf({ ...mesh, maps: undefined }), undefined);
+test('the triangle depth is where the root triangles equal the pixels the object covers', () => {
+  for (const [radius, triangles, coverage] of [
+    [2, 460, 0.66],
+    [4.2, 2100, 0.43],
+    [40, 1e6, 1],
+  ]) {
+    const z = impostorTriangleDepth(radius, triangles, coverage, FOCAL);
+    near([covered(radius, coverage, z)], [triangles], 'covered pixels', 1e-6);
+  }
+});
+
+test('the switch waits for the later condition, and draws from its depth on', () => {
+  const depths = (input: ImpostorSwitchInput) => [
+    impostorTexelDepth(input.objectRadius, input.frameSide, FOCAL),
+    impostorTriangleDepth(input.objectRadius, input.rootTriangles, input.coverage, FOCAL),
+  ];
+  const [sharpTexel, sharpTriangle] = depths(SHARPNESS_BOUND);
+  const [costTexel, costTriangle] = depths(TRIANGLE_BOUND);
+  assert.ok(sharpTexel > sharpTriangle && costTriangle > costTexel, 'one input per bound');
+  for (const [input, later] of [
+    [SHARPNESS_BOUND, sharpTexel],
+    [TRIANGLE_BOUND, costTriangle],
+  ] as const) {
+    const z = impostorSwitchDepth(input, FOCAL);
+    assert.equal(z, later);
+    assert.equal(drawsImpostor(input, FOCAL, z), true, 'draws at its depth');
+    assert.equal(drawsImpostor(input, FOCAL, z * (1 - 1e-12)), false, 'whole just nearer');
+  }
+});
+
+test('the largest placement scale moves the switch out in proportion', () => {
+  for (const input of [SHARPNESS_BOUND, TRIANGLE_BOUND]) {
+    const unscaled = impostorSwitchDepth(input, FOCAL);
+    assert.equal(impostorSwitchDepth({ ...input, maxWorldScale: 1 }, FOCAL), unscaled);
+    near([impostorSwitchDepth({ ...input, maxWorldScale: 3 }, FOCAL)], [3 * unscaled], 'R', 1e-9);
+  }
+});
+
+test('a drawable entry yields its four numbers and the placement scale; any other none', () => {
+  const tree = bakedMesh(3, 'tree', SHARPNESS_BOUND);
+  for (const scale of [undefined, 3])
+    assert.deepEqual(impostorSwitchOf(tree, scale), {
+      ...SHARPNESS_BOUND,
+      maxWorldScale: scale ?? 1,
+    });
+  assert.equal(impostorSwitchOf({ ...tree, status: 'refused' }), undefined);
+  assert.equal(impostorSwitchOf({ ...tree, maps: undefined }), undefined);
   for (const field of ['objectRadius', 'rootTriangles', 'coverage'])
     for (const bad of [0, -1, NaN, Infinity, -Infinity, undefined])
-      assert.equal(impostorSwitchOf({ ...mesh, [field]: bad }), undefined, `${field}: ${bad}`);
-  for (const field of ['frames', 'frameSide'])
-    for (const bad of [0, -1, 1.5, NaN, undefined])
-      assert.equal(impostorSwitchOf({ ...mesh, [field]: bad }), undefined, `${field}: ${bad}`);
+      assert.equal(impostorSwitchOf({ ...tree, [field]: bad }), undefined, `${field}: ${bad}`);
 });
