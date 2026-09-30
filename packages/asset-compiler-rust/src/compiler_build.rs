@@ -51,8 +51,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let pool = phases.pool(o.threads)?;
     // A folder already holding this product is proven, then kept as is (`compiler_reuse.rs`).
     if let Some(reused) = compiler_reuse::reuse(o, &key, &pool, &progress)? {
-        let unsupported = &loaded.manifest["unsupported"];
-        return compiler_reuse::finish(o, &key, reused, started, unsupported, &progress);
+        return compiler_reuse::finish(o, &key, reused, started, &loaded.manifest, &progress);
     }
     let view_values = values(g, "bufferViews")?;
     let BufferPlan {

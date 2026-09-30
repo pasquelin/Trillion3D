@@ -62,7 +62,7 @@ pub(super) fn finish(
     key: &str,
     reused: Reused,
     started: Instant,
-    unsupported: &Value,
+    import: &Value,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
     let import_ms = shared_math::elapsed_ms(started);
@@ -78,22 +78,22 @@ pub(super) fn finish(
     let output_bytes = manifest["metrics"]["outputGeometryBytes"].take();
     manifest["metrics"] = json!({"importMs":import_ms,"clusterHierarchyPagesMs":null,"pruneMs":shared_math::elapsed_ms(prune_start),"wallMs":shared_math::elapsed_ms(started),"outputGeometryBytes":output_bytes,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb});
     manifest["reused"] = report;
-    tell_warnings(&manifest, &o.key_directory(key), unsupported, progress);
+    tell_warnings(&manifest, &o.key_directory(key), import, progress);
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
     Ok(manifest)
 }
 
-/// The events a compile tells its warnings on, rebuilt from what the folder keeps: the import
-/// report, each flagged primitive's DAG warnings, and the lights left out. A reused job would
-/// otherwise say nothing of them, and `trillion3d-compile --strict` would pass a warm cache it
-/// refuses cold.
+/// The events a compile tells its warnings on, rebuilt from what the job loaded and the folder
+/// keeps: the import report (`unsupported` of the loaded source's manifest), each flagged
+/// primitive's DAG warnings, and the lights left out. A reused job would otherwise say nothing of
+/// them, and `trillion3d-compile --strict` would pass a warm cache it refuses cold.
 fn tell_warnings(
     manifest: &Value,
     directory: &Path,
-    unsupported: &Value,
+    import: &Value,
     progress: &(impl Fn(Value) + Sync),
 ) {
-    progress(json!({"phase":"import","completed":1,"total":1,"unsupported":unsupported}));
+    progress(json!({"phase":"import","completed":1,"total":1,"unsupported":import["unsupported"]}));
     for primitive in manifest["primitives"].as_array().into_iter().flatten() {
         let warnings = &primitive["dag"]["warnings"];
         if warnings.as_array().is_some_and(|w| !w.is_empty()) {
