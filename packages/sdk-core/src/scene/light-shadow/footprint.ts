@@ -1,5 +1,5 @@
 import { clampNumber as clamp } from '../../world/math/spherical.ts';
-import { PAGE_RANGE_MASK, PAGE_RANGE_SHIFT, SHADOW_PAGE, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGE_RANGE_MASK, PAGE_RANGE_SHIFT, SHADOW_PAGE } from './virtual.ts';
 
 /**
  * THE FOOTPRINT A PAGE WAS DRAWN FOR: the texels of it a reader may take (#1250). A page drawn
@@ -23,13 +23,13 @@ export const PAGE_FOOTPRINT_EMPTY = 2 ** (4 * PAGE_FOOTPRINT_EDGE_BITS) - 1;
 /** A request entry's flag (#1211): the reader found the page drawn, for a footprint that misses
  *  its texel — the one thing a readback says of a texel. Above every table entry. */
 export const SHADOW_REQUEST_MISS = 2 ** 31;
-/** Bits a table entry takes in a request list word — `SHADOW_TABLE_ENTRIES` is a power of two. */
-export const SHADOW_REQUEST_ENTRY_BITS = Math.ceil(Math.log2(SHADOW_TABLE_ENTRIES));
-export const SHADOW_REQUEST_ENTRY_MASK = SHADOW_TABLE_ENTRIES - 1;
-/** The receiver's cell (#1211), above the entry: which of the 4×4 cells of the page its texel
- *  lies in, one-based, zero for a claim that named no texel (the resolve's own request). */
-export const SHADOW_REQUEST_CELL_SHIFT = SHADOW_REQUEST_ENTRY_BITS;
+/** The receiver's cell (#1211), in the five bits below `SHADOW_REQUEST_MISS`: which of the 4×4
+ *  cells of the page its texel lies in, one-based, zero for a claim that named no texel (the
+ *  resolve's own request). Below it, the entry: a table of up to 2^26 entries, the widest window a
+ *  session opens (`referenceSunWindow`) included, never only the ordinary one. */
+export const SHADOW_REQUEST_CELL_SHIFT = 26;
 export const SHADOW_REQUEST_CELL_MASK = 31;
+export const SHADOW_REQUEST_ENTRY_MASK = 2 ** SHADOW_REQUEST_CELL_SHIFT - 1;
 export const SHADOW_REQUEST_NO_CELL = 0;
 
 /** The footprint of the page-local cell `code` (1..16) a receiver marked: the 4×4 grid cell of
