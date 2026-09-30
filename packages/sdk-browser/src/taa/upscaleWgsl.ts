@@ -1,7 +1,7 @@
 import { PI } from '../lighting/shaderConstants.ts';
 import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
-import { shareText, STILL_AVERAGE_WGSL, taaHistoryBlend } from './historyWgsl.ts';
+import { shareText, taaHistoryBlend } from './historyWgsl.ts';
 import { BLACKMAN_HARRIS_WGSL } from './weights.ts';
 import { layerWgsl, taaOut } from './layers.ts';
 
@@ -74,10 +74,10 @@ ${taaShareTap(asIs, blended)}${layerWgsl(filtered, 'tap')} }}
  if(stillTotal>0.0){filtered=still/stillTotal;}
  var count=stillTotal;
 ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerWgsl(filtered, 'scaled')} let centre=clamp(base,vec2i(0),last);
- let reach=saturate(lanczos2(closest*view.viewport.x*view.render.z));
+ let reach=saturate(lanczos2(closest*toDisplay));
  let tag=f32(placementTag(near))/255.0;
- if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, 'count')};}
+ if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
  let previous=previousUv(coord,nearDepth,near);
-${taaHistoryBlend(asIs, filtered, STILL_AVERAGE_WGSL)}
+${taaHistoryBlend(asIs, filtered, true)}
 }`;
 };

@@ -5,7 +5,7 @@ import { Mat } from '../texture/shaderRun.fixture.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { LANCZOS2_WGSL, taaUpscaleShader } from './upscaleWgsl.ts';
 import { TAA_SHADER } from './shaderWgsl.ts';
-import { STILL_AVERAGE_WGSL, taaHistoryBlend } from './historyWgsl.ts';
+import { taaHistoryBlend } from './historyWgsl.ts';
 import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 
 type Kernel = { lanczos2: (x: number) => number };
@@ -170,9 +170,9 @@ test('the as-is share and the display layers follow the colour to the display', 
   // History: the native resolve's clamp and inverse-luminance blend, the same text, a still
   // pixel's share from the weights its average holds (#1343).
   for (const asIs of [true, false])
-    assert.ok(taaUpscaleShader(asIs).includes(taaHistoryBlend(asIs, false, STILL_AVERAGE_WGSL)));
+    assert.ok(taaUpscaleShader(asIs).includes(taaHistoryBlend(asIs, false, true)));
   assert.ok(TAA_SHADER.includes(taaHistoryBlend(true)));
-  const layered = taaHistoryBlend(true, true, STILL_AVERAGE_WGSL);
+  const layered = taaHistoryBlend(true, true, true);
   assert.ok(taaUpscaleShader(true, false, true).includes(layered));
   // The flagless one reads neither flags nor share history.
   assert.doesNotMatch(taaUpscaleShader(false), /var flags|textureLoad\(flags|shareHistory/);
