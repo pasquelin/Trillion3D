@@ -20,6 +20,7 @@ import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
+import { SHADOW_GROUP_PAIRS_WGSL } from '../shadow/groupWgsl.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
@@ -101,6 +102,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RESOLVE,
   REST_COMPACT_SHADER,
   SHADOW_CULL_SHADER,
+  SHADOW_GROUP_PAIRS_WGSL,
   SHADOW_LIGHT_CULL_SHADER,
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
