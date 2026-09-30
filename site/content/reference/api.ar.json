@@ -3355,6 +3355,7 @@
       "counts": "ما فعلته الخطة الأخيرة، بالصفحات.",
       "spent": "أجزاء الثانية من وقت المعالج التي قضتها الخطة الأخيرة في قراءة تقرير الطلبات وقبول الصفحات.",
       "worldChanged": "تحرّكت عقدة: يُبطل صندوقها الصفحات التي يغطيها في الخطة التالية.",
+      "changeRoom": "عدد الصناديق التي لا تزال القائمة تحفظها منفصلة قبل الفيض.",
       "representationChanged": "العالم نفسه بدقة أخرى: ينتظر صندوقه توقف الكاميرا.",
       "resting": "استقرت الكاميرا عند الخطة الأخيرة: كان منظورها هو نفسه منظور الخطة السابقة.",
       "deferredChanges": "صحيح ما دام تغيير في التمثيل ينتظر توقف الكاميرا.",
@@ -3778,7 +3779,8 @@
       "total": "كم عملًا إجمالًا.",
       "stream": "أين يُكتب.",
       "width": "عرض الشريط.",
-      "interval": "أقل عدد من الميلي ثواني بين عمليات إعادة الرسم."
+      "interval": "أقل عدد من الميلي ثواني بين عمليات إعادة الرسم.",
+      "verbose": "يذكر أيضًا رموز المعلومات وكل تكرار في ملخص نهاية المهمة."
     }
   },
   "Texture": {
@@ -5015,13 +5017,14 @@
   "createTerminalProgress": {
     "summary": "شريط تقدم في الطرفية يتتبّع أحداث المُصرِّف.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "كيف يبدو عرض تقدم الطرفية.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "اسم المهمة.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "رقم المهمة.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "عدد المهام إجمالًا.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "أين تكتب.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "عرض الشريط.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "أقل ملي ثانية بين عمليات إعادة الرسم."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "كيف يبدو عرض تقدم الطرفية.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "اسم المهمة.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "رقم المهمة.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "عدد المهام إجمالًا.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "أين تكتب.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "عرض الشريط.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "أقل ملي ثانية بين عمليات إعادة الرسم.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "يذكر أيضًا رموز المعلومات وكل تكرار في ملخص نهاية المهمة."
     }
   },
   "createTransformTree": {
@@ -6855,7 +6858,7 @@
     "summary": "يُلحق `node` بـ `parent` (`-1`: الجذر)، مثل `add` المرجعي: لا تتحرك المصفوفات حتى التحديث التالي."
   },
   "resolveCompilerExecutable": {
-    "summary": "يجد برنامج المُصرِّف الأصلي: الذي طُلب، وإلا فالذي بُني في هذا الاستنساخ (checkout)."
+    "summary": "يجد برنامج المُصرِّف الأصلي: الذي طُلب، وإلا فالذي في حزمة المنصة المثبتة، وإلا فالذي يسمّيه `TRILLION3D_COMPILER_BIN`، وإلا فالذي بُني في هذا الاستنساخ (checkout)."
   },
   "reviewCutouts": {
     "summary": "يسأل، نموذجًا بنموذج، ما إذا كان كل سطح مقطوع يبدو صحيحًا، ويسجّل الإجابات.",
@@ -8135,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π، قيمة حرفية واحدة لهذا المرجع ومرآة WGSL، ليقوم الاثنان بتقريب العدد نفسه."
+    "summary": "π، قيمة حرفية واحدة، كي يقرّب كل قارئ للتبديل العدد نفسه."
   },
   "IMPOSTOR_VERSION": {
     "summary": "صيغة قسم `impostors` الذي يقرأه وقت التشغيل (‏#817 الجزء 1، مخبوز من المترجم)."

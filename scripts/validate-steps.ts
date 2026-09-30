@@ -9,7 +9,7 @@
 //              tests that read documentation (`test:docs`), which a documentation-only pull
 //              request, whose code jobs are skipped, still runs;
 //   typescript the `tsc` build, the site build (`build:docs`) and the gates that read their
-//              products;
+//              products, the CDN core's gzip budget among them;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
 //              (`committed_colliders_hold_their_published_tolerance`);
 //   unit       the unit suite, which needs both the compiled compiler
@@ -48,6 +48,7 @@ export const VALIDATE_GROUPS = {
   typescript: [
     'generate:api',
     'build',
+    'check:bundle-size',
     'check:dts',
     'check:structure',
     'check:docs-bundles',

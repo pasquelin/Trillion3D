@@ -1232,13 +1232,14 @@
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "El aspecto de una pantalla de progreso en la terminal.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "El nombre de la tarea.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "El número de la tarea.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Cuántas tareas en total.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Dónde escribir.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Anchura de la barra.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Milisegundos mínimos entre dos dibujados."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "El aspecto de una pantalla de progreso en la terminal.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "El nombre de la tarea.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "El número de la tarea.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Cuántas tareas en total.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Dónde escribir.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Anchura de la barra.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Milisegundos mínimos entre dos dibujados.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indica también los códigos de información y cada aparición en el resumen de fin de tarea."
     }
   },
   "createTransformTree": {
@@ -5249,7 +5250,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Encuentra el programa del compilador nativo: el solicitado, si no el construido en este repositorio."
+    "summary": "Encuentra el programa del compilador nativo: el solicitado, si no el del paquete de plataforma instalado, si no el que nombra `TRILLION3D_COMPILER_BIN`, si no el construido en este repositorio."
   },
   "ReusedFolder": {
     "summary": "Lo que una tarea probó antes de conservar una carpeta existente en lugar de escribirla (`null` cuando compiló; `clusterHierarchyPagesMs` es entonces también `null`).",
@@ -5657,6 +5658,7 @@
       "counts": "Lo que hizo el último plan, en páginas.",
       "spent": "Milisegundos de CPU que el último plan dedicó a leer el informe de solicitudes y a admitir páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
+      "changeRoom": "Cajas que la lista aún mantiene separadas antes del desbordamiento.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
@@ -6140,7 +6142,8 @@
       "total": "Cuántas tareas en total.",
       "stream": "Dónde escribir.",
       "width": "Anchura de la barra.",
-      "interval": "Milisegundos mínimos entre dos dibujados."
+      "interval": "Milisegundos mínimos entre dos dibujados.",
+      "verbose": "Indica también los códigos de información y cada aparición en el resumen de fin de tarea."
     }
   },
   "texture": {
@@ -8134,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, un único literal para este oráculo y el espejo WGSL, para que ambos redondeen el mismo número."
+    "summary": "π, un único literal, para que cada lector del cambio redondee el mismo número."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Formato de la sección `impostors` que lee un runtime (#817 parte 1, horneada por el compilador)."

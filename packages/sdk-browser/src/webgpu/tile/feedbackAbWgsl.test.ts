@@ -1,58 +1,46 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SHADE_SHADER } from '../../visibility/buffer.ts';
-import { BLEND_SHADER } from '../blend/shader.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
+import { unresolvedNames } from '../../gpu/core/wgslNames.fixture.ts';
 import { feedbackFreeEntry } from './feedbackAbWgsl.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
-test('target-free opaque resolve projects the same four surface outputs', () => {
-  const code = feedbackFreeEntry(
+const SURFACE = [
+  ['baseMetal', 'vec4f'],
+  ['normalRough', 'vec4f'],
+  ['emissiveAo', 'vec4f'],
+] as const;
+const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const;
+
+// A device refuses a module naming what it does not declare: each target-free entry calls the
+// renamed source entry and returns its own output structure, so every name it adds resolves.
+test('target-free opaque, transparent and water entries declare every name they use', () => {
+  const shade = feedbackFreeEntry(
     SHADE_SHADER,
     'shade_fs',
     'SurfaceOut',
-    [
-      ['baseMetal', 'vec4f'],
-      ['normalRough', 'vec4f'],
-      ['emissiveAo', 'vec4f'],
-      ['flags', 'u32'],
-    ],
+    [...SURFACE, ['flags', 'u32']],
     '@builtin(position) pos:vec4f',
     'pos',
   );
-  assert.match(code, /fn shade_fsSource\(pos:vec4f\)->SurfaceOut/);
-  assert.match(code, /@fragment fn shade_fsWithoutFeedback/);
-  assert.match(code, /struct SurfaceOutWithoutFeedback\{@location\(0\).*@location\(3\)/s);
-  assert.doesNotMatch(code, /struct SurfaceOutWithoutFeedback\{[^}]*@location\(4\)/);
-  assert.match(
-    code,
-    /return SurfaceOutWithoutFeedback\(result\.baseMetal,result\.normalRough,result\.emissiveAo,result\.flags\)/,
-  );
-});
-
-test('target-free transparent and water entries keep their color outputs', () => {
-  const blend = feedbackFreeEntry(
-    BLEND_SHADER + WATER_SURFACE_WGSL,
-    'fs',
-    'BlendOut',
-    [['color', 'vec4f']],
-    'in:VSOut,@builtin(front_facing) front:bool',
-    'in,front',
-  );
-  const code = feedbackFreeEntry(
+  assert.deepEqual(unresolvedNames(shade), []);
+  let blend = BLEND_SHADER + WATER_SURFACE_WGSL;
+  for (const entry of ['fs', 'fsFiltered'])
+    blend = feedbackFreeEntry(blend, entry, 'BlendOut', [['color', 'vec4f']], ...FRAGMENT_IN);
+  blend = feedbackFreeEntry(
     blend,
     'fsWater',
     'WaterOut',
-    [
-      ['baseMetal', 'vec4f'],
-      ['normalRough', 'vec4f'],
-      ['emissiveAo', 'vec4f'],
-      ['word', 'vec4f'],
-    ],
-    'in:VSOut,@builtin(front_facing) front:bool',
-    'in,front',
+    [...SURFACE, ['word', 'vec4f']],
+    ...FRAGMENT_IN,
   );
-  assert.match(code, /@fragment fn fsWithoutFeedback/);
-  assert.match(code, /@fragment fn fsWaterWithoutFeedback/);
-  assert.doesNotMatch(code, /struct BlendOutWithoutFeedback\{[^}]*@location\(1\)/);
-  assert.doesNotMatch(code, /struct WaterOutWithoutFeedback\{[^}]*@location\(4\)/);
+  assert.deepEqual(unresolvedNames(blend), []);
+});
+
+test('an entry the shader does not hold is refused by name', () => {
+  assert.throws(
+    () => feedbackFreeEntry(BLEND_SHADER, 'fsMissing', 'BlendOut', [], ...FRAGMENT_IN),
+    { message: 'FEEDBACK_ENTRY_MISSING:fsMissing' },
+  );
 });

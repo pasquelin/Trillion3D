@@ -12,7 +12,7 @@ import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { createCompositions, type CompositionSources } from './compositions.ts';
-import type { FusedBlend } from '../../effects/webgpuEffects.ts';
+import { type FusedBlend } from '../../effects/webgpuKinds.ts';
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
@@ -65,8 +65,9 @@ export interface DeferredBindings {
 
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
-/** A deferred-pass program: its modules, pipelines, and the bind groups it keeps while its
- *  resources do not change. The engine holds the unlit view, compiling the contract one lazily. */
+const HDR: GPUColorTargetState[] = [{ format: 'rgba16float' }];
+/** A deferred-pass program: its modules, its pipelines compiled together off the thread (#1362),
+ *  and the bind groups it keeps while its resources do not change. */
 export async function createDeferredProgram(
   device: GPUDevice,
   sources: DeferredSources,
@@ -84,13 +85,11 @@ export async function createDeferredProgram(
     `${sources.label}${perSubgroup ? '_SUBGROUP' : ''}_LIGHTING`,
   );
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
-  const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
-    { format: 'rgba16float' },
+  const [light, reflection, compositions] = await Promise.all([
+    makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
+    sources.direct ? reflectionPipelines(device, text, lightingLayout) : undefined,
+    createCompositions(device, sources.compose, sources.label),
   ]);
-  const reflection = sources.direct
-    ? await reflectionPipelines(device, text, lightingLayout)
-    : undefined;
-  const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
   let identity = createWebgpuBindIdentity(),
     boundSurface: SurfaceBuffer | undefined,

@@ -11,12 +11,12 @@ import {
   FLAG_HAS_COLOR,
   FLAG_SAMPLED,
   VIS_TRIANGLE_BITS,
-  visMaterial,
 } from '../../visibility/buffer.ts';
-import { CLASS_FEATURE } from '../../visibility/shader/materialClass.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts';
 import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts';
+import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts';
+import { visMaterial } from '../../visibility/shader/material.ts';
 
 test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
   assert.equal(packedRowBase(0), 1 << VIS_TRIANGLE_BITS);

@@ -1,8 +1,6 @@
 import type { ScreenReflection } from './gpu.ts';
 import type { DeferredProgram } from '../lighting/deferred/program.ts';
-
-/** The last lit image reprojected to this one's pixels, consumed by every screen reflection. */
-export const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
+import { REFLECTION_SOURCE_PASS } from './sourcePass.ts';
 
 /**
  * Encode the source, then the rough trace and its resolve, borrowing the HDR target. The source is

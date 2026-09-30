@@ -1,48 +1,27 @@
 import { SHADOW_ARRAY } from '../../gpu/shadow/layers.ts';
 import { blendShader } from './shader.ts';
-import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
-import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import {
   declaredBlendModes,
   pipelinesByMode,
   stageDescriptors,
   type BlendModePipelines,
 } from './stagePipelines.ts';
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_MODES } from '../../scene/materialBlending.ts';
-import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts';
-import { displayTargets } from './displayFilter.ts';
-import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
+import { filtersDisplay } from './equations.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
-import { createWaterPass, type WaterPass } from '../water/pass.ts';
+import type { WaterPass } from '../water/waterPass.ts';
+import { families } from '../../host/families.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
-/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`); `share`,
- *  with the share a debug view or the temporal pass reads (`asIsShare.ts`), else an empty slot. */
-export const blendTargets = (
-  mode: Blending,
-  mask: GPUColorWriteFlags,
-  feedback: boolean,
-  filtered = false,
-  share = true,
-): (GPUColorTargetState | null)[] => [
-  // A filtering mode of a filtered image leaves the lit target to the display layers.
-  {
-    format: 'rgba16float',
-    writeMask: filtered && filtersDisplay(mode) ? 0 : mask,
-    blend: COVERAGE_EQUATIONS[mode],
-  },
-  ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-  share ? SHARE_TARGET : null, // every mode covers it at its alpha (#365), green included (#833)
-  ...(filtered ? displayTargets(mode) : []),
-];
+import { blendTargets } from './blendTargets.ts';
+
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
 const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map((name) => [
   name,
@@ -126,27 +105,20 @@ export async function createWebgpuBlendPipelines(
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
+  // Its code, transmission's, is imported by the first scene that transmits, glass or water, and
+  // awaited here as the scene's other resources are, before any frame (#1353). A refused import,
+  // as a refused pass, keeps the blends and says why.
+  const transmission = families.transmission;
+  const waterCode = wantsWater ? await transmission.load().catch(() => undefined) : undefined;
+  let waterRefused = wantsWater ? transmission.failed : undefined;
   let code =
     blendShader(sunWindow) +
-    (wantsWater ? WATER_SURFACE_WGSL : '') +
+    (waterCode?.WATER_SURFACE_WGSL ?? '') +
     (variant ? DIAGNOSTIC_BLEND_WGSL : '');
   if (!feedback) {
     for (const entry of ['fs', 'fsFiltered'])
       code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN);
-    if (wantsWater)
-      code = feedbackFreeEntry(
-        code,
-        'fsWater',
-        'WaterOut',
-        [
-          ['baseMetal', 'vec4f'],
-          ['normalRough', 'vec4f'],
-          ['emissiveAo', 'vec4f'],
-          ['word', 'vec4f'],
-        ],
-        'in:VSOut,@builtin(front_facing) front:bool',
-        'in,front',
-      );
+    if (waterCode) code = waterCode.waterWithoutFeedback(code);
   }
   const blendModule = device.createShaderModule({ code: code });
   // Two lazy sets (#365): with no reader of the share its slot stays empty, no target is bound.
@@ -168,8 +140,9 @@ export async function createWebgpuBlendPipelines(
       blendTargets(mode, writeMask, feedback, true, withShare),
     ),
   }));
-  // Normal always (the transmission slice draws on it under a diagnostic), every mode an item
-  // declares, filtered too when one filters, in the set drawn now; the rest compiles at `at`.
+  // Normal with any item (the transmission slice draws on it under a diagnostic), every mode an item
+  // declares, filtered too when one filters, in the set drawn now; the rest compiles at `at`. No
+  // item, no blend program (#1362).
   const declared = declaredBlendModes(items),
     { perMode, routed } = sets[+share];
   await Promise.all([
@@ -187,12 +160,11 @@ export async function createWebgpuBlendPipelines(
     },
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
-  let water: WaterPass | undefined, waterRefused: Error | undefined;
-  if (wantsWater)
-    try {
-      water = await createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow);
-    } catch (error) {
+  const water: WaterPass | undefined = await waterCode
+    ?.createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow)
+    .catch((error: unknown) => {
       waterRefused = error instanceof Error ? error : new Error(String(error));
-    }
+      return undefined;
+    });
   return { blendBindGroupLayout, blendPipelines, water, waterRefused };
 }

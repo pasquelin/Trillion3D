@@ -3355,6 +3355,7 @@
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "spent": "Số mili giây CPU mà kế hoạch gần nhất dùng để đọc báo cáo yêu cầu và chấp nhận trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
+      "changeRoom": "Số hộp danh sách còn giữ riêng được trước khi tràn.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
       "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
@@ -3778,7 +3779,8 @@
       "total": "Tổng số công việc.",
       "stream": "Nơi để ghi.",
       "width": "Độ rộng thanh.",
-      "interval": "Số mili giây tối thiểu giữa các lần vẽ lại."
+      "interval": "Số mili giây tối thiểu giữa các lần vẽ lại.",
+      "verbose": "Cũng nêu các mã thông tin và từng lần xuất hiện trong bản tóm tắt cuối tác vụ."
     }
   },
   "Texture": {
@@ -5015,13 +5017,14 @@
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Hiển thị tiến trình terminal trông như thế nào.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Tên của công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Số thứ tự của công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Tổng cộng có bao nhiêu công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Ghi vào đâu.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Chiều rộng thanh.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Số mili giây tối thiểu giữa các lần vẽ lại."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Hiển thị tiến trình terminal trông như thế nào.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Tên của công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Số thứ tự của công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Tổng cộng có bao nhiêu công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Ghi vào đâu.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Chiều rộng thanh.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Số mili giây tối thiểu giữa các lần vẽ lại.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Cũng nêu các mã thông tin và từng lần xuất hiện trong bản tóm tắt cuối tác vụ."
     }
   },
   "createTransformTree": {
@@ -6855,7 +6858,7 @@
     "summary": "Gắn `node` vào `parent` (`-1`: gốc), giống như `add` tham chiếu: các ma trận không di chuyển cho đến lần cập nhật tiếp theo."
   },
   "resolveCompilerExecutable": {
-    "summary": "Tìm chương trình trình biên dịch gốc: cái được yêu cầu, nếu không thì cái được xây dựng trong lần lấy mã (checkout) này."
+    "summary": "Tìm chương trình trình biên dịch gốc: cái được yêu cầu, nếu không thì cái trong gói nền tảng đã cài, nếu không thì cái do `TRILLION3D_COMPILER_BIN` chỉ định, nếu không thì cái được xây dựng trong lần lấy mã (checkout) này."
   },
   "reviewCutouts": {
     "summary": "Hỏi, từng mô hình một, liệu mỗi bề mặt cắt hình có đúng không, và ghi lại các câu trả lời.",
@@ -8135,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, một literal duy nhất cho oracle này và bản sao WGSL, để cả hai làm tròn cùng một số."
+    "summary": "π, một hằng duy nhất, để mọi nơi đọc phép chuyển đều làm tròn cùng một số."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Định dạng của phần `impostors` mà runtime đọc (#817 phần 1, do trình biên dịch nướng)."

@@ -11,10 +11,7 @@ import {
   shadowEntrySpan,
   shadowTableEntries,
 } from './virtual.ts';
-
-/** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
- *  nearer a page's edge than this reads the neighbour across it (`shadowPcf`). */
-const PCF_EDGE_TEXELS = 1.5;
+import { PCF_EDGE_TEXELS } from './pcfEdge.ts';
 
 /**
  * THE PAGE MODEL: where a page's word sits in the table, which level or mip a pixel reads, which
@@ -160,9 +157,6 @@ export const ringOf = (v: number, n: number) => PAGES.shadowRing(v, n);
 export const sunEntry = (level: number, ax: number, ay: number, pages = SUN_WINDOW) =>
   PAGES.shadowRing(level, SUN_LEVELS) * pages * pages + PAGES.shadowRingPageEntry(pages, ax, ay);
 
-/** First entry of `mip` inside a lamp face. */
-export const lampMipOffset = (mip: number) => PAGES.shadowLampMapEntry(0, mip);
-
 /** Entry of lamp page `(x, y)` of `face` at `mip`, relative to the light's table base. */
 export const lampEntry = (face: number, mip: number, x: number, y: number) =>
   PAGES.shadowLampMapEntry(face, mip) +
@@ -181,16 +175,3 @@ export const sunPageMetres = (level: number) => PAGES.shadowSunTexelMetres(level
  * at the near plane. Every finer level would be sharper than any pixel that reads it.
  */
 export const finestSunLevel = (footprint: number) => PAGES.shadowSunLevelOf(footprint);
-
-/** The pages the PCF around map texel `t` reads, its home page `home` first: the neighbours
- *  across the one or two edges it comes near (`shadowPcf`). */
-export function pcfPages(t: ArrayLike<number>, home: ArrayLike<number>) {
-  const first = [home[0] * SHADOW_PAGE, home[1] * SHADOW_PAGE],
-    edge = [0, 1].map((a) => PAGES.shadowPcfEdge(t[a], first[a])),
-    step = [0, 1].map((a) => PAGES.shadowPcfStep(t[a], first[a]));
-  const read = [[home[0], home[1]]];
-  if (edge[0]) read.push([home[0] + step[0], home[1]]);
-  if (edge[1]) read.push([home[0], home[1] + step[1]]);
-  if (edge[0] && edge[1]) read.push([home[0] + step[0], home[1] + step[1]]);
-  return read;
-}

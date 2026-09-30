@@ -1,10 +1,7 @@
 // Set dressing of the dispatch measurement: the measured scene and the command count an
 // encode opens. Split from the page so each of the two keeps its responsibility.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
@@ -13,6 +10,7 @@ import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 /** The dispatch bench's scene size, shared with its Node guard (`cut-dispatches-scene.test.ts`). */
 export const DISPATCH_SCENE = { feuilles: 12000, niveaux: 8 } as const;

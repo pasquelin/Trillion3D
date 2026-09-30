@@ -12,15 +12,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  LIGHT_TILES_NARROW_SHADER,
-  LIGHT_TILES_SHADER,
-} from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { seeded } from '../../../site/examples/kit/random.ts';
 import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import { spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
 import type { run } from './lightTilesSpillPage.ts';
+import {
+  LIGHT_TILES_NARROW_SHADER,
+  LIGHT_TILES_SHADER,
+} from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
 declare global {
   var lightTilesSpill: { run: typeof run };

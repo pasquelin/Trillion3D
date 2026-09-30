@@ -1,10 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FACING_DROP, facingDiscarded, vertexFacing } from './facing.ts';
-import { BLEND_SHADER } from './shader.ts';
+import { FACING_DROP, FACING_WGSL } from './facing.ts';
+import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
-type Triangle = Parameters<typeof vertexFacing>[1];
+type Corner = readonly [x: number, y: number, z: number, w: number];
+type Triangle = readonly [Corner, Corner, Corner];
+
+const IDENTITY = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+/** What the shipped functions read: the triangle's clip-space corners as its page positions, the
+ *  world and the view-projection the identity, and the target's size in pixels. */
+const drawn = { triangle: [] as unknown as Triangle, viewport: [0, 0] };
+const shipped = shaderRun<{
+  vertexFacing: (cull: number, world: Mat, page: 0, h: 0, corners: number[]) => number;
+  facingDiscarded: (mode: number, front: boolean) => boolean;
+}>(FACING_WGSL, ['vertexFacing', 'facingDiscarded'], {
+  uni: { viewProj: IDENTITY, viewport: drawn.viewport },
+  pagePosition: (_page: 0, _h: 0, k: number) => [...drawn.triangle[k]],
+  // The corner carries its own `w`: the position the shader extends with 1 is already clip space.
+  vec4f: (v: number[], one: number) => (v.length === 4 ? v : [...v, one]),
+});
+
+/** `vertexFacing` of `FACING_WGSL`, as shipped, on clip-space corners and a target size. */
+function vertexFacing(cull: number, triangle: Triangle, viewport: readonly [number, number]) {
+  drawn.triangle = triangle;
+  drawn.viewport.splice(0, 2, ...viewport);
+  return shipped.vertexFacing(cull, IDENTITY, 0, 0, [0, 1, 2]);
+}
+const { facingDiscarded } = shipped;
 
 /** A 1920 × 1080 target: one pixel is 2/1920 of clip x, 2/1080 of clip y at w = 1. */
 const HD = [1920, 1080] as const;

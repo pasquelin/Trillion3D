@@ -40,22 +40,23 @@ export interface CompiledScene {
   [key: string]: unknown;
 }
 
+/** Compiles a generated scene with the installed CLI, which finds the compiler in the platform
+ *  package installed beside it: `TRILLION3D_COMPILER_BIN` is removed from its environment. */
 export function compileInstalledScene({
   fixture,
-  executable,
   run,
   pnpm,
   name,
   variant,
 }: {
   fixture: string;
-  executable: string;
   run: Run;
   pnpm: string;
   name: string;
   variant: number;
 }): CompiledScene {
   const sourceFile = writeInstalledScene(join(fixture, `native-source-${name}`), variant);
+  const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env;
   const stdout = run(
     pnpm,
     [
@@ -71,7 +72,7 @@ export function compileInstalledScene({
       'none',
     ],
     fixture,
-    { ...process.env, TRILLION3D_COMPILER_BIN: executable },
+    environment,
   );
   const result = JSON.parse(stdout) as CompiledScene;
   if (result.status !== 'ready') throw new Error(`installed CLI did not prepare ${name}`);

@@ -4,10 +4,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { evaluateDagSelectionKernel, packedWorldsToRenderOrigin } from './selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 /** A camera five metres in front of the fixture, looking away from it. */
 function cameraFacingAway() {

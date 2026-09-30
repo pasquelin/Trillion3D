@@ -23,6 +23,7 @@ test('pages the engine makes resident without a fetch keep the loop drawing past
     hostedControls: [],
     state: { disposed: false },
     pendingFrame: async () => true,
+    familiesPending: () => undefined,
     landings: () => landings,
   };
   // Two hundred pages landed from memory, one per frame: the fetch count never moves.

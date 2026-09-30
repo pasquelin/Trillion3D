@@ -8,6 +8,7 @@
 mod cli_batch;
 mod cli_spec;
 mod cli_stalls;
+mod messages;
 use cli_batch::run_batch;
 use serde_json::{json, Value};
 use std::{
@@ -24,31 +25,37 @@ use trillion3d_compiler::{
     compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
     COMPILER_VERSION, FORMAT_VERSION,
 };
+/// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn emit(mut event: Value, job: &str) {
+    messages::decorate(&mut event);
     if let Some(object) = event.as_object_mut() {
         object.insert("job".into(), json!(job));
     }
-    let stderr = std::io::stderr();
-    let mut lock = stderr.lock();
-    let _ = writeln!(lock, "{event}");
+    let _ = writeln!(std::io::stderr().lock(), "{event}");
 }
+/// A failure as hosts read it: its code, message and, from the catalogue, its public id.
 fn error_value(error: &CompilerError) -> Value {
-    json!({"status":"error","code":error.code,"message":error.message})
+    let mut value = json!({"status":"error","code":error.code,"message":error.message});
+    messages::decorate(&mut value);
+    value
 }
 
 /// What a host needs after a job: where the pointer lives and the headline numbers. The full manifest stays on disk.
 /// `wallMs` and `pruneMs` are measured after the manifest is written, so this projection is the only
 /// place a host can read them: dropping either leaves the cache purge measured nowhere. `reused`
 /// says the folder was proven and kept rather than written (`null` otherwise): the manifest on
-/// disk describes the product, not this run.
+/// disk describes the product, not this run. `textureSkipped` and `textureNotes` count the texture
+/// stage's reasons by catalogue code, so a host summarises them without reading the manifest.
 fn pointer(result: &Value, cache: &Path) -> Value {
     let scope = result["scope"].as_str().unwrap_or("");
     let key = result["key"].as_str().unwrap_or("");
     json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/clusters.json"),"pointer":cache.join("native").join(scope).join("manifest.json").to_string_lossy(),"cache":cache.to_string_lossy(),
   "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":{"importMs":result["metrics"]["importMs"],"clusterHierarchyPagesMs":result["metrics"]["clusterHierarchyPagesMs"],"wallMs":result["metrics"]["wallMs"],"pruneMs":result["metrics"]["pruneMs"],"outputGeometryBytes":result["metrics"]["outputGeometryBytes"],"threads":result["metrics"]["threads"],"ramBudgetMb":result["metrics"]["ramBudgetMb"]},
-  "unsupported":result["unsupported"],"reused":result["reused"]})
+  "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]})
 }
 
 struct Cancellation {
@@ -131,7 +138,9 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     }
 }
 
-fn main() {
+/// Returns its code rather than calling `process::exit`, which on Windows skips the exit handlers
+/// that write the profile of a build trained for profile guidance (#1352).
+fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cancellation = Arc::new(Cancellation {
         all: AtomicBool::new(false),
@@ -149,14 +158,12 @@ fn main() {
             Some(path) => match run_batch(path, cancellation) {
                 Ok(code) => code,
                 Err(message) => {
-                    emit(
-                        json!({"event":"error","status":"error","code":"INVALID_BATCH","message":message}),
-                        "*",
-                    );
-                    println!(
-                        "{}",
-                        json!({"status":"error","code":"INVALID_BATCH","message":message})
-                    );
+                    let code = "INVALID_BATCH";
+                    let refusal = error_value(&CompilerError { code, message });
+                    let mut event = refusal.clone();
+                    event["event"] = json!("error");
+                    emit(event, "*");
+                    println!("{refusal}");
                     2
                 }
             },
@@ -189,5 +196,5 @@ fn main() {
             }
         },
     };
-    std::process::exit(code);
+    std::process::ExitCode::from(code as u8)
 }

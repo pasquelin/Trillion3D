@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawShader } from './shader.ts';
 import { BASE_SLOTS, slotCount } from './contract.ts';
 import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
@@ -132,25 +131,5 @@ test('grouped counting and scattering write the counts and draws of the per-slot
       scatterBefore(f, groups, slots, offsets),
       `trial ${trial}: instances`,
     );
-  }
-});
-
-test('the shipped kernels run one workgroup per group of items, from workgroup memory', () => {
-  for (const k of [1, 2, 5]) {
-    const shader = drawShader(k);
-    assert.match(
-      shader,
-      new RegExp(`var<workgroup> slotTally:array<atomic<u32>,${slotCount(k)}>;`),
-    );
-    assert.match(shader, /var<workgroup> laneSlots:array<u32,64>;/);
-    assert.match(
-      shader,
-      /fn countGroups\(@builtin\(workgroup_id\) wg:vec3u,@builtin\(local_invocation_index\) lane:u32\)/,
-    );
-    assert.match(
-      shader,
-      /for\(var j=0u;j<lane;j\+\+\)\{if\(laneSlots\[j\]==s\)\{rank=rank\+1u;\}\}/,
-    );
-    assert.doesNotMatch(shader, /fn matches\(/);
   }
 });

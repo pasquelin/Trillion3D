@@ -8,7 +8,7 @@ import { poseAt } from './poses.ts';
 import { streetBounds } from './street.ts';
 import { posterCapture } from './measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
-import type { SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
+import { type SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
 
 type Probe = {
   setFeedbackTargetAb(target: boolean): Promise<void>;

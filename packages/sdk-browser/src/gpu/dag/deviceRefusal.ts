@@ -1,8 +1,8 @@
 import { cameraCutBuffers, pastBinding, readoutRow } from './bufferTable.ts';
 import { dagPartCounts } from './split.ts';
 import { dagBindEntries } from './shader/bindings.ts';
-import type { Limits } from './listCap.ts';
 import type { PackedDag } from './types.ts';
+import { type Limits } from './deviceListCap.ts';
 
 /** Storage buffers per stage WebGPU guarantees every device. */
 const GUARANTEED_STORAGE_BINDINGS = 8;

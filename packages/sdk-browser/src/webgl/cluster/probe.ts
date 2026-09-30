@@ -1,18 +1,9 @@
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
-import {
-  type EnvironmentSource,
-  environmentReflectionShader,
-} from '../../reflections/environmentShader.ts';
+import { environmentReflectionShader } from '../../reflections/environmentShader.ts';
+import { PROBE_ENVIRONMENT } from './probeEnvironment.ts';
 import { addLightIrradiance } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-
-/** The probe coefficients seen along a view-space reflected ray, carried to their world. */
-export const PROBE_ENVIRONMENT: EnvironmentSource = {
-  prelude: 'var W:vec3f=R*viewRotation;',
-  direction: 'W',
-  coefficient: (k) => `probeSh[${k}]`,
-};
 
 /**
  * THE ENVIRONMENT IRRADIANCE ON THE WEBGL2 PATH: a light probe's nine coefficients, read as

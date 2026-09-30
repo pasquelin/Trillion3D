@@ -11,6 +11,10 @@ import { bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts';
 import { createFrameComposer } from './compose.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { createGuideSet } from '../../guides/guideSet.ts';
+import { families } from '../../host/families.ts';
+
+// The effects' and guides' code, which a frame that draws them waits for (`familyUse.ts`).
+await Promise.all([families.effects.load(), families.guides.load()]);
 
 const camera = G.perspectiveCamera();
 /** A context that renders half floats, as every desktop WebGL2 does. */

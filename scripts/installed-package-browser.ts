@@ -25,7 +25,8 @@ export async function runInstalledBrowser({
   replayUrl,
 }: {
   root: string;
-  html: string;
+  /** The page, or what writes it for the port the fixture server listens on. */
+  html: string | ((port: number) => string);
   moduleName: string | null;
   decodeWorkerPath: string;
   integrationWorkerPath: string;
@@ -35,8 +36,14 @@ export async function runInstalledBrowser({
   replayUrl: string;
 }): Promise<InstalledBrowserProof> {
   const requests: RequestRecord[] = [];
-  const server = installedServer(root, html, requests, allowNodeModules);
-  const port = await listen(server);
+  let port = 0;
+  const server = installedServer(
+    root,
+    () => (typeof html === 'string' ? html : html(port)),
+    requests,
+    allowNodeModules,
+  );
+  port = await listen(server);
   let browser: Browser | undefined;
   const errors: string[] = [];
   try {

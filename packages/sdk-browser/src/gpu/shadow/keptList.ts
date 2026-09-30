@@ -1,6 +1,9 @@
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { pendingBuffers } from '../core/tableGrowth.ts';
 
+/** Bytes of one row of every region of a kept list. */
+export const KEPT_ROW_BYTES = MAX_SHADOW_REGIONS * 4;
+
 /** The casters every region keeps, `capacity` rows each, in one list (`cull.ts`). */
 export const keptList = (
   device: GPUDevice,
@@ -9,7 +12,7 @@ export const keptList = (
 ) =>
   device.createBuffer({
     label,
-    size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
+    size: Math.max(4, capacity * KEPT_ROW_BYTES),
     usage: GPUBufferUsage.STORAGE,
   });
 

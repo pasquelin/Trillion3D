@@ -166,8 +166,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
     /** Draws one frame now, whoever leads the loop: clips and physics step with it. */ render() {
-      if (live()) ahead(null);
-      runtime.render();
+      if (live()) runtime.render(() => ahead(null));
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
      *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */

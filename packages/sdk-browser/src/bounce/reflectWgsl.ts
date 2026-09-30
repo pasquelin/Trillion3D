@@ -4,7 +4,6 @@ import {
 } from '../reflections/probeFilterWgsl.ts';
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts';
-export { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts';
 
 /** Rank of the surface cache in the deferred bounce layout: past the water composite's own
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
