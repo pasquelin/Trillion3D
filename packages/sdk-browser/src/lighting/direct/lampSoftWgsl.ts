@@ -30,14 +30,10 @@ struct LampSample{distance:f32,blocked:bool,through:vec3f,}
  *  footprint split along the one or two seams it crosses as \`shadowPcf\` splits a tap
  *  (\`shadowSplitTap\`): a neighbour not readable read at the home page's nearest texel. */
 fn lampSoftCompare(m:ShadowMap,t:vec2f,home:vec2i,word:u32,offset:vec3f,first:vec2f,reference:f32)->f32{
- let up=t-first>=vec2f(SHADOW_PAGE*0.5);let step=select(vec2i(-1),vec2i(1),up);
+ let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));let up=step>vec2i(0);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
  let edge=saturate(0.5+(seam-t)*vec2f(step))<vec2f(1.0);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word,t);}
- return shadowSplitTap(offset,nx,ny,nd,edge,up,first,t,reference);
+ return shadowSplitTap(offset,shadowNeighbours(m,home,step,edge,offset,word,t),edge,up,first,t,reference);
 }
 fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u32,filtering:bool)->LampSample{
  let info=shadows.records[index].info;

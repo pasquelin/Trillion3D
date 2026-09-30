@@ -58,6 +58,7 @@ const scope = {
   LampDisk: (T: V, B: V, distance: number, closest: number, search: number) => ({
     ...{ T, B, distance, closest, search },
   }),
+  ShadowNeighbours: (x: number[], y: number[], d: number[]) => ({ x, y, d }),
   LampSample: (distance: number, blocked: boolean, through: V) => ({ distance, blocked, through }),
 };
 /** The light the shipped soft shadow lets through at `P`, the PCF's `-1` answered unshadowed. */
@@ -74,6 +75,8 @@ function walk(xs: number[], rotation: V) {
       ...NAMES,
       'lampSoftCompare',
       'shadowSplitTap',
+      'shadowNeighbours',
+      'shadowPcfStep',
       'shadowNeighbour',
       'shadowCompare',
       'shadowSample',

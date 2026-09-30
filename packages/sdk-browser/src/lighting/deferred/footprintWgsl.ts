@@ -36,6 +36,8 @@ fn surfaceSlope(coord:vec2i,axis:vec2i,z:f32)->f32{
  return select(0.0,into.y,continues.y);
 }
 fn unjitteredDepth(coord:vec2i,z:f32)->f32{
+ // An image the TAA does not jitter holds its centre: no neighbour is read.
+ if(all(view.jitter.xy==vec2f(0.0))){return z;}
  let slope=vec2f(surfaceSlope(coord,vec2i(1,0),z),surfaceSlope(coord,vec2i(0,1),z));
  return z+dot(view.jitter.xy,slope);
 }
