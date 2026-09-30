@@ -1,4 +1,4 @@
-import { LIGHT_KIND } from '../../../../../sdk-core/src/index.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -70,8 +70,9 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
-  contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
+  // A scene of at most `tileLights` lights resolves with a light array that long (#849).
+  contractResources.narrow =
+    active && !!lights.tiles && lights.store.count <= LIGHT_SETTINGS.tileLights;
   // No light holds a shadow slot, or none is a rectangle: the resolve without that code.
   if (active) leaveOut(contractResources, lights.store);
   else contractResources.unshadowed = contractResources.rectless = false;

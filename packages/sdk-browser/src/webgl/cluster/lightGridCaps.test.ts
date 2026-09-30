@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sphereTouchesBox } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+import { sphereTouchesBox } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
 import { CELLS_PER_LAMP, MOST_CELLS_ON_AXIS, MOST_ENTRIES } from './lightGrid.ts';
 import { cellBox, lightFrames, listedGrid, pointLamp, triangle } from './lightGrid.fixture.ts';
 
