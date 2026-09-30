@@ -69,7 +69,7 @@ const REFRESH_WINDOW = 120,
  * over the last `REFRESH_WINDOW`, which a frame that met the display's cadence gives exactly. A
  * pause longer than `PAUSE_MS` is no frame interval. `fallback` until a frame was measured, and
  * never longer: no display refreshes slower, so a device that never met its cadence is not taken
- * for a slow display (#1343).
+ * for a slow display, whose slow frames would then be within budget (#1343).
  */
 export function createRefreshClock(fallback: number) {
   const intervals = new Float64Array(REFRESH_WINDOW).fill(Infinity);

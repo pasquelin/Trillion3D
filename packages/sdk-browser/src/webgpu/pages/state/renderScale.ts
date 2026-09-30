@@ -72,14 +72,6 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
   !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
 
 /**
- * The scale this image is drawn at: the controller's, or the fixed one, a still image's as a
- * moving one's (#1343). The temporal resolve reconstructs a still image drawn below the display
- * from its jitter phases (`../../../taa/upscaleWgsl.ts`), so an over-budget still frame is drawn
- * smaller too.
- */
-export const imageScale = (rt: WebgpuPagesRuntime) => rt.scale.wanted();
-
-/**
  * Draws this image at `scale` in the targets in place, made at the controller's scale up to the
  * next eighth (`frameSizeOf`): the image is drawn in their top-left `targetSize`. Where the display
  * colour is not apart, the targets' whole size. The Hi-Z pyramid is built over it

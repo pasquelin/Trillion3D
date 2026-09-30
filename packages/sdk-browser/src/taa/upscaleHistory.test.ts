@@ -69,16 +69,20 @@ test('a reactive value shortens the history, up to 0.9 of the current image', ()
   }
 });
 
-test('the reactive value acts only while the image moves: at rest, today’s resolve to the bit', () => {
+test('the reactive value acts only while the image moves: at rest, the still average', () => {
   // The image still: the history read is the single bilinear tap and the reactive value the blends,
-  // particles and water wrote is not read, so today's 1/k share stands whatever `rho` holds.
+  // particles and water wrote is not read, so the still average's share stands whatever `rho`
+  // holds: this image's weight, one, against the three the history holds (#1343).
+  const then = noisy(2, 1);
   for (const rho of [0, 0.1, 0.5, 1]) {
-    const glass = frame({ jitter: ON, moving: false, reactive: () => rho });
-    near(
-      upscaleRun(glass)(2, 2).color,
-      blend(owed(glass, 2, 2), kept, 0.25),
-      `reactive ${rho} at rest`,
-    );
+    const glass = frame({
+      jitter: ON,
+      moving: false,
+      history: () => then,
+      tags: () => [0, 0, Math.sqrt(3 / 16), 0],
+      reactive: () => rho,
+    });
+    near(upscaleRun(glass)(2, 2).color, blend(kept, then, 1 / 4), `reactive ${rho} at rest`);
   }
 });
 

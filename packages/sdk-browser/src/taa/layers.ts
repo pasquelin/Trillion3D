@@ -36,18 +36,18 @@ export const layerWgsl = (filtered: boolean, part: keyof typeof PARTS) =>
 /** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
  *  in a resolve without it (`asIs` false), and written beside the pixel's placement `tag`
  *  (`historyWgsl.ts`) and, where the still image is drawn below the display, the weight its
- *  average holds, `count` (`stillWeightOut`). */
-export const taaOut = (asIs: boolean, filtered: boolean, mixed = false, count?: string) => {
+ *  average holds, `count` (`stillWeightOut`), with `still`. */
+export const taaOut = (asIs: boolean, filtered: boolean, mixed = false, still = false) => {
   const mix = (now: string, kept: string) => (mixed ? `(${now}*wc+${kept}*wh)/(wc+wh)` : now);
-  const held = count ? stillWeightOut(count) : '0.0';
+  const held = still ? stillWeightOut('count') : '0.0';
   return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},tag,${held},0.0)${layerWgsl(filtered, mixed ? 'mixed' : 'out')})`;
 };
 
 /** The largest weight a still average records: two cycles of phases give about ten. */
-export const STILL_WEIGHT_MAX = 16;
+const STILL_WEIGHT_MAX = 16;
 /** The weight `count` in eight bits, finer near zero where the first images weigh most; read
  *  back by `stillWeightIn`. */
-export const stillWeightOut = (count: string) => `sqrt(saturate(${count}/${STILL_WEIGHT_MAX}.0))`;
+const stillWeightOut = (count: string) => `sqrt(saturate(${count}/${STILL_WEIGHT_MAX}.0))`;
 export const stillWeightIn = (stored: string) => `${stored}*${stored}*${STILL_WEIGHT_MAX}.0`;
 
 /** The layers' four textures in a `filtered` resolve's layout. */

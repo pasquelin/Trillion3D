@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
-import { drawFrameAt, imageScale } from '../webgpu/pages/state/renderScale.ts';
+import { drawFrameAt } from '../webgpu/pages/state/renderScale.ts';
 
 /**
  * Image entry of the pass, called once per image, where the quiet of the image is known. A
@@ -28,14 +28,15 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const converging = rt.run.textureConverging || !!rt.feedbackAB?.force;
   if (converging) {
     quiet = temporal.replay();
-    if (state.stillPhase !== null) state.scale = imageScale(rt);
+    if (state.stillPhase !== null) state.scale = rt.scale.wanted();
   } else {
     // A moving image draws its lights from a rank of its own; a still one shades them all, and
     // so does a moving one with no history yet — nothing would average its draws.
     state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
-    const scale = imageScale(rt);
-    // A still average is of one scale and one set of phases: the controller lowering it restarts
-    // the average (#1343).
+    // A still image is drawn at the controller's scale like a moving one: the resolve rebuilds it
+    // from its jitter phases (`upscaleWgsl.ts`). Its average is of one scale and one set of
+    // phases: the controller lowering it restarts the average (#1343).
+    const scale = rt.scale.wanted();
     if (quiet && scale !== state.scale) state.stillFrames = 0;
     state.scale = scale;
     temporal.checkpoint(quiet);
