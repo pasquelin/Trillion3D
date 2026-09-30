@@ -4,12 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import {
-  createScreenReflection,
-  wantsReflectionCone,
-  wantsReflections,
-  wantsRoughReflectionHistory,
-} from './gpu.ts';
+import { createScreenReflection, reflectionPlan } from './gpu.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts';
 import { coatedScreenReflects, screenReflects } from './eligible.ts';
@@ -38,19 +33,16 @@ test('a matte-only scene allocates no reflection target and runs no reflection p
   ] as const) {
     const rt = sceneOf([...surfaces], [physical(0.8)]);
     const gpu = fakeDevice();
-    const reflection = createScreenReflection(
-      gpu.device,
-      64,
-      32,
-      h.target,
-      wantsReflections(rt),
-      wantsRoughReflectionHistory(rt),
-      wantsReflectionCone(rt),
-    );
+    const { active, rough, cone } = reflectionPlan(rt);
+    const reflection = createScreenReflection(gpu.device, 64, 32, h.target, active, rough, cone);
     assert.equal(reflection.active, reflecting);
-    // An inactive reflection keeps only its 1×1 binding placeholder: no target, no history.
+    // An inactive reflection keeps only its 1×1 binding placeholder: no target, no history. An
+    // active one holds its source and what it is reprojected from: the last image, depth and ids.
     const sizes = gpu.textures.map(({ size }) => size);
-    assert.deepEqual(sizes, [reflecting ? { width: 64, height: 32 } : { width: 1, height: 1 }]);
+    assert.deepEqual(
+      sizes,
+      reflecting ? Array(4).fill({ width: 64, height: 32 }) : [{ width: 1, height: 1 }],
+    );
     assert.equal(reflection.history, undefined);
     assert.equal(reflection.pyramid, undefined);
     h.passes.length = 0;
