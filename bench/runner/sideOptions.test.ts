@@ -22,14 +22,18 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
 });
 
 // #816: one run pits the native frame against one drawn below the display and reconstructed.
-test('a side takes its own render scale, then the campaign one, otherwise the display', () => {
-  assert.equal(equip('before', {}).renderScale, null);
+// #1369: without a scale, a side draws at the page's default, the pick of the frame budget.
+test('a side takes its own render scale, then the campaign one, otherwise the page default', () => {
+  assert.equal(equip('before', {}).renderScale, 'auto');
+  assert.equal(equip('before', { antialiasing: 'off' }).renderScale, null);
+  assert.equal(equip('before', { scale: '1' }).renderScale, 1);
+  assert.equal(equip('after', { scale: '0.5', 'scale-after': 'auto' }).renderScale, 'auto');
   assert.equal(equip('before', { scale: '0.5' }).renderScale, 0.5);
   const own = equip('after', { scale: '1', 'scale-after': '0.67' });
   assert.equal(own.renderScale, 0.67);
   assert.equal(sideReport(own)[1].scale, 0.67);
   for (const wrong of ['0.4', '1.5', 'half'])
-    assert.throws(() => equip('after', { 'scale-after': wrong }), /must be in \[0.5, 1\]/);
+    assert.throws(() => equip('after', { 'scale-after': wrong }), /must be auto or in \[0.5, 1\]/);
   // A scale no image would be drawn at is refused, never reported: WebGL2, or no temporal resolve.
   const flags = (entries: Record<string, string>) => new Map(Object.entries(entries));
   assert.throws(
