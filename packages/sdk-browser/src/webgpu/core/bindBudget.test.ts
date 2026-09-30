@@ -56,15 +56,17 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
   for (const [name, layout] of layouts) {
     const entries = entriesOf(layout);
     for (const [stage, bit] of Object.entries(stages)) {
-      const count = entries.filter(
-        (entry) =>
-          (entry.visibility & bit) !== 0 &&
-          (entry.buffer?.type === 'storage' || entry.buffer?.type === 'read-only-storage'),
+      const seen = entries.filter((entry) => (entry.visibility & bit) !== 0);
+      const count = seen.filter(
+        (entry) => entry.buffer?.type === 'storage' || entry.buffer?.type === 'read-only-storage',
       ).length;
       assert.ok(
         count <= GUARANTEED_STORAGE_BUFFERS_PER_STAGE,
         `${name} binds ${count} storage buffers at stage ${stage}, above the ${GUARANTEED_STORAGE_BUFFERS_PER_STAGE} guaranteed`,
       );
+      // The buffers moved to atlases (#1410) are textures: they hold the textures' own limit.
+      const textures = seen.filter((entry) => entry.texture).length;
+      assert.ok(textures <= 16, `${name} samples ${textures} textures at stage ${stage}, over 16`);
     }
   }
 });

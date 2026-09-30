@@ -2,8 +2,9 @@
 // buffer, so the lighting with bounce and the shadow demand, which recompute the receiver offset
 // from them, hold the eight storage buffers WebGPU guarantees. Defects these tests catch: a normal
 // written where the passes do not read it (the offset then leaves another normal than the
-// resolve's), a growth that leaves the normals behind, and a pool that holds fewer vertices than
-// develop's three buffers did under the same `maxStorageBufferBindingSize`.
+// resolve's), a growth that leaves the normals behind, an atlas that weighs more than the buffer
+// did (the memory budgets would move), and a pool that holds fewer vertices than develop's three
+// buffers did under the same `maxStorageBufferBindingSize`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -12,7 +13,12 @@ import { shaderRun, type Vec } from '../../texture/shaderRun.fixture.ts';
 import { VERT_NORMAL_WGSL } from '../../visibility/shader/pageWgsl.ts';
 import { createVertexPool } from './geometryPool.ts';
 import { poolFits, poolFloats } from './geometryPoolLayout.ts';
-import { FLOAT_ATLAS_ROWS } from './floatAtlas.ts';
+import {
+  FLOAT_ATLAS_ROWS,
+  FLOAT_ATLAS_WIDTH,
+  floatAtlasExtent,
+  type FloatAtlas,
+} from './floatAtlas.ts';
 import { uvBufferFloats } from './vertexColors.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 
@@ -56,41 +62,46 @@ function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width:
   };
 }
 
+/** Checks that the shared text reads, at `base`, the triangle's normals and tangents bit for bit. */
+function assertNormals(gpu: ReturnType<typeof fakeDevice>, atlas: FloatAtlas, base: number) {
+  const scope = replayAtlas(gpu, atlas.texture, atlas.extent[0]);
+  const run = shaderRun<Vertex>(VERT_NORMAL_WGSL, ['normalAt', 'vertN', 'vertT'], scope);
+  const host = triangle();
+  for (let v = 0; v < 3; v++) {
+    const normal = [0, 1, 2].map((c) => Math.fround(host.normal!.getComponent(v, c)));
+    const tangent = [0, 1, 2, 3].map((c) => Math.fround(host.tangent!.getComponent(v, c)));
+    assert.deepEqual(run.vertN(base, v), normal, `normal ${v} at ${base}, bit for bit`);
+    assert.deepEqual(run.vertT(base, v), tangent, `tangent ${v} at ${base}, bit for bit`);
+  }
+}
+
 test('the passes read, from the normal atlas, the very normals and tangents the pool wrote', () => {
   const gpu = fakeDevice();
   const pool = createVertexPool(gpu.device, 6, false, new Map(), 5);
   pool.place(triangle());
   const block = pool.place(triangle())!;
-  const { texture, extent } = pool.normalAtlas;
-  const run = shaderRun<Vertex>(
-    VERT_NORMAL_WGSL,
-    ['normalAt', 'vertN', 'vertT'],
-    replayAtlas(gpu, texture, extent[0]),
-  );
-  const host = triangle();
-  for (let v = 0; v < 3; v++) {
-    const normal = [0, 1, 2].map((c) => Math.fround(host.normal!.getComponent(v, c)));
-    const tangent = [0, 1, 2, 3].map((c) => Math.fround(host.tangent!.getComponent(v, c)));
-    assert.deepEqual(run.vertN(block.vertexBase, v), normal, `normal ${v}, bit for bit`);
-    assert.deepEqual(run.vertT(block.vertexBase, v), tangent, `tangent ${v}, bit for bit`);
-  }
+  assertNormals(gpu, pool.normalAtlas, block.vertexBase);
   assert.equal(pool.concatNrm, pool.normalAtlas.view, 'the passes bind the atlas itself');
 });
 
-test('a growth carries the normal atlas whole into the wider one', () => {
+test('a growth writes every placed normal again into the wider atlas, and frees the narrower', () => {
   const gpu = fakeDevice();
   const pool = createVertexPool(gpu.device, 3, false, new Map(), 5);
-  pool.place(triangle());
+  const first = pool.place(triangle())!;
   const before = pool.normalAtlas;
-  pool.place(triangle()); // past the room: the pool doubles
+  const second = pool.place(triangle())!; // past the room: the pool doubles
   const after = pool.normalAtlas;
   assert.notEqual(after.texture, before.texture, 'a new atlas');
-  const moved = gpu.textureCopies.filter(({ from }) => from.texture === before.texture);
-  assert.deepEqual(
-    moved.map(({ to, size }) => [to.texture, size]),
-    [[after.texture, before.extent]],
-  );
+  for (const block of [first, second]) assertNormals(gpu, after, block.vertexBase);
   assert.ok(gpu.destroyed.includes(before.texture as never), 'the narrower atlas freed');
+});
+
+test('the normal atlas weighs the bytes the normal buffer did: the budgets it funds see no change', () => {
+  for (const vertices of [1, 3, 1000, 1171, 10_000, 65_536, 4_793_490]) {
+    const [width, rows, layers] = floatAtlasExtent(vertices * 7);
+    assert.equal(width * rows * layers, vertices * 7, `${vertices} vertices: no padding`);
+    assert.ok(width <= FLOAT_ATLAS_WIDTH && rows <= FLOAT_ATLAS_ROWS, `${vertices}: within 2D`);
+  }
 });
 
 test('under the same maxStorageBufferBindingSize, the pool holds at least the vertices develop held', () => {
