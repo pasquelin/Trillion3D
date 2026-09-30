@@ -22,23 +22,6 @@ export function bufferEntry(
     },
   };
 }
-/** A buffer bound whole, or one range of a buffer: the float pool's normals are a range of its
- *  position buffer (`geometryPoolLayout.ts`, #1410). */
-export type BufferRange = GPUBuffer | GPUBufferBinding;
-const isRange = (range: BufferRange | undefined): range is GPUBufferBinding =>
-  !!range && 'buffer' in range;
-/** `bufferEntry` of a buffer or of a range, read live; nothing allocated. */
-export function rangeEntry(binding: number, range: () => BufferRange | undefined) {
-  const buffer = () => {
-    const r = range();
-    return isRange(r) ? r.buffer : r;
-  };
-  const part = (key: 'offset' | 'size') => () => {
-    const r = range();
-    return isRange(r) ? r[key] : undefined;
-  };
-  return bufferEntry(binding, buffer, part('offset'), part('size'));
-}
 export function resourceEntry(
   binding: number,
   resource: () => GPUBindingResource | undefined,

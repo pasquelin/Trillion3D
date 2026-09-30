@@ -1,4 +1,4 @@
-import { bufferEntry, rangeEntry, resourceEntry, type BufferRange } from './liveEntries.ts';
+import { bufferEntry, resourceEntry } from './liveEntries.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import {
   BLEND_BINDINGS,
@@ -30,7 +30,8 @@ export type ShadeBindResources = AtlasResources & {
   cache: GPUBuffer;
   position: GPUBuffer;
   uv: GPUBuffer;
-  normal: BufferRange;
+  /** The float pool's normal atlas (`floatAtlas.ts`). */
+  normal: GPUTextureView;
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
 };
@@ -65,7 +66,8 @@ export type BlendBindResources = AtlasResources &
     uniformSize: number;
     /** Item records, indexed by the item's rank in the scene (`../blend/items.ts`). */
     items: GPUBuffer;
-    normals: BufferRange;
+    /** The float pool's normal atlas, or the empty one. */
+    normals: GPUTextureView;
     /** Identity of a transparent cluster, one per draw-table entry. */
     clusterDiagnostic: GPUBuffer;
     /** Instance list expanded for the image, and each cluster's span in the cache. */
@@ -130,7 +132,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),
-    rangeEntry(b.normal, () => r.normal),
+    resourceEntry(b.normal, () => r.normal),
     bufferEntry(b.pageTable, () => r.pageTable),
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
@@ -156,7 +158,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
     ...atlasEntries(b.data, () => r.textures?.data),
-    rangeEntry(b.normals, () => r.normals),
+    resourceEntry(b.normals, () => r.normals),
     bufferEntry(b.directLights, () => r.directLights),
     bufferEntry(b.clusterDiagnostic, () => r.clusterDiagnostic),
     bufferEntry(b.planInstances, () => r.planInstances),

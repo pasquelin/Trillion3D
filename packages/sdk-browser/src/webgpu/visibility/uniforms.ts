@@ -6,7 +6,6 @@ import type { WebgpuVisState } from '../pages/state/vis.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import {
   DEPTH_RAMP_WORD,
-  NORMAL_BASE_WORD,
   SHADE_UNIFORM_BYTES,
   writeSunSlice,
 } from '../../visibility/shader/request.ts';
@@ -100,6 +99,5 @@ export function writeWebgpuVisibilityUniforms(
   writeDepthRamp(shadeUniPacked, DEPTH_RAMP_WORD, near, far, perspective);
   writeSunSlice(rt.lights, shadeUniPacked);
   shadeInts[21] = SHADE_MODE[diagnostic] ?? 0;
-  shadeInts[NORMAL_BASE_WORD] = vis.vertexPool?.normalBase ?? 0;
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked);
 }

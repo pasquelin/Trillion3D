@@ -21,8 +21,8 @@ const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, upload: () => und
 export type VertexPoolGrowth = {
   concatPos: GPUBuffer;
   concatUv: GPUBuffer;
-  /** The normals' range of the position buffer (`geometryPoolLayout.ts`, #1410). */
-  concatNrm: GPUBufferBinding;
+  /** The normal atlas's view (`floatAtlas.ts`, #1410). */
+  concatNrm: GPUTextureView;
   wholeDeformation: WholeTable;
 };
 
@@ -73,7 +73,7 @@ export function prepareWebgpuGeometry(
       : undefined;
     for (const item of whole.placed) {
       item.uv = vertexPool.concatUv;
-      item.normal = vertexPool.concatNrm;
+      item.normal = vertexPool.normalAtlas;
     }
   };
   /** A growth of the pool: the deformation block moves after the wider vertices (#1293). */
