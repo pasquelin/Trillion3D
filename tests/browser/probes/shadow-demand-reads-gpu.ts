@@ -16,21 +16,23 @@ declare global {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-test('the pages marked are the pages read, on a turning astrolabe and a ring of moving lamps', async () => {
-  const script = await bundlePage(resolve(here, 'shadowDemandReadsPage.ts'), 'shadowDemandReads');
-  const result = await dansPageWebgpu(() => globalThis.shadowDemandReads.run(), undefined, {
-    titre: 'Shadow demand reads',
-    script,
-  });
-  assert.equal(result.unavailable, undefined, 'WebGPU must be available');
-  const { errors, scenes } = result as Exclude<typeof result, { unavailable: string }>;
-  assert.deepEqual(errors, []);
-  for (const { scene, frames } of scenes) {
-    console.log(JSON.stringify({ scene, marked: frames.map((frame) => frame.marked) }));
-    frames.forEach(({ marked, unmarked, unread }, frame) => {
-      assert.ok(marked > 0, `${scene}, frame ${frame}: pages marked`);
-      assert.deepEqual(unmarked, [], `${scene}, frame ${frame}: pages read and not marked`);
-      assert.deepEqual(unread, [], `${scene}, frame ${frame}: pages marked and not read`);
+if (import.meta.main) {
+  test('the pages marked are the pages read, on a turning astrolabe and a ring of moving lamps', async () => {
+    const script = await bundlePage(resolve(here, 'shadowDemandReadsPage.ts'), 'shadowDemandReads');
+    const result = await dansPageWebgpu(() => globalThis.shadowDemandReads.run(), undefined, {
+      titre: 'Shadow demand reads',
+      script,
     });
-  }
-});
+    assert.equal(result.unavailable, undefined, 'WebGPU must be available');
+    const { errors, scenes } = result as Exclude<typeof result, { unavailable: string }>;
+    assert.deepEqual(errors, []);
+    for (const { scene, frames } of scenes) {
+      console.log(JSON.stringify({ scene, marked: frames.map((frame) => frame.marked) }));
+      frames.forEach(({ marked, unmarked, unread }, frame) => {
+        assert.ok(marked > 0, `${scene}, frame ${frame}: pages marked`);
+        assert.deepEqual(unmarked, [], `${scene}, frame ${frame}: pages read and not marked`);
+        assert.deepEqual(unread, [], `${scene}, frame ${frame}: pages marked and not read`);
+      });
+    }
+  });
+}
