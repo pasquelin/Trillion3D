@@ -4,18 +4,15 @@
 // frame that plans no shadow releases it to the list.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createWebgpuLightState,
-  noteShadowFrame,
-  shadowsUnsettled,
-} from '../pages/state/lights.ts';
+import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.ts';
+import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
 import { createGpuShadowCullCounts, sumKeptClusters } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
 import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
-import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 

@@ -34,23 +34,27 @@ const spy = (): Calls => ({ neighbour: [], compare: [], sample: [], through: [] 
  *  home page's range. Swapped per pixel; the shader text compiles once. */
 const live = { readable: (_: V) => false, calls: spy() };
 /** The shipped `shadowPcf`, its page reads spied. */
-const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(SHADOW_WGSL, ['shadowPcf'], {
-  ...CONSTANTS,
-  POISSON: POISSON_16,
-  POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
-  shadowOffset: (_: number, p: V) => placed(p),
-  shadowNeighbour: (_: object, p: V, home: V, __: number) => (
-    live.calls.neighbour.push(p),
-    live.readable(p) ? [...placed(p), 1] : [...home, 0]
-  ),
-  shadowCompare: (...args: unknown[]) => (live.calls.compare.push(args), lit(...args)),
-  shadowSample: (...args: unknown[]) => (live.calls.sample.push(args), lit(...args)),
-  shadowAtlasTexels: () => TEXELS,
-  shadowThroughLit: (...args: unknown[]) => (
-    live.calls.through.push(args),
-    (args[4] as number) * 0.5
-  ),
-});
+const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(
+  SHADOW_WGSL,
+  ['shadowPcf', 'shadowPcfEdge', 'shadowPcfStep'],
+  {
+    ...CONSTANTS,
+    POISSON: POISSON_16,
+    POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
+    shadowOffset: (_: number, p: V) => placed(p),
+    shadowNeighbour: (_: object, p: V, home: V, __: number) => (
+      live.calls.neighbour.push(p),
+      live.readable(p) ? [...placed(p), 1] : [...home, 0]
+    ),
+    shadowCompare: (...args: unknown[]) => (live.calls.compare.push(args), lit(...args)),
+    shadowSample: (...args: unknown[]) => (live.calls.sample.push(args), lit(...args)),
+    shadowAtlasTexels: () => TEXELS,
+    shadowThroughLit: (...args: unknown[]) => (
+      live.calls.through.push(args),
+      (args[4] as number) * 0.5
+    ),
+  },
+);
 /** `shadowPcf` with neighbours `readable`: its answer and the calls it made. */
 function pcfRun(readable: (p: V) => boolean, ...args: Parameters<Pcf>) {
   Object.assign(live, { readable, calls: spy() });
