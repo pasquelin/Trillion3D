@@ -43,7 +43,7 @@ export function createShadowMirror(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
-  previous?: { on: boolean; drawn: number },
+  previous?: { on: boolean; drawn: number; drewAt: number },
 ) {
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
@@ -86,9 +86,13 @@ export function createShadowMirror(
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
     on: previous?.on ?? false,
-    /** The latest snapshot's `listings`: the shadow contents' version as the GPU's own draws move
-     *  it (`reflections/frame.ts`), a frame whose snapshot is lost counted by the next. */
+    /** The `listings` of the latest snapshot at or past a frame whose GPU page draws ran: the
+     *  shadow contents' version as the GPU's own draws move it (`shadowEpoch.ts`), a frame whose
+     *  snapshot is lost counted by the next. */
     drawn: previous?.drawn ?? 0,
+    /** The last frame the GPU's page draws ran (`drew`) that no snapshot has counted yet; none,
+     *  Infinity. */
+    drewAt: previous?.drewAt ?? Infinity,
     /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
      *  page draws run (`freshPass.ts`). */
     listed: 0,
@@ -109,12 +113,20 @@ export function createShadowMirror(
       drops = records.drops;
       from = Math.max(from, frame);
     },
+    /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn. */
+    drew(frame: number) {
+      mirror.drewAt = frame;
+    },
     /** A report came back: what its frame listed counts at once, read by the plan or not — an
-     *  image does not hold on pages its GPU mapped and has not drawn (`shadowsUnsettled`, #1344). */
+     *  image does not hold on pages its GPU mapped and has not drawn (`shadowsUnsettled`, #1344).
+     *  Its listings move the shadow version only once a draw ran by its frame: a page listed and
+     *  not drawn is listed again each frame until it is, and changes no image (#1346). */
     hear(report: ShadowRequestReport) {
       if (!report.pool) return;
       mirror.listed = report.pool.drawn;
+      if (report.frame < mirror.drewAt) return;
       mirror.drawn = report.pool.listings;
+      mirror.drewAt = Infinity;
     },
     /** Follows the GPU's pool in `report`; false when it is not the GPU's, or can no longer be. */
     follow(report: ShadowRequestReport, nowMs: number, frame: number) {
