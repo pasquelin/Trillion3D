@@ -6011,7 +6011,7 @@
       "baseMetal": "Colore di base in RGB, A per il metallo.",
       "normalRough": "Normale XYZ nel mondo, A per la ruvidità.",
       "emissiveAo": "Emissione RGB, A per l'occlusione ambientale.",
-      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità. 4 e 5: modelli diffuso e toon (`./surfaceModel.ts`).",
+      "flags": "Tre bit bassi: 0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità. 4 e 5: modelli diffuso e toon (`./surfaceModel.ts`). Sopra, dei segni: 16 un texel di emissione e occlusione diverso da (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 una trasmissione sottile, 128 niente nebbia.",
       "views": "Le sue viste di texture GPU.",
       "dispose": "La libera.",
       "subsurface": "Colore indipendente di trasmissione delle superfici sottili; texture di zeri 1×1 quando disattivato.",

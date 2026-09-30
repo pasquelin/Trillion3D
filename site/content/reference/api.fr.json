@@ -6019,7 +6019,7 @@
       "baseMetal": "Couleur de base en RVB, A pour le métal.",
       "normalRough": "Normale XYZ dans le monde, A pour la rugosité.",
       "emissiveAo": "Émission RVB, A pour l’occlusion ambiante.",
-      "flags": "0 fond, 1 non éclairé (dans le brouillard), 2 lu, 3 montré tel quel : un diagnostic, une vue des normales ou de la profondeur. 4 et 5 : modèles diffus et toon (`./surfaceModel.ts`).",
+      "flags": "Trois bits bas : 0 fond, 1 non éclairé (dans le brouillard), 2 lu, 3 montré tel quel : un diagnostic, une vue des normales ou de la profondeur. 4 et 5 : modèles diffus et toon (`./surfaceModel.ts`). Au-dessus, des marques : 16 un texel d’émission et d’occlusion autre que (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 une transmission fine, 128 pas de brouillard.",
       "views": "Ses vues de texture GPU.",
       "dispose": "Le libère.",
       "subsurface": "Couleur indépendante de transmission des surfaces fines ; texture nulle de 1×1 lorsque désactivée.",
