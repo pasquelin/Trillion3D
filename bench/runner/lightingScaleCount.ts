@@ -8,7 +8,6 @@
 //
 //   node bench/runner/lightingScaleCount.ts [--frame 24.5] [--refresh 120] [--range 4]
 import { parseArgs } from 'node:util';
-import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
 import {
   createScaleController,
   nextScale,
@@ -18,6 +17,7 @@ import {
   renderExtent,
 } from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
 import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { tilesOn } from '../../packages/sdk-browser/src/lighting/tiles/tiles.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import { countGrid } from './lightGridCount.ts';
 
@@ -26,7 +26,7 @@ export const DISPLAY = [3456, 2234] as const;
 /** Measured rates: the tile pass at the display (recette, develop), a light in and out of range per
  *  pixel in the program with no shadow code (#1326, docs/ENGINE.md), and a texel the TAA resolve
  *  reads or writes — its 1.30 ms over 19 texels a display pixel (docs/ENGINE.md, #1369). */
-export const RATES = { tilePassMs: 1.21, inRangePs: 27.8, outOfRangePs: 10.6, texelPs: 8.86 };
+const RATES = { tilePassMs: 1.21, inRangePs: 27.8, outOfRangePs: 10.6, texelPs: 8.86 };
 /** What the resolve reads and writes a covered pixel beside its lights: five G-buffer texels and
  *  one write; an uncovered one reads its surface flag and leaves. */
 const COVERED_TEXELS = 6,
@@ -39,8 +39,7 @@ export function pickedScale(frameMs: number, budgetMs: number) {
   return c.s;
 }
 
-const tiles = (width: number, height: number) =>
-  Math.ceil(width / LIGHT_SETTINGS.tileSize) * Math.ceil(height / LIGHT_SETTINGS.tileSize);
+const tiles = (width: number, height: number) => tilesOn(width) * tilesOn(height);
 
 /** The lighting model, ms, of a `width` × `height` image `covered` pixels of which walk `listed`
  *  lights in all, `reach` of them in range (`countGrid`'s sums). */

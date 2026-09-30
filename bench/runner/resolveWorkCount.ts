@@ -10,13 +10,12 @@
 //   its `L` lights on develop, two now.
 // - `shaded`: lights shaded in full (`declaredLight`): a full sum's `L`, a drawn list's at most
 //   `LIGHT_SAMPLES`.
-// - `shadows`: shadow reads, at most the shaded lights holding a slot that reach the pixel.
-// - `gathers`: depth gathers of those reads (`shadowPcf`): 16 each on develop, `MOVING_PCF_TAPS` now.
+// - `shadows`: shadow reads, at most the shaded lights holding a slot that reach the pixel, each
+//   the PCF's sixteen depth gathers on both sides.
 //
 //   node bench/runner/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { parseArgs } from 'node:util';
 import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
-import { MOVING_PCF_TAPS } from '../../packages/sdk-browser/src/lighting/direct/pcfTaps.ts';
 import {
   camera,
   pixelPoint,
@@ -32,17 +31,15 @@ import type { Light } from './lightTileCity.ts';
 
 const SIZE = LIGHT_SETTINGS.tileSize,
   SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
-  LIST = LIGHT_SETTINGS.tileLights,
-  TAPS = LIGHT_SETTINGS.pcfTaps;
+  LIST = LIGHT_SETTINGS.tileLights;
 
 export type Work = {
   setup: number;
   weights: number;
   shaded: number;
   shadows: number;
-  gathers: number;
 };
-const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0, gathers: 0 });
+const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0 });
 
 /** Sums over the covered pixels of `view`, `before` (develop) and `after`; `slotted[rank]` whether
  *  a light holds a shadow slot. */
@@ -73,15 +70,14 @@ export function countResolveWork(
         ).length;
         const shadows = drawn ? Math.min(SAMPLES, reaching) : reaching;
         sums.covered++;
-        for (const [side, walks, taps, setup] of [
-          [sums.before, 3, TAPS, true],
-          [sums.after, 2, MOVING_PCF_TAPS, flagged],
+        for (const [side, walks, setup] of [
+          [sums.before, 3, true],
+          [sums.after, 2, flagged],
         ] as const) {
           side.setup += +setup;
           side.weights += drawn ? walks * L : 0;
           side.shaded += drawn ? SAMPLES : L;
           side.shadows += shadows;
-          side.gathers += shadows * taps;
         }
       }
     }

@@ -4,7 +4,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { directLightSamplingWgsl, SAMPLED_RANKS } from './lightSamplingWgsl.ts';
 
 /** The sampled resolve of a program that shades rectangles, the default one. */
-const DIRECT_LIGHT_SAMPLING_WGSL = directLightSamplingWgsl();
+const sampling = directLightSamplingWgsl();
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
@@ -34,7 +34,7 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   );
   assert.doesNotMatch(DIRECT_LIGHTING_WGSL, /listShadowed/);
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
-    assert.equal(occurrences(shader, DIRECT_LIGHT_SAMPLING_WGSL), 1);
+    assert.equal(occurrences(shader, sampling), 1);
     assert.equal(occurrences(shader, HASH_UNIT_WGSL), 1, 'one hash, defined once');
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
@@ -82,21 +82,21 @@ test('the tile pass flag marks a list that holds a shadowed light (#1249)', () =
 });
 
 test('the sample budget is the published setting, and a list within it is summed in full', () => {
+  assert.match(sampling, new RegExp(`const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;`));
   assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
-    new RegExp(`const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;`),
-  );
-  assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
+    sampling,
     /if\(!sampledList\(kept\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
   // A light worth a sample's share is shaded exactly, once; the drawn ones are divided by their
   // probability, copies counted (`sampledWeights.test.ts` runs the draw).
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /let exact=weight\*f32\(LIGHT_SAMPLES\)>=total;/);
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /factor=total\/\(f32\(LIGHT_SAMPLES\)\*weight\);/);
+  assert.match(sampling, /let exact=weight\*f32\(LIGHT_SAMPLES\)>=total;/);
+  assert.match(
+    sampling,
+    /if\(chosen\[slot\]<TILE_LIGHTS\)\{factor=total\/\(f32\(LIGHT_SAMPLES\)\*lightWeight\(light,N,P\)\);\}/,
+  );
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
+    sampling,
     /fract\(hashUnit\(u32\(pixel\.y\)\*65536u\+u32\(pixel\.x\)\)\+f32\(rank\)\*GOLDEN_RATIO\)/,
   );
   assert.ok(SAMPLED_RANKS * 0.61803399 < 2 ** 10, 'the rank keeps the fraction its precision');
@@ -104,9 +104,9 @@ test('the sample budget is the published setting, and a list within it is summed
 
 test('one loop shades the lights of a pixel in full: its list, its pool slice or the scene (#822, #849)', () => {
   // The sampled weights are recomputed where read (#924): no private array of TILE_LIGHTS weights.
-  assert.doesNotMatch(DIRECT_LIGHT_SAMPLING_WGSL, /array<f32,/);
+  assert.doesNotMatch(sampling, /array<f32,/);
   assert.equal(
-    occurrences(DIRECT_LIGHT_SAMPLING_WGSL, 'lightWeight('),
+    occurrences(sampling, 'lightWeight('),
     3,
     'defined once, read by the list and by the factor of a drawn light',
   );
