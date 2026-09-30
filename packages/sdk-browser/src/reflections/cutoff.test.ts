@@ -36,9 +36,13 @@ test('a matte-only scene allocates no reflection target and runs no reflection p
     const { active, rough, cone } = reflectionPlan(rt);
     const reflection = createScreenReflection(gpu.device, 64, 32, h.target, active, rough, cone);
     assert.equal(reflection.active, reflecting);
-    // An inactive reflection keeps only its 1×1 binding placeholder: no target, no history.
+    // An inactive reflection keeps only its 1×1 binding placeholder: no target, no history. An
+    // active one holds its source and what it is reprojected from: the last image, depth and ids.
     const sizes = gpu.textures.map(({ size }) => size);
-    assert.deepEqual(sizes, [reflecting ? { width: 64, height: 32 } : { width: 1, height: 1 }]);
+    assert.deepEqual(
+      sizes,
+      reflecting ? Array(4).fill({ width: 64, height: 32 }) : [{ width: 1, height: 1 }],
+    );
     assert.equal(reflection.history, undefined);
     assert.equal(reflection.pyramid, undefined);
     h.passes.length = 0;
