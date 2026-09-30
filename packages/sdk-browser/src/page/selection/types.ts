@@ -5,7 +5,6 @@ import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/links.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type PageRec = {
   id: number;
@@ -61,11 +60,6 @@ export type PageRec = {
   deformationOutput?: { from: number; count: number };
   sourceOrder?: number;
   renderOrder: number;
-  geometry?: Geometry;
-  /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
-  mesh?: HostMesh;
-  attached: boolean;
-  resident?: boolean;
   cone?: NormalCone;
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
@@ -113,6 +107,10 @@ export type ClusterStructureIndex = {
 export type ClusterRoot<T> = {
   world: MatrixElements;
   pages: T[];
+  /** Compiled mesh number of its primitive (`Primitive.mesh`), the key the compiler bakes each
+   *  `impostors` entry under: the runtime impostor switch looks the mesh up by exactly this number
+   *  (#1239), never through a table of its own. */
+  mesh?: number;
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
   culling?: {
