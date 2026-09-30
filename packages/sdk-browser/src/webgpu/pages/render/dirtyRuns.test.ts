@@ -3,13 +3,13 @@
 // the edge cases: the table ends byte-identical, and the writes are exactly the runs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { uploadDirtyRows } from './encodeDraws.ts';
 import { createDirtyRows } from '../../row/dirty.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { fakeDevice, replayWrites } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { HOSTILE_FLOATS } from '../../../../../../tests/kit/assert/hostile.ts';
 import { seeded } from '../../../host/world/randomTree.fixture.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { uploadDirtyRows } from './dirtyRows.ts';
 
 const ROWS = 64,
   ROW_FLOATS = PAGE_INFO_STRIDE / 4;

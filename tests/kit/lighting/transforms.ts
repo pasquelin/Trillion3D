@@ -1,12 +1,12 @@
 import {
-  basisMatrix4,
   crossVector3,
   dotVector3,
   lengthSqVector3,
   scaleVector3,
-  uniformScaleMatrix4,
 } from '../../../packages/sdk-core/src/index.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
+import { basisMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4Trs.ts';
+import { uniformScaleMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4Trs.ts';
 
 /** Column-major 4×4 basis of a surface or of the sphere, written into an owned buffer. */
 export function createObservationTransforms(state: LightingExperimentRenderState) {

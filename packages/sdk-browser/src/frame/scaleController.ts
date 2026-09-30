@@ -8,7 +8,7 @@
  * of the target, a dead band against oscillation; a frame over 1.25 budgets drops at once
  * (`MaxConsecutiveOverbudgetGPUFrameCount` of one).
  */
-interface ScaleController {
+export interface ScaleController {
   /** The scale frames are drawn at, in `[min, max]`. */
   s: number;
   min: number;
@@ -22,11 +22,11 @@ interface ScaleController {
 }
 
 /** Share of the budget the controller aims at, and of the target under which it may go up. */
-const HEADROOM = 0.9,
-  DEAD_BAND = 0.8;
+export const HEADROOM = 0.9;
+const DEAD_BAND = 0.8;
 /** Relative change below which no step is taken, and frames between two steps. */
-const THRESHOLD = 0.05,
-  PERIOD = 30;
+const THRESHOLD = 0.05;
+export const PERIOD = 30;
 /** A frame over this many budgets drops the scale at once. */
 const PANIC = 1.25;
 /** Weight of a new sample in the filtered time. */
@@ -37,8 +37,9 @@ export function createScaleController(min: number, max: number, budget: number):
   return { s: max, min, max, budget, ema: HEADROOM * budget, since: 0 };
 }
 
-/** One controller step; `gpuMs` = whole-frame GPU time of a frame drawn at the current scale. */
-export function nextScale(c: ScaleController, gpuMs: number) {
+/** One controller step; `gpuMs` = whole-frame GPU time of a frame drawn at the current scale.
+ *  `rises` false: the step may only lower the scale (a still image, #1343). */
+export function nextScale(c: ScaleController, gpuMs: number, rises = true) {
   const target = HEADROOM * c.budget;
   c.ema += FILTER * (gpuMs - c.ema);
   c.since++;
@@ -46,7 +47,7 @@ export function nextScale(c: ScaleController, gpuMs: number) {
     measured = panic ? gpuMs : c.ema;
   const wanted = Math.min(c.max, Math.max(c.min, c.s * Math.sqrt(target / measured)));
   const down = wanted < c.s,
-    up = wanted > c.s && c.ema < DEAD_BAND * target;
+    up = rises && wanted > c.s && c.ema < DEAD_BAND * target;
   if (
     (panic && down) ||
     (Math.abs(wanted - c.s) >= THRESHOLD * c.s && c.since >= PERIOD && (down || up))
@@ -59,35 +60,10 @@ export function nextScale(c: ScaleController, gpuMs: number) {
   return c.s;
 }
 
-/** Frame intervals the refresh is measured over, and the ones read as a pause, not a frame. */
-const REFRESH_WINDOW = 120,
-  PAUSE_MS = 100;
-
-/**
- * The display's refresh interval, measured: the shortest interval between two consecutive frames
- * over the last `REFRESH_WINDOW`, which a frame that met the display's cadence gives exactly. A
- * pause longer than `PAUSE_MS` is no frame interval. `fallback` until a frame was measured.
- */
-export function createRefreshClock(fallback: number) {
-  const intervals = new Float64Array(REFRESH_WINDOW).fill(Infinity);
-  let last = Number.NaN,
-    next = 0,
-    interval = fallback;
-  return {
-    /** The measured interval, ms. */
-    get interval() {
-      return interval;
-    },
-    /** A frame began at `now`, ms. */
-    tick(now: number) {
-      const gap = now - last;
-      last = now;
-      if (!(gap > 0 && gap < PAUSE_MS)) return;
-      intervals[next] = gap;
-      next = (next + 1) % REFRESH_WINDOW;
-      let shortest = Infinity;
-      for (const value of intervals) shortest = Math.min(shortest, value);
-      interval = shortest;
-    },
-  };
+/** Sets the scale from outside a step (a slower display, a probe): the filtered time follows as
+ *  `s²`, or restarts on the target where `onTarget`, and the next step waits `PERIOD` frames. */
+export function rescale(c: ScaleController, s: number, onTarget = false) {
+  c.ema = onTarget ? HEADROOM * c.budget : c.ema * (s / c.s) ** 2;
+  c.s = s;
+  c.since = 0;
 }

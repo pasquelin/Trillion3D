@@ -20,7 +20,8 @@ import {
   FRESH_REGION_PAGES,
   freshArgWords,
 } from './freshLayout.ts';
-import { DRAWN_GPU, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { DRAWN_GPU, DRAWN_NONE } from './poolDrawn.ts';
 
 const PAGES = 4;
 /** Two regions: a box of two metres around the origin, and a cone down from five metres up. */

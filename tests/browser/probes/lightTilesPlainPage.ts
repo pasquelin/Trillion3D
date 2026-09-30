@@ -7,7 +7,6 @@
  */
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts';
-import { LIGHT_TILES_SHADER } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
@@ -22,6 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { tileLayout, tileLists } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { openGpuDevice } from './webgpuDevice.ts';
+import { LIGHT_TILES_SHADER } from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
 const [WIDTH, HEIGHT] = [333, 207]; // cut tiles on both axes
 const view = camera([3, 40, -5], 0.8, -0.6, 70, WIDTH, HEIGHT);

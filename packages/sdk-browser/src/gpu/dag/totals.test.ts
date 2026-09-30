@@ -7,15 +7,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from './selection.ts';
+import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 

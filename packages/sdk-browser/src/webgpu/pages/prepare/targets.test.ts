@@ -72,7 +72,8 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
   const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256;
   const base = frameTargetAllocation(rt, native(64, 32)) + 64 * 32 * 8 - 8 + cone;
-  const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
+  // Under the screen-reflection cutoff (#1341), above the mirror range: the cone's lobe.
+  const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) };
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
@@ -177,4 +178,23 @@ test('a frame drawn below the display costs its render targets and one display c
   Object.assign(rt, { feedbackAB: undefined, vis: {} });
   assert.equal(targetsFit(rt, scaled), true);
   assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade');
+});
+
+// #1343: the render targets follow the drawn size; the render scale crossing an eighth remade them
+// and dropped the display's temporal history with them.
+test('a new render size at the same display keeps the temporal history, a new display drops it', () => {
+  const { rt, temporal } = runtime();
+  Object.assign(rt, { vis: {}, capture: { capturing: false } });
+  let released = 0;
+  temporal.release = () => void released++;
+  const make = (renderWidth: number, width = 64) => {
+    const at = { width, height: 32, renderWidth, renderHeight: 16, apart: true };
+    makeTargets(rt, rt.gpu.device!, at, frameTargetAllocation(rt, at));
+  };
+  make(48);
+  assert.equal(released, 1, 'the first targets start a history');
+  make(32);
+  assert.equal(released, 1, 'the render size alone: the history stays');
+  make(32, 128);
+  assert.equal(released, 2, 'another display size: the history goes');
 });

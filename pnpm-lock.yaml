@@ -111,6 +111,32 @@ importers:
       typescript-eslint:
         specifier: ^8.70.0
         version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@5.9.3)
+    optionalDependencies:
+      '@trillion3d/compiler-darwin-arm64':
+        specifier: workspace:*
+        version: link:packages/compiler/darwin-arm64
+      '@trillion3d/compiler-darwin-x64':
+        specifier: workspace:*
+        version: link:packages/compiler/darwin-x64
+      '@trillion3d/compiler-linux-arm64':
+        specifier: workspace:*
+        version: link:packages/compiler/linux-arm64
+      '@trillion3d/compiler-linux-x64':
+        specifier: workspace:*
+        version: link:packages/compiler/linux-x64
+      '@trillion3d/compiler-win32-x64':
+        specifier: workspace:*
+        version: link:packages/compiler/win32-x64
+
+  packages/compiler/darwin-arm64: {}
+
+  packages/compiler/darwin-x64: {}
+
+  packages/compiler/linux-arm64: {}
+
+  packages/compiler/linux-x64: {}
+
+  packages/compiler/win32-x64: {}
 
 packages:
 

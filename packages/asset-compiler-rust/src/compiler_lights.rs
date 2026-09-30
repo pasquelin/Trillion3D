@@ -156,8 +156,18 @@ pub(super) fn stage_scene_lights(
 ) -> Result<Product> {
     let lights = scene_lights(g, bin, scene_nodes)?;
     let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
-    progress(
-        json!({"phase":"lights","completed":1,"total":1,"lights":lights["count"],"rejected":lights["rejected"],"counts":lights["counts"]}),
-    );
+    progress(lights_event(&lights));
     Ok(written)
+}
+
+/// The `lights` event: how many lights were kept, and the reasons the others were left out.
+fn lights_event(lights: &Value) -> Value {
+    json!({"phase":"lights","completed":1,"total":1,"lights":lights["count"],"rejected":lights["rejected"],"counts":lights["counts"]})
+}
+
+/// The `lights` event of the `lights.json` a proven folder keeps, told again when it is reused.
+pub(super) fn stored_lights_event(directory: &Path) -> Option<Value> {
+    let lights: Value =
+        serde_json::from_slice(&fs::read(directory.join(SCENE_LIGHTS_FILE)).ok()?).ok()?;
+    Some(lights_event(&lights))
 }

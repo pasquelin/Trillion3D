@@ -1,6 +1,7 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/index.ts';
+import { compilerError } from '../messages/catalogue.mts';
 
 /**
  * The cutout answer sheet a compile leaves beside every model, read and written.
@@ -10,7 +11,7 @@ import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/i
  * one answer covers every model that shares that texture — which is why the sheets are read as a
  * batch and written as a batch.
  */
-export const SHEET_FILE = CUTOUT_SHEET_FILE;
+const SHEET_FILE = CUTOUT_SHEET_FILE;
 
 interface SheetTexture {
   image?: string;
@@ -47,9 +48,16 @@ export async function readSheet(cache: string): Promise<Sheet | null> {
   const text = await readFile(join(cache, SHEET_FILE), 'utf8').catch(() => null);
   if (text === null) return null;
   const parsed: unknown = JSON.parse(text);
-  if (!isSheet(parsed)) throw new Error(`${join(cache, SHEET_FILE)} is not an answer sheet`);
+  if (!isSheet(parsed))
+    throw compilerError(
+      'CUTOUT_SHEET_INVALID',
+      `${join(cache, SHEET_FILE)} is not an answer sheet`,
+    );
   if (parsed.version !== CUTOUT_SHEET_VERSION)
-    throw new Error(`${join(cache, SHEET_FILE)} declares version ${parsed.version}`);
+    throw compilerError(
+      'CUTOUT_SHEET_INVALID',
+      `${join(cache, SHEET_FILE)} declares version ${parsed.version}`,
+    );
   return parsed;
 }
 

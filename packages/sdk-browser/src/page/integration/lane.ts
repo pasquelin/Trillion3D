@@ -1,4 +1,4 @@
-import { besideModule } from '../../host/besideModule.ts';
+import { besideModule, startModuleWorker } from '../../host/besideModule.ts';
 import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import type {
   PageIntegrationAnswer,
@@ -44,7 +44,7 @@ export function createPageIntegrationLane() {
     for (const [id, settle] of lost) settle(workerError(id, ''));
   };
   const spawn = () => {
-    const spawned = new Worker(source, { type: 'module' });
+    const spawned = startModuleWorker(source);
     spawned.onmessage = (event: MessageEvent) => {
       const answer = event.data as PageIntegrationAnswer;
       const settle = pending.get(answer.id);

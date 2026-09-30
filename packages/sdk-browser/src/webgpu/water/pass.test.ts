@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawBlendPass } from '../blend/draw.ts';
 import { orderBlendPasses } from '../blend/order.ts';
-import { createWaterPass, encodeWaterPass } from './pass.ts';
-import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './frame.ts';
+import { encodeWaterPass } from './pass.ts';
+import { createWaterPass } from './waterPass.ts';
 import { WATER_BINDINGS } from './compositeWgsl.ts';
-import { WATER_BYTES_PER_PIXEL, createBackdrop } from '../transparent/transmission.ts';
+import { createBackdrop } from '../transparent/transmission.ts';
 import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
@@ -15,6 +15,8 @@ import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
 import { dropVis } from '../pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts';
+import { WATER_BYTES_PER_PIXEL } from '../transparent/waterBytes.ts';
 
 /** The prepared scene, its frame targets, and a real water pass built on a counting device. */
 async function mounted() {

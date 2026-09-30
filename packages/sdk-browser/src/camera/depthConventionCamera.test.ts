@@ -4,7 +4,7 @@
 // `[0, 1]` and every depth reader converted. It now carries only one: the projection is composed
 // by the engine (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at
 // 1, infinity at 0 — and `depthConvention.ts` publishes what follows: pipeline comparison,
-// the clear value, the sense of "nearer", conversion to distance.
+// the clear value, the sense of "nearer".
 //
 // What this file proves: the host clip convention no longer enters any engine number; the
 // Hi-Z bound of a box and the depth of a visibility-raster vertex do come out in that
@@ -14,13 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createEngineCamera, readCameraWorld } from './world.ts';
-import {
-  DEPTH_CLEAR,
-  DEPTH_COMPARE,
-  DEPTH_NEAR,
-  depthDistance,
-  depthNearer,
-} from './depthConvention.ts';
+import { DEPTH_CLEAR, DEPTH_COMPARE, DEPTH_NEAR, depthNearer } from './depthConvention.ts';
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../hiz/corners.ts';
 import { projectVisibilityVertex } from '../visibility/projection.ts';
 import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
@@ -70,15 +64,11 @@ test('engine depth is reversed: the near plane is 1, the far is 0', () => {
   assert.equal(DEPTH_CLEAR, 0);
   assert.equal(depthNearer(DEPTH_NEAR, DEPTH_CLEAR), true);
   assert.equal(depthNearer(DEPTH_CLEAR, DEPTH_NEAR), false);
-  assert.equal(depthDistance(NEAR, NEAR), 1);
-  assert.equal(depthDistance(1, NEAR), NEAR);
-  assert.equal(depthDistance(DEPTH_CLEAR, NEAR), Infinity);
 });
 
-test('depth → distance and distance → depth are reciprocal on the projected vertex', () => {
-  // A vertex on the camera optical axis: its eye distance is known to the caller.
-  const cible: [number, number, number] = [0, 0, 0];
-  const position = { getX: () => cible[0], getY: () => cible[1], getZ: () => cible[2] };
+test('the depth of a projected vertex is the near plane over its eye distance', () => {
+  // The origin, on the camera's optical axis: its eye distance is the camera's distance to it.
+  const position = { getX: () => 0, getY: () => 0, getZ: () => 0 };
   const p = projectVisibilityVertex(
     { elements: IDENTITY_ELEMENTS },
     position,
@@ -89,11 +79,8 @@ test('depth → distance and distance → depth are reciprocal on the projected 
   );
   assert.ok(p, 'the vertex must project');
   assert.ok(p!.z > 0 && p!.z < 1, `depth ${p!.z} outside the engine range`);
-  const distance = depthDistance(p!.z, NEAR);
-  assert.ok(
-    Math.abs(depthDistance(distance, NEAR) - p!.z) < 1e-12,
-    'the round-trip conversion must yield the same depth',
-  );
+  const distance = Math.hypot(2, 1, 8);
+  assert.ok(Math.abs(p!.z - NEAR / distance) < 1e-6 * p!.z, 'ndc = near / distance');
 });
 
 test('at 10⁶ units, two neighbouring vertices keep distinct depths in single precision', () => {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
 
 type V = number[];
 function sample(radius: number, receiver: number, blocker: number | null) {

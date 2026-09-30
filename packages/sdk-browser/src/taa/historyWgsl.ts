@@ -1,15 +1,12 @@
 import * as layer from './layers.ts';
 import { FLAG_DYNAMIC } from '../visibility/types.ts';
+import { REACTIVE_MAX } from './reactive.ts';
 
 /** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
 export const shareText =
   (asIs: boolean) =>
   (text: string, none = '') =>
     asIs ? text : none;
-
-/** The most a reactive value lets the current image take: FSR 2 holds it below 1, so a
- *  transparent never drops its history whole and still averages its jitter. */
-export const REACTIVE_MAX = 0.9;
 
 /**
  * History read while the image moves: Catmull-Rom on the 4×4 texels around the point, in five
@@ -86,26 +83,41 @@ fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  * (the render texel of the display pixel, `last` the grid's last), `reach` and, with `asIs`,
  * `share` and its box are known: history read at the reprojected point, clamped to the box, mixed
  * with the current image by the inverse of each one's luminance. At rest (`view.jitter.z` 0) that
- * is today's resolve, to the bit: the reactive value acts only while the image moves. While moving
+ * is today's resolve, to the bit — in the upscaling resolve, the still average's share instead —:
+ * the reactive value acts only while the image moves. While moving
  * the history is read with Catmull-Rom, and the current share is `currentShare`'s, from the reactive
  * value the blends, particles and water wrote — whole on a dynamic geometry's pixel (`dynamicPixel`,
  * #573), whose vertices moved within their placement, which no motion matrix follows: its history is
  * another shape, dropped rather than smeared. The disocclusion (`uncovered`) and the dynamic pixel
- * are about reprojection and stay in the moving branch.
+ * are about reprojection and stay in the moving branch. `still`, the upscaling resolve's: a still
+ * pixel's share is set from the weights its average holds (`STILL_AVERAGE_WGSL`).
  */
-export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
+export const taaHistoryBlend = (asIs: boolean, filtered = false, still = false) => {
   const share = shareText(asIs);
-  return ` if(previous.z==0.0){return ${layer.taaOut(asIs, filtered)};}
+  return ` if(previous.z==0.0){return ${layer.taaOut(asIs, filtered, false, still)};}
  var alpha=view.params.x;
  var read=vec4f(0.0);
  if(view.jitter.z!=0.0){
   read=historyCatmullRom(previous.xy);
   let rho=max(textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g,dynamicPixel(centre));
   alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last,tag));
- }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
+ }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);${still ? STILL_AVERAGE_WGSL : ''}}
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);\n')} let wc=alpha/(1.0+toYcocg(filtered.rgb).x);
  let wh=(1.0-alpha)/(1.0+clamped.x);
-${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true)};`;
+${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true, still)};`;
 };
+
+/**
+ * A still pixel of an image drawn below the display (#1343): its average is weighed by how near
+ * each image's samples fell to the display pixel (`stillTotal`, the Blackman-Harris window of one
+ * display pixel, `upscaleWgsl.ts`), not one image as much as another. The weight the history holds
+ * is read beside its tag, this image's added to it into `count`, which is written; the current
+ * share is this image's part of it, none when no sample fell near. Over the phases the average
+ * then gathers, per display pixel, the samples of that pixel: the detail the display size shows.
+ * Its history is not boxed: at rest it holds the same scene, and the box of one image's render
+ * texels, which guards a moving history against ghosts, would clip the detail finer than the
+ * render grid that only the phases together carry.
+ */
+const STILL_AVERAGE_WGSL = `let held=textureSampleLevel(tagHistory,historySampler,previous.xy,0.0).b;count=${layer.stillWeightIn('held')}+stillTotal;alpha=select(0.0,stillTotal/count,count>0.0);lo=vec4f(-1e9);hi=vec4f(1e9);`;

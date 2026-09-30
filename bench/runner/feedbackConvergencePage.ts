@@ -5,10 +5,10 @@ import type {
   GpuPassTimings,
 } from '../../packages/sdk-core/src/index.ts';
 import { posterCapture } from './measurePage.ts';
-import type {
-  SpatialFeedback,
-  SurfaceKind,
-} from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
+import {
+  type SpatialFeedback,
+  type SurfaceKind,
+} from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
 
 type Probe = {
   captureFeedbackAb(): Promise<Uint8Array>;

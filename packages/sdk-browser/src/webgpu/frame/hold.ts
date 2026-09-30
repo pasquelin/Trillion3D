@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { particlesMoved } from '../../particles/webgpuParticles.ts';
+import { particlesMoved } from '../../particles/webgpuParticleFrame.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
 import { deviceAnswering } from './deviceAnswer.ts';
 
@@ -136,12 +136,12 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
  * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
  * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. So
- * is a frame whose targets the device has not granted (`targetGrant.ts`). A capture is never held:
- * it waited for those answers before it began (`deviceAnswering`).
+ * is a frame whose targets the device has not granted (`targetGrant.ts`), and a lit frame whose
+ * lit program still compiles (#1362): never the unlit stand-in. A capture is never held: it waited
+ * for those answers before it began (`deviceAnswering`).
  *
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
- * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
- * redisplayed.
+ * target IS this frame, to the bit, since nothing it depends on has moved: it is redisplayed.
  *
  * Replaying render bundles alone omits the frame's compute passes and copies.
  * Redisplaying the intact target yields it exactly, and that is the only command encoded.

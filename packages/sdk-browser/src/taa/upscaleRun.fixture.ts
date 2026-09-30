@@ -4,7 +4,7 @@
 import { Mat, shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 import { taaShader } from './shaderWgsl.ts';
-import { taaWeights, TAA_WEIGHTS } from './weights.ts';
+import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 
 const IDENTITY = new Mat([...IDENTITY_MATRIX4]);
@@ -32,6 +32,8 @@ export interface UpscaleFrame {
   layerHistory?: (uv: number[]) => number[];
   /** The image moves (`view.jitter.z`): the history is read and blended as in motion. */
   moving?: boolean;
+  /** The current image's share (`view.params.x`): 0.25 when absent. */
+  share?: number;
   /** The reactive value the blends and particles wrote, per texel. */
   reactive?: (x: number, y: number) => number;
   /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`, #573). */
@@ -47,6 +49,8 @@ interface Resolved {
   share: number;
   /** The placement tag written beside the share, 0 to 255. */
   tag: number;
+  /** The weight a still average holds, as stored (`stillWeightOut`). */
+  held: number;
   layers: number[][];
   reads: number[][];
 }
@@ -75,7 +79,12 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
       prevViewProj: frame.prevViewProj ?? IDENTITY,
       invViewProj: IDENTITY,
       viewport: [W, H, 1 / W, 1 / H],
-      params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
+      params: [
+        frame.share ?? 0.25,
+        frame.history ? 1 : 0,
+        frame.motion ? 1 : 0,
+        frame.layerHistory ? 1 : 0,
+      ],
       render: [w, h, 1 / w, 1 / h],
       jitter: [...jitter, frame.moving ? 1 : 0, 0],
       eye: [0, 0, 0, 0],
@@ -101,10 +110,11 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     historySampler: null,
     textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
-    TaaOut: (color: number[], [share, tag]: number[], ...layers: number[][]) => ({
+    TaaOut: (color: number[], [share, tag, held]: number[], ...layers: number[][]) => ({
       color,
       share,
       tag: Math.round(tag * 255),
+      held,
       layers,
     }),
   };
@@ -112,7 +122,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     (native ? taaShader : taaUpscaleShader)(asIs, asIs, filtered),
     [
       'resolve',
-      ...(native ? [] : ['lanczos2']),
+      ...(native ? [] : ['lanczos2', 'blackmanHarris']),
       'previousUv',
       'toYcocg',
       'fromYcocg',
@@ -177,4 +187,12 @@ export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'ring
   return sum.map((s, i) =>
     bounds === 'none' ? s / total : Math.min(Math.max(s / total, lo[i]), hi[i]),
   );
+}
+
+const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
+/** The resolve's inverse-luminance blend of `now` and `then` at a current share `alpha`. */
+export function blend(now: number[], then: number[], alpha: number) {
+  const wc = alpha / (1 + luma(now)),
+    wh = (1 - alpha) / (1 + luma(then));
+  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
 }

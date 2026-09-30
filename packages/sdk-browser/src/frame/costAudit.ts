@@ -1,6 +1,6 @@
 import { frustumExcludesBox, type FrameMetrics } from '../../../sdk-core/src/index.ts';
 import { enginePose, type EngineCamera } from '../camera/world.ts';
-import { SDK_BUILD_PROVENANCE } from '../measurement/buildProvenance.ts';
+import { families } from '../host/families.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
 /** The question asked of the URL, and the answer it gave: the string is reread on every call —
@@ -96,10 +96,12 @@ export function createHostFrameCostAudit() {
     const now = performance.now();
     if (now - last < 2000) return;
     last = now;
+    // The provenance, a family the session opened with when the audit is on (`familyUse.ts`).
+    const build = families.measurement.get()?.SDK_BUILD_PROVENANCE;
     logFrameCostAudit(backend, {
       kind: 'host',
       frame,
-      build: { hash: SDK_BUILD_PROVENANCE.hash, generatedAt: SDK_BUILD_PROVENANCE.generatedAt },
+      build: { hash: build?.hash ?? null, generatedAt: build?.generatedAt ?? null },
       dpr: typeof devicePixelRatio === 'number' ? devicePixelRatio : null,
       cpuFrameMs: metrics.cpuFrameMs,
       cpuSubmitMs: metrics.cpuSubmitMs,

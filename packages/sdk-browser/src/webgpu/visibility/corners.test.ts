@@ -4,7 +4,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts';
-import { uploadDirtyRows } from '../pages/render/encodeDraws.ts';
 import { uploadClusterSpheres } from '../shadow/bounds.ts';
 import { moveRootRows } from '../pages/render/movedRoot.ts';
 import { createWebgpuRowState } from '../row/state.ts';
@@ -13,6 +12,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { uploadDirtyRows } from '../pages/render/dirtyRows.ts';
 
 const ROWS = 1000,
   MODEL_ROWS = [3, 4, 400, 401, 402, 997];

@@ -1,35 +1,17 @@
-import {
-  LIGHT_SETTINGS,
-  invertMatrix4,
-  matrixAtRenderOrigin,
-} from '../../../../sdk-core/src/index.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { tileViewInverse } from './tileFrame.ts';
 import { LIGHT_TILES_SHADERS } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 import { createTileLightPool } from './pool.ts';
+import { buildComputePipeline } from '../deferred/fullscreen.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
 const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
-
-const atOrigin = new Float64Array(16);
-/**
- * The tile pass's frame (`sdk-core` `renderOrigin.ts`): `origin` the eye rounded to f32, the words
- * the shader subtracts from a light's centre, and `out` the f64 inverse of `viewProjection ·
- * T(origin)` — the jittered render matrix, not the camera's `viewProjectionRelative`.
- */
-export function tileViewInverse(
-  out: Float64Array,
-  origin: Float64Array,
-  viewProjection: ArrayLike<number>,
-  eye: ArrayLike<number>,
-) {
-  for (let axis = 0; axis < 3; axis++) origin[axis] = Math.fround(eye[axis]);
-  return invertMatrix4(out, matrixAtRenderOrigin(atOrigin, viewProjection, origin));
-}
 
 /**
  * Per-tile light-list pass. The tile buffer — the records, then the pool of the slices past their
@@ -71,11 +53,13 @@ export async function createGpuLightTiles(device: GPUDevice) {
   let pipelines: GPUComputePipeline[];
   try {
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    pipelines = modules.map((module) =>
-      device.createComputePipeline({
-        layout: pipelineLayout,
-        compute: { module, entryPoint: 'lightTiles' },
-      }),
+    pipelines = await Promise.all(
+      modules.map((module) =>
+        buildComputePipeline(device, {
+          layout: pipelineLayout,
+          compute: { module, entryPoint: 'lightTiles' },
+        }),
+      ),
     );
   } catch (error) {
     uniform.destroy();
