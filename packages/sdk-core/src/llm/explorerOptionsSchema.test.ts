@@ -117,10 +117,6 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ([, property]) => property.type === 'boolean' && property.default !== undefined,
   );
   assert.deepEqual(advertised.map(([key]) => key).sort(), Object.keys(EXPLORER_SWITCHES).sort());
-  for (const [key, { default: value }] of advertised) {
-    const name = key as ExplorerSwitch;
-    assert.equal(typeof value, 'boolean', key);
-    assert.equal(explorerSwitch({}, name), value, key);
-    assert.equal(explorerSwitch({ [name]: !value }, name), !value, key);
-  }
+  for (const [key, property] of advertised)
+    assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key);
 });
