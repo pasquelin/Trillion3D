@@ -21,10 +21,11 @@ test('first frame rejects history, replay consumes nothing, and a changed source
   const gpu = fakeDevice();
   const history = createReflectionHistory(gpu.device, 8, 8, kept);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
-  // No live motion: the motion bound is the page table (`liveMotion`).
+  // No live motion: the motion bound is the page table (`reflectionFrame.ts`).
   const pages = {} as GPUBuffer;
   const frame: ReflectionHistoryFrame = {
     metadata: { depth: current, normal: current, ids: current },
+    ids: {} as GPUTextureView,
     pages,
     motion: pages,
     eye: [0, 0, 0],

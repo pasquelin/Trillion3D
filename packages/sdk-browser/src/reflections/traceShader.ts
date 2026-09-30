@@ -1,4 +1,20 @@
 import { shaderLanguage } from '../math/shaderLanguage.ts';
+/** The ray from `P` along `R`, clipped to the view (`reflectionExit`) and projected: `start` and
+ *  `delta` in pixels, depth `a.z` to `b.z`, `size` the drawn one; clipped away, a miss. The
+ *  mirror's walk and the rough one's (`hizTraceWgsl.ts`) both begin with it. */
+export const REFLECTION_SEGMENT = `
+ var c:vec4f=reflectionProject(vec4f(P,1.0));
+ var d:vec4f=reflectionProject(vec4f(R,0.0));
+ var reach:f32=reflectionExit(c,d);
+ if(reach<=0.0||c.w<=0.0){return vec4f(0.0);}
+ var e:vec4f=c+d*reach;
+ if(e.w<=0.0){return vec4f(0.0);}
+ var size:vec2f=reflectionSize();
+ var a:vec3f=c.xyz/c.w;var b:vec3f=e.xyz/e.w;
+ var start:vec2f=(a.xy*0.5+vec2f(0.5))*size;
+ var delta:vec2f=(b.xy-a.xy)*0.5*size;
+`;
+
 /** Screen-space pixel DDA, following McGuire & Mara (JCGT 2014), implemented here from
  * the projected-segment equations: https://jcgt.org/published/0003/04/04/paper.pdf.
  * Clip the homogeneous ray to all six planes before division. Depth is linear along
@@ -22,18 +38,7 @@ fn reflectionExit(c:vec4f,d:vec4f)->f32{
  }
  return end;
 }
-fn screenReflection(P:vec3f,R:vec3f)->vec4f{
- var c:vec4f=reflectionProject(vec4f(P,1.0));
- var d:vec4f=reflectionProject(vec4f(R,0.0));
- var reach:f32=reflectionExit(c,d);
- if(reach<=0.0||c.w<=0.0){return vec4f(0.0);}
- var e:vec4f=c+d*reach;
- if(e.w<=0.0){return vec4f(0.0);}
- var size:vec2f=reflectionSize();
- var a:vec3f=c.xyz/c.w;var b:vec3f=e.xyz/e.w;
- var start:vec2f=(a.xy*0.5+vec2f(0.5))*size;
- var delta:vec2f=(b.xy-a.xy)*0.5*size;
- var pixel:vec2i=vec2i(floor(start));
+fn screenReflection(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} var pixel:vec2i=vec2i(floor(start));
  var origin:vec2i=pixel;
  var step:vec2i=vec2i(0);
  var crossing:vec2f=vec2f(1e30);

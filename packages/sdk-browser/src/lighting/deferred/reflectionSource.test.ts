@@ -7,11 +7,18 @@ import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import { contractLighting } from './contractLighting.fixture.ts';
 
-/** A screen reflection as the lighting sees it: `kept` hears each keep of the source's depth. */
-const reflectionOf = (view: GPUTextureView, active = true, more = {}, kept: string[] = []) =>
+/** A screen reflection as the lighting sees it: `kept` hears each keep of the source's depth;
+ *  `group`, the source's bind group, none before an image gave its inputs. */
+const reflectionOf = (
+  view: GPUTextureView,
+  active = true,
+  more = {},
+  kept: string[] = [],
+  group?: object,
+) =>
   ({
-    ...{ active, view, group: {}, sourceTarget: {} as GPUTextureView, ...more },
-    keepSource: () => void kept.push('kept'),
+    ...{ active, view, group: {}, ...more },
+    source: { target: {} as GPUTextureView, group, keep: () => void kept.push('kept') },
   }) as unknown as ScreenReflection;
 
 test('a reflecting image draws its reflection source, then the lighting, each under its label', async () => {
@@ -56,7 +63,7 @@ test('only the final pass lights a surface: the source reprojects, the rough tra
       pass.end();
     },
   };
-  const reflection = reflectionOf(target, true, { sourceGroup: {}, history });
+  const reflection = reflectionOf(target, true, { history }, [], {});
   lighting.light(encoder, target, reflection);
   const entries = h.passes.map(
     ({ pipeline }) => (pipeline as unknown as GPURenderPipelineDescriptor).fragment!.entryPoint,
@@ -81,7 +88,7 @@ test('the reflecting lighting pass writes the next source as its second target, 
   const lit = h.passes.at(-1)!;
   assert.equal(lit.descriptor.label, DEFERRED_LIGHTING_PASS);
   const views = Array.from(lit.descriptor.colorAttachments, (attachment) => attachment!.view);
-  assert.deepEqual(views, [target, reflection.sourceTarget]);
+  assert.deepEqual(views, [target, reflection.source!.target]);
   const pipeline = lit.pipeline as unknown as GPURenderPipelineDescriptor;
   assert.equal(Array.from(pipeline.fragment!.targets).length, 2);
   assert.deepEqual(kept, ['kept'], 'its depth and identifiers kept for the next image');

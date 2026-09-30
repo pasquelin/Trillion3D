@@ -12,8 +12,10 @@ export const REFLECTION_LIGHTING_VERSIONS = 2;
 
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
+  /** This image's identifiers as the reflection source binds them (`source.ts`). */
+  ids: GPUTextureView;
   pages: GPUBuffer;
-  /** The temporal pass's placement motion (`liveMotion`), live this image unless it is `pages`:
+  /** The temporal pass's placement motion (`reflectionFrame.ts`), live this image unless it is `pages`:
    *  a moved source is then reprojected, never a reason to reset. */
   motion: GPUBuffer;
   /** The render origin the motion is written at, where both matrices are anchored. */
