@@ -5,6 +5,12 @@ import { EDITOR_GUIDES } from './editorGuides.ts';
 const GUIDE = { section: 'guides', kind: 'Guide' };
 
 export const GUIDES: EntryFrame[] = [
+  // Install, compile, draw: its commands are the same in every language, and
+  // `pnpm run proof:install-page` runs the English ones in a clean folder.
+  {
+    ...GUIDE,
+    id: 'install',
+  },
   {
     ...GUIDE,
     id: 'three-migration',
