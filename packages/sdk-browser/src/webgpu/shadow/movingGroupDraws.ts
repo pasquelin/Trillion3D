@@ -23,9 +23,9 @@ export type MovingGroupsHeld = {
 
 /**
  * THE DRAWS OF A BATCH'S MOVING GROUPS (#1345), into a pool pass and into the transmittance
- * layer's: each group in its block's viewport — its layer's for a lamp (`GROUP_LAYER`) —, its
- * group 2 made once per list kind, and per pool layer for the blended casters, until what it binds
- * changes (`forget`).
+ * layer's: each group in its block's viewport — its layer's for a lamp (`GROUP_LAYER`), each
+ * caster clipped to its page by distances (`SHADOW_GROUP_LAMP_WGSL`) —, its group 2 made once per
+ * list kind, and per pool layer for the blended casters, until what it binds changes (`forget`).
  */
 export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld) {
   const { table, args, passOf, bitsOf } = held;
@@ -88,14 +88,14 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
     draw(rt: WebgpuPagesRuntime, pass: GPURenderPassEncoder, k: number) {
       const { shadows, mobility } = rt.lights;
       if (!shadows) return 0;
-      const draws = shadows.groupDraws.made(),
-        layout = shadows.groupDraws.layout;
+      const layout = shadows.groupDraws.layout;
       const groupOf = (lists: number) =>
         (drawGroups[lists] ??= device.createBindGroup({
           layout,
           entries: groupEntries(rt, lists),
         }));
       return drawGroupsOf(rt, pass, k, 1, groupOf, (g) => {
+        const draws = shadows.groupDraws.made(!!(bitsOf[g] & GROUP_LAYER));
         pass.setPipeline(draws.opaque);
         pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);
         if (!mobility.hasCutouts) return 1;
@@ -110,8 +110,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
     drawBlend(rt: WebgpuPagesRuntime, pass: GPURenderPassEncoder, k: number, at: number) {
       const { shadows } = rt.lights;
       if (!shadows) return 0;
-      const draws = shadows.groupDraws.blended(),
-        layout = shadows.groupDraws.blendLayout;
+      const layout = shadows.groupDraws.blendLayout;
       if (targets !== shadows.targets) [targets, blendGroups] = [shadows.targets, []];
       const groupOf = (lists: number) =>
         (blendGroups[2 * at + lists] ??= device.createBindGroup({
@@ -119,6 +118,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
           entries: [{ binding: 0, resource: shadows.targets[at] }, ...groupEntries(rt, lists)],
         }));
       return drawGroupsOf(rt, pass, k, 2, groupOf, (g) => {
+        const draws = shadows.groupDraws.blended(!!(bitsOf[g] & GROUP_LAYER));
         for (const pipeline of draws) {
           pass.setPipeline(pipeline);
           pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);

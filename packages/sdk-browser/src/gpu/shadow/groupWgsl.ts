@@ -136,3 +136,29 @@ var<workgroup> claimed:u32;
   workgroupBarrier();
  }
 }`;
+
+/**
+ * THE LAMP GROUPS' VERTEX STAGE, on a device that clips by `clip-distances` (#1345): a lamp group
+ * draws over its whole layer, so each caster is clipped to its page's square of the layer — the
+ * page quad's (`page_quad_vs`), `x/w` within `rect.x ∓ rect.z` — by four clip distances, as its
+ * own viewport clipped it: no fragment is rasterized past the page, however far the caster reaches
+ * (a caster near a lamp spans many pages). The distances are homogeneous, so a corner behind the
+ * lamp (`w < 0`) is clipped too. A device without the feature draws lamp pages one by one.
+ */
+export const SHADOW_GROUP_LAMP_WGSL = `
+struct GroupOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,@location(3) @interpolate(flat) region:u32,@builtin(clip_distances) clip:array<f32,4>,}
+fn groupLampCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->GroupOut{
+ let c=groupCaster(vertexIndex,instance,cutout,blended);let r=groupViews[c.region].rect;let p=c.position;
+ let lo=min(r.xy-r.zw,r.xy+r.zw)*p.w;let hi=max(r.xy-r.zw,r.xy+r.zw)*p.w;
+ var clip:array<f32,4>;clip[0]=p.x-lo.x;clip[1]=hi.x-p.x;clip[2]=p.y-lo.y;clip[3]=hi.y-p.y;
+ return GroupOut(p,c.instance,c.uv,c.fromEmitter,c.region,clip);
+}
+@vertex fn shadow_group_lamp_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,false,false);
+}
+@vertex fn shadow_group_lamp_cutout_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,true,false);
+}
+@vertex fn shadow_group_lamp_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,false,true);
+}`;
