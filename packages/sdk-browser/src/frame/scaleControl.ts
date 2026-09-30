@@ -1,4 +1,6 @@
-import { createRefreshClock, createScaleController, nextScale } from './scaleController.ts';
+import { createScaleController, nextScale } from './scaleController.ts';
+import { createRefreshClock } from './refreshClock.ts';
+import { createCadenceProbe } from './cadenceProbe.ts';
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts';
 
 /** The budget before the display's refresh is measured. */
@@ -16,6 +18,16 @@ const MET_COST = 0.7;
 /** An interval this long is a pause (a hidden page), not a frame's cost; longer than the refresh
  *  clock's, since a device that draws at 5 fps still has to learn. */
 const INTERVAL_PAUSE_MS = 500;
+/** A period this many times the last one is a slower display: the controller's scale, chosen
+ *  against the faster one's budget, grows as the budget did. */
+const RISE = 1.5;
+
+/** The display the page is on, read at each frame: another size or pixel ratio (a window moved
+ *  to another screen) resets the refresh clock. */
+function displayKey() {
+  const screen = globalThis.screen;
+  return screen ? `${screen.width}x${screen.height}@${globalThis.devicePixelRatio}` : '';
+}
 
 /**
  * The cost of the image drawn before a display frame, read from the frame interval `gap` where
@@ -35,7 +47,11 @@ function intervalCost(gap: number, budget: number) {
  * (`renderScaleBounds`).
  */
 export function createScaleControl(option: RenderScale | undefined, floor?: number) {
-  const refresh = createRefreshClock(FALLBACK_REFRESH_MS);
+  const refresh = createRefreshClock(FALLBACK_REFRESH_MS),
+    probe = createCadenceProbe();
+  let display = displayKey(),
+    /** The last GPU time of an image at the controller's scale, null before one. */
+    gpu: number | null = null;
   let bounds = renderScaleBounds(option, floor),
     controller = createScaleController(bounds.min, bounds.max, refresh.interval),
     /** An image was drawn since the last display frame. */
@@ -44,7 +60,8 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
     made = bounds.max;
   /** One step from an image drawn at `scale`: a `still` one may only lower the scale. */
   const step = (ms: number, scale: unknown, still: boolean) => {
-    if (bounds.auto && ms > 0 && scale === controller.s) nextScale(controller, ms, !still);
+    if (bounds.auto && ms > 0 && scale === controller.s && !probe.active)
+      nextScale(controller, ms, !still);
   };
   const control = {
     get bounds() {
@@ -62,6 +79,8 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
       bounds = renderScaleBounds(next, floor);
       controller = createScaleController(bounds.min, bounds.max, refresh.interval);
       made = bounds.max;
+      gpu = null;
+      probe.reset();
     },
     /** The scale an image is drawn at: the controller's, or the fixed one. */
     wanted: () => (bounds.auto ? controller.s : bounds.max),
@@ -85,14 +104,32 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
       control.still = still;
       fresh = true;
     },
-    /** A frame of the display began at `now`, ms: the budget follows its measured refresh, and,
-     *  where the GPU timer cannot measure (`timed` false), the interval since the last frame is
-     *  the cost of the image drawn in it. */
+    /** A frame of the display began at `now`, ms, its rAF timestamp: the budget follows its
+     *  measured refresh, a steady cadence is probed for a faster display, and, where the GPU timer
+     *  cannot measure (`timed` false), the interval since the last frame is the cost of the image
+     *  drawn in it — once the clock has a period, so a new display's first frames step nothing. */
     tick(now: number, timed = false) {
-      const gap = refresh.tick(now);
+      const key = displayKey();
+      if (key !== display) {
+        display = key;
+        refresh.reset();
+        probe.reset();
+      }
+      const before = refresh.interval,
+        gap = refresh.tick(now);
+      if (!(gap > 0)) return;
+      const rise = refresh.interval / before;
+      if (rise >= RISE) {
+        const s = Math.min(controller.max, controller.s * Math.sqrt(rise));
+        controller.ema *= (s / controller.s) ** 2;
+        controller.s = s;
+        controller.since = 0;
+      }
       controller.budget = refresh.interval;
-      if (!timed && fresh && control.steered && gap < INTERVAL_PAUSE_MS)
+      if (!timed && fresh && control.steered && refresh.settled && gap < INTERVAL_PAUSE_MS)
         step(intervalCost(gap, controller.budget), control.drawn, control.still);
+      if (bounds.auto && refresh.settled && (!timed || gpu !== null))
+        probe.tick(controller, gap, refresh.interval, timed ? gpu : null, !control.still);
       fresh = false;
     },
     /**
@@ -103,7 +140,9 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
      * which may have changed since.
      */
     observe(gpuMs: number | null, scale: unknown, steered = true, still = false) {
-      if (steered && gpuMs !== null) step(gpuMs, scale, still);
+      if (!steered || gpuMs === null) return;
+      if (scale === controller.s) gpu = gpuMs;
+      step(gpuMs, scale, still);
     },
   };
   return control;
