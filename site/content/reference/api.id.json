@@ -1675,8 +1675,10 @@
     "summary": "Pengaturan pencahayaan langsung yang dipublikasikan.",
     "description": "Ini adalah pilihan produk bernama, bukan konstanta terkubur: setiap batas saat berjalan membacanya ulang, dan diagnostik mempublikasikannya apa adanya.",
     "members": {
-      "tileLights": "Lampu yang disimpan daftar sebuah tile layar, di tiap dua irisan kedalamannya: memorinya sebesar ini, per tile, apa pun isi adegan. Tile yang dicapai lebih banyak lampu mengambil indeksnya dari pool seukuran tampilan dan menelusuri tepat lampu-lampu itu; tile yang tidak mendapat ruang di pool menelusuri setiap lampu adegan — yang meleset menambah nol yang tepat —, sehingga tidak ada lampu yang hilang (X2).",
-      "tileSize": "Sisi dalam piksel sebuah tile layar daftar cahaya.",
+      "tileLights": "Daftar terpanjang sel kisi cahaya tempat gambar yang BERGERAK mengambil sampel (X2): melewati itu, cahaya sel dijumlahkan penuh. Adegan dengan paling banyak sejumlah itu cahaya diterangi dengan larik cahaya sepanjang itu. Daftar sebuah sel memuat setiap cahaya yang mencapainya, berapa pun jumlahnya, dalam kolam seukuran tampilan; sel yang tidak lagi mendapat tempat di kolam menelusuri semua cahaya adegan — yang tidak mencapainya menambahkan nol tepat —, sehingga tidak ada cahaya yang hilang.",
+      "tileSize": "Sisi dalam piksel dari sel kisi cahaya.",
+      "gridSlices": "Irisan kedalaman kisi cahaya: melewati yang terakhir, sebuah sel menjangkau hingga tak terhingga.",
+      "gridSlicesPerOctave": "Irisan kisi cahaya per penggandaan kedalaman pandang, dari bidang dekat.",
       "samplesPerPixel": "Cahaya yang dishading penuh — termasuk pembacaan bayangan — per piksel sebuah gambar BERGERAK (X2): yang lain ditimbang tanpa bayangannya, dan yang dishading digambar sebanding, jadi perkiraannya tidak bias dan antialiasing temporal merata-ratakannya. Sebuah gambar diam men-shading setiap cahaya tile-nya dan berkonvergensi ke jumlah pasti; di situ, angka ini tidak berperan.",
       "shadowPage": "Sisi halaman bayangan, dalam texel: satuan pool fisik, peta virtual, dan invalidasi. Objek bergerak hanya membuat usang halaman yang tertutup kotak proyeksinya.",
       "pcfTaps": "Sadapan PCF per piksel dan per cahaya berbayangan (X2).",
