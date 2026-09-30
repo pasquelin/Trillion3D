@@ -109,7 +109,17 @@ export async function placedSession(bindingRows: number) {
     dispose();
     throw error;
   }
-  return { rt, ...partition, io: port, draw, reopened, dispose };
+  return {
+    rt,
+    ...partition,
+    io: port,
+    draw,
+    reopened,
+    dispose,
+    metadata: scene.metadata,
+    allPages: collected.allPages,
+    collectedRoots: collected.roots,
+  };
 }
 
 /** Shrinks the core node a thousand times: the far cell comes within reach, one more node than

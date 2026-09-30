@@ -186,7 +186,6 @@ export function catalogueDePages({
       min: DUMMY_BOUNDS,
       max: DUMMY_BOUNDS,
       depthLayer: 0,
-      placementIndex: 0,
       renderOrder: 0,
       cone: undefined,
     });

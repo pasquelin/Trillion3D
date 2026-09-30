@@ -91,20 +91,6 @@ export class RequestStamps {
   }
 }
 /**
- * Rank of a catalogue page, or `undefined`: the rank travels on the page itself rather than
- * in a hash table reread per cluster and per frame. The catalogue has the last word — a rank
- * set by another engine does not survive the check, exactly like a page missing from the
- * table used to yield nothing.
- */
-export function catalogueIndexOf<T extends { packedIndex?: number }>(
-  catalogue: readonly (T | undefined)[],
-  rec: T,
-) {
-  const index = rec.packedIndex;
-  return index !== undefined && catalogue[index] === rec ? index : undefined;
-}
-
-/**
  * Records grouped by address. The default key is the streaming request, which a path fetching
  * packed cluster-index bundles reads; a path that reads, stores and evicts one geometry page at
  * a time passes `(rec) => rec.url` instead — on a cache whose pages share one bundle the default

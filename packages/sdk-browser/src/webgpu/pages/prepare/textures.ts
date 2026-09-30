@@ -131,7 +131,13 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
         // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
         // once per pump.
         run.gate.resourcesChanged();
-        shadowsFollowTextures(rt.lights, rt.layout.rows, rt.layout.selectionRoots, slots);
+        shadowsFollowTextures(
+          rt.lights,
+          rt.layout.rows,
+          rt.layout.selectionRoots,
+          rt.layout.placement.rootOfPacked,
+          slots,
+        );
       },
     });
   // Out of memory absorbed: the lane pools are those the device grants, allocated once, under the

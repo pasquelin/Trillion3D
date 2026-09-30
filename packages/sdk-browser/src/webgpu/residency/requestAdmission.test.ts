@@ -19,7 +19,14 @@ function gpuCut() {
   pages[1].level = 1;
   const loose = ['c0', 'm0', 'm1', 'f0', 'f1'].map(pageOf);
   loose.forEach((page, i) => (page.level = [2, 1, 1, 0, 0][i]));
-  const closure = createGroupClosure([root], [...pages, ...loose]);
+  const closure = createGroupClosure(
+    [root],
+    {
+      baseOfRoot: Int32Array.from([0]),
+      rootOfPacked: Int32Array.from([...pages, ...loose], (_, i) => (i < pages.length ? 0 : -1)),
+    },
+    [...pages, ...loose],
+  );
   const w = world([...pages, ...loose], [pages[0]]);
   const admit = createRequestAdmission(w.sets, w.tracking, closure);
   const id = (url: string) => w.packed.findIndex((page) => page.url === url);
@@ -128,7 +135,11 @@ test('on the GPU cut, a page the image keeps is pinned once it arrives', () => {
     getCache: () => cache as never,
     getFrame: () => 0,
     updatePins: () => pins(cache as never, [], 0, () => {}),
-    closure: createGroupClosure([], cut.packed),
+    closure: createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      cut.packed,
+    ),
     ensureResident: async () => {},
     markLost() {},
     traceEnabled: false,
