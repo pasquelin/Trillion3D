@@ -5,13 +5,13 @@ import { shadePixel } from './shadePixel.ts';
 import { unpackVisibilityId, type VisPage } from '../types.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
-import { rootOf, type Placements } from '../../page/selection/placements.ts';
+import { locationOf, type PageLocations } from '../../page/selection/placements.ts';
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */
 export function shadeVisibility(
   ids: Uint32Array,
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
@@ -20,7 +20,7 @@ export function shadeVisibility(
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
   const bg = backgroundRgb(background) as [number, number, number];
-  const frame = createVisibilityFrame(pages, roots, cam, width, height, pixelRatio);
+  const frame = createVisibilityFrame(pages, locations, cam, width, height, pixelRatio);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
@@ -38,7 +38,7 @@ export function shadeVisibility(
 export function visibilityUvDerivatives(
   ids: Uint32Array,
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   x: number,
@@ -52,7 +52,7 @@ export function visibilityUvDerivatives(
   if (!page) return null;
   const tri = triangleAt(
     page,
-    rootOf(roots, page).world,
+    locationOf(locations, unpacked.pageIndex).world,
     unpacked.triangleIndex,
     cam,
     width,

@@ -49,15 +49,19 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
   // What the last draw wrote: its records, with the geometry and surface each wore then. A frame
   // that shows the same, on rows nobody wrote since, leaves every matrix and count as it is.
   const drawn: PageRec[] = [],
+    drawnPacked: number[] = [],
     drawnGeometry: (Geometry | undefined)[] = [],
     drawnSurface: HostMaterials[] = [];
   let rowsWritten = true;
-  const unchanged = (shown: readonly PageRec[]) => {
+  // The packed rank too: one record serves every row of its page (#1235), so the same records may
+  // show other rows, whose matrices differ.
+  const unchanged = (shown: readonly PageRec[], shownPacked: readonly number[]) => {
     if (rowsWritten || shown.length !== drawn.length) return false;
     for (let i = 0; i < shown.length; i++) {
       const rec = shown[i];
       if (
         rec !== drawn[i] ||
+        shownPacked[i] !== drawnPacked[i] ||
         geometryOf(rec) !== drawnGeometry[i] ||
         rec.declaration !== drawnSurface[i]
       )
@@ -65,11 +69,12 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
     }
     return true;
   };
-  const remember = (shown: readonly PageRec[]) => {
+  const remember = (shown: readonly PageRec[], shownPacked: readonly number[]) => {
     rowsWritten = false;
-    drawn.length = drawnGeometry.length = drawnSurface.length = shown.length;
+    drawn.length = drawnPacked.length = drawnGeometry.length = drawnSurface.length = shown.length;
     for (let i = 0; i < shown.length; i++) {
       drawn[i] = shown[i];
+      drawnPacked[i] = shownPacked[i];
       drawnGeometry[i] = geometryOf(shown[i]);
       drawnSurface[i] = shown[i].declaration;
     }
@@ -79,9 +84,11 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
     rowsWritten() {
       rowsWritten = true;
     },
-    /** Draws `shown` — records placed by rows, each with its geometry — this frame. */
-    draw(shown: readonly PageRec[]) {
-      if (unchanged(shown)) return;
+    /** Draws `shown` — records placed by rows, each with its geometry, and the packed rank of each
+     *  instance (`shownPacked`, #1235) — this frame. */
+    draw(shown: readonly PageRec[], shownPacked: readonly number[]) {
+      if (unchanged(shown, shownPacked)) return;
+      const rootOfPacked = draws.placement.rootOfPacked;
       for (const bySurface of groups.values())
         for (const group of bySurface.values()) group.count = 0;
       for (const rec of shown) groupOf(rec).count++;
@@ -101,13 +108,18 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
         }
         if (!bySurface.size) groups.delete(geometry);
       }
-      for (const rec of shown) {
-        const group = groupOf(rec);
-        setHostInstance(group.mesh!, group.count++, rootOf(roots, rec).world);
+      for (let i = 0; i < shown.length; i++) {
+        const rec = shown[i],
+          group = groupOf(rec);
+        setHostInstance(
+          group.mesh!,
+          group.count++,
+          rootOf(roots, rootOfPacked[shownPacked[i]]).world,
+        );
       }
       for (const bySurface of groups.values())
         for (const group of bySurface.values()) setHostInstanceCount(group.mesh!, group.count);
-      remember(shown);
+      remember(shown, shownPacked);
     },
     /** Takes every instanced page off the display graph. */
     clear() {

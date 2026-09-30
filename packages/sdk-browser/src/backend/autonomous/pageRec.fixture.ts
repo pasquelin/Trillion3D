@@ -20,7 +20,6 @@ export function makeRec(id: number, triangles: number): PageRec {
     attributes: {} as G.Geometry['attributes'],
     material: surfaceOf({} as unknown as G.GraphSurface),
     declaration: {} as G.GraphSurface,
-    placementIndex: 0,
     renderOrder: 0,
   };
 }
