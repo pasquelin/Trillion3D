@@ -105,7 +105,7 @@ export function createFrameComposer(
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects?.release();
     if (!passes.length || !wanted || !composed.shown()) return NONE;
-    effects ??= families.effects.get()?.createWebglEffects(gl); // refused: no chain drawn
+    effects ??= families.effects.get()?.createWebglEffects(gl); // arrived: the frame waited for it
     if (!effects?.supported()) return NONE;
     const refused = backend.linearRefusal?.();
     if (!refused) return passes;
@@ -126,7 +126,7 @@ export function createFrameComposer(
     if (present(backend)) return;
     const moved = anyMoving(particles);
     // Made by the first pool, then run with none left too: it frees a released pool's targets.
-    if (particles.length) stepped ??= webglParticleStep(gl, particles, layers.particlesRefused);
+    if (particles.length) stepped ??= webglParticleStep(gl, layers.particlesRefused);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn,
