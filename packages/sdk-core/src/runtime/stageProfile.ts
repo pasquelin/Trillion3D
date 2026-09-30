@@ -63,6 +63,7 @@ export interface StageProfile {
 
 /** Nameable stages of a frame, in the order they occur. */
 export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  physics: 'Physics and particles',
   animations: 'Animations and transforms',
   lights: 'Lighting: preparing lists and shadows',
   hierarchyCut: 'Hierarchy cut',

@@ -15,7 +15,7 @@ import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 
 /** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
-const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
+export const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
   wireframe: 1,
   clusters: 2,
   pages: 3,

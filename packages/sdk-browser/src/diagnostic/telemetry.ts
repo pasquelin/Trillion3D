@@ -1,7 +1,7 @@
 import type { TelemetryReport } from './telemetryTypes.ts';
 export type { TelemetryReport } from './telemetryTypes.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts';
-import { frameStatistics } from '../../../sdk-core/src/index.ts';
+import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/index.ts';
 
 /** Watches frame after frame and says how smoothly the engine runs, and what slows it. */
 export class EngineProfiler {
@@ -78,7 +78,7 @@ export class EngineProfiler {
 
     if (stutters > 0) {
       bottleneck = 'memory_pressure';
-      bottleneckMessage = `⚠️ Stutters detected (${stutters} frame(s) > 50ms)`;
+      bottleneckMessage = `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms)`;
     } else if (cpuFrameMs > 16.6) {
       bottleneck = 'cpu_bound';
       bottleneckMessage = `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`;
