@@ -1,4 +1,7 @@
-import { PROBE_REFLECTION_FILTER_WGSL } from '../reflections/probeFilterWgsl.ts';
+import {
+  ENVIRONMENT_REFLECTION_WGSL,
+  PROBE_REFLECTION_FILTER_WGSL,
+} from '../reflections/probeFilterWgsl.ts';
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts';
 export { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts';
@@ -30,7 +33,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 
 /** The rough GGX prefilter convolves the existing radiance probe coefficients;
  * the mirror limit preserves the single original ray. The transition interpolates toward
- * the filtered lobe, never toward zero energy. */
+ * the filtered lobe, never toward zero energy. With no probe yet, the environment answers. */
 export const bounceReflectionWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var<storage,read> surface:array<vec4f>;
 ${SURFACE_RAY_WGSL}
@@ -43,7 +46,7 @@ fn proxyReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
  return sampleBounce(P,R)*INVERSE_PI;
 }
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
- if(bounce.counts.w==0u){return vec3f(0.0);}
+ if(bounce.counts.w==0u){return environmentReflection(R,rough);}
  let weight=mirrorWeight(rough);
  if(weight==1.0){return proxyReflectionRay(P,N,R);}
  let filtered=filteredProbeReflection(P,N,R,rough);
@@ -63,3 +66,10 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  * A diffuse or toon surface has no specular lobe and reflects nothing.
  */
 export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl');
+
+/** The direct-only program's reflection: no proxy and no probe, the environment alone (#1341). */
+export const DIRECT_REFLECTION_WGSL = `
+${mirrorWeightShader('wgsl')}
+${ENVIRONMENT_REFLECTION_WGSL}
+fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
+${MIRROR_LIGHTING_WGSL}`;

@@ -7,6 +7,7 @@ import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
+  DIRECT_REFLECTION_WGSL,
   MIRROR_LIGHTING_WGSL,
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
@@ -81,14 +82,18 @@ ${contractSurface(
   '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
+/** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
+const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
+${contractSurface('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)')}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added (P6). An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
  * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
- * added to the direct. It is a separate program, not a branch, so a session without bounce runs
- * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
- * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
+ * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
+ * separate program, not a branch, so a session without bounce never pays for the probes — and so
+ * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
+ * (`directLightingWgsl`, #849).
  */
 export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
 ${VIEW_WGSL}
@@ -98,7 +103,7 @@ ${surfaceBindingsWgsl()}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow, pages)}
-${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
+${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**

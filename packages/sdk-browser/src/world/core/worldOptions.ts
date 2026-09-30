@@ -36,7 +36,8 @@ export interface WorldOptions {
   /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
    *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
    *  (`{ min, max }`, 0.5 and 1 by default; on WebGL2, which only resamples, `min` is 1 by
-   *  default), a number fixes it; a still image is drawn at the maximum. Changed later by
+   *  default), a number fixes it. On WebGPU a still image is drawn at that scale too and rebuilt
+   *  from its jitter phases; on WebGL2 it is drawn at the maximum. Changed later by
    *  `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale;
 }

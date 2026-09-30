@@ -1,34 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { wantsReflections } from './gpu.ts';
-import { createWebgpuRowState } from '../webgpu/row/state.ts';
+import { physical as surface, rowsRuntime } from './receivers.fixture.ts';
 import type { PageRec } from '../page/selection/selection.ts';
-import type { PageSurface } from '../page/surface.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
 const ROWS = 5000;
-const surface = (roughness: number) => ({ lit: true, model: 0, roughness }) as PageSurface;
 
 /** A table of `ROWS` instance rows over two matte surfaces, and how many rows a walk read. */
 function instanceRows() {
-  const rows = createWebgpuRowState([], ROWS),
-    [bark, leaves] = [
+  const [bark, leaves] = [
       { ...surface(0.9), model: 4 },
-      { ...surface(0.8), model: 4 },
+      { ...surface(0.4), model: 4 },
     ],
     recs = Array.from({ length: ROWS }, (_, i) => ({ material: i % 7 ? leaves : bark }) as PageRec);
-  rows.packedCount = ROWS;
   const read = { rows: 0 };
-  rows.packedRecs.splice(
-    0,
-    ROWS,
-    ...recs.map((rec) => new Proxy(rec, { get: (t, k) => (read.rows++, t[k as keyof PageRec]) })),
+  const { rows, rt } = rowsRuntime(
+    recs.map((rec) => new Proxy(rec, { get: (t, k) => (read.rows++, t[k as keyof PageRec]) })),
   );
-  const rt = {
-    run: { diagnostic: 'beauty' },
-    layout: { rows },
-    blendState: { blendGpu: [] },
-  } as unknown as WebgpuPagesRuntime;
   return { rows, rt, read, leaves };
 }
 

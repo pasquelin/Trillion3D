@@ -24,7 +24,7 @@ const random = mulberry32(816);
 const noise = Array.from({ length: 64 }, () => [random(), random(), random(), 1]);
 const noisy = (x: number, y: number) => noise[y * 8 + x];
 
-test('each render texel weighs by Lanczos-2 of where this frame sampled it, at 0.5 and 0.67', () => {
+test('a moving image weighs each texel by Lanczos-2 of where it was sampled, at 0.5 and 0.67', () => {
   for (const [display, jitter] of [
     [16, [0, 0]],
     [16, [0.3, -0.2]],
@@ -36,6 +36,7 @@ test('each render texel weighs by Lanczos-2 of where this frame sampled it, at 0
       display: [display, display],
       jitter: [...jitter],
       color: noisy,
+      moving: true,
     };
     const resolve = upscaleRun(frame);
     for (let y = 0; y < display; y++)
@@ -70,6 +71,7 @@ test('the sample is clamped to its 2×2 nearest texels, where Lanczos-2 rings', 
     display: [16, 16],
     jitter: [0.1, 0],
     color: (x) => (x < 4 ? [0, 0, 0, 1] : [1, 1, 1, 1]),
+    moving: true,
   };
   const resolve = upscaleRun(edge);
   let rang = 0;
@@ -88,6 +90,7 @@ test('the sample is clamped to its 2×2 nearest texels, where Lanczos-2 rings', 
     render: [8, 8],
     display: [16, 16],
     color: (x) => (x === 2 ? [5, 5, 5, 1] : [0.5, 0.5, 0.5, 1]),
+    moving: true,
   };
   assert.notEqual(owed(spike, 2, 2, 'none')[0], 0.5);
   near(upscaleRun(spike)(2, 2).color, [0.5, 0.5, 0.5, 1], 'the 2×2 bounds');
@@ -149,6 +152,7 @@ test('the as-is share and the display layers follow the colour to the display', 
     color: noisy,
     flag: (x, y) => noisy(x, y)[0],
     layer,
+    moving: true,
   };
   const resolve = upscaleRun(frame, true, true);
   for (const [x, y] of [
@@ -163,11 +167,13 @@ test('the as-is share and the display layers follow the colour to the display', 
     for (const filtered of out.layers)
       near(filtered, owed({ ...frame, color: layer }, x, y, 'box'), 'layer');
   }
-  // History: the native resolve's clamp and inverse-luminance blend, the same text.
+  // History: the native resolve's clamp and inverse-luminance blend, the same text, a still
+  // pixel's share from the weights its average holds (#1343).
   for (const asIs of [true, false])
-    assert.ok(taaUpscaleShader(asIs).includes(taaHistoryBlend(asIs)));
+    assert.ok(taaUpscaleShader(asIs).includes(taaHistoryBlend(asIs, false, true)));
   assert.ok(TAA_SHADER.includes(taaHistoryBlend(true)));
-  assert.ok(taaUpscaleShader(true, false, true).includes(taaHistoryBlend(true, true)));
+  const layered = taaHistoryBlend(true, true, true);
+  assert.ok(taaUpscaleShader(true, false, true).includes(layered));
   // The flagless one reads neither flags nor share history.
   assert.doesNotMatch(taaUpscaleShader(false), /var flags|textureLoad\(flags|shareHistory/);
 });
