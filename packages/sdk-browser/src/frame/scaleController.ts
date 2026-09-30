@@ -8,7 +8,7 @@
  * of the target, a dead band against oscillation; a frame over 1.25 budgets drops at once
  * (`MaxConsecutiveOverbudgetGPUFrameCount` of one).
  */
-interface ScaleController {
+export interface ScaleController {
   /** The scale frames are drawn at, in `[min, max]`. */
   s: number;
   min: number;
@@ -58,4 +58,12 @@ export function nextScale(c: ScaleController, gpuMs: number, rises = true) {
     c.since = 0;
   }
   return c.s;
+}
+
+/** Sets the scale from outside a step (a slower display, a probe): the filtered time follows as
+ *  `s²`, or restarts on the target where `onTarget`, and the next step waits `PERIOD` frames. */
+export function rescale(c: ScaleController, s: number, onTarget = false) {
+  c.ema = onTarget ? HEADROOM * c.budget : c.ema * (s / c.s) ** 2;
+  c.s = s;
+  c.since = 0;
 }
