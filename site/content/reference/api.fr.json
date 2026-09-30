@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, un seul littéral pour cet oracle et le miroir WGSL, afin que les deux arrondissent le même nombre."
+    "summary": "π, un seul littéral, afin que chaque lecteur de la bascule arrondisse le même nombre."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format de la section `impostors` que lit une exécution (#817 partie 1, cuite par le compilateur)."

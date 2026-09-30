@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, bu oracle ve WGSL aynası için tek bir literal; böylece ikisi de aynı sayıyı yuvarlar."
+    "summary": "π, tek bir değişmez; geçişi okuyan her taraf aynı sayıyı yuvarlasın diye."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Çalışma zamanının okuduğu `impostors` bölümünün biçimi (#817 bölüm 1, derleyici tarafından pişirilir)."
