@@ -39,8 +39,7 @@ export interface WebgpuLightState {
   shadowGrant: DeviceGrant | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
-  /** The passes that mark, per pixel, the pages the resolve reads and map them on the GPU
-   *  (`../../shadow/demandPass.ts`, `allocPass.ts`). */
+  /** Per pixel, the pages the resolve reads, mapped on the GPU (`demandPass.ts`, `allocPass.ts`). */
   demand: ShadowDemand | undefined;
   allocation: ShadowAllocation | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
