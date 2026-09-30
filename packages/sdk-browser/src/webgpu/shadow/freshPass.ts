@@ -2,7 +2,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
 import { freshSlices, freshWanted } from './freshInputs.ts';
 import { freshGroups } from './freshGroups.ts';
-import { growPairList, keptPairs } from './pairGrowth.ts';
+import { growPairList } from './pairGrowth.ts';
+import { keptPairs } from './pairRows.ts';
 
 /** The blended casters' rows, rewritten each frame: a frame allocates nothing. */
 const blend: [number, number] = [0, 0];

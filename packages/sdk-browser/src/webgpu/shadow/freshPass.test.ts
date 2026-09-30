@@ -11,7 +11,7 @@ import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fi
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { encodeFreshPages } from './freshPass.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
-import { keptPairs } from './pairGrowth.ts';
+import { keptPairs } from './pairRows.ts';
 
 const LAYERS = 2;
 

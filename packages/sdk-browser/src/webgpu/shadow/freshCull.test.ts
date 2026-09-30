@@ -15,7 +15,7 @@ import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
-import { keptPairs, keptRows } from './pairGrowth.ts';
+import { keptPairs, keptRows } from './pairRows.ts';
 import {
   FRESH_ARG,
   FRESH_CASTERS,

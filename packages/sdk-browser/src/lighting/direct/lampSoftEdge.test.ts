@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts';
-import { shadowJitterWords } from '../deferred/view.ts';
+import { shadowJitterWords } from '../deferred/jitterWords.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
 import { POISSON_16 } from './pcfTaps.ts';
 

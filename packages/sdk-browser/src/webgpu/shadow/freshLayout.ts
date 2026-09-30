@@ -43,7 +43,6 @@ export const FRESH_REGION_PAGES = FRESH_LAYER_STARTS + MAX_POOL_LAYERS;
  *  (#1363): none of them is kept, and the seal leaves its page unreadable (`sealShadowPages`). No
  *  place in a list is this word. */
 export const FRESH_SHORT = 2 ** 32 - 1;
-/** First word of region `k`'s pairs, in a pool of `pages`. */
-export const freshRegionPairs = (pages: number, k: number) => FRESH_REGION_PAGES + pages + k;
-/** Words of the arguments of a pool of `pages`: its regions' pages and pairs. */
-export const freshArgWords = (pages: number) => freshRegionPairs(pages, pages);
+/** Words of the arguments of a pool of `pages`: its regions' pages, then their pairs
+ *  (`freshRegionPairs`, `freshLayoutWgsl.ts`). */
+export const freshArgWords = (pages: number) => FRESH_REGION_PAGES + 2 * pages;
