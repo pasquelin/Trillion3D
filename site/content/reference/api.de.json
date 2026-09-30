@@ -5575,6 +5575,13 @@
   "SHADOW_PAGE": {
     "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."
   },
+  "ShadowAsks": {
+    "summary": "Einträge, die der Host dem GPU-Allocator abverlangt, neben dem, was die Pixel anfragen (`floors`).",
+    "members": {
+      "entries": "Die angefragten Einträge, höchstens die ersten `count` davon.",
+      "count": "Wie viele von `entries` gefüllt sind."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Was eine Lesung des Schattenatlas veröffentlicht: seine Größe, was hineingeschrieben ist, sein Fingerabdruck.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats eines Schattendatensatzes, den das Shading eines Lichts liest: sechs Lampenflächen-Matrizen — dort die Tiefenbereiche einer Sonne, je `zNear, zFar` (`recordPack.ts`) —, dann der Lichtebenen-Rahmen der Sonne — `right, zNear`, `up, zFar`, `axis`, dann der Platz des aktuellen Bereichs —, dann der Ursprung des Fensters jedes Clipmap-Platzes als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der tangentiale Halbwinkel der Lampe oder die feinste Stufe der Sonne, die Nahebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Der Pool des GPU-Allocators nach der Allokation eines Frames (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Der Eintrag, den jede physische Seite abbildet, −1 für eine freie.",
+      "requested": "Der Frame, in dem jede Seite zuletzt angefragt wurde.",
+      "allocated": "Seiten, die dieser Frame abgebildet hat, und Einträge, für die er keine Seite hatte.",
+      "refused": "Einträge, für die dieser Frame keine Seite hatte.",
+      "drawn": "Seiten, die dieser Frame zum Zeichnen durch die GPU aufgelistet hat (`listDraw`).",
+      "listings": "Seiten, die jeder Frame seit dem Start des Pools aufgelistet hat: bewegt sich mit der Liste jedes Frames, ob dessen eigener Schnappschuss verloren ging oder nicht."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",

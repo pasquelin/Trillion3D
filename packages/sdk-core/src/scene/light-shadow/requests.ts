@@ -33,7 +33,9 @@ export interface ShadowRequestReport {
   pool?: ShadowPoolSnapshot;
 }
 
-/** Entries the host asks the GPU allocator for, beside what the pixels ask (`floors`). */
+/** Entries the host asks the GPU allocator for, beside what the pixels ask (`floors`).
+ *  @property entries - The entries asked for, the first `count` of them at most.
+ *  @property count - How many of `entries` are filled. */
 export type ShadowAsks = { entries: Uint32Array; count: number };
 
 /**

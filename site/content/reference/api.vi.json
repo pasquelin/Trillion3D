@@ -3273,6 +3273,13 @@
   "ScreenErrorVariant": {
     "summary": "Cách sai số màn hình của một cụm được đo: cận đã được chứng minh, hoặc công thức tham chiếu."
   },
+  "ShadowAsks": {
+    "summary": "Các mục mà máy chủ yêu cầu trình cấp phát GPU, bên cạnh điều các điểm ảnh yêu cầu (`floors`).",
+    "members": {
+      "entries": "Các mục được yêu cầu, nhiều nhất là `count` mục đầu tiên.",
+      "count": "Có bao nhiêu mục trong `entries` đã được điền."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Những gì một lần đọc atlas bóng đổ công bố: kích thước của nó, những gì được ghi ở đó, dấu vân tay của nó.",
     "members": {
@@ -7631,6 +7638,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Các số float của một bản ghi bóng, bản mà phần đổ bóng của một nguồn sáng đọc: sáu ma trận mặt đèn — ở đó là các dải độ sâu của mặt trời, mỗi dải `zNear, zFar` (`recordPack.ts`) —, rồi khung mặt phẳng ánh sáng của mặt trời — `right, zNear`, `up, zFar`, `axis`, rồi ô của dải hiện tại —, rồi gốc cửa sổ của mỗi ô clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: các mặt (đèn) hoặc các mức (mặt trời), nửa trường tiếp tuyến của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Bể của trình cấp phát GPU sau khi cấp phát một khung hình (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Mục mà mỗi trang vật lý ánh xạ, −1 cho một trang trống.",
+      "requested": "Khung hình mà mỗi trang được yêu cầu lần cuối.",
+      "allocated": "Các trang mà khung hình đó ánh xạ, và các mục mà nó không có trang.",
+      "refused": "Các mục mà khung hình đó không có trang.",
+      "drawn": "Các trang mà khung hình đó liệt kê để GPU vẽ (`listDraw`).",
+      "listings": "Các trang mà mọi khung hình liệt kê kể từ khi khởi tạo bể: thay đổi cùng danh sách của bất kỳ khung hình nào, dù ảnh chụp của chính nó có mất hay không."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",
