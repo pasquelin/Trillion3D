@@ -49,7 +49,7 @@ test('a bitmap after open uses the same source, texel extent and upload flags as
   try {
     await imported.backend.prepare();
     await runtime.backend.prepare();
-    const baseline = runtime.backend.metrics().textureResidentBytes;
+    const baseline = runtime.backend.metrics().textureResidentBytes ?? 0;
     const made = await runtime.api.createMaterial({ map: image });
     assert.deepEqual(runtime.copies, imported.copies);
     assert.deepEqual(runtime.copies, [
@@ -93,7 +93,7 @@ test('a failed bitmap upload releases its pinned place and a later admission suc
     { backend, api, device } = opened;
   try {
     await backend.prepare();
-    const before = backend.metrics().textureResidentBytes;
+    const before = backend.metrics().textureResidentBytes ?? 0;
     const copy = device.queue.copyExternalImageToTexture;
     device.queue.copyExternalImageToTexture = () => {
       throw new Error('bad bitmap');

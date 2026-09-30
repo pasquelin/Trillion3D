@@ -154,7 +154,9 @@ export async function createDeferredProgram(
       next[5] = requests;
       next[6] = probes;
       next[7] = proxy;
-      for (let i = 0; i < receiver.length; i++) next[8 + i] = receiver[i];
+      // The shadow data buffer is replaced when a light's slice outgrows its table (`shadowData.ts`).
+      next[8] = slices;
+      for (let i = 0; i < receiver.length; i++) next[9 + i] = receiver[i];
       if (!identity.moved()) return;
       boundSurface = surface;
       boundFlags = surface.views()[3];
