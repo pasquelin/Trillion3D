@@ -1,4 +1,4 @@
-import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { WATER_RANK_SHIFT } from '../water/rank.ts';
 
 /**
  * The cull an entry's pipeline no longer does (plan.ts, VERTEX CULL): mode 1 drops the front

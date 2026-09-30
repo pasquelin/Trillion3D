@@ -1,4 +1,3 @@
-import { encodeDeformation } from '../../../deformation/encode.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts';
 import { prefetchHorizonMs } from '../../../backend/common.ts';
@@ -100,7 +99,7 @@ export function renderGpuCut(
   if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) return withoutCandidateCapacity(rt);
   try {
     const encoder = openFrameEncoder(rt, gpuDevice);
-    encodeDeformation(rt, encoder);
+    rt.vis.deformationCode?.encodeDeformation(rt, encoder);
     rt.timing.frameSelection = run.gpuSelection.dispatch(run.selectionUniforms, encoder);
   } catch (error) {
     abandonFrameEncoder(rt);

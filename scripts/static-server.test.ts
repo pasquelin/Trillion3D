@@ -37,7 +37,7 @@ test('the docs server answers a directory with its index, an escape with 403', a
 
 test('the installed-package server records what it refused, its page in utf-8', async () => {
   const requests: RequestRecord[] = [];
-  const server = () => installedServer(SITE, '<p>', requests, false);
+  const server = () => installedServer(SITE, () => '<p>', requests, false);
   assert.deepEqual(await fetched(server(), '/'), [200, 'text/html; charset=utf-8']);
   for (const path of ['/node_modules/x', '/node%5Fmodules/x'])
     assert.deepEqual(await fetched(server(), path), [403, null]);

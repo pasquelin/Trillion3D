@@ -14,6 +14,10 @@ import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
 import { WEBGPU_KINDS } from '../../../effects/webgpuKinds.ts';
+import { families } from '../../../host/families.ts';
+
+// The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.effects.load();
 
 const input = { color: {}, share: {} } as AccumulatedImage;
 /** Counts the passes the chain begins. */
