@@ -433,7 +433,8 @@
       "near": "Distância mais próxima desenhada.",
       "far": "Distância mais distante desenhada.",
       "zoom": "Ampliação.",
-      "orthographic": "A caixa de visão de uma câmera ortográfica."
+      "orthographic": "A caixa de visão de uma câmera ortográfica.",
+      "viewTile": "Um bloco de uma vista mais ampla que esta câmara desenha. Ausente, desenha a vista inteira."
     }
   },
   "CameraParameters": {
@@ -3290,6 +3291,7 @@
       "receive": "Voltou um relatório de pedidos; o plano seguinte o lê. Um mais recente substitui um não lido.",
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista.",
       "resize": "O pool com outro tamanho, as suas páginas mantidas, os seus arrays refeitos: devolve para onde foi cada página.",
+      "sunWindow": "Páginas por lado do clipmap de um sol com que corre uma sessão (`referenceMode.ts`).",
       "gpu": "A alocação da GPU (`mirror.ts`): se ela mapeia as páginas e o que o anfitrião lhe pede."
     }
   },
