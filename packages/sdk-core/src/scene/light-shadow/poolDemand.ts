@@ -22,7 +22,7 @@ const HEADROOM = 1.25;
 
 /** Pages the latest report read asked for: those of the pool it named, those it found no page for
  *  and those past its list. Nothing before any report. */
-export function askedPages(plan: ShadowPlan) {
+function askedPages(plan: ShadowPlan) {
   const { pool, requests } = plan,
     latest = requests.latest;
   if (latest < 0) return 0;
@@ -34,7 +34,7 @@ export function askedPages(plan: ShadowPlan) {
 
 /** The pool pages for a frame that asks `asked` pages: the two reports it holds, with headroom;
  *  never below the seed. */
-export const demandPoolPages = (asked: number) =>
+const demandPoolPages = (asked: number) =>
   Math.max(SEED_POOL_PAGES, Math.ceil(2 * HEADROOM * asked));
 
 /** What the pool follows between reports: the last report weighed and the pages it asked, how

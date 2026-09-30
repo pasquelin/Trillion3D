@@ -19,7 +19,7 @@ import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
-export { SHADOW_BUFFER_BYTES, SHADOW_TABLE_OFFSET, shadowBufferBytes } from './shadowData.ts';
+export { SHADOW_BUFFER_BYTES, SHADOW_TABLE_OFFSET } from './shadowData.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';

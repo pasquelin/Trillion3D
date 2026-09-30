@@ -7,7 +7,7 @@ import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 /** Bytes of the records, before the page table in the same buffer: where the table starts. */
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then a page table of `tableEntries` words, one buffer. */
-export const shadowDataBytes = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
+const shadowDataBytes = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
 /** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`atlas.ts`). */
 export const shadowBufferBytes = (tableEntries: number) =>
   MAX_SHADOW_REGIONS * (SHADOW_FACE_STRIDE + 4) + shadowDataBytes(tableEntries);
