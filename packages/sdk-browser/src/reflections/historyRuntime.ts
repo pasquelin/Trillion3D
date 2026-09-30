@@ -14,7 +14,8 @@ export const REFLECTION_SOURCE_VERSIONS = 8;
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
   pages: GPUBuffer;
-  /** The existing placement motion buffer; unused when source changes invalidate history. */
+  /** The existing placement motion buffer, bound but unread: the resolve reprojects the camera
+   *  alone, and a moved source lowers the history's confidence instead (`REFLECTION_CHANGE_WEIGHT`). */
   motion: GPUBuffer;
   /** The source versions (`reflectionFrame.ts`), compared number by number: no string a frame. */
   epoch: Float64Array;

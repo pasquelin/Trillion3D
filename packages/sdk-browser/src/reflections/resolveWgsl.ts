@@ -15,8 +15,8 @@ export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
  * with TAA: no neighbourhood clamp, colour transform or TAA history is involved.
  * `params`: x whether a history exists, y the confidence it may keep — the full window, or
- * `REFLECTION_CHANGE_WEIGHT` once a scene/source change reached objects seen in a reflection;
- * placement motion is therefore disabled by the caller. */
+ * `REFLECTION_CHANGE_WEIGHT` once a scene/source change reached objects seen in a reflection,
+ * which stands for placement motion: the caller disables that branch of the reprojection. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
