@@ -5,11 +5,9 @@ import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
 /** Words of a tile record: the two counts, the two lists of `tileLights` each, one word saying
  *  whether the opaque list holds a shadowed light — the per-tile fact the moving resolve reads
- *  once instead of walking the list a pixel at a time (#1249) —, then the clustered assignment
- *  (#1249): one `(offset,count)` descriptor per log-Z slice, the tile's nearest and farthest
- *  depth, and the flag a pixel reads to know whether its slice list is usable. */
-export const TILE_STRIDE_WORDS =
-  LIGHT_SETTINGS.tileLights * 2 + 6 + LIGHT_SETTINGS.clusterSlices * 2;
+ *  once instead of walking the list a pixel at a time (#1249) —, then the tile's light grid
+ *  (#1249): its nearest and farthest depth, and one 64-bit mask per log-Z slice. */
+export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -32,15 +30,12 @@ const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
 /** The record's shadow flag: one when the opaque list holds a light with a shadow slot, zero
  *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
 const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
-/** The clustered assignment (#1249): \`CLUSTER_SLICES\` \`(offset,count)\` descriptors, the tile's
- *  nearest and farthest depth as their f32 bits, then one flag word — one when the tile's slice
- *  lists are usable, zero when the tile keeps its whole opaque list (too many lights, or no room
- *  in the pool). The tile pass writes them; the resolve reads the flag once, then the slice. The
- *  stored depths are normalized, and the slice index is a ratio of them, so the pass's near-plane
- *  distance cancels: the resolve never needs it. */
-const TILE_CLUSTER_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3}u;
-const TILE_DEPTH_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3 + LIGHT_SETTINGS.clusterSlices * 2}u;
-const TILE_CLUSTER_FLAG:u32=${LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2}u;
+/** The light grid (#1249): the tile's nearest and farthest depth as their f32 bits, then per
+ *  log-Z slice two mask words — bit \`b\` set when a light of the \`b\`th group of the walked slice
+ *  can reach the slice (\`clusterGroup\`). The tile pass writes them; the resolve reads its pixel's
+ *  slice. The depths are normalized: the slice index is a ratio of them, the near plane cancels. */
+const TILE_DEPTH_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3}u;
+const TILE_CLUSTER_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 5}u;
 const CLUSTER_SLICES:u32=${LIGHT_SETTINGS.clusterSlices}u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
@@ -84,6 +79,16 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
+/** The resolve's cheap reject (#1249): true exactly where \`declaredLight\` returns zero before any
+ *  shading, shadow or page read — a light with a range, rectangle included (\`rectView\`), whose
+ *  centre lies at or past it, the same \`length\` \`directIncidence\` tests. It reads a light's
+ *  first and fourth words only, never the whole record. */
+fn beyondRange(sphere:vec4f,kind:f32,P:vec3f)->bool{
+ return abs(kind-KIND_SUN)>=0.5&&length(sphere.xyz-P)>=sphere.w;
+}
+/** Lights a slice-mask bit stands for (#1249): one while the walked slice fits the mask's 64
+ *  bits, consecutive runs of that many past it — a list in the pool, or every light. */
+fn clusterGroup(count:u32)->u32{return max((count+63u)>>6u,1u);} // a 64th, rounded up
 /** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
 fn pointFaceOf(direction:vec3f)->u32{
  let a=abs(direction);

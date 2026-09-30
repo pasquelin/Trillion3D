@@ -1,5 +1,6 @@
 // The narrow resolve (#849): a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
-// array is that long and whose slice loop has no branch, and never a wider scene by it.
+// array is that long and whose slice loop has no pool or whole-scene branch, and never a wider
+// scene by it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
@@ -12,15 +13,16 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 const functionText = (code: string, name: string) =>
   code.slice(code.indexOf(`fn ${name}(`)).split(/\n(?:fn |\/\*\*)/)[0];
 
-test('the narrow resolve bounds its light array and walks its list with no branch', () => {
+test('the narrow resolve bounds its light array and walks its list with no pool branch', () => {
   for (const bounce of [false, true]) {
     const narrow = contractLightingShader(bounce, true),
       wide = contractLightingShader(bounce, false);
     assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`));
     assert.match(wide, /items:array<DirectLight>/);
     const loop = functionText(narrow, 'sliceLighting');
-    assert.doesNotMatch(loop, /if\(|TILE_NO_SLICE|select\(/, 'no per-light branch');
-    assert.match(loop, /directLights\.items\[tileLights\[slice\.x\+index\]\]/);
+    // The grid's mask and the range reject are the wide loop's (#1249); no pool, no scene walk.
+    assert.doesNotMatch(loop, /TILE_NO_SLICE/, 'no pool or whole-scene branch');
+    assert.match(loop, /let light=tileLights\[slice\.x\+index\];/);
     assert.doesNotMatch(functionText(narrow, 'tileSlice'), /TILE_NO_SLICE|if\(/);
     // The wide loop keeps the pool and the whole-scene walk; the rest of the program is the same
     // (the sampled, bounce and fog paths the GPU probe does not run). That both loops give the

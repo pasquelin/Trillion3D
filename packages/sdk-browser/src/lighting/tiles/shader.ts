@@ -93,7 +93,7 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  return dot(clamped,clamped)<=radius*radius;
 }
 ${TILE_BOUNDS_WGSL}
-${narrow ? '' : clusterPassWgsl}
+${clusterPassWgsl}
 ${tileCompactWgsl(words, !narrow)}
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -129,6 +129,7 @@ ${tileDepthBoundsWgsl(subgroups)}
  let hasOpaque=atomicLoad(&covered)==1u;
  let seesSky=atomicLoad(&skyward)==1u;
 ${tileCompactStatementsWgsl(words, !narrow)}
+ clusterMasks(base,lane,count);
 }`;
 };
 

@@ -74,13 +74,12 @@ export const LIGHT_SETTINGS = {
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
-   * Depth slices of a screen tile (#1249): a tile's opaque slice is cut into this many
-   * logarithmically spaced clusters along the view axis, and each pixel reads the cluster its
-   * own depth falls in, so it pays only for the lights that reach it — not for those the tile's
-   * nearer and farther surfaces also hold. A light is assigned to every cluster its range sphere
-   * can reach, so no light that lights a pixel is ever dropped; clustering only removes the
-   * lights that would have contributed exactly zero there (`directIncidence`). `1` is the
-   * undeformed tile.
+   * Depth slices of a screen tile (#1249), the light grid: a tile's opaque slice is cut into this
+   * many logarithmically spaced slices along the view axis, and each pixel walks only the lights
+   * of the slice its own depth falls in — not those the tile's nearer and farther surfaces also
+   * hold. A light is assigned to every slice its range sphere can reach, so no light that lights a
+   * pixel is ever dropped. A power of two from 4 to 64: the tile pass's 256 lanes settle the
+   * slices' 64-bit masks together.
    */
   clusterSlices: 16,
   /**
