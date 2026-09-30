@@ -99,17 +99,17 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
 - **The level is chosen per pixel, from its footprint** (the world distance between two adjacent
   pixels at the depth its centre holds without the TAA jitter, `pixelLevel`,
   `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
-  footprint, a lamp the mip whose texel at the distance of the point that centre holds is. The
-  depth a jittered pixel holds is moved back along its receiver's plane, whose projected depth is
-  affine across the screen, its slope read on a side whose two pixels continue the surface — none
-  across a part one pixel wide, a wire or a bar on background —, so the level of a pixel is the
-  same every jitter phase, and the resolve and the demand pick the same one. A texel is never
-  larger than a pixel where the map offers one, so a caster's error in texels is one in pixels. A page not readable — refused at the pool's ceiling, or left short by the pair
-  list — hands the point to the next coarser level; beyond a sun's last level, the far-shadow ray
-  against the resident proxy (`proxy.bin`) answers, deterministic and unaccumulated
-  (`sun-far-shadow` publishes its bounds). The PCF taps each find their own page: a tap within a
-  texel of a seam compares the four texels of its footprint in their own pages, weighted by hand —
-  no seam, no guard band.
+  footprint, a lamp the mip whose texel at the distance of the point that centre holds is. The depth
+  a jittered pixel holds is moved back along its receiver's plane, whose projected depth is affine
+  across the screen, its slope read on a side whose two pixels continue the surface — none across a
+  part one pixel wide, a wire or a bar on background —, so the level of a pixel is the same every
+  jitter phase, and the resolve and the demand pick the same one. A texel is never larger than a
+  pixel where the map offers one, so a caster's error in texels is one in pixels. A page not
+  readable — refused at the pool's ceiling, or left short by the pair list — hands the point to the
+  next coarser level; beyond a sun's last level, the far-shadow ray against the resident proxy
+  (`proxy.bin`) answers, deterministic and unaccumulated (`sun-far-shadow` publishes its bounds).
+  The PCF taps each find their own page: a tap within a texel of a seam compares the four texels of
+  its footprint in their own pages, weighted by hand — no seam, no guard band.
 - **Soft edges are filtered over time** (#1363). The PCF's sixteen taps and a point lamp's PCSS
   disk turn each jitter phase by the phase's own angle (`shadowRotated`, `shadowJitterWords`), every
   pixel alike, and the TAA's history averages the turns into a filter even around the point, as
@@ -120,10 +120,10 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
 ## Demand, mapping and drawing in one frame
 
 - **Receivers mark the pages.** A compute pass after the light lists marks, per pixel, the pages the
-  resolve will read, and the resolve records each page it reads — a bit per table word, tested
-  before the atomic, and a list —, read back once per image like the texture feedback
-  (`webgpu/shadow/demandPass.ts`, `pageRequests.ts`). Drawn clusters' boxes do not name pages
-  (#1209): a ring round a lamp bounds the lamp's whole map.
+  resolve will read — a pixel of a tile without a light loads no depth —, and the resolve records
+  each page it reads — a bit per table word, tested before the atomic, and a list —, read back once
+  per image like the texture feedback (`webgpu/shadow/demandPass.ts`, `pageRequests.ts`). Drawn
+  clusters' boxes do not name pages (#1209): a ring round a lamp bounds the lamp's whole map.
 - **The GPU maps what the frame marks, in that frame** (#1275). One workgroup reads the list — the
   plan's floors, claimed at its head before the demand so pixels never push one out, then the
   pixels' pages, deduplicated by the bitset — and maps each unmapped page from the free pages or the
@@ -145,24 +145,27 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   sun page its view cropped by the orthography), its cull volume a lamp page's cone or a sun page's
   box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
   every resident page of every caster, whatever the camera or a light cut selected, so a caster the
-  camera does not see still shades a receiver it sees; each kept row is one `(region, row)` pair.
-  It counts each region's pairs first, then admits whole regions in order while the list holds them
-  — one it cannot hold keeps no pair and waits, unread, for the next frame —, then lays each
-  admitted region's pairs in its place: no pair past the list, none drawn for a page left unread.
-  The list is sized to the need: the seal hands the pairs every region counted to the host in the
-  pool's snapshot, and the host grows the list to it under an out-of-memory scope (`freshPairs.ts`),
-  so it overflows only at the device's ceiling, as Unreal's page pool does. The seal makes each
-  admitted page readable; each pool
-  layer's pass clears its pages and draws every pair in two indirect draws, casters placed on their
-  page in the vertex stage and kept to it by the fragment, no viewport set (`freshPass.ts`,
-  `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for blended casters. The
-  host redraws a page with its light cut and static layer once a report names it, the GPU's draw
-  readable meanwhile (`DRAWN_GPU`) — unless what it holds moves in the world: the host then sends
-  its word marked withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw loses its depth
-  as a host one does; the mark never enters the table. So a page read first in a frame is drawn before anything samples
-  it: no one-frame hole, whatever moves. A frame whose view, world and lights hold, whose host took
-  no page's depth, after a snapshot that listed none, runs none of it: at rest it asks for the pages
-  the frame before drew (`freshWanted`, `gpu.moved`).
+  camera does not see still shades a receiver it sees; each kept row is one `(region, row)` pair. It
+  counts each region's pairs first; one workgroup then scans the counts over its lanes (the shared
+  lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
+  list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
+  region's pairs are laid in its place: no pair past the list, none drawn for a page left unread.
+  The list is the region cull's kept list, free once the host's batches are encoded, grown to the
+  need: the seal hands the pairs every region counted to the host in the pool's snapshot, and the
+  kept list grows by the tables' own path (`growKeptList`, the occlusion test's list with it) —
+  asked of the shadow grant, then of the device under an out-of-memory scope, never past one storage
+  binding (`pairGrowth.ts`) —, so it overflows only at the grant or the device's ceiling, each a
+  pressure by name (`pairs-over-grant`, `pairs-refused`). The seal makes each admitted page
+  readable; each pool layer's pass clears its pages and draws every pair in two indirect draws,
+  casters placed on their page in the vertex stage and kept to it by the fragment, no viewport set
+  (`freshPass.ts`, `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for
+  blended casters. The host redraws a page with its light cut and static layer once a report names
+  it, the GPU's draw readable meanwhile (`DRAWN_GPU`) — unless what it holds moves in the world: the
+  host then sends its word marked withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw
+  loses its depth as a host one does; the mark never enters the table. So a page read first in a
+  frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
+  world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
+  none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`).
 
 ## When a page is stale, withdrawn and drawn
 

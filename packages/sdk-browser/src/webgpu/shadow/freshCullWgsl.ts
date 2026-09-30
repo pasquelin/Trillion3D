@@ -3,6 +3,7 @@ import {
   SHADOW_CULL_GROUP,
   SHADOW_VOLUME_WGSL,
 } from '../../gpu/shadow/cullShader.ts';
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayout.ts';
 
 /**
@@ -16,12 +17,13 @@ import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayout.ts';
  * kept row draws.
  *
  * In three steps, so a region is drawn whole or not at all (#1363): `shadowCountPairs` counts each
- * region's pairs; `admitShadowPairs` gives each region, in order, its place in the list while the
- * list holds all its pairs — one it cannot hold is marked short (`FRESH_REGION_SHORT`), keeps none
- * and waits, unread, for the next frame —, and writes the pairs every region counted, which the
- * seal hands the host to size the list by (`freshPairs.ts`); `shadowCullPairs` lays each admitted
- * region's pairs from its place on. No pair is past the list, and none is drawn for a page left
- * unreadable.
+ * region's pairs; `admitShadowPairs`, one workgroup, gives each region its place in the list —
+ * the regions' counts scanned over the lanes, a run of regions each (`LANE_SCAN_WGSL`, as the
+ * tested half's compaction does) — and admits the longest prefix of whole regions the list holds:
+ * the rest are marked short (`FRESH_SHORT`), keep none and wait, unread, for the next frame. It
+ * writes the pairs kept and those every region counted, which the seal hands the host to grow the
+ * list by (`pairGrowth.ts`); `shadowCullPairs` lays each admitted region's pairs from its place on.
+ * No pair is past the list, and none is drawn for a page left unreadable.
  */
 export const SHADOW_FRESH_CULL_WGSL = `
 ${SHADOW_VOLUME_WGSL}
@@ -47,20 +49,27 @@ fn freshKeeps(k:u32,i:u32)->bool{
 @compute @workgroup_size(${SHADOW_CULL_GROUP}) fn shadowCountPairs(@builtin(global_invocation_id) id:vec3u){
  if(freshKeeps(id.y,id.x)){atomicAdd(&args[freshRegionPairs(params.pages,id.y)],1u);}
 }
-@compute @workgroup_size(1) fn admitShadowPairs(){
- let capacity=atomicLoad(&args[FRESH_CAPACITY]);
- var need=0u;var kept=0u;
- for(var k=0u;k<atomicLoad(&args[FRESH_REGIONS]);k++){
-  let at=freshRegionPairs(params.pages,k);let count=atomicLoad(&args[at]);
-  if(count<=capacity-kept){atomicStore(&args[at],kept);kept+=count;}
-  else{atomicOr(&args[FRESH_REGION_PAGES+k],FRESH_REGION_SHORT);}
-  need+=count;
+${LANE_SCAN_WGSL}@compute @workgroup_size(64) fn admitShadowPairs(@builtin(local_invocation_index) lane:u32){
+ let span=laneRun(lane,atomicLoad(&args[FRESH_REGIONS]));
+ var sum=0u;
+ for(var k=span.x;k<span.y;k++){sum+=atomicLoad(&args[freshRegionPairs(params.pages,k)]);}
+ var at=laneScan(lane,sum)-sum;
+ for(var k=span.x;k<span.y;k++){
+  let slot=freshRegionPairs(params.pages,k);let count=atomicLoad(&args[slot]);
+  let fits=at<=params.capacity&&count<=params.capacity-at;
+  // The first region past the prefix: the pairs kept end where it would have started.
+  if(at<=params.capacity&&!fits){atomicStore(&args[FRESH_PAIRS],at);}
+  atomicStore(&args[slot],select(FRESH_SHORT,at,fits));at+=count;
  }
- atomicStore(&args[FRESH_PAIRS],kept);atomicStore(&args[FRESH_NEED],need);
+ if(lane==63u){
+  let need=laneSums[63u];atomicStore(&args[FRESH_NEED],need);
+  if(need<=params.capacity){atomicStore(&args[FRESH_PAIRS],need);}
+ }
 }
 @compute @workgroup_size(${SHADOW_CULL_GROUP}) fn shadowCullPairs(@builtin(global_invocation_id) id:vec3u){
- if(!freshKeeps(id.y,id.x)||(atomicLoad(&args[FRESH_REGION_PAGES+id.y])&FRESH_REGION_SHORT)!=0u){return;}
- let row=u32(freshRow(id.x));let at=atomicAdd(&args[freshRegionPairs(params.pages,id.y)],1u);
+ let slot=freshRegionPairs(params.pages,id.y);
+ if(!freshKeeps(id.y,id.x)||atomicLoad(&args[slot])==FRESH_SHORT){return;}
+ let row=u32(freshRow(id.x));let at=atomicAdd(&args[slot],1u);
  pairs[2u*at]=id.y;pairs[2u*at+1u]=row;
  atomicMax(&args[FRESH_CORNERS],mobility[row]>>${MOBILITY_CORNER_SHIFT}u);
 }`;

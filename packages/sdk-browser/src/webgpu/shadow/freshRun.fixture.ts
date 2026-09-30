@@ -96,8 +96,8 @@ export const PAIR_STEPS = ['shadowCountPairs', 'admitShadowPairs', 'shadowCullPa
 
 /**
  * Runs the pair cull's `step` over its bindings' bytes, in binding order — the spheres, the
- * parameters, the volumes, the pairs, the arguments and the rows' mobility —: its one invocation
- * for the admission, every invocation of the dispatch the arguments say for the others.
+ * parameters, the volumes, the pairs, the arguments and the rows' mobility —: the admission's
+ * workgroup lane after lane, every invocation of the dispatch the arguments say for the others.
  */
 export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: Uint8Array[]) {
   const [spheres, params, volumes, pairs, args, mobility] = bound,
@@ -105,6 +105,13 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
     faceFloats = f32(volumes),
     faceWords = u32(volumes),
     words = u32(args);
+  // The lane scan's one barrier (`LANE_SCAN_WGSL`): the lanes run up to it — each giving its value —,
+  // the words go back as they were, then run again, each scan read from the values given.
+  const given = new Uint32Array(64),
+    laneSums = new Uint32Array(128);
+  let scanned: Uint32Array | undefined;
+  const laneScan = (lane: number, value: number) =>
+    scanned ? scanned[lane] : ((given[lane] = value), 0);
   const face = (k: number) => {
     const at = (i: number) => k * 20 + i,
       vec = (i: number) => [...faceFloats.subarray(at(i), at(i) + 3)];
@@ -116,7 +123,7 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
   };
   const kernels = shaderRun<Lanes>(
     SHADOW_FRESH_CULL_WGSL,
-    [...PAIR_STEPS, 'freshRow', 'freshKeeps', 'freshRegionPairs', 'sphereTouches'],
+    [...PAIR_STEPS, 'freshRow', 'freshKeeps', 'freshRegionPairs', 'sphereTouches', 'laneRun'],
     {
       ...wgslConstants(SHADOW_FRESH_CULL_WGSL),
       spheres: new Proxy([], {
@@ -130,10 +137,21 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
       pairs: u32(pairs),
       args: words,
       mobility: u32(mobility),
+      laneScan,
+      laneSums,
     },
   );
-  const kernel = kernels[step] as unknown as (id?: number[]) => void;
-  if (step === 'admitShadowPairs') return kernel();
+  const kernel = kernels[step] as unknown as (id: number[] | number) => void;
+  if (step === 'admitShadowPairs') {
+    const held = words.slice();
+    for (let lane = 0; lane < 64; lane++) kernel(lane);
+    words.set(held);
+    let sum = 0;
+    scanned = given.map((value) => (sum = (sum + value) >>> 0));
+    laneSums[63] = sum;
+    for (let lane = 0; lane < 64; lane++) kernel(lane);
+    return;
+  }
   // Every invocation of the dispatch the compose wrote: a row, then the blended ones, by region.
   const { rows, blendFirst, blendEnd } = paramsOf(params);
   for (let k = 0; k < words[FRESH_ARG.regions]; k++)
