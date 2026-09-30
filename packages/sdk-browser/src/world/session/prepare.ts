@@ -15,6 +15,7 @@ import { loadPreparedScene } from '../scene/scene.ts';
 import { primePartitions } from '../scene/partitionFrame.ts';
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
+import { sessionFamilies } from './familyUse.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -57,6 +58,8 @@ type Inputs = {
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session;
   const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs;
+  // The optional families the first frame draws with load beside the scene (#1353).
+  const families = sessionFamilies(options, diagnosticChannel.enabled);
   // The machine is read before the scene: which engine path renders decides which file the
   // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
@@ -180,6 +183,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     frameBudget,
     worldRoots: loadedScene.worldRoots,
   });
+  await families;
   return {
     source,
     partitions: loadedScene.partitions,
