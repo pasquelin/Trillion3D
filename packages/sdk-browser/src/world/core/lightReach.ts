@@ -1,8 +1,10 @@
 /**
  * How far a punctual lamp is worth reaching once the frame's exposure and display curve are known
  * (#958, CMP-16): its authored range — the reference engine `AttenuationRadius`, a first-class control no
- * scene tunes — shortened while its own contribution stays under half a display step after the
- * tone curve.
+ * scene tunes — shortened to the reach at which its own contribution still shows after the frame's
+ * exposure and tone curve. This is the audit's pre-exposure cut, made exposure- and curve-aware: a
+ * **declared class-2 change**, held to the human eye by the acceptance session's image proof (mean
+ * and p99.9 channel error, mean FLIP against a named reference), not a 0 px one.
  *
  * The engine lights a point at distance `d` with `I · w(d, R) / d²`, `w` the range window
  * `(1 − (d/R)⁴)²` (`rangeWindow`, `lighting/direct/lightWgsl.ts`, `webgl/cluster/shaders.ts`).
@@ -11,22 +13,19 @@
  * `x⁴ = 2 / (3(a + 1))` (under `s⁴`): `g(s) = 4/3 · (a − 1) · √(2/(3(a + 1)))`; past `s` only the
  * old window is left, decreasing, and under it. So the worst change anywhere is `I/R² · g(s)`.
  *
- * Invariant: a reach is never longer than the authored range, and no displayed colour moves by
- * `PERCEPTUAL_STEP`. The surface turns an irradiance change into radiance at most
- * `brdfBound(roughness)` times over: the diffuse lobe at albedo one plus the specular lobe at the
- * scene's OWN roughness — never the worst case at `ROUGHNESS_FLOOR`, a mirror no real scene
- * shades, whose `1/(2π α³)` peak bounded a 100 W/sr lamp only past ~4000 km (#958, `958-light-reach`).
- * The display chain — exposure, curve, sRGB transfer — moves an output at most `DISPLAY_SLOPE`
- * times the largest input change, whatever the other lights put under it. Bloom and every effect
- * after the curve read that displayed colour, so they inherit the bound.
+ * Invariant: a reach is never longer than the authored range, and never shorter than the lamp's
+ * emitter. The quantum the change is held to is CMP-16's pre-exposure irradiance floor (the
+ * audit's own 0.01 W/m²), made exposure- and curve-aware: divided by the frame's exposure and
+ * scaled by the display curve's own steepness, so a rising auto-exposure lengthens the reach at
+ * once — no pop — and a flatter curve cuts no deeper than the steeper one.
  */
 import type { SceneEnvironment } from '../../../../sdk-core/src/scene/core/environment.ts';
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts';
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 
-/** Half an eight-bit display step, on the output's [0, 1] scale (CMP-16's equivalence: 0.5 LSB
- *  after tone mapping). */
-const PERCEPTUAL_STEP = 0.5 / 255;
+/** The audit's pre-exposure irradiance floor (W/m², `958-audit-cut` @ `e0c89bb2c`): the cut's
+ *  reference under ACES at exposure 1, where it takes a 400 cd lamp authored to 18 m down to
+ *  7.7775 m (range −56.79 %, shadow footprint −81.3 %). */
+const AUDIT_IRRADIANCE = 1e-2;
 /** The sRGB transfer's steepest slope: its linear foot, 12.92; its power part stays under it. */
 const SRGB_SLOPE = 12.92;
 /**
@@ -34,7 +33,7 @@ const SRGB_SLOPE = 12.92;
  * of input channels. `none`, `linear` and `reinhard` act channel by channel, slope at most one.
  * ACES (`lighting/toneCurveConstants.ts`): its 1/0.6 scale, its input rows summing to one, its
  * rational fit's steepest slope 0.90513 and its output's largest row sum 2.2095 give 3.3332,
- * rounded up. The other curves — AgX's logarithm is unbounded near black — keep their ranges.
+ * rounded up. The steeper the chain, the smaller the irradiance change it shows.
  */
 const DISPLAY_SLOPE: Partial<Record<Display['toneMapping'], number>> = {
   none: SRGB_SLOPE,
@@ -42,33 +41,22 @@ const DISPLAY_SLOPE: Partial<Record<Display['toneMapping'], number>> = {
   reinhard: SRGB_SLOPE,
   aces: SRGB_SLOPE * 3.334,
 };
+/** The curve the floor is stated at, ACES's steepest. */
+const REFERENCE_SLOPE = DISPLAY_SLOPE['aces']!;
 
 /** What the frame does to radiance before it is shown: its exposure and its display curve. */
 export type Display = Required<Pick<SceneEnvironment, 'exposure' | 'toneMapping'>>;
 
-/** The smoothest roughness any shading path draws, as a number (`ROUGHNESS_FLOOR` is shader text). */
-const FLOOR = Number(ROUGHNESS_FLOOR);
-
 /**
- * The most radiance a unit irradiance on the light's axis gives back, times the cosine, on a
- * surface of `roughness`: Lambert's `1/π` at albedo one, plus the GGX peak `1/(2π α³)` with
- * Fresnel at one and `α = roughness²`. `roughness` absent or below the floor takes the floor, the
- * conservative end; a rougher surface gives less, so a rougher scene reaches farther.
+ * The irradiance step the frame's exposure and curve make perceptible: the audit's floor at ACES
+ * and exposure 1, divided by the exposure and scaled by the curve's own steepness relative to
+ * ACES. A rising exposure lengthens a reach at once, so a fade never steps. With no slope (an
+ * unbounded curve) or a non-positive, non-finite exposure it gives 0: the range stays.
  */
-export function brdfBound(roughness: number | undefined): number {
-  const alpha = Math.max(roughness ?? FLOOR, FLOOR) ** 2;
-  return 1 / Math.PI + 1 / (2 * Math.PI * alpha ** 3);
-}
-
-/**
- * The irradiance change, in W/m², under which no displayed colour moves by `PERCEPTUAL_STEP`, or 0
- * when the display gives no bound. The frame's own exposure is taken as-is: a reach is re-derived
- * whenever the exposure changes, so a rise lengthens it at once and the edge never pops.
- */
-export function irradianceQuantum({ exposure, toneMapping }: Display, roughness?: number): number {
+export function perceptibleQuantum({ exposure, toneMapping }: Display): number {
   const slope = DISPLAY_SLOPE[toneMapping];
   return slope && exposure > 0 && Number.isFinite(exposure)
-    ? PERCEPTUAL_STEP / (slope * exposure * brdfBound(roughness))
+    ? AUDIT_IRRADIANCE / (exposure * (REFERENCE_SLOPE / slope))
     : 0;
 }
 
@@ -91,7 +79,7 @@ export function visibleReach(range: number, peak: number, quantum: number): numb
   return reach > 0 && reach < range ? reach : range;
 }
 
-/** Shortens a point or spot record's range in place to its visible reach; a lamp whose emitter
+/** Shortens a point or spot record's range in place to its perceptible reach; a lamp whose emitter
  *  the shorter range would no longer hold keeps its range. A rectangle's radiance is not `I/d²`. */
 export function boundReach(record: SceneLight, quantum: number) {
   if (record.range === undefined || record.kind === 'rect') return;
