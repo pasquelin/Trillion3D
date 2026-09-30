@@ -55,7 +55,6 @@ export const SHADE_BINDINGS = {
   sampler: 10,
   uniform: 11,
   data: atlas(12),
-  shadingOffset: 16,
   subsurface: 17,
 };
 
