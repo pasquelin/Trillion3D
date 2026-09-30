@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { currentCompilerExecutable } from './process.mts';
+import { currentCompilerExecutable } from './executable.mts';
 import { sourceNewerThan } from './freshness.mts';
 
 const binaryName = `trillion3d-compiler${process.platform === 'win32' ? '.exe' : ''}`;
@@ -30,7 +30,7 @@ async function crate(builtAt: number, editedAt: number) {
 test('a compiler built after its sources is the one a cook runs', async () => {
   const { root, binary } = await crate(2_000, 1_000);
   try {
-    assert.equal(currentCompilerExecutable(undefined, {}, root), binary);
+    assert.equal(currentCompilerExecutable(undefined, {}, { crate: root }), binary);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -43,13 +43,14 @@ test('editing a crate source refuses the cook until the compiler is rebuilt', as
   try {
     await utimes(stage, 3_000, 3_000);
     assert.throws(
-      () => currentCompilerExecutable(undefined, {}, root),
+      () => currentCompilerExecutable(undefined, {}, { crate: root }),
       (error: Error) =>
-        error.message.startsWith(`COMPILER_STALE: ${binary} is older than ${stage}`) &&
+        error.message.includes(`COMPILER_STALE:`) &&
+        error.message.includes(`${binary} is older than ${stage}`) &&
         error.message.includes('pnpm run build:native'),
     );
     await utimes(binary, 4_000, 4_000);
-    assert.equal(currentCompilerExecutable(undefined, {}, root), binary);
+    assert.equal(currentCompilerExecutable(undefined, {}, { crate: root }), binary);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -62,9 +63,9 @@ test('a binary named by TRILLION3D_COMPILER_BIN is trusted and announced once', 
   t.mock.method(process.stderr, 'write', (chunk: unknown) => written.push(chunk) > 0);
   try {
     const environment = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
-    assert.equal(currentCompilerExecutable(undefined, environment, root), '/operator/compiler');
-    assert.equal(currentCompilerExecutable(undefined, environment, root), '/operator/compiler');
-    assert.equal(currentCompilerExecutable('/caller/compiler', {}, root), '/caller/compiler');
+    assert.equal(currentCompilerExecutable(undefined, environment, { crate: root }), '/operator/compiler');
+    assert.equal(currentCompilerExecutable(undefined, environment, { crate: root }), '/operator/compiler');
+    assert.equal(currentCompilerExecutable('/caller/compiler', {}, { crate: root }), '/caller/compiler');
   } finally {
     t.mock.restoreAll();
     await rm(root, { recursive: true, force: true });
