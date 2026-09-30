@@ -1,7 +1,9 @@
-// Light evaluations per covered pixel of a MOVING image (#1249). The shipped `contractLighting`,
-// `tileShadowed` and cluster slice mapping run as JavaScript on each tile's lists: a still or
-// unshadowed pixel reads its cluster list (`clusterLighting`), a shadowed one the sampled resolve
-// (`3·L + LIGHT_SAMPLES`). COUNTED, never timed.
+// Light evaluations per covered pixel of a MOVING image (#1249). The shipped `contractLighting` and
+// `tileShadowed` run as JavaScript on each tile's lists, and the tile pass's own light grid
+// (`passMasks`) fills each record's slice masks: a still or unshadowed pixel walks the lights its
+// slice mask names (`walked`, each a `beyondRange` test) and shades those in range (`shaded`, each
+// a `declaredLight`); a shadowed one the sampled resolve (`3·L + LIGHT_SAMPLES`). COUNTED, never
+// timed.
 //
 //   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
@@ -16,8 +18,10 @@ import {
   camera,
   pixelPoint,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import { CLUSTER_SLICES } from '../../packages/sdk-browser/src/lighting/tiles/clusterWgsl.ts';
-import { sliceMap } from '../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
+import {
+  passMasks,
+  sliceMap,
+} from '../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
 import {
   sliceHits,
   tileBounds,
@@ -41,61 +45,58 @@ const axisOf = (view: TileView) => {
   return d.map((v) => v / len);
 };
 
-/** Each tile's record, its opaque list, and the per-slice counts the tile pass's binning writes:
- *  a light's view-axis span, in metres, binned into the cluster lists the resolve walks (#1249). */
+/** A tile's record, its list or pool past it, and its grid: `kept` ranks, `front` and `back` its
+ *  nearest and farthest surface in metres, zero when a pixel sees the sky (full masks). */
+type Tile = { record: Uint32Array; kept: number[]; front: number; back: number };
+
+/** Each tile's record as the tile pass leaves it: the opaque list, its shadow flag, its grid. */
 function tileRecords(view: TileView, depths: Float32Array, lights: Light[], slots: number[]) {
   const [tilesX, tilesY] = [Math.ceil(view.width / SIZE), Math.ceil(view.height / SIZE)];
-  const records = new Uint32Array(tilesX * tilesY * K.TILE_STRIDE);
   const axis = axisOf(view);
-  const counts: number[][] = [],
-    fronts: number[] = [],
-    backs: number[] = [];
+  const onAxis = lights.map(({ centre, radius }) => ({
+    positionRange: {
+      xyz: [0, 1, 2].reduce((sum, i) => sum + (centre[i] - view.origin[i]) * axis[i], 0),
+      w: radius,
+    },
+    params: { x: 0 },
+  }));
+  const tiles: Tile[] = [];
   for (let ty = 0; ty < tilesY; ty++)
     for (let tx = 0; tx < tilesX; tx++) {
-      const index = ty * tilesX + tx;
       const zs: number[] = [];
       for (let y = ty * SIZE; y < Math.min((ty + 1) * SIZE, view.height); y++)
         for (let x = tx * SIZE; x < Math.min((tx + 1) * SIZE, view.width); x++)
-          if (depths[y * view.width + x] > 0) zs.push(depths[y * view.width + x]);
-      counts[index] = Array<number>(CLUSTER_SLICES).fill(0);
-      fronts[index] = backs[index] = 0;
-      if (!zs.length) continue;
-      const bounds = tileBounds(view, [tx, ty], Math.max(...zs), Math.min(...zs));
-      const kept = lights.flatMap(({ centre, radius }, rank) =>
-        sliceHits(bounds, toTileFrame(view, centre), radius).opaque ? [rank] : [],
-      );
-      const base = index * K.TILE_STRIDE;
-      records[base] = kept.length;
-      records[base + K.TILE_SHADOW_BASE] = kept.some((rank) => slots[rank] > -1) ? 1 : 0;
-      records.set(kept.slice(0, K.TILE_LIGHTS), base + K.TILE_OPAQUE_BASE);
-      // The tile's own depth range sets its slices: a light is binned where its sphere can reach.
+          zs.push(depths[y * view.width + x]);
+      const covered = zs.filter((z) => z > 0);
+      const bounds = covered.length
+        ? tileBounds(view, [tx, ty], Math.max(...covered), Math.min(...covered))
+        : undefined;
+      const kept = bounds
+        ? lights.flatMap(({ centre, radius }, rank) =>
+            sliceHits(bounds, toTileFrame(view, centre), radius).opaque ? [rank] : [],
+          )
+        : [];
+      const record = new Uint32Array(K.TILE_STRIDE + kept.length);
+      record[0] = kept.length;
+      record[K.TILE_SHADOW_BASE] = kept.some((rank) => slots[rank] > -1) ? 1 : 0;
+      if (kept.length <= K.TILE_LIGHTS) record.set(kept, K.TILE_OPAQUE_BASE);
+      else record.set(kept, (record[K.TILE_OPAQUE_BASE] = K.TILE_STRIDE));
+      // The pass's grid: off, full masks, where a pixel sees the sky or no light is kept.
       const [zFront, zBack] = [Math.max(...zs), Math.min(...zs)];
-      const [front, back] = [NEAR / zFront, NEAR / zBack];
-      fronts[index] = front;
-      backs[index] = back;
-      for (const rank of kept) {
-        const { centre, radius } = lights[rank];
-        const at = [
-          centre[0] - view.origin[0],
-          centre[1] - view.origin[1],
-          centre[2] - view.origin[2],
-        ];
-        const span = MAP.clusterSliceSpan(
-          at[0] * axis[0] + at[1] * axis[1] + at[2] * axis[2],
-          radius,
-          front,
-          back,
-        );
-        for (let s = span.x; s < span.y; s++) counts[index][s]++;
-      }
+      const on = kept.length > 0 && zBack > 0;
+      const [front, back] = on ? [NEAR / Math.fround(zFront), NEAR / Math.fround(zBack)] : [0, 0];
+      if (on) passMasks(record, 0, onAxis, front, back);
+      else record.fill(0xffffffff, K.TILE_CLUSTER_BASE, K.TILE_CLUSTER_BASE + 2 * K.CLUSTER_SLICES);
+      tiles.push({ record, kept, front, back });
     }
-  return { records, counts, fronts, backs, tilesX, tilesY };
+  return { tiles, tilesX, tilesY };
 }
 
 /**
  * Evaluations per covered pixel of `view` over `depths`, a sampled rank: `list` the lights of the
- * lists, `develop` the resolve before #1249 (every sampled rank drawn), `moving` the shipped one.
- * `slots[rank]` is each light's shadow slot, −1 for none.
+ * lists, `develop` the resolve before #1249 (every sampled rank drawn), `moving` the shipped one's
+ * walk, and `shaded` the lights its unshadowed pixels shade in full. `slots[rank]` is each light's
+ * shadow slot, −1 for none.
  */
 export function countSampled(
   view: TileView,
@@ -103,28 +104,34 @@ export function countSampled(
   lights: Light[],
   slots: number[],
 ) {
-  const { records, counts, fronts, backs, tilesX, tilesY } = tileRecords(
-    view,
-    depths,
-    lights,
-    slots,
-  );
-  let evaluations = 0;
-  const kept = (tile: { x: number; y: number }) =>
-    records[(tile.y * tilesX + tile.x) * K.TILE_STRIDE];
+  const { tiles, tilesX, tilesY } = tileRecords(view, depths, lights, slots);
+  const sums = { covered: 0, list: 0, develop: 0, moving: 0, shaded: 0 };
+  const at = (tile: { x: number; y: number }) => tiles[tile.y * tilesX + tile.x];
   const sampled = (...args: unknown[]) => {
-    const L = kept(args[7] as { x: number; y: number });
-    evaluations += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 3 * L + K.LIGHT_SAMPLES;
+    const L = at(args[7] as { x: number; y: number }).kept.length;
+    sums.moving += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 3 * L + K.LIGHT_SAMPLES;
   };
+  // The pixel's slice mask, each bit a group of the walked slice; each walked light tested in range.
   const cluster = (...args: unknown[]) => {
-    const pixel = args[7] as { x: number; y: number };
-    const index = Math.floor(pixel.y / SIZE) * tilesX + Math.floor(pixel.x / SIZE);
-    const L = records[index * K.TILE_STRIDE];
-    if (L > K.TILE_LIGHTS) return void (evaluations += L); // no cluster past the list: all of it
-    const z = depths[Math.floor(pixel.y) * view.width + Math.floor(pixel.x)];
-    const slice = MAP.clusterSliceIndex(NEAR / z, fronts[index], backs[index]);
-    evaluations += counts[index][slice] ?? 0;
+    const { x, y } = args[9] as { x: number; y: number };
+    const tile = at({ x: Math.floor(x / SIZE), y: Math.floor(y / SIZE) });
+    const z = depths[Math.floor(y) * view.width + Math.floor(x)];
+    const slice = MAP.clusterSliceIndex(NEAR / Math.fround(z), tile.front, tile.back);
+    const group = Math.max(Math.ceil(tile.kept.length / 64), 1);
+    const point = pixelPoint(view, Math.floor(x), Math.floor(y), z);
+    tile.kept.forEach((rank, index) => {
+      const bit = Math.floor(index / group);
+      const word = tile.record[K.TILE_CLUSTER_BASE + 2 * slice + (bit >> 5)];
+      if (!((word >>> (bit & 31)) & 1)) return;
+      sums.moving++;
+      const { centre, radius } = lights[rank];
+      if (Math.hypot(...centre.map((c, i) => c - point[i])) < radius) sums.shaded++;
+    });
   };
+  const records = new Uint32Array(tiles.length * K.TILE_STRIDE);
+  tiles.forEach(({ record }, index) =>
+    records.set(record.subarray(0, K.TILE_STRIDE), index * K.TILE_STRIDE),
+  );
   const { contractLighting } = shaderFunctions<{ contractLighting: Contract }>(
     DIRECT_LIGHTING_WGSL,
     ['contractLighting', 'tileShadowed', 'pixelTile'],
@@ -133,24 +140,19 @@ export function countSampled(
       view: { lightParams: { x: lights.length, y: tilesX, z: tilesY }, viewport: { w: 1 } },
       vec3f: () => 0,
       tileLights: records,
-      directLights: { items: slots.map((slot) => ({ params: { y: slot } })) },
       clusterLighting: cluster,
       sampledTileLighting: sampled,
     },
   );
-  const sums = { covered: 0, list: 0, develop: 0, moving: 0 };
   for (let y = 0; y < view.height; y++)
     for (let x = 0; x < view.width; x++) {
       if (!(depths[y * view.width + x] > 0)) continue;
       const tile = { x: Math.floor(x / SIZE), y: Math.floor(y / SIZE) };
+      const L = at(tile).kept.length;
       sums.covered++;
-      sums.list += kept(tile);
-      evaluations = 0;
-      sampled(0, 0, 0, 0, 0, 0, 0, tile);
-      sums.develop += evaluations;
-      evaluations = 0;
+      sums.list += L;
+      sums.develop += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 3 * L + K.LIGHT_SAMPLES;
       contractLighting(0, 0, 0, 0, 0, 0, 0, { x: x + 0.5, y: y + 0.5 });
-      sums.moving += evaluations;
     }
   return sums;
 }
@@ -179,6 +181,7 @@ async function main() {
       list: per(s.list),
       develop: per(s.develop),
       moving: per(s.moving),
+      shaded: per(s.shaded),
     };
   });
   console.log(

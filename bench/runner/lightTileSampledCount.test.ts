@@ -25,8 +25,8 @@ test('an unshadowed moving pixel walks its cluster, at most its tile list', () =
     lights,
     lights.map(() => -1),
   );
-  assert.ok(s.moving <= s.list, 'the cluster list is at most the tile list');
-  assert.ok(s.moving < s.list, 'and drops the lights that cannot reach the pixel depth');
+  assert.ok(s.moving < s.list, 'the slice walks fewer lights than the tile list');
+  assert.ok(s.shaded < s.moving, 'and shades only those in range');
   assert.ok(s.develop > 2.5 * s.list, `develop drew: ${s.develop} for ${s.list}`);
 });
 
@@ -38,7 +38,8 @@ test('a list with a shadowed light is drawn as before, the others summed in full
     lights,
     lights.map(() => -0.5),
   );
-  assert.equal(all.moving, all.develop, 'every list shadowed: the drawn resolve, unchanged');
+  // Every list shadowed: a list of 5 to 64 is drawn as before; the others walk their slice.
+  assert.ok(all.moving > all.list && all.moving <= all.develop, 'the drawn resolve, unchanged');
   const one = countSampled(
     view,
     depths,
