@@ -3288,7 +3288,7 @@
       "admission": "As páginas deste quadro, vista de luz por vista de luz.",
       "stamp": "O que o sombreamento, as luzes e a vista entregam à imagem seguinte: um relatório carimbado com ele que não nomeia nada novo prova que a imagem só lê o que está desenhado.",
       "settled": "Verdadeiro quando um relatório prova que o estado atual não pede nada: a imagem pode ser mantida.",
-      "receive": "Voltou um relatório de pedidos: a lista de páginas da GPU conta de imediato (`gpu.hear`), o resto é lido pelo plano seguinte. Um mais recente substitui um não lido.",
+      "receive": "Voltou um relatório de pedidos: a lista de páginas da GPU conta de imediato (`gpu.hear`), o resto é lido pelo plano seguinte.",
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista.",
       "resize": "O pool com outro tamanho, as suas páginas mantidas, os seus arrays refeitos: devolve para onde foi cada página.",
       "sunWindow": "Páginas por lado do clipmap de um sol com que corre uma sessão (`referenceMode.ts`).",
