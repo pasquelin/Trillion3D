@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import type { BackendFactory } from '../../backend/types.ts';
@@ -24,7 +25,7 @@ export function interactiveSize(canvas: HTMLCanvasElement, options: MeasuredWorl
 }
 
 export function interactiveOptions(canvas: HTMLCanvasElement, options: MeasuredWorldOptions) {
-  if (!options.interactive) return options;
+  if (!explorerSwitch(options, 'interactive')) return options;
   if (!canvas.ownerDocument.defaultView)
     throw new EngineError('CANVAS_WINDOW_UNAVAILABLE', 'Interactive rendering requires a window');
   // No backend is forced here: `chooseBackends` reads the machine and takes the engine path
@@ -41,7 +42,7 @@ export function directWebgpu(
   device: GPUDevice | undefined,
 ) {
   const requested = factories.length === 1 && factories[0] === webgpuPagesBackend;
-  if (options.interactive && options.backends && requested && !device)
+  if (explorerSwitch(options, 'interactive') && options.backends && requested && !device)
     throw new EngineError(
       'WEBGPU_UNAVAILABLE',
       'Interactive startup requires WebGPU; choose an explicit backend for another capability set',
