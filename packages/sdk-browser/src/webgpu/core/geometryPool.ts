@@ -7,7 +7,6 @@ import {
   offsetOf,
   poolFits,
   poolFloats,
-  type BufferKey,
   type PoolList,
   type Stores,
 } from './geometryPoolLayout.ts';
