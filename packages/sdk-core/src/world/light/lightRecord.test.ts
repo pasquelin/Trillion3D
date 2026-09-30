@@ -3,11 +3,7 @@ import assert from 'node:assert/strict';
 import { Light } from './light.ts';
 import { lampCastsShadow, lampRecord, lightFromRecord } from './lightRecord.ts';
 import type { SceneLight } from '../../scene/light/contracts.ts';
-
-const near = (actual: readonly number[] | undefined, expected: number[], label: string) => {
-  assert.equal(actual?.length, expected.length, label);
-  actual!.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${label}: ${actual}`));
-};
+import { near } from '../../math/near.fixture.ts';
 
 test('only a lamp giving light is recorded', () => {
   for (const kind of ['ambient', 'hemisphere', 'probe'])

@@ -2,14 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Path, Shape, SplineCurve } from './curves.ts';
 import { Vector3 } from './vector3.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
+const near = (actual: number[], expected: number[], label: string, eps = 1e-12) =>
+  within(actual, expected, label, eps);
 const xyz = (v: { x: number; y: number; z?: number }) => [v.x, v.y, v.z ?? 0];
-function near(actual: number[], expected: number[], label: string, eps = 1e-12) {
-  assert.equal(actual.length, expected.length, label);
-  actual.forEach((value, k) =>
-    assert.ok(Math.abs(value - expected[k]) <= eps, `${label}: ${actual} is not ${expected}`),
-  );
-}
 
 test('a path runs its corners by length, clamped to its ends', () => {
   const path = new Path([[0, 0], [3, 0], { x: 3, y: 4, z: 0 }]);
