@@ -6,7 +6,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
-import { pictureSize } from '../../texture/pictureSize.ts';
+import { sourceSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
@@ -110,7 +110,7 @@ export class WebglClusterTextures {
         image = texture.image as TexImageSource | undefined;
       if (!rgba && !image)
         throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
-      const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(image);
+      const [width, height] = sourceSize(texture);
       const inPlace = held?.width === width && held.height === height && held.format === format;
       if (inPlace && rgba)
         gl.texSubImage2D(

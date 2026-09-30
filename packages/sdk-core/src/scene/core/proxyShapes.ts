@@ -1,4 +1,5 @@
 import { PROXY_TRIANGLE_FLOATS } from '../../contracts/proxy.ts';
+import { invalidProxy as bad } from './proxyError.ts';
 
 /** Numbers per instance map: three rows of a 3×4 affine matrix, row-major. */
 export const PROXY_TRANSFORM_FLOATS = 12;
@@ -13,8 +14,6 @@ export interface ProxyShapes {
   shapeOf: Uint32Array;
   maps: Float32Array;
 }
-
-import { invalidProxy as bad } from './proxyError.ts';
 
 /** Triangles the instances place, each naming a shape that exists; the counts cover the shapes. */
 export function placedTriangles(shapes: ProxyShapes): number {
@@ -55,7 +54,8 @@ export function expandShapes(
     starts[shape] = starts[shape - 1] + shapes.counts[shape - 1];
   let next = 0;
   shapes.shapeOf.forEach((shape, instance) => {
-    const m = shapes.maps.subarray(instance * PROXY_TRANSFORM_FLOATS);
+    const m = instance * PROXY_TRANSFORM_FLOATS,
+      maps = shapes.maps;
     for (let source = starts[shape]; source < starts[shape] + shapes.counts[shape]; source++) {
       const at = positions[next++];
       if (at >= total || taken[at])
@@ -69,17 +69,18 @@ export function expandShapes(
           z = shapes.triangles[from + 2];
         for (let row = 0; row < 3; row++)
           triangles[at * PROXY_TRIANGLE_FLOATS + vertex + row] =
-            m[row * 4] * x + m[row * 4 + 1] * y + m[row * 4 + 2] * z + m[row * 4 + 3];
+            maps[m + row * 4] * x +
+            maps[m + row * 4 + 1] * y +
+            maps[m + row * 4 + 2] * z +
+            maps[m + row * 4 + 3];
       }
     }
   });
   for (let at = 0, slot = 0; at < total; at++) {
     if (taken[at]) continue;
-    const from = slot * PROXY_TRIANGLE_FLOATS;
-    triangles.set(
-      loose.triangles.subarray(from, from + PROXY_TRIANGLE_FLOATS),
-      at * PROXY_TRIANGLE_FLOATS,
-    );
+    const from = slot * PROXY_TRIANGLE_FLOATS,
+      to = at * PROXY_TRIANGLE_FLOATS;
+    for (let k = 0; k < PROXY_TRIANGLE_FLOATS; k++) triangles[to + k] = loose.triangles[from + k];
     albedo[at] = loose.albedo[slot++];
   }
   return { triangles, albedo };

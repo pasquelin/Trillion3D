@@ -38,7 +38,11 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
     changed.push([...Array.from(min), ...Array.from(max)]);
   };
   const rt = {
-    vis: { deformation: { any: true, frame, base: 0 }, concatPos: {} },
+    // A zero pixel error skips no placement (`screen.ts`).
+    vis: {
+      deformation: { any: true, frame, base: 0, update: () => frame.update(() => false) },
+      concatPos: {},
+    },
     gpu: { device: { queue: { writeBuffer() {} } } },
     lights,
     layout: {

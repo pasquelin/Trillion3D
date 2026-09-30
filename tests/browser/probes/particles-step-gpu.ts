@@ -21,7 +21,7 @@ if (import.meta.main) {
 
   /** Run in the page: one dispatch of `words[0]`, then 62 s of `words[1]`, read back after each. */
   async function executer({ shader, words, staged, bytes, groups }: Args) {
-    const appareil = await globalThis.ouvrirAppareil();
+    const appareil = await globalThis.openGpuDevice();
     if (!appareil) return { indisponible: 'no WebGPU adapter' };
     const { device, erreurs } = appareil;
     const { module, compilation } = await appareil.compile(shader);

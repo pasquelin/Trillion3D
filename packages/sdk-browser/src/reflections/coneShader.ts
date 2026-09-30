@@ -1,4 +1,4 @@
-import { shaderLanguage } from './traceShader.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts';
 
 /** Screen-space cone tracing (Hermanns/Franke, SIGGRAPH 2014).
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite

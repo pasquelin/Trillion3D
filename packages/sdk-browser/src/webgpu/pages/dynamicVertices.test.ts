@@ -16,11 +16,31 @@ import { createFrameGateCore } from '../../frame/gateCore.ts';
 
 installGpuGlobals();
 
-/** A device that keeps every write, as `[buffer, byte offset, floats]`. */
+/** A device that keeps every write, as `[buffer, byte offset, floats]`, and every buffer the pool
+ *  made, the copies a growth encodes and the buffers it freed. */
 function recordingDevice() {
-  const writes: [object, number, number[]][] = [];
+  const writes: [object, number, number[]][] = [],
+    buffers: { size: number; freed: boolean }[] = [],
+    copies: [object, number, object, number, number][] = [];
   const device = {
-    createBuffer: (descriptor: GPUBufferDescriptor) => ({ size: descriptor.size }),
+    createBuffer: (descriptor: GPUBufferDescriptor) => {
+      const buffer = { size: descriptor.size, freed: false };
+      buffers.push(buffer);
+      return {
+        size: descriptor.size,
+        destroy: () => void (buffer.freed = true),
+      };
+    },
+    createCommandEncoder: () => ({
+      copyBufferToBuffer: (
+        from: object,
+        fromOffset: number,
+        to: object,
+        toOffset: number,
+        size: number,
+      ) => void copies.push([from, fromOffset, to, toOffset, size]),
+      finish: () => ({}),
+    }),
     queue: {
       writeBuffer: (
         buffer: object,
@@ -29,9 +49,10 @@ function recordingDevice() {
         at = 0,
         size = data.length,
       ) => void writes.push([buffer, offset, [...data.subarray(at, at + size)]]),
+      submit: () => {},
     },
   } as unknown as GPUDevice;
-  return { device, writes };
+  return { device, writes, buffers, copies };
 }
 
 /** A runtime of `pool` on `device`, drawing `roots` with `lights`. */
@@ -86,13 +107,36 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   assert.deepEqual([mobility.moves(0), mobility.moves(1)], [true, false], 'the rock stays static');
 });
 
-test('a block a record takes after the open is placed in the room the pool kept', () => {
-  const { device } = recordingDevice();
+test('content mounted after the open grows the pool in place: it is drawn, never reopened', () => {
+  const { device, copies } = recordingDevice();
   const pool = createVertexPool(device, 8, false, new Map());
   const sheet = () => geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes;
-  assert.equal(pool.place(sheet(), true)?.vertexBase, 0);
-  assert.equal(pool.place(sheet(), true)?.vertexBase, 4, 'a mount after the open');
-  assert.equal(pool.place(sheet(), true), undefined, 'no room left: the session opens again');
+  assert.ok(pool.place(sheet(), true), 'the first block');
+  assert.ok(pool.place(sheet(), true), 'a mount after the open, in the room kept');
+  const api = webgpuVertexApi(runtimeOf(pool, device, new Map()));
+  const box = new Float64Array(6),
+    range: VertexRange[] = [{ name: 'position', from: 0, count: 1 }];
+  assert.ok(api.updateVertices(sheet(), range, box), 'grown in place, not refused');
+  assert.ok(copies.length > 0, 'what the pool held copied into the wider buffers');
+});
+
+test('a block a rewritten mesh holds survives a growth: written at the same place, no reopen', () => {
+  const { device, writes, copies } = recordingDevice();
+  const held = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes;
+  const pool = createVertexPool(device, 9, false, new Map());
+  const api = webgpuVertexApi(runtimeOf(pool, device, new Map()));
+  const box = new Float64Array(6),
+    range: VertexRange[] = [{ name: 'position', from: 1, count: 1 }];
+  assert.ok(api.updateVertices(held, range, box), 'the dynamic mesh placed and written');
+  const before = writes.at(-1)!;
+  // A record mounted after the open, past the room kept: the pool grows in place.
+  const mounted = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes;
+  assert.ok(api.updateVertices(mounted, range, box), 'the mount grown in place');
+  assert.ok(api.updateVertices(held, range, box), 'the held mesh written again, not reopened');
+  const after = writes.at(-1)!;
+  assert.equal(after[1], before[1], 'the same block offset: the held box survived');
+  assert.notEqual(after[0], before[0], 'into the wider buffer the growth made');
+  assert.ok(copies.length > 0, 'the held vertices copied into it');
 });
 
 test('a rewrite weighs what it sends the GPU: a normal with its tangent, positions twice', () => {

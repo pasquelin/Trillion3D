@@ -97,7 +97,7 @@ export function createShadowRequests(
       at[1] = Math.floor(at[1] / scale);
       at[2] = Math.floor(at[2] / scale);
       if (!sun.holds(slice, at[0], at[1], at[2])) return;
-      entry += sunEntry(at[0], at[1], at[2]);
+      entry += sunEntry(at[0], at[1], at[2], sun.windowPages);
     } else {
       if ((at[0] & 15) === LAMP_FLOOR_MIP) return;
       entry += lampEntry(at[0] >> 4, LAMP_FLOOR_MIP, 0, 0);
@@ -121,7 +121,7 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle = report.frame) {
+    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle: number) {
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
@@ -156,13 +156,14 @@ export function createShadowRequests(
      *  report names yet: every sun's over the scene within the view's far distance
      *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
      *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
-     *  the next may evict it. With `gpu`, lists them all, every lamp's, for the GPU to map. */
+     *  the next may evict it; moving, `cycle` stays the last report's (#26). With `gpu`, lists
+     *  them all, every lamp's, for the GPU to map. */
     floors(
       posed: ArrayLike<number>,
       view: ShadowViewpoint,
       nowMs: number,
       frame: number,
-      cycle = counts.latest,
+      cycle = heldCycle,
       gpu?: ShadowAsks,
     ) {
       reportFrame = counts.latest;
@@ -180,7 +181,7 @@ export function createShadowRequests(
               at[0] = level;
               at[1] = x;
               at[2] = y;
-              ask(table.baseOf(slice) + sunEntry(level, x, y), slice);
+              ask(table.baseOf(slice) + sunEntry(level, x, y, sun.windowPages), slice);
             }
         } else
           for (let face = 0; face < lampFacesOf(records.kind[slice]); face++) {
@@ -193,7 +194,7 @@ export function createShadowRequests(
     },
     reset() {
       counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;
-      counts.latest = -1;
+      counts.latest = heldCycle = -1;
     },
   };
 }

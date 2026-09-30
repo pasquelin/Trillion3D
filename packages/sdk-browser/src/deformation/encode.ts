@@ -3,6 +3,8 @@ import { followDirtyRows } from '../webgpu/pages/render/encodeDraws.ts';
 
 /** One deformation stage per image command buffer, before selection, shadows or raster. */
 const encoded = new WeakSet<GPUCommandEncoder>();
+/** The stage's buffers, refilled each image: the compute keeps its own copy when it binds them. */
+const buffers: GPUBuffer[] = [];
 export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis } = rt;
   if (!vis.deformationCompute || encoded.has(encoder)) return;
@@ -10,9 +12,14 @@ export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   if (!cache || !device || !vis.concatPos || !vis.concatNrm || !vis.concatUv || !vis.pageTable)
     return;
   followDirtyRows(rt, device);
+  buffers[0] = cache.buffer;
+  buffers[1] = vis.concatPos;
+  buffers[2] = vis.concatNrm;
+  buffers[3] = vis.pageTable;
+  buffers[4] = vis.concatUv;
   vis.deformationCompute.encode(
     encoder,
-    [cache.buffer, vis.concatPos, vis.concatNrm, vis.pageTable, vis.concatUv],
+    buffers,
     rt.layout.rows.casterSlots,
     rt.run.frame,
     vis.wholeDeformation,

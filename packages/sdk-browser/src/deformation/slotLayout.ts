@@ -1,10 +1,15 @@
-import { FLAG_SOFT_SOURCE } from '../cluster/format.ts';
+import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
 
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
-const DEFORM_VERTEX_WORDS = 11;
+export const DEFORM_VERTEX_WORDS = 11;
+
+/** The word a row or a transparent span carries to name a page's results (`deformationOutput`),
+ *  the page's slot starting at word `offset`: their first word plus one, zero for none. */
+export const deformOutputWord = (output: PageRec['deformationOutput'], offset: number) =>
+  output ? offset + output.from + 1 : 0;
 
 /**
  * Reserve deformation results in the geometry cache's own slots. All placements sharing a
@@ -32,7 +37,7 @@ export function deformationSlotBytes(
       !mesh?.morphTargetInfluences?.length &&
       !mesh?.waves &&
       mesh?.geometry?.usage !== 'dynamic' &&
-      !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | 16 | 32)) &&
+      !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | FLAG_SKIN | FLAG_MORPH)) &&
       ![...(placementOf.get(page)?.rows.sourceModels ?? [])].some((source) => source.waves)
     )
       continue;

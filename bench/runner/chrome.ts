@@ -7,7 +7,7 @@
 import { realpathSync, writeSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { chromium } from 'playwright';
-import type { LaunchOptions } from 'playwright';
+import type { Browser, LaunchOptions, Page } from 'playwright';
 import { isUnitTest } from '../../scripts/unit-tests.ts';
 import { BROWSER, listBrowserFiles, listJustesseTests } from '../../tests/browser/test-gpu.ts';
 
@@ -70,6 +70,32 @@ export function assertBrowserEntryPoint(entry = process.argv[1], testRun = under
 export async function launchChrome(options: LaunchOptions = {}) {
   assertBrowserEntryPoint();
   return chromium.launch({ channel: 'chrome', ...options });
+}
+
+/**
+ * `run` on the one page of a fresh Chrome (`launch`), sized `view` and loaded from `url`; the page
+ * and the browser are closed after it. A large scene leaves several hundred MB in Chromium's GPU
+ * process that closing the page does not release: a fresh browser per run frees it. `watch` hears
+ * the page and its browser before the page loads.
+ */
+export async function onFreshPage<T>(
+  launch: LaunchOptions,
+  view: { url: string; width: number; height: number; dpr: number },
+  run: (page: Page) => Promise<T>,
+  watch?: (page: Page, browser: Browser) => void,
+): Promise<T> {
+  const browser = await launchChrome(launch);
+  try {
+    const page = await browser.newPage({
+      viewport: { width: view.width, height: view.height },
+      deviceScaleFactor: view.dpr,
+    });
+    watch?.(page, browser);
+    await page.goto(view.url, { waitUntil: 'load' });
+    return await run(page);
+  } finally {
+    await browser.close();
+  }
 }
 
 /** Set on the proof import test's children: loading this launcher where it would refuse ends the

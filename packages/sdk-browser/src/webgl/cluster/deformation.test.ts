@@ -5,6 +5,12 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import type { ClusterDraw } from '../../cluster/batchMesh.ts';
 
+/** One record's block, its words over the same floats. */
+const records = () => {
+  const block = new Float32Array(8);
+  return { block, words: new Uint32Array(block.buffer), bases: new Uint32Array([1]), version: 0 };
+};
+
 test('oversized deformation streams are refused before creating a source texture', () => {
   let textures = 0;
   const gl = {
@@ -22,7 +28,7 @@ test('oversized deformation streams are refused before creating a source texture
   } as unknown as WebGL2RenderingContext;
   const deformation = new WebglClusterDeformation(gl);
   assert.equal(textures, 0, 'undeformed scenes allocate no control texture');
-  deformation.beginFrame({ block: new Float32Array(8), bases: new Uint32Array([1]), version: 0 });
+  deformation.beginFrame(records());
   const source = new Geometry();
   const vertices = (1024 * 1024) / 4 + 1;
   source.setAttribute('position', new BufferAttribute(new Float32Array(vertices * 3), 3));
@@ -56,7 +62,7 @@ test('source textures allocate padded rows once and release with their geometry'
     },
   } as unknown as WebGL2RenderingContext;
   const deformation = new WebglClusterDeformation(gl);
-  const controls = { block: new Float32Array(8), bases: new Uint32Array([1]), version: 0 };
+  const controls = records();
   deformation.beginFrame(controls);
   const source = new Geometry();
   source.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));

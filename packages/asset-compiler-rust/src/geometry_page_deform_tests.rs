@@ -141,3 +141,13 @@ fn all_influences_and_float_weights_survive_large_joint_separation() {
         .sqrt();
     assert!(reach["targets"][0].as_f64().unwrap() >= radius);
 }
+
+#[test]
+fn a_joint_base_near_the_top_stays_within_what_the_reader_admits() {
+    let joints = vec![65000, 65535, 65000, 65000];
+    let mut fields = vec![Vec::new()];
+    let skin = skin_fields(&joints, &[1.0, 0.0, 0.0, 0.0], 4, &[0], &mut fields).unwrap();
+    assert_eq!(skin.bits, 10);
+    assert!(u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff);
+    assert_eq!(fields[0][1] + skin.base, 65535);
+}

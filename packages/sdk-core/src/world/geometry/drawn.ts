@@ -1,12 +1,13 @@
-import { crossVector3, lengthSqVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
+import { lengthSqVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { computeNormals } from './normals.ts';
 import { GeometryBuilder } from './builder.ts';
 import type { Geometry } from './geometry.ts';
 import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
+import { POINT_VERTICES, points } from './drawnPoints.ts';
 import { flatten } from './drawnFlat.ts';
-import { drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
+import { deforms, drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
 import { readComponent, readPoints } from './bounds.ts';
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -47,6 +48,7 @@ function drawTriangles(
 ): DrawnTriangles | null {
   if (reading === 'sprite')
     return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
+  const traced = deforms(geometry);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
   const p = Array.from(readPoints(position));
@@ -55,21 +57,21 @@ function drawTriangles(
     : Array.from({ length: position.count }, (_, i) => i);
   if (reading === 'points') {
     const drawn = solids(points(p, (options.size ?? 1) / 2));
-    if (drawn)
+    if (drawn && traced)
       drawn.sourceVertices = Uint32Array.from({ length: drawn.positions.length / 3 }, (_, v) =>
-        Math.floor(v / 24),
+        Math.floor(v / POINT_VERTICES),
       );
     return drawn;
   }
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const loop = reading === 'lineLoop' && corners.length > 2;
-    return quads(p, lineCorners(corners, reading), options.dashed, loop);
+    return quads(p, lineCorners(corners, reading), traced, options.dashed, loop);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
     // Every edge once, however many triangles share it (`edgesOf`).
     const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
-    return quads(p, segments, options.dashed);
+    return quads(p, segments, traced, options.dashed);
   }
   const drawn = {
     positions: new Float32Array(p),
@@ -78,7 +80,7 @@ function drawTriangles(
     colors: readList(geometry, 'color', 4, position.count),
     indices: new Uint32Array(corners.slice(0, corners.length - (corners.length % 3))),
   };
-  if (options.flat) return flatten(drawn);
+  if (options.flat) return flatten(drawn, traced);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
 }
 /** Drawn triangles with their original deformation attributes preserved. */
@@ -111,22 +113,11 @@ export function lineCorners(
   return segments;
 }
 
-/** An octahedron of radius `r` on every vertex. */
-function points(p: number[], r: number) {
-  const b = new GeometryBuilder();
-  // prettier-ignore
-  const axes: V3[] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, 0, 0], [0, -1, 0], [0, 0, -1]];
-  // prettier-ignore
-  for (let v = 0; v + 2 < p.length; v += 3)
-    for (const [i, j, k] of [[0, 1, 2], [1, 3, 2], [3, 4, 2], [4, 0, 2], [1, 0, 5], [3, 1, 5], [4, 3, 5], [0, 4, 5]])
-      face(b, [axes[i], axes[j], axes[k]].map((a) => [p[v] + a[0] * r, p[v + 1] + a[1] * r, p[v + 2] + a[2] * r] as V3));
-  return b;
-}
-
 /** Two triangles per segment; normal signs widen endpoints on screen, UVs retain dash distance. */
 function quads(
   p: number[],
   segments: number[],
+  traced: boolean,
   dashed = false,
   loop = false,
 ): DrawnTriangles | null {
@@ -151,7 +142,7 @@ function quads(
       [b, 1],
       [b, -1],
     ]) {
-      sourceVertices.push(at / 3);
+      if (traced) sourceVertices.push(at / 3);
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
       if (dashed) uvs.push(at === a ? distance : end, 0);
@@ -167,25 +158,9 @@ function quads(
     colors: null,
     indices: new Uint32Array(indices),
     lines: true,
-    sourceVertices: new Uint32Array(sourceVertices),
+    ...(traced && { sourceVertices: new Uint32Array(sourceVertices) }),
   };
 }
-
-/** One triangle with its own vertices, wound outward from the solid it closes. */
-function face(b: GeometryBuilder, [a, c, d]: V3[]) {
-  const n = normalOf(c.map((x, i) => x - a[i]) as V3, d.map((x, i) => x - a[i]) as V3);
-  const first = b.vertex(a, n, [0, 0]);
-  b.vertex(c, n, [1, 0]);
-  b.vertex(d, n, [0, 1]);
-  b.triangle(first, first + 1, first + 2);
-}
-
-/** The unit vector along `a × b`. */
-const normalOf = (a: V3, b: V3): V3 => {
-  const out = crossVector3([0, 0, 0] as V3, a, b);
-  normalizeVector3(out);
-  return out;
-};
 
 /** A builder's triangles as drawn arrays. */
 function solids(b: GeometryBuilder): DrawnTriangles | null {

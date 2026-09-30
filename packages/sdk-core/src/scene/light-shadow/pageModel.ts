@@ -7,8 +7,9 @@ import {
   LAMP_SIDE,
   SHADOW_PAGE,
   SUN_LEVELS,
-  SUN_LEVEL_ENTRIES,
   SUN_WINDOW,
+  shadowEntrySpan,
+  shadowTableEntries,
 } from './virtual.ts';
 
 /** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
@@ -23,7 +24,7 @@ const PCF_EDGE_TEXELS = 1.5;
  * It also decodes an entry back into its page, as the GPU allocator maps it (#1275), and ranks it.
  * The page formulas over `o`, by their WGSL names.
  */
-export function pageModel<V>(o: PageOps<V>) {
+export function pageModel<V>(o: PageOps<V>, windowPages = SUN_WINDOW) {
   const ring = (v: V, n: V) => o.mod(o.add(o.mod(v, n), n), n);
   const texel = (level: V) => o.exp2(o.toFloat(level));
   const page = o.float(SHADOW_PAGE),
@@ -53,9 +54,9 @@ export function pageModel<V>(o: PageOps<V>) {
       o.add(o.mul(ring(y, pages), pages), ring(x, pages)),
     /** Entry of page `(x, y)` of a map `pages` wide, row by row. */
     shadowFacePageEntry: (pages: V, x: V, y: V) => o.add(o.mul(y, pages), x),
-    /** First entry of sun `level`: its slot in the ring of `SUN_LEVELS`. */
+    /** First entry of sun `level`: its slot in the ring of `SUN_LEVELS`, an extent `windowPages²` wide. */
     shadowSunLevelEntry: (level: V) =>
-      o.mul(ring(level, o.int(SUN_LEVELS)), o.int(SUN_LEVEL_ENTRIES)),
+      o.mul(ring(level, o.int(SUN_LEVELS)), o.int(windowPages * windowPages)),
     /** First entry of `mip` of lamp `face`: the faces before it, then its finer mips — `S²`, `S²/4`,
      *  … pages, `4 (S² − p²) / 3` together for `p = S >> mip`, exact for a side `S` a power of two. */
     shadowLampMapEntry: (face: V, mip: V) =>
@@ -142,7 +143,7 @@ export function pageModel<V>(o: PageOps<V>) {
     shadowPcfStep: (t: V, first: V) =>
       o.pick(o.ge(o.sub(t, first), o.float(SHADOW_PAGE / 2)), o.int(1), o.int(-1)),
     ...pageViewModel(o),
-    ...pageKeyModel(o),
+    ...pageKeyModel(o, shadowEntrySpan(shadowTableEntries(windowPages))),
   };
 }
 
@@ -154,9 +155,10 @@ export const PAGES = /* @__PURE__ */ pageModel(NUMBERS);
 /** Non-negative remainder. */
 export const ringOf = (v: number, n: number) => PAGES.shadowRing(v, n);
 
-/** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base. */
-export const sunEntry = (level: number, ax: number, ay: number) =>
-  PAGES.shadowSunLevelEntry(level) + PAGES.shadowRingPageEntry(SUN_WINDOW, ax, ay);
+/** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base, for a
+ *  clipmap extent of `pages` a side — the session's, the constant by default. */
+export const sunEntry = (level: number, ax: number, ay: number, pages = SUN_WINDOW) =>
+  PAGES.shadowRing(level, SUN_LEVELS) * pages * pages + PAGES.shadowRingPageEntry(pages, ax, ay);
 
 /** First entry of `mip` inside a lamp face. */
 export const lampMipOffset = (mip: number) => PAGES.shadowLampMapEntry(0, mip);
