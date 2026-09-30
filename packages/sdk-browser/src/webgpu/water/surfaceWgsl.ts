@@ -1,5 +1,5 @@
-// The surface stage's WGSL (`rank.ts` says what it stores), imported with the fluids' code
-// (`../../fluids/fluidCode.ts`): the core holds the rank alone.
+// The surface stage's WGSL (`rank.ts` says what it stores), imported with transmission's code
+// (`transmissionCode.ts`): the core holds the rank alone.
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts';
 
 /** The five targets of the stage: the surface buffer, then the virtual-texture feedback. */

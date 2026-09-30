@@ -4,7 +4,7 @@ import { runInstalledBrowser } from './installed-package-browser.ts';
 import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
 import { missingBeside, PHYSICS_RULE, type EmittedChunk } from './installed-package-beside.ts';
 import { BUNDLE_ENTRY } from './build-bundle.ts';
-import { familyChunks } from './bundle-fold.ts';
+import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts';
 import type { Run } from './installed-package-contracts.ts';
 
 /** Where the fixture server serves the unpacked archive, as a CDN serves a package's files. */
@@ -30,10 +30,16 @@ export function physicsFiles(files: string[], chunks: EmittedChunk[]): string[] 
   return [...new Set([...files.filter((name) => beside.includes(name)), ...starting])];
 }
 
-/** The bundle's fluids: the chunk of their code (`bundle-fold.ts`), the water pass and the
- *  particle steps. A page with no transmissive surface and no particle pool requests none. */
-export const fluidFiles = (dist: string): string[] =>
-  familyChunks(dist, 'fluids').flatMap(({ chunk }) => (chunk ? [chunk] : []));
+/** The bundle's other optional families (`bundle-fold.ts`): the chunk of each one's code, by
+ *  family. A plain scene — no particle, transmission, deformation, effect, guide, diagnostic view
+ *  nor measurement — requests none of them. */
+export function familyFiles(dist: string) {
+  const families = (Object.keys(FAMILY_MODULES) as Family[]).filter((name) => name !== 'physics');
+  return families.map((family) => ({
+    family,
+    files: familyChunks(dist, family).flatMap(({ chunk }) => (chunk ? [chunk] : [])),
+  }));
+}
 
 /** The requests of a proof page among `files` of the bundle served at `CDN_PATH`. */
 const requested = (paths: string[], files: string[]) => {
@@ -72,7 +78,7 @@ export function unpackCdn(fixture: string, run: Run): UnpackedCdn {
 /**
  * The page on `127.0.0.1` loads the bundle through an `importmap` from `localhost`, another
  * origin, as it would from jsDelivr or unpkg: one import, the engine's workers started across
- * origins. No request reaches the installed `node_modules`, none the physics nor the fluids.
+ * origins. No request reaches the installed `node_modules`, none an optional family's.
  */
 export async function proveCdnBrowser({
   fixture,
@@ -85,7 +91,7 @@ export async function proveCdnBrowser({
   unpacked: UnpackedCdn;
   manifestUrl: string;
   replayUrl: string;
-}): Promise<InstalledBrowserProof & { physicsRequests: string[]; fluidRequests: string[] }> {
+}): Promise<InstalledBrowserProof & { physicsRequests: string[]; familyRequests: string[] }> {
   const html = (port: number) => {
     const imports = { [packageName]: `http://localhost:${port}${CDN_PATH}/${BUNDLE_ENTRY}` };
     return `<!doctype html><canvas id="primer"></canvas><canvas id="replay"></canvas><script type="importmap">${JSON.stringify({ imports })}</script>`;
@@ -100,12 +106,16 @@ export async function proveCdnBrowser({
     ...urls,
   });
   const paths = proof.requests.map(({ path }) => path);
-  const physicsRequests = requested(paths, physicsFiles(files, chunks));
-  const fluidRequests = requested(paths, fluidFiles(dist));
-  for (const [family, fetched] of [
-    ['physics', physicsRequests],
-    ['fluids', fluidRequests],
-  ] as const)
-    if (fetched.length) throw new Error(`a scene without ${family} fetched ${fetched.join(', ')}`);
-  return { ...proof, physicsRequests, fluidRequests };
+  const fetched = [
+    { family: 'physics', files: physicsFiles(files, chunks) },
+    ...familyFiles(dist),
+  ].map(({ family, files: own }) => ({ family, paths: requested(paths, own) }));
+  for (const { family, paths: made } of fetched)
+    if (made.length) throw new Error(`a scene without ${family} fetched ${made.join(', ')}`);
+  const [physics, ...others] = fetched;
+  return {
+    ...proof,
+    physicsRequests: physics.paths,
+    familyRequests: others.flatMap(({ paths: made }) => made),
+  };
 }

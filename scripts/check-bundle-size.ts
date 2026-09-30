@@ -50,7 +50,7 @@ export function coreSize(dist: string, budget = CORE_BUDGET_BYTES) {
   const within = bytes <= budget;
   const families = held.length
     ? `, and holds ${held.join(', ')}, to be loaded on first use`
-    : `; ${Object.keys(FAMILY_MODULES).join(' and ')} load on first use`;
+    : `; ${Object.keys(FAMILY_MODULES).join(', ')} load on first use`;
   return {
     bytes,
     fits: within && !held.length,

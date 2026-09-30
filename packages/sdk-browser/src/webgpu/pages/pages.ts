@@ -34,16 +34,12 @@ import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
-import {
-  captureFeedbackAb,
-  feedbackAbResidency,
-  setFeedbackTargetAb,
-} from './diagnostic/feedbackAb.ts';
-import { feedbackAbSpatial } from './diagnostic/feedbackSpatial.ts';
+import { families } from '../../host/families.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
+const views = () => families.diagnostics.load();
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
  *  `selectVisiblePages` remains the CPU oracle and the silent fallback. The state lives in the
  *  runtime; each method hands it to the module that owns that responsibility. */
@@ -116,10 +112,11 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       renderWebgpuPages(rt, camera);
     },
     syncResident: () => syncResident(rt),
-    setFeedbackTargetAb: (target) => setFeedbackTargetAb(rt, target),
-    feedbackAbResidency: () => feedbackAbResidency(rt),
-    captureFeedbackAb: () => captureFeedbackAb(rt),
-    feedbackAbSpatial: () => feedbackAbSpatial(rt),
+    // The feedback A/B measurements, diagnostic views on demand (`../../host/families.ts`).
+    setFeedbackTargetAb: async (target) => (await views()).setFeedbackTargetAb(rt, target),
+    feedbackAbResidency: async () => (await views()).feedbackAbResidency(rt),
+    captureFeedbackAb: async () => (await views()).captureFeedbackAb(rt),
+    feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
     landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {

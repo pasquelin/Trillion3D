@@ -1,4 +1,4 @@
-import { DEFORMATION_PASS } from '../../../deformation/compute.ts';
+import { DEFORMATION_PASS } from '../../../deformation/pass.ts';
 import { dropGpuSelection, dropVis } from './drops.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import { dropBlendBuffers } from '../../blend/buffers.ts';

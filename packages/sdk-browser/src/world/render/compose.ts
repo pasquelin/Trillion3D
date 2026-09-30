@@ -8,7 +8,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { createBackendPresenter } from './composeSurface.ts';
 import { createHeldFrame } from './heldFrame.ts';
-import { createWebglGuideDraw } from '../../guides/guideGl.ts';
+import type { createWebglGuideDraw } from '../../guides/guideGl.ts';
 import type { GuideSet } from '../../guides/guideSet.ts';
 import type { SceneColour } from '../../webgl/cluster/lights.ts';
 import {
@@ -17,10 +17,11 @@ import {
   type HostDrawOutput,
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
-import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
+import type { createWebglEffects, WebglEffectOutput } from '../../effects/webglEffects.ts';
+import { families } from '../../host/families.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import { webglParticleStep } from '../../fluids/particleCode.ts';
+import { webglParticleStep } from '../../particles/particleFamily.ts';
 import { anyMoving } from '../../particles/poolStates.ts';
 import { createComposeScale } from './renderScale.ts';
 
@@ -47,7 +48,7 @@ export type ComposedChain = {
  * the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to them
  * spares no redraw. The world's `particles` step before, and draw over the engine's image before
  * the chain, on every image drawn here: when they move, the image is drawn, never kept
- * (`../../fluids/particleCode.ts`). A refusal never fails the session: the pools are refused
+ * (`../../particles/particleCode.ts`). A refusal never fails the session: the pools are refused
  * by name, `particlesRefused` hearing why once, and the frame goes on without them. An engine with
  * a render scale draws both below the display, resampled before the chain (`./renderScale.ts`).
  * Nothing here belongs to a rendering library.
@@ -63,12 +64,13 @@ export function createFrameComposer(
 ) {
   const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
-  let stepped: ReturnType<typeof webglParticleStep>;
-  const guideDraw = createWebglGuideDraw(gl);
+  // Each made on the family's code the frame waited for (`../../host/families.ts`).
+  let stepped: ReturnType<typeof webglParticleStep>,
+    guideDraw: ReturnType<typeof createWebglGuideDraw> | undefined,
+    effects: ReturnType<typeof createWebglEffects> | undefined;
   let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl),
     scaled = createComposeScale(gl);
-  const effects = composed && createWebglEffects(gl);
   const drawCamera = createHostDrawCamera();
   const output: HostDrawOutput = {
     toneMapped: true,
@@ -101,19 +103,18 @@ export function createFrameComposer(
     if (!composed) return NONE;
     const passes = composed.chain.stage('before-tone-mapping');
     // An emptied chain gives its targets back; one kept aside for a capture keeps them.
-    if (!passes.length) effects!.release();
-    if (!passes.length || !wanted || !composed.shown() || !effects!.supported()) return NONE;
+    if (!passes.length) effects?.release();
+    if (!passes.length || !wanted || !composed.shown()) return NONE;
+    effects ??= families.effects.get()?.createWebglEffects(gl); // refused: no chain drawn
+    if (!effects?.supported()) return NONE;
     const refused = backend.linearRefusal?.();
     if (!refused) return passes;
     composed.refused?.(refused);
     return NONE;
   };
-  /**
-   * `reuse` is false where the kept frame is not this engine's: a fallback takes over the image
-   * from the engine that failed, and putting back what is kept would show that engine's last
-   * frame. It draws, and what it draws is kept in turn. `chained` is false for a capture, which
-   * takes the engine's image without the chain, as the WebGPU capture does.
-   */
+  /** `reuse` is false where the kept frame is not this engine's — a fallback taking over from the
+   *  engine that failed draws, and what it draws is kept in turn. `chained` is false for a
+   *  capture, which takes the engine's image without the chain, as the WebGPU capture does. */
   const compose = (
     backend: RenderBackend,
     target: WebglRenderTarget | null,
@@ -124,7 +125,7 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const moved = anyMoving(particles);
-    // Made by a pool once its code arrived, then run with none left: it frees a pool's targets.
+    // Made by the first pool, then run with none left too: it frees a released pool's targets.
     if (particles.length) stepped ??= webglParticleStep(gl, particles, layers.particlesRefused);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
@@ -145,10 +146,8 @@ export function createFrameComposer(
       return;
     }
     if (!backend.drawHostGeometry) throw new Error(`HOST_DRAW_UNSUPPORTED:${backend.id}`);
-    // The display chain of the engine's view, the same rule for every engine and every
-    // destination: an unlit scene composes by identity, from linear to sRGB and nothing else
-    // (P6); as soon as a light exists, exposure and the filmic curve come back, last links of
-    // the chain (P4). A target thus holds what the page would show.
+    // The display chain, one rule for every engine and destination: an unlit scene composes by
+    // identity (P6); a light brings exposure and the filmic curve back, last links (P4).
     output.toneMapped = backend.sceneLit?.() !== false;
     output.toneMapping = backend.sceneToneMapping?.() ?? DEFAULT_TONE_MAPPING;
     const passes = passesOf(backend, chained);
@@ -160,8 +159,7 @@ export function createFrameComposer(
     output.width = width;
     output.height = height;
     encode(backend.scene.background as SceneColour);
-    // Drawn below the display, the image is resampled over every pixel of it: only its own target
-    // is cleared.
+    // Drawn below the display, the image is resampled over all of it: only its target is cleared.
     const clear = linear ? undefined : display.background;
     if (!scaled.begin(backend, output, scale, clear) && clear) clearWebglTarget(gl, clear);
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
@@ -176,7 +174,9 @@ export function createFrameComposer(
     }
     if (layers.guides) {
       guidesDrawn = layers.guides.revision;
-      guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
+      if (layers.guides.visibleInstances())
+        guideDraw ??= families.guides.get()?.createWebglGuideDraw(gl);
+      guideDraw?.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
     if (target) return;
     pass?.('Trillion3D WebGL2 held frame copy');
@@ -193,7 +193,7 @@ export function createFrameComposer(
     scaled.dispose();
     heldFrame.dispose();
     effects?.dispose();
-    guideDraw.dispose();
+    guideDraw?.dispose();
     stepped?.dispose();
   };
   return compose;

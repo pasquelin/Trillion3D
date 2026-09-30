@@ -1,7 +1,7 @@
 import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts';
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts';
 import { hostTextureWritten } from '../../host/textureImport.ts';
-import { SDK_BUILD_PROVENANCE } from '../../measurement/buildProvenance.ts';
+import { families } from '../../host/families.ts';
 import {
   DEFAULT_HEIGHT,
   DEFAULT_PAGE_WORKERS,
@@ -58,6 +58,11 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
   }
   await calculEnLot;
+  // The provenance table, a family loaded with the scene when a channel listens (`familyUse.ts`);
+  // unheard, the record is dropped unread and nothing loads it.
+  const sdk = diagnosticChannel.enabled
+    ? (await families.measurement.load().catch(() => null))?.SDK_BUILD_PROVENANCE
+    : null;
   diagnose('configuration', 'Active explorer configuration', {
     kind: 'configuration',
     scope,
@@ -76,7 +81,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     })),
     mathBatch: mathBatchMetrics(),
     provenance: {
-      sdk: SDK_BUILD_PROVENANCE,
+      sdk,
       manifestUrl,
       metadataUrl,
       formatVersion: metadata.formatVersion ?? metadata.schema,
