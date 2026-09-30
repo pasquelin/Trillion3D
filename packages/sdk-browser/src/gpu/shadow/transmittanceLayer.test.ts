@@ -10,6 +10,7 @@ import {
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** Every call an object receives, by name, in order. */
 function recorder<T>() {
@@ -26,6 +27,8 @@ function created(poolSide: number) {
   installGpuGlobals();
   const device = recorder<GPUDevice>(),
     encoder = recorder<GPUCommandEncoder>();
+  // The draws read `device.features` (`casterPrimitive`); the recorder grants none.
+  (device.target as unknown as { features: Set<string> }).features = new Set();
   (encoder.target as unknown as { beginRenderPass: unknown }).beginRenderPass = (
     d: GPURenderPassDescriptor,
   ) => (encoder.calls.push(['beginRenderPass', [d]]), { end() {} });
@@ -93,4 +96,25 @@ test('depth-only then colour-only draws of the blended rows, the opaque depth re
   assert.equal([...blend.fragment!.targets][0]!.blend, TRANSMITTANCE_BLEND);
   const [opaque] = of('createBindGroupLayout') as GPUBindGroupLayoutDescriptor[];
   assert.deepEqual([...opaque.entries][0].texture, { sampleType: 'depth' });
+});
+
+// #26 (shadow-pool write side): the blended casters are sun casters too. Their corners come from the
+// same `sunSnap` path as the opaque ones, so the hardware clipper can mint unsnapped corners between
+// the snapped ones and a page then rasterizes differently by pool slot. `casterPrimitive` disables
+// depth clipping on a device that grants `depth-clip-control`, exactly as the depth draws do; a
+// device without the feature keeps the old path, clipping.
+test('the two transmittance draws clamp depth on a device with depth-clip-control', () => {
+  const { device, renderPipelines } = fakeDevice({ features: ['depth-clip-control'] });
+  shadowTransmittanceDraws(device, {} as GPUShaderModule, []).made();
+  assert.equal(renderPipelines.length, 2, 'the depth-only and colour-only draws');
+  for (const descriptor of renderPipelines)
+    assert.equal(descriptor.primitive?.unclippedDepth, true);
+});
+
+test('without the feature the transmittance draws keep the default, clipping', () => {
+  const { device, renderPipelines } = fakeDevice();
+  shadowTransmittanceDraws(device, {} as GPUShaderModule, []).made();
+  assert.equal(renderPipelines.length, 2, 'the depth-only and colour-only draws');
+  for (const descriptor of renderPipelines)
+    assert.equal(descriptor.primitive?.unclippedDepth, undefined);
 });

@@ -7,7 +7,7 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { close, display, srgb } from './blendModel.fixture.ts';
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts';
 import { PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
-import { WATER_ROUTED_SHADER } from '../water/compositeWgsl.ts';
+import { waterRoutedShader } from '../water/compositeWgsl.ts';
 import { BLEND_SHADER } from './shader.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts';
@@ -77,7 +77,7 @@ test('water routes the colour it composed, lit or unlit', () => {
   type Water = { composeWaterRouted: (pixel: number[]) => Layers };
   const uni = { viewFlags: 0, exposure: 1, toneCurve: ACES };
   const { composeWaterRouted } = shaderRun<Water>(
-    WATER_ROUTED_SHADER,
+    waterRoutedShader(),
     ['composeWaterRouted', 'waterRoute', ...ROUTE_FUNCTIONS],
     { ...routeScope(1, leftHalf), waterColor: () => water, uni, Routed: layers },
   );
