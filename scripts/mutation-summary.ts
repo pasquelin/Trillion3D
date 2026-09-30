@@ -40,7 +40,9 @@ export function summarizeMutation(
     if (DETECTED.has(mutant.status)) detected++;
     if (UNDETECTED.has(mutant.status)) {
       undetected++;
-      left.set(mutant.fileName, [...(left.get(mutant.fileName) ?? []), mutant]);
+      const list = left.get(mutant.fileName);
+      if (list) list.push(mutant);
+      else left.set(mutant.fileName, [mutant]);
     }
     for (const test of new Set(mutant.killedBy ?? [])) kills.set(test, (kills.get(test) ?? 0) + 1);
   }

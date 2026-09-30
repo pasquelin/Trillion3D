@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { closestBetweenSegments } from './segmentPair.ts';
+import { onSegment as within } from './segment.fixture.ts';
 
 // The closed form against a dense sampling of both segments: the true distance is never above the
 // nearest sampled pair, nor further below it than the sampling step; the pair lies on the segments.
 
 const STEPS = 400;
+const onSegment = (p: ArrayLike<number>, s: number[]) => within(p, s, 1e-12, 1e-18);
 const at = (s: number[], t: number) => [0, 1, 2].map((k) => s[k] + t * (s[3 + k] - s[k]));
 
 function sampled(first: number[], second: number[]) {
@@ -16,14 +18,6 @@ function sampled(first: number[], second: number[]) {
       best = Math.min(best, (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2);
     }
   return Math.sqrt(best);
-}
-
-function onSegment(p: ArrayLike<number>, s: number[]) {
-  const d = [0, 1, 2].map((k) => s[3 + k] - s[k]);
-  const len = d[0] ** 2 + d[1] ** 2 + d[2] ** 2;
-  const t = len ? [0, 1, 2].reduce((sum, k) => sum + (p[k] - s[k]) * d[k], 0) / len : 0;
-  const off = [0, 1, 2].reduce((sum, k) => sum + (p[k] - s[k] - t * d[k]) ** 2, 0);
-  return t >= -1e-12 && t <= 1 + 1e-12 && off <= 1e-18;
 }
 
 test('two segments: the distance and the pair of their nearest points, degenerate ones included', () => {
