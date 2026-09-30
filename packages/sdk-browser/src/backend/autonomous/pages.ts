@@ -47,7 +47,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   const draws = createPageDraws(roots);
-  for (const rec of allPages) draws.drawing(rec).material = rec.declaration;
+  for (const rec of allPages) draws.forEachDraw(rec, (draw) => (draw.material = rec.declaration));
   const declared = () =>
       allPages.flatMap((rec) => (draws.materialOf(rec) ? [draws.materialOf(rec)!] : [])),
     colorMaterials = new Map<HostMaterial, HostMaterial>(),

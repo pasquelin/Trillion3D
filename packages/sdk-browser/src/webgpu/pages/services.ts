@@ -12,6 +12,7 @@ import { createWebgpuResidencyQueue } from '../residency/queue.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
+import { livePlacementIndex } from '../../page/selection/placements.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
@@ -92,12 +93,14 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec));
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
-  const closure = createGroupClosure(rt.layout.selectionRoots, rt.layout.placement, packedPages);
+  // The layout's tables, read at each lookup: a growth in place replaces them (`webgpuGrowth.ts`).
+  const placement = livePlacementIndex(() => rt.layout.placement);
+  const closure = createGroupClosure(rt.layout.selectionRoots, placement, packedPages);
   /** The residency sets and the page dependencies: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages }),
     parentsOf = createPageParents(
       rt.layout.selectionRoots,
-      rt.layout.placement,
+      placement,
       (rec) => rows.pageIndexOf(rec) ?? -1,
     );
   const pinUpdater = createWebgpuPinUpdater({
