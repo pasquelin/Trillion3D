@@ -72,7 +72,7 @@ export const LIGHT_SETTINGS = {
    * miss it add an exact zero —, so no light is ever dropped.
    */
   tileLights: 64,
-  /** Side in pixels of a cell of the light grid, the reference engine's light grid pixel size. */
+  /** Side in pixels of a cell of the light grid. */
   tileSize: 64,
   /** Depth slices of the light grid: past the last, a cell reaches to infinity. */
   gridSlices: 256,
