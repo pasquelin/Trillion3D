@@ -28,6 +28,9 @@ import type { Light } from './lightTileCity.ts';
  * - `texelPs`: a texel read or written, the TAA resolve's 1.30 ms envelope over its 19 texels a
  *   display pixel (#1369's profile): 8.86 ps. The grid pass is charged two a list entry (its mark,
  *   its write) and two a cell record.
+ *   The resolve is charged its G-buffer texels (`RESOLVE_GBUFFER`) at the same rate, per texel
+ *   whatever its bytes: no measured number prices a byte alone, so the bytes are counted, not
+ *   priced.
  * - `inRangePs`, `outOfRangePs`: a listed light in and out of the pixel's range in the resolve's
  *   program with no shadow code, timed on the resolve (64 lamps, a million pixels, M2 Max, #1326,
  *   docs/ENGINE.md): 27.8 and 10.6 ps a pixel.
@@ -39,15 +42,38 @@ export const LIGHTING_RATES = {
   outOfRangePs: 10.6,
 };
 
-/** Milliseconds the rates give the grid pass and the resolve's light work of a `countGrid`. */
-export function lightingModel({ listed, reach, work }: ReturnType<typeof countGrid>) {
+/**
+ * The resolve's G-buffer accesses per covered pixel of a surface that neither emits nor has an
+ * occlusion map — sponza's 25 materials, the atrium —, each target's bytes (`surfaceBuffer.ts`):
+ * develop read the flags, the base colour, the depth, the normal and the emission-and-occlusion
+ * texel and wrote the colour; that texel is now read only under its flag bit (`surfaceEmission.ts`).
+ * The normal keeps its three half floats, which no octahedral code gives back bit for bit; roughness
+ * and metalness already ride in the alphas.
+ */
+export const RESOLVE_GBUFFER = {
+  before: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, emissiveAo: 8, colour: 8 },
+  after: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, colour: 8 },
+};
+/** Texels and bytes of a side of `RESOLVE_GBUFFER`. */
+export const gbufferAccesses = (side: Record<string, number>) => ({
+  texels: Object.keys(side).length,
+  bytes: Object.values(side).reduce((a, b) => a + b, 0),
+});
+
+/** Milliseconds the rates give the grid pass, the resolve's light work and its G-buffer accesses
+ *  of a `countGrid`, `side` the G-buffer's. */
+export function lightingModel(
+  { covered, listed, reach, work }: ReturnType<typeof countGrid>,
+  side: keyof typeof RESOLVE_GBUFFER = 'after',
+) {
   const r = LIGHTING_RATES;
   const tilePass =
     ((work.columnTests + 2 * work.solves) * r.pairNs * 1e3 +
       2 * (work.entries + work.cells) * r.texelPs) /
     1e9;
   const lightWork = (reach * r.inRangePs + (listed - reach) * r.outOfRangePs) / 1e9;
-  return { tilePass, lightWork, lighting: tilePass + lightWork };
+  const gbuffer = (covered * gbufferAccesses(RESOLVE_GBUFFER[side]).texels * r.texelPs) / 1e9;
+  return { tilePass, lightWork, gbuffer, lighting: tilePass + lightWork + gbuffer };
 }
 
 /** Over the covered pixels of `view`: the lights their cells list, those reaching them, those
@@ -80,6 +106,7 @@ async function main() {
     const view = camera(eye, yaw, pitch, 60, width, height);
     const s = countGrid(view, atriumDepth(view), lights);
     const ms = Object.entries(lightingModel(s)).map(([k, v]) => [`${k} ms`, v.toFixed(3)]);
+    ms.push(['develop gbuffer ms', lightingModel(s, 'before').gbuffer.toFixed(3)]);
     return {
       pose,
       covered: s.covered,
@@ -93,6 +120,8 @@ async function main() {
   console.log(`200 lamps of range ${range} m, ${width} × ${height}: lights per covered pixel`);
   console.table(rows);
   console.log("Develop's tile pass (#924) at the same size:", tilePassWork(width, height, 200));
+  const [before, after] = [RESOLVE_GBUFFER.before, RESOLVE_GBUFFER.after].map(gbufferAccesses);
+  console.log('G-buffer per covered pixel, develop then now:', before, after);
 }
 
 if (import.meta.main) await main();
