@@ -16,9 +16,10 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL, SHADE_SUN_WGSL } from './request.ts';
+import { SHADE_REQUEST_WGSL, SHADE_UNI_WGSL } from './request.ts';
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
+import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts';
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
 
 /**
@@ -56,8 +57,7 @@ fn storeShadingOffset(pos:vec2f,offset:vec3f){
  let at=(u32(pos.y)*u32(uni.viewport.x)+u32(pos.x))*3u;
  shadingOffset[at]=offset.x;shadingOffset[at+1u]=offset.y;shadingOffset[at+2u]=offset.z;
 }
-${SHADE_SUN_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
+${SHADE_UNI_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
@@ -101,6 +101,7 @@ fn framebuffer(clip:vec4f)->vec3f{
 @vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
  let x=f32(i32(i&1u)*4-1);let y=f32(i32(i>>1u)*4-1);return vec4f(x,y,CLASS_DEPTH,1.0);
 }
+${MATERIAL_TILE_DRAW_WGSL}
 /** Material depth: the class of the pixel's page, zero on the background. */
 @fragment fn material_depth_fs(@builtin(position) pos:vec4f)->@builtin(frag_depth) f32{
  return materialClassDepth(textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r);
