@@ -222,10 +222,10 @@ uploaded by the first draw that binds it.
 
 Shared URLs occupy one slot across instances. Two counters say different things:
 
-| Field | Meaning | Reported by |
-| --- | --- | --- |
-| `pagesDetached` | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure | the WebGL page paths |
-| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend |
+| Field            | Meaning                                                                                         | Reported by          |
+| ---------------- | ----------------------------------------------------------------------------------------------- | -------------------- |
+| `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
+| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
 `coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
 diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at most

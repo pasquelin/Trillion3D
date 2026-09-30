@@ -8,8 +8,8 @@ import {
   shadowPoolSize,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import {
-  askedPages,
-  demandPoolPages,
+  createPoolDemand,
+  followDemand,
 } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { session } from './poolResize.fixture.ts';
@@ -25,9 +25,11 @@ test('the shadow pool of a one-cube scene is sized from its demand, not from the
     viewport = s.rt.setup.viewport as number[];
   viewport.splice(0, 2, 3456, 2234);
   await s.ask(CUBE_PAGES);
+  // What a first report of these pages sizes a pool to, and the pages it read.
   const { pool } = s.lights.plan,
-    asked = askedPages(s.lights.plan),
-    shape = shadowPoolShape(demandPoolPages(asked));
+    first = createPoolDemand(),
+    shape = shadowPoolShape(followDemand(s.lights.plan, first)!),
+    asked = first.read;
   assert.ok(asked >= CUBE_PAGES && asked < CUBE_PAGES + 16, `${asked} pages asked`);
   assert.deepEqual([pool.side, pool.layers], [shape.side, shape.layers], 'the demand sizes it');
   const display = shadowPoolSize(3456, 2234);
@@ -45,7 +47,7 @@ test('the first report sizes the budget pool to its demand at once, then the sta
     budget = plan.pool.pages;
   assert.equal(shadowPoolSized(s.lights), false, 'the static layer waits for the first report');
   await s.ask(CUBE_PAGES);
-  const shape = shadowPoolShape(demandPoolPages(askedPages(plan)));
+  const shape = shadowPoolShape(followDemand(plan, createPoolDemand())!);
   assert.deepEqual([plan.pool.side, plan.pool.layers], [shape.side, shape.layers], 'one report');
   assert.ok(plan.pool.pages * 5 < budget, `${plan.pool.pages} of ${budget} pages`);
   assert.equal(shadowPoolSized(s.lights), true);
