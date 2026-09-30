@@ -97,13 +97,24 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, down to one page. Six faces for a
   point, one for a spot.
 - **The level is chosen per pixel, from its footprint** (the world distance between two adjacent
-  pixels at its depth): a sun reads the level whose texel is at most that footprint, a lamp the mip
-  whose texel at the point's distance is. A texel is never larger than a pixel where the map offers
-  one, so a caster's error in texels is one in pixels. A page not readable yet hands the point to
-  the next coarser level; beyond a sun's last level, the far-shadow ray against the resident proxy
-  (`proxy.bin`) answers, deterministic and unaccumulated (`sun-far-shadow` publishes its bounds).
-  The PCF taps each find their own page: a tap within a texel of a seam compares the four texels of
-  its footprint in their own pages, weighted by hand — no seam, no guard band.
+  pixels at the depth its centre holds without the TAA jitter, `pixelLevel`,
+  `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
+  footprint, a lamp the mip whose texel at the distance of the point that centre holds is. The
+  depth a jittered pixel holds is moved back along its receiver's plane, whose projected depth is
+  affine across the screen, so the level of a pixel is the same every jitter phase, and the resolve
+  and the demand pick the same one. A texel is never larger than a pixel where the map offers one, so a caster's error in texels
+  is one in pixels. A page not readable — refused at the pool's ceiling, or left short by the pair
+  list — hands the point to the next coarser level; beyond a sun's last level, the far-shadow ray
+  against the resident proxy (`proxy.bin`) answers, deterministic and unaccumulated
+  (`sun-far-shadow` publishes its bounds). The PCF taps each find their own page: a tap within a
+  texel of a seam compares the four texels of its footprint in their own pages, weighted by hand —
+  no seam, no guard band.
+- **Soft edges are filtered over time** (#1363). The PCF's sixteen taps and a point lamp's PCSS
+  disk turn each jitter phase by the phase's own angle (`shadowRotated`, `shadowJitterWords`), every
+  pixel alike, and the TAA's history averages the turns into a filter even around the point, as
+  the reference engine's SMRT leaves its per-frame rays to the temporal filter: no second history, no dither. A
+  PCSS filter tap is a bilinear comparison, so a penumbra is a ramp, never sixteen steps. An image
+  the TAA does not accumulate turns nothing.
 
 ## Demand, mapping and drawing in one frame
 
@@ -127,8 +138,9 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
 - **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps and
   those mapped before that no draw has filled; the host's words list every page whose depth they
   take (withdrawn on a light move, or overwritten for another entry). One workgroup composes the
-  listed pages into regions, as many as the pair list holds every caster row of — the rest wait,
-  unread, the reader on their floor (`webgpu/shadow/freshWgsl.ts`) —, each view composed from its
+  listed pages into regions, every one of them, as the reference engine's virtual shadow maps draw every page a
+  frame marks (#1363): a region whose pairs the list could not all hold is left short and waits,
+  unread, the reader on the coarser level (`webgpu/shadow/freshWgsl.ts`) —, each view composed from its
   light's record by the host's page view model (`pageViewModel.ts`: a lamp page is its face's clip
   cropped to it, a sun page its view cropped by the orthography), its cull volume a lamp page's cone
   or a sun page's box. The pair cull tests every caster row against every region

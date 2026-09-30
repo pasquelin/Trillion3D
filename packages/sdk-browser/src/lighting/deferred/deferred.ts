@@ -39,9 +39,8 @@ export async function createDeferredLighting(
   lit?: LitPrograms,
 ) {
   const view = createDeferredView(device);
-  const uniform = view.buffer;
   const placeholders = createDeferredPlaceholders(device);
-  const bindings = { uniform, placeholders };
+  const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
   const variants = createContractVariants(device, bindings, pages, onReady, lit?.onFailure);
   // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
@@ -68,7 +67,7 @@ export async function createDeferredLighting(
     /** The size this image draws, from `update`: its targets may be larger (`renderScale.ts`). */
     const drawn = [1, 1];
     return {
-      uniform,
+      uniform: view.buffer,
       /** What an absent contract resource is worth: the blend pass binds the same. */
       placeholders,
       /** Outputs the image in raw values, without the display chain. For a measurement view. */
@@ -80,6 +79,7 @@ export async function createDeferredLighting(
       get usesContract() {
         return active !== unlit;
       },
+      setJitter: view.setJitter,
       /** Writes the view uniform of this image (`view.ts`). */
       update(
         inverseViewProjection: ArrayLike<number>,
