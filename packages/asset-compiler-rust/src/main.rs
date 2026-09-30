@@ -43,18 +43,18 @@ fn error_value(error: &CompilerError) -> Value {
     value
 }
 
-/// What a host needs after a job: where the pointer lives and the headline numbers. The full manifest stays on disk.
-/// `wallMs` and `pruneMs` are measured after the manifest is written, so this projection is the only
-/// place a host can read them: dropping either leaves the cache purge measured nowhere. `reused`
-/// says the folder was proven and kept rather than written (`null` otherwise): the manifest on
-/// disk describes the product, not this run. `textureSkipped` and `textureNotes` count the texture
-/// stage's reasons by catalogue code, so a host summarises them without reading the manifest.
+/// What a host needs after a job: where the pointer lives and the run's own report — its metrics,
+/// times and memory peak, which the manifest on disk never carries (#1370), and `reusedPages`, the
+/// pages it found already built (`null` on a kept folder). `reused` says the folder was proven and
+/// kept rather than written (`null` otherwise): the manifest on disk describes the product, not
+/// this run. `textureSkipped` and `textureNotes` count the texture stage's reasons by catalogue
+/// code, so a host summarises them without reading the manifest.
 fn pointer(result: &Value, cache: &Path) -> Value {
     let scope = result["scope"].as_str().unwrap_or("");
     let key = result["key"].as_str().unwrap_or("");
     json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/clusters.json"),"pointer":cache.join("native").join(scope).join("manifest.json").to_string_lossy(),"cache":cache.to_string_lossy(),
   "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
-  "metrics":{"importMs":result["metrics"]["importMs"],"clusterHierarchyPagesMs":result["metrics"]["clusterHierarchyPagesMs"],"wallMs":result["metrics"]["wallMs"],"pruneMs":result["metrics"]["pruneMs"],"outputGeometryBytes":result["metrics"]["outputGeometryBytes"],"threads":result["metrics"]["threads"],"ramBudgetMb":result["metrics"]["ramBudgetMb"]},
+  "metrics":result["metrics"],"reusedPages":result["reused"].is_null().then(||result["primitives"].as_array().map(|a|a.iter().filter_map(|p|p["reusedPages"].as_u64()).sum::<u64>())),
   "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]})
 }
 

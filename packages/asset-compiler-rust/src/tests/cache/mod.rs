@@ -1,5 +1,6 @@
 use super::*;
 pub(in crate::tests) mod cancel_and_prune;
+pub(in crate::tests) mod deterministic;
 pub(in crate::tests) mod identity_import;
 pub(in crate::tests) mod import_and_prune;
 pub(in crate::tests) mod lock;
