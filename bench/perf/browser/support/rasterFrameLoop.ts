@@ -18,8 +18,8 @@ import {
 } from '../../../../packages/sdk-browser/src/visibility/types.ts';
 import type { fillReference, Keep } from './rasterBuffer.ts';
 import {
-  rootOf,
-  type Placements,
+  locationOf,
+  type PageLocations,
 } from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
 
 type Triangle = NonNullable<ReturnType<typeof triangleAt>>;
@@ -56,7 +56,7 @@ type Fill = typeof fillReference;
 export function rasterWith(fill: Fill) {
   return (
     pages: VisPage[],
-    roots: Placements,
+    locations: PageLocations,
     cam: Parameters<typeof triangleAt>[3],
     viewport: [number, number],
   ) => {
@@ -77,7 +77,7 @@ export function rasterWith(fill: Fill) {
           : THREE.FrontSide;
       const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
       for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-        const tri = triangleAt(page, rootOf(roots, page).world, t, cam, width, height);
+        const tri = triangleAt(page, locationOf(locations, pageIndex).world, t, cam, width, height);
         if (!tri) continue;
         const area =
           (tri.b.x - tri.a.x) * (tri.c.y - tri.a.y) - (tri.c.x - tri.a.x) * (tri.b.y - tri.a.y);

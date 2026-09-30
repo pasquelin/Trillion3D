@@ -116,8 +116,8 @@ test('a primitive’s template is computed once and returned as-is to the next p
 });
 
 // Behaviour: two instances of an object share the shape of its DAG — hierarchy, per-node bounds,
-// group links, cluster identities — and share nothing that distinguishes them: world matrix,
-// world box, page records.
+// group links, cluster identities — and never what places them: world matrix, world box. The
+// local box belongs to the primitive and is shared, read never written (#1235).
 test('two instances share the DAG shape, never what places them', () => {
   const fixture = dagFixture();
   primitiveWithCulling(fixture.metadata);
@@ -132,11 +132,13 @@ test('two instances share the DAG shape, never what places them', () => {
     fixture.associations,
   );
   assert.equal(roots.length, 2);
+  // One record per primitive page per placement: this object has its own pages.
   assert.equal(allPages.length, roots[0].pages.length * 2);
   assert.equal(roots[0].culling!.nodes, roots[1].culling!.nodes);
   assert.equal(roots[0].culling!.bounds, roots[1].culling!.bounds);
   assert.equal(roots[0].structure, roots[1].structure);
-  assert.notEqual(roots[0].localBox, roots[1].localBox);
+  // The local box belongs to the primitive, read never written: the instances share it (#1235).
+  assert.equal(roots[0].localBox, roots[1].localBox);
   assert.deepEqual(Array.from(roots[0].localBox!), Array.from(roots[1].localBox!));
   assert.notEqual(roots[0].world, roots[1].world);
   assert.notDeepEqual(Array.from(roots[0].worldBox!), Array.from(roots[1].worldBox!));
@@ -148,6 +150,5 @@ test('two instances share the DAG shape, never what places them', () => {
     assert.equal(a.clusterId, b.clusterId);
     assert.equal(a.sphere, b.sphere);
     assert.equal(a.lodError, b.lodError);
-    assert.notEqual(a.placementIndex, b.placementIndex);
   }
 });

@@ -1,4 +1,5 @@
 import type { ClusterRoot } from '../selection/types.ts';
+import type { PlacementIndex } from '../selection/placements.ts';
 import { createCutReadiness, type CutReadiness } from './readiness.ts';
 import { linksFor } from './links.ts';
 import { createSparseInts } from './sparseInts.ts';
@@ -27,15 +28,15 @@ export type HeldResidency = ReturnType<typeof createHeldResidency>;
 const NO_RECORDS: readonly PageRecord[] = [],
   NO_READINESS = createCutReadiness(undefined, undefined);
 
-/** The packed rank of `pages[0]` when `pages` lie contiguously at placement `at`, -1 otherwise. */
-function baseOf(routes: readonly Root[], root: Root) {
-  const { pages } = root,
-    first = pages[0],
-    last = pages[pages.length - 1],
-    at = first?.placementIndex ?? -1,
-    base = first?.packedIndex ?? -1;
-  const laidOut = routes[at] === root && last.placementIndex === at;
-  return laidOut && base >= 0 && last.packedIndex === base + pages.length - 1 ? base : -1;
+/** The packed rank of `pages[0]`, from the layout's table, by the rank `track` gave the root: -1
+ *  when the placement could not name it, so the root is then read whole. */
+function baseOf(
+  rankOfRoot: ReadonlyMap<Root, number>,
+  root: Root,
+  placement: PlacementIndex | undefined,
+) {
+  const rank = rankOfRoot.get(root);
+  return rank === undefined || !placement ? -1 : (placement.baseOfRoot[rank] ?? -1);
 }
 
 /**
@@ -46,7 +47,7 @@ function baseOf(routes: readonly Root[], root: Root) {
  * its placement reads that page alone: a cut over placements in which nothing moved reads no page.
  *
  * A placement is read whole when it enters — first seen, or its DAG or hierarchy changed. A move
- * is routed by the `placementIndex` and contiguous `packedIndex` both layouts post on a record,
+ * is routed by the packed base both layouts post on each root (`postPackedBases`, #1235),
  * against the placements `track` last named; a layout that changes calls `track` again, and the
  * placements that stay keep their state. A placement whose moves cannot be routed is read whole
  * at every visit, and counted.
@@ -57,10 +58,12 @@ function baseOf(routes: readonly Root[], root: Root) {
  */
 export function createHeldResidency<T extends PageRecord>(
   rule: { isResident?: (page: T) => boolean } = {},
+  placement?: PlacementIndex,
 ) {
   const isResident = rule.isResident as ((page: PageRecord) => boolean) | undefined;
   const states = new Map<Root, Held>();
   let routes: readonly Root[] = [],
+    rankOfRoot = new Map<Root, number>(),
     bytes = 0,
     image = 1,
     unroutedReads = 0;
@@ -82,7 +85,7 @@ export function createHeldResidency<T extends PageRecord>(
       structure: root.structure,
       nodes: culling?.nodes,
       pages: count,
-      base: baseOf(routes, root),
+      base: baseOf(rankOfRoot, root, placement),
       bytes: 0,
       seen: 0,
     };
@@ -112,20 +115,22 @@ export function createHeldResidency<T extends PageRecord>(
     /** Routes the moves of `roots`' records from now on: the placements that left let go. */
     track(roots: readonly Root[]) {
       routes = roots.slice();
+      rankOfRoot = new Map(routes.map((root, rank) => [root, rank]));
       // The pending moves are ranks within their placement: they survive a new layout. A state
       // no move reached, read whole at each visit so far, is read whole once more.
       for (const [root, held] of states) {
-        const base = baseOf(routes, root);
+        const base = baseOf(rankOfRoot, root, placement);
         if (base < 0 || held.base < 0) release(root, held);
         else held.base = base;
       }
     },
-    /** The pool names a record whose residency may have moved. */
-    moved(rec: PageRecord) {
-      const root = routes[rec.placementIndex ?? -1],
+    /** The pool names the packed rank of a record whose residency may have moved. */
+    moved(packed: number, rec: PageRecord) {
+      if (!placement) return;
+      const root = routes[placement.rootOfPacked[packed]],
         held = root && states.get(root);
       if (!held || held.base < 0) return;
-      const page = (rec.packedIndex ?? -1) - held.base;
+      const page = packed - held.base;
       if (root.pages[page] === rec && held.moved.set(page, 1) === 0) weigh(held);
     },
     /** The readiness of `root`, up to date with every move the feed named. */

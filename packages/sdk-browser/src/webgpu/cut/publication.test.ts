@@ -20,7 +20,6 @@ function banc() {
   }
   // One placement of the four clusters, laid out as `../pages/prepare/layout.ts` lays it; the pool
   // holds what `holds` names, and the rank journal's watcher is the one publication subscribes.
-  for (const page of packedPages) page.placementIndex = 0;
   const root = { pages: packedPages, world: new Matrix4() } as unknown as ClusterRoot<PageRec>,
     holds = new Set<PageRec>();
   let watcher: (page: number) => void = () => {};
@@ -28,8 +27,11 @@ function banc() {
   let resourceChanges = 0;
   const run = {
     desired: [] as unknown[],
+    desiredPacked: [] as number[],
     shown: [] as unknown[],
+    shownPacked: [] as number[],
     drawn: [] as unknown[],
+    drawnPacked: [] as number[],
     selectionUniforms: fixtureUniforms(),
     gpuSelection: undefined,
     cutEpoch: 0,
@@ -60,7 +62,14 @@ function banc() {
       recordOf: (packed: number) => packedPages[packed],
       gpuWanted: [packedPages[0]],
       selectionRoots: [root],
-      rows: { watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber) },
+      placement: {
+        baseOfRoot: Int32Array.from([0]),
+        rootOfPacked: Int32Array.from(packedPages, () => 0),
+      },
+      rows: {
+        watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber),
+        pageIndexOf: () => undefined,
+      },
     },
   } as unknown as WebgpuPagesCore;
   /** The two lower tiers, and every list handed to the tier ahead. */
@@ -75,7 +84,11 @@ function banc() {
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
-    createGroupClosure([], packedPages),
+    createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packedPages,
+    ),
     { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
     (rec) => holds.has(rec),
   );

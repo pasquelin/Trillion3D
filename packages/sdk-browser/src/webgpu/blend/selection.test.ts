@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
+import { postPackedBases } from '../../page/selection/placements.ts';
 import { createTransparentTable } from '../transparent/table.ts';
 import { writeCpuTransparentInstances } from './selection.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
@@ -17,7 +18,7 @@ function developInstances(
   table: Table,
   drawn: PageRec[],
   entryOf: (rec: PageRec) => number,
-  roots: readonly ClusterRoot<PageRec>[],
+  worldOf: (rec: PageRec) => unknown,
 ) {
   const byPlacement = new Map<unknown, BlendGpuItem>();
   for (const item of table.pagedItems) byPlacement.set(item.matrix, item);
@@ -25,7 +26,7 @@ function developInstances(
     counts = new Uint32Array(table.pagedItems.length);
   let highest = 0;
   for (const rec of drawn) {
-    const world = roots[rec.placementIndex ?? -1]?.world,
+    const world = worldOf(rec),
       item = rec.transparent ? byPlacement.get(world) : undefined;
     const entry = item ? entryOf(rec) : -1;
     if (entry < 0) continue;
@@ -65,7 +66,6 @@ function scene(seed: number) {
             id: i,
             sourceOrder: pick(20),
             transparent: transparent && (i === 0 || next() < 0.9),
-            placementIndex: roots.length,
             triangles: 1,
           }) as unknown as PageRec,
       );
@@ -77,7 +77,12 @@ function scene(seed: number) {
   }
   const table = createTransparentTable(roots, packedPages, items);
   table.pagedItems.forEach((item, index) => (item.pagedIndex = index));
-  const pageOf = new Map(packedPages.map((rec, index) => [rec, index]));
+  const pageOf = new Map(packedPages.map((rec, index) => [rec, index])),
+    { rootOfPacked } = postPackedBases(roots);
+  const worldOf = (rec: PageRec) => {
+    const packed = pageOf.get(rec);
+    return packed === undefined ? undefined : roots[rootOfPacked[packed]]?.world;
+  };
   const entryOf = (rec: PageRec) => {
     const page = pageOf.get(rec);
     return page === undefined ? -1 : table.entryOfPage[page];
@@ -90,16 +95,19 @@ function scene(seed: number) {
   }
   if (drawn.length) drawn.push(drawn[pick(drawn.length)]);
   drawn.push({ ...packedPages[0], transparent: true } as PageRec);
-  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf, roots };
+  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf, roots, pageOf, worldOf };
 }
 
 test('CPU transparent instances are word for word those of the lookup by placement', () => {
   for (let seed = 1; seed <= 300; seed++) {
-    const { table, drawn, entryOf, roots } = scene(seed);
+    const { table, drawn, entryOf, pageOf, worldOf } = scene(seed);
     const blendState = createWebgpuBlendState();
     blendState.table = table;
-    writeCpuTransparentInstances(blendState, drawn, entryOf);
-    const expected = developInstances(table, drawn, entryOf, roots);
+    const drawnPacked = drawn.map((rec) => pageOf.get(rec) ?? -1);
+    writeCpuTransparentInstances(blendState, drawn, drawnPacked, (packed) =>
+      packed < 0 ? -1 : table.entryOfPage[packed],
+    );
+    const expected = developInstances(table, drawn, entryOf, worldOf);
     assert.deepEqual(
       {
         instances: Array.from(blendState.cpuInstances.subarray(0, blendState.cpuInstanceCount)),
