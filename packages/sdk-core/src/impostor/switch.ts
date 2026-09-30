@@ -10,12 +10,11 @@
  *
  * The switch is `z_s = max(z_tex, z_tri)`; the impostor draws when `z ≥ z_s`. `f` is the engine's
  * one focal length in pixels (`pixelScaleOf` on the CPU, `focalPixels()` in WGSL); `T`, `c`, `R`
- * and `r_f` come only from the baked manifest. WGSL mirror: `impostorSwitchDepth` of
- * `packages/sdk-browser/src/visibility/shader/impostorWgsl.ts`, same operands, same order.
+ * and `r_f` come only from the baked manifest.
  */
 import { impostorMeshBaked, type ImpostorMesh } from '../contracts/impostor.ts';
 
-/** π, one literal for this oracle and the WGSL mirror, so both round the same number. */
+/** π, one literal, so every reader of the switch rounds the same number. */
 export const IMPOSTOR_PI = 3.141592653589793;
 
 /** `z_tex`: the depth from which a frame of `frameSide` texels is at most one texel per pixel. */
