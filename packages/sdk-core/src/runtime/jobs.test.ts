@@ -152,9 +152,10 @@ test('a result returned after cancellation is disposed, and a failing cleanup ke
   assert.deepEqual(hooked, [value]);
   assert.equal(job.getSnapshot().status, 'cancelled');
   assert.equal(job.getSnapshot().result, null);
-  const none = lateCancel<unknown>(undefined, { disposeResult: (result) => hooked.push(result) });
+  const nothing: unknown[] = [];
+  const none = lateCancel(undefined, { disposeResult: (result) => nothing.push(result) });
   await assert.rejects(none.promise);
-  assert.deepEqual(hooked, [value], 'work cancelled before any result disposes nothing');
+  assert.deepEqual(nothing, [], 'work cancelled before any result disposes nothing');
 });
 
 test('Completed jobs keep ownership of a disposable result', async () => {
