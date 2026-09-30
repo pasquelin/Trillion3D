@@ -22,8 +22,8 @@ export interface ScaleController {
 }
 
 /** Share of the budget the controller aims at, and of the target under which it may go up. */
-export const HEADROOM = 0.9,
-  DEAD_BAND = 0.8;
+export const HEADROOM = 0.9;
+const DEAD_BAND = 0.8;
 /** Relative change below which no step is taken, and frames between two steps. */
 const THRESHOLD = 0.05;
 export const PERIOD = 30;
