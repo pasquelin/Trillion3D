@@ -14,6 +14,7 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
   vis.wholeDeformation?.table.destroy();
   vis.wholeDeformation = undefined;
   vis.geometryBlocks.clear();
+  vis.deformationCode = undefined; // a refused import below leaves no earlier prepare's code
   vis.deformation = createSessionDeformation(
     layout.selectionRoots,
     setup.worlds,
