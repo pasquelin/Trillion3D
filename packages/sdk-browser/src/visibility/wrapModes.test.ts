@@ -16,9 +16,11 @@ import {
   wrapNibble,
 } from './wrapModes.ts';
 import { SHADE_SHADER } from './shader/shadeWgsl.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { CARTES, nibblesDuMelange } from '../../../../tests/browser/probes/addressingMaps.ts';
+import { blendShader } from '../webgpu/blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;

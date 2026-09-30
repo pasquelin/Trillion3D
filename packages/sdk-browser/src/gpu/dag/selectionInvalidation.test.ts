@@ -6,7 +6,8 @@ import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 import { primitiveWordAt } from './worlds.ts';
-import { SHADOWLESS_ROOT } from '../../visibility/shader/spriteWgsl.ts';
+
+const SHADOWLESS_ROOT = 4;
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals();

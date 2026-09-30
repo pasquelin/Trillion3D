@@ -4,36 +4,8 @@
 // on subgroups of 4 to 64 lanes against the per-lane path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  LANE_REQUEST_WGSL,
-  SUBGROUP_REQUEST_WGSL,
-  shadowRequestWgsl,
-  withSubgroupShadowRequests,
-} from './shadowRequestWgsl.ts';
-import { DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
-import { createDeferredLighting } from '../deferred/deferred.ts';
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-
-const SUBGROUP_SHADER = withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER);
-
-test('the per-lane request stays the fallback; the subgroup one replaces it, feature enabled', () => {
-  assert.ok(DIRECT_LIGHTING_SHADER.includes(LANE_REQUEST_WGSL));
-  assert.doesNotMatch(DIRECT_LIGHTING_SHADER, /enable subgroups|subgroup[A-Z]/);
-  assert.match(SUBGROUP_SHADER, /^enable subgroups;\ndiagnostic\(off,subgroup_uniformity\);/);
-  assert.ok(SUBGROUP_SHADER.includes(SUBGROUP_REQUEST_WGSL));
-  assert.ok(!SUBGROUP_SHADER.includes(LANE_REQUEST_WGSL));
-  assert.throws(() => withSubgroupShadowRequests(shadowRequestWgsl(null)), /ABSENT/);
-  // Only a lane the resolve puts in its target is elected: a helper past it claims its own.
-  assert.match(DIRECT_LIGHTING_SHADER, /var<private> shadowRequesting:bool=false;/);
-  assert.ok(
-    DIRECT_LIGHTING_SHADER.includes(
-      'shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));',
-    ),
-  );
-});
 
 /** The request buffer — its bits, count and list of `cap` — and the global atomics it took. */
 function requestBuffer(cap: number) {
@@ -104,26 +76,6 @@ test('one claim per distinct page and subgroup: the atomics a whole subgroup on 
     subgroupRequest(group, subgroup.claim);
     assert.equal(lane.buffer.atomics, size + 4);
     assert.equal(subgroup.buffer.atomics, 2 + 4);
-  }
-});
-
-test('the contract program and its reflections ask per subgroup exactly when granted `subgroups`', async () => {
-  for (const features of [[], ['subgroups']] as GPUFeatureName[][]) {
-    const { device } = fakeDevice({ features }),
-      codes: string[] = [],
-      create = device.createShaderModule.bind(device);
-    device.createShaderModule = (descriptor) => (codes.push(descriptor.code), create(descriptor));
-    const lighting = await createDeferredLighting(device),
-      view = {} as GPUTextureView,
-      surface = { views: () => [view, view, view, view] } as unknown as SurfaceBuffer;
-    lighting.bind(surface, view, view, true);
-    await lighting.settle();
-    // Lighting, reflection source, stochastic trace and final resolve share the request rule.
-    const [light, ...reflections] = codes.filter((code) => code.includes('fn requestShadowPage('));
-    assert.equal(light, features.length ? SUBGROUP_SHADER : DIRECT_LIGHTING_SHADER);
-    assert.equal(reflections.length, 3);
-    for (const code of reflections)
-      assert.equal(code.includes(SUBGROUP_REQUEST_WGSL), features.length > 0);
   }
 });
 

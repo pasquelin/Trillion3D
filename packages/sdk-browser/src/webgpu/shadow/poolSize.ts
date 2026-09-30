@@ -31,7 +31,7 @@ const FLOOR_SIDE = shadowPoolSide(1, 1);
 /** The shadow pool `budgetBytes` holds for a screen that asks `wanted` pages: the fewest layers
  *  that hold what fits, of the largest side that fits, never below the floor. Short of `wanted`
  *  at the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`), the budget holds it, not the device. */
-export const shadowPoolFor = (wanted: number, layerSide?: number) => (budgetBytes: number) => {
+const shadowPoolFor = (wanted: number, layerSide?: number) => (budgetBytes: number) => {
   const pages = Math.min(wanted, Math.floor(budgetBytes / shadowAtlasBytes(1)));
   const { side: full, layers } = shadowPoolShape(pages, layerSide),
     fits = Math.floor(Math.sqrt(budgetBytes / shadowAtlasBytes(1, layers)));

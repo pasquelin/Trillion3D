@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuTiming } from './timing.ts';
 import { QUERY_COUNT } from './queries.ts';
-import { QUERY_SET_SIZE } from './encoder.ts';
+
+const QUERY_SET_SIZE = 4096;
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
   const f = fixture(),

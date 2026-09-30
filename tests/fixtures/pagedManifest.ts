@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
-import { MANIFEST_BINARY_VERSION } from '../../packages/sdk-core/src/index.ts';
+import { MANIFEST_BINARY_VERSION } from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
 import { TEMPLATES } from './manifestBinary.ts';
 import { encodeManifestBinary } from './manifestBinaryEncode.ts';
 

@@ -3,29 +3,15 @@ import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import {
   TAA_SAMPLES,
-  TAA_STILL_FRAMES,
-  halton,
   jitterViewProjection,
   taaJitter,
   upscaleMipBias,
   upscalePhases,
 } from './jitter.ts';
-import { renderExtent } from '../webgpu/pages/state/renderScale.ts';
+import { taaStillFrames } from './jitter.ts';
+import { renderExtent } from '../frame/renderScaleOption.ts';
 
-test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
-  assert.deepEqual(
-    [1, 2, 3, 4].map((i) => halton(i, 2)),
-    [0.5, 0.25, 0.75, 0.125],
-  );
-  assert.deepEqual(
-    [1, 2, 3].map((i) => halton(i, 3)),
-    [1 / 3, 2 / 3, 1 / 9],
-  );
-  for (let i = 1; i < 200; i++) {
-    assert.ok(halton(i, 2) >= 0 && halton(i, 2) < 1);
-    assert.ok(halton(i, 3) >= 0 && halton(i, 3) < 1);
-  }
-});
+const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 
 test('eight distinct jitters, centred in the pixel, deterministic and cyclic', () => {
   const out = new Float64Array(2),

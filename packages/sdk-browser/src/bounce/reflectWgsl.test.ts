@@ -3,17 +3,21 @@
 // reads the same function. Without bounce the resolve is the direct program, untouched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { createDeferredLighting } from '../lighting/deferred/deferred.ts';
 import type { DirectLightResources } from '../lighting/deferred/program.ts';
 import type { SurfaceBuffer } from '../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { WATER_COMPOSITE_SHADER } from '../webgpu/water/compositeWgsl.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { BOUNCE_SURFACE_BINDING, SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { functionText as body } from './wgslBody.fixture.ts';
+import { contractLightingShader } from '../lighting/deferred/shaders.ts';
+import { waterCompositeShader } from '../webgpu/water/compositeWgsl.ts';
+
+const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
+const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.

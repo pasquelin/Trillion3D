@@ -15,8 +15,10 @@ import type { HostAttributes } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { FLAG_HAS_COLOR } from '../../visibility/types.ts';
 import { prepareWebgpuBlend } from '../blend/prepare.ts';
-import { BLEND_SHADER } from '../blend/shader.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
+import { blendShader } from '../blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 /** `vertColor(id)` of the shader, on the floats of a bound UV buffer. */
 function vertColor(uvs: Float32Array, id: number) {

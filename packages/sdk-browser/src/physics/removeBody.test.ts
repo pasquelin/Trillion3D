@@ -6,9 +6,9 @@ import {
   OP,
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-  vehicle,
   writeVehicle,
 } from '../../../sdk-core/src/physics/index.ts';
+import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts';
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';

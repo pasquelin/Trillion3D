@@ -8,9 +8,10 @@ import { uploadWorlds } from './render/worldUpload.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { selectWebgpuBlend } from '../blend/selection.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
-import { SHADOWLESS_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
+
+const SHADOWLESS_ROOT = 4;
 
 // A node of a compiled model hidden once, then shown again, by the host (#407). Every frame
 // renders and settles, the GPU cut drops the node's pages while it is hidden — its root parked

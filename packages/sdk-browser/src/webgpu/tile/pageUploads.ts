@@ -8,7 +8,7 @@ import { coalesceRanges, type RangeRule } from '../residency/ranges.ts';
  * `writeBuffer` calls. Both declared, not derived: they weigh a call against the bytes a joined gap
  * resends, and change no word the GPU reads.
  */
-export const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const;
+const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const;
 
 export function createPageUploads(size: number) {
   const marked = new Uint8Array(size),

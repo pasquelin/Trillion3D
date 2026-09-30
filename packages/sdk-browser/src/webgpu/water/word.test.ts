@@ -10,8 +10,10 @@ import {
   WATER_SURFACE_WGSL,
   WATER_UNPACK_WGSL,
 } from './surfaceWgsl.ts';
-import { WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
+import { waterCompositeShader } from './compositeWgsl.ts';
+
+const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 const f32 = Math.fround;
 /** WGSL `unpack4x8unorm`: each byte over 255, low byte first. */

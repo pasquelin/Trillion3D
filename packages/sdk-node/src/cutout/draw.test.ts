@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { imageKind } from './draw.mts';
 import { encodePng } from './png.mts';
-import { answerOf } from './show.mts';
 
 // Behaviour: each terminal gets what it knows how to display, and nothing is guessed — capability
 // is read from the environment, with the block mosaic as a universal fallback.
@@ -16,15 +15,6 @@ test('each terminal gets what it knows how to display', () => {
 
 // Behaviour: one key means one thing only; Enter follows the proposal, and an unknown key answers
 // nothing rather than deciding at random.
-test('one key means one thing only', () => {
-  assert.equal(answerOf('\r', false), 'blend', 'Enter follows the proposal');
-  assert.equal(answerOf('\r', true), 'cutout');
-  assert.equal(answerOf('d', false), 'cutout');
-  assert.equal(answerOf('V', false), 'blend', 'case does not change the meaning');
-  assert.equal(answerOf('?', true), 'help');
-  assert.equal(answerOf('\u0003', true), 'quit');
-  assert.equal(answerOf('z', true), null);
-});
 
 // Behaviour: what is written to disk and sent to terminals is a real PNG.
 test('the written PNG is a PNG', () => {

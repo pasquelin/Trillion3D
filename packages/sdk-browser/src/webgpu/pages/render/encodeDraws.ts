@@ -50,7 +50,7 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
-export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
+function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout;
   rt.timing.encodeCounts.rowsUploaded = 0;
   if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;

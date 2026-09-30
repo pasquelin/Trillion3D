@@ -5,14 +5,11 @@ import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixtu
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
 import { rasterVisibilityIds } from '../../packages/sdk-browser/src/visibility/buffer.ts';
 import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
-import {
-  buildHizPyramid,
-  visibilityDepth,
-  HIZ_BOUNDS_VALUES,
-  projectBoxesFlat,
-  type HizBounds,
-  type HizPage,
-} from '../../packages/sdk-browser/src/hiz/hiz.ts';
+import { type HizBounds, type HizPage } from '../../packages/sdk-browser/src/hiz/hiz.ts';
+import { buildHizPyramid } from '../../packages/sdk-browser/src/hiz/depth.ts';
+import { visibilityDepth } from '../../packages/sdk-browser/src/hiz/depth.ts';
+import { HIZ_BOUNDS_VALUES } from '../../packages/sdk-browser/src/hiz/corners.ts';
+import { projectBoxesFlat } from '../../packages/sdk-browser/src/hiz/projection.ts';
 
 export function cameraAt(z = 5, near = 0.1) {
   const cam = G.perspectiveCamera(55, 1, near, 100);

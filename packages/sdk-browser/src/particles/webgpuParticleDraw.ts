@@ -61,10 +61,7 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
 }`;
 
 /** A disc's targets: the lit image, its blend's display layers if `routed`, the reactive value. */
-export const particleTargets = (
-  blend: ParticlePool['blend'],
-  routed = false,
-): GPUColorTargetState[] => [
+const particleTargets = (blend: ParticlePool['blend'], routed = false): GPUColorTargetState[] => [
   { format: 'rgba16float', blend: BLENDS[blend] },
   ...(routed ? displayTargets(blend === 'additive' ? 'additive' : 'normal') : []),
   REACTIVE_TARGET,

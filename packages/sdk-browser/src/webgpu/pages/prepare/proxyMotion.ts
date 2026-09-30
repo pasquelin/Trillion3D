@@ -101,7 +101,7 @@ const casts = new WeakMap<GpuBounceProxy, { epoch: number; none: ReadonlySet<num
  * hold casts. The flags are read once per scene revision, as the shadow cut reads each mesh's
  * (`placement/hidden.ts`), and the proxy is marked again only when one changed.
  */
-export function syncSunFarCasters(rt: WebgpuPagesRuntime) {
+function syncSunFarCasters(rt: WebgpuPagesRuntime) {
   const proxy = rt.sunFar.gpu?.proxy,
     epoch = rt.run.gate.revisions.scene;
   const last = proxy && casts.get(proxy);

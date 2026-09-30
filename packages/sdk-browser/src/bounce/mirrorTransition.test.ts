@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BOUNCE_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
-import { MIRROR_TRANSITION_END } from './reflectWgsl.ts';
+import { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts';
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';
 import { functionText } from './wgslBody.fixture.ts';
+import { contractLightingShader } from '../lighting/deferred/shaders.ts';
+
+const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 
 // Execute the generated shader, component-wise with unit Fresnel. Vector-only operations
 // have controlled inputs; the roughness branches and interpolation are the production text.

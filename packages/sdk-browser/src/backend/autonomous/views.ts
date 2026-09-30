@@ -22,7 +22,7 @@ export type WebglViewState = {
   /** The main view's is the host's own array, which a resize writes. */
   viewport: [number, number] | undefined;
 };
-export const VIEW_KEYS = [
+const VIEW_KEYS = [
   'shown',
   'shownPacked',
   'desired',

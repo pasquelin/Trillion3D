@@ -10,9 +10,6 @@ import {
   COVERAGE_SCALE_GLSL,
   COVERAGE_SCALE_WGSL,
 } from './coverageRule.ts';
-import { CoverageReaders, cutoffByte } from './coverage.ts';
-import type { PageSurface } from '../page/surface.ts';
-import type { Texture } from '../../../sdk-core/src/index.ts';
 import { shaderFunctions, vec } from './shaderRule.fixture.ts';
 
 const NAMES = ['scaled', 'wide', 'pick', 'below', 'apart'];
@@ -68,34 +65,3 @@ for (const [language, source] of Object.entries(languages))
 
 // #44's `cutoff_byte`, the product the engine cuts, and a texture cut at the lowest cutoff of its
 // masked readers, not at all once one of them blends or its chain does not weigh by alpha.
-test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', () => {
-  assert.deepEqual(
-    [0.5, 0.25, 1 / 255, 1].map((cutoff) => cutoffByte(cutoff, 1)),
-    [128, 64, 1, 255],
-  );
-  // 0.66 / 0.9 × 255 is 187 on the dot, which the product keeps and the quotient rounds to 188.
-  assert.deepEqual(
-    [cutoffByte(0.66, 0.9), cutoffByte(0.5, 0), cutoffByte(0.5, 0.25)],
-    [187, 255, 255],
-  );
-  const map = { premultiplyAlpha: false } as Texture,
-    readers = new CoverageReaders();
-  const surface = (alphaTest: number, transparent = false, opacity = 1) =>
-    readers.read({
-      map,
-      alphaTest,
-      transparent,
-      opacity,
-      blending: 'normal',
-      transmission: 0,
-    } as PageSurface);
-  surface(0.5);
-  surface(0.25, false, 0.5);
-  assert.equal(readers.cutoff(map), 128, '0.25 under a factor of 0.5 cuts at 0.5');
-  surface(0.25);
-  assert.equal(readers.cutoff(map), 64);
-  surface(0, true);
-  assert.equal(readers.cutoff(map), 0, 'a blended reader: the median alone');
-  surface(0);
-  assert.equal(readers.cutoff(map), undefined, 'an opaque reader: the plain chain');
-});

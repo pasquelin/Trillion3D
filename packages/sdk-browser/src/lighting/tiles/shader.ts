@@ -131,9 +131,9 @@ ${tileCompactStatementsWgsl(words, !narrow)}
 };
 
 /** The wide pass as every device runs it: per-thread atomics, no feature asked. */
-export const LIGHT_TILES_SHADER = lightTilesShader(false, false);
+const LIGHT_TILES_SHADER = lightTilesShader(false, false);
 /** The narrow pass, for a scene of at most `TILE_LIGHTS` lights. */
-export const LIGHT_TILES_NARROW_SHADER = lightTilesShader(false, true);
+const LIGHT_TILES_NARROW_SHADER = lightTilesShader(false, true);
 /** Each variant under its one label, at `subgroups + 2 * narrow`: the device granted
  *  `subgroups`, the scene holds at most `TILE_LIGHTS` lights. */
 export const LIGHT_TILES_SHADERS = [

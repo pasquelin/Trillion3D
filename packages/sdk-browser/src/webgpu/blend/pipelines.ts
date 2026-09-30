@@ -26,7 +26,7 @@ import {
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
 /** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`); `share`,
  *  with the share a debug view or the temporal pass reads (`asIsShare.ts`), else an empty slot. */
-export const blendTargets = (
+const blendTargets = (
   mode: Blending,
   mask: GPUColorWriteFlags,
   feedback: boolean,

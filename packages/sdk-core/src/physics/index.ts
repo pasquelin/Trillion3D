@@ -1,7 +1,7 @@
 export * from './layout.ts';
 export * from './options.ts';
 export { CommandWriter } from './commands.ts';
-export type { BodyRecord, CompoundPart } from './bodyRecord.ts';
+export type { BodyRecord } from './bodyRecord.ts';
 export { resolveShape } from './shape.ts';
 export { physicsMatterOf } from './matter.ts';
 export * from './cooked.ts';
@@ -22,13 +22,7 @@ export {
   type SixDofAxis,
 } from './joint.ts';
 export * from './vehicleLayout.ts';
-export {
-  Vehicle,
-  vehicle,
-  type VehicleInput,
-  type VehicleKind,
-  type VehicleOptions,
-} from './vehicle.ts';
+export { Vehicle } from './vehicle.ts';
 export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';
 export * from './softLayout.ts';
 export {

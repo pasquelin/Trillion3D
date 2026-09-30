@@ -13,7 +13,7 @@
 export const TAA_SAMPLES = 8;
 
 /** The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1). */
-export function halton(index: number, base: number) {
+function halton(index: number, base: number) {
   let result = 0,
     fraction = 1 / base,
     i = index;
@@ -43,9 +43,6 @@ export const upscalePhases = (render: number, display: number) =>
  * reference renders without end.
  */
 export const taaStillFrames = (phases: number) => 2 * phases;
-
-/** Still frames before a frame drawn at the display's size can be held: sixteen. */
-export const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 
 /**
  * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the

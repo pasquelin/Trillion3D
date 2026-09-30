@@ -42,12 +42,12 @@ export const DEFAULT_FOV = 55,
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
-  /** The farthest the view ahead looks, in milliseconds, whatever the round trip: past a second,
-   *  the camera's velocity no longer says where it will be. */
-  MAX_PREFETCH_HORIZON_MS = 1000,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
+/** The farthest the view ahead looks, in milliseconds, whatever the round trip: past a second,
+ *  the camera's velocity no longer says where it will be. */
+const MAX_PREFETCH_HORIZON_MS = 1000;
 /**
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
  * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a

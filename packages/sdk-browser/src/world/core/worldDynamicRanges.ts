@@ -63,7 +63,7 @@ export function copyRanges(held: DrawnTriangles, next: DrawnTriangles, ranges: V
 
 /** Marks `ranges` of `geometry`'s lists written: a reader that uploads them sends those alone —
  *  the WebGL2 draw, which clears them; the WebGPU path is handed the ranges themselves. */
-export function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]) {
+function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]) {
   for (const { name, from, count } of ranges) {
     const list = geometry.attributes[name] as BufferAttribute,
       start = from * list.itemSize,

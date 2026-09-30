@@ -51,7 +51,7 @@ export const createDrive = (): CharacterDrive => ({
  * rule the physics backend combines two bodies' frictions by (Jolt's default). 0.79 on stone,
  * 0.16 on ice.
  */
-export const gripOf = (floor: number) => Math.sqrt(SOLE_FRICTION * Math.max(0, floor));
+const gripOf = (floor: number) => Math.sqrt(SOLE_FRICTION * Math.max(0, floor));
 
 /** The horizontal move of one tick, and whether it started with a jump. */
 export interface DriveStep {

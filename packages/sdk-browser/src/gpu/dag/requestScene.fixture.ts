@@ -1,9 +1,10 @@
 import * as G from '../../host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from './selection.ts';
+import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { frontCamera } from '../../page/selection/dag.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 /**
  * Frontier-count scene, posed at FOUR DEPTHS: a single pose keeps only one detail stage, hence

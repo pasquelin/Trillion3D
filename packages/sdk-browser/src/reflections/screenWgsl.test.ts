@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCREEN_REFLECTION_WGSL, reflectionSource, withScreenReflections } from './screenWgsl.ts';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
+import { contractLightingShader } from '../lighting/deferred/shaders.ts';
+
+const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 
 const text = functionText(SCREEN_REFLECTION_WGSL, 'resolvedRadiance');
 const ray = functionText(SCREEN_REFLECTION_WGSL, 'resolvedReflectionRay');

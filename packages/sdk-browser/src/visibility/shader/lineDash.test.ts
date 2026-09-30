@@ -9,11 +9,13 @@ import { MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_FRAGMENT } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { ROW_DASH_WORD } from '../../webgpu/row/pageRow.ts';
+import { blendShader } from '../../webgpu/blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 type Dash = (at: number, dash: number[]) => boolean;
 const DASHES: Record<string, Dash> = {

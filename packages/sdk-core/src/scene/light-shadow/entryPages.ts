@@ -6,7 +6,7 @@ import { PAGES, lampCoarseness, sunCoarseness } from './pageModel.ts';
 import { LAMP_FACE_ENTRIES } from './virtual.ts';
 
 /** What a relative lamp entry names: face, mip and page, written into `out`. */
-export function decodeLampEntry(relative: number, out: Int32Array) {
+function decodeLampEntry(relative: number, out: Int32Array) {
   const face = Math.floor(relative / LAMP_FACE_ENTRIES),
     rest = relative - face * LAMP_FACE_ENTRIES,
     mip = PAGES.shadowLampEntryMip(rest),

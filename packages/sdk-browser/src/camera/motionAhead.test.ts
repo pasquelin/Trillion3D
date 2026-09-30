@@ -4,18 +4,19 @@
 // sends no view ahead at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AHEAD_SMOOTHING_MS, readCameraMotion, restartCameraMotion } from './motion.ts';
+import { readCameraMotion } from './motion.ts';
 import type { CameraMotion } from './motion.ts';
 import type { EngineCamera } from './engineCamera.ts';
 import { aheadViewOf } from '../gpu/core/aheadView.ts';
 import * as G from '../host/graph/graph.fixture.ts';
 import { cameraMoteur as engineCameraOf } from './camera.fixture.ts';
 import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts';
-import {
-  MAX_PREFETCH_HORIZON_MS,
-  PREFETCH_HORIZON_MS,
-  prefetchHorizonMs,
-} from '../backend/common.ts';
+import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../backend/common.ts';
+import { restartCameraMotion } from './motion.fixture.ts';
+
+const MAX_PREFETCH_HORIZON_MS = 1000;
+
+const AHEAD_SMOOTHING_MS = 100;
 
 /** A bare engine camera: the eye and the way back are all the motion reads. */
 const pose = (eye: number[], back = [0, 0, 1]) => {

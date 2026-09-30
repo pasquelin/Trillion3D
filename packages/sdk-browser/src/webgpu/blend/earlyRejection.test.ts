@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBlendPipelines } from './pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { BLEND_SHADER } from './shader.ts';
+import { blendShader } from './shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 /**
  * Early depth rejection of the blend pass, guarded by its fragment stage.

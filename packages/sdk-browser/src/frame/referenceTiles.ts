@@ -13,11 +13,11 @@ import { devicePixels } from '../backend/common.ts';
  * (`../camera/engineCamera.ts::ViewTile`).
  */
 /** WebGPU's portable `maxTextureDimension2D`: the side every device grants a target. */
-export const PORTABLE_TEXTURE_SIDE = 8192;
+const PORTABLE_TEXTURE_SIDE = 8192;
 /** Samples per output pixel and axis the reference draws: heavy, never the canvas's few. */
 const REFERENCE_TILE_FACTOR = 8;
 /** Most tiles one reference image is drawn in: a cap on the work, not on the factor. */
-export const REFERENCE_MAX_TILES = 64;
+const REFERENCE_MAX_TILES = 64;
 
 /** One tile of the reference: where its pixels land in the output, and how the camera's
  *  projection is scaled and shifted to draw it (`ViewTile`). */
@@ -103,12 +103,7 @@ const LINEAR = Float32Array.from({ length: 256 }, (_, byte) => srgbToLinear(byte
  * as is. Rows keep their order (bottom first in, bottom first out); a remainder past a whole
  * block is left out.
  */
-export function resolveSupersampled(
-  rgba: Uint8Array,
-  width: number,
-  height: number,
-  factor: number,
-) {
+function resolveSupersampled(rgba: Uint8Array, width: number, height: number, factor: number) {
   if (factor === 1) return rgba;
   const w = Math.floor(width / factor),
     h = Math.floor(height / factor),
@@ -135,12 +130,7 @@ export function resolveSupersampled(
 
 /** Places a tile's resolved `width` × `height` pixels into `out`, a `imageWidth`-wide RGBA image
  *  bottom row first. */
-export function placeTile(
-  out: Uint8Array,
-  imageWidth: number,
-  tile: ReferenceTile,
-  resolved: Uint8Array,
-) {
+function placeTile(out: Uint8Array, imageWidth: number, tile: ReferenceTile, resolved: Uint8Array) {
   const stride = tile.width * 4;
   for (let row = 0; row < tile.height; row++)
     out.set(

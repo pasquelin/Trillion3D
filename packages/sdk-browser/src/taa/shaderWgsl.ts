@@ -17,7 +17,7 @@ import {
 export const TAA_PASS = 'Trillion3D temporal antialiasing';
 
 /** YCoCg, the space where the neighbour box tightens best around the colour. */
-export const YCOCG_WGSL = `
+const YCOCG_WGSL = `
 fn toYcocg(c:vec3f)->vec3f{return vec3f(0.25*c.r+0.5*c.g+0.25*c.b,0.5*c.r-0.5*c.b,-0.25*c.r+0.5*c.g-0.25*c.b);}
 fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
 
@@ -48,7 +48,7 @@ ${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(textureLoad(ids,
  return vec3f(uv,select(0.0,1.0,inside));
 }`;
 
-export const TAA_REPROJECT_WGSL = taaReprojectWgsl();
+const TAA_REPROJECT_WGSL = taaReprojectWgsl();
 
 /**
  * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform
@@ -112,5 +112,3 @@ ${CATMULL_ROM_WGSL}
 ${PLACEMENT_TAG_WGSL}
 ${CURRENT_SHARE_WGSL}
 struct TaaOut{@location(0) color:vec4f,@location(1) share:vec2f,${filtered ? '@location(2) tint:vec4f,@location(3) add:vec4f,' : ''}}`;
-
-export const TAA_SHADER = taaShader(true);

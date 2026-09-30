@@ -6,7 +6,7 @@ import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 export const PARTS = 4;
 /** Passes of one shadow batch at most: its light cut's three, a region cull per face under the CPU
  *  cut, then the static layer, the page pyramids, the occlusion, the atlas and the transmittance. */
-export const SHADOW_BATCH_PASSES = 3 + DAG_MAX_VIEWS + 5;
+const SHADOW_BATCH_PASSES = 3 + DAG_MAX_VIEWS + 5;
 /** Passes of an image outside its shadow batches, every encoder together. */
 const IMAGE_PASSES = 256;
 /**

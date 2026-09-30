@@ -4,7 +4,7 @@ import type { Texture } from '../../../sdk-core/src/index.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
 
-export const VIS_INVALID = 0;
+const VIS_INVALID = 0;
 /**
  * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
  *
@@ -16,7 +16,7 @@ export const VIS_INVALID = 0;
 export const VIS_TRIANGLE_BITS = 8;
 export const VIS_TRIANGLE_MASK = (1 << VIS_TRIANGLE_BITS) - 1;
 /** Largest triangle count a page may carry; one more would collide with the next page's rows. */
-export const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1;
+const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1;
 /** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
 export const VIS_MAX_PAGES = 0xfffffe;
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
@@ -104,7 +104,7 @@ export function unpackVisibilityId(id: number): UnpackedVisibility | null {
   return { pageIndex: (id >>> VIS_TRIANGLE_BITS) - 1, triangleIndex: id & VIS_TRIANGLE_MASK };
 }
 
-export { visMaterial, isTransmissive } from './shader/material.ts';
+export { isTransmissive } from './shader/material.ts';
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it

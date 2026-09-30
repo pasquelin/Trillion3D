@@ -16,7 +16,7 @@ import {
 } from './freshLayout.ts';
 
 /** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
-export const FRESH_LANES = 64;
+const FRESH_LANES = 64;
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -182,5 +182,3 @@ fn composeRegion(k:u32){
   args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
  }
 }`;
-/** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
-export const SHADOW_FRESH_WGSL = shadowFreshWgsl();

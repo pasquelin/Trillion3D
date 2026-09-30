@@ -15,7 +15,7 @@ import { nanosecondsToMs } from '../../gpu/timing/types.ts';
 /** Samples reread later: beyond this, the device cannot keep up and no more are opened. */
 const MAX_PENDING = 4;
 /** The one pass of a frame whose caller names none. */
-export const WHOLE_FRAME_PASS = 'Trillion3D WebGL2 frame';
+const WHOLE_FRAME_PASS = 'Trillion3D WebGL2 frame';
 
 type TimerExtension = {
   TIME_ELAPSED_EXT: number;

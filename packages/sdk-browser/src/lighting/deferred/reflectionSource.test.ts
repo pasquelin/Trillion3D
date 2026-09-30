@@ -3,10 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting, DEFERRED_LIGHTING_PASS } from './deferred.ts';
-import { REFLECTION_SOURCE_PASS } from '../../reflections/encode.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+
+const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
 
 test('a reflecting image draws its reflection source, then the lighting, each under its label', async () => {
   const { device } = fakeDevice();
