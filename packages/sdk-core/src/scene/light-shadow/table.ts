@@ -1,10 +1,15 @@
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
-import { SHADOW_TABLE_ENTRIES as ENTRIES, SHADOW_TABLE_STRIDE as STRIDE } from './virtual.ts';
+import {
+  SHADOW_TABLE_ENTRIES as ENTRIES,
+  SUN_WINDOW,
+  shadowTableEntries,
+  shadowTableStride,
+} from './virtual.ts';
 
 /** Host bytes a table over `poolPages` pages allocates: a word and a change flag per entry, a
  *  base and a size per slice, four changed words per pool page. `hostBytes` counts the arrays. */
-export function shadowTableHostBytes(poolPages: number) {
-  return ENTRIES * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + poolPages * 4 * 4;
+export function shadowTableHostBytes(poolPages: number, entries = ENTRIES) {
+  return entries * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + poolPages * 4 * 4;
 }
 
 /**
@@ -14,15 +19,18 @@ export function shadowTableHostBytes(poolPages: number) {
  * The words are the GPU buffer's mirror, and a frame uploads only the words it changed, grouped
  * in contiguous runs. Each slice owns a fixed span of `SHADOW_TABLE_STRIDE` words, the largest
  * range a light needs: a light's range starts at its slice's span, so every slice finds room and
- * no shadow light is ever denied for want of table.
+ * no shadow light is ever denied for want of table. The extent is the session's: a reference one
+ * raises it (`referenceMode.ts`), the ordinary constant by default.
  */
-export function createShadowTable(poolPages: number) {
+export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
+  const stride = shadowTableStride(pages),
+    entries = shadowTableEntries(pages);
   /** Words rewritten in one frame before the upload falls back to the whole table. */
   const changedCap = poolPages * 4;
-  const words = new Uint32Array(ENTRIES);
+  const words = new Uint32Array(entries);
   const base = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
     size = new Int32Array(MAX_SHADOW_SLICES);
-  const queued = new Uint8Array(ENTRIES),
+  const queued = new Uint8Array(entries),
     changed = new Int32Array(changedCap);
   let changedCount = 0,
     whole = true;
@@ -43,7 +51,7 @@ export function createShadowTable(poolPages: number) {
     words,
     /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
     hostBytes: [words, base, size, queued, changed].reduce((sum, a) => sum + a.byteLength, 0),
-    entries: ENTRIES,
+    entries,
     /** Rises whenever a range is claimed or freed: requests read against another layout drop. */
     layoutEpoch: 0,
     /** Rises with every word that changes: what the shading reads, and so asks, changed. */
@@ -52,7 +60,7 @@ export function createShadowTable(poolPages: number) {
     /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return;
-      base[slice] = slice * STRIDE;
+      base[slice] = slice * stride;
       size[slice] = count;
       table.layoutEpoch++;
     },
@@ -65,7 +73,7 @@ export function createShadowTable(poolPages: number) {
     },
     /** The slice whose range holds `entry`, or −1. */
     sliceAt(entry: number) {
-      const slice = Math.floor(entry / STRIDE);
+      const slice = Math.floor(entry / stride);
       return base[slice] >= 0 && entry - base[slice] < size[slice] ? slice : -1;
     },
     write,
@@ -78,7 +86,7 @@ export function createShadowTable(poolPages: number) {
         whole = false;
         for (let i = 0; i < changedCount; i++) queued[changed[i]] = 0;
         changedCount = 0;
-        upload(0, ENTRIES);
+        upload(0, entries);
         return;
       }
       changed.subarray(0, changedCount).sort();

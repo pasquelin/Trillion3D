@@ -34,8 +34,9 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
     ...explorerPage.explorerOptions(options, factory, null),
     reference: true,
   });
-  const reference = explorer.reference;
-  if (!reference) return { error: 'this dist has no reference mode' };
+  const reference = explorer.reference,
+    captureReference = explorer.captureReference;
+  if (!reference || !captureReference) return { error: 'this dist has no reference mode' };
   for (const light of options.lights ?? []) explorer.addLight(light);
   explorer.setPose(options.pose);
   for (let i = 0; i < options.warmup; i++) {
@@ -46,18 +47,18 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
   const settleFrames = await measure.poseCalme(explorer, options.pose, REFERENCE_HOLD_LIMIT);
   if (settleFrames === null)
     return { error: `the pose did not hold in ${REFERENCE_HOLD_LIMIT} frames: ${lost.join('; ')}` };
-  const { supersampling } = reference;
-  const width = Math.floor(canvas.width / supersampling),
-    height = Math.floor(canvas.height / supersampling);
-  // Refused by name while the shadow pool runs below its full size (`referenceCapture`).
+  const { factor, approximations, tiles } = reference;
+  // The image: the engine's own renderer, captured tile by tile (`referenceTiles.ts`). Refused by
+  // name while the shadow pool runs below its full size (`referenceTilesCapture`).
+  const rgba = await captureReference();
   const response = await measure.posterCapture(
     options.captureFile,
-    explorer.capture(),
-    width,
-    height,
+    rgba,
+    tiles.width,
+    tiles.height,
   );
   explorer.dispose();
   canvas.remove();
   if (!response.ok) return { error: `the capture was not received: HTTP ${response.status}` };
-  return { supersampling, approximations: reference.approximations, settleFrames };
+  return { supersampling: factor, approximations, settleFrames };
 }

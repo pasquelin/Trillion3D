@@ -37,12 +37,11 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       true,
       undefined,
       blendWritesShare(rt),
+      rt.context.sunWindow,
     );
-    ({
-      blendBindGroupLayout: vis.blendBindGroupLayout,
-      blendPipelines: vis.blendPipelines,
-      water: blendState.water,
-    } = built);
+    vis.blendBindGroupLayout = built.blendBindGroupLayout;
+    vis.blendPipelines = built.blendPipelines;
+    blendState.water = built.water;
     // A refused water pass leaves blends in place and reports the reason.
     if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused);
   } catch (error) {

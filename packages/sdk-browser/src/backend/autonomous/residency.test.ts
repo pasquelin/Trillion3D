@@ -11,6 +11,7 @@ import {
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import { createPageDraws } from './pageDraws.ts';
 import type { HostRetentionDelta } from '../../streaming/types.ts';
 
 const urlsOf = (delta: HostRetentionDelta) =>
@@ -22,6 +23,7 @@ function fakeGeometryStore() {
   return {
     state: { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 },
     held: createHeldResidency(),
+    draws: createPageDraws(),
     colorMaterials: new Map(),
     releasePage: (_url: string) => false,
     sync: () => {},
@@ -51,7 +53,6 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
     declaration: [],
     placementIndex: 0,
     renderOrder: 0,
-    attached: false,
   };
 }
 

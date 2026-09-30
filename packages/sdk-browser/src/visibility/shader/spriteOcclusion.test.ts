@@ -119,6 +119,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
     uploadCorners() {},
     uploadUnculled: () => (sent = true),
   };
+  const pages = [page(true), page(false)];
   const rt = {
     blendState: {
       table: { capacity: 34, pageOfEntry: Int32Array.from({ length: 34 }, (_, i) => i % 2) },
@@ -128,7 +129,8 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
     },
     layout: {
       rows: { tableEpoch: 0 },
-      packedPages: [page(true), page(false)],
+      packedPages: pages,
+      recordOf: (packed: number) => pages[packed],
       selectionRoots: identityRoots(),
     },
   } as unknown as WebgpuPagesRuntime;

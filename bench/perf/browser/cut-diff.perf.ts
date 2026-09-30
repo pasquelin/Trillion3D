@@ -40,7 +40,6 @@ for (let i = 0; i < PAGES; i++)
     declaration: [],
     placementIndex: 0,
     renderOrder: 0,
-    attached: true,
     transparent: alea() < 0.1,
     array: alea() < 0.995 ? new Uint32Array(3) : undefined,
   });

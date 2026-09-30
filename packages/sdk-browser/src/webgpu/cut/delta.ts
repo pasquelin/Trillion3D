@@ -1,5 +1,6 @@
-import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 /**
  * Published difference, and what can be asked of it.
@@ -31,8 +32,10 @@ export type CutDelta = {
   has(id: number): boolean;
   /** Reports no difference: the cut is the one already held, records included. */
   hold(): void;
-  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
-  apply(ids: readonly number[]): void;
+  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. The
+   *  packed cut passes its reused `Int32Array` whole (`webgpu/pages/render/cpu.ts`): `count` is the
+   *  record list's length, so only the live ranks are read and no stale tail is walked. */
+  apply(ids: ArrayLike<number>, count?: number): void;
   /**
    * The same difference, published by a cut that names its records instead of their ranks — the
    * CPU cut. The catalogue has the last word, as everywhere. Nothing is allocated past the first
@@ -64,6 +67,8 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf, indexOf } = createPageCatalogue(packedPages);
   /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
   const mark = createSparseInts();
   /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
@@ -81,9 +86,9 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
    * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
    * the held list, nor the records — when a new shown list republishes the same cut.
    */
-  const samePublished = (ids: readonly number[]) => {
-    if (ids.length !== publishedCount) return false;
-    for (let i = 0; i < ids.length; i++) if (published[i] !== ids[i]) return false;
+  const samePublished = (ids: ArrayLike<number>, count: number) => {
+    if (count !== publishedCount) return false;
+    for (let i = 0; i < count; i++) if (published[i] !== ids[i]) return false;
     return true;
   };
   /** Held shown list: no difference is published, and the list is already the one it describes. */
@@ -96,29 +101,29 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
    *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
    *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = [];
-  const apply = (ids: readonly number[]) => {
+  const apply = (ids: ArrayLike<number>, count = ids.length) => {
     // A new shown list that republishes the same sequence describes the cut already held: it is
     // held, and not one of the fifteen thousand records is rewritten.
-    if (samePublished(ids)) return hold();
+    if (samePublished(ids, count)) return hold();
     const previous = epoch;
     epoch++;
-    if (published.length < ids.length) published = grown(published, ids.length);
-    if (keptNext.length < ids.length) keptNext = grown(keptNext, ids.length);
-    if (state.entered.length < ids.length) state.entered = grown(state.entered, ids.length);
+    if (published.length < count) published = grown(published, count);
+    if (keptNext.length < count) keptNext = grown(keptNext, count);
+    if (state.entered.length < count) state.entered = grown(state.entered, count);
     if (state.exited.length < keptCount) state.exited = grown(state.exited, keptCount);
     const { entered, exited } = state;
     let enteredCount = 0,
       exitedCount = 0;
-    let same = ids.length === publishedCount;
-    publishedCount = ids.length;
+    let same = count === publishedCount;
+    publishedCount = count;
     let keptNow = 0;
-    for (let i = 0; i < ids.length; i++) {
+    for (let i = 0; i < count; i++) {
       const id = ids[i];
       if (published[i] !== id) {
         published[i] = id;
         same = false;
       }
-      const rec = id >= 0 ? packedPages[id] : undefined;
+      const rec = recordOf(id);
       if (!rec) continue;
       const seen = mark.set(id, epoch);
       if (seen === epoch) continue;
@@ -167,7 +172,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     adoptRecords(records: readonly PageRec[]) {
       recordIds.length = 0;
       for (let i = 0; i < records.length; i++) {
-        const id = catalogueIndexOf(packedPages, records[i]);
+        const id = indexOf(records[i]);
         if (id !== undefined) recordIds.push(id);
       }
       apply(recordIds);
