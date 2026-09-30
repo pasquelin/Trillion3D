@@ -73,8 +73,8 @@ export const LIGHT_SETTINGS = {
   tileLights: 64,
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 64,
-  gridSlices: 48,
-  gridSlicesPerOctave: 4,
+  gridSlices: 256,
+  gridSlicesPerOctave: 16,
   /**
    * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
    * others are weighed without their shadow, and the shaded ones are drawn in proportion, so

@@ -1,7 +1,7 @@
 /**
  * The shipped direct-lighting resolve (`directLightingWgsl`, narrow or wide) in one compute pass:
  * each thread shades one sample through `contractLighting` — the function the deferred program
- * calls per pixel —, with the resolve's own bindings on the engine's numbers, and writes the f32
+ * calls per pixel —, on the cell whose record starts the list buffer, with the resolve's own bindings on the engine's numbers, and writes the f32
  * sum's bits. Only the entry point is the probe's (`narrow-resolve-gpu.ts`, #849).
  */
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
@@ -17,7 +17,7 @@ export const SAMPLE_FLOATS = 16;
 /** The probe's two bindings, past the resolve's own. */
 export const SAMPLES_BINDING = 30;
 export const SUMS_BINDING = 31;
-/** The pixel every sample is shaded at: inside the view's one tile. */
+/** The pixel every sample is shaded at: the drawn resolve's offset reads it. */
 const SAMPLE_PIXEL = [1.5, 2.5];
 
 export const narrowResolveHarness = (narrow: boolean, shadowed = true, rects = true) => `
@@ -35,10 +35,10 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  let s=samples[id.x];
  surfaceModel=u32(s.eyeFlag.w);
  shadowFootprint=0.01;
- let lit=contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,vec2f(${SAMPLE_PIXEL.join(',')}));
+ let lit=contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,vec2f(${SAMPLE_PIXEL.join(',')}),0u,cellShadowed(0u));
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
 }
-/** The drawn resolve alone, whatever the list holds: \`sampledTileLighting\` at the view's rank,
+/** The drawn resolve alone, whatever the list holds: \`sampledSliceLighting\` at the view's rank,
  *  the function a moving image ran on every list before #1249 (\`sampled-resolve-gpu.ts\`). */
 @compute @workgroup_size(64)
 fn drawn(@builtin(global_invocation_id) id:vec3u){
@@ -46,6 +46,11 @@ fn drawn(@builtin(global_invocation_id) id:vec3u){
  let s=samples[id.x];
  surfaceModel=u32(s.eyeFlag.w);
  shadowFootprint=0.01;
- let lit=sampledTileLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,vec2u(0u),1u,u32(view.viewport.w),vec2f(${SAMPLE_PIXEL.join(',')}));
+ // A list the draw refuses — within the budget, past \`TILE_LIGHTS\` — is summed in full, as it was.
+ let slice=cellSlice(0u);
+ var lit=vec3f(0.0);
+ let N=normalize(s.normalRough.xyz);let V=normalize(s.eyeFlag.xyz);
+ if(sampledList(slice.y)){lit=sampledSliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice,u32(view.viewport.w),vec2f(${SAMPLE_PIXEL.join(',')}));}
+ else{lit=sliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice);}
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
 }`;
