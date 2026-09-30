@@ -7,7 +7,11 @@
  * to; the catalogue resolves a packed rank back to its record, and `placement` to its root.
  */
 import { createPageCatalogue, type PageCatalogue } from '../../page/selection/catalogue.ts';
-import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts';
+import {
+  livePlacementIndex,
+  postPackedBases,
+  type PlacementIndex,
+} from '../../page/selection/placements.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
@@ -25,7 +29,15 @@ export type PageDraw = {
 
 export type PageDraws = ReturnType<typeof createPageDraws>;
 
-const blank = (page: PageRec): PageDraw => ({ page, attached: false, turn: 0 });
+/** A new instance's state: blank, or wearing what `sibling` — another instance of the same record —
+ *  wears, since every instance of a page draws one geometry and one surface (#1235). */
+const blank = (page: PageRec, sibling?: PageDraw): PageDraw => ({
+  page,
+  attached: false,
+  turn: sibling?.turn ?? 0,
+  geometry: sibling?.geometry,
+  material: sibling?.material,
+});
 
 export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   let pages: PageRec[] = [],
@@ -39,7 +51,8 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   let owned = new Map<ClusterRoot<PageRec>, Map<PageRec, PageDraw>>();
 
   /** Lays `roots` out: one packed rank per (placement, page), the catalogue over the packed order,
-   *  and each instance's draw state carried from the root it belonged to; a new instance is blank. */
+   *  and each instance's draw state carried from the root it belonged to; a new instance wears what
+   *  the record's first instance wore, else starts blank. */
   function layOut(next: readonly ClusterRoot<PageRec>[]) {
     const nextPages: PageRec[] = [],
       nextDraws: PageDraw[] = [],
@@ -71,7 +84,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
           draw = draws[before[0]];
           assigned.add(rec);
         }
-        if (!draw) draw = blank(rec);
+        if (!draw) draw = blank(rec, before && draws[before[0]]);
         byRecord.set(rec, draw);
         const own = nextRanks.get(rec);
         if (own) own.push(nextPages.length);
@@ -118,6 +131,8 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     get placement(): PlacementIndex {
       return placement;
     },
+    /** The same tables for a reader built once: each lookup reads the current layout's. */
+    livePlacement: livePlacementIndex(() => placement),
     layOut,
     at,
     find,
@@ -131,6 +146,13 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     forEachRank(rec: PageRec, visit: (packed: number) => void) {
       for (const packed of ranks.get(rec) ?? []) visit(packed);
     },
+    /** Runs `visit` on the state of every instance of `rec`: what a page's bytes, surface or release
+     *  change reaches every placement that draws it. */
+    forEachDraw(rec: PageRec, visit: (draw: PageDraw, packed: number) => void) {
+      for (const packed of ranks.get(rec) ?? []) visit(draws[packed], packed);
+    },
+    /** How many instances of `rec` the layout holds. */
+    instances: (rec: PageRec) => ranks.get(rec)?.length ?? 0,
     /** Gives back what every instance of `rec` that left the scene owned, before its state drops. */
     forget(rec: PageRec) {
       for (const packed of ranks.get(rec) ?? []) {

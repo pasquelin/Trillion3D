@@ -17,7 +17,13 @@ function runtime() {
       gate: { resourcesChanged: () => resources++ },
     },
     diag: { traceDiagnostic: () => {} },
-    layout: { rows: { touchPage: (page: number) => touched.push(page), pageIndexOf: () => 7 } },
+    layout: {
+      rows: {
+        touchPage: (page: number) => touched.push(page),
+        // Every packed instance of the page's address: one record serves them all (#1235).
+        pageIndicesByUrl: new Map([['p', [7]]]),
+      },
+    },
     setup: {
       byUrl: new Map([['p', [rec]]]),
       sourceBytes: new Map(),
