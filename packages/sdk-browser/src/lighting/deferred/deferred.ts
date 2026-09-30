@@ -95,7 +95,10 @@ export async function createDeferredLighting(
       ) {
         const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
         // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
-        active = (wantsContract && variants.pick(wantsBounce, !!direct.narrow, onFailure)) || unlit;
+        active =
+          (wantsContract &&
+            variants.pick(wantsBounce, !!direct.narrow, !!direct.unshadowed, onFailure)) ||
+          unlit;
         active.bind(surface, depth, hdr, direct);
       },
       settle() {

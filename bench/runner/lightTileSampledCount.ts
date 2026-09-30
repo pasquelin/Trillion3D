@@ -1,7 +1,7 @@
 // Light evaluations per covered pixel of a MOVING image (#1249). The shipped `contractLighting` and
 // `tileShadowed` run as JavaScript on each tile's lists, and the tile pass's own light grid
 // (`passMasks`) fills each record's slice masks: a still or unshadowed pixel walks the lights its
-// slice mask names (`walked`, each a `beyondRange` test) and shades those in range (`shaded`, each
+// slice mask names (`walked`, each a range reject test) and shades those in range (`shaded`, each
 // a `declaredLight`); a shadowed one the sampled resolve (`3·L + LIGHT_SAMPLES`). COUNTED, never
 // timed.
 //
@@ -19,6 +19,7 @@ import {
   pixelPoint,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import {
+  clusterRun,
   passMasks,
   sliceMap,
 } from '../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
@@ -117,7 +118,7 @@ export function countSampled(
     const tile = at({ x: Math.floor(x / SIZE), y: Math.floor(y / SIZE) });
     const z = depths[Math.floor(y) * view.width + Math.floor(x)];
     const slice = MAP.clusterSliceIndex(NEAR / Math.fround(z), tile.front, tile.back);
-    const group = Math.max(Math.ceil(tile.kept.length / 64), 1);
+    const group = clusterRun(tile.kept.length);
     const point = pixelPoint(view, Math.floor(x), Math.floor(y), z);
     tile.kept.forEach((rank, index) => {
       const bit = Math.floor(index / group);

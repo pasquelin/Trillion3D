@@ -16,6 +16,10 @@ export const sliceMap = (): SliceMap =>
     ...MATH,
   });
 
+/** Lights a mask bit stands for in a slice of `count` (`clusterShift`). */
+export const clusterRun = (count: number) =>
+  count > 64 ? 1 << (32 - Math.clz32(count - 1) - 6) : 1;
+
 /** A light on the view axis: its centre's axis distance from the eye, its range, its kind. */
 export type AxisLight = { positionRange: { xyz: number; w: number }; params: { x: number } };
 const PASS = wgslConstants(LIGHT_TILES_SHADER);
@@ -54,7 +58,7 @@ export function passMasks(
       'clusterReaches',
       'clusterSliceSpan',
       'clusterSliceIndex',
-      'clusterGroup',
+      'clusterShift',
       'isSun',
     ],
     {
@@ -68,9 +72,11 @@ export function passMasks(
       clusterFront: front,
       clusterBack: back,
       dot: (a: number, b: number) => a * b,
+      countLeadingZeros: Math.clz32,
     },
   );
-  for (let lane = 0; lane < LANES; lane++) clusterBits[lane] = clusterPartBits(base, kept, walked, lane);
+  for (let lane = 0; lane < LANES; lane++)
+    clusterBits[lane] = clusterPartBits(base, kept, walked, lane);
   for (let word = 0; word < 2 * CLUSTER_SLICES; word++)
     tiles[base + PASS.TILE_CLUSTER_BASE + word] = clusterWord(word);
 }

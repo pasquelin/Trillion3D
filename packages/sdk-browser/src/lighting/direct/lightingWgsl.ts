@@ -4,7 +4,8 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
-import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
+import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
+import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
 import { clusterResolveWgsl } from '../tiles/clusterWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
@@ -32,34 +33,6 @@ fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
  if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
  let first=tileLights[base+firstSlot];
  return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
-}`;
-/**
- * The one loop that shades a pixel's lights in full (#1249): the lights of a slice (`tileSlice`) —
- * or, from `TILE_NO_SLICE`, every light of the scene — that its 64-bit `mask` names, in increasing
- * rank, each bit standing for `clusterGroup` consecutive lights. A light past its range is
- * rejected on its sphere alone (`beyondRange`), before its record is read in full: it would have
- * added an exact zero, and a light that misses the point never reaches the shading, the shadow or
- * the page reads. The narrow resolve's slice is the list itself (#849), read at its listed rank.
- */
-const sliceLightingWgsl = (narrow: boolean) => `
-fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u,mask:vec2u)->vec3f{
- var result=vec3f(0.0);
- let group=clusterGroup(slice.y);
- for(var word=0u;word<2u;word++){
-  var bits=select(mask.x,mask.y,word==1u);
-  while(bits!=0u){
-   let first=(word*32u+countTrailingZeros(bits))*group;
-   if(first>=slice.y){break;}
-   bits&=bits-1u;
-   let end=min(first+group,slice.y);
-   for(var index=first;index<end;index++){
-    ${narrow ? 'let light=tileLights[slice.x+index];' : 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'}
-    if(beyondRange(directLights.items[light].positionRange,directLights.items[light].params.x,P)){continue;}
-    result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
-   }
-  }
- }
- return result;
 }`;
 /** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting. */
 const WIDE_SLICE_WGSL = `${TILE_SLICE_WGSL}${sliceLightingWgsl(false)}`;
@@ -90,6 +63,7 @@ const lightingBase = (
   transmittanceBinding: number,
   pages: number,
   narrow = false,
+  shadowed = true,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
@@ -102,26 +76,7 @@ var<private> thinSubsurface:vec3f=vec3f(0.0);
 /** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
  * Material contract: Epic public Two Sided Foliage; this is our Lambert implementation. */
 fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
-fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- if(isRect(light)){
-  var transmitted=vec3f(0.0);
-  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
-  return rectLight(light,rgb,metal,rough,N,V,P,ao)+transmitted;
- }
- let incidence=directIncidence(light,P);
- if(incidence.w<=0.0){return vec3f(0.0);}
- // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
- // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
- let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
- let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,select(N,-N,back),incidence.xyz,facing);
- if(shade<=0.0){return vec3f(0.0);}
- let energy=light.colorIntensity.w*incidence.w*shade;
- let color=light.colorIntensity.rgb*shadowTransmission;
- let transmitted=thinSubsurface*thinTransmission(dot(N,normalize(incidence.xyz)),energy);
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,incidence.xyz,energy,ao)+transmitted)*color;}
- return (standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))+transmitted)*color;
-}
+${declaredLightWgsl(shadowed)}
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
@@ -155,10 +110,11 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
  * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
- * writes (`../tiles/shader.ts`).
+ * writes (`../tiles/shader.ts`). Without `shadowed`, the resolve of a scene no light of which
+ * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249).
  */
-export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW) => `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow)}
+export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW, shadowed = true) => `
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 ${clusterResolveWgsl}
 /** Contribution of the contract lights to the pixel: its cluster (#1249), or on a moving image
