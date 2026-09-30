@@ -180,7 +180,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.sunFar.gpu = undefined;
   rt.lights.cull?.dispose();
   rt.lights.movingGroups?.dispose();
-  rt.lights.movingGroups = undefined;
   rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
   rt.lights.cpuCasters?.indirect.destroy();
