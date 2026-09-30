@@ -51,6 +51,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
     scene = numbered(new Scene());
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
   const [shown, desired, attached]: PageRec[][] = [[], [], []];
+  // The packed ranks of the cut, rank by rank beside the records (#1235): one record serves every
+  // placement, so the requests close over the instances the cut published, never the records.
+  const shownPacked: number[] = [],
+    desiredPacked: number[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
   const { batches, refusal, drawHostGeometry } = createExactPagesClusterBatches(
@@ -107,7 +111,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     resourcesChanged: gate.resourcesChanged,
     bootstrap,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     viewport,
     roots,
     batches,
@@ -152,7 +158,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     cap,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     syncResident,
     cpuProfile,
     gate,

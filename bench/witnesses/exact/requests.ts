@@ -8,6 +8,7 @@ import {
   selectVisiblePages,
   type ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { PageLocations } from '../../../packages/sdk-browser/src/page/selection/placements.ts';
 import type { WitnessPage as PageRec } from './pose.ts';
 import {
   orderPendingUrls,
@@ -51,7 +52,11 @@ export type ExactPagesRequestContext = {
   pendingScratch: string[];
   requestStamps: RequestStamps;
   desired: PageRec[];
+  /** The packed rank of each desired record, rank by rank (#1235). */
+  desiredPacked: number[];
   shown: PageRec[];
+  /** The packed rank of each shown record, rank by rank (#1235). */
+  shownPacked: number[];
   viewport: [number, number] | undefined;
   pixelScaleScratch: number[];
   prefetchScratch: string[];
@@ -79,7 +84,9 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     pendingScratch,
     requestStamps,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     viewport,
     pixelScaleScratch,
     prefetchScratch,
@@ -100,9 +107,20 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
   // (`page/cut/groupClosure.ts`): the rule draws a group only once all of it is resident.
   const closed: PageRec[] = [],
     requests = createAutonomousRequests(roots, () => 0);
+  // The witness's own placement table (#1235): each record carries the rank of the root that places
+  // it (`pose.ts`), so `orderPendingUrls` resolves the same world develop read on the record.
+  const packedScratch: number[] = [],
+    rootOfPacked = Int32Array.from({ length: roots.length }, (_, rank) => rank),
+    located = (records: readonly PageRec[]): PageLocations => {
+      packedScratch.length = records.length;
+      for (let i = 0; i < records.length; i++)
+        packedScratch[i] = (records[i] as { placementIndex?: number }).placementIndex ?? 0;
+      return { roots, packed: packedScratch, rootOfPacked };
+    };
   let closedAt = -1;
   const closedCut = () => {
-    if (closedAt !== ctx.frame) requests.of(desired.length ? desired : shown, closed);
+    if (closedAt !== ctx.frame)
+      requests.of(desiredPacked.length ? desiredPacked : shownPacked, closed);
     closedAt = ctx.frame;
     return closed;
   };
@@ -120,7 +138,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
       return orderPendingUrls(
         waiting,
-        roots,
+        located(waiting),
         ctx.cam,
         pixelScaleOf(ctx.cam.projection, viewport, pixelScaleScratch),
         pendingScratch,
