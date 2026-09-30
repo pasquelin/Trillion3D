@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { detectCapabilities } from '../../measurement/capabilities.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
@@ -11,7 +12,7 @@ export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>
 /** True when a WebGPU device is worth asking for: the host did not pin the session to the
  *  autonomous path, and either named no backend or named the WebGPU page raster among them. */
 function wantsWebgpu(options: ExplorerSession['options']) {
-  if (options.autonomousGeometry === true || options.renderer === 'webgl2') return false;
+  if (explorerSwitch(options, 'autonomousGeometry') || options.renderer === 'webgl2') return false;
   return !options.backends || options.backends.includes(webgpuPagesBackend);
 }
 
