@@ -1272,7 +1272,7 @@
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest; ein ruhendes Bild wird mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
     }
   },
   "crossVector3": {
@@ -7069,7 +7069,7 @@
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest; ein ruhendes Bild wird mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
     }
   },
   "RenderScale": {
