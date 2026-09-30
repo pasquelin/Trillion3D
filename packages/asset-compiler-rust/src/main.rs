@@ -25,15 +25,16 @@ use trillion3d_compiler::{
     compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
     COMPILER_VERSION, FORMAT_VERSION,
 };
+/// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn emit(mut event: Value, job: &str) {
     messages::decorate(&mut event);
     if let Some(object) = event.as_object_mut() {
         object.insert("job".into(), json!(job));
     }
-    let stderr = std::io::stderr();
-    let mut lock = stderr.lock();
-    let _ = writeln!(lock, "{event}");
+    let _ = writeln!(std::io::stderr().lock(), "{event}");
 }
 /// A failure as hosts read it: its code, message and, from the catalogue, its public id.
 fn error_value(error: &CompilerError) -> Value {
@@ -137,7 +138,9 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     }
 }
 
-fn main() {
+/// Returns its code rather than calling `process::exit`, which on Windows skips the exit handlers
+/// that write the profile of a build trained for profile guidance (#1352).
+fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cancellation = Arc::new(Cancellation {
         all: AtomicBool::new(false),
@@ -193,5 +196,5 @@ fn main() {
             }
         },
     };
-    std::process::exit(code);
+    std::process::ExitCode::from(code as u8)
 }
