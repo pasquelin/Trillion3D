@@ -1169,6 +1169,9 @@
       "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ."
     }
   },
+  "FramePass": {
+    "summary": "Đặt tên cho các lượt của khung hình đang được vẽ; mỗi lần gọi đóng lượt trước và mở lượt kế tiếp."
+  },
   "Frustum": {
     "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`math/frustum/frustum.ts`).",
     "members": {
@@ -1489,7 +1492,8 @@
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
       "displayWidth": "Chiều rộng mà ảnh được hiển thị khi nó được vẽ nhỏ hơn (`world.renderScale`): các mức texture và độ rộng đường theo tỉ lệ đó. `width` khi không có.",
-      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
+      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ.",
+      "pass": "Đặt tên cho các lượt GPU của lần vẽ này cho bộ đếm khung hình, theo thứ tự, khi có thứ đang đọc (`../core/frameTimer.ts`); vắng mặt ở lần vẽ mà không gì đo nó."
     }
   },
   "HostMaterial": {
