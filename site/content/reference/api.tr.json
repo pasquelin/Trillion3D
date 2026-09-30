@@ -3271,6 +3271,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "spent": "Son planın istek raporunu okumak ve sayfaları kabul etmek için harcadığı CPU milisaniyeleri.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
+      "changeRoom": "Liste taşmadan önce hâlâ ayrı tutabildiği kutu sayısı.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
