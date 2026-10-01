@@ -23,7 +23,6 @@ test('an instance changed or removed leaves the model and the other instances as
     const rec = {
       url: 'p.bin',
       clusterId,
-      placementIndex: roots.length,
       array: new Uint32Array(3),
     } as unknown as PageRec;
     const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
@@ -109,7 +108,7 @@ test('an instance of a world with 300,000 roots and bootstrap pages is added who
   const identity = { elements: new Float64Array(new G.Matrix4().toArray()) };
   const basePages = Array.from(
     { length: count },
-    (_, i) => ({ url: 'p.bin', clusterId: `m/${i}`, placementIndex: i }) as unknown as PageRec,
+    (_, i) => ({ url: 'p.bin', clusterId: `m/${i}` }) as unknown as PageRec,
   );
   const baseRoots = basePages.map((page) => ({ world: identity, pages: [page] }));
   const roots: typeof baseRoots = [],

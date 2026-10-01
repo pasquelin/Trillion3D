@@ -24,7 +24,6 @@ function segment(lineWidth: number, dash?: { dashSize: number; gapSize: number }
   return {
     array: new Uint32Array([0, 1, 3, 0, 3, 2]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE, lineWidth, ...dash })),
   };
 }

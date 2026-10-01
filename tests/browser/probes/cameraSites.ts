@@ -57,7 +57,6 @@ function pagesDag(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
   const vis: VisHizPage[] = [0, 1, 2, 3].map((t) => ({
     array: new Uint32Array([t * 3, t * 3 + 1, t * 3 + 2]),
     attributes: fixture.geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(material),
     min: [-2 + t, -0.5, 0],
     max: [-1 + t, 0.5, 0],
