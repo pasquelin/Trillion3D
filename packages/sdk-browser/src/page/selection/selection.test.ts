@@ -86,7 +86,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
     ['near'],
   );
   assert.deepEqual(
-    gpu.pageIds.map((id) => packed.pageUrls[id]),
+    gpu.pageIds.map((id) => packed.pageUrlOf(id)),
     ['near'],
   );
   fixture.geometry.dispose();

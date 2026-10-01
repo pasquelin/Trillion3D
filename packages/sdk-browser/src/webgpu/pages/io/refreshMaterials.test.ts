@@ -92,7 +92,6 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   const worlds: number[][] = [];
   const cutout = {
     material: surfaceOf(material),
-    placementIndex: 0,
     min: [-1, -1, 0],
     max: [1, 1, 0],
   };

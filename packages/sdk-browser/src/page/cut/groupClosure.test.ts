@@ -10,14 +10,10 @@ import type { ClusterRoot } from '../selection/types.ts';
 const dag = ruleDag(64),
   s = dag.structure;
 /** Two placements of the DAG, packed one after the other as the layout packs them. */
-const roots = [0, 1].map((placement) => ({
+const roots = [0, 1].map(() => ({
   world: dag.world,
   structure: s,
-  pages: dag.pages.map((page, p) => ({
-    ...page,
-    placementIndex: placement,
-    packedIndex: placement * dag.pages.length + p,
-  })),
+  pages: dag.pages.map((page) => ({ ...page })),
 })) as unknown as ClusterRoot<PageRec>[];
 const packed = roots.flatMap((root) => root.pages);
 const n = dag.pages.length;

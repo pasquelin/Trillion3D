@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageList } from '../pages/prepare/catalogue.ts';
 import type { createWebgpuResidencyMirror } from '../residency/mirror.ts';
 import type { createWebgpuRowState } from './state.ts';
 import type { createWebgpuRowCommit } from './commit.ts';
@@ -16,7 +17,7 @@ type Commit = ReturnType<typeof createWebgpuRowCommit>;
 export function createWebgpuRowSync(
   rows: Rows,
   mirror: Mirror,
-  packedPages: PageRec[],
+  packedPages: PageList,
   /** The drawn view's cut, read at each sync: a view switch replaces its `drawn`. */
   cut: { readonly drawn: readonly PageRec[]; readonly drawnPacked: readonly number[] },
   cacheReady: () => boolean,
