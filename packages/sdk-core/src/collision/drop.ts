@@ -101,7 +101,10 @@ function dropOnEdge(
     dy = rise * ey - 1,
     dz = rise * ez;
   const a = dx * dx + dy * dy + dz * dz;
-  if (a < 1e-12) return; // A vertical edge: the sphere slides along it, never onto it.
+  // A vertical edge: the sphere slides along it, never onto it; its end is met as a corner. An
+  // edge leaning however little is met where it is: a micrometre of lean over a metre, beside a
+  // body pushed out to exactly its radius, puts the touch anywhere along the edge.
+  if ((ex === 0 && ez === 0) || a === 0) return;
   const b = -(ox * dx + oy * dy + oz * dz),
     c = ox * ox + oy * oy + oz * oz - radius * radius,
     discriminant = b * b - a * c;
