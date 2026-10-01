@@ -86,8 +86,10 @@ export type GpuSelection = {
   markWorld(world: number, mark: number): void;
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean;
-  /** The cut rule at threshold 0: `page` is the finest resident form of its surface. */
-  isFinest(page: number): boolean;
+  /** The cut rule's `resident(c)` and `resident(childGroup(c))` of `page` (`../../page/cut/rule.ts`):
+   *  what the GPU's own shadow page draws choose a caster's level with (#831). */
+  isReady(page: number): boolean;
+  isChildReady(page: number): boolean;
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void;
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the

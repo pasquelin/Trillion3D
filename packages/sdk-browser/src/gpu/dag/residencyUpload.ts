@@ -139,7 +139,12 @@ export function createDagResidencyUpload(resources: {
       get: () =>
         readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength,
     },
-    /** Whether a packed page is the finest representation its residency holds. */
-    isFinest: { value: readiness.isFinest },
-  }) as typeof apply & { readonly hostBytes: number; readonly isFinest: (page: number) => boolean };
+    /** The cut rule's residency of a packed page (`readiness.ts`). */
+    isReady: { value: readiness.isReady },
+    isChildReady: { value: readiness.isChildReady },
+  }) as typeof apply & {
+    readonly hostBytes: number;
+    readonly isReady: (page: number) => boolean;
+    readonly isChildReady: (page: number) => boolean;
+  };
 }

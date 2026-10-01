@@ -16,8 +16,9 @@ test('the GPU composes, counts, admits, culls and seals its pages, then draws ea
     { lights, encode } = frame(calls);
   encode();
   const composed = ['data', 'state', 'drawList', 'freshFaces', 'freshVolumes', 'freshArgs'];
-  const culled = ['spheres', 'freshParams', 'freshVolumes', 'vis 5', 'freshArgs', 'mobility'],
-    dispatch = [(lights.pageRequests.allocation as Record<string, unknown>).freshDispatch, 0];
+  const culled = ['spheres', 'freshParams', 'freshVolumes', 'vis 5', 'freshArgs', 'mobility'];
+  culled.push('row lods');
+  const dispatch = [(lights.pageRequests.allocation as Record<string, unknown>).freshDispatch, 0];
   assert.deepEqual(calls.slice(0, 6), [
     // The rows the cull tests — the table's, then the blended casters' —, the pairs it may keep.
     ['params', 4, LAYERS, 7, [9, 11], keptPairs(11)],

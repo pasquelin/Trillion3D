@@ -1,7 +1,7 @@
 import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
+import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 
 /** Bytes of a kept pair: its region, its row. */
 const PAIR_BYTES = 8;
@@ -14,10 +14,9 @@ const ROW_STEP = 64;
 const PAIRS_PER_PAGE = (SHADOW_PAGE * SHADOW_PAGE) / 32;
 
 /** The pairs the GPU draws at most a frame, for a pool of `pages` pages: its pair list's fixed
- *  size. A frame maps at most `SHADOW_GPU_PAGES_PER_FRAME` pages: a list of the whole pool's pairs
- *  (1.3 million, 10.6 MB at 2 601 pages) held what no frame draws (#831). */
-export const poolPairs = (pages: number) =>
-  Math.min(pages, SHADOW_GPU_PAGES_PER_FRAME) * PAIRS_PER_PAGE;
+ *  size, the pages a frame maps at most (`shadowPagesPerFrame`) — the grant's, never a scene's
+ *  (#831). */
+export const poolPairs = (pages: number) => shadowPagesPerFrame(pages) * PAIRS_PER_PAGE;
 
 /** Pairs a kept list of `rows` rows a region holds. */
 export const keptPairs = (rows: number) => Math.floor((rows * ROW_BYTES) / PAIR_BYTES);

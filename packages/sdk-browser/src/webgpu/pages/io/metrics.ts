@@ -171,7 +171,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.pageRequests = undefined;
   disposeStaticLayer(rt.lights);
   rt.lights.mobilityRows?.destroy();
-  rt.lights.mobilityRows = undefined;
+  rt.lights.rowLods?.buffer.destroy();
+  rt.lights.mobilityRows = rt.lights.rowLods = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
   rt.sunFar.gpu?.dispose();
@@ -183,8 +184,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
   rt.lights.cpuCasters?.indirect.destroy();
-  rt.lights.cpuCasters = undefined;
-  rt.lights.lightCut = undefined;
+  rt.lights.cpuCasters = rt.lights.lightCut = undefined;
   rt.lights.spheres?.buffer.destroy();
   rt.lights.spheres = undefined;
   rt.lights.shadowGroups.fill(undefined);

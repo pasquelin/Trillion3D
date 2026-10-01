@@ -27,6 +27,7 @@ import {
 import { SHADOW_FACE_STRIDE } from '../../gpu/shadow/batchBudget.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import {
+  FRESH_ARG,
   FRESH_CLEAR,
   FRESH_FACE_WORDS,
   FRESH_LAYER_SHIFT,
@@ -107,14 +108,16 @@ test("a GPU-drawn page's casters land on its square of the layer, its fragments 
 });
 
 test("each layer's draw places the pairs of its own regions, by their own view", () => {
-  // Region 0 lies in layer 0, region 1 in layer 1; pair 0 is region 0's row 7, pair 1 region 1's.
+  // Region 0 lies in layer 0, region 1 in layer 1; pair 0 is region 0's row 7, pair 1 region 1's,
+  // both still casters' (`freshPairAt`).
   const args = new Uint32Array(freshArgWords(4));
   args.set([0, 1], FRESH_LAYER_STARTS);
+  args[FRESH_ARG.still] = 2;
   args[freshDrawWord(0, FRESH_CLEAR) + 1] = args[freshDrawWord(1, FRESH_CLEAR) + 1] = 1;
   const views = [0, 1].map((k) => ({ view: { params: [0, 0, 1, 1] }, rect: [k, 0, 1, 1] }));
   const { freshCaster } = shaderRun<{
     freshCaster: (vertex: number, instance: number, blended: boolean) => Record<string, unknown>;
-  }>(SHADOW_DEPTH_SHADER, ['freshCaster', 'freshPlace', 'freshDraw'], {
+  }>(SHADOW_DEPTH_SHADER, ['freshCaster', 'freshPairAt', 'freshPlace', 'freshDraw'], {
     ...wgslConstants(SHADOW_DEPTH_SHADER),
     freshArgs: args,
     freshPairs: [0, 7, 1, 7],
