@@ -98,10 +98,10 @@ test('every colour field holds a Color, written in place and heard, whatever val
   let writes = 0;
   material._listeners.add(() => writes++);
   const held = material.subsurfaceColor;
-  material.subsurfaceColor = 0xff0000;
+  Object.assign(material, { subsurfaceColor: 0xff0000 });
   assert.equal(material.subsurfaceColor, held, 'the same Color, set in place');
   const base = material.color;
-  material.color = [0.5, 0.5, 0.5];
+  Object.assign(material, { color: [0.5, 0.5, 0.5] });
   assert.equal(material.color, base);
   material.attenuationColor = 0x00ff00;
   assert.ok(material.attenuationColor instanceof Color);
