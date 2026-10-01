@@ -20,7 +20,7 @@ type Scale = { x: number; y: number; z: number };
 
 /** How far two components of a scale may differ and still be one: relative to the first past 1,
  *  absolute below it. A uniform scale's rounding, never a stretch. */
-export const SCALE_TOLERANCE = 1e-6;
+const SCALE_TOLERANCE = 1e-6;
 const same = (a: number, b: number) =>
   Math.abs(a - b) <= SCALE_TOLERANCE * Math.max(1, Math.abs(a));
 

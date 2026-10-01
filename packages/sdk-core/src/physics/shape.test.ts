@@ -5,7 +5,7 @@ import { capsule } from '../world/geometry/round.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
 import { ball, one, refusedShape as refused, triangle, twice } from './shape.fixture.ts';
 import { SHAPE } from './layout.ts';
-import { primitive, resolveShape, SCALE_TOLERANCE } from './shape.ts';
+import { primitive, resolveShape } from './shape.ts';
 
 /** The geometry's extent along x, y and z. */
 function extent(geometry: Geometry) {
@@ -87,15 +87,24 @@ test('a round primitive needs the scale that keeps it round; a box takes any, mi
   assert.equal(primitive(cone, { x: 2, y: 2, z: 3 }), null);
 });
 
-test('a scale is uniform within its tolerance: relative past 1, absolute below', () => {
-  const t = SCALE_TOLERANCE;
-  for (const size of [1000, 1, 0]) {
-    const at = (z: number) => primitive(ball, { x: size, y: size, z });
-    const room = t * Math.max(1, size);
-    assert.ok(at(size + room / 2), `${size}: within`);
-    assert.ok(at(size + room), `${size}: at the tolerance`);
-    assert.equal(at(size + room * 2), null, `${size}: past`);
+/** How far past `size` the third component of a scale may go and the scale still keep a sphere
+ *  round: found by halving, never read from the source. */
+function room(size: number) {
+  let [inside, outside] = [0, 1];
+  for (let i = 0; i < 80; i++) {
+    const mid = (inside + outside) / 2;
+    if (primitive(ball, { x: size, y: size, z: size + mid })) inside = mid;
+    else outside = mid;
   }
+  return inside;
+}
+
+test('a scale is uniform within a rounding’s room: relative past 1, the same absolute below', () => {
+  const [none, unit, large] = [room(0), room(1), room(1000)];
+  assert.ok(none > 0, 'a vanishing scale has room too');
+  assert.ok(unit < 0.01, `${unit}: a stretch of a hundredth is no rounding`);
+  assert.ok(Math.abs(none - unit) <= unit * 1e-6, `${none} below 1 as at 1 (${unit})`);
+  assert.ok(Math.abs(large / unit / 1000 - 1) < 1e-6, `${large} grows with the scale`);
 });
 
 test('any other mesh is triangles when static and a hull when it moves, its vertices scaled', () => {
