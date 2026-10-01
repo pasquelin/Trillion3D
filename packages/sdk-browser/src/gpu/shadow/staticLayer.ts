@@ -4,6 +4,8 @@ import { shadowAtlasBytes } from './atlas.ts';
 
 /** Label of the pass that fills the static layer: timed with the Shadows stage. */
 export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
+/** Label of the pass that fills the static layer of the pages the GPU draws itself (#831). */
+export const FRESH_LAYER_PASS = 'Trillion3D shadow GPU page static layer v1';
 
 /** The layout of a static layer's group: one layer of its depth, read by the restore
  *  (`pageQuads.ts`). */

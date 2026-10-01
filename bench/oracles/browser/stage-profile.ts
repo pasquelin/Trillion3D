@@ -14,6 +14,7 @@ const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
   'Trillion3D material surfaces v1': ['geometry'],
   'Trillion3D shadow atlas v1': ['shadows', 'raster'],
   'Trillion3D shadow static layer v1': ['shadows', 'raster'],
+  'Trillion3D shadow GPU page static layer v1': ['shadows', 'raster'],
   'Trillion3D shadow transmittance pass v1': ['shadows', 'raster'],
   'Trillion3D shadow transmittance clear v1': ['shadows', 'raster'],
   'Trillion3D shadow cull': ['shadows', 'cull'],
