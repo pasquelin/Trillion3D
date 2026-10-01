@@ -26,6 +26,8 @@ function declared(source: string, surfaceModel: number, L: V) {
     any: (value: boolean) => value,
     select: (a: unknown, b: unknown, condition: boolean) => (condition ? b : a),
     shadowReceiverOffset: 0,
+    shadowReceiverPlane: 0,
+    shadowBiasNormal: (n: V) => n,
     shadowTransmission: 1,
     thinTransmission: () => 0,
     dot,

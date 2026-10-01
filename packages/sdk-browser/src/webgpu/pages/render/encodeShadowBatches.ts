@@ -1,5 +1,6 @@
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
 import { shadowBatchWrites } from '../../../gpu/shadow/batchWrites.ts';
+import { shadowPagesPerFrame } from '../../../gpu/shadow/batchBudget.ts';
 import { frameBatchCapacity } from './frameBatchCapacity.ts';
 import { pageModes, writeShadowPages } from '../../shadow/pages.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
@@ -16,7 +17,8 @@ import type { WebgpuLightState } from '../state/lights.ts';
  * At most the frame's capacity (`frameBatchCapacity`): the current pool's pages in the fewest
  * pages a batch holds, within the memory grant. More than `MAX_SHADOW_BATCHES` full batches stale
  * at once, or a view limit bisected after a light cut dropped work, needs more; the pages past the
- * last are then pending, drawn the next frame. An empty list visits no batch.
+ * last are then pending, drawn the next frame; so are those past the frame's page budget
+ * (`shadowPagesPerFrame`), a batch at most past it. An empty list visits no batch.
  */
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
@@ -25,10 +27,11 @@ export function forEachShadowBatch(
 ) {
   const { plan, runs } = rt.lights,
     { admission } = plan,
-    count = admission.count;
+    count = admission.count,
+    budget = shadowPagesPerFrame(rt.lights.plan.pool.pages);
   let runBase = 0,
     from = 0;
-  for (let batch = 0; from < count && batch < batches; batch++) {
+  for (let batch = 0; from < count && from < budget && batch < batches; batch++) {
     const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views);
     if (!visit(from, to, runBase)) break;
     runBase += runs.count;
@@ -38,12 +41,12 @@ export function forEachShadowBatch(
 }
 
 /**
- * THE FRAME'S SHADOW PAGES, EVERY ONE, IN THE FRAME THAT MARKS THEM. The plan lists every stale page
+ * THE FRAME'S SHADOW PAGES, UP TO ITS PAGE BUDGET (`shadowPagesPerFrame`). The plan lists every stale page
  * the image reads (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and one light
  * cut's views, so the list is drawn batch after batch in the frame's command buffer, each batch's
  * writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's pages
- * committed once encoded. Nothing is deferred to a later frame: a batch that cannot be encoded — a
- * resource missing — leaves its pages and the rest stale, pending, for the next frame.
+ * committed once encoded. Only the pages past the budget wait for the next frame, and so do those
+ * of a batch that cannot be encoded — a resource missing —: stale, pending.
  *
  * Returns whether every page was encoded.
  */

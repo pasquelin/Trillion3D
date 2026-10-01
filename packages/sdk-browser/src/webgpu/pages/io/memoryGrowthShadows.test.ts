@@ -9,6 +9,7 @@ import { SUN, coarseSession } from './memoryGrowth.fixture.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
 import { restSlotCount } from '../../../gpu/draw/contract.ts';
+import { keptRows, poolPairs } from '../../shadow/pairRows.ts';
 
 test('after a grow on a lit scene, the shadow lists, offsets, spheres and words have the new size', async () => {
   const { rt, gpu, draw, dispose } = await coarseSession(SUN);
@@ -16,21 +17,21 @@ test('after a grow on a lit scene, the shadow lists, offsets, spheres and words 
     const { lights, vis, layout } = rt;
     // The occlusion test is made with the static layer, at the table's size: one is made here.
     lights.occlusion = await createShadowOcclusion(gpu.device, layout.rows.casterSlots);
-    const writes = gpu.writes.length;
     await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 });
     const rows = layout.rows.casterSlots;
     assert.equal(rows, 4);
-    assert.equal(lights.cull!.kept.size, MAX_SHADOW_REGIONS * rows * 4);
-    assert.equal(lights.occlusion.visible.size, MAX_SHADOW_REGIONS * rows * 4);
-    // Each region's place in the list moved to `rows` apart.
+    // The kept lists hold the pool's fixed pairs past the table's rows (`poolPairs`, #831).
+    const listRows = keptRows(rows, poolPairs(lights.plan.pool.pages), gpu.device.limits);
+    assert.equal(lights.cull!.kept.size, MAX_SHADOW_REGIONS * listRows * 4);
+    assert.equal(lights.occlusion.visible.size, MAX_SHADOW_REGIONS * listRows * 4);
+    // Each region's place in the list is `listRows` apart, the list's rows, unmoved by the grow.
     const offsets = gpu.writes
-      .slice(writes)
       .filter(({ bytes }) => bytes.byteLength === (MAX_SHADOW_REGIONS + 1) * 4)
       .at(-1)!;
     const words = new Uint32Array(offsets.bytes.slice().buffer);
     assert.deepEqual(
       Array.from(words),
-      Array.from({ length: MAX_SHADOW_REGIONS + 1 }, (_, region) => region * rows),
+      Array.from({ length: MAX_SHADOW_REGIONS + 1 }, (_, region) => region * listRows),
     );
     const made = {
       spheres: lights.spheres!.buffer,

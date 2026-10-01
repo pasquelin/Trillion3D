@@ -12,23 +12,23 @@ import { FRESH_FACE_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts'
 // that the CDN core, which holds the budget, holds none of the WebGPU shadow passes (#1353).
 
 /** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
- *  it maps (−1 free) and the frame it was last asked in first, the words a snapshot reads back;
- *  last, which draw its entry's depth came from (`DRAWN_*`). */
+ *  it maps (−1 free), the frame it was last asked in and which draw its entry's depth came from
+ *  (`DRAWN_*`) first, the words a snapshot reads back (#831). */
 export const POOL_FIELDS = [
   'owner',
   'requested',
+  'drawnBy',
   'rank',
   'view',
   'x',
   'y',
   'generation',
-  'drawnBy',
 ] as const;
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
  *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
- *  pairs the latest GPU page draws counted (`sealShadowPages`), which grow their list
- *  (`pairGrowth.ts`). */
+ *  pairs the latest GPU page draws counted (`sealShadowPages`), a diagnostic of the list the pool
+ *  fixes (`pairRows.ts`). */
 export const POOL_COUNTS = [
   'needs',
   'candidates',
@@ -39,11 +39,11 @@ export const POOL_COUNTS = [
   'pairs',
 ] as const;
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
- *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
- *  generation. */
+ *  candidates' keys start, the first frame whose asks no need evicts, the pages a frame maps at
+ *  most, then each slice's generation. */
 export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
-/** Words of the header of the words the host sends: their count, the pool's pages, the frame, one
- *  free. */
+/** Words of the header of the words the host sends: their count, the pool's pages, the frame, and
+ *  1 when every page the GPU drew itself is withdrawn (`every`, a list too short for the marks). */
 export const WORDS_HEADER = 4;
 
 /** Words of one bit per table entry of a session's window. */
@@ -56,8 +56,8 @@ export const shadowRequestBufferBytes = (pages: number, sunWindow = SUN_WINDOW) 
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
 export const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 /** Pairs the host's table words hold at most: the table's changed words of a frame, or every
- *  mapped page once (`table.ts`, `flush`). */
-export const wordsCap = (pages: number) => 4 * pages;
+ *  mapped page once and the entries withdrawn (`table.ts`, `flush`, `eachWithdrawn`). */
+export const wordsCap = (pages: number) => 5 * pages;
 
 export type Usage = keyof typeof GPUBufferUsage;
 /** Words of each buffer of the allocation of a pool of `pages`, with its label and its usages

@@ -108,3 +108,31 @@ test('a vehicle let go of hears its keys released; the next hears the keys held 
   assert.equal(second.at(-1)?.throttle, 0, 'the controls released drive it no more');
   controls.dispose();
 });
+
+// #831: the boss's car stayed at 0 km/h, N, 700 rpm on drive-a-car. A panel's checkbox or slider
+// keeps the focus after a click, and a key pressed then was taken for typing: the car never heard
+// it. Only a field a key types into keeps its keys.
+test('a key pressed while a checkbox or a slider holds the focus drives; typed in a field not', () => {
+  const surface = fixtureSurface(400);
+  const controls = worldControlsHandle(
+    'none',
+    () => new Camera('perspective'),
+    surface.element,
+    () => {},
+  );
+  const heard: VehicleInput[] = [];
+  controls.vehicle = { drive: (input) => heard.push({ ...input }) };
+  controls.kind = 'vehicle';
+  const throttle = (target: object) => {
+    surface.key('keydown', { code: 'KeyW', target });
+    const pressed = heard.at(-1)?.throttle ?? 0;
+    surface.key('keyup', { code: 'KeyW', target });
+    return pressed;
+  };
+  assert.equal(throttle({ tagName: 'INPUT', type: 'checkbox' }), 1, 'a checkbox clicked');
+  assert.equal(throttle({ tagName: 'INPUT', type: 'range' }), 1, 'a slider dragged');
+  assert.equal(throttle({ tagName: 'BUTTON' }), 1, 'a button pressed');
+  assert.equal(throttle({ tagName: 'INPUT', type: 'text' }), 0, 'a text field keeps its keys');
+  assert.equal(throttle({ tagName: 'INPUT' }), 0, 'an input of no type is a text field');
+  controls.dispose();
+});

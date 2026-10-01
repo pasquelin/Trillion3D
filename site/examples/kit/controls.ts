@@ -5,11 +5,10 @@ import type { StatsWorld } from './statsLines.ts';
 import { exampleWord, kitWord, labelOf } from './words.ts';
 
 /**
- * What an example declares for one control, the kind read from the value itself:
- * `[min, max, value]` or `[min, max, value, step]` a slider, `'#rrggbb'` a colour picker, any
- * other text a line of help (the keys to press), `true`/`false` a toggle, `['a', 'b', …]` a
- * choice starting on its first option, a function a button.
- */
+ * What an example declares for one control, its kind read from the value: `[min, max, value]` or
+ * `[min, max, value, step]` a slider, `'#rrggbb'` a colour picker, any other text a line of help
+ * (the keys to press), `true`/`false` a toggle, `['a', 'b', …]` a choice starting on its first
+ * option, a function a button. */
 export type ControlSpec =
   | readonly [number, number, number]
   | readonly [number, number, number, number]
@@ -127,7 +126,10 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     const select = document.createElement('select');
     select.className = 'select select-xs min-w-0 flex-1';
     select.append(...control.options.map((option, at) => new Option(control.shown[at], option)));
-    select.onchange = () => set(select.value);
+    select.onchange = () => {
+      set(select.value);
+      select.blur(); // the keys back to the scene: a focused list takes W and the arrows (#831)
+    };
     row.append(select);
     return row;
   }

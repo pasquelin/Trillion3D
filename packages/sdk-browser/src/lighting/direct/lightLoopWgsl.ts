@@ -41,7 +41,7 @@ const SHADE_WGSL = `
  // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
  let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
  let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,select(N,-N,back),incidence.xyz,facing);
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,shadowBiasNormal(select(N,-N,back),shadowReceiverPlane),incidence.xyz,facing);
  if(shade<=0.0){return vec3f(0.0);}`;
 
 /**

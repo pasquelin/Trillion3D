@@ -1,7 +1,7 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { layerPasses, layerViews } from './layers.ts';
 import { shadowAtlasBytes } from './atlas.ts';
-import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
+import { FRESH_LAYER_PASS, SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
 
 /** The layout of a static layer's group: one layer of its depth, read by the restore
  *  (`pageQuads.ts`). */
@@ -17,8 +17,8 @@ export const staticLayerEntries = (): GPUBindGroupLayoutEntry[] => [
  * geometry under a moving object is never drawn again for it.
  *
  * It exists from the first move of an object on (`../../webgpu/shadow/mobility.ts`): a scene where
- * nothing moves pays neither its bytes — as many as the pool's — nor its pass. Its texture is
- * made apart (`shadowLayerTexture`), so the caller allocates it under an out-of-memory check.
+ * nothing moves pays no pass. Its texture is made apart (`shadowLayerTexture`), under an
+ * out-of-memory check, with the pool (`../../webgpu/shadow/staticReserve.ts`, #831).
  */
 export async function createShadowStaticLayer(device: GPUDevice, texture: GPUTexture) {
   const size = texture.width,
@@ -29,6 +29,8 @@ export async function createShadowStaticLayer(device: GPUDevice, texture: GPUTex
       /** Each layer's view: drawn into, restored from, and reduced into the page pyramids. */
       targets,
       passes: layerPasses(SHADOW_LAYER_PASS, targets),
+      /** The same, for the GPU's own pages' still casters, timed apart (`freshPass.ts`). */
+      freshPasses: layerPasses(FRESH_LAYER_PASS, targets),
       groups: targets.map((resource) =>
         device.createBindGroup({ layout, entries: [{ binding: 0, resource }] }),
       ),

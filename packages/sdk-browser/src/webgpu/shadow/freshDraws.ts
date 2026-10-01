@@ -3,6 +3,7 @@ import { casterPrimitive } from '../../gpu/shadow/casterPrimitive.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { VIS_BINDINGS } from '../core/bindLayout.ts';
 import { visLayoutEntries } from '../visibility/shaders.ts';
+import { staticLayerEntries } from '../../gpu/shadow/staticLayer.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   SHADOW_TRANSMITTANCE_FORMAT,
@@ -35,7 +36,9 @@ const freshEntries = (): GPUBindGroupLayoutEntry[] =>
  * pass's, but for what these draws never read (`FRESH_UNREAD`), group 1 its faces'; group 2 binds the GPU
  * pages' views, pairs and arguments — and, into the transmittance layer, the pool's opaque depth
  * at binding 0. Compiled off the frame by
- * `prepare`, or at once by `made` (`preparedPipeline`).
+ * `prepare`, or at once by `made` (`preparedPipeline`). With a static layer (#831): into it, the
+ * same clear, then the still casters alone (`staticCasters`); into the pool, its pages restored
+ * from it (`restore`), then the moving casters alone (`movingCasters`).
  */
 export function shadowFreshDraws(
   device: GPUDevice,
@@ -52,10 +55,15 @@ export function shadowFreshDraws(
       ...freshEntries(),
     ],
   });
-  const layoutOf = (group: GPUBindGroupLayout) =>
-    device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout, group] });
+  const layoutOf = (...groups: GPUBindGroupLayout[]) =>
+    device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout, ...groups] });
   const pool = layoutOf(poolLayout),
-    tint = layoutOf(tintLayout);
+    tint = layoutOf(tintLayout),
+    // The static layer's own layout at group 3: its groups bind there as they are.
+    restored = layoutOf(
+      poolLayout,
+      device.createBindGroupLayout({ entries: staticLayerEntries() }),
+    );
   // The clear draws place page squares in NDC; the caster draws place sun corners through
   // `shadowVertexIn` -> `sunSnap` (`freshDrawsWgsl.ts`), which the hardware clipper can cut into
   // unsnapped corners (#26). `casterPrimitive` disables that clip where the device allows it; the
@@ -99,6 +107,36 @@ export function shadowFreshDraws(
       'casters',
       pool,
       ['shadow_fresh_vs', 'shadow_fresh_fs'],
+      undefined,
+      true,
+      DEPTH_COMPARE,
+      'depth32float',
+      caster,
+    ),
+    staticCasters: pipeline(
+      'static casters',
+      pool,
+      ['shadow_fresh_static_vs', 'shadow_fresh_fs'],
+      undefined,
+      true,
+      DEPTH_COMPARE,
+      'depth32float',
+      caster,
+    ),
+    restore: pipeline(
+      'restore',
+      restored,
+      ['shadow_fresh_clear_vs', 'restore_fs'],
+      undefined,
+      true,
+      'always',
+      'depth32float',
+      base,
+    ),
+    movingCasters: pipeline(
+      'moving casters',
+      pool,
+      ['shadow_fresh_moving_vs', 'shadow_fresh_fs'],
       undefined,
       true,
       DEPTH_COMPARE,
