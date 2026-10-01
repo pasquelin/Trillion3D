@@ -95,7 +95,7 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
 /** `clusters` and `groups` as `world-roots.dag`, version `version`. */
 export function encodeWorldRootsDag(
   { clusters, groups }: { clusters: readonly WorldRootsCluster[]; groups: readonly ClusterGroup[] },
-  version = 2,
+  version = 3,
 ) {
   const r = writer('WRTD');
   const index = (value: number | null) => value ?? NONE;

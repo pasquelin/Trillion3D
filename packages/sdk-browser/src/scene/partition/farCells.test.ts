@@ -76,3 +76,26 @@ test('once the cut packs it, the cells its super-roots draw are held far, their 
   far.plan(index, local, eye, undefined, leave);
   assert.deepEqual(world.released.toSorted(), [0, 1, 2, 3]);
 });
+
+test('a placed cell the cut no longer needs is demoted, its world bundles held before it leaves', async () => {
+  const { index, world, placed, far } = partition();
+  // A target every cell's super-roots meet within the keep margin: a placed cell gives back its objects.
+  const worst = Math.max(...xs.map((_, cell) => cellSuperRootError(bounds, cell, eye, lens)));
+  const coarse = { ...lens, pixelError: 2 * worst };
+  far.plan(index, local, eye, coarse, leave);
+  await Promise.resolve();
+  assert.deepEqual(far.plan(index, local, eye, coarse, leave).far, [0, 1, 2, 3]);
+  await new Promise(setImmediate); // the holds land
+  placed.set(0, {});
+  const held = world.held.length;
+  let holdsBeforeLeave = -1;
+  const plan = far.plan(index, local, eye, coarse, (cell) => {
+    holdsBeforeLeave = world.held.length - held;
+    placed.delete(cell);
+  });
+  assert.deepEqual(plan.demoted, [0]);
+  assert.deepEqual(world.held.slice(held), [0], 'the demoted cell is held far');
+  // Its far hold is taken before its placed hold goes: the bundles both need are never released,
+  // then read again.
+  assert.equal(holdsBeforeLeave, 1);
+});
