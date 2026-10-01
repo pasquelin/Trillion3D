@@ -746,6 +746,15 @@ the view holds, a placed cell holding the bundles past the top its objects' `dep
 each once, until the last cell needing it leaves ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool),
 Pinned bytes). The super-roots are not drawn yet (#1238): the image is unchanged.
 
+Packed last in the one cut, the world DAG reads a mirror of the scene's residency
+(`packages/sdk-browser/src/gpu/dag/worldMirror.ts`, #1332): a super-root resident while its bundle
+is held, an object root while its placed object (`origin`) is placed and its root cover resident,
+so the cut keeps a cell's super-root until its objects are drawable. A partition's plan reads the
+cut's own choice (`scene/partition/superRoots.ts`): a cell is held by its super-roots, its object
+pages unread, until their largest `parentError` projects past the pixel target on the frustum's
+diagonal; a placed cell gives its objects back once that error is within the target over
+`1 + KEEP`.
+
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the `physics-cook` stage
