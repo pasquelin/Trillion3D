@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTransportState, TRANSPORT_DEFAULTS } from './state.ts';
+import { createTransportState } from './state.ts';
+import { TRANSPORT_DEFAULTS } from './contracts.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 
 const scene = () => sceneWithBlocker(false, 1);

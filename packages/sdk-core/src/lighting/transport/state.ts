@@ -1,15 +1,7 @@
 import type { Scene } from '../scene/experimentScene.ts';
-import type { TransportOptions } from './contracts.ts';
+import { TRANSPORT_DEFAULTS, type TransportOptions } from './contracts.ts';
 import { validateScene, fail } from './validation.ts';
 import { SURFACE_STRIDE } from './intersections.ts';
-
-/** The budgets of a transport whose options leave them out. */
-export const TRANSPORT_DEFAULTS = {
-  raysPerPatch: 64,
-  maxIterations: 256,
-  tolerance: 1e-7,
-  maxBytes: 256 * 1024 * 1024,
-} as const;
 
 export function createTransportState(initialScene: Scene, options: TransportOptions) {
   validateScene(initialScene);

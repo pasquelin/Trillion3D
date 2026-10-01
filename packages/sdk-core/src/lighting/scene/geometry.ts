@@ -3,7 +3,7 @@ import { add, scale, cross, length, normalized, BLACK } from './math.ts';
 
 type Face = 'nx' | 'px' | 'ny' | 'py' | 'nz' | 'pz';
 /** Most transport patches a lighting scene holds. */
-export const MAX_LIGHTING_PATCHES = 16_384;
+const MAX_LIGHTING_PATCHES = 16_384;
 
 export function createLightingSceneGeometry(patchSize: number) {
   const surfaces: Surface[] = [];

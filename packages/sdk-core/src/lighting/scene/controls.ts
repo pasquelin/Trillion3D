@@ -1,7 +1,7 @@
 import type { LightingSceneLight, Vec3 } from './types.ts';
 
 /** Most area panels a lighting scene holds. */
-export const MAX_LIGHTING_PANELS = 16;
+const MAX_LIGHTING_PANELS = 16;
 /** Emitted radiance of a panel of colour 1 and intensity 1 under a scene intensity of 1. */
 export const LIGHTING_PANEL_RADIANCE = 12;
 
