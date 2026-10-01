@@ -59,7 +59,7 @@ function bench() {
     publication.adoptCpuCut(ids, ids);
   };
   const keys = (ids: number[]) => new Set(ids.map((id) => scene.tracking.keyOf(scene.packed[id])));
-  return { ...scene, publication, capture, main, side, draw, keys, aheadOffers };
+  return { ...scene, rt, publication, capture, main, side, draw, keys, aheadOffers };
 }
 
 test('a second view keeps its pages while the main view draws, all under the one budget', () => {
@@ -153,4 +153,26 @@ test('one view asks, keeps and ranks what it did before views existed', () => {
       assert.equal(sets.requestedCount, before.sets.requestedCount);
     }
   }
+});
+
+test('host memory keeps persistent cut tables charged while another camera draws', () => {
+  const { rt, publication, main, side, draw } = bench();
+  draw(main, [0, 1]);
+  const single = publication.hostTableBytes();
+  rt.views.persistent.push(side);
+  draw(side, [4, 5, 6, 7]);
+  draw(main, [0, 1]);
+  const together = publication.hostTableBytes();
+  assert.ok(together > single, 'an inactive persistent camera still owns its host tables');
+  draw(side, [4, 5, 6, 7]);
+  assert.equal(
+    publication.hostTableBytes(),
+    together,
+    'switching cameras does not double-charge tables',
+  );
+  publication.releaseView(side);
+  assert.ok(
+    publication.hostTableBytes() < together,
+    'removal returns the side camera’s table charge',
+  );
 });

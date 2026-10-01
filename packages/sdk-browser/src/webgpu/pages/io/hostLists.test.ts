@@ -52,7 +52,9 @@ function banc() {
     pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
     urlsHeld: { epoch: -1, cut: -1, limited: false },
   };
+  const main = { run };
   const rt = {
+    views: { main, active: main, persistent: [] },
     run,
     layout: { packedPages },
     setup: { bootstrap, requestStamps: new RequestStamps(6) },
@@ -172,4 +174,16 @@ test('bootstrap coverage alone decides what the image waits for before it is rea
   assert.deepEqual(pendingUrls(rt), [], 'the root already holds its bytes');
   (rt.services.bootstrapState as { ready: boolean }).ready = true;
   assert.deepEqual(pendingUrls(rt), ['d'], 'the flip remakes the list despite the held sample');
+});
+
+test('host pins keep offscreen persistent camera requests and release only the removed camera', () => {
+  const { rt, packedPages } = banc();
+  const side = {
+    run: { desired: [packedPages[5]], shown: [packedPages[6]] },
+  } as typeof rt.views.main;
+  rt.views.persistent.push(side);
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'f', 'e']);
+  rt.views.persistent.length = 0;
+  rt.run.cutEpoch++;
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
 });

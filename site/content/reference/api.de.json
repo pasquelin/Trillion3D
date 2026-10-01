@@ -1261,7 +1261,7 @@
     }
   },
   "createWorld": {
-    "summary": "Erstellt eine Welt: die Szene, die Kamera, das Rendering-Backend und die Schleife einer Ansicht, gezeichnet sobald sie weiß, wie.",
+    "summary": "Erstellt eine Welt: eine Szene, ein Renderer und eine Schleife für ihre Kameras; gezeichnet wird, sobald sie bereit ist.",
     "parameters": {
       "target": "Das Canvas, in das gezeichnet wird, ein Element, in das gezeichnet wird, oder die ID von einem davon.",
       "options": "Wie die Welt zeichnet und zuhört; nichts anzugeben ist der Normalfall.",
@@ -4865,7 +4865,9 @@
       "enablePan": "Ob Ziehen die Ansicht verschiebt.",
       "rotateSpeed": "Rotationsgeschwindigkeit beim Ziehen.",
       "zoomSpeed": "Zoomgeschwindigkeit am Rad.",
-      "update": "Schreibt die Kamera aus der Pose neu, die der Host ändern konnte — `object.position` und `target` — begrenzt durch `minDistance`/`maxDistance`. Gibt zurück, ob sich etwas bewegt hat, und sendet `change` genau in diesem Fall: eine unbewegte Szene plant keine Arbeit."
+      "update": "Schreibt die Kamera aus der Pose neu, die der Host ändern konnte — `object.position` und `target` — begrenzt durch `minDistance`/`maxDistance`. Gibt zurück, ob sich etwas bewegt hat, und sendet `change` genau in diesem Fall: eine unbewegte Szene plant keine Arbeit.",
+      "minZoom": "Kleinste orthografische Vergrößerung für Schwenk-Zoom- und Trackball-Steuerungen.",
+      "maxZoom": "Größte orthografische Vergrößerung für Schwenk-Zoom- und Trackball-Steuerungen."
     }
   },
   "PixelImage": {
@@ -6725,7 +6727,7 @@
     }
   },
   "World": {
-    "summary": "Was `createWorld` zurückgibt: eine Ansicht."
+    "summary": "Was `createWorld` zurückgibt: eine Szene und ihre Ansichten."
   },
   "world.canvas": {
     "summary": "Das Canvas, in das die Welt zeichnet."
@@ -6794,7 +6796,9 @@
       "landingDip": "Nur Charakter: Sekunden vom Aufsetzen bis zum tiefsten Punkt des Landungsabsenkens des Auges, so tief wie der Aufprall schnell ist; standardmäßig 0,06, 0 schaltet es aus.",
       "mass": "Nur Figur, mit Physik: Kilogramm, die der Körper auf seinen Untergrund drückt; standardmäßig 80.",
       "pushStrength": "Nur Figur, mit Physik: Newton, mit denen der Körper Körper schiebt; standardmäßig 250, der Dauerschub eines Erwachsenen.",
-      "vehicle": "Nur Fahrzeug: was die `'vehicle'`-Steuerung fährt – alles mit `drive(input)`, das Gas, Bremse, Lenkung und Handbremse bei jeder Tastenänderung erhält. Standardmäßig `null`; solange es das ist, wirft `kind = 'vehicle'` `NO_VEHICLE`."
+      "vehicle": "Nur Fahrzeug: was die `'vehicle'`-Steuerung fährt – alles mit `drive(input)`, das Gas, Bremse, Lenkung und Handbremse bei jeder Tastenänderung erhält. Standardmäßig `null`; solange es das ist, wirft `kind = 'vehicle'` `NO_VEHICLE`.",
+      "minZoom": "Kleinste orthografische Vergrößerung für Schwenk-Zoom- und Trackball-Steuerungen.",
+      "maxZoom": "Größte orthografische Vergrößerung für Schwenk-Zoom- und Trackball-Steuerungen."
     }
   },
   "world.renderer": {
@@ -8306,5 +8310,21 @@
   "validateImpostorSection": {
     "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
     "description": "Ein fehlender Abschnitt ist kein Fehler: Ein Cache, der ihn voraussetzt, zeichnet jedes Mesh vollständig, wie zuvor. Ein vorhandener wird als Ganzes abgelehnt, wenn seine Version unbekannt ist oder einem `baked`-Eintrag die Zahlen fehlen, die seine Umschaltung und seine Karte brauchen."
+  },
+  "world.addView": {
+    "summary": "Fügt eine Kamera dieser Szene in einem Rechteck aus CSS-Pixeln auf diesem Canvas mit denselben Budgets hinzu.",
+    "parameters": {
+      "options": "Eine Kamera derselben Szene, die in einem weiteren Rechteck auf dem Canvas der Welt dargestellt wird.",
+      "options.camera": "Die Kamera, durch die diese Ansicht die gemeinsame Szene sieht.",
+      "options.rect": "Das Rechteck auf dem Canvas in CSS-Pixeln.",
+      "options.controls": "Die Steuerung, die Gesten innerhalb dieses Rechtecks empfängt; standardmäßig keine.",
+      "options.exclude": "Teilbäume, die diese Kamera und ihre Schatten auslassen; die gemeinsame Szene bleibt unverändert."
+    }
+  },
+  "world.exclude": {
+    "summary": "Teilbäume, die die Hauptkamera und ihre Schatten auslassen; andere Ansichten bleiben unverändert."
+  },
+  "world.rect": {
+    "summary": "Das Rechteck der Hauptkamera in CSS-Pixeln; null (Standard) füllt das Canvas."
   }
 }

@@ -1,3 +1,4 @@
+import { presentDrawnView } from '../state/presentation.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { viewProj } from '../helpers.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
@@ -62,7 +63,7 @@ export function submitColorCopy(
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
   if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
     // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
-    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
+    presentDrawnView(rt, encoder);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;

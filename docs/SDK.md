@@ -319,6 +319,52 @@ the canvas. `createJob` (from `trillion3d` and the portal's runtime) wraps
 `scene.load(url, { signal, onProgress: progress })` for cancellation and an observable status, the
 job's progress being the load's.
 
+### Several views on one canvas
+
+`world.addView({ camera, rect, controls? })` draws another camera of the same scene. The
+rectangle uses CSS pixels measured from the canvas's top-left corner. Set `world.rect` to
+place the main camera beside it; `null` restores the main camera to the full canvas.
+
+```js
+const world = createWorld(canvas, { controls: 'orbit' });
+const top = camera.orthographic({ top: 20, bottom: -20, fitAspect: true });
+top.position.set(0, 40, 0);
+top.up.set(0, 0, -1);
+top.lookAt(0, 0, 0);
+const overview = world.addView({
+  camera: top,
+  rect: { x: 400, y: 0, width: 400, height: 600 },
+  controls: 'panZoom',
+});
+world.rect = { x: 0, y: 0, width: 400, height: 600 };
+// Resize both rectangles when the host layout changes.
+await overview.ready;
+// During teardown, or when the second view is no longer wanted:
+// overview.dispose();
+```
+
+A view handle exposes `camera`, `rect`, `controls`, `ready` and `dispose()`. Controls receive
+input within their own rectangle. Orthographic `panZoom` gestures change magnification without
+moving the camera through the scene; `controls.minZoom` and `maxZoom` bound that magnification. The world owns one scene and one frame loop; animate the
+scene once in `world.beforeFrame`, and all its views draw that state. Changing a view's camera
+or rectangle preserves its identity. Disposing a view releases its controls and residency pins;
+it does not dispose the world, its scene, or another view.
+
+A view's `background` overrides the scene's clear colour (`0xRRGGBB`); `null` inherits it.
+Its `diagnostic.mode` can show the engine's work beside the main camera's image. The main
+camera continues to use `world.diagnostic.mode`.
+
+`world.exclude` and a view's `exclude` list hide chosen subtrees only for that camera, including
+their sun shadows. This uses existing placement visibility and can invalidate cached cuts.
+Exclusion is refused when a shadow-casting point or spot light is present: those lights share
+shadow pages across views and cannot represent different caster sets. Other views and the
+public scene's visibility remain unchanged.
+
+Views share the world's residency budget; they do not each receive a fresh copy of that budget.
+Additional views still require their own render targets and histories. Do not infer a memory or
+frame-time gain from view count alone: compare one and four views with the same scene, camera
+poses, total output resolution, quality and budgets, and record CPU and GPU time separately.
+
 ### Camera controllers
 
 The engine's controllers read `PointerEvent`, `WheelEvent` and `KeyboardEvent` on the world's canvas

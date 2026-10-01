@@ -36,30 +36,21 @@ export type ComposedChain = {
   refused?: (blending: Blending) => void;
 };
 
-/**
- * Composes one engine's frame on the host surface or on a render target — the one place that
- * knows how an engine's image reaches either. It binds the destination, then copies the surface
- * an engine presented on its own canvas, or clears with the engine's background and asks the
- * engine to draw its whole image there, keeping the copy of the last complete frame that spares a
- * redraw. With an effect chain that holds passes, the engine draws linear radiance into the
- * chain's target instead, and the chain brings its image to the destination
- * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed since
- * it was kept is drawn again. The page's `guides` are drawn over the image the destination got,
- * the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to them
- * spares no redraw. The world's `particles` step before, and draw over the engine's image before
- * the chain, on every image drawn here: when they move, the image is drawn, never kept
- * (`../../particles/particleCode.ts`). A refusal never fails the session: the pools are refused
- * by name, `particlesRefused` hearing why once, and the frame goes on without them. An engine with
- * a render scale draws both below the display, resampled before the chain (`./renderScale.ts`).
- * Nothing here belongs to a rendering library.
- */
+/** Composes one camera into a canvas or target, preserving effects, guides and particles.
+ * The display chain, tone mapping and render scale use the same path for every view. A held
+ * full-canvas image is copied; a view target retains its own composition resources. Particle
+ * simulation may be shared by additional cameras, which draw the same GPU state. */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
   layers: {
     effects?: ComposedChain;
+    /** A view-local background, absent when it inherits the scene. */
+    background?: () => SceneColour;
     particles?: readonly ParticlePool[];
     particlesRefused?: (reason: string) => void;
+    /** Shared simulation state: additional cameras draw the pools the main composer stepped. */
+    particleStep?: () => ReturnType<typeof webglParticleStep>;
   } & ({ guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }) = {},
 ) {
   const { effects: composed, particles = [] } = layers;
@@ -126,7 +117,8 @@ export function createFrameComposer(
     if (present(backend)) return;
     const moved = anyMoving(particles);
     // Made by the first pool, then run with none left too: it frees a released pool's targets.
-    if (particles.length) stepped ??= webglParticleStep(gl, layers.particlesRefused);
+    if (particles.length)
+      stepped ??= layers.particleStep?.() ?? webglParticleStep(gl, layers.particlesRefused);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn,
@@ -158,7 +150,7 @@ export function createFrameComposer(
     output.framebuffer = (linear ?? target)?.framebuffer ?? null;
     output.width = width;
     output.height = height;
-    encode(backend.scene.background as SceneColour);
+    encode(layers.background?.() ?? (backend.scene.background as SceneColour));
     // Drawn below the display, the image is resampled over all of it: only its target is cleared.
     const clear = linear ? undefined : display.background;
     if (!scaled.begin(backend, output, scale, clear) && clear) clearWebglTarget(gl, clear);
@@ -187,14 +179,17 @@ export function createFrameComposer(
   };
   /** Bytes of the chain's targets, the particles' depth copy and the target an image drawn below
    *  the display is drawn in, on this context. */
-  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0) + scaled.bytes();
+  compose.particleStep = () =>
+    (stepped ??= particles.length ? webglParticleStep(gl, layers.particlesRefused) : undefined);
+  compose.effectBytes = () =>
+    (effects?.bytes ?? 0) + (layers.particleStep ? 0 : (stepped?.bytes() ?? 0)) + scaled.bytes();
   compose.dispose = () => {
     present.dispose();
     scaled.dispose();
     heldFrame.dispose();
     effects?.dispose();
     guideDraw?.dispose();
-    stepped?.dispose();
+    if (!layers.particleStep) stepped?.dispose();
   };
   return compose;
 }

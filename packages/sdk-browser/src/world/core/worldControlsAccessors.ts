@@ -25,6 +25,20 @@ export function controlSettingAccessors(
     set maxDistance(value: number) {
       setting('maxDistance', value);
     },
+    /** Smallest orthographic magnification for pan-zoom and trackball controllers. */
+    get minZoom() {
+      return settings.minZoom;
+    },
+    set minZoom(value: number) {
+      setting('minZoom', value);
+    },
+    /** Largest orthographic magnification for pan-zoom and trackball controllers. */
+    get maxZoom() {
+      return settings.maxZoom;
+    },
+    set maxZoom(value: number) {
+      setting('maxZoom', value);
+    },
     /** Orbit only: smallest polar angle, in radians from straight up. */
     get minPolarAngle() {
       return settings.minPolarAngle;

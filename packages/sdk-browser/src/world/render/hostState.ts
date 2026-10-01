@@ -117,7 +117,7 @@ export function createExplorerHostState(
           () => {
             throw new Error('The direct GPU path has no host composer');
           },
-          { dispose() {}, effectBytes: () => 0 },
+          { dispose() {}, effectBytes: () => 0, particleStep: () => undefined },
         ),
         compositor: undefined,
       };

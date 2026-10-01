@@ -2689,7 +2689,9 @@
       "enablePan": "Việc kéo có trượt góc nhìn hay không.",
       "rotateSpeed": "Kéo xoay nhanh đến mức nào.",
       "zoomSpeed": "Bánh xe phóng to nhanh đến mức nào.",
-      "update": "Ghi lại camera từ tư thế mà ứng dụng chủ có thể đã chỉnh sửa — `object.position` và `target` — bị giới hạn bởi `minDistance`/`maxDistance`. Trả về có gì di chuyển hay không, và phát ra `change` đúng lúc điều đó xảy ra: một cảnh đứng yên không lên lịch công việc nào cả."
+      "update": "Ghi lại camera từ tư thế mà ứng dụng chủ có thể đã chỉnh sửa — `object.position` và `target` — bị giới hạn bởi `minDistance`/`maxDistance`. Trả về có gì di chuyển hay không, và phát ra `change` đúng lúc điều đó xảy ra: một cảnh đứng yên không lên lịch công việc nào cả.",
+      "minZoom": "Độ phóng đại trực giao nhỏ nhất cho bộ điều khiển di chuyển–thu phóng và trackball.",
+      "maxZoom": "Độ phóng đại trực giao lớn nhất cho bộ điều khiển di chuyển–thu phóng và trackball."
     }
   },
   "PixelImage": {
@@ -4250,7 +4252,7 @@
     }
   },
   "World": {
-    "summary": "Những gì `createWorld` trả về: một góc nhìn."
+    "summary": "Kết quả của `createWorld`: một cảnh và các khung nhìn của nó."
   },
   "WorldControls": {
     "summary": "Các cách mà một trang có thể lái camera bằng chuột và bàn phím, hoặc `'none'`.",
@@ -5058,7 +5060,7 @@
     }
   },
   "createWorld": {
-    "summary": "Tạo một thế giới: cảnh, camera, trình dựng hình và vòng lặp của một khung nhìn, được vẽ ngay khi nó biết cách.",
+    "summary": "Tạo một thế giới: các camera dùng chung một cảnh, bộ dựng hình và vòng lặp; bắt đầu vẽ khi sẵn sàng.",
     "parameters": {
       "target": "Canvas để vẽ vào, một phần tử để vẽ bên trong, hoặc ID của một trong hai.",
       "options": "Cách thế giới vẽ và lắng nghe; không nói gì là trường hợp bình thường.",
@@ -7213,7 +7215,9 @@
       "yawInput": "Chỉ flight: cần điều khiển yaw trong [-1, 1] (trái), được cộng vào các phím mũi tên; mặc định là 0.",
       "mass": "Chỉ nhân vật, có vật lý: số kilôgam thân thể đè lên chỗ đứng; mặc định 80.",
       "pushStrength": "Chỉ nhân vật, có vật lý: số newton thân thể dùng để đẩy vật thể; mặc định 250, lực đẩy liên tục của người lớn.",
-      "vehicle": "Chỉ phương tiện: thứ mà điều khiển `'vehicle'` lái — bất cứ thứ gì có `drive(input)`, nhận ga, phanh, lái và phanh tay mỗi khi phím thay đổi. Mặc định `null`, và khi đó `kind = 'vehicle'` ném `NO_VEHICLE`."
+      "vehicle": "Chỉ phương tiện: thứ mà điều khiển `'vehicle'` lái — bất cứ thứ gì có `drive(input)`, nhận ga, phanh, lái và phanh tay mỗi khi phím thay đổi. Mặc định `null`, và khi đó `kind = 'vehicle'` ném `NO_VEHICLE`.",
+      "minZoom": "Độ phóng đại trực giao nhỏ nhất cho bộ điều khiển di chuyển–thu phóng và trackball.",
+      "maxZoom": "Độ phóng đại trực giao lớn nhất cho bộ điều khiển di chuyển–thu phóng và trackball."
     }
   },
   "world.diagnostic": {
@@ -8307,5 +8311,21 @@
   "validateImpostorSection": {
     "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
     "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ, như trước. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
+  },
+  "world.addView": {
+    "summary": "Thêm một camera của cảnh này vào hình chữ nhật tính bằng pixel CSS trên canvas này, dùng chung các ngân sách.",
+    "parameters": {
+      "options": "Một camera của cùng cảnh, hiển thị trong hình chữ nhật khác trên canvas của thế giới.",
+      "options.camera": "Camera mà khung nhìn này dùng để quan sát cảnh dùng chung.",
+      "options.rect": "Hình chữ nhật trên canvas, tính bằng pixel CSS.",
+      "options.controls": "Bộ điều khiển nhận thao tác trong hình chữ nhật này; mặc định không có.",
+      "options.exclude": "Các cây con bị loại khỏi camera này và bóng của nó; cảnh dùng chung không thay đổi."
+    }
+  },
+  "world.exclude": {
+    "summary": "Các cây con bị loại khỏi camera chính và bóng của nó; các khung nhìn khác không thay đổi."
+  },
+  "world.rect": {
+    "summary": "Hình chữ nhật của camera chính tính bằng pixel CSS; null (mặc định) lấp đầy canvas."
   }
 }

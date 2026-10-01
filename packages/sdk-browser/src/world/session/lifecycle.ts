@@ -22,9 +22,8 @@ type Inputs = {
   gpuDevice?: GPUDevice;
   profiler: EngineProfiler;
   hostedControls: { dispose(): void }[];
-  /** The composer and the compositor: programs and copies on the engine's context, released
-   *  before the surface that carries them. */
-  disposeComposition: () => void;
+  /** Composition resources are released before their surface. */
+  disposeComposition: () => void | Promise<void>;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
   overlays: ReturnType<typeof createExplorerHostState>['overlays'];
@@ -35,8 +34,7 @@ type Inputs = {
   geometryUrls: Set<string>;
 };
 
-/** Frees what a session owns: the scene source and the canvas context unless the caller holds
- *  them, the device unless the caller handed it in. */
+/** Frees the scene, context and device unless the caller owns them. */
 export function releaseOwned(
   session: ExplorerSession,
   owned: { source?: BackendContext['source']; webglSurface?: WebglSurface; gpuDevice?: GPUDevice },
@@ -44,7 +42,6 @@ export function releaseOwned(
   if (owned.source && !session.callerOwned) disposeSource(owned.source);
   owned.webglSurface?.dispose(session.callerOwned);
   try {
-    // A device the caller handed in is the caller's to destroy.
     if (owned.gpuDevice !== session.options.gpuDevice) owned.gpuDevice?.destroy();
   } catch {
     /* Device may already be lost. */
@@ -69,8 +66,9 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     camera,
     geometryUrls,
   } = inputs;
+  let closing: Promise<void> | undefined;
   const dispose = () => {
-    if (state.disposed) return;
+    if (state.disposed) return closing;
     diagnose('dispose-start', 'MeasuredWorld disposal started', {
       kind: 'lifecycle',
       scope,
@@ -90,8 +88,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetA?.dispose();
     state.pairTargetB?.dispose();
     state.measurementTarget = state.pairTargetA = state.pairTargetB = undefined;
-    disposeComposition();
-    // A read cut short says why (#837), never "aborted without reason".
+    const composition = Promise.resolve().then(disposeComposition);
     streaming.backgroundFetchController?.abort(
       new DOMException('The session closed', 'AbortError'),
     );
@@ -99,11 +96,22 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     releasePageDecoders();
     releasePageIntegration();
     overlays.forEach((material) => material.dispose());
-    backends.forEach((backend) => backend.dispose());
-    releaseOwned(session, { source, webglSurface, gpuDevice });
-    diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope });
-    diagnosticChannel.flushSync();
-    diagnosticChannel.close();
+    return (closing = (async () => {
+      const settled = await Promise.allSettled([composition]);
+      settled.push(
+        ...(await Promise.allSettled(backends.map(async (backend) => backend.dispose()))),
+      );
+      for (const result of settled)
+        if (result.status === 'rejected')
+          diagnose('dispose-release-failed', String(result.reason), { kind: 'lifecycle', scope });
+      releaseOwned(session, { source, webglSurface, gpuDevice });
+      diagnose('dispose-complete', 'MeasuredWorld disposal completed', {
+        kind: 'lifecycle',
+        scope,
+      });
+      diagnosticChannel.flushSync();
+      diagnosticChannel.close();
+    })());
   };
   const flush = async () => {
     check();
@@ -125,7 +133,6 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     };
     const ranks = backend.retainedRanks?.();
     if (ranks) {
-      // Apply this delta before another read of the backend can turn it into an empty hold.
       streamer.retainRanks(ranks);
       for (let i = 0; i < ranks.heldCount; i++) {
         const url = ranks.urls[ranks.held[i]];

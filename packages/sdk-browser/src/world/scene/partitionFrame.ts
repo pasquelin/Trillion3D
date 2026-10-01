@@ -8,6 +8,7 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
+import { unionViewReach } from './viewReach.ts';
 import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
@@ -87,6 +88,8 @@ type Inputs = {
   partitions: readonly PartitionCells[];
   streamer: Streamer;
   camera: HostCamera;
+  /** Other persistent cameras sharing the one cell index and residency budget. */
+  views?: () => readonly HostCamera[];
   active: () => RenderBackend;
   /** The session's one integration budget per frame (`BackendContext.frameBudget`): cells spend
    *  from it before the arrival drain and the engine's row records spend the rest. */
@@ -137,6 +140,7 @@ export function createPartitionFrame(inputs: Inputs) {
   const step = () => {
     mounts.sync();
     const backend = active();
+    const others = inputs.views?.() ?? [];
     const io: Parameters<PartitionCells['frame']>[2] = {
       bytes: (url: string) => streamer.getBytes(url),
       decode: decodeCell,
@@ -153,9 +157,11 @@ export function createPartitionFrame(inputs: Inputs) {
       },
       outgrown: renew,
       // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
-      lens: lensOf(backend, camera),
+      lens: others.length ? undefined : lensOf(backend, camera),
     };
-    const { eye, reach } = viewOf(camera);
+    const { eye, reach } = others.length
+      ? unionViewReach([viewOf(camera), ...others.map(viewOf)])
+      : viewOf(camera);
     later = false;
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later;
   };

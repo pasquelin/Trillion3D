@@ -19,6 +19,12 @@ export interface ControlPose {
   fov(): number;
   /** Magnification, 1 when the camera has none. */
   zoom(): number;
+  /** Unmagnified parallel view height, or null for a perspective camera. */
+  parallelHeight(): number | null;
+  /** Unmagnified parallel width, using the surface aspect when requested by the lens. */
+  parallelWidth(aspect: number): number;
+  /** Applies orthographic magnification and updates the host projection. */
+  setZoom(value: number): void;
   readPosition(out: Float64Array): Float64Array;
   readOrientation(out: Float64Array): Float64Array;
   /** Writes position and orientation back, then makes the camera's matrices current. */
@@ -31,6 +37,18 @@ export function controlPose(camera: ControlCamera): ControlPose {
     vector: () => camera.position.clone().set(0, 0, 0),
     fov: () => camera.fov,
     zoom: () => camera.zoom ?? 1,
+    parallelHeight: () =>
+      camera.projection === 'orthographic' || camera.isOrthographicCamera
+        ? Math.abs((camera.top ?? 1) - (camera.bottom ?? -1))
+        : null,
+    parallelWidth: (aspect) =>
+      camera.fitAspect
+        ? Math.abs((camera.top ?? 1) - (camera.bottom ?? -1)) * aspect
+        : Math.abs((camera.right ?? 1) - (camera.left ?? -1)),
+    setZoom(value) {
+      camera.zoom = value;
+      camera.updateProjectionMatrix?.();
+    },
     readPosition(out) {
       out[0] = camera.position.x;
       out[1] = camera.position.y;

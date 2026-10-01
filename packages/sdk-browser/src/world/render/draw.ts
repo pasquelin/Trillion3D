@@ -60,7 +60,7 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
  *  `gpuPassMs`, and the whole image's duration under `gpuFrameMs`. */
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
+  const { geometryUrls, streamer, streaming, baseline, state } = inputs;
   const { directGpu, webglSurface } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps each contiguous pass the draw path names, in
   // order, whenever the context grants the extension; the frame metrics and the step profile read
@@ -68,14 +68,22 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const profiled = explorerSwitch(session.options, 'stageProfile');
   const gpuTimer = webglSurface && !directGpu ? createWebglFrameTimer(webglSurface.context) : null;
   const gpu = { frameMs: null as number | null, passes: null as GpuPassTimings | null };
-  const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
+  const drawBackend = (
+    backend: RenderBackend,
+    target: WebglRenderTarget | null,
+    view?: {
+      camera: HostCamera;
+      compose: Inputs['compose'];
+      rendered: boolean;
+    },
+  ) => {
+    const { camera, compose } = view ?? inputs;
     const { measuring } = state;
     const steps = backend as HostCpuProfile,
       scale = backend.renderScaleControl;
     scale?.tick(frameStart(), gpuTimer?.supported === true);
-    // Before any command: the errors of allocations the GPU ran past, read without a wait.
     settleAllocations(webglSurface?.context);
-    backend.render(camera);
+    if (!view?.rendered) backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
     if (missing.length > 0) {
@@ -129,8 +137,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
-      // The engine draws into the page canvas: nothing to compose, but the frame closes here,
-      // where the bounds the host just sampled still belong to it.
       fenceAllocations(webglSurface?.context);
       steps.cpuFrameEnd?.();
       if (backend.overBudget)
@@ -166,7 +172,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
-    // A held image put back times the copy, not a drawing: no metric names it (`gpuFrameMs`).
     gpuTimer?.begin(backend.frameHeld === true ? null : state.hostFrame);
     compose(backend, target, true, true, gpuTimer?.pass);
     // A held image put back, or one drawn into a target at the display's size, measures no

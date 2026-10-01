@@ -20,6 +20,7 @@ import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createWebglViews } from './views.ts';
+import { webglViewApi } from './persistentView.ts';
 import { autonomousRenderScale } from './renderScale.ts';
 import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
@@ -27,7 +28,6 @@ import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import { createWebglDeformation } from '../../deformation/webglFrame.ts';
-
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
@@ -138,10 +138,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       residency.keptChanged();
       publishAutonomousCapabilities(context.onDiagnostic);
     },
-    render(camera) {
+    ...webglViewApi(views, (camera) => {
       hostDraw.render(camera);
       if (ready) frame(camera);
-    },
+    }),
     ...hostDraw.host,
     ...hostDraw.materials,
     ...instances,

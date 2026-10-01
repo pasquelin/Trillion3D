@@ -56,6 +56,15 @@ export interface ControlCamera {
   fov: number;
   /** Magnification, 1 when the host has none: a pan at zoom 2 moves half as far per pixel. */
   zoom?: number;
+  /** Orthographic optics, when the host uses a parallel projection. */
+  projection?: string;
+  isOrthographicCamera?: boolean;
+  left?: number;
+  right?: number;
+  fitAspect?: boolean;
+  top?: number;
+  bottom?: number;
+  updateProjectionMatrix?(): void;
   updateMatrixWorld(force?: boolean): void;
 }
 
@@ -87,6 +96,10 @@ export interface PivotCameraControls extends CameraControlBase {
   minDistance: number;
   /** Farthest the camera may go. */
   maxDistance: number;
+  /** Smallest magnification for an orthographic planar or trackball view. */
+  minZoom: number;
+  /** Largest magnification for an orthographic planar or trackball view. */
+  maxZoom: number;
   /** Whether the wheel zooms. */
   enableZoom: boolean;
   /** Whether dragging slides the view. */

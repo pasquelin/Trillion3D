@@ -40,10 +40,10 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     offset = new Float64Array(3),
     orientation = new Float64Array(4),
     pan = new Float64Array(3),
-    moved = new Float64Array(10);
+    moved = new Float64Array(11);
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
-  const gate = createChangeGate(base, 10);
+  const gate = createChangeGate(base, 11);
   const height = () => surface.clientHeight || 1;
   const sample = () => {
     pose.readPosition(position);
@@ -51,7 +51,15 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     readVector(center, api.target);
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
   };
+  const boundZoom = (zoom: number) => {
+    const min = Math.max(Number.EPSILON, api.minZoom);
+    return clampNumber(zoom, min, Math.max(min, api.maxZoom));
+  };
   const apply = () => {
+    if (pose.parallelHeight() !== null) {
+      const zoom = boundZoom(pose.zoom());
+      if (zoom !== pose.zoom()) pose.setZoom(zoom);
+    }
     let radius = hypot3(offset[0], offset[1], offset[2]);
     // A pivot reached exactly is no direction at all: back off along what the camera faces.
     if (radius <= RADIUS_EPSILON) {
@@ -66,6 +74,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     moved.set(position);
     moved.set(center, 3);
     moved.set(orientation, 6);
+    moved[10] = pose.zoom();
     return gate(moved);
   };
   const api = pivotControlsApi(base, pose, () => {
@@ -86,13 +95,15 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       if (!api.enablePan) return;
       sample();
       const distance = hypot3(offset[0], offset[1], offset[2]);
-      panOffset(
-        pan,
-        orientation,
-        dx,
-        dy,
-        pixelWorldScale(distance, pose.fov(), height(), pose.zoom()),
-      );
+      const parallel = pose.parallelHeight();
+      const scaleY =
+        parallel === null
+          ? pixelWorldScale(distance, pose.fov(), height(), pose.zoom())
+          : parallel / pose.zoom() / height();
+      const width = surface.clientWidth || 1;
+      const scaleX =
+        parallel === null ? scaleY : pose.parallelWidth(width / height()) / pose.zoom() / width;
+      panOffset(pan, orientation, dx * scaleX, dy * scaleY, 1);
       for (let i = 0; i < 3; i++) center[i] += pan[i];
       apply();
     },
@@ -100,6 +111,12 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       if (!api.enableZoom) return;
       sample();
       const distance = hypot3(offset[0], offset[1], offset[2]) || 1;
+      if (pose.parallelHeight() !== null) {
+        const zoom = boundZoom(pose.zoom() / dollyDistance(1, steps, api.zoomSpeed));
+        if (zoom !== pose.zoom()) pose.setZoom(zoom);
+        apply();
+        return;
+      }
       const kept = dollyDistance(distance, steps, api.zoomSpeed);
       for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance;
       apply();
@@ -111,6 +128,8 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
 export const PIVOT_DEFAULTS = {
   minDistance: 0,
   maxDistance: Infinity,
+  minZoom: 0,
+  maxZoom: Infinity,
   rotateSpeed: 1,
   zoomSpeed: 1,
 };

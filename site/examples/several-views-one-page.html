@@ -23,11 +23,14 @@
         position: relative;
         overflow: hidden;
         border-radius: 4px;
+        pointer-events: none;
       }
       .main {
         grid-row: 1 / span 3;
       }
       canvas {
+        position: fixed;
+        inset: 0;
         display: block;
         width: 100%;
         height: 100%;
@@ -57,15 +60,16 @@
     </style>
   </head>
   <body>
-    <div class="pane main"><canvas id="view"></canvas><p class="label" data-words="perspective"></p></div>
-    <div class="pane"><canvas id="top"></canvas><p class="label" data-words="top"></p></div>
-    <div class="pane"><canvas id="front"></canvas><p class="label" data-words="front"></p></div>
-    <div class="pane"><canvas id="side"></canvas><p class="label" data-words="side"></p></div>
+    <canvas id="view"></canvas>
+    <div class="pane main"><p class="label" data-words="perspective"></p></div>
+    <div class="pane"><p class="label" data-words="top"></p></div>
+    <div class="pane"><p class="label" data-words="front"></p></div>
+    <div class="pane"><p class="label" data-words="side"></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
       import { controls, readout, ease } from '../runtime/kit.js';
 
-      // A windmill on its island, drawn by four worlds at once: one looks through a perspective
+      // A windmill on its island, shared by four views: one looks through a perspective
       // lens the viewer turns, the three others through orthographic cameras from above, the
       // front and the side, where sizes never shrink with distance — the views of a drawing.
       function build(world) {
@@ -146,68 +150,68 @@
         state.turn += step * state.speed;
       }
 
-      // The four worlds: one perspective with an orbit, three orthographic that pan and zoom.
-      const VIEWS = [
-        { id: 'view', background: '#f0c28e' },
-        { id: 'top', eye: [0, 80, 0], look: [0, 0, 0], up: [0, 0, -1], half: 17, right: [1, 0, 0], above: [0, 0, -1] },
-        { id: 'front', eye: [0, 13, 80], look: [0, 13, 0], up: [0, 1, 0], half: 19, right: [1, 0, 0], above: [0, 1, 0] },
-        { id: 'side', eye: [80, 13, 0], look: [0, 13, 0], up: [0, 1, 0], half: 19, right: [0, 0, -1], above: [0, 1, 0] },
+      // One scene, a perspective orbit and three orthographic pan-and-zoom views.
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#f0c28e');
+      const mill = build(world);
+      world.camera.position.set(26, 15, 30);
+      world.controls.target.set(0, 8, 0);
+      world.controls.update();
+      world.controls.minDistance = 12;
+      world.controls.maxDistance = 90;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      const directions = [
+        { eye: [0, 80, 0], look: [0, 0, 0], up: [0, 0, -1], half: 17 },
+        { eye: [0, 13, 80], look: [0, 13, 0], up: [0, 1, 0], half: 19 },
+        { eye: [80, 13, 0], look: [0, 13, 0], up: [0, 1, 0], half: 19 },
       ];
-      const worlds = VIEWS.map((view) => {
-        const world = createWorld(view.id, { controls: view.eye ? 'none' : 'orbit' });
-        world.scene.background = math.color(view.background ?? '#1a2230');
-        const mill = build(world);
-        if (view.eye) {
-          // An orthographic box as tall as the view's `half` on each side of its centre, and as
-          // wide as the canvas's shape asks (`fitAspect`); a wheel zooms it, a drag slides it.
-          const lens = camera.orthographic({ near: 1, far: 200, top: view.half, bottom: -view.half, fitAspect: true });
-          lens.up.set(...view.up);
-          world.camera = lens;
-          let pan = [0, 0];
-          const pose = () => {
-            const [x, y] = pan, at = view.eye.map((value, i) => value + view.right[i] * x + view.above[i] * y), to = view.look.map((value, i) => value + view.right[i] * x + view.above[i] * y);
-            lens.position.set(...at);
-            lens.lookAt(...to);
-          };
-          pose();
-          world.canvas.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            lens.zoom = Math.max(0.6, Math.min(8, lens.zoom * Math.exp(-event.deltaY * 0.0015)));
-          }, { passive: false });
-          let held = null;
-          world.canvas.addEventListener('pointerdown', (event) => (held = [event.clientX, event.clientY, ...pan]));
-          addEventListener('pointerup', () => (held = null));
-          world.canvas.addEventListener('pointermove', (event) => {
-            if (!held) return;
-            const metres = (2 * view.half) / lens.zoom / Math.max(1, world.canvas.clientHeight);
-            pan = [held[2] - (event.clientX - held[0]) * metres, held[3] + (event.clientY - held[1]) * metres];
-            pose();
-          });
-          world.canvas.addEventListener('dblclick', () => {
-            pan = [0, 0];
-            lens.zoom = 1;
-            pose();
-          });
-        } else {
-          world.camera.position.set(26, 15, 30);
-          world.controls.target.set(0, 8, 0);
-          world.controls.update();
-          world.controls.minDistance = 12;
-          world.controls.maxDistance = 90;
-          world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-        }
-        world.onFrame(() => {
-          advance();
-          // The opening: the mill starts pulled apart and settles together in every view at once.
-          const settle = 1 - Math.min(1, state.time / 3.5), lift = Math.max(state.explode, ease.smooth(settle));
-          for (const [part, [y, rise]] of Object.entries(PARTS)) mill[part].position.y = y + rise * lift;
-          mill.sails.position.z = 4.8 + 3 * lift;
-          mill.cap.rotation.set(0, state.wind, 0);
-          mill.sails.rotation.set(0, 0, -state.turn);
-          // Once the mill has settled and the wind has dropped, the four views stand still.
-          if (state.speed || settle > 0) world.invalidate();
+      const views = [world, ...directions.map((direction) => {
+        const lens = camera.orthographic({ near: 1, far: 200, top: direction.half, bottom: -direction.half, fitAspect: true });
+        lens.up.set(...direction.up);
+        lens.position.set(...direction.eye);
+        lens.lookAt(...direction.look);
+        const view = world.addView({ camera: lens, rect: { x: 0, y: 0, width: 1, height: 1 }, controls: 'panZoom' });
+        view.background = 0x1a2230;
+        view.controls.minZoom = 0.6;
+        view.controls.maxZoom = 8;
+        view.controls.target.set(...direction.look);
+        view.controls.update();
+        return view;
+      })];
+      const panes = [...document.querySelectorAll('.pane')];
+      const fit = () => {
+        const canvas = world.canvas.getBoundingClientRect();
+        panes.forEach((pane, index) => {
+          const box = pane.getBoundingClientRect();
+          if (box.width && box.height) views[index].rect = { x: box.left - canvas.left, y: box.top - canvas.top, width: box.width, height: box.height };
         });
-        return world;
+      };
+      world.canvas.addEventListener('dblclick', (event) => {
+        const index = panes.findIndex((pane) => {
+          const box = pane.getBoundingClientRect();
+          return event.clientX >= box.left && event.clientX < box.right && event.clientY >= box.top && event.clientY < box.bottom;
+        });
+        if (index < 1) return;
+        const view = views[index], direction = directions[index - 1];
+        view.camera.position.set(...direction.eye);
+        view.camera.lookAt(...direction.look);
+        view.camera.zoom = 1;
+        view.controls.target.set(...direction.look);
+        view.controls.update();
+        world.invalidate();
+      });
+      const layout = new ResizeObserver(fit);
+      panes.forEach((pane) => layout.observe(pane));
+      fit();
+      world.beforeFrame(() => {
+        advance();
+        // All four cameras see the same animation state in this frame.
+        const settle = 1 - Math.min(1, state.time / 3.5), lift = Math.max(state.explode, ease.smooth(settle));
+        for (const [part, [y, rise]] of Object.entries(PARTS)) mill[part].position.y = y + rise * lift;
+        mill.sails.position.z = 4.8 + 3 * lift;
+        mill.cap.rotation.set(0, state.wind, 0);
+        mill.sails.rotation.set(0, 0, -state.turn);
+        if (state.speed || settle > 0) world.invalidate();
       });
 
       let rpm = null;
@@ -220,8 +224,8 @@
         state.wind = (values.windFrom * Math.PI) / 180;
         state.speed = values.windSpeed;
         rpm?.(turnsAMinute());
-        for (const world of worlds) world.invalidate();
-      }, worlds[0]);
+        world.invalidate();
+      }, world);
       rpm = readout('sailTurnsMinute');
       rpm(turnsAMinute());
     </script>

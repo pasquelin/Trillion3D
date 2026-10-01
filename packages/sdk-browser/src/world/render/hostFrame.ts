@@ -1,4 +1,6 @@
+import { checkViewMaskLights } from '../views/mask.ts';
 import type { RenderBackend } from '../../backend/types.ts';
+import { createExplorerViews } from '../views/explorerViews.ts';
 import { createExplorerDraw } from './draw.ts';
 import type { createExplorerHostState } from './hostState.ts';
 import { createExplorerMetrics } from '../diagnostic/metrics.ts';
@@ -41,7 +43,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
       loaded: state.loaded,
       pageBytesRead: state.pageBytesRead,
       streamingError: streaming.error,
-      effectBytes: compose.effectBytes(),
+      effectBytes: compose.effectBytes() + views.bytes(),
       gpu: drawBackend.gpu,
     }),
   );
@@ -63,8 +65,19 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     state,
     compose,
   });
+  const views = createExplorerViews({
+    active: () => state.active,
+    check,
+    draw: drawBackend,
+    gl: directGpu ? undefined : webglSurface?.context,
+    options,
+    compose,
+    beauty: host.beautyMaterials,
+    diagnostic: () => state.diagnostic,
+  });
   const followCells = createPartitionFrame({
     partitions,
+    views: views.cameras,
     streamer,
     camera,
     active: () => state.active,
@@ -83,6 +96,9 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streaming,
     frameBudget,
     drawBackend,
+    drawViews: views.draw,
+    multipleViews: views.customized,
+    publishViewMetrics: views.publishMetrics,
     ensureTarget,
     directGpu,
     webglSurface,
@@ -96,5 +112,11 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streamer,
     compose,
   });
-  return { render, profiler, streaming, followCells };
+  return {
+    render,
+    profiler,
+    streaming,
+    followCells,
+    views: Object.assign(views, { checkMask: () => checkViewMaskLights(context.sceneLights) }),
+  };
 }

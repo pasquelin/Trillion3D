@@ -46,7 +46,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
   } = host;
   /** The frame composes two engines in a layout (`render.ts`): the measurement's compositor. */
   const comparing = () => state.comparisonLayout !== 'single' && !state.measuring;
-  const { render, profiler, streaming, followCells } = createExplorerHostFrame(session, {
+  const { render, profiler, streaming, followCells, views } = createExplorerHostFrame(session, {
     prepared,
     host,
     backends,
@@ -75,7 +75,11 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     gpuDevice,
     profiler,
     hostedControls,
-    disposeComposition,
+    disposeComposition: () => {
+      const released = views.dispose();
+      disposeComposition();
+      return released;
+    },
     streamer,
     streaming,
     overlays,
@@ -94,6 +98,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     canvas,
     render,
+    views,
     /** The families the next frame draws with still on their way, `undefined` once none is: a
      *  frame that waits is not drawn (`familyUse.ts`). */
     familiesPending: () => frameWaits(options, state.diagnostic, comparing()),

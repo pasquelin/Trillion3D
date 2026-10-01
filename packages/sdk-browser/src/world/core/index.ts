@@ -24,3 +24,4 @@ export { LoadedModel } from './loadedModel.ts';
 export type { ModelRecord } from './loadedModel.ts';
 export type { WorldControls } from './worldCamera.ts';
 export type { RenderScale } from '../../frame/renderScaleOption.ts';
+export type { WorldView, WorldViewOptions, ViewRect } from '../views/worldViews.ts';

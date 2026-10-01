@@ -2671,7 +2671,9 @@
       "enablePan": "Sürüklemenin görünümü kaydırıp kaydırmadığı.",
       "rotateSpeed": "Sürüklemenin ne kadar hızlı döndürdüğü.",
       "zoomSpeed": "Tekerleğin ne kadar hızlı yakınlaştırdığı.",
-      "update": "Kamerayı, host'un düzenlemiş olabileceği pozdan — `object.position` ve `target` — `minDistance`/`maxDistance` ile sınırlanmış olarak yeniden yazar. Bir şeyin hareket edip etmediğini döndürür, ve tam olarak hareket ettiğinde `change` yayar: sabit bir sahne hiçbir iş planlamaz."
+      "update": "Kamerayı, host'un düzenlemiş olabileceği pozdan — `object.position` ve `target` — `minDistance`/`maxDistance` ile sınırlanmış olarak yeniden yazar. Bir şeyin hareket edip etmediğini döndürür, ve tam olarak hareket ettiğinde `change` yayar: sabit bir sahne hiçbir iş planlamaz.",
+      "minZoom": "Kaydırma-yakınlaştırma ve iztopu denetleyicileri için en küçük ortografik büyütme.",
+      "maxZoom": "Kaydırma-yakınlaştırma ve iztopu denetleyicileri için en büyük ortografik büyütme."
     }
   },
   "PixelImage": {
@@ -4110,7 +4112,7 @@
     }
   },
   "World": {
-    "summary": "`createWorld`'ün döndürdüğü şey: bir görünüm."
+    "summary": "`createWorld` sonucunun içeriği: bir sahne ve görünümleri."
   },
   "world.canvas": {
     "summary": "Dünyanın içine çizdiği canvas."
@@ -4179,7 +4181,9 @@
       "onJump": "Yalnızca karakter: gövde bir zıplamada yerden ayrıldığında çağrılır; varsayılan olarak `null`.",
       "mass": "Yalnız karakter, fizikle: gövdenin üstünde durduğu yere bastırdığı kilogram; varsayılan 80.",
       "pushStrength": "Yalnız karakter, fizikle: gövdenin cisimleri ittiği newton; varsayılan 250, bir yetişkinin sürekli itişi.",
-      "vehicle": "Yalnız araç: `'vehicle'` kontrollerinin sürdüğü şey — `drive(input)` sahibi her şey; tuşlar her değiştiğinde gaz, fren, direksiyon ve el frenini alır. Varsayılan `null`; öyle kaldıkça `kind = 'vehicle'` `NO_VEHICLE` fırlatır."
+      "vehicle": "Yalnız araç: `'vehicle'` kontrollerinin sürdüğü şey — `drive(input)` sahibi her şey; tuşlar her değiştiğinde gaz, fren, direksiyon ve el frenini alır. Varsayılan `null`; öyle kaldıkça `kind = 'vehicle'` `NO_VEHICLE` fırlatır.",
+      "minZoom": "Kaydırma-yakınlaştırma ve iztopu denetleyicileri için en küçük ortografik büyütme.",
+      "maxZoom": "Kaydırma-yakınlaştırma ve iztopu denetleyicileri için en büyük ortografik büyütme."
     }
   },
   "world.renderer": {
@@ -5088,7 +5092,7 @@
     }
   },
   "createWorld": {
-    "summary": "Bir dünya oluşturur: bir görünümün sahnesi, kamerası, render motoru ve döngüsü, nasıl olduğunu bilir bilmez çizilir.",
+    "summary": "Bir dünya oluşturur: kameraları tek bir sahneyi, çiziciyi ve döngüyü paylaşır; hazır olduğunda çizilir.",
     "parameters": {
       "target": "İçine çizilecek canvas, içine çizilecek bir eleman, ya da ikisinden birinin kimliği.",
       "options": "Dünyanın nasıl çizdiği ve dinlediği; hiçbir şey söylememek normal durumdur.",
@@ -8306,5 +8310,21 @@
   "validateImpostorSection": {
     "summary": "Bölümün kullanılamamasının kısa nedeni ya da `null`.",
     "description": "Olmayan bölüm hata değildir: ondan önceki bir önbellek her mesh'i eskisi gibi tam çizer. Var olan bölüm, sürümü bilinmediğinde ya da bir `baked` girdisi geçişinin ve kartının ihtiyaç duyduğu sayıları kaçırdığında bir bütün olarak reddedilir."
+  },
+  "world.addView": {
+    "summary": "Bu canvas üzerinde CSS pikseli cinsinden bir dikdörtgene, aynı bütçeleri paylaşan bu sahnenin bir kamerasını ekler.",
+    "parameters": {
+      "options": "Aynı sahnenin, dünyanın canvas alanındaki başka bir dikdörtgende gösterilen kamerası.",
+      "options.camera": "Bu görünümün paylaşılan sahneyi gördüğü kamera.",
+      "options.rect": "Canvas üzerindeki dikdörtgen; CSS pikseli cinsinden.",
+      "options.controls": "Bu dikdörtgen içindeki hareketleri alan denetleyici; varsayılan olarak yoktur.",
+      "options.exclude": "Bu kamera ve gölgelerinden çıkarılan alt ağaçlar; paylaşılan sahne değişmez."
+    }
+  },
+  "world.exclude": {
+    "summary": "Ana kamera ve gölgelerinden çıkarılan alt ağaçlar; diğer görünümler değişmez."
+  },
+  "world.rect": {
+    "summary": "Ana kameranın CSS pikseli cinsinden dikdörtgeni; null (varsayılan) canvas alanını doldurur."
   }
 }

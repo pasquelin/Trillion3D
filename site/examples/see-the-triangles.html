@@ -16,19 +16,6 @@
         width: 100%;
         height: 100%;
       }
-      #beauty {
-        display: none;
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 50%;
-      }
-      .split #view {
-        width: 50%;
-      }
-      .split #beauty {
-        display: block;
-      }
       p {
         position: absolute;
         top: 0;
@@ -40,10 +27,9 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <canvas id="beauty"></canvas>
     <p data-words="credit"></p>
     <script type="module">
-      import { createWorld, light } from '../runtime/engine.js';
+      import { createWorld, light, camera } from '../runtime/engine.js';
       import { controls, readout, language } from '../runtime/kit.js';
 
       const lit = (world) => {
@@ -74,13 +60,15 @@
       world.camera.lookAt(...target);
       world.controls.target.set(...target);
 
-      // The same model, lit, in a second world beside the first, following its camera.
+      // The lit comparison shares the loaded scene, lights and residency with the diagnostic view.
       let beauty = null;
-      async function openBeauty() {
-        beauty = createWorld('beauty');
-        await load(beauty.scene);
-        lit(beauty);
-      }
+      const fit = () => {
+        const width = world.canvas.clientWidth / 2, height = world.canvas.clientHeight;
+        if (!beauty || !width || !height) return;
+        world.rect = { x: 0, y: 0, width, height };
+        beauty.rect = { x: width, y: 0, width, height };
+      };
+      new ResizeObserver(fit).observe(world.canvas);
 
       // `world.diagnostic.mode` swaps the image for a view of the engine's own work;
       // `world.pixelError` is how many pixels a coarser version may be off before a finer one
@@ -92,16 +80,28 @@
       }, (values) => {
         world.diagnostic.mode = values.view;
         world.pixelError = values.pixelError;
-        document.body.classList.toggle('split', values.sideBySide);
-        if (values.sideBySide && !beauty) openBeauty();
-        if (beauty) beauty.pixelError = values.pixelError;
+        if (values.sideBySide && !beauty) {
+          beauty = world.addView({ camera: camera.perspective(), rect: { x: 1, y: 0, width: 1, height: 1 } });
+          beauty.diagnostic.mode = 'beauty';
+        } else if (!values.sideBySide && beauty) {
+          beauty.dispose();
+          beauty = null;
+          world.rect = null;
+        }
+        fit();
         world.invalidate();
       }, world);
       const triangles = readout('trianglesDrawn'), pages = readout('pagesMemory');
       world.onFrame(({ metrics }) => {
         triangles(metrics.selectedTriangles?.toLocaleString(language()) ?? '?');
         pages(String(metrics.residentPages ?? '?'));
+      });
+      world.beforeFrame(() => {
         if (!beauty) return;
+        beauty.camera.fov = world.camera.fov;
+        beauty.camera.near = world.camera.near;
+        beauty.camera.far = world.camera.far;
+        beauty.camera.zoom = world.camera.zoom;
         beauty.camera.position.copy(world.camera.position);
         beauty.camera.quaternion.copy(world.camera.quaternion);
       });

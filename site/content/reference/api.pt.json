@@ -2671,7 +2671,9 @@
       "enablePan": "Se arrastar desliza a visão.",
       "rotateSpeed": "Quão rápido arrastar gira.",
       "zoomSpeed": "Quão rápido a roda dá zoom.",
-      "update": "Reescreve a câmera a partir da pose que o host possa ter editado — `object.position` e `target` — limitada por `minDistance`/`maxDistance`. Devolve se algo se moveu, e emite `change` exatamente quando isso acontece: uma cena parada não agenda nenhum trabalho."
+      "update": "Reescreve a câmera a partir da pose que o host possa ter editado — `object.position` e `target` — limitada por `minDistance`/`maxDistance`. Devolve se algo se moveu, e emite `change` exatamente quando isso acontece: uma cena parada não agenda nenhum trabalho.",
+      "minZoom": "Ampliação ortográfica mínima para os controles de deslocamento e zoom e de trackball.",
+      "maxZoom": "Ampliação ortográfica máxima para os controles de deslocamento e zoom e de trackball."
     }
   },
   "PixelImage": {
@@ -4110,7 +4112,7 @@
     }
   },
   "World": {
-    "summary": "O que `createWorld` devolve: uma visão."
+    "summary": "O que `createWorld` retorna: uma cena e suas vistas."
   },
   "world.canvas": {
     "summary": "O canvas em que o mundo desenha."
@@ -4179,7 +4181,9 @@
       "onJump": "Apenas personagem: chamado quando o corpo deixa o chão em um pulo; `null` por padrão.",
       "mass": "Só personagem, com física: quilogramas que o corpo faz pesar sobre o que o suporta; 80 por omissão.",
       "pushStrength": "Só personagem, com física: newtons com que o corpo empurra corpos; 250 por omissão, o empurrão sustentado de um adulto.",
-      "vehicle": "Só veículo: o que os controlos `'vehicle'` conduzem — qualquer coisa com `drive(input)`, que recebe acelerador, travão, direção e travão de mão sempre que as teclas mudam. `null` por omissão, e `kind = 'vehicle'` lança `NO_VEHICLE` enquanto o for."
+      "vehicle": "Só veículo: o que os controlos `'vehicle'` conduzem — qualquer coisa com `drive(input)`, que recebe acelerador, travão, direção e travão de mão sempre que as teclas mudam. `null` por omissão, e `kind = 'vehicle'` lança `NO_VEHICLE` enquanto o for.",
+      "minZoom": "Ampliação ortográfica mínima para os controles de deslocamento e zoom e de trackball.",
+      "maxZoom": "Ampliação ortográfica máxima para os controles de deslocamento e zoom e de trackball."
     }
   },
   "world.renderer": {
@@ -5088,7 +5092,7 @@
     }
   },
   "createWorld": {
-    "summary": "Cria um mundo: a cena, câmera, renderizador e laço de uma visão, desenhada assim que ele sabe como.",
+    "summary": "Cria um mundo: uma cena, um renderizador e um ciclo compartilhados pelas câmeras; desenha quando estiver pronto.",
     "parameters": {
       "target": "O canvas para desenhar, um elemento para desenhar dentro, ou o ID de qualquer um dos dois.",
       "options": "Como o mundo desenha e escuta; não dizer nada é o caso normal.",
@@ -8306,5 +8310,21 @@
   "validateImpostorSection": {
     "summary": "Um motivo breve pelo qual a seção não pode ser usada, ou `null`.",
     "description": "Uma seção ausente não é um erro: uma cache anterior a ela desenha cada malha por inteiro, como antes. Uma presente é recusada por completo quando sua versão é desconhecida ou uma entrada `baked` carece dos números que sua comutação e seu cartão precisam."
+  },
+  "world.addView": {
+    "summary": "Adiciona uma câmera desta cena em um retângulo de pixels CSS neste canvas, com os mesmos orçamentos.",
+    "parameters": {
+      "options": "Uma câmera da mesma cena, apresentada em outro retângulo do canvas do mundo.",
+      "options.camera": "A câmera pela qual esta vista observa a cena compartilhada.",
+      "options.rect": "O retângulo no canvas, em pixels CSS.",
+      "options.controls": "O controlador que recebe gestos dentro deste retângulo; nenhum por padrão.",
+      "options.exclude": "Subárvores omitidas por esta câmera e suas sombras; a cena compartilhada permanece inalterada."
+    }
+  },
+  "world.exclude": {
+    "summary": "Subárvores omitidas pela câmera principal e suas sombras; as outras vistas permanecem inalteradas."
+  },
+  "world.rect": {
+    "summary": "O retângulo da câmera principal em pixels CSS; null (padrão) preenche o canvas."
   }
 }

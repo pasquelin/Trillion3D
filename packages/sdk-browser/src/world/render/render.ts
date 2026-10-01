@@ -30,6 +30,9 @@ type Inputs = {
   /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
   frameBudget: FrameClock;
   drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void;
+  drawViews?: () => boolean;
+  multipleViews?: () => boolean;
+  publishViewMetrics?: (metrics: FrameMetrics) => void;
   ensureTarget: (target?: BoundTarget) => BoundTarget;
   directGpu: boolean;
   webglSurface?: WebglSurface;
@@ -116,7 +119,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
         let target: WebglRenderTarget | null = null;
         if (measuring && !directGpu)
           target = live((state.measurementTarget = ensureTarget(state.measurementTarget)));
-        drawBackend(state.active, target);
+        if (measuring || !inputs.drawViews?.()) drawBackend(state.active, target);
       } else {
         const left = backends.find((b) => b.id === comparisonPair[0]) ?? state.active,
           right = backends.find((b) => b.id === comparisonPair[1]) ?? state.active;
@@ -127,6 +130,8 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
         compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle);
       }
     } catch (error) {
+      if (inputs.multipleViews?.() || (error instanceof Error && error.message.startsWith('VIEW_')))
+        throw error;
       handleExplorerRenderError(error, {
         measuring,
         diagnostic,
@@ -141,6 +146,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
       });
     }
     fillMetrics(state.active);
+    if (!measuring) inputs.publishViewMetrics?.(metricsScratch);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
     // Submitted triangles of this frame: those the engine counted, and only those. `null` when

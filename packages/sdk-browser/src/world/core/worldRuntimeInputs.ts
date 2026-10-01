@@ -14,7 +14,11 @@ export type WorldRuntimeInputs = {
   /** The session options of the moment: renderer, pools, loop and hooks. */
   options: () => MeasuredWorldOptions;
   /** Runs on every new session, before its first frame: diagnostic mode, pools. */
-  opened: (explorer: MeasuredWorld) => void;
+  opened: (explorer: MeasuredWorld) => void | Promise<void>;
+  /** Copies the additional cameras after the main camera and canvas fit have been updated. */
+  followViews?: () => void;
+  /** Forgets view bindings before their session closes. */
+  closingViews?: () => void;
   frame: (metrics: FrameMetrics) => void;
   /** What the page set: exposure, curve and fog; the lights add their irradiance. */
   display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog };

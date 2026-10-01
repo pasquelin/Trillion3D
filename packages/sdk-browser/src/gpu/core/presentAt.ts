@@ -3,6 +3,15 @@ import { PRESENT_AT_SHADER } from './presentWgsl.ts';
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number };
 
+/** Starts a canvas frame whose main view occupies a rectangle, clearing gaps exactly once. */
+export function clearPresentCanvas(encoder: GPUCommandEncoder, view: GPUTextureView) {
+  encoder
+    .beginRenderPass({
+      colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }],
+    })
+    .end();
+}
+
 /**
  * Presents a persistent view's image at its rectangle of the canvas: the canvas keeps its size,
  * and what the main view and the other views presented there this frame is kept (`load`). The

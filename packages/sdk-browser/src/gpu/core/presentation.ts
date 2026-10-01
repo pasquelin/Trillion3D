@@ -2,7 +2,7 @@ import { sharedGpuDevice } from './sessionHandle.ts';
 import { PRESENT_SHADER } from './presentWgsl.ts';
 import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
-import { createPresentAt, type PresentRect } from './presentAt.ts';
+import { createPresentAt, clearPresentCanvas, type PresentRect } from './presentAt.ts';
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts';
 /** Source is already display encoded. No second tone map or color conversion. A canvas that keeps
  *  its image across sessions (`canvasHandover.ts`) is configured at the first present only. */
@@ -67,8 +67,10 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         width: number,
         height: number,
         at?: PresentRect,
+        clearCanvas = false,
       ) {
         if (at) {
+          if (clearCanvas) clearPresentCanvas(encoder, targetView(canvas.width, canvas.height));
           // Not this frame's whole image (its targets still asked, say): the canvas keeps the
           // last frame it showed, never a blank one with this view alone on it.
           if (!configured) return;
