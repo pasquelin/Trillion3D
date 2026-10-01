@@ -49,16 +49,13 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
         for (const root of placements) visit(placement.baseOfRoot[root] + offset);
       return true;
     },
-    /** The least packed rank at `address`, the one that names it: a primitive's first placement
-     *  holds its least base, packed bases growing with the root rank (`postPackedBases`). */
+    /** The least packed rank at `address`, the one that names it: the address's first entry's
+     *  first placement. Entries follow the root order their primitive first appears in, roots are
+     *  only appended, and packed bases grow with the root rank (`postPackedBases`), so no later
+     *  entry or placement ranks lower. */
     first(address: string) {
-      const list = byAddress.get(address);
-      let least: number | undefined;
-      for (const { placements, offset } of list ?? []) {
-        const packed = placement.baseOfRoot[placements[0]] + offset;
-        if (least === undefined || packed < least) least = packed;
-      }
-      return least;
+      const page = byAddress.get(address)?.[0];
+      return page && placement.baseOfRoot[page.placements[0]] + page.offset;
     },
     /** Entries stored: one per primitive page, never one per packed rank. */
     get size() {

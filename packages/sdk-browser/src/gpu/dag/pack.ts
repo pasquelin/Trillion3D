@@ -123,19 +123,6 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   new Uint32Array(pageCones.buffer).set(pageWorlds);
   writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
   records.finish(clusters, pageCones, coldAt);
-  // A page's url is its placement's shared record, the placement found by its page base: nothing
-  // is stored per page (#1235), as a Nanite instance reads its primitive's clusters from its base.
-  const pageUrlOf = (page: number) => {
-    let low = 0,
-      high = cutLinks.length - 1;
-    while (low < high) {
-      const mid = (low + high + 1) >> 1;
-      if (cutLinks[mid].pageBase <= page) low = mid;
-      else high = mid - 1;
-    }
-    const links = cutLinks[low];
-    return links && page >= 0 ? roots[low].pages[page - links.pageBase]?.url : undefined;
-  };
   return {
     kind: 'dag',
     clusters,
@@ -153,7 +140,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     recordCount: records.count,
     recordShift,
     rootCount: rootClusters,
-    pageUrlOf,
+    pageUrlOf: pageUrlReader(roots, cutLinks, pageCones, clusterCount),
     cutLinks,
   };
 }
@@ -181,4 +168,24 @@ export function rootTranslationsToRenderOrigin(
 ) {
   for (let w = 0; w < roots.length; w++)
     translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+}
+
+/**
+ * A page's url is its placement's shared record, the placement read from the page's world word
+ * (as `readiness.ts` does): nothing more is stored per page (#1235), as a Nanite instance reads
+ * its primitive's clusters from its base. Built outside `packDagSelection` so the reader keeps
+ * only these, not the packing's working state.
+ */
+function pageUrlReader(
+  roots: readonly DagRoot[],
+  cutLinks: readonly DagCutLinks[],
+  pageCones: Float32Array,
+  pageCount: number,
+) {
+  const worldOfPage = new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCount);
+  return (page: number) => {
+    if (!(page >= 0 && page < pageCount)) return undefined;
+    const w = worldOfPage[page];
+    return roots[w]?.pages[page - cutLinks[w].pageBase]?.url;
+  };
 }
