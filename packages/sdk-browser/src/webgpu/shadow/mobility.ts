@@ -5,6 +5,7 @@ import {
   MOBILITY_CUTOUT,
   MOBILITY_MOVING,
 } from '../../gpu/shadow/cullShader.ts';
+import { SHADOW_BIN_CLASSES, shadowBinOf } from '../../gpu/shadow/binShader.ts';
 
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them. A placement — a root of the cut, the rank
@@ -30,7 +31,14 @@ export function createShadowMobility() {
     cutouts = 0,
     anyMoving = false,
     wholeRows = true;
+  /** Rows of each raster bin's class (OMB-26). */
+  const classes = new Uint32Array(SHADOW_BIN_CLASSES);
   return {
+    /** True while a row's caster falls in class `c` (`../../gpu/shadow/binShader.ts`): without
+     *  one, no region's bin of that class holds a caster. */
+    binHolds: (c: number) => classes[c] > 0,
+    /** True while a row's caster falls past the first class: only then do the bins draw less. */
+    binsSplit: () => classes.some((rows, c) => c > 0 && rows > 0),
     /** True once a placement has moved: the pool then keeps a static layer. */
     get layered() {
       return anyMoving;
@@ -69,6 +77,7 @@ export function createShadowMobility() {
       if (rows.length === Math.max(1, drawSlots)) return;
       rows = new Uint32Array(Math.max(1, drawSlots));
       cutouts = 0;
+      classes.fill(0)[0] = rows.length;
       wholeRows = true;
     },
     /**
@@ -120,6 +129,8 @@ export function createShadowMobility() {
           flags = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
           word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags;
         cutouts += +((flags & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
+        classes[shadowBinOf(rows[row])]--;
+        classes[shadowBinOf(word)]++;
         rows[row] = word;
       }
       push(from, last - from + 1);

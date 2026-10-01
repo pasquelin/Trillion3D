@@ -5499,7 +5499,8 @@
       "groupOffsets": "Desplazamientos de los registros de propietarios de cada grupo, incluido el centinela final.",
       "owners": "Registros de propietarios: índice del nodo de origen y albedo lineal empaquetado en RGBA8.",
       "bindWorlds": "Matrices de mundo originales de los nodos de origen, dieciséis valores de doble precisión por nodo.",
-      "sourceParents": "Jerarquía de origen, incluidos los nodos de partición que el anfitrión no tiene instanciados actualmente."
+      "sourceParents": "Jerarquía de origen, incluidos los nodos de partición que el anfitrión no tiene instanciados actualmente.",
+      "sourceMeshes": "La malla compilada que coloca cada nodo de origen, `-1` si ninguna: lo que dibuja un nodo de celda de una partición."
     }
   },
   "SceneProxyDescriptor": {

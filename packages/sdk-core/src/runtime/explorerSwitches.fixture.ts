@@ -6,6 +6,7 @@ export const EXPLORER_SWITCH_NAMES = Object.keys({
   temporalAntialiasing: 0,
   lodAdaptive: 0,
   shadowPageInvalidation: 0,
+  shadowLocalToClip: 0,
   bounce: 0,
   importedLights: 0,
   autonomousGeometry: 0,
