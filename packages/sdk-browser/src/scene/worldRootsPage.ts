@@ -57,51 +57,87 @@ type View = 'read' | 'attributes' | 'whole';
  *  WebGPU `array<u32>` and WebGL2's `UNSIGNED_INT` draw read. */
 const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices);
 
+/** How many bundles may wait for the other GPU view of one of their pages, by default: the
+ *  streamer's pending budget (as Nanite caps its pending page requests), never a scene's. */
+export const WORLD_PENDING_BUNDLES = 64;
+
 /**
  * The detached page source of `table`, its bundles read through `bundlePages`: a page is resolved
  * at its world address by the pages of its bundle and the rank of its offset among those the table
  * lists for that bundle. A bundle the table does not list, or an offset it does not name, is
- * `WORLD_PAGE_MISSING`.
+ * `WORLD_PAGE_MISSING`. `pendingBundles` bounds the bundles kept for a page's other view.
  */
-export function worldRootsPageSource(table: WorldRoots, bundlePages: BundlePages) {
-  // Each bundle's page offsets in binary order: a page's rank among them is its place in the bundle.
+export function worldRootsPageSource(
+  table: WorldRoots,
+  bundlePages: BundlePages,
+  pendingBundles = WORLD_PENDING_BUNDLES,
+) {
+  // Each bundle's page offsets in binary order: a page's rank among them is its place in the bundle,
+  // resolved once here rather than searched per request.
   const offsets = new Map<number, number[]>();
   for (const entry of table.pages) {
     const known = offsets.get(entry.bundle);
     if (known) known.push(entry.offset);
     else offsets.set(entry.bundle, [entry.offset]);
   }
-  for (const known of offsets.values()) known.sort((a, b) => a - b);
+  const ranks = new Map<number, Map<number, number>>();
+  for (const [bundle, known] of offsets)
+    ranks.set(bundle, new Map(known.sort((a, b) => a - b).map((offset, rank) => [offset, rank])));
   /** A bundle read once: its pages, the callers still on it, and each page whose GPU half (`read`
    *  or `attributes`) is served and whose other half is still owed. */
-  type Streamed = { pages: Promise<WorldRootsPage[]>; users: number; owed: Map<number, View> };
+  type Streamed = {
+    bundle: number;
+    pages: Promise<WorldRootsPage[]>;
+    users: number;
+    owed: Map<number, View>;
+  };
   const streamed = new Map<number, Streamed>();
+  /** The bundles owing a view, oldest first: past `pendingBundles`, the oldest is let go. */
+  const owing = new Set<Streamed>();
+  const letGo = (own: Streamed) => {
+    if (own.owed.size === 0) owing.delete(own);
+    if (own.users === 0 && own.owed.size === 0 && streamed.get(own.bundle) === own)
+      streamed.delete(own.bundle);
+  };
   // A bundle's read is shared by every caller, so it carries no caller's signal: one caller
   // aborting must not fail another's page (`serve` checks its own signal after the read). It is
-  // let go once no caller is on it and no page owes a view, so the two GPU views of a page come
+  // kept while a caller is on it or a page owes its other GPU view, so the two views of a page come
   // from one read whatever their order; what stays resident is the holder's and the GPU pool's.
+  // A page whose other half aborts, or a bundle pushed past the pending budget (a view never asked:
+  // a WebGL2 run, an evicted slot), owes nothing more, so the retention is bounded.
   const serve = async (address: string, view: View, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address);
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`);
     let own = streamed.get(bundle);
     if (!own) {
-      streamed.set(bundle, (own = { pages: bundlePages(bundle), users: 0, owed: new Map() }));
-      const failed = own;
-      failed.pages.catch(() => void (streamed.get(bundle) === failed && streamed.delete(bundle)));
+      const fresh: Streamed = { bundle, pages: bundlePages(bundle), users: 0, owed: new Map() };
+      fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)));
+      streamed.set(bundle, (own = fresh));
     }
     own.users++;
     try {
       const pages = await own.pages,
-        index = offsets.get(bundle)?.indexOf(offset) ?? -1;
-      signal?.throwIfAborted();
+        index = ranks.get(bundle)?.get(offset) ?? -1;
+      if (signal?.aborted) {
+        own.owed.delete(index);
+        signal.throwIfAborted();
+      }
       if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`);
       const other = own.owed.get(index);
       if (view === 'whole' || (other && other !== view)) own.owed.delete(index);
-      else own.owed.set(index, view);
+      else if (!other) {
+        own.owed.set(index, view);
+        owing.add(own);
+        for (const oldest of owing) {
+          if (owing.size <= pendingBundles) break;
+          oldest.owed.clear();
+          letGo(oldest);
+        }
+      }
       return pages[index];
     } finally {
-      if (--own.users === 0 && own.owed.size === 0 && streamed.get(bundle) === own)
-        streamed.delete(bundle);
+      own.users--;
+      letGo(own);
     }
   };
   const source = {
