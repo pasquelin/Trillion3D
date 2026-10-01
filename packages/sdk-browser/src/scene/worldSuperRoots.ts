@@ -18,11 +18,14 @@
 
 import type { DagRoot } from '../gpu/dag/types.ts';
 import type { ClusterGroup } from '../../../sdk-core/src/index.ts';
-import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts';
+import {
+  WORLD_ROOTS_BIN,
+  type WorldRootsCluster,
+} from '../../../sdk-core/src/manifest/worldRoots.ts';
 import { structureIndex } from '../page/selection/structure.ts';
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts';
 import { IDENTITY_WORLD } from '../page/cut/state.ts';
-import { worldRootsPageAddress } from './worldRootsPage.ts';
+import type { worldRootPages } from './worldPageServe.ts';
 
 /** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump.
  *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`). */
@@ -41,29 +44,13 @@ export type WorldRootsDagTable = {
  * primitive's root cover is, so the pinned top is the cut's fallback and the cell super-roots are
  * its middle levels.
  */
-export function worldRootDag(table: WorldRootsDagTable): DagRoot | undefined {
+export function worldRootDag(
+  table: WorldRootsDagTable,
+  pagesOf: typeof worldRootPages,
+): DagRoot | undefined {
   const { clusters, groups } = table;
   if (!clusters?.length || !groups?.length) return undefined;
-  const url = table.payload?.url ?? '';
-  const roots: number[] = [];
-  const pages = clusters.map((cluster, rank) => {
-    if (cluster.cluster !== rank)
-      throw new Error(`WORLD_CLUSTER_RANK: ${cluster.cluster} at ${rank}`);
-    // The world top — the clusters nothing replaces — are the structure's roots.
-    if (cluster.parentError === null) roots.push(rank);
-    const {
-      bundle,
-      offset,
-      cluster: _rank,
-      material: _material,
-      origin: _origin,
-      ...cut
-    } = cluster;
-    return {
-      ...cut,
-      url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
-    };
-  });
+  const { roots, pages } = pagesOf(clusters, table.payload?.url || WORLD_ROOTS_BIN);
   const structure = structureIndex({ version: 1, roots, groups }, pages.length);
   return {
     world: IDENTITY_WORLD,

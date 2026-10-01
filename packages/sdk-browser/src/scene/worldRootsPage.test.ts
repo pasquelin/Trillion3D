@@ -9,7 +9,7 @@ import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts';
 import { WebglClusterGeometry } from '../webgl/cluster/geometry.ts';
 import { submitRanges } from '../webgl/cluster/submit.ts';
 import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts';
-import { worldRootsPageAddress } from './worldRootsPage.ts';
+import { worldRootsPageAddress } from './worldPageServe.ts';
 
 /** A WebGL2 context that records the buffer uploads and the draws, and no-ops the rest. */
 function recordingGl() {
