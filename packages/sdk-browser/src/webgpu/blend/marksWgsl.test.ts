@@ -9,12 +9,13 @@ import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShad
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { PAGE_MAPPED, PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_READ_STRUCTS, sunRecord } from '../shadow/readStructs.fixture.ts';
 import { gpuFrames } from '../shadow/gpuFrames.fixture.ts';
 import { floorTiles, shadingReads, tileGrid, type Lit } from '../shadow/shadingReads.fixture.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
+import { blendShader } from './shader.ts';
 
 type V = number[];
 const MARKS_WGSL = blendShadowMarksWgsl();
@@ -98,4 +99,46 @@ test('a transparent pane over an unlit floor has its own shadow pages asked for 
     assert.ok(table[entry] & PAGE_MAPPED, `${entry} mapped in the frame that asks`);
     assert.ok(table[entry] & PAGE_VALID, `${entry} drawn: read at its own level`);
   }
+});
+
+/** The functions the marks' fragment stage runs: `markShadows` and every function it reaches. */
+function reached(source: string) {
+  const defined = new Set([...source.matchAll(/\bfn (\w+)\(/g)].map((m) => m[1]));
+  const seen = new Set(['markShadows']);
+  for (const name of seen)
+    for (const [, callee] of functionsOf(source, [name]).matchAll(/\b(\w+)\(/g))
+      if (defined.has(callee) && callee !== name) seen.add(callee);
+  return seen;
+}
+
+test('the marks compile no lighting and read one material texture, its opacity', () => {
+  // Neither the blend's shading nor the rest of its material, which the blend module declares:
+  // no BRDF, light sum, shadow filter, map read, texture request or shadow atlas.
+  const declared = (source: string) =>
+    new Set([...source.matchAll(/\b(?:fn|var(?:<[^>]*>)?) (\w+)/g)].map((m) => m[1]));
+  const blend = declared(blendShader()),
+    marks = declared(MARKS_WGSL);
+  for (const name of [
+    ...['standardLighting', 'declaredLight', 'declaredLighting', 'sliceLighting'],
+    ...['environmentLighting', 'bounceLighting', 'mirrorLighting', 'shadowPcf', 'blendSurface'],
+    ...['dataSample', 'blendRequest', 'cotangentFrame', 'shadowAtlas', 'shadowSampler'],
+  ]) {
+    assert.ok(blend.has(name), `witness: the blend module declares ${name}`);
+    assert.ok(!marks.has(name), `${name} in the marks`);
+  }
+  // One sampler, the base colour's: its alpha, read once at explicit levels, is all it samples.
+  assert.deepEqual(
+    [...MARKS_WGSL.matchAll(/var (\w+):sampler/g)].map((m) => m[1]),
+    ['mapsSampler'],
+  );
+  const stage = reached(MARKS_WGSL);
+  assert.ok(stage.has('demandLight') && stage.has('maskAlpha'));
+  assert.ok(![...stage].some((name) => /^(rect|polygon|ltc)/i.test(name)), 'no area-light shading');
+  const body = functionsOf(MARKS_WGSL, [...stage]);
+  assert.equal(body.match(/(?<!fn )\bcolorSample\(/g)?.length, 1, 'one opacity read');
+  assert.deepEqual(
+    new Set(body.match(/\btexture\w+(?=\()/g)),
+    new Set(['textureSampleLevel', 'textureLoad']),
+  );
+  assert.equal(body.match(/\btextureSampleLevel\(\s*(?!color)/g), null, 'only the colour pool');
 });
