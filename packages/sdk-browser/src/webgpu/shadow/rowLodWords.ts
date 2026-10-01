@@ -1,5 +1,5 @@
 import { transformAffinePoint } from '../../../../sdk-core/src/index.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { worldStretch } from '../../page/cut/logic.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { Placements } from '../../page/selection/placements.ts';
 
@@ -28,7 +28,7 @@ function writeError(
  * Writes row `row`'s detail (#831): the world error of its own form and of the coarser one that
  * replaces it, each at its level-of-detail sphere's world centre, as the GPU cut projects them
  * (`../../gpu/dag/shader/error.ts`): the local error, grown by the placement's deformation reach
- * past the finest level, by the placement's largest scale. The cut rule's residency is folded in
+ * past the finest level, by the placement's stretch (`worldStretch`, the cut's own). The cut rule's residency is folded in
  * (`../../page/cut/rule.ts`): a row not `ready` carries a parent error of 0, so no page draws it;
  * one whose finer group is not ready (`childReady`), an own error of 0, so every page that reaches
  * it draws it. A row with no record — a blended caster's is given none — or of a cache without
@@ -48,7 +48,7 @@ export function writeRowLod(
   if (!root || !rec?.sphere || rec.lodError === undefined) return;
   const e = root.world.elements,
     reach = 2 * (root.reach ?? 0),
-    scale = Math.max(hypot3(e[0], e[1], e[2]), hypot3(e[4], e[5], e[6]), hypot3(e[8], e[9], e[10]));
+    scale = worldStretch(root);
   const own = rec.lodError + ((rec.level ?? 0) > 0 ? reach : 0);
   writeError(out, at, e, rec.sphere, childReady ? own * scale : 0);
   const parent = rec.parentError ?? -1;

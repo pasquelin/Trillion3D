@@ -147,10 +147,7 @@ export function redrawShortPages(
   // Released as residency brings what they lacked, the camera moving or not, as the reference engine's virtual
   // shadow maps redraw a page once cluster streams its finer clusters in (#831): a page drawn from
   // a coarse ancestor showed its large triangles in the shadow for as long as the drive lasted.
-  if (residencyMoved) {
-    redraws.residencyChanged();
-    redraws.rest();
-  }
+  if (residencyMoved) redraws.residencyChanged();
   const { pool } = plan;
   const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;

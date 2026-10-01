@@ -118,7 +118,9 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
     SHADOW_FRESH_CULL_WGSL,
     [
       ...PAIR_STEPS,
-      ...'freshRow freshKeeps freshPixels freshRegionPairs sphereTouches laneRun'.split(' '),
+      ...'freshRow freshKeeps freshPixels drawsCluster drawsCompared freshRegionPairs sphereTouches laneRun'.split(
+        ' ',
+      ),
     ],
     {
       ...wgslConstants(SHADOW_FRESH_CULL_WGSL),

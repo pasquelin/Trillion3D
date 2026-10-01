@@ -73,10 +73,11 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     if (count <= changedCap) for (let i = 0; i < count; i++) visit(list[i]);
     else for (let e = 0; e < entries; e++) if (queued[e] & flag) visit(e);
   };
-  const unflag = (flag: number) => (e: number) => void (queued[e] &= ~flag);
+  const unflagWithdrawn = (e: number) => void (queued[e] &= ~WITHDRAWN),
+    unflagSent = (e: number) => void (queued[e] &= ~SENT);
   /** The withdrawn marks the flush sent. */
   const clearWithdrawn = () => {
-    eachFlagged(withdrawnList, withdrawnCount, WITHDRAWN, unflag(WITHDRAWN));
+    eachFlagged(withdrawnList, withdrawnCount, WITHDRAWN, unflagWithdrawn);
     withdrawnCount = 0;
   };
   const table = {
@@ -141,7 +142,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     },
     /** The GPU drew pages of its own: an entry withdrawn unmapped may be drawn again. */
     gpuDrew() {
-      eachFlagged(sentList, sentCount, SENT, unflag(SENT));
+      eachFlagged(sentList, sentCount, SENT, unflagSent);
       sentCount = 0;
     },
     /**
