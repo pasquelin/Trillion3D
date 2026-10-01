@@ -77,6 +77,19 @@ test('the frame metrics count the coarser pages apart, never as drops', async ()
   assert.equal(metrics.shadowCutViewLimit, 24);
 });
 
+// #831: a page drawn from a coarse ancestor is drawn again once residency brings what it lacked,
+// while the camera moves: a drive no longer shows the coarse triangles in its shadows.
+test('a coarser page is drawn again when residency moves, the camera moving', async () => {
+  const flag = { value: (1 << COARSER_VIEWS) >>> 0 };
+  const { rt, frame } = runtime(flag);
+  await frame([6, 7]);
+  assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 0, 'it waits for residency');
+  redrawShortPages(rt, 2, 0, false);
+  assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 0, 'a camera that only moves: none');
+  redrawShortPages(rt, 3, 0, true);
+  assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 1, 'residency moved: drawn again');
+});
+
 test('the light-cut metrics are null without a light cut', () => {
   const rt = { lights: createWebgpuLightState(32) } as unknown as WebgpuPagesRuntime;
   assert.deepEqual(lightCutMetrics(rt), {
