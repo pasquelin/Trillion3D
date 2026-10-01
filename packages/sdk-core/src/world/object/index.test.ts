@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { object } from './index.ts';
-import { material } from '../material/index.ts';
+import { material, type Material } from '../material/index.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { BufferAttribute } from '../buffer/attribute.ts';
 import { drawnTriangles } from '../geometry/drawn.ts';
@@ -27,8 +27,8 @@ test('each family member reads four corners as its name says: dots, a strip, pai
 });
 
 test('each member wears, unless told otherwise, the material kind of what it draws', () => {
-  assert.equal(object.mesh(square()).material.kind, material.meshBasic().kind);
-  assert.equal(object.points(square()).material.kind, material.points().kind);
+  assert.equal((object.mesh(square()).material as Material).kind, material.meshBasic().kind);
+  assert.equal((object.points(square()).material as Material).kind, material.points().kind);
   for (const make of [object.line, object.lineSegments, object.lineLoop])
-    assert.equal(make(square()).material.kind, material.line().kind);
+    assert.equal((make(square()).material as Material).kind, material.line().kind);
 });
