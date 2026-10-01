@@ -32,7 +32,6 @@ function pageOf(overrides: Partial<VisPage> = {}): VisPage {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: {},
-    placementIndex: 0,
     material: surfaceOf(G.basicSurface()),
     ...overrides,
   };

@@ -8,11 +8,10 @@ import type { WebgpuPagesCore } from '../runtime.ts';
 
 /** Names to the rank journal every packed instance of `rec`: they all share its pool address. */
 function touchInstances(
-  rows: Pick<WebgpuPagesCore['layout']['rows'], 'pageIndicesByUrl' | 'touchPage'>,
+  rows: Pick<WebgpuPagesCore['layout']['rows'], 'instances' | 'touchPage'>,
   rec: PageRec,
 ) {
-  const pages = rows.pageIndicesByUrl.get(pageAddress(rec));
-  if (pages) for (let i = 0; i < pages.length; i++) rows.touchPage(pages[i]);
+  rows.instances.each(pageAddress(rec), rows.touchPage);
 }
 
 /**

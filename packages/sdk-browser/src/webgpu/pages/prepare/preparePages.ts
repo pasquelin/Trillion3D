@@ -80,7 +80,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   for (const rec of await loadUnpaged(allPages, blendCopies))
     ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
-    rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
+    rows.pagePositions[i] = gpu.positionBuffers.get(rt.layout.recordOf(i)!.attributes);
   // Fresh position buffers: rank sync starts over from the catalogue.
   rows.rowsRevision++;
   gpu.zeroUv = gpuDevice.createBuffer({

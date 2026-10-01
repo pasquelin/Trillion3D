@@ -8,7 +8,7 @@ import {
 } from '../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../diagnostic/colors.ts';
 import { clusterHash } from '../../visibility/buffer.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 import type { createWebgpuBlendState } from './state.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -22,7 +22,7 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  */
 export function writeBlendDiagnostic(
   blendState: BlendState,
-  packedPages: readonly PageRec[],
+  packedPages: PageList,
   roots: readonly ClusterRoot<PageRec>[],
   rootOfPacked: Int32Array,
   diagnostic: DiagnosticMode,

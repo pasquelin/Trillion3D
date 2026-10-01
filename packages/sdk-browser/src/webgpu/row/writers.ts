@@ -1,9 +1,8 @@
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_ID_BASE_WORD, packedRowBase, restampHizSlot } from './pageRow.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
 import type { createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -13,7 +12,7 @@ type Writer = ReturnType<typeof createPageRowWriter>;
  * moved there. Both keep the parallel arrays that say who occupies what up to date, and raise
  * `state.changed` so the image knows it must send the table again.
  */
-export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], writePageRow: Writer) {
+export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writePageRow: Writer) {
   const rowWords = PAGE_INFO_STRIDE / 4;
   const state = { changed: false };
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
