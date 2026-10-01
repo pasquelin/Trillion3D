@@ -9,7 +9,7 @@ import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { FRESH_ARG, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
 import { runShadowPairs } from './freshRun.fixture.ts';
-import { NO_PARENT, ROW_LOD_FLOATS, writeRowLod } from './rowLods.ts';
+import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts';
 
 const IDENTITY = { world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } };
 /** A cluster at the origin of error `lodError`, replaced by a group of error `parentError`. */
@@ -68,5 +68,6 @@ test('a row’s detail folds the cut’s residency in: unready never drawn, fine
   assert.equal(at(false, true)[1], 0, 'not ready: no page reaches its parent error');
   assert.equal(at(true, false)[0], 0, 'its finer group missing: every page wants it');
   writeRowLod(out, 0, undefined, IDENTITY);
-  assert.deepEqual([out[3], out[7]], [0, Math.fround(NO_PARENT)], 'no record, as a blended caster');
+  assert.equal(out[3], 0, 'no record, as a blended caster: drawn by every page');
+  assert.ok(out[7] > 1e38, 'its parent error past any page');
 });
