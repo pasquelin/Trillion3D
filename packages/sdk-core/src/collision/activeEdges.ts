@@ -13,8 +13,8 @@ import type { TriangleTree } from './triangleTree.ts';
  *
  * An edge is a crease unless exactly one other triangle shares both its corners and lies within
  * 5° of its plane. A corner is a crease unless both of the triangle's edges through it are seams.
- * A seam's line runs past the flat surface at its ends: a body the face's normal would push off
- * the plane beyond the surface's border meets the seam as an edge.
+ * How a capsule reads a seam is `capsule.ts`'s: over the face, the face's normal; beside it, the
+ * triangle across the seam answers; through the surface, inside a solid, the edge as drawn.
  */
 
 /** Two triangles whose planes are closer than this cosine are one flat surface: 5°. */
