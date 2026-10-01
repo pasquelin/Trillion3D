@@ -17,7 +17,9 @@ import type { PassesGpu } from './summaryPasses.ts';
  */
 export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesGpu | null {
   if (!samples || !samples.length) return null;
-  const parPasse = new Map<string, number[]>();
+  const parPasse = new Map<string, number[]>(),
+    /** Each pass's own share (`GpuPassTiming.ownMs`): overlapping passes told apart (#1279). */
+    own = new Map<string, number[]>();
   const blocs: Record<'visibilityMs' | 'materialsMs' | 'otherMs', number[]> = {
     visibilityMs: [],
     materialsMs: [],
@@ -29,6 +31,10 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
       if (typeof pass.gpuMs !== 'number') continue;
       if (!parPasse.has(pass.name)) parPasse.set(pass.name, []);
       parPasse.get(pass.name)?.push(pass.gpuMs);
+      if (typeof pass.ownMs === 'number') {
+        if (!own.has(pass.name)) own.set(pass.name, []);
+        own.get(pass.name)?.push(pass.ownMs);
+      }
     }
     const totals = gpuPassBlockTotals(sample);
     for (const bloc of Object.keys(blocs) as (keyof typeof blocs)[])
@@ -38,7 +44,12 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
     releves: samples.length,
     blocs: Object.fromEntries(Object.entries(blocs).map(([k, v]) => [k, distribution(v)])),
     passes: [...parPasse]
-      .map(([name, values]) => ({ name, bloc: gpuPassBlockOf(name), gpuMs: distribution(values) }))
+      .map(([name, values]) => ({
+        name,
+        bloc: gpuPassBlockOf(name),
+        gpuMs: distribution(values),
+        ownMs: own.has(name) ? distribution(own.get(name)!) : null,
+      }))
       .sort((a, b) => (b.gpuMs?.p50 ?? -1) - (a.gpuMs?.p50 ?? -1)),
   };
 }

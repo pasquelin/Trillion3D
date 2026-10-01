@@ -80,6 +80,29 @@ test('readable summary names blocks in p50/p95 milliseconds and "unmeasured" wit
   assert.match(lignes[0], /Visibility buffer 1\.234 \/ 1\.234/);
   assert.match(lignes[0], /Materials pass unmeasured/);
   assert.match(lignes[0], /The rest unmeasured/);
-  assert.ok(lignes.includes('| Trillion3D visibility primary | 1.234 / 1.234 | visibility |'));
+  assert.ok(
+    lignes.includes('| Trillion3D visibility primary | 1.234 / 1.234 | unmeasured | visibility |'),
+  );
   assert.deepEqual(passes(null), ['- GPU passes: no reading', '']);
+});
+
+test('overlapping passes are told apart by their own share beside their whole span (#1279)', () => {
+  const sample: GpuPassTimings = {
+    frame: 12,
+    totalMs: 85,
+    truncated: false,
+    passes: [
+      { name: 'Trillion3D water composite', gpuMs: 45, ownMs: 45 },
+      { name: 'Trillion3D temporal antialiasing', gpuMs: 40, ownMs: 5 },
+    ],
+  };
+  const lines = passes(passesGpu([sample]));
+  assert.ok(
+    lines.includes('| Trillion3D water composite | 45.000 / 45.000 | 45.000 / 45.000 | other |'),
+  );
+  assert.ok(
+    lines.includes(
+      '| Trillion3D temporal antialiasing | 40.000 / 40.000 | 5.000 / 5.000 | other |',
+    ),
+  );
 });
