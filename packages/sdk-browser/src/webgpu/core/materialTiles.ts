@@ -8,9 +8,8 @@ import {
   MATERIAL_TILES_SHADER,
 } from '../../visibility/shader/materialTilesWgsl.ts';
 import { createWebgpuBindIdentity } from './bindIdentity.ts';
+import { MATERIAL_TILES_PASS } from '../../stage/passLabels.ts';
 
-/** Label of the classification pass (`materialTilesWgsl.ts`). */
-export const MATERIAL_TILES_PASS = 'Trillion3D material tiles';
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16;
 

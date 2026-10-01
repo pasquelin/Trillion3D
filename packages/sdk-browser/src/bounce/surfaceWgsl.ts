@@ -16,8 +16,6 @@ export { surfaceCacheTexels } from './sizes.ts';
  */
 export const surfaceCacheBytes = (triangleCount: number) =>
   atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount)));
-/** Label of the measured pass; it joins the "Bounce" step like the probe pass. */
-export const BOUNCE_SURFACE_PASS = 'Trillion3D bounce surface cache v1';
 
 /**
  * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.

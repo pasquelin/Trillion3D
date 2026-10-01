@@ -1,16 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
-import {
-  MATERIAL_DEPTH_PASS,
-  MATERIAL_SURFACES_PASS,
-  encodeMaterialPasses,
-} from './materialPasses.ts';
+import { encodeMaterialPasses } from './materialPasses.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
 import { camera, quadScene } from '../pages/testScenes.fixture.ts';
 import { resolveFixture } from './materialPasses.fixture.ts';
+import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts';
 
 const passSummary = (passes: Array<{ label: string; draws: number }>) =>
   passes.map(({ label, draws }) => [label, draws]);

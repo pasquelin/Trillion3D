@@ -1,3 +1,24 @@
+import {
+  BOUNCE_PROBE_PASS,
+  BOUNCE_SURFACE_PASS,
+  DEFERRED_LIGHTING_PASS,
+  LIGHT_CUT_PASS,
+  LIGHT_TILES_PASS,
+  MATERIAL_DEPTH_PASS,
+  MATERIAL_SURFACES_PASS,
+  MATERIAL_TILES_PASS,
+  PARTICLES_PASS,
+  PARTICLE_DRAW_PASS,
+  REST_COMPACT_PASS,
+  SHADOW_LAYER_PASS,
+  SHADOW_PAGE_PASSES,
+  SHADOW_PASS,
+  SHADOW_TRANSMITTANCE_CLEAR_PASS,
+  SHADOW_TRANSMITTANCE_PASS,
+  TAA_PASS,
+} from './passLabels.ts';
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts';
+
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.
  * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
@@ -19,9 +40,8 @@ export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: Shado
  * already carries. This is the only read of deposit labels: direct-light durations, the per-stage
  * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
  * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
- * The labels are written here, not imported from their passes: the public profile reads this
- * table (`mapping.ts`), and an import would put every pass and its shader in the CDN core, on a
- * WebGL2 page too (#1353). `passTable.test.ts` holds each pass's own constant to its row.
+ * The labels come from `passLabels.ts`, which every pass reads its own from: an import of the
+ * passes would put them and their shaders in the CDN core, on a WebGL2 page too (#1353).
  */
 const SHADOW_PAGE_ROW: PassRow = ['shadows', 'other', 'cull'];
 
@@ -29,7 +49,7 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D DAG selection': ['selection', 'visibility'],
   'Trillion3D partition': ['partition', 'visibility'],
   'Trillion3D draw compaction': ['selection', 'visibility'],
-  'Trillion3D rest compaction': ['geometry', 'other'],
+  [REST_COMPACT_PASS]: ['geometry', 'other'],
   'Trillion3D HiZ pyramid': ['hiZ', 'visibility'],
   'Trillion3D HiZ test': ['hiZ', 'visibility'],
   'Trillion3D clear': ['geometry', 'visibility'],
@@ -48,40 +68,31 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D raster occluder hiz': ['hiZ', 'visibility'],
   'Trillion3D raster resolve': ['geometry', 'visibility'],
   'Trillion3D empty surfaces': ['geometry', 'materials'],
-  'Trillion3D material depth': ['geometry', 'materials'],
-  'Trillion3D material tiles': ['geometry', 'materials'],
-  'Trillion3D material surfaces v1': ['geometry', 'materials'],
+  [MATERIAL_DEPTH_PASS]: ['geometry', 'materials'],
+  [MATERIAL_TILES_PASS]: ['geometry', 'materials'],
+  [MATERIAL_SURFACES_PASS]: ['geometry', 'materials'],
   'Trillion3D opaque fallback': ['geometry', 'other'],
   'Trillion3D transparents': ['transparents', 'other'],
   'Trillion3D transmission': ['transparents', 'other'],
-  'Trillion3D water surfaces': ['transparents', 'other'],
-  'Trillion3D water composite': ['transparents', 'other'],
+  [WATER_SURFACE_PASS]: ['transparents', 'other'],
+  [WATER_COMPOSITE_PASS]: ['transparents', 'other'],
   'Trillion3D transparent compaction': ['transparents', 'other'],
-  'Trillion3D particle draw': ['transparents', 'other'],
-  'Trillion3D shadow atlas v1': ['shadows', 'other', 'raster'],
-  'Trillion3D shadow static layer v1': ['shadows', 'other', 'raster'],
-  'Trillion3D shadow transmittance pass v1': ['shadows', 'other', 'raster'],
-  'Trillion3D shadow transmittance clear v1': ['shadows', 'other', 'raster'],
-  'Trillion3D light cut': ['shadowCasters', 'other', 'cull'],
+  [PARTICLE_DRAW_PASS]: ['transparents', 'other'],
+  [SHADOW_PASS]: ['shadows', 'other', 'raster'],
+  [SHADOW_LAYER_PASS]: ['shadows', 'other', 'raster'],
+  [SHADOW_TRANSMITTANCE_PASS]: ['shadows', 'other', 'raster'],
+  [SHADOW_TRANSMITTANCE_CLEAR_PASS]: ['shadows', 'other', 'raster'],
+  [LIGHT_CUT_PASS]: ['shadowCasters', 'other', 'cull'],
   'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
   'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
   'Trillion3D shadow occlusion': ['shadows', 'other', 'cull'],
-  'Trillion3D shadow floors v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow demand v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow blend marks v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow allocation v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow table words v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow GPU pages v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow GPU page count v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow GPU page admission v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow GPU page cull v1': SHADOW_PAGE_ROW,
-  'Trillion3D shadow GPU page seal v1': SHADOW_PAGE_ROW,
-  'Trillion3D light tiles v1': ['lightLists', 'other'],
-  'Trillion3D bounce surface cache v1': ['bounce', 'other'],
-  'Trillion3D bounce probes v1': ['bounce', 'other'],
-  'Trillion3D particles': ['physics', 'other'],
-  'Trillion3D deferred lighting': ['lighting', 'other'],
-  'Trillion3D temporal antialiasing': ['antialiasing', 'other'],
+  ...Object.fromEntries(SHADOW_PAGE_PASSES.map((name) => [name, SHADOW_PAGE_ROW])),
+  [LIGHT_TILES_PASS]: ['lightLists', 'other'],
+  [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
+  [BOUNCE_PROBE_PASS]: ['bounce', 'other'],
+  [PARTICLES_PASS]: ['physics', 'other'],
+  [DEFERRED_LIGHTING_PASS]: ['lighting', 'other'],
+  [TAA_PASS]: ['antialiasing', 'other'],
   'Trillion3D HDR composition': ['present', 'other'],
   'Trillion3D HDR composition + present': ['present', 'other'],
   'Trillion3D direct present': ['present', 'other'],
