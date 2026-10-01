@@ -39,7 +39,7 @@ const vector =
     const all = words.length === 1 ? new Array<number>(size).fill(words[0]) : words;
     return Object.fromEntries(all.map((word, i) => [AXES[i], f(word)]));
   };
-const vec2f = vector(2),
+export const vec2f = vector(2),
   vec3f = vector(3);
 export const vec4f = vector(4);
 const times = (m: Mat, v: Vec) =>
@@ -49,9 +49,9 @@ const times = (m: Mat, v: Vec) =>
       Object.values(v).reduce((sum, word, column) => f(sum + f(m[column][axis] * word)), 0),
     ]),
   );
-const mul = (a: Mat, b: Mat | Vec) =>
+export const mul = (a: Mat, b: Mat | Vec) =>
   Array.isArray(b) ? b.map((column) => times(a, column)) : times(a, b);
-const sub3 = (a: Vec, b: Vec) => vec3f(a.x - b.x, a.y - b.y, a.z - b.z);
+export const sub3 = (a: Vec, b: Vec) => vec3f(a.x - b.x, a.y - b.y, a.z - b.z);
 const dot = (a: Vec, b: Vec) =>
   Object.keys(a).reduce((sum, axis) => f(sum + f(a[axis] * b[axis])), 0);
 

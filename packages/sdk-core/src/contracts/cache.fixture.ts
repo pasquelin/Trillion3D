@@ -17,13 +17,15 @@ export const identity = {
   errorModel: 'dag-group-qem-v3',
   primitives: [],
 };
-/** `work` throws an engine error of `code`, with `details` and words naming each of `facts`. */
+/** `work` throws an engine error of `code`, with `details` and words naming each of `facts`;
+ *  returns its message. */
 export const refuses = (
   work: () => unknown,
   code: string,
   details?: Record<string, unknown>,
   facts: string[] = [],
 ) => {
+  let message = '';
   assert.throws(work, (error) => {
     assert.ok(error instanceof EngineError);
     assert.equal(error.name, 'EngineError');
@@ -31,8 +33,10 @@ export const refuses = (
     assert.ok(error.message.trim().length > 0);
     for (const fact of facts) assert.ok(error.message.includes(fact), `${error.message}: ${fact}`);
     if (details) assert.deepEqual(error.details, details);
+    message = error.message;
     return true;
   });
+  return message;
 };
 export const refusesIdentity = (
   value: object,

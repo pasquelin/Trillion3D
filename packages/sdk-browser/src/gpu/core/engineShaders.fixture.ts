@@ -13,6 +13,7 @@ import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
+import { shadowBinShader } from '../shadow/binShader.ts';
 import { SHADOW_GROUP_PAIRS_WGSL } from '../shadow/groupWgsl.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
@@ -42,6 +43,7 @@ import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { COVERAGE_WGSL, mipShader } from '../../texture/mipsWgsl.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
+import { blendShadowMarksWgsl } from '../../webgpu/blend/marksWgsl.ts';
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts';
@@ -76,7 +78,6 @@ import {
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
-
 /** Every runtime reflection combination: lighting lobe, binding width and request mode. */
 function reflectionVariants() {
   const variants: Record<string, string> = {};
@@ -119,6 +120,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_LIGHT_CULL_SHADER,
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
+  SHADOW_BIN: shadowBinShader(false),
+  SHADOW_BIN_STORED: shadowBinShader(true),
   SHADOW_DEPTH_LAMP_GROUPS: shadowDepthShader({ features: new Set(['clip-distances']) } as never),
   PAGE_QUAD_SHADER,
   PAGE_MOVE_SHADER,
@@ -135,13 +138,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
   // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
-  DIRECT_UNSHADOWED_RECTLESS_LIGHTING: contractLightingShader(
-    false,
-    false,
-    undefined,
-    false,
-    false,
-  ),
+  DIRECT_UNSHADOWED_RECTLESS: contractLightingShader(false, false, undefined, false, false),
   BOUNCE_NARROW_RECTLESS_LIGHTING: contractLightingShader(true, true, undefined, true, false),
   REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, true)),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
@@ -186,6 +183,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DISPLAY_FILTER_SHADER,
   BLEND_WATER: BLEND_SHADER + WATER_SURFACE_WGSL,
   BLEND_DIAGNOSTIC: BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL,
+  BLEND_SHADOW_MARKS: blendShadowMarksWgsl(),
   BLEND_EXPAND_SHADER,
   PREPARE_SHADER,
   REDUCE_WGSL,

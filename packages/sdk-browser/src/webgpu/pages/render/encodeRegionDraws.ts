@@ -1,11 +1,12 @@
-import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
+import { DRAW_INDIRECT_STRIDE as STRIDE } from '../../../gpu/draw/draw.ts';
 import { SHADOW_REGION_INDIRECT_BYTES } from '../../../gpu/shadow/batchBudget.ts';
+import { SHADOW_BIN_CLASSES, SHADOW_BIN_REGION_BYTES } from '../../../gpu/shadow/binShader.ts';
 import type { ShadowDepthDraws } from '../../../gpu/shadow/depthDraws.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
 import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
 import { REGION_RESTORE } from '../../shadow/regions.ts';
 import { pagePlan } from '../../shadow/pagePasses.ts';
-import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
+import { drawnBins, shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -50,6 +51,29 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
   return true;
 }
 
+/**
+ * The raster bins of the batch's `count` regions (OMB-26, `../../../gpu/shadow/bins.ts`): of every
+ * region from the cull's lists, before any of them draws; after the occlusion test (`visible`),
+ * again of the regions it tested, from its visible lists. Nothing without the bins.
+ */
+export function encodeBins(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  count: number,
+  visible: boolean,
+) {
+  const { cull, occlusion, mobilityRows, shadows } = rt.lights,
+    bins = drawnBins(rt.lights),
+    pages = rt.vis.pageTable;
+  if (!bins || !cull || !mobilityRows || !shadows || !pages || (visible && !occlusion)) return;
+  const [list, counts] = visible
+    ? [occlusion!.visible, occlusion!.visibleIndirect]
+    : [cull.kept, cull.indirect];
+  const from = { list, counts, mobility: mobilityRows, pages, views: shadows.faceUniform };
+  const binned = (region: number) => !visible || slotOf[region] !== HIZ_UNTESTED;
+  bins.encode(encoder, +visible, from, count, cull.capacity, binned);
+}
+
 /** Whether `region` draws its visible lists, the occlusion test run for the batch (`tested`). */
 export const regionTested = (region: number, tested: boolean) =>
   tested && slotOf[region] !== HIZ_UNTESTED;
@@ -62,10 +86,11 @@ export const regionTested = (region: number, tested: boolean) =>
  * The pool's `draws` draw both of a region's lists (#965): the opaque one with no fragment stage,
  * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
  * is a cutout; the transmittance layer's draw the first list, which holds the blended casters,
- * once each. A region whose light view has no caster on the CPU cut (`regions.casterless`) keeps
- * zero instances in every command: it encodes no bind group and no draw (#1210); nor does one its
- * moving group draws (`grouped`, `../../shadow/movingGroups.ts`). A pipeline is set only when it
- * changes. Returns the draws encoded.
+ * once each; with the raster bins (`encodeBins`), each list as its classes' commands. A region
+ * whose light view has no caster on the CPU cut (`regions.casterless`) keeps zero instances in
+ * every command: it encodes no bind group and no draw (#1210); nor does one its moving group draws
+ * (`grouped`, `../../shadow/movingGroups.ts`). A pipeline is set only when it changes. Returns the
+ * draws encoded.
  */
 export function drawRegionCasters(
   rt: WebgpuPagesRuntime,
@@ -81,13 +106,20 @@ export function drawRegionCasters(
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
   const pool = 'cutout' in draws ? draws : undefined,
-    cutouts = rt.lights.mobility.hasCutouts;
+    { mobility } = rt.lights,
+    bins = drawnBins(rt.lights),
+    cutouts = mobility.hasCutouts;
+  const classes = bins ? SHADOW_BIN_CLASSES : 1;
   let current: GPURenderPipeline | undefined,
     drawn = 0;
-  const draw = (pipeline: GPURenderPipeline, commands: GPUBuffer, offset: number) => {
-    if (pipeline !== current) pass.setPipeline((current = pipeline));
-    pass.drawIndirect(commands, offset);
-    drawn++;
+  // A list's command, or its bins' — a class no row holds is not drawn (OMB-26).
+  const draw = (pipeline: GPURenderPipeline, commands: GPUBuffer, at: number, list: number) => {
+    for (let c = 0; c < classes; c++) {
+      if (bins && !mobility.binHolds(c)) continue;
+      if (pipeline !== current) pass.setPipeline((current = pipeline));
+      pass.drawIndirect(commands, at + (list * classes + c) * STRIDE);
+      drawn++;
+    }
   };
   for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
     const region = order[i];
@@ -101,13 +133,13 @@ export function drawRegionCasters(
     pass.setScissorRect(x, y, side, side);
     pass.setBindGroup(0, group);
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
-    const commands = visible ? occlusion!.visibleIndirect : cull!.indirect,
-      at = region * SHADOW_REGION_INDIRECT_BYTES;
+    const commands = bins ? bins.commands : visible ? occlusion!.visibleIndirect : cull!.indirect,
+      at = region * (bins ? SHADOW_BIN_REGION_BYTES : SHADOW_REGION_INDIRECT_BYTES);
     if (pool) {
-      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, commands, at);
-      if (cutouts) draw(pool.cutout, commands, at + DRAW_INDIRECT_STRIDE);
+      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, commands, at, 0);
+      if (cutouts) draw(pool.cutout, commands, at, 1);
     } else
-      for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, commands, at);
+      for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, commands, at, 0);
   }
   return drawn;
 }

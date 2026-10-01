@@ -175,6 +175,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.sunFar.gpu?.dispose();
   rt.sunFar.gpu = undefined;
   rt.lights.cull?.dispose();
+  rt.lights.bins?.dispose();
+  rt.lights.bins = undefined;
   rt.lights.movingGroups?.dispose();
   rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
