@@ -3,7 +3,8 @@ import type { EngineCamera } from '../../camera/world.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { createImpostorCards, dropImpostorCards, planImpostorCards } from '../../impostor/cards.ts';
-import { createWebglCardDraw, type WebglCards } from './draw.ts';
+import { createWebglCardDraw } from './draw.ts';
+import type { WebglCards } from './pass.ts';
 import { createWebglImpostorFeed, type WebglAtlas } from './feed.ts';
 
 /**
