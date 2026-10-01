@@ -50,6 +50,10 @@ export function createWebglImpostors(
   return {
     state,
     cards,
+    /** GPU bytes of the atlases held, within the texture pool beside the maps. */
+    get bytes() {
+      return feed.bytes;
+    },
     /** The image's plan at `cam` for `viewport`, before its cut. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
       image++;

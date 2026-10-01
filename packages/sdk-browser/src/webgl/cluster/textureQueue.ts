@@ -84,24 +84,29 @@ export class WebglTextureQueue {
   /** The census' pool and the bytes it holds; a map promoted later obeys the same pool. */
   private poolBytes = 0;
   private held = 0;
+  /** The bytes held in the pool beside the maps — the impostor atlases (`../impostor/feed.ts`) —,
+   *  which a map queued later leaves to them: one pool for both. */
+  private beside: () => number = () => 0;
   /** The pool's bytes the census left beside the maps it counted: 0 before it. */
   get room() {
     return Math.max(0, this.poolBytes - this.held);
   }
-  /** Queues `bind` into `into` if the pool has room left; false past the pool. */
+  /** Queues `bind` into `into` if the pool has room left beside the maps and what it holds beside
+   *  them; false past the pool. */
   private admit(into: Ahead[], bind: Bind, [width, height]: [number, number]) {
-    if (this.held >= this.poolBytes) return false;
+    if (this.held + this.beside() >= this.poolBytes) return false;
     this.held += heldBytes(width, height);
     into.push([...bind, sentBytes(width, height)]);
     return true;
   }
-  /** Orders the maps of `declared` within `poolBytes`. */
-  order(declared: Iterable<HostMaterials>, poolBytes: number) {
+  /** Orders the maps of `declared` within `poolBytes`, `beside` the bytes held in it beside them. */
+  order(declared: Iterable<HostMaterials>, poolBytes: number, beside = () => 0) {
     const materials = new Set<Material>(),
       counted = new Set<Texture>();
     this.queue.length = this.next = 0;
     this.pending.length = 0;
     this.poolBytes = poolBytes;
+    this.beside = beside;
     this.held = 0;
     this.seen = hostTextureWrites();
     for (const material of declared)
