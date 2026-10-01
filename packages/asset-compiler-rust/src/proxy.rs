@@ -173,14 +173,12 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             proxy.provenance.source_parents[child] = id as i32;
         }
     }
-    // The compiled mesh each node places, the rank a partition's cells name (`mesh_map`): a cell
-    // node casts as its placed mesh says (#966).
+    // The compiled mesh (`mesh_map`) each node places: a cell node casts as it says (#966).
     proxy.provenance.source_meshes = nodes
         .iter()
         .map(|node| {
-            node.get("mesh")
-                .and_then(Value::as_u64)
-                .and_then(|m| inputs.mesh_map.get(&(m as usize)))
+            let mesh = node.get("mesh").and_then(Value::as_u64);
+            mesh.and_then(|m| inputs.mesh_map.get(&(m as usize)))
                 .map_or(-1, |m| *m as i32)
         })
         .collect();
