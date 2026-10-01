@@ -21,6 +21,7 @@ import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
+import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts';
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -89,6 +90,7 @@ ${bounceReflectionWgsl(WATER_BINDINGS.surface)}
 ${WATER_UNPACK_WGSL}
 ${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
+${WATER_SHADOW_READ_WGSL}
 // Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{
@@ -136,12 +138,11 @@ fn waterColor(pixel:vec4f)->vec4f{
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),fragZ)-P);
- let V=normalize(view.camera.xyz-P*view.camera.w);
- // Normal of the side we look from: a single-sided surface, or a mesh with no normal attribute
- // whose normal comes from screen derivatives, can arrive turned the wrong way, and refraction
- // would then go through the wrong way while Fresnel would yield a black mirror.
- let Nv=select(-normal.xyz,normal.xyz,dot(normal.xyz,V)>0.0);
+ // Shadows read where the marks asked (\`shadowReadWgsl.ts\`, #1412); the normal of the side we
+ // look from, else refraction would go the wrong way and Fresnel yield a black mirror.
+ shadowFootprint=waterShadowFootprint(pixel.xy,fragZ,P);
+ let V=waterViewDirection(P);
+ let Nv=waterFacing(normal.xyz,V);
  let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);
  let metal=clamp(base.a,0.0,1.0);
  let ao=emissiveAo.a;
