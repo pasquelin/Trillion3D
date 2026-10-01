@@ -118,3 +118,19 @@ test('a shared bundle read serves every caller, one aborting; no bundle, no page
   );
   assert.deepEqual(reads, [1], 'an unknown bundle reads nothing');
 });
+
+test('a bundle is fetched once for both WebGPU views of its page, asked apart (#1238)', async () => {
+  const { source, reads } = worldRootsPageFixtureSource(),
+    at = (bundle: number) => worldRootsPageAddress('world-roots.bin', bundle, 0);
+  await source.read(at(1));
+  await source.attributes(at(1));
+  assert.deepEqual(reads, [1], 'read then attributes: one fetch');
+  await source.attributes(at(2));
+  await source.read(at(2));
+  assert.deepEqual(reads, [1, 2], 'attributes then read: one fetch');
+  await Promise.all([source.read(at(3)), source.attributes(at(3))]);
+  assert.deepEqual(reads, [1, 2, 3], 'asked concurrently: one fetch');
+  // Both views served, the bundle is let go: the source keeps no second cache.
+  await source.read(at(1));
+  assert.deepEqual(reads, [1, 2, 3, 1], 'a later request streams the bundle again');
+});
