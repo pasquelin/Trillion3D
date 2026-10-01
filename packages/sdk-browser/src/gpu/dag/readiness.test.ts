@@ -21,7 +21,7 @@ test('the readiness holds nothing until a page is resident, and nothing once all
   assert.equal(readiness.hostBytes, 0);
 });
 
-test('placements of one primitive hold no state of their own until one of their pages is resident', () => {
+test('placements of one primitive hold a state of their own only while one of their pages is resident', () => {
   const dag = ruleDag(64);
   const root = {
     world: dag.world,
@@ -31,24 +31,36 @@ test('placements of one primitive hold no state of their own until one of their 
   };
   const placed = createDagReadiness(packDagSelection([root, root, root]));
   const count = dag.pages.length;
+  const pairs = (readiness: ReturnType<typeof createDagReadiness>, base: number) =>
+    Array.from({ length: count }, (_, p) => [
+      readiness.isReady(base + p),
+      readiness.isChildReady(base + p),
+    ]);
+  const single = (resident: number) => {
+    const readiness = createDagReadiness(stripUniforms(dag, 0.1).packed);
+    readiness.apply(new Uint8Array(count).fill(resident));
+    return pairs(readiness, 0);
+  };
   placed.apply(new Uint8Array(count * 3));
   assert.equal(placed.heldPlacements, 0);
   placed.apply(new Uint8Array(count * 3).fill(1, count, count * 2));
   assert.equal(placed.heldPlacements, 1);
-  const single = (resident: number) => {
-    const readiness = createDagReadiness(packDagSelection([root]));
-    readiness.apply(new Uint8Array(count).fill(resident));
-    return Array.from({ length: count }, (_, p) => [
-      readiness.isReady(p),
-      readiness.isChildReady(p),
-    ]);
-  };
-  const at = (base: number) =>
-    Array.from({ length: count }, (_, p) => [
-      placed.isReady(base + p),
-      placed.isChildReady(base + p),
-    ]);
-  assert.deepEqual(at(0), single(0));
-  assert.deepEqual(at(count), single(1));
-  assert.deepEqual(at(count * 2), single(0));
+  assert.deepEqual(pairs(placed, 0), single(0));
+  assert.deepEqual(pairs(placed, count), single(1));
+  assert.deepEqual(pairs(placed, count * 2), single(0));
+  // Its pages gone, the placement reads the shared state again and holds nothing.
+  placed.apply(new Uint8Array(count * 3));
+  assert.equal(placed.heldPlacements, 0);
+  assert.equal(placed.hostBytes, 0);
+  assert.deepEqual(pairs(placed, count), single(0));
+});
+
+test('a placement without a cluster structure reads its own state with nothing resident', () => {
+  const dag = ruleDag(16);
+  const root = { world: dag.world, pages: dag.pages, culling: dag.culling };
+  const readiness = createDagReadiness(packDagSelection([root, root]));
+  readiness.apply(new Uint8Array(dag.pages.length * 2).fill(1, 0, 1));
+  assert.equal(readiness.heldPlacements, 1);
+  assert.equal(readiness.isReady(0), true);
+  assert.equal(readiness.isReady(dag.pages.length), false);
 });
