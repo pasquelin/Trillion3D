@@ -46,12 +46,14 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
 
 /** What the reflection targets hold for `rt`, the one rule the builder, the targets' fit and their
  *  allocation read: a rough history and a cone only under an active reflection, the depth-bounds
- *  pyramid for either, its radiance levels for a cone alone. */
+ *  pyramid for either and for a water surface's bounded mirror ray (`water`, #1279) — a reference
+ *  session's walks every pixel —, its radiance levels for a cone alone. */
 export function reflectionPlan(rt: WebgpuPagesRuntime) {
   const active = wantsReflections(rt);
   const rough = active && wantsRoughReflectionHistory(rt);
   const cone = active && wantsReflectionCone(rt);
-  return { active, rough, cone, pyramid: rough || cone };
+  const water = active && rt.blendState.transmissive > 0 && !rt.context?.unboundedReflections;
+  return { active, rough, cone, water, pyramid: rough || cone || water };
 }
 
 /** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
@@ -65,6 +67,7 @@ export function createScreenReflection(
   active: boolean,
   rough = false,
   cone = false,
+  water = false,
 ) {
   const color = device.createTexture({
     label: 'Trillion3D unfogged reflection source',
@@ -80,8 +83,9 @@ export function createScreenReflection(
   let pyramid: ReturnType<typeof createReflectionConePyramid> | undefined;
   let reprojection: ReflectionSource | undefined;
   try {
-    // The rough trace walks the cone's depth bounds; its radiance levels only where a cone reads.
-    if (active && (cone || rough))
+    // The rough trace and the water's mirror walk the cone's depth bounds; its radiance levels only
+    // where a cone reads.
+    if (active && (cone || rough || water))
       pyramid = createReflectionConePyramid(device, color, depth, cone);
     uniform = device.createBuffer({
       size: REFLECTION_VIEW_BYTES,
@@ -115,6 +119,8 @@ export function createScreenReflection(
     groupFor();
     return {
       active,
+      /** The water composite's mirror ray walks the depth bounds (`reflectionPlan`). */
+      water: !!pyramid && water,
       view,
       get group() {
         return groupFor();
