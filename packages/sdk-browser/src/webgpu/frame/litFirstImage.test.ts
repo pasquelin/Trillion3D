@@ -32,6 +32,8 @@ test('the lit program starts compiling with prepare, before the first frame asks
   const lighting = await createDeferredLighting(device, undefined, undefined, {
     precompile: true,
     bounce: false,
+    narrow: true,
+    unshadowed: false,
   });
   // No frame has asked anything: prepare alone started and awaits them.
   await lighting.litReady;
