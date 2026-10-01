@@ -12,7 +12,8 @@ import type { WebgpuResidencySets } from '../residency/sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 
-function banc() {
+/** `capturing`: a capture view is drawn, not the main one. */
+function banc(capturing = false) {
   const packedPages = fixturePages(4);
   for (let i = 0; i < packedPages.length; i++) {
     packedPages[i].min = [0, 0, 0];
@@ -52,7 +53,8 @@ function banc() {
   const rt = {
     run,
     gpu: {},
-    views: { main: mainView, active: mainView },
+    views: { main: mainView, active: capturing ? {} : mainView },
+    capture: { capturing },
     lights: {
       store: { count: 1 },
       plan: { representationChanged: (min: number[]) => shadowChanges.push(min[0]) },
@@ -104,6 +106,7 @@ function banc() {
     root,
     holds,
     touch: (page: number) => watcher(page),
+    residencySets,
   };
 }
 
@@ -168,4 +171,13 @@ test("the rank journal's touches move the CPU cut's readiness, page by page", ()
   touch(2);
   assert.deepEqual(ready(), [false, false, false, false]);
   assert.equal(held.unroutedReads, 0, 'the layout routed every move');
+});
+
+test('a capture ranks its own wanted cut first: its packed ranks, at their count', () => {
+  // The delta's buffer is swapped at each difference and longer than its live ranks (#1235).
+  const { publication, residencySets } = banc(true);
+  publication.adoptCpuCut([0, 1, 2], [0]);
+  assert.deepEqual(Array.from(residencySets.drawnFirst!), [0, 1, 2]);
+  publication.adoptCpuCut([3], [3]);
+  assert.deepEqual(Array.from(residencySets.drawnFirst!), [3], 'the new cut, not a stale buffer');
 });

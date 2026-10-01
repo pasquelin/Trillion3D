@@ -2,7 +2,7 @@
   "bench": 2952,
   "packages/asset-compiler-rust": 351,
   "packages/page-codec-wasm": 16,
-  "packages/sdk-browser": 2454,
+  "packages/sdk-browser": 2451,
   "packages/sdk-core": 766,
   "packages/sdk-node": 8,
   "scripts": 67,

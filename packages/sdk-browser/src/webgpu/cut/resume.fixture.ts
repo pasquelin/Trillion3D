@@ -31,7 +31,6 @@ export function banc(panne?: 'debordement' | 'envoi') {
     url: 'p0',
     triangles: 1,
     transparent: false,
-    packedIndex: 0,
   } as unknown as PageRec & { array?: Uint32Array };
   const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 };
   const codes: string[] = [];

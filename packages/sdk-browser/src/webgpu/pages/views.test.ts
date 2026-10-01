@@ -109,6 +109,24 @@ test('the row table follows the cut of the view drawn, not the one it was built 
   releaseWebgpuView(rt, side);
 });
 
+test("each view keeps its own packed ranks: another view's cut never lands on the main view", async () => {
+  // One record serves every placement (#1235): the lists are read by packed rank, so the packed
+  // lists are the view's as much as its records are.
+  const { rt } = await drawnQuad(false);
+  const packed = () =>
+    [rt.run.desiredPacked, rt.run.shownPacked, rt.run.drawnPacked].map((l) => [...l]);
+  const main = packed();
+  assert.equal(main[1].length, 2, 'the main view shows its two pages');
+  const side = createWebgpuView(32, 32);
+  useWebgpuView(rt, side);
+  renderWebgpuPages(rt, awayCamera());
+  await flushWebgpuPages(rt);
+  assert.deepEqual(packed()[1], [], 'the side view shows nothing');
+  useWebgpuView(rt, rt.views.main);
+  assert.deepEqual(packed(), main, 'the main view finds its own packed lists back');
+  releaseWebgpuView(rt, side);
+});
+
 test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', async () => {
   const { rt, gpu } = await drawnQuad(true);
   const main = heldBy(rt),

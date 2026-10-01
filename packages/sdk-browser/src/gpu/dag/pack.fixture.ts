@@ -17,3 +17,7 @@ export function packedWorldsToRenderOrigin(
   rootWorldsToRenderOrigin(packed.worlds, roots, origin);
   return packed;
 }
+
+/** Every page's url of `dag`, in page order: what a test compares a cut's ids against. */
+export const dagPageUrls = (dag: PackedDag) =>
+  Array.from({ length: dag.pageCount }, (_, page) => dag.pageUrlOf(page)!);

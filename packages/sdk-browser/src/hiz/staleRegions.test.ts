@@ -27,7 +27,6 @@ function scene(draw: () => number) {
       z = i === 0 ? 1 : -3 + draw() * 3.5;
     const made = quad(surface, [-half, -half, z], [half, half, z], `q${i}`);
     made.page.matrix = new G.Matrix4().makeTranslation(draw() * 4 - 2, draw() * 4 - 2, 0);
-    made.page.placementIndex = i;
     return made;
   });
   const pages = quads.map((q) => q.page as Page);

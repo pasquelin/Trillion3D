@@ -50,7 +50,6 @@ export function reportScene(poolSide: number, lights: SceneLight[], drawn: numbe
   (rt.run as unknown as { drawn: unknown[] }).drawn = drawn.map((b) => ({
     min: b.slice(0, 3),
     max: b.slice(3, 6),
-    placementIndex: 0,
   }));
   const { plan, store } = state;
   return {

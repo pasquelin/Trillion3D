@@ -5,7 +5,6 @@ import { coverageWatcher } from './coverage.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { livePlacementIndex } from '../../page/selection/placements.ts';
 import { copyPacked, markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -55,10 +54,7 @@ export function createWebgpuCutPublication(
     rankOf,
   );
   // The CPU cut's residency: the pool's slots, moved by the rank journal; the tables follow a grow.
-  const held = createHeldResidency(
-    { isResident: poolHolds },
-    livePlacementIndex(() => rt.layout.placement),
-  );
+  const held = createHeldResidency({ isResident: poolHolds }, rt.layout.placement);
   held.track(rt.layout.selectionRoots);
   // Every coverage flip — bytes in or out, a slot taken or given — goes through the rank journal.
   rows.watchTouched(coverageWatcher(cutPending, held, recordOf));

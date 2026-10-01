@@ -1,5 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { CAST, CAST_WORDS, MISS } from '../../../sdk-core/src/physics/index.ts';
+import { CAST, CAST_WORDS, MISS } from '../../../sdk-core/src/physics/layout.ts';
 import type { Intersection } from '../../../sdk-core/src/world/object/raycast.ts';
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
