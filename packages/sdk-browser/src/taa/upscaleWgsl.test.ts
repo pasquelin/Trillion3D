@@ -6,7 +6,8 @@ import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { taaHistoryBlend } from './historyWgsl.ts';
-import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { kernel, owed } from './upscaleOwed.fixture.ts';
 import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
 
 type Kernel = { lanczos2: (x: number) => number };
@@ -172,7 +173,7 @@ test('the as-is share and the display layers follow the colour to the display', 
   // pixel's share from the weights its average holds (#1343).
   for (const asIs of [true, false])
     assert.ok(taaUpscaleShader(asIs).includes(taaHistoryBlend(asIs, false, true)));
-  assert.ok(TAA_SHADER.includes(taaHistoryBlend(true)));
+  assert.ok(TAA_SHADER.includes(taaHistoryBlend(true, false, false, 'id')));
   const layered = taaHistoryBlend(true, true, true);
   assert.ok(taaUpscaleShader(true, false, true).includes(layered));
   // The flagless one reads neither flags nor share history.

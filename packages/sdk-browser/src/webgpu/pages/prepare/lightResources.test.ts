@@ -91,3 +91,22 @@ test('a frame with no shadow slot asks for the resolve with no shadow code (#124
   b.store.assignSlice(1, -1);
   assert.equal(directLightResources(rt).unshadowed, true);
 });
+
+test('a frame with no rectangle light asks for the resolve with no rectangle code (#1369)', () => {
+  const b = banc();
+  const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
+  b.store.add({ ...LAMP });
+  assert.equal(directLightResources(rt).rectless, true, 'a point lamp alone');
+  const panel: SceneLight = {
+    ...LAMP,
+    id: 'panel',
+    kind: 'rect',
+    direction: [0, -1, 0],
+    right: [1, 0, 0],
+    size: [2, 1],
+  };
+  b.store.add(panel);
+  assert.equal(directLightResources(rt).rectless, false, 'a rectangle: the program that shades it');
+  b.store.remove('panel');
+  assert.equal(directLightResources(rt).rectless, true);
+});

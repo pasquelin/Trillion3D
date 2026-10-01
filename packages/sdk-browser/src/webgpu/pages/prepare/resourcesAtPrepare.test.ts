@@ -7,6 +7,8 @@ import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 import type { WebgpuPagesBackend } from '../runtime.ts';
+import { importHostTexture } from '../../../host/textureImport.ts';
+import type { HostTexture } from '../../../host/resources.ts';
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals();
@@ -132,20 +134,27 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose();
 });
 
-test('texture pools are copy destinations, allocated once at the size the scene fills', async () => {
+// #1345: texture-pool layers are allocated on first use, as the reference allocates its virtual
+// texture pool pages: a scene with no map holds none, its white fill read from the stand-in, and
+// its first map opens its lane's pool, a copy destination one layer deep.
+test('texture pools are allocated at the first map, copy destinations at the size it fills', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
+  const pools = () =>
+    textures.filter(({ width, label }) => width === 4096 && label?.includes('texture pool'));
   await backend.prepare();
-  const pools = textures.filter((texture) => texture.width === 4096 && texture.height === 4096);
-  assert.equal(pools.length, 2, 'one colour pool, one data pool');
+  assert.equal(pools().length, 0, 'no map: no layer');
+  assert.equal(backend.metrics().texturePoolBytes, 0);
+  const map = importHostTexture(G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture);
+  await (backend as WebgpuPagesBackend).appendTexture(map, 'color');
+  assert.equal(pools().length, 1, 'its colour pool alone, the data atlas still has no map');
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
-  for (const pool of pools) {
-    assert.equal((pool.usage ?? 0) & need, need);
-    assert.equal(pool.depthOrArrayLayers, 1);
-  }
-  assert.deepEqual(pools.map((pool) => pool.format).sort(), ['rgba8unorm', 'rgba8unorm-srgb']);
+  const [pool] = pools();
+  assert.equal((pool.usage ?? 0) & need, need);
+  assert.deepEqual([pool.depthOrArrayLayers, pool.format], [1, 'rgba8unorm-srgb']);
+  assert.equal(backend.metrics().textureTilesResident, 2, 'the map and the white fill');
   backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();

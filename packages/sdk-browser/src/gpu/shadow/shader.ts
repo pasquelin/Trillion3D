@@ -148,12 +148,10 @@ fn cutoutPage(i:u32)->u32{return instances[slotOffsets[uni.drawSlot+1u]-1u-i];}
 @vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  return shadowVertex(vertexIndex,drawPage(instanceIndex),true);
 }
+/** True inside the emitter envelope \`emitter\` (a sun has none): what no caster keeps. */
+fn onEmitter(emitter:vec4f,in:ShadowOut)->bool{let r=emitter.w;return r>0.0&&dot(in.fromEmitter,in.fromEmitter)<r*r;}
 /** False on the emitter envelope \`emitter\` and on a cutout's hole: what no caster keeps. */
-fn shadowKeepAt(emitter:vec4f,in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
- let radius=emitter.w;
- if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
- return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
-}
+fn shadowKeepAt(emitter:vec4f,in:ShadowOut,gx:vec2f,gy:vec2f)->bool{return !onEmitter(emitter,in)&&maskKeep(pages[in.instance],in.uv,1.0,gx,gy);}
 fn shadowKeep(frag:ShadowOut,gx:vec2f,gy:vec2f)->bool{return shadowKeepAt(shadow.emitter,frag,gx,gy);}
 /** A masked caster's texel asks for the base-map tile its cutout reads — the isotropic level, one
  *  of the two the read mixes, picked as the camera's pixels pick; both during a convergence
