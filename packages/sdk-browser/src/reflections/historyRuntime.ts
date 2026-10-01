@@ -35,7 +35,7 @@ export function createReflectionHistory(
     targets.dispose();
     throw error;
   }
-  const packed = new Float32Array(40);
+  const packed = new Float32Array(REFLECTION_RESOLVE_VIEW_BYTES / 4);
   const previous = new Float64Array(16),
     camera = new Float64Array(16);
   const epoch = new Float64Array(REFLECTION_PLACEMENT_VERSIONS).fill(NaN),
@@ -75,7 +75,7 @@ export function createReflectionHistory(
       return complete();
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
-     *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_KEPT`;
+     *  moved source keeps the history, reprojected, clipped to the image's neighbourhood (#831);
      *  without, it keeps `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES`. A relit
      *  source (lights, materials) and a new drawn extent always reset it: no motion brings an old
      *  lighting to the new one. */
@@ -118,11 +118,13 @@ export function createReflectionHistory(
       frame = next.frame;
       writeReprojection(packed, written ? previous : projection, projection, next.eye, drawn);
       packed[36] = written ? 1 : 0;
-      packed[37] = historyConfidence(reprojects, sinceChange, moved || cameraChanged);
+      packed[37] = historyConfidence(reprojects, sinceChange);
       packed[38] = reprojects ? 1 : 0;
       // The low bits of the trace's seed, the rank's alone (`gpu.ts`): which pixel of each 2 × 2
       // block it traced; four successive ranks visit all four.
       packed[39] = rank & 3;
+      // While its sources or camera move, the history is clipped to the image's neighbourhood.
+      packed[40] = moved || cameraChanged ? 1 : 0;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(
