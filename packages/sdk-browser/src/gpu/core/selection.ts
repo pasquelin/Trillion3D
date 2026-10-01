@@ -69,8 +69,7 @@ export type SelectionSubmission = (submitted: boolean) => void;
 export type GpuSelection = {
   readonly residentCut: boolean;
   readonly maskBuffer: GPUBuffer;
-  /** Index in u32 words of the current-frame drawable page mask. */
-  readonly maskOffset: number;
+  readonly maskOffset: number; // index in u32 words of the current-frame drawable page mask
   readonly pageCount: number;
   /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
   readonly packsWorld?: boolean;
@@ -86,8 +85,7 @@ export type GpuSelection = {
   markWorld(world: number, mark: number): void;
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean;
-  /** The cut rule's `resident(c)` and `resident(childGroup(c))` of `page` (`../../page/cut/rule.ts`):
-   *  what the GPU's own shadow page draws choose a caster's level with (#831). */
+  /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */
   isReady(page: number): boolean;
   isChildReady(page: number): boolean;
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
