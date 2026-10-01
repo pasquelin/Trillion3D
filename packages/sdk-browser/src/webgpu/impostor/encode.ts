@@ -1,8 +1,7 @@
-import { viewProj } from '../pages/helpers.ts';
-import { surfaceLoadAttachments } from '../pages/prepare/attachments.ts';
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { CARD_FLOATS, CARD_VIEW_FLOATS } from './cardWgsl.ts';
-import { IMPOSTOR_PASS } from './pass.ts';
+import { core } from '../../impostor/borrowed.ts';
+import { CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { CARD_FLOATS } from '../../impostor/cards.ts';
+import { IMPOSTOR_PASS } from './pipelines.ts';
 import type { WebgpuImpostors } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -47,7 +46,7 @@ export function drawImpostorVisibility(
   const state = cardsOf(rt);
   if (!state) return false;
   const eye = rt.run.gate.cam.eye;
-  viewWords.set(viewProj);
+  viewWords.set(core.viewProj);
   for (let k = 0; k < 3; k++) viewWords[16 + k] = eye[k];
   viewWords[19] = 1;
   const image = state.pass.imageGroup(state.count);
@@ -77,7 +76,7 @@ export function encodeImpostorVisibilityPass(
     ],
     depthStencilAttachment: {
       view: depthView,
-      depthClearValue: DEPTH_CLEAR,
+      depthClearValue: core.DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },
@@ -100,7 +99,7 @@ export function encodeImpostorCards(rt: WebgpuPagesRuntime, encoder: GPUCommandE
   if (!state || !surfaces || !depthView) return;
   const draw = encoder.beginRenderPass({
     label: IMPOSTOR_PASS,
-    colorAttachments: surfaceLoadAttachments(surfaces),
+    colorAttachments: core.surfaceLoadAttachments(surfaces),
     depthStencilAttachment: { view: depthView, depthReadOnly: true },
   });
   const [width, height] = rt.gpu.targetSize;

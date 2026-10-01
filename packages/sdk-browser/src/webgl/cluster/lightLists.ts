@@ -1,3 +1,4 @@
+import { uniformLocations } from './uniforms.ts';
 import { INT_TEXELS, LIGHT_LIST_UNIT, WebglLightTexture } from './lightTexture.ts';
 import {
   BOX_VALUES,
@@ -54,16 +55,12 @@ export class WebglClusterLightLists {
   private lo = [0, 0, 0];
   private hi = [0, 0, 0];
   private texture: WebglLightTexture<Int32Array>;
-  private at: Record<'viewToGrid' | 'gridCells' | 'lightGrid', WebGLUniformLocation | null>;
+  private at: (name: string) => WebGLUniformLocation | null;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
     this.texture = new WebglLightTexture(gl, LIGHT_LIST_UNIT, INT_TEXELS, Int32Array);
-    this.at = {
-      viewToGrid: gl.getUniformLocation(program, 'viewToGrid'),
-      gridCells: gl.getUniformLocation(program, 'gridCells'),
-      lightGrid: gl.getUniformLocation(program, 'lightGrid'),
-    };
+    this.at = uniformLocations(gl, program);
   }
   /** Room for `count` slots' reach, before the lights write it. */
   reserve(count: number) {
@@ -78,11 +75,15 @@ export class WebglClusterLightLists {
       this.listed = reach.slice();
       this.texture.upload(this.list(count));
     } else this.texture.bind();
-    const { gl, at, cells } = this;
     multiplyMatrix4Typed(this.viewToGrid, this.worldToGrid, invertMatrix4(this.inverse, view));
-    gl.uniformMatrix4fv(at.viewToGrid, false, this.viewToGrid);
-    gl.uniform3i(at.gridCells, cells[0], cells[1], cells[2]);
-    gl.uniform1i(at.lightGrid, this.every);
+    this.send(this.at);
+  }
+  /** The grid's walk as last built, into the program bound now whose locations `at` names. */
+  send(at: (name: string) => WebGLUniformLocation | null) {
+    const { gl, cells } = this;
+    gl.uniformMatrix4fv(at('viewToGrid'), false, this.viewToGrid);
+    gl.uniform3i(at('gridCells'), cells[0], cells[1], cells[2]);
+    gl.uniform1i(at('lightGrid'), this.every);
   }
   /** Writes the lists; returns the texels they take. */
   private list(count: number) {
