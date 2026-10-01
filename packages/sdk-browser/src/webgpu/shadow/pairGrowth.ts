@@ -34,8 +34,8 @@ export function followPairBytes(rt: WebgpuPagesRuntime) {
 
 /**
  * THE KEPT LIST HOLDS THE GPU PAGES' PAIRS (#1363), at a size fixed by the pool (`poolPairs`,
- * #831): the pool's bytes the frame shows are the ones it was set to, whatever the frames count
- * (`pairNeed`). The pairs land in the region cull's kept list (`cull.kept`), free once the host's
+ * #831): the pool's bytes the frame shows are the ones it was set to, whatever the frames count.
+ * The pairs land in the region cull's kept list (`cull.kept`), free once the host's
  * batches are encoded. Short of that size, it grows once by the tables' own path
  * (`growKeptList`, `pendingBuffers`), the occlusion test's list with it, queued behind the tables'
  * growths (`queueTableGrowth`), asked once until answered: asked of the shadow grant beside what

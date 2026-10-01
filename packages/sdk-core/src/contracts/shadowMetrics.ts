@@ -107,7 +107,7 @@ export interface ShadowFrameMetrics {
    *  dropped work, or its flag was never read. They are withdrawn until redrawn. */
   shadowCutWithdrawnPages?: number | null;
   /** Pages drawn again because a view drew a cluster coarser than it wanted, since the explorer
-   *  opened: released once residency changed and the camera rested. */
+   *  opened: released once residency changed, the camera moving or not (#831). */
   shadowCutCoarsePages?: number | null;
   /** Light views one light-cut batch draws in now: the cap until a batch drops, then what fits. */
   shadowCutViewLimit?: number | null;

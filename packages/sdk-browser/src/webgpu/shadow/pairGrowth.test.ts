@@ -41,7 +41,7 @@ function runtime(
     lights: {
       cull,
       memory: createShadowMemory(),
-      pageRequests: { bytes: heldBytes, allocation: { pairNeed: 0 } },
+      pageRequests: { bytes: heldBytes, allocation: {} },
       plan: { pool: { side: 8, layers: 1, pages } },
       transmittanceDenied,
     },
@@ -74,8 +74,7 @@ test("the kept list grows once to the pool's pairs, counted in the shadow grant,
   assert.equal(shadowPoolHeld(rt.lights), rt.lights.memory.pairBytes);
   const asked = fake.buffers.length,
     held = shadowPoolHeld(rt.lights);
-  // A frame that counts ten times the pairs asks nothing: the bytes shown are the ones set.
-  (rt.lights.pageRequests!.allocation as { pairNeed: number }).pairNeed = 10 * keptPairs(rows);
+  // Asked again, whatever the frames count, it asks nothing: the bytes shown are the ones set.
   assert.equal(await grow(), rows);
   assert.equal(fake.buffers.length, asked);
   assert.equal(shadowPoolHeld(rt.lights), held);
