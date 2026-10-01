@@ -75,14 +75,12 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(solid),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([4, 5, 6, 4, 6, 7]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(mask),
     clusterId: 'near',
   };

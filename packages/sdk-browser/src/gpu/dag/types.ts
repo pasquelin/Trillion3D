@@ -93,7 +93,8 @@ export type PackedDag = {
   /** Per placement, what its page index adds to reach its record, as a wrapping u32. */
   recordShift: Uint32Array;
   rootCount: number;
-  pageUrls: string[];
+  /** The url of page `page`, read from its placement's shared records: none stored per page. */
+  pageUrlOf(page: number): string | undefined;
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[];
 };

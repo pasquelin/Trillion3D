@@ -28,7 +28,6 @@ export function pageVisible(cas: Cas) {
   return {
     array: new Uint32Array(cas.indices),
     attributes: geometrie.attributes,
-    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }

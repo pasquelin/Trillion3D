@@ -1,7 +1,8 @@
 import { createWebgpuRowJournal } from './journal.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createPageCatalogue, type PageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 import { pageAddress } from './pageSlots.ts';
+import { flatInstances, type PackedInstances } from './instances.ts';
 import { createDirtyRows } from './dirty.ts';
 import { growRowState, widened } from './grow.ts';
 /**
@@ -15,25 +16,15 @@ import { growRowState, widened } from './grow.ts';
  * object, never kept.
  */
 export function createWebgpuRowState(
-  packedPages: PageRec[],
+  packedPages: PageList,
   drawSlots: number,
   blendSlots = 0,
-  /** The catalogue the layout owns over `packedPages`; made here for a table built without one. */
-  catalogue: PageCatalogue = createPageCatalogue(packedPages),
+  /** Packed ranks by pool ADDRESS, the key the cache names when a slot moves: the layout's, per
+   *  primitive page (`./instances.ts`); made here over a flat list built without one. */
+  instances: PackedInstances = flatInstances(packedPages),
 ) {
   const casterSlots = drawSlots + blendSlots;
-  // Packed ranks by pool ADDRESS: that is the key the cache names when a slot moves, and several
-  // placements of one cluster share it.
-  const pageIndicesByUrl = new Map<string, number[]>();
-  const indexPages = (first: number) => {
-    for (let i = first; i < packedPages.length; i++) {
-      const address = pageAddress(packedPages[i]);
-      const indices = pageIndicesByUrl.get(address);
-      if (indices) indices.push(i);
-      else pageIndicesByUrl.set(address, [i]);
-    }
-  };
-  indexPages(0);
+  const catalogue = createPageCatalogue(packedPages);
   /** Pages named by the cache and those whose residency flag just flipped. */
   const journal = createWebgpuRowJournal();
   const residentFlags = new Uint32Array(packedPages.length);
@@ -75,10 +66,10 @@ export function createWebgpuRowState(
     generation: 0,
     blendRowOf,
     residentFlags,
-    pageIndicesByUrl,
+    instances,
     /** A record's packed ranks all share its pool address: the address's first rank names it. A
      *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
-    pageIndexOf: (rec: PageRec) => pageIndicesByUrl.get(pageAddress(rec))?.[0],
+    pageIndexOf: (rec: PageRec) => instances.first(pageAddress(rec)),
     residentOffsetWords,
     rowPageIndex,
     rowOffsetWords,
@@ -175,19 +166,20 @@ export function createWebgpuRowState(
       growRowState(state, dirtyRows, drawSlots, blendSlots);
     },
     /**
-     * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): the per-page arrays
-     * take the new pages, each with its pool slot and positions as the page at its address holds
-     * them — no residency flag and no row yet —, and each is named to the journal.
+     * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): `instances` indexes
+     * the new roots, and the per-page arrays take the new pages, each with its pool slot and
+     * positions as the page at its address holds them — no residency flag and no row yet —, and
+     * each is named to the journal.
      */
     addPages(first: number) {
-      indexPages(first);
+      instances.add();
       const n = packedPages.length;
       state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0);
       state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1);
       state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1);
       state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1);
       for (let page = first; page < n; page++) {
-        const sibling = pageIndicesByUrl.get(pageAddress(catalogue.recordOf(page)!))![0];
+        const sibling = instances.first(pageAddress(catalogue.recordOf(page)!))!;
         state.residentOffsetWords[page] = state.residentOffsetWords[sibling];
         state.pagePositions[page] = state.pagePositions[sibling];
         state.touchPage(page);

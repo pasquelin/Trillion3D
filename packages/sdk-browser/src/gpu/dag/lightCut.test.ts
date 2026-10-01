@@ -23,7 +23,7 @@ const sunFace = (side: number, origin: number[], mark?: number[]) =>
   sunRun(side, origin, mark).uniforms;
 
 const urls = (dag: ReturnType<typeof packed>['dag'], ids: number[]) =>
-  ids.map((id) => dag.pageUrls[id]).sort();
+  ids.map((id) => dag.pageUrlOf(id)).sort();
 
 test('casters behind the camera are selected from the light, which the camera cut never keeps', () => {
   const { dag, roots } = packed(dagFixture());

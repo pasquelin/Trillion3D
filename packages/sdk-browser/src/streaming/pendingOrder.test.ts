@@ -9,13 +9,16 @@ import type { PageLocations } from '../page/selection/placements.ts';
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 
-/** The records' placement, by their `placementIndex`, over `roots` (#1235). */
+/** The root rank that places each record: a record carries no placement of its own (#1235). */
+const placedBy = new WeakMap<PriorityRecord, number>();
+
+/** The records' placement, by the rank `placedBy` holds, over `roots`. */
 const located = (
   records: readonly PriorityRecord[],
   roots: readonly { world: unknown }[],
 ): PageLocations => ({
   roots: roots as PageLocations['roots'],
-  packed: records.map((rec) => (rec as { placementIndex?: number }).placementIndex ?? 0),
+  packed: records.map((rec) => placedBy.get(rec) ?? 0),
   rootOfPacked: Int32Array.from({ length: roots.length }, (_, i) => i),
 });
 
@@ -28,18 +31,19 @@ function frame(draw: () => number, count: number, rootCount: number): PriorityRe
     const centre = [coordinate(), coordinate(), coordinate()],
       radius = draw() * 3;
     const sphere = draw() < 0.8 ? [centre[0], centre[1], centre[2], radius] : undefined;
-    return {
+    const record: PriorityRecord = {
       url: `c${i}`,
       streamUrl: draw() < 0.7 ? `b${Math.floor(draw() * count * 0.4)}` : undefined,
       array: draw() < 0.1 ? new Uint32Array(1) : undefined,
       min: [centre[0] - radius, centre[1] - radius, centre[2] - radius],
       max: [centre[0] + radius, centre[1] + radius, centre[2] + radius],
-      placementIndex: Math.floor(draw() * rootCount),
       lodError: draw() < 0.1 ? undefined : draw() * 2,
       sphere,
       parentError: draw() < 0.5 ? draw() * 4 : null,
       parentSphere: draw() < 0.3 ? sphere : null,
     };
+    placedBy.set(record, Math.floor(draw() * rootCount));
+    return record;
   });
 }
 
