@@ -26,8 +26,9 @@ mod table_tests;
 mod tests;
 pub(crate) use cover::RootCover;
 
-/// Version of the world-roots products: 2 since their records (#1232).
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 2;
+/// Version of the world-roots products: 2 since their records (#1232), 3 since an object root
+/// names its object by its table rank (#1332).
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 3;
 /// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.

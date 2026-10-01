@@ -20,6 +20,7 @@ import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import type { FrameSize } from './renderScale.ts';
 import type { FloatAtlas } from '../../core/floatAtlas.ts';
 import type { WebgpuImpostors } from '../../impostor/frame.ts';
+import type * as ImpostorCode from '../../../impostor/impostorCode.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -119,6 +120,8 @@ export interface WebgpuGpuState {
   particles: WebgpuParticles | undefined;
   /** The impostor cards and their atlases, made by the first image of a baked cache (#1335). */
   impostors: WebgpuImpostors | undefined;
+  /** The impostor draw's code, awaited by the prepare of a baked cache (`../../../impostor/code.ts`). */
+  impostorCode: typeof ImpostorCode | undefined;
 }
 
 /** The frozen colour the water composite rereads and the depth its surface stage tests and
@@ -187,5 +190,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     guideRevision: 0,
     particles: undefined,
     impostors: undefined,
+    impostorCode: undefined,
   };
 }

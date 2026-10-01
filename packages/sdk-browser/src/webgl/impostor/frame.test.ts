@@ -23,6 +23,7 @@ import {
   VIEWPORT,
 } from '../../impostor/section.fixture.ts';
 import { createWebglImpostors } from './frame.ts';
+import * as lent from './lent.ts';
 import { CARD_FLOATS } from '../../impostor/cards.ts';
 
 /** A WebGL2 session reduced to what the plan and the draw read, on a recording context. */
@@ -35,9 +36,9 @@ function bench() {
     readTextureLevel: reader,
     webglContext: context.gl,
     onDiagnostic: () => undefined,
-  } as unknown as Parameters<typeof createWebglImpostors>[0];
+  } as unknown as Parameters<typeof createWebglImpostors>[1];
   const gate = { resourcesChanged: () => void landed++ };
-  const impostors = createWebglImpostors(session, roots, gate, () => 1 << 20)!;
+  const impostors = createWebglImpostors(lent, session, roots, gate, () => 1 << 20)!;
   const renderer = new WebglClusterRenderer(
     context.gl,
     readDegraded(() => {}),

@@ -15,6 +15,7 @@ import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { lensSlope } from '../../scene/partition/superRoots.ts';
 import { cellHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
@@ -34,6 +35,12 @@ function viewOf(camera: HostCamera) {
     eye: [elements[12], elements[13], elements[14]],
     reach: cellReach(camera) * maxStretch(elements),
   };
+}
+
+/** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
+function lensOf(backend: RenderBackend, camera: HostCamera) {
+  const cut = backend.worldCut?.();
+  return cut && { ...cut, slope: lensSlope(camera) };
 }
 
 /** The file of the partition at `url` read by the decode pool, off the main thread (#575): `cells`,
@@ -145,6 +152,8 @@ export function createPartitionFrame(inputs: Inputs) {
         growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
       },
       outgrown: renew,
+      // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
+      lens: lensOf(backend, camera),
     };
     const { eye, reach } = viewOf(camera);
     later = false;

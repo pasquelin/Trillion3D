@@ -76,12 +76,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
-    ...tables,
-    baseRoots,
-    basePages,
-    baseBootstrap,
-    geometryStore,
-    hostCeiling,
+    ...{ ...tables, baseRoots, basePages, baseBootstrap, geometryStore, hostCeiling },
     overCeiling: heldFloor.overCeiling,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.placed,
@@ -133,8 +128,12 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // The draw's own preparation, before any frame (`sceneDraw.ts`).
-      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
+      // The draw's own preparation and the impostor tier's code, before any frame (`sceneDraw.ts`).
+      const [pages] = await Promise.all([
+        readPages(context, urls, sourced),
+        hostDraw.prepare(),
+        impostors?.prepare(),
+      ]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
