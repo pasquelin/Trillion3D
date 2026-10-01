@@ -1,6 +1,7 @@
 import {
   DECLARED_FLOOR,
   RESPONSE_LEFT,
+  REST_GLIDE,
   type CharacterEvents,
   type CharacterInput,
   type CharacterSettings,
@@ -60,9 +61,6 @@ export const driveAtRest = (drive: CharacterDrive, input: CharacterInput) =>
   input.wishZ === 0 &&
   drive.velocity[0] === 0 &&
   drive.velocity[2] === 0;
-
-/** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
-export const REST_GLIDE = 1e-4;
 
 /**
  * Lives one tick of `h` seconds: jumps when the key was pressed within `jumpBuffer` of a floor

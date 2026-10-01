@@ -1,6 +1,7 @@
 import type { Capsule, CapsuleContact, CapsulePush } from './capsule.ts';
 import type { CharacterCollision } from './characterCollision.ts';
 import { hypot2, hypot3 } from '../math/primitives/hypot.ts';
+import { MOVE_PASSES } from './characterSettings.ts';
 
 /**
  * HOW A BODY MOVES THROUGH TRIANGLES: in parts no longer than half its radius, each followed by
@@ -33,16 +34,6 @@ export interface MovingBody {
   readonly capsule: Capsule;
   readonly velocity: Float64Array;
 }
-
-/**
- * Passes after a part. Not derived, declared: each pass already resolves every triangle it
- * meets, measured from the moved capsule, so a second pass is only needed where a push re-enters
- * a surface already answered — a corner — and each further pass one more such re-entry. What
- * the passes leave is resolved by the next part or the next move. Sensitivity: the value trades
- * the overlap tests a crowded corner costs against how many re-entries one part settles; one
- * pass would leave a two-wall corner to the next part.
- */
-export const MOVE_PASSES = 4;
 
 const part = new Float64Array(3),
   away = new Float64Array(3);

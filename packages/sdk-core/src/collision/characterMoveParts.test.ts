@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { freshReport, MOVE_PASSES, slide } from './characterMove.ts';
+import { freshReport, slide } from './characterMove.ts';
+import { MOVE_PASSES } from './characterSettings.ts';
 import { triangleCollision } from './characterCollision.ts';
 import { buildTriangleTree } from './triangleTree.ts';
 import { near } from '../math/near.fixture.ts';
