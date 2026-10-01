@@ -1,5 +1,6 @@
 import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
+import { followCutRows } from '../prepare/growTables.ts';
 import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
@@ -79,6 +80,8 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     const shadows = visReady(rt) && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
     run.cameraRows = rt.services.syncRowsFromCut(shadows, rt.lights.cpuCasters?.castersPacked);
     if (shadows) writeCpuCasters(rt, device);
+    // The rows this cut selected size the table, the placements never do (#1232).
+    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked))
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
