@@ -4,6 +4,7 @@
 import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import {
   SUN,
+  VIEW,
   planFrame,
   report,
   sunPages,
@@ -71,8 +72,10 @@ function sunGrid(plan: WebgpuLightState['plan'], slice: number, count: number) {
   );
 }
 
-/** A session with a sun, its pool seeded; its atlas records what it takes. */
-export async function session(transmittance = false) {
+/** A session with a sun, its pool seeded — the budget's whole pool, then, when `sized`, the seed
+ *  its first report asks for nothing: what the tests grow and shrink from, nothing said or moved
+ *  yet —; its atlas records what it takes. */
+export async function session(transmittance = false, sized = true) {
   installGpuGlobals();
   const limit = { bytes: Infinity },
     gpu = device(limit),
@@ -128,17 +131,25 @@ export async function session(transmittance = false) {
     await lights.shadowGrant?.done;
   };
   let at = 0;
-  /** Two frames: the first reports `count` pages of the sun, the second's plan reads the report.
-   *  Then the pool follows the demand, the resize it asks answered. */
-  const ask = async (count: number) => {
-    const { plan, store } = lights;
-    planFrame(plan, store, at);
+  /** Two frames: the first reports `count` pages of the sun, the second's plan reads the report,
+   *  under a view that rests or, `moving`, steps a millimetre a frame. Then the pool follows the
+   *  demand, the resize it asks answered. */
+  const ask = async (count: number, moving = false) => {
+    const { plan, store } = lights,
+      view = () => (moving ? { ...VIEW, position: [at * 1e-3, 5, 0] as const } : VIEW);
+    planFrame(plan, store, at, view());
     plan.commit();
     report(plan, store, at, count ? sunGrid(plan, store.sliceOf(0), count) : []);
-    planFrame(plan, store, ++at);
+    planFrame(plan, store, ++at, view());
     plan.commit();
     at++;
     await follow();
   };
-  return { rt, lights, gpu, limit, said, ask, follow, texture: () => texture };
+  if (sized) {
+    await ask(0);
+    for (const list of [said, gpu.passes, gpu.copies, gpu.moves]) list.length = 0;
+  }
+  /** The first frame the tests' own reports may take. */
+  const base = at;
+  return { rt, lights, gpu, limit, said, ask, follow, base, texture: () => texture };
 }

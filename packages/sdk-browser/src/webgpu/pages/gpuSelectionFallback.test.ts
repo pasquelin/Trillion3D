@@ -147,10 +147,11 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     shadeVisibility(expected, pages, locations, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
-  const maps = textures.find((t) => t.format === 'rgba8unorm-srgb');
-  assert.ok(maps);
-  assert.ok(maps.depthOrArrayLayers >= 1, 'the layer its one queue fills');
-  assert.ok(maps.views.some((view) => view?.dimension === '2d-array'));
+  // No map: no colour pool is allocated, the white fill reads the stand-in (#1345).
+  assert.equal(
+    textures.find((t) => t.format === 'rgba8unorm-srgb'),
+    undefined,
+  );
   backend.dispose();
   geometry.dispose();
   material.dispose();

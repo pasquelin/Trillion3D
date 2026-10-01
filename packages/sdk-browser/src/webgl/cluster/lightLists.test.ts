@@ -13,7 +13,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import {
   sphereTouchesBox,
   type Box,
-} from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+} from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
 import { CELL_MARGIN } from './lightGrid.ts';
 import { evaluated, lightFrames, pointLamp, sent, triangle } from './lightGrid.fixture.ts';
 

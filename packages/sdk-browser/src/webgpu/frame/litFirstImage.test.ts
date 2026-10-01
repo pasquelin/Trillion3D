@@ -63,7 +63,7 @@ test('an unshadowed program that fails holds the frame on its shadowed twin, nev
   };
   let redrawn = 0;
   const lighting = await createDeferredLighting(device, () => redrawn++);
-  const direct = { lights: {} as GPUBuffer, unshadowed: true };
+  const direct = { lights: {} as GPUBuffer, unshadowed: true, rectless: true };
   const asked = lighting.awaited(direct);
   assert.ok(asked, 'the frame waits for its program');
   await asked.catch(() => undefined);
@@ -153,6 +153,9 @@ test('a pipeline the device refuses off the thread is a refusal, not a throw', a
 });
 
 test('the unlit view keeps what a surface emits, opaque and transparent alike', () => {
-  assert.match(UNLIT_LIGHTING_SHADER, /baseMetal,coord,0\)\.rgb\+textureLoad\(emissiveAo/);
+  assert.match(
+    UNLIT_LIGHTING_SHADER,
+    /baseMetal,coord,0\)\.rgb\+surfaceEmissiveAo\(coord,flag\)\.rgb/,
+  );
   assert.match(BLEND_SHADER, /\}else\{rgb\+=s\.emissive;\}\s*let r=displayRoute/);
 });

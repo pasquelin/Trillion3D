@@ -26,7 +26,8 @@ export function shadeLayout(device: GPUDevice) {
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
       {
         binding: b.uniform,
-        visibility: fragment,
+        // The class draws place their tiles in the viewport it holds (`materialTilesWgsl.ts`).
+        visibility: fragment | GPUShaderStage.VERTEX,
         buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
       },
       ...atlasLayoutEntries(b.data),

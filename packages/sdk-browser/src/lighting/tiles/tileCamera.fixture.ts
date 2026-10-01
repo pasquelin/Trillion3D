@@ -1,13 +1,12 @@
 import {
   composeMatrix4,
-  dotVector3,
   invertMatrix4,
   multiplyMatrix4,
   perspectiveProjection,
   transformHomogeneousPoint,
 } from '../../../../sdk-core/src/index.ts';
 import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { TileView } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+import type { TileView } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
 import { tileViewInverse } from './tileFrame.ts';
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
@@ -32,8 +31,9 @@ export function camera(
   const projection = perspectiveProjection(m4(), fov, width / height, NEAR, 1);
   const viewProjection = multiplyMatrix4(m4(), projection, invertMatrix4(m4(), world));
   const origin = new Float64Array(3);
-  const inverseViewProjection = tileViewInverse(m4(), origin, viewProjection, eye);
-  return { inverseViewProjection, origin, width, height, viewProjection, eye };
+  const depthRows = new Float64Array(8);
+  const inverseViewProjection = tileViewInverse(m4(), origin, viewProjection, eye, depthRows);
+  return { inverseViewProjection, origin, width, height, viewProjection, eye, depthRows };
 }
 
 /** The world point of a pixel centre at depth `z`, in f64: where the resolve shades. */
@@ -60,11 +60,3 @@ export const rayParameter = (distance: number) => (distance - NEAR) / (FAR_CAST 
 
 /** The depth the buffer holds at parameter `s` of a `pixelRay`. */
 export const rayDepth = (s: number) => NEAR / (NEAR + s * (FAR_CAST - NEAR));
-
-/** Distance from `c` to the segment `a`–`b`. */
-export function segmentDistance(a: Vec3, b: Vec3, c: Vec3) {
-  const ab = [0, 1, 2].map((i) => b[i] - a[i]),
-    ac = [0, 1, 2].map((i) => c[i] - a[i]);
-  const t = Math.min(1, Math.max(0, dotVector3(ab, ac) / dotVector3(ab, ab) || 0));
-  return Math.hypot(...ab.map((v, i) => v * t - ac[i]));
-}
