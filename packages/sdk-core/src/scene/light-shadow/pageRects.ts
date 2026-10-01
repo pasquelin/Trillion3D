@@ -160,3 +160,19 @@ export function createPageRects() {
 
   return { rects, sunRects, lampFaces, lampRects };
 }
+
+/** Whether page `(x, y)` of view `view`, one of `views`, lies in that view's rectangle of `rects`
+ *  (four words a view: x from, x to, y from, y to). */
+export const rectHolds = (
+  rects: ArrayLike<number>,
+  views: number,
+  view: number,
+  x: number,
+  y: number,
+) =>
+  view >= 0 &&
+  view < views &&
+  x >= rects[view * 4] &&
+  x <= rects[view * 4 + 1] &&
+  y >= rects[view * 4 + 2] &&
+  y <= rects[view * 4 + 3];
