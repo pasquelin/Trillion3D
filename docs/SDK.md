@@ -157,10 +157,9 @@ diagnostics, measurement, world stream, impostors — are chunks of the bundle i
 use, all through one on-demand loader with the same policy: an import that fails is tried once
 more at once. What still fails is `FAMILY_LOAD_FAILED` ([T3D-E090](messages/T3D-E090.md)), the
 family in `details.family`, on `world.diagnostic.error` (and `world.physics.error` for physics).
-The frames that draw with the family wait for it rather than draw without it — the impostors
-excepted: until their draw lands, each object draws its mesh, as one whose atlas still streams —,
-and it is not refused for good: the next use asks it again, ten seconds after the refusal at the
-soonest.
+The frames that draw with the family wait for it rather than draw without it, and it is not
+refused for good: the next use asks it again, ten seconds after the refusal at the soonest. The
+impostors are awaited before a baked scene's first image; refused, each object draws its mesh.
 
 ## API rule
 
