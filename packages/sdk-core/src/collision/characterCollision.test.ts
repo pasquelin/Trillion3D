@@ -41,6 +41,9 @@ test('the ground is the first surface the sphere meets going down; a refused one
   // The upper floor refused is still met first: the lower one, under it, is out of reach.
   const lower = (touch: { point: Float64Array }) => touch.point[1] < -1;
   assert.equal(world.groundBelow(capsule, 3, lower), null);
+  // A refused floor the sphere rests on, touching it, is met first: nothing below is reached.
+  const resting = { feet: new Float64Array([1, 0, 2]), radius: 0.3, height: 1.75 };
+  assert.equal(world.groundBelow(resting, 3, lower), null);
   // A refused floor the sphere already sinks into is behind it, not on its way down.
   const through = { feet: new Float64Array([1, -0.1, 2]), radius: 0.3, height: 1.75 };
   assert.ok(Math.abs(world.groundBelow(through, 3, lower)! - 1.9) < 1e-12);
