@@ -2,7 +2,5 @@
 export {
   createPackedPages,
   createPageCatalogue,
-  type PackedPages,
-  type PageCatalogue,
   type PageList,
 } from '../../../page/selection/catalogue.ts';
