@@ -20,10 +20,11 @@ import { maxStretch } from '../math/projectionOracles.ts';
 import {
   impostorMeshBaked,
   type ImpostorMap,
+  type ImpostorMaps,
   type ImpostorMesh,
   type ImpostorSection,
 } from '../contracts/impostor.ts';
-import { drawsImpostor, impostorSwitchOf } from './switch.ts';
+import { drawsImpostor, impostorRadius, impostorSwitchOf } from './switch.ts';
 
 /** What the plan needs of one root: its compiled mesh number and the world matrix that places it. */
 export interface ImpostorRoot {
@@ -64,17 +65,21 @@ export interface ImpostorPlan {
 /** The section's baked meshes, keyed by their compiled mesh number; refused entries are left out. */
 export function impostorBakedByMesh(
   section: ImpostorSection | undefined,
-): Map<number, ImpostorMesh> {
-  const byMesh = new Map<number, ImpostorMesh>();
-  for (const mesh of section?.meshes ?? [])
-    if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh);
+): Map<number, ImpostorMesh & { maps: ImpostorMaps; frames: number; frameSide: number }> {
+  const byMesh: BakedByMesh = new Map();
+  if (section)
+    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh);
   return byMesh;
 }
 
-const EMPTY_MESHES: Map<number, ImpostorMesh> = new Map();
+/** Baked meshes by mesh number: each entry holds the maps, frames and frame side the card reads. */
+type BakedByMesh = ReturnType<typeof impostorBakedByMesh>;
+/** The same, read by a root's mesh number, which a root no impostor may replace lacks. */
+type BakedLookup = ReadonlyMap<number | undefined, NonNullable<ReturnType<BakedByMesh['get']>>>;
+const EMPTY_MESHES: BakedLookup = new Map();
 /** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
-const bakedBySection = new WeakMap<ImpostorSection, Map<number, ImpostorMesh>>();
-function bakedLookup(section: ImpostorSection | undefined): Map<number, ImpostorMesh> {
+const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>();
+function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
   if (!section) return EMPTY_MESHES;
   let byMesh = bakedBySection.get(section);
   if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)));
@@ -95,12 +100,11 @@ export function planImpostors(
   const switched = new Uint8Array(roots.length),
     cards: ImpostorCard[] = [];
   const byMesh = bakedLookup(section);
-  if (!byMesh.size) return { cards, switched };
   const point = new Float64Array(3);
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
-      entry = root.mesh === undefined ? undefined : byMesh.get(root.mesh);
-    if (!entry || !impostorMeshBaked(entry)) continue;
+      entry = byMesh.get(root.mesh);
+    if (!entry) continue;
     const input = impostorSwitchOf(entry, maxStretch(root.world.elements));
     if (!input) continue;
     const world = root.world.elements,
@@ -113,7 +117,7 @@ export function planImpostors(
       mesh: entry.mesh,
       world,
       centre,
-      radius: input.objectRadius * (input.maxWorldScale ?? 1),
+      radius: impostorRadius(input.objectRadius, input.maxWorldScale),
       frames: entry.frames,
       hemi: entry.hemi === true,
       maps: entry.maps,
