@@ -120,7 +120,7 @@ export function createScreenReflection(
     return {
       active,
       /** The water composite's mirror ray walks the depth bounds (`reflectionPlan`). */
-      water: active && water,
+      water,
       view,
       get group() {
         return groupFor();

@@ -46,6 +46,7 @@ test('the water mirror walks the depth bounds; a miss reads the filtered probes,
       filteredAt: number | undefined;
     const { calls, at } = resolvedDisplay({
       shader: BOUNDED_SCREEN_REFLECTION_WGSL,
+      functions: ['boundedReflectionRay'],
       globals: {
         screenReflectionHiZ: () => (walks++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
         filteredReflectedRadiance: (...args: number[]) => ((filteredAt = args[3]), FILTERED),
