@@ -119,9 +119,17 @@ fn main() -> std::io::Result<()> {
     source_files(Path::new("src"), &mut files)?;
     // The page codec is linked in: its encoding is the compiler's, so it enters the hash.
     source_files(&Path::new(CODEC).join("src"), &mut files)?;
+    for vendor in ["cadmpeg-codec-rhino", "serde-json-legacy"] {
+        let directory = format!("vendor/{vendor}/src");
+        source_files(Path::new(&directory), &mut files)?;
+        println!("cargo:rerun-if-changed={directory}");
+    }
     files.extend([
         PathBuf::from("Cargo.toml"),
         PathBuf::from("Cargo.lock"),
+        PathBuf::from("vendor/cadmpeg-codec-rhino/Cargo.toml"),
+        PathBuf::from("vendor/serde-json-legacy/Cargo.toml"),
+        PathBuf::from("vendor/serde-json-legacy/build.rs"),
         PathBuf::from("build.rs"),
         Path::new(CODEC).join("Cargo.toml"),
         // The C++ flags of meshoptimizer: `-ffp-contract=off` changes the bytes it simplifies to.

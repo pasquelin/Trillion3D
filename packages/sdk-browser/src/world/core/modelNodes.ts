@@ -1,3 +1,4 @@
+import { carriedLine } from './modelLines.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
@@ -25,7 +26,7 @@ export function findGraphNode(graph: Object3D, name: string): Object3D | undefin
  * for. A move is written back into the graph node (`writeModelNode`).
  */
 export function modelNode(graph: Object3D): Object3D {
-  const node = new Object3D();
+  const node = carriedLine(graph) ?? new Object3D();
   node.name = graph.name;
   // A graph node whose matrix is its pose may carry no pose fields: the matrix is read instead.
   if (graph.matrixAutoUpdate) {

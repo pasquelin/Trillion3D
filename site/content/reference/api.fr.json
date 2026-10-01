@@ -3011,7 +3011,7 @@
       "bounds": "La boîte que remplit le modèle, dans son propre repère.",
       "lights": "Les lumières sous le modèle — celles que portait le fichier source, en nœuds : une page les modifie, les déplace ou les retire comme les siennes, et elles bougent avec le modèle.",
       "record": "Tout ce que le monde garde sur ce modèle : ses adresses, son manifeste et son graphe.",
-      "getObjectByName": "Le premier nœud en dessous portant ce nom : le modèle, un nœud de son fichier source, puis tout autre enfant — une lumière portée par le fichier, un nœud placé par une page.",
+      "getObjectByName": "Premier nœud portant ce nom : le modèle, une lumière importée, un nœud source, puis un autre enfant.",
       "metadata": "Le manifeste compilé du modèle — ses primitives, `sourceTriangles` — et `clusters`, les clusters que contiennent ses pages, chaque niveau de ses DAG compté.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
       "animations": "Clips du fichier, liés aux nœuds du modèle : `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -6847,6 +6847,12 @@
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
+  },
+  "world.materialVariants": {
+    "summary": "Variantes glTF importées avec des identifiants propres à chaque modèle et leurs noms source."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "Sélectionne une variante importée de la liste ; null restaure les surfaces par défaut de tous les modèles."
   },
   "world.materials": {
     "summary": "Matériaux importés actuels, suivis de ceux créés par la page."

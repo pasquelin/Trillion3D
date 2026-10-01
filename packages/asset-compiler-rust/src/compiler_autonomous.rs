@@ -45,6 +45,22 @@ pub(super) fn write_autonomous_scene(
     primitives: &[Value],
     output_views: &[Value],
 ) -> Result<AutonomousScene> {
+    if values(source, "meshes")?.iter().any(|mesh| {
+        mesh.get("primitives")
+            .and_then(Value::as_array)
+            .is_some_and(|parts| {
+                parts
+                    .iter()
+                    .any(|p| p.get("mode").is_some_and(|mode| mode != 4))
+            })
+    }) {
+        return Ok((
+            Value::Null,
+            Some("autonomous-scene-lines"),
+            None,
+            Vec::new(),
+        ));
+    }
     if !primitives.is_empty()
         && primitives
             .iter()
@@ -94,9 +110,13 @@ pub(super) fn write_autonomous_scene(
                 if let Some(parts) = mesh.get_mut("primitives").and_then(Value::as_array_mut) {
                     for part in parts {
                         let material = part.get("material").cloned();
+                        let variants = part.pointer("/extensions/KHR_materials_variants").cloned();
                         *part = json!({"mode":4,"attributes":{"POSITION":0},"indices":1});
                         if let Some(material) = material {
                             part["material"] = material;
+                        }
+                        if let Some(variants) = variants {
+                            part["extensions"] = json!({"KHR_materials_variants":variants});
                         }
                     }
                 }

@@ -1795,7 +1795,7 @@
       "bounds": "Modelin kendi çerçevesinde doldurduğu kutu.",
       "lights": "Model altındaki ışıklar — kaynak dosyanın düğümler olarak taşıdıkları: bir sayfa onları kendisininmiş gibi düzenler, hareket ettirir ya da kaldırır, ve modelle birlikte hareket ederler.",
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
-      "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
+      "getObjectByName": "Bu ada sahip ilk düğüm: model, içe aktarılan ışık, kaynak düğümü, ardından başka bir alt düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
       "animations": "Model düğümlerine bağlı dosya klipleri: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -4223,6 +4223,12 @@
       "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
+  },
+  "world.materialVariants": {
+    "summary": "Modele özgü kimlikleri ve kaynak adlarıyla içe aktarılan glTF varyantları."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "Listelenen bir içe aktarılmış varyantı seçer; null, tüm modellerin varsayılan yüzeylerini geri yükler."
   },
   "world.materials": {
     "summary": "Geçerli içe aktarılmış malzemeler, ardından sayfanın oluşturdukları."

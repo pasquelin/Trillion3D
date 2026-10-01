@@ -3003,7 +3003,7 @@
       "bounds": "Die Box, die das Modell füllt, in seinem eigenen Bezugssystem.",
       "lights": "Die Lichter unter dem Modell — die, die die Quelldatei trug, als Knoten: eine Seite ändert, verschiebt oder entfernt sie wie ihre eigenen, und sie bewegen sich mit dem Modell.",
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
-      "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
+      "getObjectByName": "Der erste Knoten mit diesem Namen: das Modell, eine importierte Lichtquelle, ein Quellknoten, dann ein anderes Kind.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
       "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
       "animations": "Clips aus der Datei, an Modellknoten gebunden: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -6839,6 +6839,12 @@
       "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
+  },
+  "world.materialVariants": {
+    "summary": "Importierte glTF-Varianten mit modellbezogenen IDs und ihren ursprünglichen Namen."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "Wählt eine aufgeführte importierte Variante; null stellt die Standardoberflächen aller Modelle wieder her."
   },
   "world.materials": {
     "summary": "Aktuelle importierte Materialien, gefolgt von den auf der Seite erstellten."

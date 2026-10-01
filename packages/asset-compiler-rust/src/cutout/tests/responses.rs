@@ -152,3 +152,37 @@ fn a_sheet_shipped_with_the_source_seeds() {
         Some(true)
     );
 }
+#[test]
+fn cutout_answers_follow_the_displayed_extension_image_not_its_fallback() {
+    for extension in ["EXT_texture_avif", "EXT_texture_webp"] {
+        let directory = fresh_folder("extension-image");
+        let (mut g, mut bin, fallback) = scene();
+        let selected = b"selected extension image";
+        let selected_hash = hash(selected);
+        g["bufferViews"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":selected.len()}));
+        bin.extend(selected);
+        g["images"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"bufferView":1}));
+        g["textures"][0]["extensions"] = json!({extension:{"source":1}});
+        let applied = answer(&directory, &mut g, &bin, &fallback, true);
+        assert!(applied.applied.is_empty());
+        assert_eq!(g["materials"][0]["alphaMode"], "BLEND");
+        let applied = answer(&directory, &mut g, &bin, &selected_hash, true);
+        assert_eq!(applied.applied.len(), 1);
+        assert_eq!(g["materials"][0]["alphaMode"], "MASK");
+        g["textures"][0].as_object_mut().unwrap().remove("source");
+        g["materials"][0]["alphaMode"] = json!("BLEND");
+        assert_eq!(
+            answer(&directory, &mut g, &bin, &selected_hash, true)
+                .applied
+                .len(),
+            1
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+}

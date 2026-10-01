@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Authored for Trillion3D from the public COLLADA 1.4.1 grammar; CC0-1.0. -->
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset><unit name="centimeter" meter="0.01"/><up_axis>Z_UP</up_axis></asset>
+  <library_effects><effect id="paint"><profile_COMMON><technique sid="common"><lambert>
+    <diffuse><color>0.25 0.5 0.75 1</color></diffuse>
+  </lambert></technique></profile_COMMON></effect></library_effects>
+  <library_materials><material id="a" name="paint-a"><instance_effect url="#paint"/></material>
+    <material id="b" name="paint-b"><instance_effect url="#paint"/></material></library_materials>
+  <library_geometries><geometry id="triangle" name="authored triangle"><mesh>
+    <source id="positions"><float_array id="points" count="9">0 0 0 100 0 0 0 100 0</float_array>
+      <technique_common><accessor source="#points" count="3" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>
+    <vertices id="vertices"><input semantic="POSITION" source="#positions"/></vertices>
+    <triangles material="paint" count="1"><input semantic="VERTEX" source="#vertices" offset="0"/><p>0 1 2</p></triangles>
+  </mesh></geometry></library_geometries>
+  <library_visual_scenes><visual_scene id="main">
+    <node id="first"><translate>10 20 30</translate><scale>2 3 4</scale>
+      <instance_geometry url="#triangle"><bind_material><technique_common><instance_material symbol="paint" target="#a"/></technique_common></bind_material></instance_geometry></node>
+    <node id="second"><matrix>1 0 0 5 0 1 0 6 0 0 1 7 0 0 0 1</matrix>
+      <instance_geometry url="#triangle"><bind_material><technique_common><instance_material symbol="paint" target="#a"/></technique_common></bind_material></instance_geometry></node>
+    <node id="third"><instance_geometry url="#triangle"><bind_material><technique_common><instance_material symbol="paint" target="#b"/></technique_common></bind_material></instance_geometry></node>
+  </visual_scene></library_visual_scenes><scene><instance_visual_scene url="#main"/></scene>
+</COLLADA>

@@ -1,0 +1,11 @@
+{
+  "meshes": 1,
+  "sourceTriangles": 2,
+  "placedTriangles": 4,
+  "instances": 2,
+  "materials": 1,
+  "translationMetres": [
+    [0.004, 0, 0],
+    [0, 0.008, 0]
+  ]
+}

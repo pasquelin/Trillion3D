@@ -15,7 +15,7 @@ portal's [API reference](https://www.trillion3d.com/#/en/api).
 | `world.guides` | [Guides](SDK.md#guides-lines-points-and-helpers-over-the-image) |
 | `SceneRoot`, `Object3D`, `BufferAttribute`, `Geometry` | [Scene hierarchy foundation](SDK.md#scene-hierarchy-foundation) |
 | Batch and unit maths | [MATHS.md](MATHS.md) |
-| `world.materials()` and the other material calls | [Page materials](SDK.md#page-materials), [runnable example](../site/examples/page-materials.html) |
+| `world.materials()`, `materialVariants()`, `selectMaterialVariant()` and other material calls | [Page materials](SDK.md#page-materials), [runnable example](../site/examples/page-materials.html) |
 | Lights, fog, shadows, imported lamps | [Lights](SDK.md#lights) |
 | `world.budget` | [Memory budgets](SDK.md#memory-budgets) |
 | `capture.surface`, `capture.buffer` | [Captures and image checks](SDK.md#captures-and-image-checks) |

@@ -12,7 +12,7 @@ impl Plugin for Gltf {
     }
     /// The compiler normalizes compressed transport before ordinary accessor loading.
     fn version(&self) -> &'static str {
-        "gltf-2.0-compression-2"
+        "gltf-2.0-compression-variants-3"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["gltf", "glb"]

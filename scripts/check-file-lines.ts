@@ -1,3 +1,4 @@
+import { isVendoredDependency } from './repository-files.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { gitPaths as readGitPaths } from './git-paths.ts';
@@ -59,7 +60,7 @@ async function main(): Promise<void> {
   );
   const lines = new Map(
     [...paths]
-      .filter((file) => sourceFile.test(file) && existsSync(file))
+      .filter((file) => sourceFile.test(file) && !isVendoredDependency(file) && existsSync(file))
       .map((file): [string, number] => [file, lineCount(readFileSync(file, 'utf8'))]),
   );
   const selected = new Set([...changed].filter((file) => sourceFile.test(file)));

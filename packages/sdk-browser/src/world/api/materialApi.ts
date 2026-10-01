@@ -1,3 +1,5 @@
+import { materialVariantApi } from './materialVariants.ts';
+import { variantSurfaces } from '../../host/prepared/materialVariants.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import { runtimeMaterials } from './runtimeMaterials.ts';
@@ -67,7 +69,10 @@ export function createExplorerMaterialApi(inputs: Inputs) {
     for (const mesh of meshes(source)) {
       const name = primitiveName(associations.get(mesh));
       if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(mesh));
-      for (const surface of [mesh.material as GraphSurface | GraphSurface[]].flat()) {
+      for (const surface of [
+        ...[mesh.material as GraphSurface | GraphSurface[]].flat(),
+        ...variantSurfaces(mesh),
+      ]) {
         const rank = tableRankOf(surface);
         if (rank === undefined) continue;
         worn.set(rank, (worn.get(rank) ?? new Set()).add(surface));
@@ -93,6 +98,11 @@ export function createExplorerMaterialApi(inputs: Inputs) {
     return { rank, worn };
   };
   return {
+    ...materialVariantApi({
+      ...inputs,
+      beforeAssign: scene,
+      assigned: (mesh) => wearing.delete(mesh as HostMesh),
+    }),
     /** The scene's materials as they are now, in table order; each a detached copy. */
     materials(): SceneMaterial[] {
       check();

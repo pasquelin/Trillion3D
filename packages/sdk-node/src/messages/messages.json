@@ -1041,8 +1041,8 @@
       "code": "image-animation-unsupported",
       "level": "warn",
       "group": "Images",
-      "message": "An animated WebP or GIF texture was refused, so it falls back to white.",
-      "cause": "An `ANIM`/`ANMF` chunk (WebP) or a second image descriptor (GIF): an animation is not a texture, refused rather than flattened to a chosen frame",
+      "message": "An animated WebP, GIF or AVIF texture was refused.",
+      "cause": "The source declares an image sequence rather than a single texture; it is refused rather than flattened to a chosen frame.",
       "action": "Export the one frame you want as a still image."
     },
     {
@@ -1068,8 +1068,8 @@
       "code": "image-transfer-unsupported",
       "level": "warn",
       "group": "Images",
-      "message": "A PNG gamma other than sRGB or linear was ignored; the texture is read as sRGB.",
-      "cause": "A PNG `gAMA` neither 45455 (sRGB) nor 100000 (linear), with no `iCCP` or `sRGB` chunk overriding it; treated as sRGB, the convention for a silent file",
+      "message": "A texture declares an unsupported transfer curve.",
+      "cause": "An unsupported PNG gamma is reported and read as sRGB; an AVIF transfer other than sRGB is refused rather than reinterpreted.",
       "action": "Convert the texture to sRGB in an image editor."
     },
     {
@@ -1077,9 +1077,9 @@
       "code": "image-profile-unsupported",
       "level": "warn",
       "group": "Images",
-      "message": "A TIFF profile or codec was declined, so the texture falls back to white.",
-      "cause": "TIFF read, its profile or codec declined",
-      "action": "Save the texture as PNG, or as an uncompressed 8-bit TIFF."
+      "message": "A texture profile or codec was declined.",
+      "cause": "The TIFF profile or codec is unsupported, or an AVIF carries an ICC profile that the decoder cannot convert.",
+      "action": "Convert the texture to sRGB in an image editor and export as PNG, or use a supported source profile."
     },
     {
       "id": "T3D-W050",
@@ -1087,7 +1087,7 @@
       "level": "warn",
       "group": "Images",
       "message": "A texture with more than 8 bits per channel was refused, so it falls back to white.",
-      "cause": "A bit depth the `Rgba8` contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than narrowed to 8 bits",
+      "cause": "The source depth exceeds the eight-bit surface contract, including PNG, TIFF, DDS and AVIF; it is refused rather than silently narrowed.",
       "action": "Save the texture at 8 bits per channel."
     },
     {
@@ -2889,6 +2889,87 @@
       "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
       "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
       "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
+    },
+    {
+      "id": "T3D-W218",
+      "code": "autonomous-scene-lines",
+      "level": "warn",
+      "group": "Global",
+      "message": "The standalone triangle scene was not written because the source contains lines.",
+      "cause": "The autonomous scene reconstructs triangle pages and cannot represent line primitives; the cache retains its source scene instead.",
+      "action": "Load the compiled cache through the engine, which carries the imported lines."
+    },
+    {
+      "id": "T3D-I016",
+      "code": "light-disabled",
+      "level": "info",
+      "group": "Lights and OBJ/MTL materials",
+      "message": "A disabled or hidden source light was left out.",
+      "cause": "The source light is disabled or hidden in its authored scene.",
+      "action": "Enable the light in the authoring tool if it should illuminate the scene, then export again."
+    },
+    {
+      "id": "T3D-W219",
+      "code": "image-colour-association-unsupported",
+      "level": "warn",
+      "group": "Images",
+      "message": "The AVIF primary image has no supported colour-property association.",
+      "cause": "The primary image does not unambiguously reference its supported sRGB colour description.",
+      "action": "Export the image again as a still sRGB AVIF with colour metadata, or use PNG."
+    },
+    {
+      "id": "T3D-W220",
+      "code": "image-transform-unsupported",
+      "level": "warn",
+      "group": "Images",
+      "message": "The AVIF declares a crop, rotation or mirror that this decoder cannot apply.",
+      "cause": "A container transform would require pixel reordering or cropping that the source decoder does not implement.",
+      "action": "Apply the transform to the pixels in an image editor, then export without a container transform."
+    },
+    {
+      "id": "T3D-W221",
+      "code": "image-primaries-unsupported",
+      "level": "warn",
+      "group": "Images",
+      "message": "The AVIF colour primaries are not supported by the decoder.",
+      "cause": "The source decoder accepts BT.709/sRGB primaries and does not convert other or unspecified primaries.",
+      "action": "Convert the image to sRGB in an image editor before exporting it again."
+    },
+    {
+      "id": "T3D-W222",
+      "code": "image-colour-description-unsupported",
+      "level": "warn",
+      "group": "Images",
+      "message": "The AVIF colour description is not supported by the decoder.",
+      "cause": "The AVIF colour property uses an unrecognised description type.",
+      "action": "Export the image as a still sRGB AVIF with standard colour metadata, or use PNG."
+    },
+    {
+      "id": "T3D-E090",
+      "code": "IMPORT_INVALID",
+      "level": "error",
+      "group": "Global",
+      "message": "The source file contains invalid format data.",
+      "cause": "A source reader rejected malformed records, invalid references or out-of-range values; the error details name the format and offending data.",
+      "action": "Validate or export the source again, using the error details to locate the invalid record."
+    },
+    {
+      "id": "T3D-E091",
+      "code": "IMPORT_UNSUPPORTED",
+      "level": "error",
+      "group": "Global",
+      "message": "A source feature is not supported by this importer.",
+      "cause": "The reader cannot preserve the named geometry, material or scene construct and refuses it explicitly.",
+      "action": "Use the supported subset documented for this format, or export through another supported format that preserves the required scene features."
+    },
+    {
+      "id": "T3D-E092",
+      "code": "IMPORT_RESOURCE_LIMIT",
+      "level": "error",
+      "group": "Global",
+      "message": "The source exceeded an import resource limit.",
+      "cause": "The decoder reached a configured expansion, allocation, entity, recursion or work limit before completing the import.",
+      "action": "Reduce source complexity, split the scene, or raise its configured RAM budget when the named limit is budget-dependent."
     }
   ]
 }

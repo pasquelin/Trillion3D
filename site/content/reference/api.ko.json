@@ -1795,7 +1795,7 @@
       "bounds": "모델이 차지하는 박스, 그 자신의 프레임에서.",
       "lights": "모델 아래의 조명들 — 원본 파일이 노드로 담고 있던 것: 페이지는 그것들을 자신의 것처럼 편집·이동·제거할 수 있으며, 그것들은 모델과 함께 움직인다.",
       "record": "세계가 이 모델에 대해 보관하는 모든 것: 그 주소, 매니페스트, 그래프.",
-      "getObjectByName": "이 이름을 가진 아래의 첫 노드: 모델, 원본 파일의 노드, 그다음 다른 자식 — 파일이 담은 조명, 페이지가 놓은 노드.",
+      "getObjectByName": "이 이름을 가진 첫 번째 노드입니다. 모델, 가져온 조명, 소스 노드, 다른 자식 순서로 찾습니다.",
       "metadata": "모델의 컴파일된 매니페스트 — 그 프리미티브들, `sourceTriangles` — 그리고 `clusters`(그 페이지가 보관하는 클러스터, DAG의 모든 레벨을 센 것).",
       "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다.",
       "animations": "모델 노드에 연결된 파일의 클립: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -4223,6 +4223,12 @@
       "error": "마지막 세션을 열 수 없었던 이유를 이름 있는 엔진 오류로 나타냅니다. 그 `code`는 `EngineError`에 문서화된 코드 중 하나(WebGPU가 장치를 잃었을 때는 `WEBGPU_LOST`)이거나, 고유 코드가 없는 이유에는 `SESSION_OPEN_FAILED`입니다. 문서화된 코드의 `EngineError`는 던져진 오류 그 자체이고, 그 밖의 오류는 변환되며 이때 던져진 오류는 `details.cause`에 있습니다. 각 열기가 시작될 때부터, 그리고 아무것도 시도하지 않을 때 `null`입니다.",
       "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
     }
+  },
+  "world.materialVariants": {
+    "summary": "모델별 식별자와 원래 이름을 포함하는 가져온 glTF 변형입니다."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "목록에서 가져온 변형을 선택합니다. null은 모든 모델의 기본 표면을 복원합니다."
   },
   "world.materials": {
     "summary": "현재 가져온 재질과 페이지에서 만든 재질입니다."

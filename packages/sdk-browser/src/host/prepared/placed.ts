@@ -1,3 +1,4 @@
+import { copyPreparedVariants } from './materialVariants.ts';
 /**
  * The host meshes a partitioned scene draws its cells' nodes with (#404): for each mesh the cells
  * place, one copy of each of its primitive meshes, hung on the scene root and placed by rows — its
@@ -26,6 +27,7 @@ export function placedMeshes(
   for (const rank of partition.meshes) {
     const nodes = parts(rank).map((part) => {
       const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box });
+      copyPreparedVariants(part, mesh);
       // A cell places only shown nodes; the part may be a hidden core node's own mesh (#519).
       mesh.visible = true;
       scene.add(mesh);

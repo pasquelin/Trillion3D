@@ -81,6 +81,9 @@ pub(crate) fn attach_lights(gltf: &mut Value, lights: &[Value]) {
     if lights.is_empty() {
         return;
     }
-    gltf["extensions"] = json!({"KHR_lights_punctual": {"lights": lights}});
-    gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
+    if !gltf["extensions"].is_object() {
+        gltf["extensions"] = json!({});
+    }
+    gltf["extensions"]["KHR_lights_punctual"] = json!({"lights": lights});
+    super::write::declare_extensions(gltf);
 }

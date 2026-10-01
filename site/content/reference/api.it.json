@@ -3003,7 +3003,7 @@
       "bounds": "La scatola che riempie il modello, nel proprio sistema.",
       "lights": "Le luci sotto il modello — quelle portate dal file sorgente, come nodi: una pagina le modifica, sposta o rimuove come le proprie, e si muovono con il modello.",
       "record": "Tutto ciò che il mondo conserva su questo modello: i suoi indirizzi, il suo manifesto e il suo grafo.",
-      "getObjectByName": "Il primo nodo sotto con questo nome: il modello, un nodo del suo file sorgente, poi qualsiasi altro figlio — una luce portata dal file, un nodo posato da una pagina.",
+      "getObjectByName": "Il primo nodo con questo nome: il modello, una luce importata, un nodo sorgente, poi un altro figlio.",
       "metadata": "Il manifesto compilato del modello — le sue primitive, `sourceTriangles` — e `clusters`, i cluster contenuti nelle sue pagine, ogni livello dei suoi DAG contato.",
       "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una.",
       "animations": "Clip del file associati ai nodi del modello: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -6839,6 +6839,12 @@
       "error": "Perché l’ultima sessione non si è potuta aprire, come errore nominato del motore: il suo `code` è uno di quelli documentati su `EngineError` (`WEBGPU_LOST` quando WebGPU ha perso il dispositivo), oppure `SESSION_OPEN_FAILED` per un motivo senza codice proprio. Un `EngineError` con codice documentato è quello lanciato; ogni altro errore viene convertito, e l’errore lanciato è allora in `details.cause`. `null` dall’inizio di ogni apertura, e quando non si tenta nulla.",
       "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
     }
+  },
+  "world.materialVariants": {
+    "summary": "Varianti glTF importate con identificatori specifici del modello e i nomi originali."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "Seleziona una variante importata presente nella lista; null ripristina le superfici predefinite di tutti i modelli."
   },
   "world.materials": {
     "summary": "Materiali importati attuali, seguiti da quelli creati dalla pagina."

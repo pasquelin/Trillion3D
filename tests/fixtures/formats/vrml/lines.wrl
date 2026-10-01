@@ -1,0 +1,8 @@
+#VRML V2.0 utf8
+Shape { geometry IndexedLineSet {
+ coord Coordinate { point [0 0 0 1 0 0 1 1 0 0 1 0] }
+ coordIndex [0 1 2 -1 2 3 -1]
+ color Color { color [1 0 0 0 1 0] }
+ colorPerVertex FALSE
+ colorIndex [1 0]
+} }

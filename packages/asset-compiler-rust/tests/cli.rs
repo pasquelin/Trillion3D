@@ -153,13 +153,13 @@ fn version_flag_describes_the_build() {
     let scene = v["plugins"]["scene"].as_array().expect("scene plugins");
     assert_eq!(
         plugin_names(scene).join(" "),
-        "gltf fbx obj unity blend zip unitypackage alembic usd usdz ma"
+        "gltf fbx obj unity blend zip unitypackage alembic usd usdz ma ply stl amf vox collada 3mf 3ds ldraw gcode kmz vrml ifc rhino"
     );
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
     assert!(fbx["version"].as_str().unwrap().contains("ufbx"));
     let images = v["plugins"]["image"].as_array().expect("image plugins");
     assert_eq!(
         plugin_names(images).join(" "),
-        "png jpeg tga tiff dds webp exr hdr ktx2 psd bmp gif"
+        "png jpeg tga tiff dds webp exr hdr ktx2 psd bmp gif avif"
     );
 }

@@ -13,22 +13,36 @@ use std::{
 };
 
 mod alembic;
+mod amf;
 mod archive;
 mod blend;
 mod cancel;
+mod collada;
 mod fbx;
+mod gcode;
 mod gltf;
+mod ifc;
+mod kmz;
+mod ldraw;
 mod ma;
+mod mesh_source;
 mod ngon;
 mod normals;
 mod obj;
 mod output;
+mod ply;
+mod rhino;
 mod route;
+mod stl;
+mod threeds;
+mod threemf;
 mod ufbx_driver;
 mod unity;
 mod unitypackage;
 mod usd;
 mod usdz;
+mod vox;
+mod vrml;
 mod zip;
 
 pub(crate) use output::{scene_output_fields, SceneOutput};
@@ -37,20 +51,8 @@ pub use route::{prepare_source, route, Routed, RoutedSource};
 /// Version of the scene driver contract. Changing it requires rereading every driver.
 pub const VERSION: &str = "scene-plugin-2";
 
-/// The registry: one driver per format. Adding a format means a module and a line here.
-pub static PLUGINS: &[&dyn ScenePlugin] = &[
-    &gltf::GLTF,
-    &fbx::FBX,
-    &obj::OBJ,
-    &unity::UNITY,
-    &blend::BLEND,
-    &zip::ZIP,
-    &unitypackage::UNITYPACKAGE,
-    &alembic::ALEMBIC,
-    &usd::USD,
-    &usdz::USDZ,
-    &ma::MA,
-];
+mod registry;
+pub use registry::PLUGINS;
 
 /// Everything a driver receives to prepare a scene.
 pub struct SceneRequest<'a> {

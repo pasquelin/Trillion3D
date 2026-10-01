@@ -1,3 +1,4 @@
+import { variantSurfaces } from '../../host/prepared/materialVariants.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { HostGraphMaterial, HostGraphTexture } from '../../host/scene/graphResources.ts';
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts';
@@ -11,7 +12,10 @@ export function disposeSource(source: Object3D) {
     textures = new Set<HostGraphTexture>();
   for (const mesh of objects(source)) {
     geometries.add(mesh.geometry);
-    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+    for (const material of [
+      ...(Array.isArray(mesh.material) ? mesh.material : [mesh.material]),
+      ...variantSurfaces(mesh),
+    ]) {
       materials.add(material);
       for (const texture of materialTextures(material)) textures.add(texture);
     }

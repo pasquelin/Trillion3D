@@ -52,6 +52,8 @@ export interface TableAccessor {
 /** One drawn primitive of a mesh: its attributes by glTF semantic, its index list and the rank of
  *  the surface it wears in the material table. */
 export interface TablePrimitive {
+  /** glTF line mode; absent means triangles. */
+  mode?: 1 | 2 | 3;
   /** Accessor rank of each attribute, by glTF semantic (`POSITION`, `TEXCOORD_0`, …). */
   attributes: Readonly<Record<string, number>>;
   /** Its morph targets, each a set of accessor ranks by glTF semantic; `null` for none. */
@@ -60,6 +62,8 @@ export interface TablePrimitive {
   indices: number | null;
   /** The surface it wears. */
   material: number;
+  /** Optional KHR_materials_variants bindings; ranks name the shared material table. */
+  variants?: readonly { variant: number; material: number }[] | null;
 }
 
 /** A mesh: a name and the primitives it draws. */

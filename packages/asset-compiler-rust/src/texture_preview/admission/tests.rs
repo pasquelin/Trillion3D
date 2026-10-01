@@ -135,6 +135,7 @@ fn every_registered_image_header_agrees_with_its_actual_decoder() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats");
     let fixtures = [
         "png/rgb8.png",
+        "avif/rgba.avif",
         "tga/vraies-couleurs-32-rle-bas.tga",
         "tiff/rgb8-brut-ii.tiff",
         "webp/sans-perte.webp",

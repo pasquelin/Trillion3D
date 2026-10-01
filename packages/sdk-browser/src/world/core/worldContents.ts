@@ -1,3 +1,6 @@
+import { syncLineMaterials, hasImportedLineMaterial } from './importedLineMaterials.ts';
+import { hasConditionalLine, updateConditionalLines } from './conditionalLines.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts';
@@ -26,6 +29,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     batches = createWorldBatches(poses.touch);
   const members = createWorldMembers(scene);
   const resolved = new Map<Mesh, Resolved>();
+  const conditional = new Set<Mesh>();
+  const importedLines = new Set<Mesh>();
   const stale = new Set<Mesh>(),
     unseated = new Set<Mesh>();
   let openedModels = new Set<LoadedModel>();
@@ -34,6 +39,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const forget = (mesh: Mesh) => {
     seatEpoch++;
     resolved.delete(mesh);
+    conditional.delete(mesh);
+    importedLines.delete(mesh);
     unseated.delete(mesh);
     cuts.leave(mesh);
     batches.unseat(mesh);
@@ -54,6 +61,9 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     reading.forEach((mesh, i) => {
       const cut = read[i];
       if (!members.meshes.has(mesh)) return forget(mesh);
+      if (cut && hasImportedLineMaterial(mesh)) importedLines.add(mesh);
+      if (cut && hasConditionalLine(mesh.geometry)) conditional.add(mesh);
+      else conditional.delete(mesh);
       resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) });
       unseated.add(mesh);
     });
@@ -109,6 +119,10 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   };
   return {
     cuts,
+    conditionalLines(camera: Camera) {
+      syncLineMaterials(importedLines);
+      updateConditionalLines(conditional, camera);
+    },
     /** The row each seated mesh holds. */
     seats: batches.seats,
     poses,

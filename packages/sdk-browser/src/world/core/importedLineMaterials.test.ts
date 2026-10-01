@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { GraphSurface } from '../../host/graph/surface.ts';
+import { carriedLine } from './modelLines.ts';
+import { syncLineMaterials } from './importedLineMaterials.ts';
+
+test('source material scalar edits and variant assignments reach carried lines without overwriting page edits', () => {
+  const surface = new GraphSurface('basic');
+  const source = new Mesh(new Geometry(), surface, 'lineSegments');
+  const carried = carriedLine(source) as Mesh;
+  const first = Array.isArray(carried.material) ? carried.material[0] : carried.material;
+  first.opacity = 0.4;
+  syncLineMaterials([carried]);
+  assert.equal(first.opacity, 0.4);
+  surface.opacity = 0.25;
+  surface.transparent = true;
+  surface.needsUpdate = true;
+  syncLineMaterials([carried]);
+  assert.equal(first.opacity, 0.25);
+  assert.equal(first.transparent, true);
+  const alternate = new GraphSurface('basic', { opacity: 0.8 });
+  source.material = alternate;
+  syncLineMaterials([carried]);
+  assert.notEqual(carried.material, first);
+  const next = Array.isArray(carried.material) ? carried.material[0] : carried.material;
+  assert.equal(next.opacity, 0.8);
+  source.material = surface;
+  syncLineMaterials([carried]);
+  assert.equal(carried.material, first);
+});

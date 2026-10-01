@@ -1,0 +1,2 @@
+CC0-1.0. The four-pixel RGBA source and this AVIF fixture were authored for Trillion3D.
+The author dedicates them to the public domain under https://creativecommons.org/publicdomain/zero/1.0/.

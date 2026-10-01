@@ -131,11 +131,8 @@ pub(super) fn stage_texture_previews(
         match textures
             .get(entry.texture)
             .ok_or("texture-out-of-bounds")
-            .and_then(|t| {
-                t.get("source")
-                    .and_then(Value::as_u64)
-                    .ok_or("texture-without-image")
-            }) {
+            .and_then(|t| crate::compiler_tables::texture_image(t).ok_or("texture-without-image"))
+        {
             Ok(image) => by_image
                 .entry(image as usize)
                 .or_default()

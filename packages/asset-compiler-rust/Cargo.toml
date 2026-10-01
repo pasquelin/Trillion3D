@@ -2,6 +2,7 @@
 name = "trillion3d-compiler"
 version = "0.8.0"
 edition = "2021"
+rust-version = "1.98"
 license = "PolyForm-Noncommercial-1.0.0"
 [lib]
 name = "trillion3d_compiler"
@@ -19,7 +20,8 @@ required-features = ["oracle"]
 [features]
 oracle = []
 [dependencies]
-serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_legacy", path = "vendor/serde-json-legacy" }
 sha2 = "0.10"
 rayon = "1.10"
 memmap2 = "0.9"
@@ -73,6 +75,19 @@ draco-core = { version = "=2.1.0", default-features = false, features = ["decode
 # heaps, so the Rayon workers allocating pages and clusters at once do not queue on the system
 # allocator's locks. It places memory, never computes: the cooked bytes are the same.
 mimalloc = { version = "0.1", default-features = false }
+# Read-only XML for source importers (MIT OR Apache-2.0), with DTD processing disabled.
+roxmltree = "=0.20.0"
+# AVIF demuxing (MPL-2.0) and AV1 decoding (BSD-3-Clause), no encoder or command-line binary.
+# rav1d, the transitive BSD-2-Clause Rust decoder, requires NASM >=2.14 on x86.
+avif-decode = { version = "=3.0.0", default-features = false }
+avif-parse = "=2.1.0"
+
+# Read-only Rhino mesh decoding and bounded IR policy (Apache-2.0).
+cadmpeg-codec-rhino = "=0.5.5"
+cadmpeg-ir = "=0.5.5"
+cadmpeg-core = "=0.5.5"
+# Bounded STEP entity decoding for IFC source files (MPL-2.0).
+ifc-lite-core = "=20.2.0"
 
 [build-dependencies]
 sha2 = "0.10"
@@ -103,3 +118,6 @@ inherits = "release"
 lto = "fat"
 panic = "abort"
 strip = "symbols"
+
+[patch.crates-io]
+cadmpeg-codec-rhino = { path = "vendor/cadmpeg-codec-rhino" }

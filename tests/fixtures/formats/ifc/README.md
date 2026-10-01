@@ -1,0 +1,7 @@
+# IFC4 tessellation and extrusion fixture
+
+CC0, authored for this repository against the buildingSMART IFC4 EXPRESS schema. `scene.ifc` is a complete STEP exchange file containing a millimetre project, one four-triangle tetrahedron instanced by two products, one rectangular straight extrusion (twelve generated triangles), parented local placement, two distinct equal-valued surface styles, and GlobalId/STEP identities. Expected output: three mesh instances, twenty triangles across instances, two mesh definitions and two style materials.
+
+Syntax decoding uses unmodified `ifc-lite-core` 20.2.0 (MPL-2.0). Geometry conversion is native and explicit: `IfcTriangulatedFaceSet` without PnIndex remapping, `IfcExtrudedAreaSolid` with rectangle or closed planar polyline profiles, `IfcLocalPlacement`/2D/3D axes, SI metre prefixes, geometric representation contexts and surface shading colours/transparency. Output triangles are neither welded nor deduplicated. Representation items may share one emitted mesh while product instances retain separate nodes and identities.
+
+Unsupported geometry, openings/void relationships, map conversions, layered/rendering/texture semantics and material associations are refused by name. This is a deliberately bounded IFC4 subset, not a general IFC/BIM or CSG implementation. Input admission reserves 48 times the STEP byte size for decoded attributes; output vertices, polygon length, placement depth and repeated work have separate bounds. No global decoder allocation/RSS guarantee is claimed.
