@@ -34,6 +34,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     gpu.reflection?.active === plan.active &&
     !!gpu.reflection?.history === plan.rough &&
     !!pyramid === plan.pyramid &&
+    !!gpu.reflection?.water === plan.water &&
     !!pyramid?.radiance === plan.cone &&
     (!vis.visEnabled || !!vis.visTexture)
   );
@@ -146,6 +147,7 @@ export function makeTargets(
     plan.active,
     plan.rough,
     plan.cone,
+    plan.water,
   );
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // Temporal history follows the display size.

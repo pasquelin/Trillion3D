@@ -1,6 +1,7 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
 import { screenTraceShader } from './traceShader.ts';
 import { type ScreenRadiance, screenRadianceShader } from './screenRadianceShader.ts';
+import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts';
 
 /** The WebGPU resolve: its fallback is the program's own reflection model, the probes with bounce
  *  and the environment without. */
@@ -10,7 +11,7 @@ const SCREEN_RADIANCE: ScreenRadiance = {
   fallback: (rough: string) => `reflectedRadiance(P,N,R,${rough})`,
 };
 
-const screenReflectionWgsl = (filtered?: string) => `
+const screenReflectionWgsl = (filtered?: string, bounded = false) => `
 // \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
 // rough trace's seed.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
@@ -24,10 +25,15 @@ fn reflectionClearDepth()->f32{return 0.0;}
 // The reprojected source (source.ts): alpha 0 where the last image did not see the point.
 fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
 ${screenTraceShader('wgsl')}
-${REFLECTION_CONE_WGSL}
-${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, filtered })}`;
+${REFLECTION_CONE_WGSL}${bounded ? HIZ_TRACE_WGSL : ''}
+${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, filtered, ...(bounded && { mirror: 'boundedReflectionRay' }) })}`;
 
 export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl();
+
+/** The water composite's (`../webgpu/water/compositeWgsl.ts`): its mirror ray bounded
+ *  (`boundedReflectionRay`), the fluids' own quality tier (AGENTS.md rule 1, #1279), on the depth
+ *  bounds `reflectionPlan` makes for it. */
+export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl(undefined, true);
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
  *  no weight, and leaves its whole lobe to the environment reflection, never black (#1341). */

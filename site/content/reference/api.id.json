@@ -1313,6 +1313,7 @@
     "members": {
       "name": "Nama tahap itu.",
       "gpuMs": "Waktu GPU tahap itu.",
+      "ownMs": "Waktunya dikurangi bagian yang sudah dicakup pass yang mulai lebih awal (WebGPU).",
       "reason": "Kenapa tidak terukur."
     }
   },
