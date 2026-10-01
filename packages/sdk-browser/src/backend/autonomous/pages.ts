@@ -27,7 +27,7 @@ import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import { createWebglDeformation } from '../../deformation/webglFrame.ts';
-import { createWebglImpostors } from '../../webgl/impostor/frame.ts';
+import { webglImpostorTier } from '../../webgl/impostor/code.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -56,7 +56,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
-    impostors = createWebglImpostors(context, roots, gate, () => hostDraw.textureRoom()),
+    impostors = webglImpostorTier(context, roots, gate, () => hostDraw.textureRoom()),
     hosts = { ...context, deformation: deformation.source, cards: impostors?.cards },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
