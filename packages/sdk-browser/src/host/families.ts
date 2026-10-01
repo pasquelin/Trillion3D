@@ -34,6 +34,8 @@ export const families = {
   diagnostics: family('diagnostics', () => import('../diagnostic/viewCode.ts')),
   /** The measurement's build provenance table and comparison compositor. */
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
+  /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
+  worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
 };
 export type FamilyName = keyof typeof families;
 
