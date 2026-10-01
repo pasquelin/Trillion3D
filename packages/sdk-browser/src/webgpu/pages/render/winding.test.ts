@@ -12,7 +12,7 @@ import type { ClusterRoot } from '../../../page/selection/types.ts';
 /** A page of root rank 0, and the root that places it by `matrix`. */
 function rec(matrix: G.Matrix4) {
   const roots: ClusterRoot<unknown>[] = [{ world: matrix, pages: [] }];
-  return { matrix, roots, page: { placementIndex: 0 } };
+  return { matrix, roots, page: {} };
 }
 const cw = ({ roots }: ReturnType<typeof rec>) => windingCw(roots, 0);
 
