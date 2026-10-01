@@ -8023,7 +8023,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima.",
+    "summary": "`world-roots.table`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima —, le sue pagine e celle lette nei loro record.",
     "members": {
       "version": "Versione del formato.",
       "budgetBytes": "Il massimo di byte che la cottura lascia pesare alla cima fissata.",
@@ -8031,8 +8031,8 @@
       "pinnedTopBytes": "I byte della cima fissata.",
       "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
       "bundles": "I pacchetti, nell’ordine del binario.",
-      "pages": "Ogni pagina: il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore.",
-      "cells": "Ogni cella del mondo: le primitive posizionate che contiene."
+      "pages": "Le pagine: quante, e di una il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore, letti nel suo record.",
+      "cells": "Le celle del mondo: quante, e le primitive posizionate che una contiene, lette nei loro record."
     }
   },
   "WorldRootsBundle": {
