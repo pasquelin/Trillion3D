@@ -10,7 +10,7 @@ import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { releaseStaticLayer } from '../../shadow/poolResize.ts';
+import { releaseStaticLayer, shadowPoolSized } from '../../shadow/poolResize.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
 
@@ -75,6 +75,8 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     device = rt.gpu.device;
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
+  // The budget's pool before its first report: the layer waits for the size the report gives.
+  if (!shadowPoolSized(lights)) return;
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;

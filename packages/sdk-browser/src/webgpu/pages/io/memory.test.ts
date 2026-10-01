@@ -32,15 +32,16 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
     // Under root coverage: raised to it, by name; roots never leave.
     const shrunk = await backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 1 });
     assert.equal(shrunk.geometryPool.clamp, 'root-cover');
-    assert.equal(shrunk.texturePool?.clamp, 'minimum');
-    assert.equal(shrunk.texturePool?.layers.color.lossless, 1);
+    // The quad has no map: no texture layer at any budget, nothing raised to a floor (#1345).
+    assert.equal(shrunk.texturePool?.clamp, null);
+    assert.equal(shrunk.texturePool?.layers.color.lossless, 0);
     assert.ok(shrunk.durationMs >= 0);
     backend.render(camera());
     const after = backend.metrics();
     assert.equal(after.geometryPoolSlots, shrunk.geometryPool.slots);
     assert.equal(after.geometryPoolClamp, 'root-cover');
     assert.equal(after.coverageReady, true);
-    assert.equal(after.texturePoolClamp, 'minimum');
+    assert.equal(after.texturePoolClamp, null);
   } finally {
     backend.dispose();
     fixture.geometry.dispose();
@@ -111,9 +112,10 @@ test('a texture budget set before prepare is kept and drawn by prepare, the repo
     assert.equal(backend.metrics().texturePoolClamp, null);
     await backend.prepare();
     backend.render(camera());
-    assert.equal(backend.metrics().texturePoolClamp, 'minimum', 'drawn at the one-byte budget');
+    // Drawn at the one-byte budget: no layer, the quad having no map (#1345).
     const after = await backend.setMemoryBudgets!({});
     assert.equal(after.texturePool?.budgetBytes, 1);
+    assert.equal(after.texturePool?.allocatedBytes, 0);
     await assert.rejects(
       backend.setMemoryBudgets!({ texturePoolBytes: 0 }),
       /INVALID_TEXTURE_POOL_BUDGET/,

@@ -15,7 +15,7 @@ import { feedbackPublished } from './encoder.ts';
  * pass per layer of the pool. In each pass, every region starts from its page cleared to far or
  * restored from the static layer — two instanced draws for the pass, whatever its regions
  * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters: the moving casters of its
- * restored sun pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
+ * restored pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
  *
  * **The casters' viewport is the physical page, the matrix the virtual page's own projection.**
  * The page fills the clip square, so the rasterizer clips every caster at its edge and no other
@@ -87,11 +87,13 @@ export function encodeShadowAtlas(
   if (regions.layered) draw(staticLayer!.passes, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
   // The restored sun pages' moving casters, by group (`movingGroups.ts`): after the lists they read.
-  const groups = lights.movingGroups?.encode(rt, encoder, count, tested) ?? 0;
-  draw(shadows.passes, false, tested, groups ? lights.movingGroups!.grouped : undefined);
+  const groups = lights.movingGroups?.encode(rt, encoder, count, tested) ?? 0,
+    grouped = groups ? lights.movingGroups!.grouped : undefined;
+  draw(shadows.passes, false, tested, grouped);
   const casters = rt.services.blendCasters.used > 0;
   const transmittance = casters ? frameTransmittance(rt, encoder) : shadows.transmittance;
-  if (transmittance) encodeTransmittance(rt, device, encoder, quads, transmittance, tested);
+  if (transmittance)
+    encodeTransmittance(rt, device, encoder, quads, transmittance, tested, grouped);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
 }

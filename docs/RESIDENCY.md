@@ -222,10 +222,10 @@ uploaded by the first draw that binds it.
 
 Shared URLs occupy one slot across instances. Two counters say different things:
 
-| Field | Meaning | Reported by |
-| --- | --- | --- |
-| `pagesDetached` | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure | the WebGL page paths |
-| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend |
+| Field            | Meaning                                                                                         | Reported by          |
+| ---------------- | ----------------------------------------------------------------------------------------------- | -------------------- |
+| `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
+| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
 `coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
 diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at most
@@ -244,7 +244,9 @@ Every material texture is cut into 128×128 tiles (plus a 4-texel border) living
 (sRGB colour, linear data); one page table per texture says which pool tile serves each tile of
 each mip level, and only the tiles the image reads are resident. The texture pool (512 MiB by
 default, split evenly, in layers of 30×30 tiles) is the session's texture memory whatever the
-scene. The material resolution counts, for one pixel in sixteen (every pixel during `flush()`), the
+scene, its layers allocated on first use: an atlas with no map holds none, its white fill (what a
+material without a map reads) read from an opaque-white stand-in, until its first map opens the
+lane's pool (#1345). The material resolution counts, for one pixel in sixteen (every pixel during `flush()`), the
 tile each map needs at the mip its derivatives select; transparents write their requests into their
 own target, reduced by a compute pass. The counters come back one frame late.
 

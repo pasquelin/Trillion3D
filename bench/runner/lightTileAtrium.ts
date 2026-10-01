@@ -9,7 +9,7 @@ import {
   rayDepth,
   type Vec3,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightTileColumnOracle.ts';
+import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
 import { slab, type Light } from './lightTileCity.ts';
 
 type Box = { lo: Vec3; hi: Vec3 };
@@ -18,6 +18,11 @@ const HALF_X = 15,
   HEIGHT = 14,
   ARCADE_Z = 4;
 const box = (lo: Vec3, hi: Vec3): Box => ({ lo, hi });
+/** The atrium's footprint, its 0.3 m floor and end walls included: the box its model spans. */
+export const ATRIUM_BOUNDS = {
+  min: { x: -HALF_X - 0.3, y: -0.3, z: -HALF_Z - 0.3 },
+  max: { x: HALF_X + 0.3, y: HEIGHT, z: HALF_Z + 0.3 },
+};
 
 /** The atrium's boxes: floor, walls, two storeys of arcades on each side, drapes, gallery roofs. */
 function atriumBoxes(): Box[] {
@@ -68,15 +73,28 @@ function hit(o: Vec3, d: Vec3, b: Box) {
   return entry <= far ? entry : Infinity;
 }
 
-/** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky. */
-export function atriumDepth(view: TileView, boxes = atriumBoxes()) {
+/** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky.
+ *  `shown`, when given, receives the index of the box each pixel shows, −1 on the sky; `layers`,
+ *  the boxes its ray enters — the fragments a raster with no depth order draws there. */
+export function atriumDepth(
+  view: TileView,
+  boxes = atriumBoxes(),
+  shown?: Int32Array,
+  layers?: Uint16Array,
+) {
   const depths = new Float32Array(view.width * view.height);
   for (let py = 0; py < view.height; py++)
     for (let px = 0; px < view.width; px++) {
       const { o, d } = pixelRay(view, px, py);
-      let s = Infinity;
-      for (const b of boxes) s = Math.min(s, hit(o, d, b));
+      let s = Infinity,
+        nearest = -1;
+      boxes.forEach((b, index) => {
+        const at = hit(o, d, b);
+        if (layers && at < Infinity) layers[py * view.width + px]++;
+        if (at < s) [s, nearest] = [at, index];
+      });
       depths[py * view.width + px] = s === Infinity ? 0 : rayDepth(s);
+      if (shown) shown[py * view.width + px] = nearest;
     }
   return depths;
 }

@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { blend, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { blend } from './upscaleOwed.fixture.ts';
 import { taaJitter, taaStillFrames, upscalePhases } from './jitter.ts';
 
 const near = (a: number[], b: number[], what: string) =>

@@ -3,7 +3,7 @@ import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts';
-import { createContractVariants, type ContractVariantOptions } from './contractVariants.ts';
+import { createContractVariants, type LitPrograms } from './contractVariants.ts';
 import { createDeferredPlaceholders } from './setup.ts';
 import {
   createDeferredProgram,
@@ -17,19 +17,9 @@ export { FULLSCREEN_VERTEX } from './shaders.ts';
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
-/** The lit programs: when `precompile`, the one a first frame asks for — `narrow`, `unshadowed` —
- *  compiles from the start beside the unlit one (#1362), without bounce always, with it too when
- *  `bounce`; `onFailure` hears any contract compile that fails, precompiled or asked later. */
-export type LitPrograms = ContractVariantOptions & {
-  precompile: boolean;
-  bounce: boolean;
-  narrow: boolean;
-  unshadowed: boolean;
-};
-
-/** The contract program these resources light with: with bounce, narrow, unshadowed. */
-const contractOf = (direct: DirectLightResources) =>
-  [!!direct.bounceGrid && !!direct.probes, !!direct.narrow, !!direct.unshadowed] as const;
+/** The contract program these resources light with: with bounce, narrow, unshadowed, rectless. */
+const contractOf = ({ bounceGrid, probes, narrow, unshadowed, rectless }: DirectLightResources) =>
+  [!!bounceGrid && !!probes, !!narrow, !!unshadowed, !!rectless] as const;
 
 /** Deferred and frozen-source lighting programs: the lit ones from the start when `lit` says so,
  *  else compiled lazily for the active lighting mode. */
@@ -44,12 +34,10 @@ export async function createDeferredLighting(
   const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
   const variants = createContractVariants(device, bindings, pages, onReady, lit);
-  // The program the first frame asks for, and its wide twin with shadow code. Prepare waits for the
-  // one without bounce, which lights any first frame; the bounce pair lands meanwhile.
-  const litReady = lit?.precompile
-    ? variants.precompile(false, lit.narrow, lit.unshadowed)
-    : Promise.resolve();
-  if (lit?.precompile && lit.bounce) void variants.precompile(true, lit.narrow, lit.unshadowed);
+  // The program the first frame asks for, and its wide twin. Prepare waits for the one without
+  // bounce, which lights any first frame; the bounce pair lands meanwhile.
+  const litReady = lit?.precompile ? variants.precompile(false, lit.key) : Promise.resolve();
+  if (lit?.precompile && lit.bounce) void variants.precompile(true, lit.key);
   try {
     const unlit = await createDeferredProgram(
       device,
