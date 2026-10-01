@@ -8,10 +8,11 @@ import { createShadowMirror, type ShadowPoolSnapshot } from './mirror.ts';
 import { DRAW_DYNAMIC, DRAW_FULL, STALE_DYNAMIC } from './pool.ts';
 import { sunPages, sunScene } from './lightShadow.fixture.ts';
 
-function adopted(gpuDrawn: boolean, layered = false) {
+function adopted(gpuDrawn: boolean, layered = false, lightWideAt?: number) {
   const { plan, slice } = sunScene(),
     { table, pool, records, sun } = plan,
-    mirror = createShadowMirror(table, pool, records, sun),
+    wide = new Float64Array(64).fill(-Infinity),
+    mirror = createShadowMirror(table, pool, records, sun, undefined, wide),
     [entry] = sunPages(plan, slice, sun.finest[slice] + 6, [[0, 0]]);
   const owner = new Int32Array(pool.pages).fill(-1);
   for (let page = 0; page < pool.pages; page++) owner[page] = pool.owner[page];
@@ -28,6 +29,10 @@ function adopted(gpuDrawn: boolean, layered = false) {
   };
   snapshot.gpuDrawn![page] = +gpuDrawn;
   mirror.set(true, 0);
+  if (lightWideAt !== undefined) {
+    mirror.drew(0);
+    wide[slice] = lightWideAt;
+  }
   // The GPU's draws wrote the static layer since a snapshot before this one (`freshPass.ts`).
   if (layered) {
     mirror.drew(0, true);
@@ -78,4 +83,11 @@ test('a page the GPU drew with its static layer is restored when a mover crosses
     DRAW_DYNAMIC,
     'its static casters not drawn again',
   );
+});
+
+test('a page the GPU drew before its light moved is drawn again by the host', () => {
+  // The light-wide scan reached the host's pages alone: the GPU's draw holds the old projection.
+  const { pool, page } = adopted(true, false, 1);
+  assert.ok(pool.dirty[page] > 0, 'stale');
+  assert.equal(pool.valid[page], 0);
 });

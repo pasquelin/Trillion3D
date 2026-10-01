@@ -1,5 +1,5 @@
 import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
-import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
+import { LIGHT_KIND, MAX_SHADOW_SLICES, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
 import { STALE_BY, type createShadowCounts } from './counts.ts';
 import { createPageRects } from './pageRects.ts';
@@ -75,6 +75,11 @@ export function createPageInvalidation(
     nowMs = 0,
     frame = 0,
     gpuDraws = false;
+  /** Per slice, the last frame a pool scan staled its pages while the GPU maps — it reaches the
+   *  host's mapped pages alone, never an entry the GPU drew and the host has not adopted —, or
+   *  its sun's depth range changed: a GPU draw before it is not adopted current (`mirror.ts`). */
+  const lightWideAt = new Float64Array(MAX_SHADOW_SLICES).fill(-Infinity),
+    rangeSeen = new Int32Array(MAX_SHADOW_SLICES).fill(-1);
   /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`, the
    *  GPU's own draw too (#1345). */
   const mark = (page: number, level: number, wrong: boolean, reason: number) => {
@@ -100,6 +105,7 @@ export function createPageInvalidation(
     range = -1,
     reason = reasonOf(level, wrong),
   ) => {
+    if (gpuDraws) lightWideAt[slice] = frame;
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
@@ -136,7 +142,7 @@ export function createPageInvalidation(
   /** The `covered` pages the rectangles hold: walked, or one pool scan when more than the pool. */
   const cover = (covered: number, level: number, wrong: boolean) =>
     covered > pool.pages ? scan(true, level, wrong) : walk(level, wrong);
-  return (
+  const invalidate = (
     light: SceneLight,
     lightSlice: number,
     whole: boolean,
@@ -151,6 +157,11 @@ export function createPageInvalidation(
     nowMs = now;
     frame = at;
     gpuDraws = gpuMaps();
+    if (sunLight) {
+      const current = sun.ranges.current[slice];
+      if (gpuDraws && current !== rangeSeen[slice]) lightWideAt[slice] = frame;
+      rangeSeen[slice] = current;
+    }
     if (whole) {
       scan(false, STALE_FULL, true, -1, STALE_BY.light);
       return;
@@ -197,4 +208,5 @@ export function createPageInvalidation(
     if (wrong) cover(project(wrongMin, wrongMax), STALE_FULL, true);
     if (level) cover(project(keptMin, keptMax), level, false);
   };
+  return Object.assign(invalidate, { lightWideAt });
 }

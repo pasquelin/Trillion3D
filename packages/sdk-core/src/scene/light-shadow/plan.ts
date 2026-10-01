@@ -36,7 +36,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     spent = { requestsMs: NaN, admissionMs: NaN },
     lightsState = { records, counts, sun, posed, invalidate };
   let requests = createShadowRequests(table, pool, records, sun),
-    gpu = createShadowMirror(table, pool, records, sun),
+    gpu = createShadowMirror(table, pool, records, sun, undefined, invalidate.lightWideAt),
     admission = createShadowAdmission(pool.pages),
     byPage = true,
     report: ShadowRequestReport | null = null,
@@ -184,7 +184,14 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
       pool.resize(side, poolLayers);
       thresholds.sized();
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
-      shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun, gpu);
+      shadowPlan.gpu = gpu = createShadowMirror(
+        table,
+        pool,
+        records,
+        sun,
+        gpu,
+        invalidate.lightWideAt,
+      );
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
     },
   };
