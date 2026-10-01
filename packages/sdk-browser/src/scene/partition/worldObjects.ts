@@ -52,7 +52,8 @@ export function writeCellOrigins(
       const rows = link.placements!;
       const origins = (rows.origins ??= new Int32Array(rows.capacity).fill(-1));
       let object = -1;
-      for (let k = at; k < end; k++) if (objects[k].primitive === link.primitives) object = base + k;
+      for (let k = at; k < end; k++)
+        if (objects[k].primitive === link.primitives) object = base + k;
       origins[row] = object;
     }
     at = end;
