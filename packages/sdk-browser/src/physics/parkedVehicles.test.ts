@@ -1,7 +1,10 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Vehicle } from '../../../sdk-core/src/physics/index.ts';
-import type { Rig } from './joints.fixture.ts';
+import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
+import { Material } from '../../../sdk-core/src/world/material/material.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { jointRig, type Rig } from './joints.fixture.ts';
 import { flatRig, placeVehicle, RELEASED } from './vehicles.fixture.ts';
 
 /** Steps `rig` one step at a time for `steps`: whether each step brought `vehicle` a state. */
@@ -50,4 +53,26 @@ test('a parked vehicle something falls on wakes and writes again', async (t) => 
   assert.ok(hit.some(Boolean), 'the impact wakes it: its state is written again');
   const after = rig.at(car.body)[1];
   assert.ok(Number.isFinite(after) && after < y + 0.5, 'still on its wheels');
+});
+
+test('a vehicle parked on a slope holds its brakes, stays where it stopped and goes quiet (#831)', async (t) => {
+  // A valley's floor is never flat: released, every kind used to creep down it for good, so its
+  // body and wheels moved every step and every shadow page they cover was drawn again.
+  const slope = (8 * Math.PI) / 180;
+  for (const kind of ['car', 'motorcycle', 'tracked'] as const) {
+    const rig = await jointRig();
+    const ground = new Mesh(box(200, 1, 200), new Material('meshStandard', { physics: 'stone' }));
+    ground.position.set(0, -0.5, 0);
+    ground.rotation.x = slope;
+    ground.physics = 'static';
+    rig.scene.add(ground);
+    const parked = placeVehicle(rig, kind, {}, [0, 0.3, 0]);
+    parked.body.rotation.x = slope;
+    const settle = writes(t, rig, parked.vehicle, 300);
+    const at = rig.at(parked.body);
+    assert.equal(settle.at(-1), false, `${kind}: at rest, nothing written`);
+    rig.run(600);
+    const crept = Math.hypot(...rig.at(parked.body).map((v, i) => v - at[i]));
+    assert.ok(crept < 1e-3, `${kind}: held where it stopped, crept ${crept} m`);
+  }
 });
