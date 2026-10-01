@@ -82,7 +82,8 @@ export interface BlendModePipelines extends RankedPipelines {
 /**
  * The three cull modes of one fragment stage of the blend module, on the blend bind group layout:
  * the forward blend, which writes no depth, and the water surface stage, which writes it so the
- * nearest surface of a pixel is the one composed. Same vertex stage, same rank picks the same side.
+ * nearest surface of a pixel is the one composed, and the shadow marks (`marks.ts`), which write
+ * neither, their own group 2 `group`. Same vertex stage, same rank picks the same side.
  */
 export async function blendStagePipelines(
   device: GPUDevice,
@@ -90,9 +91,10 @@ export async function blendStagePipelines(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
+  group?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
   const [none, front, back] = await Promise.all(
-    stageDescriptors(device, module, layout, fragment, depthWrite).map((stage) =>
+    stageDescriptors(device, module, layout, fragment, depthWrite, group).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
   );
