@@ -69,7 +69,6 @@
       "cascadeShares": "En inceden en kabaya, seviye başına bütçe payı. En ince seviye kamerayı sarar ve ışın tahsislerinin en büyük oranını alır.",
       "raysPerProbe": "Her güncellemede prob başına izlenen ışın. Sabit, yapılandırılabilir bütçe.",
       "raysPerFrame": "Kare başına maksimum prob ışını: compute dispatch boyutunu sınırlayan statik tavan.",
-      "lightsPerRay": "Yüzey önbelleği hücresi başına test edilen ışık.",
       "surfaceTexelsPerFrame": "Kare başına güncellenen yüzey önbelleği hücresi tavanı.",
       "budgetMs": "Kare başına GPU'da yansıma geçişinin hedef süresi, milisaniye cinsinden.",
       "budgetSmoothing": "Salınımları önlemek için örnek başına tutulan hata düzeltme payı.",

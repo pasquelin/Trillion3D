@@ -1,6 +1,6 @@
 import type { PhysicsStats } from '../../../packages/sdk-browser/src/index.ts';
 import { readout } from './readout.ts';
-import { ms } from './statsLines.ts';
+import { ms } from './statUnit.ts';
 
 /** The physics lines a page may show, by readout key: what each prints of `world.physics.stats`
  *  — the bodies held, those awake, the worker's step and the page's share of the frame. */
