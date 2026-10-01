@@ -1,4 +1,5 @@
-import { touched, triangleNormal } from './closest.ts';
+import { closestSegmentTriangle, insideTriangle, touched, triangleNormal } from './closest.ts';
+import { SLACK } from './characterSettings.ts';
 import { forEachTriangleInBox } from './triangleQuery.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
@@ -23,6 +24,9 @@ const SEAM_COS = Math.cos((5 * Math.PI) / 180);
 const low = new Float64Array(3),
   high = new Float64Array(3),
   mine = new Float64Array(3),
+  plane = new Float64Array(3),
+  over = new Float64Array(3),
+  pair = new Float64Array(6),
   theirs = new Float64Array(3);
 
 /** The corner of triangle `at` of `v` at the very point `v[p..p+3]`, or -1. */
@@ -76,4 +80,40 @@ export function onSeam(tree: TriangleTree, at: number) {
   if (along !== 0 && along !== 1) return 2;
   around[2] = seam(tree, at, (edge + (along === 0 ? 2 : 1)) % 3);
   return around[2] < 0 ? 0 : 3;
+}
+
+/** Whether `point`, on the plane of the surface `around`, lies on one of its `count` triangles. */
+export function onSurface(tree: TriangleTree, count: number, point: ArrayLike<number>) {
+  const v = tree.triangles;
+  for (let i = 0; i < count; i++) {
+    triangleNormal(plane, v, around[i]);
+    if (insideTriangle(point[0], point[1], point[2], v, around[i], plane)) return true;
+  }
+  return false;
+}
+
+/** Whether a triangle across the seam answers for the one first in `around`: the segment's
+ *  closest point `point` is over it, or `segment` comes nearer it than the seam's `squared`
+ *  distance, by more than `SLACK`. Neither, as above a ridge folded by less than a seam's angle,
+ *  every triangle's pair is the seam itself. */
+export function answeredAcross(
+  tree: TriangleTree,
+  count: number,
+  point: ArrayLike<number>,
+  segment: ArrayLike<number>,
+  squared: number,
+) {
+  const v = tree.triangles;
+  for (let i = 1; i < count; i++) {
+    const at = around[i],
+      area = triangleNormal(plane, v, at);
+    if (area === 0) continue;
+    let height = 0;
+    for (let k = 0; k < 3; k++) height += (point[k] - v[at + k]) * plane[k];
+    for (let k = 0; k < 3; k++) over[k] = point[k] - (height * plane[k]) / area;
+    if (insideTriangle(over[0], over[1], over[2], v, at, plane)) return true;
+    const nearer = Math.sqrt(closestSegmentTriangle(pair, segment, v, at));
+    if (nearer + SLACK < Math.sqrt(squared)) return true;
+  }
+  return false;
 }

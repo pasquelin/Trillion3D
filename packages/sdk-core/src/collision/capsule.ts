@@ -1,6 +1,6 @@
 import { closestSegmentTriangle, insideTriangle, triangleNormal } from './closest.ts';
 import { forEachTriangleInBox } from './triangleQuery.ts';
-import { around, onSeam } from './activeEdges.ts';
+import { answeredAcross, onSeam, onSurface } from './activeEdges.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
 /**
@@ -54,7 +54,6 @@ const segment = new Float64Array(6),
   min = new Float64Array(3),
   max = new Float64Array(3),
   face = new Float64Array(3),
-  other = new Float64Array(3),
   foot = new Float64Array(3);
 
 function placeSegment(capsule: Capsule) {
@@ -86,7 +85,7 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
     const depth =
       squared === 0
         ? pierced(tree, at, radius)
-        : (acrossSeam(tree, at, radius) ?? separate(Math.sqrt(squared), radius));
+        : (acrossSeam(tree, at, radius, squared) ?? separate(Math.sqrt(squared), radius));
     if (!(depth > 0)) return;
     faceOf(tree, at);
     touched = true;
@@ -106,13 +105,12 @@ function separate(distance: number, radius: number) {
 /**
  * The segment passes near a seam of a flat surface (`activeEdges.ts`), which is never an edge of
  * it. Over this triangle — its foot on the plane inside it — it leaves along the face's normal, on
- * its own side, by what is missing to the radius from the plane. Anywhere else beside the surface
- * this triangle is not touched: the triangle across the seam holds every point of the seam, so
- * its own pair, at most as far, answers for both. A segment through the surface is inside a solid,
- * and the seam is then read as the edge it is drawn as. `undefined` when the seam is not the
- * face's, 0 when this triangle is not touched.
+ * its own side, by what is missing to the radius from the plane. Over a triangle across the seam,
+ * this one is not touched: that one, holding every point of the seam, answers. A segment through
+ * the surface (inside a solid), or over neither, reads the seam as the edge it is drawn as.
+ * `undefined` when the seam is read as drawn, 0 when this triangle is not touched.
  */
-function acrossSeam(tree: TriangleTree, at: number, radius: number) {
+function acrossSeam(tree: TriangleTree, at: number, radius: number, squared: number) {
   const count = onSeam(tree, at);
   if (count === 0) return undefined;
   const v = tree.triangles,
@@ -128,25 +126,17 @@ function acrossSeam(tree: TriangleTree, at: number, radius: number) {
   if (start * end < 0) {
     const t = start / (start - end);
     for (let k = 0; k < 3; k++) foot[k] = segment[k] + t * (segment[3 + k] - segment[k]);
-    if (onSurface(v, count)) return undefined;
+    if (onSurface(tree, count, foot)) return undefined;
   }
   const side = height < 0 ? -1 : 1;
   for (let k = 0; k < 3; k++) {
     normal[k] = (side * face[k]) / length;
     foot[k] = closest[k] - (height * face[k]) / (length * length);
   }
-  if (!insideTriangle(foot[0], foot[1], foot[2], v, at, face)) return 0;
+  if (!insideTriangle(foot[0], foot[1], foot[2], v, at, face))
+    return answeredAcross(tree, count, closest, segment, squared) ? 0 : undefined;
   closest.set(foot, 3);
   return radius - (side * height) / length;
-}
-
-/** Whether `foot`, on the plane of the surface `around`, lies on one of its `count` triangles. */
-function onSurface(v: Float32Array, count: number) {
-  for (let i = 0; i < count; i++) {
-    triangleNormal(other, v, around[i]);
-    if (insideTriangle(foot[0], foot[1], foot[2], v, around[i], other)) return true;
-  }
-  return false;
 }
 
 /** The triangle's unit normal into `contact.surface`, turned to the capsule's side. */
