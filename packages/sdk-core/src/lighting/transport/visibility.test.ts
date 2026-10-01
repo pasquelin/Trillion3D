@@ -163,19 +163,11 @@ test('each row holds the share of its rays that first meet each patch, as an ind
       const surface = scene.surfaces[hit.surface];
       const column = Math.min(surface.columns - 1, Math.floor(hit.u * surface.columns)),
         row = Math.min(surface.rows - 1, Math.floor(hit.v * surface.rows));
-      const receiver = scene.patches.findIndex(
-        (patch) =>
-          patch.surface === hit.surface &&
-          patch.center.every(
-            (value, axis) =>
-              Math.abs(
-                value -
-                  (surface.origin[axis] +
-                    ((column + 0.5) * surface.u[axis]) / surface.columns +
-                    ((row + 0.5) * surface.v[axis]) / surface.rows),
-              ) < 1e-9,
-          ),
-      );
+      // The scene lists each surface's patches row by row (`sceneFromSurfaces`).
+      const receiver =
+        scene.patches.findIndex((patch) => patch.surface === hit.surface) +
+        row * surface.columns +
+        column;
       expected[Math.floor(ray / state.raysPerPatch) * state.size + receiver] +=
         1 / state.raysPerPatch;
     }
