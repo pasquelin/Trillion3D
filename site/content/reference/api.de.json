@@ -5500,7 +5500,7 @@
       "owners": "Besitzerdatensätze: Index des Quellknotens und als RGBA8 gepackte lineare Albedo.",
       "bindWorlds": "Ursprüngliche Weltmatrizen der Quellknoten, sechzehn Werte doppelter Genauigkeit pro Knoten.",
       "sourceParents": "Quellhierarchie, einschließlich der Partitionsknoten, die der Host derzeit nicht instanziiert hat.",
-      "sourceMeshes": "Das Dokument-Mesh, das jeder Quellknoten platziert, `-1` für keines: was ein Zellknoten einer Partition zeichnet."
+      "sourceMeshes": "Das kompilierte Mesh, das jeder Quellknoten platziert, `-1` für keines: was ein Zellknoten einer Partition zeichnet."
     }
   },
   "SceneProxyDescriptor": {

@@ -5508,7 +5508,7 @@
       "owners": "Enregistrements des propriétaires : indice du nœud source et albédo linéaire compacté en RGBA8.",
       "bindWorlds": "Matrices monde originales des nœuds sources, seize nombres en double précision par nœud.",
       "sourceParents": "Hiérarchie source, y compris les nœuds de partition que l’hôte n’a pas actuellement instanciés.",
-      "sourceMeshes": "Le maillage du document que place chaque nœud source, `-1` s’il n’en place aucun : ce que dessine un nœud de cellule d’une partition."
+      "sourceMeshes": "Le maillage compilé que place chaque nœud source, `-1` s’il n’en place aucun : ce que dessine un nœud de cellule d’une partition."
     }
   },
   "SceneProxyDescriptor": {
