@@ -10,6 +10,9 @@ type Variant = {
   failed?: boolean;
 };
 
+/** Which contract program a frame asks for, past its bounce. */
+export type ContractKey = { narrow: boolean; unshadowed: boolean; rectless: boolean };
+
 /**
  * The contract programs, each compiled the first time a frame asks for it: with or without bounce,
  * wide or narrow (#849), with or without shadow code (#1249), with or without rectangle code
@@ -31,6 +34,14 @@ export type ContractVariantOptions = {
   onFailure?: (error: unknown) => void;
   /** A reference session's rough reflection trace, unbounded (`reflectionTrace`, #33). */
   unboundedReflections?: boolean;
+};
+/** The lit programs: when `precompile`, the one a first frame asks for (`key`) compiles from the
+ *  start beside the unlit one (#1362), without bounce always, with it too when `bounce`;
+ *  `onFailure` hears any contract compile that fails, precompiled or asked later. */
+export type LitPrograms = ContractVariantOptions & {
+  precompile: boolean;
+  bounce: boolean;
+  key: ContractKey;
 };
 export function createContractVariants(
   device: GPUDevice,
@@ -120,13 +131,13 @@ export function createContractVariants(
       ask(bounce, narrow, unshadowed, rectless, onFailure);
       return lending(bounce, narrow, unshadowed, rectless);
     },
-    /** Starts the narrow program and its wide twin, both with shadow code, before any frame asks
-     *  for them, settled once both landed or failed: prepare compiles the lit program beside the
-     *  others, and a shadowed program lights any first frame. */
-    precompile(bounce: boolean) {
-      compile(bounce, true, false, false);
+    /** Starts the program a first frame asks for and its wide twin with shadow and rectangle code,
+     *  before any frame does, settled once both landed or failed: prepare compiles the lit program
+     *  beside the others, and no first frame starts a compile (#1362). */
+    precompile(bounce: boolean, { narrow, unshadowed, rectless }: ContractKey) {
+      compile(bounce, narrow, unshadowed, rectless);
       const started = [
-        variants[at(true, false, false)][+bounce].pending,
+        variants[at(narrow, unshadowed, rectless)][+bounce].pending,
         variants[0][+bounce].pending,
       ];
       return Promise.all(started).then(() => {});
