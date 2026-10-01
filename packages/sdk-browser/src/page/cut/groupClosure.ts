@@ -18,6 +18,12 @@ import { createSparseInts, grown } from './sparseInts.ts';
  * group holds its members and, for each of its outputs, the output's own group — or the output
  * itself when nothing replaces it. The difference it publishes is the one of the pages held, in
  * the same shape as the cut's (`IdDelta`), so every reader downstream is unchanged.
+ *
+ * Every placement of a primitive shares its records (#1235), and what the cache holds is a record,
+ * never an instance: so a group is held once per primitive, named at the packed ranks of the first
+ * placement that asked for it, however many placements the cut selects it on (#1232). The tables
+ * follow the records the cut closes over — bounded by the view's rows, as cluster's per-frame lists
+ * are by `a reference setting` —, never the world's instances.
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>;
 
@@ -54,6 +60,15 @@ export function createGroupClosure(
     visitor: ((id: number, rec: PageRec) => void) | undefined;
   const { recordOf } = createPageCatalogue(packedPages);
   const baseOf = (r: number) => placement.baseOfRoot[r] ?? 0;
+  /** The placement a shared page list is held at: the first that asked, while it still places it. */
+  const holder = new Map<readonly unknown[], number>();
+  const holderOf = (r: number) => {
+    const pages = roots[r].pages,
+      known = holder.get(pages);
+    if (known !== undefined && roots[known]?.pages === pages) return known;
+    holder.set(pages, r);
+    return r;
+  };
   const touchId = (id: number, rec: PageRec) => {
     if (visitor) return visitor(id, rec);
     if (!seen.get(id)) {
@@ -83,12 +98,16 @@ export function createGroupClosure(
       else touch(r, output);
     }
   };
-  /** A page enters through its own group, or alone when nothing replaces it. */
+  /** A page enters through its own group, or alone when nothing replaces it, at its primitive's
+   *  holder. */
   const enterAs = (id: number, rec: PageRec) => {
-    const r = id >= 0 && id < placement.rootOfPacked.length ? placement.rootOfPacked[id] : -1,
-      owner = r >= 0 ? (roots[r]?.structure?.owners[id - baseOf(r)] ?? -1) : -1;
+    const placed = id >= 0 && id < placement.rootOfPacked.length ? placement.rootOfPacked[id] : -1;
+    if (placed < 0 || !roots[placed]) return touchId(id, rec);
+    const r = holderOf(placed),
+      page = id - baseOf(placed),
+      owner = roots[r].structure?.owners[page] ?? -1;
     if (owner >= 0) reach(r, owner);
-    else touchId(id, rec);
+    else touchId(baseOf(r) + page, rec);
   };
   const enter = (id: number) => {
     const rec = recordOf(id);

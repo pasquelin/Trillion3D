@@ -1,5 +1,6 @@
-//! The `clusters` and `groups` keys of `world-roots.json` (#1238): the per-cluster metadata the
-//! runtime's cut projects, for every world cluster — object roots included — and the group list.
+//! The `clusters` and `groups` of the world roots (#1238), written as `world-roots.dag`: the
+//! per-cluster metadata the runtime's cut projects, for every world cluster — object roots
+//! included — and the group list.
 use super::merge::WorldDag;
 use super::*;
 use crate::dag::bounds::cluster_bounds;

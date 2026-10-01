@@ -51,10 +51,14 @@ export function createBlendCasterRows(
   const { recordOf } = createPageCatalogue(packedPages);
   let first = -1,
     free = new Int32Array(0),
-    freeCount = 0;
+    freeCount = 0,
+    /** Casters that found no row, each once: what the table grows by. */
+    short = 0;
   /** Pages whose row changed since the light cut's map last heard of them, each once. */
   const changed: number[] = [],
-    marked = new Uint8Array(packedPages.length);
+    marked = new Uint8Array(packedPages.length),
+    /** Casters waiting for a row, counted once however often they are followed (`short`). */
+    waiting = new Uint8Array(packedPages.length);
   let table: Float32Array | undefined,
     epoch = -1,
     map: BlendRowMap | undefined;
@@ -70,6 +74,8 @@ export function createBlendCasterRows(
     first = rows.blendFirst;
     free = new Int32Array(rows.casterSlots - first);
     freeCount = 0;
+    short = 0;
+    waiting.fill(0);
     // Popped from the end: the lowest row first.
     for (let row = rows.casterSlots - 1; row >= first; row--) free[freeCount++] = row;
     if (held)
@@ -115,6 +121,10 @@ export function createBlendCasterRows(
     if (!rec.transparent || !rows.pageTableInts) return;
     followTable();
     const row = rows.blendRowOf[page];
+    if (waiting[page]) {
+      waiting[page] = 0;
+      short--;
+    }
     // A cluster drawn from its geometry page holds no index page: its slot is all it needs.
     const casts =
       rows.residentOffsetWords[page] >= 0 &&
@@ -127,8 +137,12 @@ export function createBlendCasterRows(
       return;
     }
     if (row >= 0) return write(page, row, restale);
-    // Never empty: every resident placement holds a pool slot, and `blendSlots` counts them all.
-    if (!freeCount) return;
+    // Empty only past the rows the view holds (#1232): the table grows by the casters left out.
+    if (!freeCount) {
+      waiting[page] = 1;
+      short++;
+      return;
+    }
     const taken = free[--freeCount];
     rows.blendRowOf[page] = taken;
     note(page);
@@ -163,6 +177,10 @@ export function createBlendCasterRows(
     /** Caster rows in use: what a list of casters can hold beyond the visibility rows. */
     get used() {
       return free.length - freeCount;
+    },
+    /** Caster rows asked: those in use and those that found none (`followCutRows`). */
+    get asked() {
+      return this.used + short;
     },
   };
 }

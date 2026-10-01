@@ -1,36 +1,19 @@
-// #1237: the world roots' table (docs/FORMAT.md, World super-roots) is read and checked whole, and
-// a bundle's pages are viewed on their bytes.
+// #1237: a placed cell holds the world bundles its objects need, and a bundle's pages are viewed on
+// their bytes. The table's records are read in `worldRootsTable.test.ts` (#1232).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineError } from '../contracts/cache.ts';
-import { assertWorldRoots, cellDependencies, worldBundlePages } from './worldRoots.ts';
+import { cellDependencies, worldBundlePages } from './worldRoots.ts';
 import { worldPage, worldRootsFixture } from './worldRoots.fixture.ts';
 
 const refused = (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE';
 
 test('a cell holds the bundles past the pinned top its objects need, each once', () => {
   const { table } = worldRootsFixture();
-  assert.equal(assertWorldRoots(JSON.parse(JSON.stringify(table))).pinned, 1);
   assert.deepEqual(cellDependencies(table, 0), [1, 3]);
   assert.deepEqual(cellDependencies(table, 1), [2, 3]);
   assert.deepEqual(cellDependencies(table, 2), [], 'the top alone: pinned, never held');
-});
-
-test('a table that breaks its contract is refused whole', () => {
-  const broken: ((table: ReturnType<typeof worldRootsFixture>['table']) => void)[] = [
-    (table) => (table.version = 2),
-    (table) => (table.pinned = 0),
-    (table) => (table.pinnedTopBytes += 1),
-    (table) => (table.bundles[2].offset += 4),
-    (table) => (table.payload.bytes -= 1),
-    (table) => table.bundles[1].dependencies.push(9),
-    (table) => table.cells[0].objects[0].dependencies.push(4),
-  ];
-  for (const [at, breaks] of broken.entries()) {
-    const { table } = worldRootsFixture();
-    breaks(table);
-    assert.throws(() => assertWorldRoots(table), refused, `breakage ${at}`);
-  }
+  assert.deepEqual(cellDependencies(table, 3), [], 'a cell the table does not hold');
 });
 
 test("a bundle's pages are its vertices and local triangles, and nothing else", () => {
