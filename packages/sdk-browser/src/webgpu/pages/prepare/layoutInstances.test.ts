@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { ruleDag } from '../../../page/cut/cutRule.fixture.ts';
 import { placements } from '../../../page/cut/cutRuleBackends.fixture.ts';
 import { packDagSelection } from '../../../gpu/dag/pack.ts';
+import { dagPageUrls } from '../../../gpu/dag/pack.fixture.ts';
 import type { DagRoot } from '../../../gpu/dag/types.ts';
 import { createWebgpuPagesLayout } from './layout.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
@@ -53,9 +54,8 @@ test("the DAG's page urls are read from the shared records, none stored per page
   const packed = packDagSelection(shared(40) as unknown as DagRoot[]);
   assert.equal('pageUrls' in packed, false);
   assert.equal(packed.pageCount, 40 * dag.pages.length);
-  const urls = Array.from({ length: packed.pageCount }, (_, page) => packed.pageUrlOf(page));
   assert.deepEqual(
-    urls,
+    dagPageUrls(packed),
     Array.from({ length: 40 }, () => dag.pages.map((p) => `r0/${p.url}`)).flat(),
   );
   assert.equal(packed.pageUrlOf(packed.pageCount), undefined);
