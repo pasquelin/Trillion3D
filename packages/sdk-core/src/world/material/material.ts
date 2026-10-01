@@ -3,7 +3,7 @@ import type { MaterialParameters } from './materialParameters.ts';
 export type { MaterialParameters } from './materialParameters.ts';
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts';
 import { Color, type ColorInput } from '../math/color.ts';
-import { listen } from '../math/observed.ts';
+import { listen, unlisten } from '../math/observed.ts';
 import type { Blending, Side } from '../constants/index.ts';
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. */
@@ -15,6 +15,8 @@ const COLOURS = new Set([
   'attenuationColor',
   'subsurfaceColor',
 ]);
+/** A value that may be heard: a texture keeps its hearers in `_listeners`. */
+type Heard = { isTexture?: boolean; _listeners?: Set<() => void> };
 /** The fields that are a material's bookkeeping, never one of its parameters. */
 export const MATERIAL_BOOKKEEPING: ReadonlySet<string> = new Set([
   'isMaterial',
@@ -99,14 +101,27 @@ export class Material {
     });
   }
   private assign(key: string, value: unknown) {
+    const current = this[key];
     if (COLOURS.has(key) && !(value instanceof Color)) {
-      const current = this[key];
+      // A colour written as a value: into the held `Color`, or a new one heard like the others.
       if (current instanceof Color) current.set(value as ColorInput);
-      else this[key] = new Color(value as ColorInput);
-    } else this[key] = value;
-    // A texture this material samples is heard like the material itself.
-    const sampled = value as { isTexture?: boolean; _listeners?: Set<() => void> } | null;
+      else listen((this[key] = new Color(value as ColorInput)), this.heard);
+      return;
+    }
+    if (current !== value) this.release(key, current);
+    this[key] = value;
+    // A colour or a texture this material holds is heard like the material itself.
+    if (COLOURS.has(key)) listen(value as Color, this.heard);
+    const sampled = value as Heard | null;
     if (sampled?.isTexture) sampled._listeners?.add(this.heard);
+  }
+  /** Stops hearing what `key` held, unless another field of this material still holds it. */
+  private release(key: string, held: unknown) {
+    const texture = (held as Heard | null)?.isTexture;
+    if (!(held instanceof Color) && !texture) return;
+    for (const other in this) if (other !== key && this[other] === held) return;
+    if (held instanceof Color) unlisten(held, this.heard);
+    else (held as Heard)._listeners?.delete(this.heard);
   }
   /** `material.needsUpdate = true`: the meshes wearing it are repainted. */
   set needsUpdate(_value: boolean) {}
