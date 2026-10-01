@@ -5,12 +5,11 @@ import { SHADOW_FACE_READ_WORDS } from './faceReadWords.ts';
 import { createShadowRecordPack } from './recordPack.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 
-let shader:
-  | {
-      freshPlace: (view: object, p: number[]) => number[];
-      freshInPage: (view: object, at: number[]) => boolean;
-    }
-  | undefined;
+type FreshShader = {
+  freshPlace: (view: object, p: number[]) => number[];
+  freshInPage: (view: object, at: number[]) => boolean;
+};
+let shader: FreshShader | undefined;
 
 /**
  * Physical page `physical` of a pool `side` pages wide, drawn by the GPU through `matrix`, as the
@@ -19,7 +18,7 @@ let shader:
  * keeps a fragment at a window position.
  */
 export function freshPage(side: number, physical: number, matrix = new Float32Array(16)) {
-  shader ??= shaderRun(
+  shader ??= shaderRun<FreshShader>(
     SHADOW_DEPTH_SHADER,
     ['freshPlace', 'freshInPage', 'pageHolds', 'pageFirst'],
     {},

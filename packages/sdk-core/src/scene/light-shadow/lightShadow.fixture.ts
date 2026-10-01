@@ -83,9 +83,8 @@ export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, 
 export const sunPages = (plan: ShadowPlan, slice: number, level: number, pages: number[][]) =>
   pages.map(([ax, ay]) => plan.table.baseOf(slice) + sunEntry(level, ax, ay));
 
-/** The cull volume of sun page `(ax, ay)` at `level`, for the light in `slice`: what the frame's
- *  draw of it culls with (`writeSunSquare`); its first three floats are the page box's centre.
- *  The page's projection goes into `matrix`. */
+/** The cull volume of sun page `(ax, ay)` at `level`, for the light in `slice`, its projection put
+ *  in `matrix` (`writeSunSquare`); the volume's first three floats are the page box's centre. */
 export function sunPageVolume(
   plan: ShadowPlan,
   slice: number,
