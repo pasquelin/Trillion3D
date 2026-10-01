@@ -1,11 +1,13 @@
 import {
   MOBILITY_COARSER,
   MOBILITY_CORNER_SHIFT,
+  MOBILITY_MOVING,
   SHADOW_CULL_GROUP,
   SHADOW_VOLUME_WGSL,
 } from '../../gpu/shadow/cullShader.ts';
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
+import { FRESH_MOVING_PAIR } from './freshLayout.ts';
 
 /**
  * THE CULL OF THE PAGES THE GPU DRAWS ITSELF (#1275): one invocation per caster row and per
@@ -16,7 +18,8 @@ import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
  * shadow on a receiver it sees. Of a surface the residency holds at several levels, the finest
  * alone is drawn (`MOBILITY_COARSER`, the cut rule at a threshold of 0): a coarser level drawn
  * over it would lift its depth above the surface and shade it in triangles (#831). Each row a
- * region keeps is one pair, `(region, row)`, in one list
+ * region keeps is one pair, `(region, row)` — the region tagged when the row moves
+ * (`FRESH_MOVING_PAIR`), left out of the static layer's draw —, in one list
  * every layer's draw reads (`shader.ts`, `shadow_fresh_vs`); the draws' corners are the most any
  * kept row draws.
  *
@@ -76,6 +79,6 @@ ${LANE_SCAN_WGSL}@compute @workgroup_size(64) fn admitShadowPairs(@builtin(local
  let slot=freshRegionPairs(params.pages,id.y);
  if(atomicLoad(&args[slot])==FRESH_SHORT||!freshKeeps(id.y,id.x)){return;}
  let row=u32(freshRow(id.x));let at=atomicAdd(&args[slot],1u);
- pairs[2u*at]=id.y;pairs[2u*at+1u]=row;
+ pairs[2u*at]=id.y|select(0u,${FRESH_MOVING_PAIR}u,(mobility[row]&${MOBILITY_MOVING}u)!=0u);pairs[2u*at+1u]=row;
  atomicMax(&args[FRESH_CORNERS],mobility[row]>>${MOBILITY_CORNER_SHIFT}u);
 }`;

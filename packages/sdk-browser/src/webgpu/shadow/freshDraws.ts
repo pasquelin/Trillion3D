@@ -35,7 +35,8 @@ const freshEntries = (): GPUBindGroupLayoutEntry[] =>
  * pass's, but for what these draws never read (`FRESH_UNREAD`), group 1 its faces'; group 2 binds the GPU
  * pages' views, pairs and arguments — and, into the transmittance layer, the pool's opaque depth
  * at binding 0. Compiled off the frame by
- * `prepare`, or at once by `made` (`preparedPipeline`).
+ * `prepare`, or at once by `made` (`preparedPipeline`). Into the static layer, the same clear, then
+ * the still casters alone (`staticCasters`, #831).
  */
 export function shadowFreshDraws(
   device: GPUDevice,
@@ -99,6 +100,16 @@ export function shadowFreshDraws(
       'casters',
       pool,
       ['shadow_fresh_vs', 'shadow_fresh_fs'],
+      undefined,
+      true,
+      DEPTH_COMPARE,
+      'depth32float',
+      caster,
+    ),
+    staticCasters: pipeline(
+      'static casters',
+      pool,
+      ['shadow_fresh_static_vs', 'shadow_fresh_fs'],
       undefined,
       true,
       DEPTH_COMPARE,

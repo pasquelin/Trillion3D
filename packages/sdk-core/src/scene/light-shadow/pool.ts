@@ -89,11 +89,11 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
       table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn));
     },
     /** The GPU's own draw of the page is adopted (`mirror.ts`, #831): current, readable in slot
-     *  `drawn`, without its static layer; the GPU's word stands, the host writes none. */
-    keepDraw(page: number, drawn: number) {
+     *  `drawn`, with its static layer when `layered`; the GPU's word stands, the host writes none. */
+    keepDraw(page: number, drawn: number, layered = false) {
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
-      pool.layered[page] = 0;
+      pool.layered[page] = layered ? 1 : 0;
       pool.range[page] = drawn;
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
