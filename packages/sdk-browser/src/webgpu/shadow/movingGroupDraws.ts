@@ -37,7 +37,7 @@ export type MovingGroupsHeld = {
  * side (`OPAQUE` to `COLOUR`), a pipeline, a viewport and group 2 set when they change. The blended
  * sides draw each group's blended command, which draws nothing for a group of opaque casters alone
  * (`SHADOW_GROUP_PAIRS_WGSL`). Group 2 is made once per list kind, and per pool layer for the
- * blended casters, until what it binds changes (`forget`, the one way they go).
+ * blended casters, until what it binds changes (`forget`; the blended ones with the pool's layers).
  */
 export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld) {
   /** Group 2 of the draws by list kind, then of the blended ones by pool layer and kind. */
@@ -58,10 +58,11 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
       lists ? rt.lights.occlusion!.visible : rt.lights.cull!.kept,
     ].map((buffer, k) => ({ binding: 4 + k, resource: k ? { buffer } : { buffer, size: FACES } }));
 
-  /** Group 2 of side `side`'s draws of lists of kind `lists`, into pool layer `at`. */
-  function groupOf(rt: WebgpuPagesRuntime, side: number, lists: number, at: number) {
+  /** Group 2 of the draws of lists of kind `lists`, the blended ones' (`blended`) into pool layer
+   *  `at`. */
+  function groupOf(rt: WebgpuPagesRuntime, blended: boolean, lists: number, at: number) {
     const { groupDraws, targets: views } = rt.lights.shadows!;
-    if (side < DEPTH)
+    if (!blended)
       return (drawGroups[lists] ??= device.createBindGroup({
         layout: groupDraws.layout,
         entries: groupEntries(rt, lists),
@@ -94,10 +95,10 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
     first: boolean,
   ) {
     const { passOf, bitsOf } = held,
-      scale = side < DEPTH ? 1 : 2,
+      blended = side >= DEPTH,
+      scale = blended ? 2 : 1,
       texels = rt.lights.plan.pool.side * SHADOW_PAGE,
-      sunBlock = groupBlockSide(texels),
-      blended = side >= DEPTH;
+      sunBlock = groupBlockSide(texels);
     let drawn = 0,
       bound: GPURenderPipeline | undefined,
       viewport = -1,
@@ -109,7 +110,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
         x = (bits & 1 ? texels - block : 0) / scale,
         y = (bits & 2 ? texels - block : 0) / scale,
         pipeline = pipelineOf(rt, side, !!(bits & GROUP_LAYER)),
-        lists = groupOf(rt, side, bits & GROUP_TESTED ? 1 : 0, at);
+        lists = groupOf(rt, blended, bits & GROUP_TESTED ? 1 : 0, at);
       // A group's viewport is one of five: its block's corner bits, or its whole layer.
       if ((bits & (GROUP_LAYER | 3)) !== viewport) {
         viewport = bits & (GROUP_LAYER | 3);
@@ -157,9 +158,9 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
      *  layer's depth, as `drawRegionCasters` draws a page's. Returns the draws. */
     drawBlend(rt: WebgpuPagesRuntime, pass: GPURenderPassEncoder, k: number, at: number) {
       if (!drawable(rt)) return 0;
-      // The pool's layers were made again: every group 2 they bound goes.
+      // The pool's layers were made again: every blended group 2 they bound goes.
       if (targets !== rt.lights.shadows!.targets) {
-        forget();
+        blendGroups = [];
         targets = rt.lights.shadows!.targets;
       }
       const drawn = drawSide(rt, pass, k, DEPTH, at, true);
