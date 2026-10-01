@@ -8294,7 +8294,7 @@
   },
   "planImpostors": {
     "summary": "Merencanakan tingkat impostor untuk satu tampilan: setiap root yang mesh-nya punya entri dipanggang dan sakelarnya bertahan menghasilkan sebuah kartu dan ditandai ditindas.",
-    "description": "`view` memetakan dunia ke ruang tampilan (kolom-mayor) dan `focalPixels` adalah satu panjang fokus mesin dalam piksel di viewport gambar."
+    "description": "`view` memetakan dunia ke ruang tampilan (kolom-mayor) dan `focalPixels` adalah satu panjang fokus mesin dalam piksel di viewport gambar. `into`, rencana yang dikembalikan tampilan sebelumnya, direncanakan ulang di tempat: `switched` dan kartunya dipakai ulang, sehingga runtime yang merencanakan setiap gambar tidak mengalokasikan apa pun setelah jumlah kartunya stabil."
   },
   "validateImpostorSection": {
     "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",

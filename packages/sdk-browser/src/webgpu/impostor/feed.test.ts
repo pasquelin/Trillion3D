@@ -71,3 +71,19 @@ test('an atlas past the room is never read, one the device refuses is reported',
   assert.deepEqual(refused.failed, ['gpu-out-of-memory']);
   assert.equal(refused.feed.bytes, 0, 'its bytes given back');
 });
+
+test('a copy that throws frees its textures and bytes, reports, and is asked again', async () => {
+  const { gpu, feed, failed, resident } = feedOf(ATLAS_BYTES);
+  const copy = gpu.device.queue.copyExternalImageToTexture;
+  gpu.device.queue.copyExternalImageToTexture = () => {
+    throw new Error('released level');
+  };
+  // Its levels land, its upload throws, and the next image asks it again, which throws too.
+  assert.equal(await resident(1, 0), undefined, 'the mesh keeps its clusters');
+  await settle();
+  assert.deepEqual(failed, ['impostor-atlas-upload-failed', 'impostor-atlas-upload-failed']);
+  assert.equal(feed.bytes, 0, 'its bytes given back');
+  assert.equal(gpu.destroyed.length, 2, 'each texture made before a throw released');
+  gpu.device.queue.copyExternalImageToTexture = copy;
+  assert.ok(await resident(1, 1), 'asked again, then made');
+});

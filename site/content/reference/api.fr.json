@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Planifie l’étage d’imposteurs pour une vue : chaque racine dont le maillage a une entrée cuite et dont la bascule tient donne une carte et est marquée supprimée.",
-    "description": "`view` transforme le monde vers l’espace de vue (en colonnes) et `focalPixels` est l’unique distance focale du moteur en pixels au viewport de l’image."
+    "description": "`view` transforme le monde vers l’espace de vue (en colonnes) et `focalPixels` est l’unique distance focale du moteur en pixels au viewport de l’image. `into`, un plan qu’une vue précédente a rendu, est replanifié sur place : son `switched` et ses cartes sont réutilisés, si bien qu’un runtime qui planifie chaque image n’alloue plus rien une fois son nombre de cartes stabilisé."
   },
   "validateImpostorSection": {
     "summary": "Une raison courte pour laquelle la section ne peut pas servir, ou `null`.",

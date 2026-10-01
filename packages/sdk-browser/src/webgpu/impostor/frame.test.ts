@@ -2,8 +2,7 @@
 // into the visibility buffer and depth before the Hi-Z pyramid, then into the surfaces — and its
 // card bit leaves it to the card in every camera cut, CPU and GPU, while the light cuts keep its
 // shadow: plan and draw agree. The card waits for its atlas, read through the engine's one
-// held-level read, and until then the root keeps its clusters — no hole. A card out of the view
-// asks nothing. Fails on develop: the WebGPU card pass, its atlas feed and this file are new.
+// held-level read; until then the root keeps its clusters. Fails on develop: the file is new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -118,11 +117,8 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   );
   await imagesUntilResident(rt, 200);
   assert.ok(landed() >= 2, 'the landing and the atlas made break a held image');
-  const atlas = gpu.textures.filter((texture) => texture.label?.includes('impostor'));
-  assert.deepEqual(
-    atlas.map((texture) => texture.format),
-    ['rgba8unorm-srgb', 'rgba8unorm', 'rgba8unorm'],
-  );
+  const atlas = gpu.textures.filter((t) => t.label?.includes('impostor')).map((t) => t.format);
+  assert.deepEqual(atlas, ['rgba8unorm-srgb', 'rgba8unorm', 'rgba8unorm']);
   assert.equal(gpu.imageCopies.length, 3, 'each map copied once to the GPU');
   // The image that switches the root: its card bit set on the root and handed to the GPU cut.
   planWebgpuImpostors(rt, engineOf(200));
@@ -133,12 +129,8 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   const state = rt.gpu.impostors!;
   assert.equal(state.count, 1);
   // The card's corners are the shared sprite basis at the root's pivot, half-extent R.
-  const corners = impostorCardCorners(
-    new Float64Array(12),
-    engineOf(200).viewProjection,
-    [0, 0, 0],
-    1,
-  );
+  const toClip = engineOf(200).viewProjection;
+  const corners = impostorCardCorners(new Float64Array(12), toClip, [0, 0, 0], 1);
   for (let i = 0; i < 4; i++)
     for (let k = 0; k < 3; k++)
       assert.ok(Math.abs(state.records[i * 4 + k] - corners[i * 3 + k]) < 1e-5, `corner ${i}`);
@@ -188,5 +180,19 @@ test('a card out of the view asks no atlas and leaves its root to the card', () 
   assert.deepEqual(asked, [], 'residency follows the view');
   assert.equal(roots[0].mark, CARD_ROOT, 'the camera draws nothing of it either way');
   assert.equal(rt.gpu.impostors?.count, 0);
+  fixture.geometry.dispose();
+});
+
+test('two meshes placed by one shared world each draw their own card', async () => {
+  const { rt, roots, fixture } = bench();
+  // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
+  const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 };
+  rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] };
+  roots.push({ ...roots[0], mesh: MESH + 1 });
+  await imagesUntilResident(rt, 200);
+  planWebgpuImpostors(rt, engineOf(200));
+  for (const root of roots) assert.equal(root.mark, CARD_ROOT, 'each root left to its card');
+  const { count, runCount } = rt.gpu.impostors!;
+  assert.deepEqual([count, runCount], [2, 2], 'a card and an atlas bind per mesh, none dropped');
   fixture.geometry.dispose();
 });

@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Plant die Impostor-Stufe für eine Ansicht: jede Wurzel, deren Mesh einen gebackenen Eintrag hat und deren Umschaltung hält, ergibt eine Karte und wird als unterdrückt markiert.",
-    "description": "`view` bildet die Welt auf den Sichtraum ab (spaltenweise), und `focalPixels` ist die eine Brennweite der Engine in Pixeln am Viewport des Bildes."
+    "description": "`view` bildet die Welt auf den Sichtraum ab (spaltenweise), und `focalPixels` ist die eine Brennweite der Engine in Pixeln am Viewport des Bildes. `into`, ein Plan, den eine frühere Ansicht zurückgegeben hat, wird an Ort und Stelle neu geplant: sein `switched` und seine Karten werden wiederverwendet, sodass eine Laufzeit, die jedes Bild plant, nichts mehr allokiert, sobald sich ihre Kartenzahl eingependelt hat."
   },
   "validateImpostorSection": {
     "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
