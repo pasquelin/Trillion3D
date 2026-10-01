@@ -182,7 +182,7 @@ export function runShadowWords(
     };
   const { applyShadowWord } = shaderRun<Lanes>(
     SHADOW_WORDS_WGSL,
-    ['applyShadowWord', 'loseDepth', 'listDraw', 'poolAt', 'shadowPoolPages'],
+    ['applyShadowWord', 'withdrawGpuDraw', 'loseDepth', 'listDraw', 'poolAt', 'shadowPoolPages'],
     {
       ...wgslConstants(SHADOW_WORDS_WGSL),
       ...atomicsOf(state, new Uint8Array(4)),
