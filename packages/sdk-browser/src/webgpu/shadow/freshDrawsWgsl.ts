@@ -1,6 +1,6 @@
 import { TRANSMITTANCE_CLEAR_WGSL } from '../../gpu/shadow/transmittance.ts';
 import { depthRestoreWgsl } from '../../gpu/core/depthRestoreWgsl.ts';
-import { FRESH_CLEAR } from './freshLayout.ts';
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLayout.ts';
 
 /**
  * THE DRAWS OF THE PAGES THE GPU DRAWS ITSELF (#1275), entries of the shadow depth shader
@@ -35,14 +35,12 @@ fn pageHolds(view:ShadowView,at:vec2f)->bool{
 }
 /** Whether layer texel \`at\` lies in \`page\`. */
 fn freshInPage(page:FreshView,at:vec2f)->bool{return pageHolds(page.view,at);}
-/** Which casters a draw keeps (\`freshCaster\`): every one, the still ones, or the moving ones. */
-const FRESH_ALL:u32=0u;const FRESH_STILL:u32=1u;const FRESH_MOVING:u32=2u;
-/** The place in the pair list of a draw's \`instance\`-th caster: the still ones from the start,
+/** The place in the pair list of the \`instance\`-th caster of a draw of kind \`keep\` (\`freshLayout.ts\`): the still ones from the start,
  *  the moving ones from the end down, every kept one the first then the second. */
 fn freshPairAt(instance:u32,keep:u32)->u32{
  let still=freshArgs[FRESH_STILL_PAIRS];let last=freshArgs[FRESH_LAST_PAIR];
- if(keep==FRESH_MOVING){return last-instance;}
- if(keep==FRESH_STILL||instance<still){return instance;}
+ if(keep==${FRESH_MOVING}u){return last-instance;}
+ if(keep==${FRESH_STILL}u||instance<still){return instance;}
  return last-(instance-still);
 }
 /** The \`instance\`-th caster \`keep\` draws, at corner \`vertexIndex\`, if its region lies in the
@@ -57,16 +55,16 @@ fn freshCaster(vertexIndex:u32,instance:u32,blended:bool,keep:u32)->ShadowOut{
  return out;
 }
 @vertex fn shadow_fresh_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,false,FRESH_ALL);
+ return freshCaster(vertexIndex,instanceIndex,false,${FRESH_CASTERS}u);
 }
 @vertex fn shadow_fresh_static_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,false,FRESH_STILL);
+ return freshCaster(vertexIndex,instanceIndex,false,${FRESH_STILL}u);
 }
 @vertex fn shadow_fresh_moving_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,false,FRESH_MOVING);
+ return freshCaster(vertexIndex,instanceIndex,false,${FRESH_MOVING}u);
 }
 @vertex fn shadow_fresh_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,true,FRESH_ALL);
+ return freshCaster(vertexIndex,instanceIndex,true,${FRESH_CASTERS}u);
 }
 @vertex fn shadow_fresh_clear_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->@builtin(position) vec4f{
  let layer=vertexIndex>>FRESH_LAYER_SHIFT;let i=vertexIndex&FRESH_CORNER_MASK;

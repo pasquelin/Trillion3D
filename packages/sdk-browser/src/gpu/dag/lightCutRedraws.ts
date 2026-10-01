@@ -73,9 +73,7 @@ export function createLightCutRedraws(
   const redraw = new Map<number, number>(),
     waiting = new Map<number, number>();
   const limit = createViewLimit(viewCap);
-  let epoch = 0,
-    /** Residency changed since the waiting pages were last released. */
-    moved = false;
+  let epoch = 0;
   const again = (bits: number, page: number) => merge(redraw, page, bits);
   /** The slot the frame's next batch copies its flag word into: the open frame's while it has room,
    *  else a free one; none when every slot is still read. */
@@ -162,16 +160,10 @@ export function createLightCutRedraws(
       if (open) open.reported = copied;
     },
     /** Residency the light cuts see changed: the drop goes stale, not forgotten (the limit may
-     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again
-     *  (`rest`), the camera moving or not (#831). */
+     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again, the
+     *  camera moving or not (#831). */
     residencyChanged() {
-      moved = true;
       limit.residencyChanged();
-    },
-    /** Residency changed: what waited on it is drawn again, the camera moving or not (#831). */
-    rest() {
-      if (!moved) return;
-      moved = false;
       epoch++;
       waiting.forEach(again);
       waiting.clear();
@@ -189,10 +181,9 @@ export function createLightCutRedraws(
     },
     /** Resolves once every flag copied so far is read. */
     settled: () => Promise.all(slots.map(({ reading }) => reading)).then(() => {}),
-    /** A flag on its way, pages to draw again not yet taken, or a residency change the next rest
-     *  releases. */
+    /** A flag on its way, or pages to draw again not yet taken. */
     get unsettled() {
-      return redraw.size > 0 || (moved && waiting.size > 0) || slots.some(({ busy }) => busy);
+      return redraw.size > 0 || slots.some(({ busy }) => busy);
     },
   };
 }

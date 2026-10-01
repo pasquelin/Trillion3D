@@ -24,8 +24,8 @@ export const POOL_FIELDS = [
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
  *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
- *  pairs the latest GPU page draws counted (`sealShadowPages`), which grow their list
- *  (`pairGrowth.ts`). */
+ *  pairs the latest GPU page draws counted (`sealShadowPages`), a diagnostic of the list the pool
+ *  fixes (`pairRows.ts`). */
 export const POOL_COUNTS = [
   'needs',
   'candidates',

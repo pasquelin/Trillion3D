@@ -131,11 +131,11 @@ export function trackWheel(
   );
 }
 
-/** Whether an event's target takes typed keys itself: a field, a list or an editor. */
 /** The inputs a key types into (#831): not a checkbox, a slider or a button, which keep the
  *  focus after a click and would swallow every key that drives — a car parked at 0 km/h. */
 const TYPED = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/;
 
+/** Whether an event's target takes typed keys itself: a field, a list or an editor. */
 function editable(target: EventTarget | null) {
   const element = target as { tagName?: string; type?: string; isContentEditable?: boolean } | null;
   const tag = element?.tagName ?? '';

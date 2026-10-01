@@ -9,8 +9,8 @@ import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts';
 import { FRESH_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from './freshDrawsWgsl.ts';
-import { FRESH_ARG, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLayout.ts';
-import { FRESH_PARAMS, freshArgWords, freshDrawWord } from './freshLayout.ts';
+import { FRESH_ARG, FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING } from './freshLayout.ts';
+import { FRESH_PARAMS, FRESH_STILL, freshArgWords, freshDrawWord } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL } from './freshLayoutWgsl.ts';
 import { LAYERS, frame } from './freshPass.fixture.ts';
 import { runShadowPairs } from './freshRun.fixture.ts';
@@ -88,7 +88,7 @@ test('the still rows’ pairs lie from the list’s start, the moving ones’ fr
   );
   const walk = (keep: number, count: number) =>
     Array.from({ length: count }, (_, i) => rowAt(freshPairAt(i, keep)));
-  assert.deepEqual(walk(constants.FRESH_STILL, 2).sort(), [0, 2], 'the static layer: the still');
-  assert.deepEqual(walk(constants.FRESH_MOVING, 1), [1], 'the pool over it: the moving alone');
-  assert.deepEqual(walk(constants.FRESH_ALL, 3).sort(), [0, 1, 2], 'every kept caster, once');
+  assert.deepEqual(walk(FRESH_STILL, 2).sort(), [0, 2], 'the static layer: the still');
+  assert.deepEqual(walk(FRESH_MOVING, 1), [1], 'the pool over it: the moving alone');
+  assert.deepEqual(walk(FRESH_CASTERS, 3).sort(), [0, 1, 2], 'every kept caster, once');
 });

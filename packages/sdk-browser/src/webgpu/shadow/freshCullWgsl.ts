@@ -5,6 +5,7 @@ import {
   SHADOW_VOLUME_WGSL,
 } from '../../gpu/shadow/cullShader.ts';
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
+import { CUT_RULE_WGSL } from '../../page/cut/rule.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 
 /**
@@ -28,12 +29,13 @@ import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
  * of regions each (`LANE_SCAN_WGSL`, as the tested half's compaction does), and admits the longest
  * prefix of whole regions the list holds: the rest are marked short (`FRESH_SHORT`), keep none and
  * wait, unread, for the next frame. It writes the pairs kept and those every region counted, which
- * the seal hands the host (`pairGrowth.ts`); `shadowCullPairs` lays each admitted region's pairs.
+ * the seal hands the host as a diagnostic (the list is fixed, `pairRows.ts`); `shadowCullPairs` lays each admitted region's pairs.
  * No pair is past the list — the admitted pairs are at most its places, so the two ends never
  * meet —, and none is drawn for a page left unreadable.
  */
 export const SHADOW_FRESH_CULL_WGSL = `
 ${SHADOW_VOLUME_WGSL}
+${CUT_RULE_WGSL}
 ${FRESH_PARAMS_WGSL}
 ${FRESH_LAYOUT_WGSL}
 @group(0) @binding(0) var<storage,read> spheres:array<Sphere>;
@@ -63,9 +65,9 @@ fn freshPixels(k:u32,lod:vec4f)->f32{
 fn freshKeeps(k:u32,i:u32)->bool{
  let row=freshRow(i);
  if(row<0||k>=atomicLoad(&args[FRESH_REGIONS])){return false;}
+ if(!sphereTouches(volumes[k],spheres[u32(row)])){return false;}
  let lod=lods[u32(row)];
- if(!(freshPixels(k,lod.parent)>params.threshold)||freshPixels(k,lod.own)>params.threshold){return false;}
- return sphereTouches(volumes[k],spheres[u32(row)]);
+ return drawsCluster(true,freshPixels(k,lod.parent),freshPixels(k,lod.own),true,params.threshold);
 }
 @compute @workgroup_size(${SHADOW_CULL_GROUP}) fn shadowCountPairs(@builtin(global_invocation_id) id:vec3u){
  if(freshKeeps(id.y,id.x)){atomicAdd(&args[freshRegionPairs(params.pages,id.y)],1u);}
