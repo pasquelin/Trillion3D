@@ -11,10 +11,8 @@ import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { aheadViewOf, copyAheadView, holdAheadView, type AheadView } from './aheadView.ts';
 
-const NONE = 0xffffffff,
-  WORKGROUP = 64;
-export const SELECTION_NONE = NONE,
-  SELECTION_WORKGROUP = WORKGROUP;
+export const SELECTION_NONE = 0xffffffff,
+  SELECTION_WORKGROUP = 64;
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
@@ -74,6 +72,8 @@ export type GpuSelection = {
   /** Index in u32 words of the current-frame drawable page mask. */
   readonly maskOffset: number;
   readonly pageCount: number;
+  /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
+  readonly packsWorld?: boolean;
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;

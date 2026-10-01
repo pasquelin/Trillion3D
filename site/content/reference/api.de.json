@@ -8032,7 +8032,7 @@
       "payload": "Die Binärdatei, in der die Bündel hintereinander liegen: ihre Adresse, ihr Hash und ihre Länge.",
       "bundles": "Die Bündel, in der Reihenfolge der Binärdatei.",
       "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
-      "cells": "Die Weltzellen: wie viele, und die platzierten Primitive, die eine hält, aus ihren Datensätzen gelesen."
+      "cells": "Die Weltzellen: wie viele, die platzierten Primitive, die eine enthält, an ihren Datensätzen gelesen, und die Zelle, die das Objekt `object` enthält — der `origin` einer Objektwurzel (#1332)."
     }
   },
   "WorldRootsBundle": {
