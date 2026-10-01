@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { REFLECTION_STILL_FRAMES } from './resolveWgsl.ts';
 import { historyConfidence } from './historyFrame.ts';
 import { fixture } from './resolveWgsl.fixture.ts';
+import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 
 /** Moving, the history short and clipped, the resolved roof's frame-to-frame deviation stays under
  *  this share of its mean (#831): one stochastic ray per 2 × 2 block, each a reflection of 1 at
@@ -11,23 +12,13 @@ const MOVING_DEVIATION = 0.15;
 const FRAMES = 240,
   WARM = 40;
 
-/** A seeded uniform draw in [0, 1): the same noise for every run compared. */
-function draws(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** drive-a-car's roof (#831): a glossy receiver (roughness 0.1) on one plane of a 16 × 16 image,
  *  every half-resolution texel traced each frame with one noisy ray; the resolved pixel (4, 4)
  *  fed back as its own history. `moving` is the driving case: sources and camera moving, no live
  *  motion, the history at the change cap (`historyRuntime.ts`). */
 function resolved(moving: boolean, roughness: number, constants: Record<string, number> = {}) {
   const f = fixture(constants);
-  const random = draws(831);
+  const random = mulberry32(831);
   f.view.viewport = [16, 16, 1 / 16, 1 / 16];
   f.traced.length = 0;
   for (let k = 0; k < 64; k++) f.traced.push([k & 7, k >> 3]);
