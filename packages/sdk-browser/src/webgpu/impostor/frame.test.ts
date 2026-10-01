@@ -15,7 +15,7 @@ import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts';
 import { planWebgpuImpostors } from './frame.ts';
 import { recordingEncoder } from './recorder.fixture.ts';
-import { IMPOSTOR_PASS } from './pipelines.ts';
+import { IMPOSTOR_PASS, prepareImpostorPipelines } from './pipelines.ts';
 import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import { castsNoShadow } from '../../page/cut/select.ts';
 import {
@@ -29,9 +29,11 @@ import {
   settle,
 } from '../../impostor/section.fixture.ts';
 
-/** A WebGPU runtime reduced to what the plan and the card pass read, on a recording device. */
-function bench() {
+/** A WebGPU runtime reduced to what the plan and the card pass read, on a recording device whose
+ *  card pipelines its prepare checked. */
+async function bench() {
   const gpu = fakeDevice();
+  assert.ok(await prepareImpostorPipelines(gpu.device, () => {}));
   const { fixture, roots, reader, asked } = impostorScene();
   const marked: Array<[number, number]> = [];
   let landed = 0;
@@ -67,7 +69,7 @@ async function imagesUntilResident(rt: WebgpuPagesRuntime, z: number) {
 }
 
 test('a switched root draws its card in visibility and surfaces once its atlas lands', async () => {
-  const { gpu, rt, roots, fixture, asked, marked, landed } = bench();
+  const { gpu, rt, roots, fixture, asked, marked, landed } = await bench();
   // First image: the atlas is asked through the one reader, and the root keeps its clusters.
   planWebgpuImpostors(rt, engineOf(200));
   assert.equal(roots[0].mark, undefined, 'no card before the atlas: the root stays whole');
@@ -119,7 +121,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
 });
 
 test('a near root draws whole again and no card pass is encoded', async () => {
-  const { rt, roots, fixture, marked } = bench();
+  const { rt, roots, fixture, marked } = await bench();
   await imagesUntilResident(rt, 200);
   planWebgpuImpostors(rt, engineOf(200));
   planWebgpuImpostors(rt, engineOf(5));
@@ -132,8 +134,8 @@ test('a near root draws whole again and no card pass is encoded', async () => {
   fixture.geometry.dispose();
 });
 
-test('a card out of the view asks no atlas and leaves its root to the card', () => {
-  const { rt, roots, fixture, asked } = bench();
+test('a card out of the view asks no atlas and leaves its root to the card', async () => {
+  const { rt, roots, fixture, asked } = await bench();
   const away = frontCamera(200, 5000);
   away.lookAt(0, 0, 400);
   away.updateMatrixWorld();
@@ -145,7 +147,7 @@ test('a card out of the view asks no atlas and leaves its root to the card', () 
 });
 
 test('two meshes placed by one shared world each draw their own card', async () => {
-  const { rt, roots, fixture } = bench();
+  const { rt, roots, fixture } = await bench();
   // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
   const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 };
   rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] };
