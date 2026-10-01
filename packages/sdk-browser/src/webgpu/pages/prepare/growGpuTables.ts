@@ -65,6 +65,7 @@ export function gpuGrowth(
     vis.gpuRestCompact?.growWork(drawSlots, restSlotCount(vis.drawLayerSlots), drawSlots),
     cullGrows ? lights.cull?.grow(casterSlots) : undefined,
     cullGrows ? lights.occlusion?.grow(casterSlots) : undefined,
+    cullGrows ? lights.bins?.grow(casterSlots) : undefined,
     ...growShadowRows(lights, device, casterSlots),
   ]);
 }

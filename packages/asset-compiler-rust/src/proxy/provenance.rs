@@ -12,6 +12,9 @@ pub struct Provenance {
     /// Original world matrices, indexed by source node rank, column major.
     pub bind_worlds: Vec<f64>,
     pub source_parents: Vec<i32>,
+    /// The compiled mesh each source node places, the rank a partition's cells name, `-1` for
+    /// none: what a partition's cell node draws, which no host node of the core carries (#966).
+    pub source_meshes: Vec<i32>,
 }
 
 /// Collect all owners before simplification throws coincident surfaces away.

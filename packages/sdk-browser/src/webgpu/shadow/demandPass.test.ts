@@ -8,12 +8,10 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
-import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { POINT_FACES } from '../../../../sdk-core/src/scene/light/contracts.ts';
-import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { SHADOW_READ_STRUCTS } from './readStructs.fixture.ts';
+import { SHADOW_READ_STRUCTS, sunRecord } from './readStructs.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { HEIGHT, cameraAt, reportScene } from './reportScene.fixture.ts';
@@ -51,22 +49,6 @@ const demand = shaderRun<Demand>(
     ...SHADOW_READ_STRUCTS,
   },
 );
-
-/** The sun's record as the demand reads it: its frame, the window origins of its slots two by
- *  two, and its levels, finest level and first table entry. */
-function sunRecord(plan: ShadowPlan, slice: number) {
-  const { frame, origins, finest } = plan.sun,
-    at = slice * SUN_LEVELS * 2;
-  return {
-    frame: [0, 1, 2].map((row) => [
-      ...frame.subarray(slice * 9 + row * 3, slice * 9 + row * 3 + 3),
-    ]),
-    origins: Array.from({ length: SUN_LEVELS / 2 }, (_, k) => [
-      ...origins.subarray(at + k * 4, at + k * 4 + 4),
-    ]),
-    info: [SUN_LEVELS, finest[slice], 0, plan.table.baseOf(slice)],
-  };
-}
 
 /** A point lamp's record: its six face matrices, its faces, tangent half-field and first entry. */
 function lampRecord(light: SceneLight, base: number) {

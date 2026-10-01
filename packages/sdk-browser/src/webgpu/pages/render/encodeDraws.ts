@@ -15,7 +15,7 @@ import {
   encodeClear,
   submitColorCopy,
 } from './encoder.ts';
-import { encodeBlend } from './encodeBlend.ts';
+import { encodeBlend, prepareBlend } from './encodeBlend.ts';
 import { ensurePageTable } from './pageTable.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
@@ -160,7 +160,7 @@ function submitFallback(
 ) {
   const [width, height] = rt.gpu.targetSize;
   // No composition follows: the water word may not borrow the display colour (`encodeWaterPass`).
-  encodeBlend(rt, device, encoder, uniformBase, false);
+  encodeBlend(rt, device, encoder, uniformBase, false, prepareBlend(rt, device, encoder, false));
   if (guidesShown(rt)) encodeWebgpuGuides(rt, device, encoder, cam);
   submitColorCopy(rt, device, encoder, height, width);
 }
