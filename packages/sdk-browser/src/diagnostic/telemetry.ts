@@ -169,8 +169,7 @@ export class EngineProfiler {
     }
   }
 
-  /** Prints it every few seconds; returns a function that stops. The log reads the frame report,
-   *  which only debug mode files (#1353): starting it turns the page's debug mode on. */
+  /** Prints it every few seconds, in debug mode, which alone files the report; returns a stop. */
   startAutoLog(intervalSeconds = 2): () => void {
     setDebugMode(true);
     this.stopAutoLog();
