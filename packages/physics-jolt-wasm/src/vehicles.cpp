@@ -309,6 +309,13 @@ void setBars(Vehicle &v, float dt) {
   }
 }
 
+/// The vehicle's engine, whichever its controller.
+VehicleEngine &engineOf(Vehicle &v) {
+  VehicleController *controller = v.constraint->GetController();
+  if (v.kind == TRACKED) return static_cast<TrackedVehicleController *>(controller)->GetEngine();
+  return static_cast<WheeledVehicleController *>(controller)->GetEngine();
+}
+
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
 /// inner track, or turns on the spot at a standstill (Jolt's vehicle samples). Parked — not driven
@@ -323,6 +330,11 @@ void applyInput(Vehicle &v, float dt) {
   float forward = v.throttle, brake = v.brake;
   if (forward > 0 || brake > 0) v.parked = false;
   else if (std::abs(speed) < STOPPED) v.parked = true;
+  // Parked, the engine turns nothing: it idles. Jolt lets a vehicle sleep only once its engine
+  // idles (`VehicleEngine::AllowSleep`); left to spin down from 2,500 rpm for seven seconds, a car
+  // braked to a stop stayed awake, its body shaking 0.4 mm a step on its brakes, and every shadow
+  // page under it and its wheels was drawn again each frame (#831).
+  if (v.parked) engineOf(v).SetCurrentRPM(engineOf(v).mMinRPM);
   if (brake > 0 && forward == 0 && speed < STOPPED) forward = -brake, brake = 0;
   else if (forward > 0 && speed < -STOPPED) brake = forward, forward = 0;
   VehicleController *controller = v.constraint->GetController();
@@ -405,7 +417,7 @@ void writeVehicles() {
     else if (vehicle.restWrites >= REST_WRITES) continue;
     else ++vehicle.restWrites;
     const auto *controller = vehicle.constraint->GetController();
-    const VehicleEngine &engine = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetEngine() : static_cast<const WheeledVehicleController *>(controller)->GetEngine();
+    const VehicleEngine &engine = engineOf(vehicle);
     const VehicleTransmission &gearbox = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetTransmission() : static_cast<const WheeledVehicleController *>(controller)->GetTransmission();
     uint32_t count = uint32_t(vehicle.constraint->GetWheels().size());
     state.push_back(vehicle.id);
