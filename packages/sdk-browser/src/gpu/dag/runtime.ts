@@ -107,13 +107,14 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       // The mark travels behind the record shift (`primitiveFrameWords`).
       writeFrameWord(w, 3, mark);
     },
-    updateResidency(next, changes) {
+    updateResidency(next, changes, moved) {
       if (state.disposed || state.dead || !uploadResidency) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (!uploadResidency(next, changes)) return false;
+      if (!uploadResidency(next, changes, moved)) return false;
       voidCuts();
       return true;
     },
+    isFinest: (page) => !uploadResidency || uploadResidency.isFinest(page),
     notePool(page, held) {
       if (state.disposed || state.dead || !poolList?.note(page, held)) return;
       recut();

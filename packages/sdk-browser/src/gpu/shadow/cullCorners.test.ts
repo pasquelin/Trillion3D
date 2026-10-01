@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { SHADOW_REGION_COMMANDS, emptyRegionCommands } from './batchBudget.ts';
 import {
+  MOBILITY_COARSER,
   MOBILITY_CORNER_SHIFT,
   MOBILITY_CUTOUT,
   SHADOW_CULL_SHADER,
@@ -76,7 +77,7 @@ test("a region's vertex count is its largest kept caster's: all their triangles,
 });
 
 test('edge cases: an empty list draws nothing; zero, one-triangle and maximal casters keep their count', () => {
-  const corners = [0, 3, 384, 2 ** 30 - 1];
+  const corners = [0, 3, 384, 2 ** (32 - MOBILITY_CORNER_SHIFT) - 1];
   const mobility = createShadowMobility();
   mobility.ensure(1, corners.length, () => new Float64Array(16));
   const at = (row: number) => corners[row];
@@ -95,4 +96,24 @@ test('edge cases: an empty list draws nothing; zero, one-triangle and maximal ca
   corners.forEach((count, row) => assert.equal(drawn([row]), count));
   assert.equal(drawn([0, 1, 2]), 384);
   assert.equal(mobility.rowWords[3] & MOBILITY_CUTOUT, 0, 'the count never reaches the flag bits');
+});
+
+test('a row a finer resident form stands for is marked coarser, its corners kept (#831)', () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(1, 4, () => new Float64Array(16));
+  const coarser = (row: number) => row === 1 || row === 3;
+  mobility.writeRows(
+    () => 0,
+    4,
+    0,
+    3,
+    () => {},
+    () => 384,
+    3,
+    undefined,
+    coarser,
+  );
+  const marked = [...mobility.rowWords].map((word) => word & MOBILITY_COARSER);
+  assert.deepEqual(marked, [0, MOBILITY_COARSER, 0, 0], 'row 3, a blended one, stays drawn');
+  assert.equal(mobility.rowWords[1] >>> MOBILITY_CORNER_SHIFT, 384);
 });
