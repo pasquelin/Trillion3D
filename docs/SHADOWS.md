@@ -199,7 +199,7 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   static cache and merges them under the dynamic ones (#831): the layer's pass clears the pages
   and draws the still casters alone (`shadow_fresh_static_vs`, a moving row's pair tagged
   `FRESH_MOVING_PAIR` by the cull), then the pool's pass restores each page from it and draws the
-  moving casters alone over it (`shadow_fresh_restore_fs`, `shadow_fresh_moving_vs`): the still
+  moving casters alone over it (`restore_fs`, `depthRestoreWgsl`, and `shadow_fresh_moving_vs`): the still
   geometry is drawn once. A page is drawn once, as Unreal draws it: the snapshot says which pages
   the GPU's own draw holds (`drawnBy`), and the host adopts those current (`pool.keepDraw`), with
   their static layer when every GPU draw since the snapshot before wrote it (`layeredFrom`) — never

@@ -50,6 +50,9 @@ export interface WebgpuLightState {
   mobilityRows: GPUBuffer | undefined;
   staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
   staticLayerPending: boolean;
+  /** The static layer's texture, made with the pool (`../../shadow/staticReserve.ts`, #831), until
+   *  the layer built on it at the first move owns it. */
+  staticLayerTexture: GPUTexture | undefined;
   /** The static layer's page pyramids and the test of the moving casters against them. */
   pageHiz: ShadowPageHiz | undefined;
   occlusion: ShadowOcclusion | undefined;
@@ -138,6 +141,7 @@ export function createWebgpuLightState(
     mobilityRows: undefined,
     staticLayer: undefined,
     staticLayerPending: false,
+    staticLayerTexture: undefined,
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
@@ -177,6 +181,8 @@ export function createWebgpuLightState(
 /** Frees the static layer, its page pyramids and occlusion test: at dispose, or landed after it. */
 export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.staticLayer?.dispose();
+  lights.staticLayerTexture?.destroy();
+  lights.staticLayerTexture = undefined;
   lights.pageHiz?.dispose();
   lights.occlusion?.dispose();
   lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;

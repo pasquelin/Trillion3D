@@ -33,6 +33,8 @@ export async function createShadowStaticLayer(device: GPUDevice, texture: GPUTex
       /** Each layer's view: drawn into, restored from, and reduced into the page pyramids. */
       targets,
       passes: layerPasses(SHADOW_LAYER_PASS, targets),
+      /** The same, for the GPU's own pages' still casters, timed apart (`freshPass.ts`). */
+      freshPasses: layerPasses(FRESH_LAYER_PASS, targets),
       groups: targets.map((resource) =>
         device.createBindGroup({ layout, entries: [{ binding: 0, resource }] }),
       ),

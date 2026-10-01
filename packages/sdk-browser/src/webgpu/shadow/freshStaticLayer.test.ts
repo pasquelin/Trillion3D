@@ -18,7 +18,8 @@ test('each layer draws its new pages’ still casters into the static layer, the
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
   const layerGroups = ['static group 0', 'static group 1'];
-  lights.staticLayer = { passes: [{}, {}], groups: layerGroups };
+  const freshPasses = layerGroups.map(() => ({ label: FRESH_LAYER_PASS }));
+  lights.staticLayer = { passes: [{}, {}], freshPasses, groups: layerGroups };
   encode();
   const passes = calls.filter((call) => call[0] === 'pass').map((call) => call[1]);
   assert.deepEqual(passes, [FRESH_LAYER_PASS, 'layer 0', FRESH_LAYER_PASS, 'layer 1']);

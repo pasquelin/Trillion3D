@@ -13,7 +13,7 @@ import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
 import { shadowPoolShapeOf } from './poolSize.ts';
 import { shadowPoolHeld, shadowPoolShown } from './memoryGrant.ts';
-import { takeStaticLayerTexture } from './staticReserve.ts';
+import { disposeStaticLayer } from '../pages/state/lights.ts';
 
 /** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
 const SCREEN_POOL = 51 * 51;
@@ -94,8 +94,10 @@ test('the static layer is made with the pool: its bytes held before anything mov
   s.lights.shadowGrant = { settled: false, done: Promise.resolve() };
   assert.equal(shadowPoolShown(s.lights), null, 'never the atlas alone while the grant holds');
   s.lights.shadowGrant = undefined;
+  assert.ok(s.lights.staticLayerTexture, 'its texture made, held by the light state');
+  // Freed with the layer, its bytes no longer counted: no texture nobody holds is shown.
   const held = shadowPoolHeld(s.lights);
-  assert.ok(takeStaticLayerTexture(s.lights), 'its texture made');
-  assert.equal(takeStaticLayerTexture(s.lights), undefined, 'handed once, to the first move');
-  assert.equal(shadowPoolHeld(s.lights), held, 'its bytes counted while the layer is built');
+  disposeStaticLayer(s.lights);
+  assert.equal(s.lights.staticLayerTexture, undefined);
+  assert.equal(shadowPoolHeld(s.lights), held - layer);
 });
