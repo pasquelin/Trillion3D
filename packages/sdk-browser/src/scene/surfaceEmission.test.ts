@@ -2,10 +2,11 @@
 // exactly what the half-float target holds. The shipped writer (`emissiveAoFlag`) and reader
 // (`surfaceEmissiveAo`) run as JavaScript (`shaderRun`) on edge values — zero, negative zero, what
 // the half float flushes to zero or rounds to one, its largest and past it, infinities, NaN —, the
-// texel stored as the target converts it (`Math.f16round`), every component compared bit for bit.
+// texel stored as the target converts it (`f16`), every component compared bit for bit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
+import { f16 } from '../effects/bloom.fixture.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts';
 import { UNLIT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
@@ -19,8 +20,6 @@ import {
 import { SUBSURFACE_FLAG } from './subsurface.ts';
 
 type Texel = number[];
-/** The half float the target stores a value as: round to nearest, ties to even. */
-const f16 = (Math as Math & { f16round: (x: number) => number }).f16round;
 const EDGES = [0, -0, 1e-9, 2 ** -24, 6e-5, 0.5, 1, 1 + 2 ** -12, 65504, 7e4, Infinity, -1, NaN];
 const AOS = [1, 1 - 2 ** -13, 1 + 2 ** -12, 0.999, 0.5, 0, -0, NaN, Infinity];
 
