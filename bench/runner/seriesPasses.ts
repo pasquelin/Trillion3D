@@ -48,7 +48,7 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
         name,
         bloc: gpuPassBlockOf(name),
         gpuMs: distribution(values),
-        ownMs: own.has(name) ? distribution(own.get(name)!) : null,
+        ownMs: distribution(own.get(name)),
       }))
       .sort((a, b) => (b.gpuMs?.p50 ?? -1) - (a.gpuMs?.p50 ?? -1)),
   };

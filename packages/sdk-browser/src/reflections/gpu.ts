@@ -46,8 +46,8 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
 
 /** What the reflection targets hold for `rt`, the one rule the builder, the targets' fit and their
  *  allocation read: a rough history and a cone only under an active reflection, the depth-bounds
- *  pyramid for either and for a water surface's bounded mirror ray (`water`, #1279) — a reference
- *  session's walks every pixel —, its radiance levels for a cone alone. */
+ *  pyramid for either and for a water surface's bounded mirror ray (`water`, #1279; a reference
+ *  session's walks every pixel and needs none), its radiance levels for a cone alone. */
 export function reflectionPlan(rt: WebgpuPagesRuntime) {
   const active = wantsReflections(rt);
   const rough = active && wantsRoughReflectionHistory(rt);
@@ -120,7 +120,7 @@ export function createScreenReflection(
     return {
       active,
       /** The water composite's mirror ray walks the depth bounds (`reflectionPlan`). */
-      water: !!pyramid && water,
+      water: active && water,
       view,
       get group() {
         return groupFor();

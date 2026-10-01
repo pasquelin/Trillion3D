@@ -20,7 +20,7 @@ interface PasseGpu {
   gpuMs: Distribution;
   /** Its own share of the image, an overlap counted once on the pass begun first; null where the
    *  device reports none (WebGL2). */
-  ownMs?: Distribution;
+  ownMs: Distribution;
 }
 
 /** GPU passes and their comparable blocks, summarised over a series' readings. */
@@ -45,7 +45,7 @@ export function passes(passesGpu: PassesGpu | null) {
     '| passe | GPU ms p50/p95 | own share ms p50/p95 | bloc |',
     '|---|---|---|---|',
     ...passesGpu.passes.map(
-      (p) => `| ${p.name} | ${p50p95(p.gpuMs)} | ${p50p95(p.ownMs ?? null)} | ${p.bloc} |`,
+      (p) => `| ${p.name} | ${p50p95(p.gpuMs)} | ${p50p95(p.ownMs)} | ${p.bloc} |`,
     ),
     '',
   ];
