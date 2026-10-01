@@ -12,7 +12,8 @@ export const engineRenderer = (
 const loaded = (renderer: EngineRenderer) =>
   engineRenderer(renderer, (context) => {
     const code = families[renderer].get();
-    if (!code) throw new EngineError('FAMILY_LOAD_FAILED', `The ${renderer} renderer is not loaded`);
+    if (!code)
+      throw new EngineError('FAMILY_LOAD_FAILED', `The ${renderer} renderer is not loaded`);
     return code.rendererBackend(context);
   });
 

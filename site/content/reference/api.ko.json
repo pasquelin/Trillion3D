@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "로드된 모델의 정점을 `await geometry.loadVertices()` 전에 읽었습니다. 세션은 처음 필요할 때 읽으며 미리 읽지 않습니다.",
       "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
-      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
+      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했거나(`PHYSICS_FAILED`), 물체의 자세나 꼭짓점이 유한하지 않게 되어 시뮬레이션을 떠났습니다(`PHYSICS_DIVERGED`): `world.physics.error`에 있습니다.",
@@ -4226,7 +4226,8 @@
       "mode": "뷰 모드: 일반 이미지면 `'beauty'`, 또는 엔진이 어떻게 작동하는지 보여주는 모드.",
       "sessions": "월드가 지금까지 연 세션: 세션을 다시 여는 변경이 여기에 보입니다.",
       "error": "마지막 세션을 열 수 없었던 이유를 이름 있는 엔진 오류로 나타냅니다. 그 `code`는 `EngineError`에 문서화된 코드 중 하나(WebGPU가 장치를 잃었을 때는 `WEBGPU_LOST`, 선택적 패밀리가 로드되지 않았을 때의 `FAMILY_LOAD_FAILED`(그때도))이거나, 고유 코드가 없는 이유에는 `SESSION_OPEN_FAILED`입니다. 문서화된 코드의 `EngineError`는 던져진 오류 그 자체이고, 그 밖의 오류는 변환되며 이때 던져진 오류는 `details.cause`에 있습니다. 각 열기가 시작될 때부터, 그리고 아무것도 시도하지 않을 때 `null`입니다.",
-      "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
+      "modes": "현재 렌더러가 제공하는 모든 뷰 모드.",
+      "debug": "페이지의 디버그 모드(`WorldOptions.debug`): 프레임은 이 모드에서만 CPU 단계 프로필과 프레임 보고서에 기록되며, 다음 프레임부터 적용됩니다."
     }
   },
   "world.materials": {
@@ -4448,7 +4449,8 @@
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다.",
+      "debug": "디버그 모드, 배포 빌드에 대비되는 개발 빌드의 도구: 프레임은 이 모드에서만 CPU 단계 프로필(`world.cpuSteps`)과 프레임 보고서에 기록됩니다. 페이지 단위이며, 주소의 `?profile`도 이를 켭니다. `world.diagnostic.debug`로 나중에 전환합니다."
     }
   },
   "RenderScale": {
@@ -5093,7 +5095,8 @@
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다.",
+      "options.debug": "디버그 모드, 배포 빌드에 대비되는 개발 빌드의 도구: 프레임은 이 모드에서만 CPU 단계 프로필(`world.cpuSteps`)과 프레임 보고서에 기록됩니다. 페이지 단위이며, 주소의 `?profile`도 이를 켭니다. `world.diagnostic.debug`로 나중에 전환합니다."
     }
   },
   "crossVector3": {

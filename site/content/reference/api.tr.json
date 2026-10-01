@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
-      "FAMILY_LOAD_FAILED": "Motorun isteğe bağlı bir ailesi (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) önce içe aktarımı yeniden denendikten sonra yüklenemedi (`T3D-E090`): `details.family` onu `world.diagnostic.error` üzerinde adlandırır. Onunla çizen kareler onu bekler ve bir sonraki kullanımda yeniden istenir.",
+      "FAMILY_LOAD_FAILED": "Motorun isteğe bağlı bir ailesi (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) önce içe aktarımı yeniden denendikten sonra yüklenemedi (`T3D-E090`): `details.family` onu `world.diagnostic.error` üzerinde adlandırır. Onunla çizen kareler onu bekler ve bir sonraki kullanımda yeniden istenir.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`), ya da bir cismin konumu veya köşeleri sonlu olmaktan çıktı ve cisim simülasyondan ayrıldı (`PHYSICS_DIVERGED`): `world.physics.error` üzerinde.",
@@ -4226,7 +4226,8 @@
       "mode": "Görünüm modu: normal görsel için `'beauty'`, ya da motorun nasıl çalıştığını gösteren bir mod.",
       "sessions": "Dünyanın şimdiye kadar açtığı oturumlar: birini yeniden açan bir değişiklik burada görünür.",
       "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`; isteğe bağlı bir aile yüklenmediğinde `FAMILY_LOAD_FAILED`, o zaman da) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
-      "modes": "Mevcut render motorunun sunduğu her görünüm modu."
+      "modes": "Mevcut render motorunun sunduğu her görünüm modu.",
+      "debug": "Sayfanın hata ayıklama modu (`WorldOptions.debug`): kareler yalnızca bu modda CPU adım profiline ve kare raporuna kaydedilir, bir sonraki kareden itibaren."
     }
   },
   "world.materials": {
@@ -4448,7 +4449,8 @@
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir.",
+      "debug": "Hata ayıklama modu, bir geliştirme derlemesinin araçları, yayın derlemesine karşı: kareler yalnızca bu modda CPU adım profiline (`world.cpuSteps`) ve kare raporuna kaydedilir. Sayfaya aittir; adresindeki `?profile` onu açar; `world.diagnostic.debug` sonradan değiştirir."
     }
   },
   "RenderScale": {
@@ -5093,7 +5095,8 @@
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir.",
+      "options.debug": "Hata ayıklama modu, bir geliştirme derlemesinin araçları, yayın derlemesine karşı: kareler yalnızca bu modda CPU adım profiline (`world.cpuSteps`) ve kare raporuna kaydedilir. Sayfaya aittir; adresindeki `?profile` onu açar; `world.diagnostic.debug` sonradan değiştirir."
     }
   },
   "crossVector3": {
