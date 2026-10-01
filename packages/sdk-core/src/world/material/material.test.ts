@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Material } from './material.ts';
 import { Color } from '../math/color.ts';
 import { Texture } from '../texture/texture.ts';
+import { side, blending } from '../constants/index.ts';
 
 test('physical material records retain independent linear channels and supplied surface parameters', () => {
   const material = new Material(
@@ -116,4 +117,28 @@ test('a texture a material no longer samples stops repainting it, unless another
   writes = 0;
   texture.rotation = 0.2;
   assert.equal(writes, 0, 'sampled by no field');
+});
+
+test('a new material is an opaque front face, blended normally, depth-tested and depth-writing', () => {
+  const material = new Material('meshStandard');
+  assert.equal(material.surface().alphaMode, 'opaque');
+  assert.equal(material.surface().side, side.front);
+  assert.equal(material.blending, blending.normal);
+  assert.equal(material.depthTest && material.depthWrite, true);
+  assert.equal(material.vertexColors || material.transparentShadow, false, 'opt-in only');
+});
+
+test('a parameter given as undefined is not given', () => {
+  const bare = new Material('meshStandard');
+  assert.equal(new Material('meshStandard', { roughness: undefined }).roughness, bare.roughness);
+});
+
+test('a clone is heard by its own wearers alone', () => {
+  const source = new Material('meshPhong', { specular: 0x112233 });
+  let heard = 0;
+  source._listeners.add(() => heard++);
+  const copy = source.clone();
+  copy.color.setRGB(0.1, 0.2, 0.3);
+  (copy.specular as Color).setRGB(0.3, 0.2, 0.1);
+  assert.equal(heard, 0);
 });

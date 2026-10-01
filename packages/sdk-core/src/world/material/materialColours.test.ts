@@ -92,3 +92,20 @@ test('a newly created optional color continues to notify its material after cons
   (material.sheenColor as Color).set(0xff0000);
   assert.equal(writes, 1);
 });
+
+test('every colour field holds a Color, written in place and heard, whatever value it is given', () => {
+  const material = new Material('meshPhysical');
+  let writes = 0;
+  material._listeners.add(() => writes++);
+  const held = material.subsurfaceColor;
+  material.subsurfaceColor = 0xff0000;
+  assert.equal(material.subsurfaceColor, held, 'the same Color, set in place');
+  const base = material.color;
+  material.color = [0.5, 0.5, 0.5];
+  assert.equal(material.color, base);
+  material.attenuationColor = 0x00ff00;
+  assert.ok(material.attenuationColor instanceof Color);
+  writes = 0;
+  (material.attenuationColor as Color).setRGB(0, 0, 1);
+  assert.equal(writes, 1);
+});
