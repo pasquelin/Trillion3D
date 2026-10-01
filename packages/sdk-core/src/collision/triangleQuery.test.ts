@@ -67,12 +67,12 @@ test('box queries include boundary contact and visit only triangles within each 
       [2, 2, [2]],
       [-100, 100, [-25, -15, -9, -4, 2, 7, 12, 20, 30]],
       [31, 40, []],
-    ]) {
+    ] as const) {
       const min = [-3, -3, -3],
         max = [3, 3, 3],
         found: number[] = [];
-      min[axis] = low as number;
-      max[axis] = high as number;
+      min[axis] = low;
+      max[axis] = high;
       forEachTriangleInBox(tree, min, max, (at) => found.push(tree.triangles[at + axis]));
       assert.deepEqual(
         found.sort((a, b) => a - b),

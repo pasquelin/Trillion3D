@@ -107,7 +107,8 @@ export function createCharacterBody(settings: CharacterSettings) {
     const length = hypot2(dx, dz);
     if (length === 0) return;
     const reach = Math.max(1, settings.capsuleRadius / length);
-    if (climbs(dx * reach, dz * reach) && climbs(dx, dz)) return;
+    // A move a radius long or more is its own probe: it is taken as it was tried.
+    if (climbs(dx * reach, dz * reach) && (reach === 1 || climbs(dx, dz))) return;
     capsule.feet.set(kept.subarray(0, 3));
     velocity.set(kept.subarray(3));
   };

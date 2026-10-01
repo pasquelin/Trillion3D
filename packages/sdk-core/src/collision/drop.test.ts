@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dropSphere } from './drop.ts';
 import type { CapsuleContact } from './capsule.ts';
+import { near } from '../math/near.fixture.ts';
 
 const contact = (): CapsuleContact => ({
   point: new Float64Array(3),
@@ -9,10 +10,6 @@ const contact = (): CapsuleContact => ({
   surface: new Float64Array(3),
   depth: 0,
 });
-const near = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
-  Array.from(actual).forEach((value, k) =>
-    assert.ok(Math.abs(value - expected[k]) < 1e-10, `${value} for ${expected[k]}`),
-  );
 
 test('a level triangle wound either way meets the sphere on its face, edges and corner', () => {
   const corners = [
@@ -38,9 +35,9 @@ test('a level triangle wound either way meets the sphere on its face, edges and 
     for (const [centre, point, normal, distance] of cases) {
       const touch = contact();
       assert.ok(Math.abs(dropSphere(centre, 1, triangle, 3, touch) - distance) < 1e-10);
-      near(touch.point, point);
-      near(touch.normal, normal);
-      near(touch.surface, [0, 1, 0]);
+      near(touch.point, point, 'point', 1e-10);
+      near(touch.normal, normal, 'normal', 1e-10);
+      near(touch.surface, [0, 1, 0], 'surface', 1e-10);
     }
     assert.equal(dropSphere([20, 8, 20], 1, triangle, 3, contact()), Infinity);
   }
@@ -65,9 +62,9 @@ test('a slope is met on its face, its surface turned up whatever the axes', () =
     const touch = contact();
     const distance = dropSphere(place(2, 10, 2), 1, triangle, 0, touch);
     assert.ok(Math.abs(distance - (8 - Math.SQRT2)) < 1e-10);
-    near(touch.point, place(2, 2 + Math.SQRT1_2, 2 + Math.SQRT1_2));
-    near(touch.surface, turn(0, Math.SQRT1_2, -Math.SQRT1_2));
-    near(touch.normal, touch.surface);
+    near(touch.point, place(2, 2 + Math.SQRT1_2, 2 + Math.SQRT1_2), 'point', 1e-10);
+    near(touch.surface, turn(0, Math.SQRT1_2, -Math.SQRT1_2), 'surface', 1e-10);
+    near(touch.normal, [...touch.surface], 'normal', 1e-10);
   }
 });
 
@@ -80,15 +77,15 @@ test('an edge is met where the sphere first comes one radius from it', () => {
     const distance = dropSphere([5, 20, 5 - radius * 0.6], radius, triangle, 0, touch);
     const above = radius * 0.8 * Math.SQRT2;
     assert.ok(Math.abs(distance - (14 - above)) < 1e-10);
-    near(touch.point, [5 + above / 2, 6 + above / 2, 5]);
-    near(touch.normal, [-0.8 * Math.SQRT1_2, 0.8 * Math.SQRT1_2, -0.6]);
+    near(touch.point, [5 + above / 2, 6 + above / 2, 5], 'point', 1e-10);
+    near(touch.normal, [-0.8 * Math.SQRT1_2, 0.8 * Math.SQRT1_2, -0.6], 'normal', 1e-10);
   }
   // A vertical triangle: the sphere beside it meets its slanted edge, its normal level.
   const wall = [0, 0, 0, 0, 0, 6, 0, 6, 0];
   const touch = contact();
   assert.equal(dropSphere([1, 10, 3], 1, wall, 0, touch), 7);
-  near(touch.point, [0, 3, 3]);
-  near(touch.normal, [1, 0, 0]);
+  near(touch.point, [0, 3, 3], 'point', 1e-10);
+  near(touch.normal, [1, 0, 0], 'normal', 1e-10);
   assert.equal(dropSphere([2, 10, 0], 1, wall, 0, contact()), Infinity);
 });
 
@@ -104,7 +101,7 @@ test('a vertical triangle keeps its face orientation, its contact normal pointin
     // 0.6 beside the top corner: met 0.8 above it.
     assert.ok(Math.abs(dropSphere([0.6, 10, 0], 1, triangle, 0, touch) - 3.2) < 1e-12);
     assert.deepEqual([...touch.surface], [reverse ? -1 : 1, 0, 0]);
-    near(touch.normal, [0.6, 0.8, 0]);
+    near(touch.normal, [0.6, 0.8, 0], 'normal', 1e-10);
   }
 });
 
@@ -130,5 +127,5 @@ test('a vertical edge is met at its top end, whatever its length', () => {
   const below = Math.sqrt(0.1 ** 2 - 0.05 ** 2);
   assert.ok(Math.abs(distance - (10 - 0.7 - below)) < 1e-12);
   assert.deepEqual([...touch.point], [0, 0.7, 0]);
-  near(touch.normal, [0, below / 0.1, 0.5]);
+  near(touch.normal, [0, below / 0.1, 0.5], 'normal', 1e-10);
 });

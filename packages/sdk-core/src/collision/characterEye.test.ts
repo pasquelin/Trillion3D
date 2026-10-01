@@ -75,6 +75,6 @@ test('landing recoil survives a zero-time frame and a live disabled setting clea
   assert.ok(eye.offset(0.03, [0, 0, 0], true) < 0);
   settings.landingDip = 0;
   assert.ok(eye.offset(0, [0, 0, 0], true) === 0);
-  settings.landingDip = 0.06;
+  settings.landingDip = HUMAN_BODY.landingDip;
   assert.ok(eye.offset(0.03, [0, 0, 0], true) === 0);
 });

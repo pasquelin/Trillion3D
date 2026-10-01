@@ -2,41 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { box } from '../world/geometry/basic.ts';
 import { Mesh } from '../world/object/mesh.ts';
-import { meshCollision } from './meshTriangles.ts';
-import { createCharacterBody } from './characterBody.ts';
-import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
+import { HUMAN_BODY, RESPONSE_LEFT } from './characterSettings.ts';
 import { createDrive } from './characterDrive.ts';
 import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
 import { gripOf } from './grip.ts';
-import { block } from './character.fixture.ts';
+import { block, body, EAST, FLOOR, live, STILL } from './character.fixture.ts';
 
 /** A sole's push on the floor a body stands on without physics, m/s², and the legs' rate. */
 const push = gripOf(createDrive().floor) * HUMAN_BODY.gravity,
-  rateOf = (time: number) => -Math.log(0.05) / time;
-const FLOOR = () => block(-50, -1, -50, 50, 0, 50);
-const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
-const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };
-
-/** A body of the default human over `blocks`, feet at `(x, y, z)`. */
-function body(blocks: Mesh[], x = 0, y = 0, z = 0, changes: Partial<CharacterSettings> = {}) {
-  const settings = { ...HUMAN_BODY, ...changes };
-  const made = createCharacterBody(settings);
-  made.setWorld(meshCollision(blocks));
-  made.place(x, y, z);
-  return made;
-}
-
-/** Lives `seconds` in frames of `frame` seconds; returns the last drawn feet. */
-function live(
-  made: ReturnType<typeof body>,
-  seconds: number,
-  input: CharacterInput,
-  frame = 1 / 60,
-) {
-  let feet = made.feet;
-  for (let t = 0; t < seconds - 1e-9; t += frame) feet = made.advance(frame, input);
-  return [...feet];
-}
+  rateOf = (time: number) => -Math.log(RESPONSE_LEFT) / time;
 
 test('a body falls, lands on the floor and reports the impact once', () => {
   const made = body([FLOOR()], 0, 2, 0);
@@ -108,10 +82,13 @@ test("a key starts the jog at the floor's push, and is seen in the first frame",
   // Drawn at the present: at most one tick of the fixed step late, under one frame.
   assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
   let t = frame;
-  for (; made.velocity[0] < 0.95 * v && t < 2; t += frame) made.advance(frame, EAST);
-  assert.ok(made.velocity[0] >= 0.95 * v, 'the jog must reach its target within two seconds');
+  for (; made.velocity[0] < (1 - RESPONSE_LEFT) * v && t < 2; t += frame) made.advance(frame, EAST);
+  assert.ok(
+    made.velocity[0] >= (1 - RESPONSE_LEFT) * v,
+    'the jog must reach its target within two seconds',
+  );
   // The push closes the gap down to push / rate, the legs' exponential the rest.
-  const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate;
+  const expected = (v - push / rate) / push + Math.log(push / rate / (RESPONSE_LEFT * v)) / rate;
   assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`);
 });
 
