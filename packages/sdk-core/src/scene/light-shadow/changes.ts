@@ -127,7 +127,7 @@ export function createShadowChanges(capacity: number) {
      * changed representation meanwhile enters the list as one box; while it moves, the union
      * only grows. Returns true when the camera rests: the GPU draws the view in float32, and a view
      * that moved by less than a float32 step — a chase camera easing toward a car at rest, by
-     * 1e-11 m a frame, for ever — reaches it unchanged and asks nothing new (#831).
+     * 1e-11 m a frame, for ever — is a move no float32 draw resolves: it asks nothing new (#831).
      */
     observeView(view: ShadowViewpoint) {
       writeView(view, viewNow);
