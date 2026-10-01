@@ -46,8 +46,8 @@ const reasonOf = (level: number, wrong: boolean) =>
  *   their moving casters, and the static layer under them stays read; an entry the host does not
  *   map while the GPU maps (`mirror.ts`) goes out withdrawn, its GPU draw redone this frame
  *   (`wordsWgsl.ts`). With per-page invalidation off, every page of each light the box touches.
- * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
- *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
+ * - **The representation changed** (`changes.ts`): the same pages, stale for detail only, read
+ *   until redrawn; an entry the host does not map yet goes out withdrawn, redrawn now (#831).
  *
  * Adds the pages staled and the pages visited to `counts`.
  */
@@ -128,7 +128,7 @@ export function createPageInvalidation(
           const entry = row + (sunLight ? ringOf(x, sun.windowPages) : x),
             word = table.words[entry];
           if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
-          else if (gpuDraws && reason !== STALE_BY.detail) table.withdraw(entry);
+          else if (gpuDraws) table.withdraw(entry);
         }
       }
     }
