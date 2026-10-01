@@ -5,12 +5,16 @@ import {
   invertMatrix4,
   planImpostors,
   type ImpostorCard,
+  type ImpostorPlan,
   type ImpostorSection,
 } from '../../../../sdk-core/src/index.ts';
 import { transformAffinePoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 import { impostorCardCorners } from '../../impostor/card.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
+import { markCard } from '../../visibility/shader/spriteWgsl.ts';
+import { markReach } from '../../deformation/halfFloat.ts';
+import { grownCapacity } from '../../placement/rows.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -28,12 +32,14 @@ function createWebgpuImpostors(pass: ImpostorPass, section: ImpostorSection) {
     pass,
     section,
     baked: impostorBakedByMesh(section),
+    /** The plan, planned again in place every image (`planImpostors`' `into`). */
+    plan: undefined as ImpostorPlan | undefined,
     /** This image's card records, `CARD_FLOATS` each, in draw order. */
     records: new Float32Array(CARD_FLOATS * 16),
     count: 0,
+    /** This image's runs, `runs[0 .. runCount)`; the objects past it are kept for later images. */
     runs: [] as CardRun[],
-    /** The roots this image's cut suppresses, indexed like the roots it planned. */
-    switched: undefined as Uint8Array | undefined,
+    runCount: 0,
   };
 }
 
@@ -46,7 +52,16 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
   if (!rt.vis.visEnabled) return undefined;
   if (rt.gpu.impostors) return rt.gpu.impostors;
   if (!section?.baked || !reader || !device) return undefined;
-  const pass = createImpostorPass(device, reader, () => rt.run.gate.resourcesChanged());
+  const { setup, vis, diag } = rt;
+  const pass = createImpostorPass(device, reader, {
+    // What the one texture budget leaves beside the pool's floor and the live textures.
+    room: () =>
+      setup.texturePoolBudget -
+      (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) -
+      (vis.textures?.sources.liveBytes ?? 0),
+    landed: () => rt.run.gate.resourcesChanged(),
+    onFailure: diag.diagnosticFailure,
+  });
   return (rt.gpu.impostors = createWebgpuImpostors(pass, section));
 }
 
@@ -54,18 +69,14 @@ const pixelScale = [0, 0],
   pivot = new Float64Array(3),
   corners = new Float64Array(12),
   inverse = new Float64Array(16),
-  ordered: { card: ImpostorCard; group: GPUBindGroup }[] = [],
-  byMesh = (a: { card: ImpostorCard }, b: { card: ImpostorCard }) => a.card.mesh - b.card.mesh;
+  byMesh = (a: ImpostorCard, b: ImpostorCard) => a.mesh - b.mesh;
 
 /** Writes one card's record at `at`: corners, world, inverse world, shape, object pivot. */
 function writeCard(
   out: Float32Array,
   at: number,
   card: ImpostorCard,
-  radius: number,
-  frames: number,
-  hemi: boolean,
-  lod: number,
+  shape: readonly [radius: number, frames: number, hemi: number, lod: number],
   centre: readonly number[],
 ) {
   for (let i = 0; i < 4; i++) {
@@ -74,86 +85,97 @@ function writeCard(
   }
   out.set(card.world as ArrayLike<number>, at + 16);
   out.set(invertMatrix4(inverse, card.world), at + 32);
-  out[at + 48] = radius;
-  out[at + 49] = frames;
-  out[at + 50] = hemi ? 1 : 0;
-  out[at + 51] = lod;
+  out.set(shape, at + 48);
   for (let k = 0; k < 3; k++) out[at + 52 + k] = centre[k];
   out[at + 55] = 1;
 }
 
-/**
- * THE IMAGE'S IMPOSTOR PLAN on WebGPU (#1335): `planImpostors` over `roots` at the engine's focal
- * length, then each card kept only once its mesh's atlas is resident — a card still streaming
- * leaves its root to its clusters, so the switch never opens a hole. A kept card outside the view
- * suppresses its root and draws nothing, as the mesh it stands for would; every other is turned to
- * the camera by the shared sprite basis (`impostorCardCorners`) and written to the image's records,
- * grouped by mesh. Returns the roots the cut suppresses, `undefined` with no impostor tier.
- */
-export function planWebgpuImpostors(
+/** Sets each root's card bit to the plan's verdict (`markCard`), and hands the roots whose bit
+ *  moved to the GPU cut (`markWorld`), their reach kept: one decision for both cuts. */
+function markCards(
   rt: WebgpuPagesRuntime,
-  cam: EngineCamera,
   roots: readonly ClusterRoot<unknown>[],
+  switched: Uint8Array | undefined,
 ) {
-  const state = impostorsOf(rt);
-  if (!state) {
-    // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing: its last
-    // plan would hide roots from the CPU cut with no card in their place.
-    const stale = rt.gpu.impostors;
-    if (stale) {
-      stale.switched = undefined;
-      stale.count = 0;
-      stale.runs.length = 0;
-    }
-    return undefined;
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
+    if (markCard(root, switched?.[rank] === 1))
+      rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0));
   }
-  const { feed } = state.pass;
-  feed.beginFrame();
+}
+
+const shape: [number, number, number, number] = [0, 0, 0, 0],
+  ORIGIN = [0, 0, 0] as const;
+
+/**
+ * THE IMAGE'S IMPOSTOR PLAN on WebGPU (#1335): `planImpostors` over the cut's roots at the engine's
+ * focal length, planned again in place. A card outside the view suppresses its root and asks
+ * nothing, as the mesh it stands for would draw nothing: residency follows the view. A card in it is
+ * kept only once its mesh's atlas is resident — one still streaming leaves its root to its
+ * clusters, so the switch never opens a hole —, turned to the camera by the shared sprite basis
+ * (`impostorCardCorners`) and written to the image's records, grouped by mesh. The verdict marks
+ * each root (`CARD_ROOT`): every camera cut, CPU and GPU, leaves a marked root to its card, every
+ * light cut keeps its clusters, so the object casts its mesh's shadow.
+ */
+export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+  const roots = rt.layout.selectionRoots,
+    state = impostorsOf(rt);
+  if (!state) {
+    // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing.
+    const stale = rt.gpu.impostors;
+    if (!stale?.plan) return;
+    stale.count = stale.runCount = 0;
+    stale.plan = undefined;
+    markCards(rt, roots, undefined);
+    return;
+  }
+  const { feed } = state.pass,
+    frame = rt.run.frame;
   pixelScaleOf(cam.projection, rt.setup.viewport ?? rt.gpu.targetSize, pixelScale);
   const focal = Math.max(pixelScale[0], pixelScale[1]);
-  const plan = planImpostors(roots, state.section, cam.view, focal);
-  ordered.length = 0;
+  const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan));
+  plan.cards.sort(byMesh);
+  state.count = state.runCount = 0;
+  const floats = plan.cards.length * CARD_FLOATS;
+  if (state.records.length < floats)
+    state.records = new Float32Array(grownCapacity(state.records.length, floats));
+  let last: ArrayLike<number> | undefined,
+    mesh = -1,
+    group: GPUBindGroup | undefined;
   for (const card of plan.cards) {
-    const group = feed.group(card.mesh, card.maps);
-    if (!group) plan.switched[card.root] = 0;
-    else ordered.push({ card, group });
-  }
-  ordered.sort(byMesh);
-  state.count = 0;
-  state.runs.length = 0;
-  if (state.records.length < ordered.length * CARD_FLOATS)
-    state.records = new Float32Array(ordered.length * CARD_FLOATS * 2);
-  let last: ArrayLike<number> | undefined;
-  for (const { card, group } of ordered) {
+    const entry = state.baked.get(card.mesh)!,
+      centre = entry.centre ?? ORIGIN,
+      R = card.radius;
+    transformAffinePoint(pivot, card.world, centre[0], centre[1], centre[2]);
+    const x = pivot[0],
+      y = pivot[1],
+      z = pivot[2];
+    if (frustumExcludesBox(cam.planes, x - R, y - R, z - R, x + R, y + R, z + R)) continue;
+    if (card.mesh !== mesh) group = feed.group((mesh = card.mesh), card.maps, frame);
+    if (!group) {
+      plan.switched[card.root] = 0;
+      continue;
+    }
     // Two primitives of one placement are two roots of one mesh, at one world: one card.
     if (card.world === last) continue;
     last = card.world;
-    const entry = state.baked.get(card.mesh)!,
-      centre = entry.centre ?? [0, 0, 0],
-      R = card.radius;
-    transformAffinePoint(pivot, card.world, centre[0], centre[1], centre[2]);
-    const [x, y, z] = pivot;
-    if (frustumExcludesBox(cam.planes, x - R, y - R, z - R, x + R, y + R, z + R)) continue;
     impostorCardCorners(corners, cam.viewProjection, pivot, R);
     // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
-    const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2]),
-      lod = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)));
-    const objectRadius = entry.objectRadius ?? entry.radius;
-    writeCard(
-      state.records,
-      state.count * CARD_FLOATS,
-      card,
-      objectRadius,
-      entry.frames,
-      !!entry.hemi,
-      lod,
-      centre,
-    );
-    const run = state.runs[state.runs.length - 1];
+    const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2]);
+    shape[0] = entry.objectRadius ?? entry.radius;
+    shape[1] = entry.frames;
+    shape[2] = entry.hemi ? 1 : 0;
+    shape[3] = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)));
+    writeCard(state.records, state.count * CARD_FLOATS, card, shape, centre);
+    const run = state.runCount ? state.runs[state.runCount - 1] : undefined;
     if (run?.group === group) run.count++;
-    else state.runs.push({ group, first: state.count, count: 1 });
+    else {
+      const next = (state.runs[state.runCount++] ??= { group, first: 0, count: 0 });
+      next.group = group;
+      next.first = state.count;
+      next.count = 1;
+    }
     state.count++;
   }
-  state.switched = plan.switched;
-  return plan.switched;
+  markCards(rt, roots, plan.switched);
 }

@@ -1,7 +1,9 @@
-// #1335: on WebGPU, a root the impostor plan switches draws its card through the card pipeline, and
-// the cut drops its clusters in the same image: plan and draw agree. The card waits for its atlas,
-// read through the engine's one level reader, and until then the root keeps its clusters — no hole.
-// Fails on develop: the WebGPU card pass, its atlas feed and this file are new.
+// #1335: on WebGPU, a root the impostor plan switches draws its card through the card pipelines —
+// into the visibility buffer and depth before the Hi-Z pyramid, then into the surfaces — and its
+// card bit leaves it to the card in every camera cut, CPU and GPU, while the light cuts keep its
+// shadow: plan and draw agree. The card waits for its atlas, read through the engine's one
+// held-level read, and until then the root keeps its clusters — no hole. A card out of the view
+// asks nothing. Fails on develop: the WebGPU card pass, its atlas feed and this file are new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -13,9 +15,12 @@ import { impostorCardCorners } from '../../impostor/card.ts';
 import type { TextureLevelReader, TextureLevelRequest } from '../../texture/levelReader.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { CARD_FLOATS } from './cardWgsl.ts';
-import { encodeImpostorCards, parkSwitchedRoots } from './encode.ts';
+import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts';
 import { planWebgpuImpostors } from './frame.ts';
+import { recordingEncoder } from './recorder.fixture.ts';
 import { IMPOSTOR_PASS } from './pass.ts';
+import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
+import { castsNoShadow } from '../../page/cut/select.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 /** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
@@ -65,12 +70,14 @@ function bench() {
     fixture.associations,
   );
   for (const root of roots) root.mesh = MESH;
-  const parked: Array<[number, boolean]> = [];
+  const marked: Array<[number, number]> = [];
   let landed = 0;
   const rt = {
     context: { metadata: { impostors: section }, readTextureLevel: reader },
     vis: { visEnabled: true },
-    setup: { viewport: VIEWPORT },
+    setup: { viewport: VIEWPORT, texturePoolBudget: 1 << 20 },
+    layout: { selectionRoots: roots },
+    diag: { diagnosticFailure: () => undefined },
     gpu: {
       device: gpu.device,
       impostors: undefined,
@@ -79,98 +86,107 @@ function bench() {
       surfaces: { views: () => [0, 1, 2, 3].map((label) => ({ label })) },
     },
     run: {
+      frame: 0,
       gate: { resourcesChanged: () => landed++, cam: createEngineCamera() },
       gpuDrawCalls: 0,
-      gpuSelection: { parkWorld: (rank: number, park: boolean) => parked.push([rank, park]) },
+      gpuSelection: { markWorld: (rank: number, mark: number) => marked.push([rank, mark]) },
     },
   } as unknown as WebgpuPagesRuntime;
-  return { gpu, rt, roots, fixture, asked, parked, landed: () => landed };
-}
-
-/** An encoder that records the render passes and what each one draws. */
-function recordingEncoder() {
-  const passes: Array<{
-    label?: string;
-    pipeline?: unknown;
-    groups: unknown[];
-    draws: number[][];
-  }> = [];
-  const encoder = {
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      const pass = { label: descriptor.label, groups: [] as unknown[], draws: [] as number[][] };
-      passes.push(pass as (typeof passes)[number]);
-      return {
-        setViewport() {},
-        setPipeline: (pipeline: unknown) => void Object.assign(pass, { pipeline }),
-        setBindGroup: (index: number, group: unknown) => void (pass.groups[index] = group),
-        draw: (...args: number[]) => void pass.draws.push(args),
-        end() {},
-      };
-    },
-  };
-  return { encoder: encoder as unknown as GPUCommandEncoder, passes };
+  return { gpu, rt, roots, fixture, asked, marked, landed: () => landed };
 }
 
 const engineOf = (z: number) => readCameraWorld(createEngineCamera(), frontCamera(z, 5000));
-const cut = (roots: ReturnType<typeof bench>['roots'], z: number, switched?: Uint8Array) =>
-  selectVisiblePages(roots, engineOf(z), { pixelError: 0, viewport: VIEWPORT, switched });
+const cut = (roots: ReturnType<typeof bench>['roots'], z: number) =>
+  selectVisiblePages(roots, engineOf(z), { pixelError: 0, viewport: VIEWPORT });
+/** Images drawn until the atlas landed and was made: each lands what the one before asked. */
+async function imagesUntilResident(rt: WebgpuPagesRuntime, z: number) {
+  for (let image = 0; image < 3; image++) {
+    planWebgpuImpostors(rt, engineOf(z));
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
 
-test('a switched root draws its card through the card pipeline once its atlas lands', async () => {
-  const { gpu, rt, roots, fixture, asked, parked, landed } = bench();
-  const far = engineOf(200);
+test('a switched root draws its card in visibility and surfaces once its atlas lands', async () => {
+  const { gpu, rt, roots, fixture, asked, marked, landed } = bench();
   // First image: the atlas is asked through the one reader, and the root keeps its clusters.
-  const waiting = planWebgpuImpostors(rt, far, roots);
-  assert.deepEqual([...waiting!], [0], 'no card before the atlas: the root stays whole');
-  assert.ok(cut(roots, 200, waiting).shown.length > 0, 'no hole while the atlas streams');
+  planWebgpuImpostors(rt, engineOf(200));
+  assert.equal(roots[0].mark, undefined, 'no card before the atlas: the root stays whole');
+  assert.ok(cut(roots, 200).shown.length > 0, 'no hole while the atlas streams');
   assert.deepEqual(
     asked.map((request) => request.url),
     ['a', 'b', 'c'].map((name) => `../../objects/${name}.png`),
   );
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(landed(), 1, 'the landing breaks a held image');
+  await imagesUntilResident(rt, 200);
+  assert.ok(landed() >= 2, 'the landing and the atlas made break a held image');
   const atlas = gpu.textures.filter((texture) => texture.label?.includes('impostor'));
   assert.deepEqual(
     atlas.map((texture) => texture.format),
     ['rgba8unorm-srgb', 'rgba8unorm', 'rgba8unorm'],
   );
   assert.equal(gpu.imageCopies.length, 3, 'each map copied once to the GPU');
-  // Second image: the plan switches the root, the cut drops its clusters, the card is written.
-  const switched = planWebgpuImpostors(rt, far, roots)!;
-  assert.deepEqual([...switched], [1]);
-  assert.deepEqual(cut(roots, 200, rt.gpu.impostors?.switched).shown, [], 'the cut skips it');
-  parkSwitchedRoots(rt, roots, switched);
-  assert.deepEqual(parked, [[0, true]], 'the GPU cut parks it in the same image');
+  // The image that switches the root: its card bit set on the root and handed to the GPU cut.
+  planWebgpuImpostors(rt, engineOf(200));
+  assert.equal(roots[0].mark, CARD_ROOT);
+  assert.deepEqual(marked, [[0, CARD_ROOT]], 'the GPU cut leaves it to its card, same image');
+  assert.deepEqual(cut(roots, 200).shown, [], 'the CPU cut skips it');
+  assert.equal(castsNoShadow(roots[0].mark, {}), false, 'its light cuts keep its shadow');
   const state = rt.gpu.impostors!;
   assert.equal(state.count, 1);
   // The card's corners are the shared sprite basis at the root's pivot, half-extent R.
-  const corners = impostorCardCorners(new Float64Array(12), far.viewProjection, [0, 0, 0], 1);
+  const corners = impostorCardCorners(
+    new Float64Array(12),
+    engineOf(200).viewProjection,
+    [0, 0, 0],
+    1,
+  );
   for (let i = 0; i < 4; i++)
     for (let k = 0; k < 3; k++)
       assert.ok(Math.abs(state.records[i * 4 + k] - corners[i * 3 + k]) < 1e-5, `corner ${i}`);
-  const { encoder, passes } = recordingEncoder();
-  encodeImpostorCards(rt, gpu.device, encoder);
-  assert.equal(passes.length, 1);
-  const [pass] = passes;
-  assert.equal(pass.label, IMPOSTOR_PASS);
-  const pipeline = pass.pipeline as GPURenderPipelineDescriptor;
-  assert.equal(pipeline.vertex.entryPoint, 'card_vs');
-  assert.equal(pipeline.depthStencil?.depthCompare, 'greater', 'depth-tested as the clusters');
-  assert.equal(pass.groups[1], state.runs[0].group, "the mesh's atlas group");
-  assert.deepEqual(pass.draws, [[6, 1, 0, 0]], 'one quad, one instance');
+  const { encoder, open, passes } = recordingEncoder();
+  // Visibility: identifier 0, depth and the pyramid's level 0, before the pyramid is built.
+  assert.equal(drawImpostorVisibility(rt, gpu.device, open('primary'), true), true);
+  const vis = passes[0].pipeline as GPURenderPipelineDescriptor;
+  assert.equal(vis.fragment?.entryPoint, 'card_vis_hiz_fs');
+  assert.deepEqual(vis.fragment?.targets, [{ format: 'r32uint' }, { format: 'r32float' }]);
+  assert.equal(vis.depthStencil?.depthCompare, 'greater', 'depth-tested as the clusters');
+  assert.equal(vis.depthStencil?.depthWriteEnabled, true);
   const written = gpu.writes.find((write) => write.buffer.label === 'Trillion3D impostor cards');
   assert.equal(written?.size, CARD_FLOATS, 'the one card record goes up');
+  // Surfaces: where the depth is the card's own.
+  encodeImpostorCards(rt, encoder);
+  const surfaces = passes[1];
+  assert.equal(surfaces.label, IMPOSTOR_PASS);
+  const pipeline = surfaces.pipeline as GPURenderPipelineDescriptor;
+  assert.equal(pipeline.vertex.entryPoint, 'card_vs');
+  assert.equal(pipeline.depthStencil?.depthCompare, 'greater-equal');
+  assert.equal(pipeline.depthStencil?.depthWriteEnabled, false);
+  assert.equal(surfaces.groups[1], state.runs[0].group, "the mesh's atlas group");
+  assert.deepEqual(surfaces.draws, [[6, 1, 0, 0]], 'one quad, one instance');
   fixture.geometry.dispose();
 });
 
-test('a near root draws whole and no card pass is encoded', async () => {
-  const { rt, roots, fixture } = bench();
-  planWebgpuImpostors(rt, engineOf(200), roots);
-  await new Promise((resolve) => setImmediate(resolve));
-  const switched = planWebgpuImpostors(rt, engineOf(5), roots);
-  assert.deepEqual([...switched!], [0]);
-  assert.ok(cut(roots, 5, switched).shown.length > 0);
+test('a near root draws whole again and no card pass is encoded', async () => {
+  const { rt, roots, fixture, marked } = bench();
+  await imagesUntilResident(rt, 200);
+  planWebgpuImpostors(rt, engineOf(200));
+  planWebgpuImpostors(rt, engineOf(5));
+  assert.equal(roots[0].mark, undefined, 'its card bit cleared');
+  assert.deepEqual(marked.at(-1), [0, 0], 'and handed to the GPU cut');
+  assert.ok(cut(roots, 5).shown.length > 0);
   const { encoder, passes } = recordingEncoder();
-  encodeImpostorCards(rt, rt.gpu.device!, encoder);
+  encodeImpostorCards(rt, encoder);
   assert.deepEqual(passes, [], 'no card, no pass');
+  fixture.geometry.dispose();
+});
+
+test('a card out of the view asks no atlas and leaves its root to the card', () => {
+  const { rt, roots, fixture, asked } = bench();
+  const away = frontCamera(200, 5000);
+  away.lookAt(0, 0, 400);
+  away.updateMatrixWorld();
+  planWebgpuImpostors(rt, readCameraWorld(createEngineCamera(), away));
+  assert.deepEqual(asked, [], 'residency follows the view');
+  assert.equal(roots[0].mark, CARD_ROOT, 'the camera draws nothing of it either way');
+  assert.equal(rt.gpu.impostors?.count, 0);
   fixture.geometry.dispose();
 });
