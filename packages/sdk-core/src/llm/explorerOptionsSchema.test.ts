@@ -3,7 +3,6 @@ import test from 'node:test';
 import { Ajv } from 'ajv';
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
-import { LIGHT_SETTINGS } from '../scene/light/contracts.ts';
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
 import type { MathPathMode } from '../math/path/contracts.ts';
 import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts';
@@ -102,7 +101,7 @@ test('an explorer request naming only its manifest is completed with the engine 
   assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET);
   assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS);
   assert.equal(request.bounceBudgetMs, BOUNCE_SETTINGS.budgetMs);
-  assert.equal(request.shadowPoolPages, LIGHT_SETTINGS.shadowPoolPages);
+  assert.equal(request.shadowPoolPages, undefined, 'the screen chooses the shadow pool');
   for (const [key, property] of Object.entries(EXPLORER_OPTIONS_SCHEMA.properties)) {
     if (property.default === undefined) continue;
     assert.notEqual(request[key], undefined, key);

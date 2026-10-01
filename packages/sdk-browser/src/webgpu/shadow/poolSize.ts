@@ -1,8 +1,8 @@
 import {
   SHADOW_PAGE,
+  screenPoolPages,
   shadowPoolShape,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
@@ -22,20 +22,21 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
-/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else the setting's
- *  (`LIGHT_SETTINGS.shadowPoolPages`); the memory budget's pool bounds it (`shadowPoolFor`). */
-const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages'>) =>
-  context.shadowPoolPages ?? LIGHT_SETTINGS.shadowPoolPages;
+/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else what the screen it
+ *  opened on asks (`screenPoolPages`), chosen once; the memory budget's pool bounds it
+ *  (`shadowPoolFor`). */
+const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages' | 'viewport'>) =>
+  context.shadowPoolPages ?? screenPoolPages(...(context.viewport ?? [1, 1]));
 
 /** Pages a side of one layer as wide as a device of `limits` draws: a pool that fits it is one
- *  pass a batch. */
-const layerSideOf = (limits: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>) =>
-  Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE);
+ *  pass a batch; the portable side when the device names none. */
+const layerSideOf = (limits: Partial<Pick<GPUSupportedLimits, 'maxTextureDimension2D'>>) =>
+  limits.maxTextureDimension2D ? Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE) : undefined;
 
-/** The pool's shape on a device of `limits`, as `askShadowPool` asks it: the host plan is made at
- *  it, before the grant confirms it (`../pages/runtime.ts`). */
+/** The pool's shape on a device of `limits`, chosen once as the session opens: the host plan is
+ *  made at it (`../pages/runtime.ts`), and the grant asks its pages (`sizeShadowPool`). */
 export const shadowPoolShapeOf = (
-  context: Pick<BackendContext, 'shadowPoolPages'>,
+  context: Pick<BackendContext, 'shadowPoolPages' | 'viewport'>,
   limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
 ) => shadowPoolShape(shadowPoolPagesOf(context), limits && layerSideOf(limits));
 
@@ -61,7 +62,7 @@ export function staticLayerGranted(
   );
 }
 
-/** What the shadow pool asks of the device for `wanted` pages — its setting's —, granted at most
+/** What the shadow pool asks of the device for `wanted` pages — the plan's —, granted at most
  *  the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`); nothing without a caster, or during a
  *  capture. `grant` asks it (`grantedShadowPool`). */
 function askShadowPool(
@@ -133,8 +134,9 @@ export function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
 
 /**
  * Allocates the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
- * once, at its setting (`shadowPoolPagesOf`), as the reference engine allocates its physical pages up front from
- * `a reference setting`: it is never resized after (`poolCeiling.ts`), so a page
+ * once, at the pages the plan was made at — the `shadowPoolPages` option, else what the screen the
+ * session opened on reads (`shadowPoolPagesOf`) —, as the reference engine allocates its physical pages up front
+ * from `a reference setting`: it is never resized after (`poolCeiling.ts`), so a page
  * keeps its place, its depth and its static layer for as long as it is mapped (#831). Until then
  * no shadow page exists; the plan built at creation pages the granted pool from then on
  * (`adoptShadowPool`), keeping the host's settings. A capture never sizes the pool: the next
@@ -156,7 +158,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     atlas = lights.shadows,
     device = rt.gpu.device;
   if (!atlas || !device || atlas.texture || lights.shadowGrant) return;
-  const ask = askShadowPool(rt, atlas, device, shadowPoolPagesOf(rt.context));
+  const ask = askShadowPool(rt, atlas, device, lights.plan.pool.pages);
   if (!ask) return;
   const done = ask.grant().then(
     async (granted) => {
