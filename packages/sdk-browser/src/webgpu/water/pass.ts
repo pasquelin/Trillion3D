@@ -5,7 +5,7 @@ import { beginWaterBounds } from './bounds.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
-function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
+export function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
   return (
     rt.run.diagnostic === 'beauty' && !rt.capture.capturing && composes && !!rt.blendState.water
   );
