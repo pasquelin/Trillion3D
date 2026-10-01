@@ -6,7 +6,8 @@ import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { shadowPoolWgsl } from './poolWgsl.ts';
-import { FRESH_CASTERS, FRESH_CLEAR, FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLayout.ts';
+import { FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 import { FRESH_LANES } from './freshLanes.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
@@ -26,10 +27,10 @@ const MAX_FRESH_REGIONS = 65535;
  * page is its view cropped by the orthography, its box the square by the range's depth. Every
  * listed page is picked (`pickPages`), as Unreal's virtual shadow maps draw every page a frame
  * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
- * pair list grows to the pairs the frames count (`pairGrowth.ts`); a region past the longest prefix
+ * pair list holds the pool's fixed pairs (`pairGrowth.ts`, #831); a region past the longest prefix
  * it holds whole is left short (`FRESH_SHORT`, `admitShadowPairs`) and the seal makes readable the
  * others alone — never a page short of a caster —; a short one waits, listed again, for the next
- * frame, by which the list has grown to the need the seal hands the host, or for the host. The
+ * frame or for the host. The
  * window is the session's (`referenceMode.ts`), the ordinary constant by default.
  */
 export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
@@ -92,7 +93,7 @@ fn cropped(c:vec4f,a:f32,b:f32,cy:f32,d:f32,zs:f32,zo:f32)->vec4f{
 /** \`p\` moved by \`s\` along \`d\` (\`shadowAlong\`). */
 fn along3(p:vec3f,d:vec3f,s:f32)->vec3f{return vec3f(shadowAlong(p.x,d.x,s),shadowAlong(p.y,d.y,s),shadowAlong(p.z,d.z,s));}
 /** A sun page: its view from the eye on the near side of the range at the square's centre, cropped
- *  by the orthography; its box, the square by the range's depth. */
+ *  by the orthography; its box, the square by the range's depth; its texels per metre (#831). */
 fn composeSun(k:u32,slice:u32,level:i32,x:f32,y:f32){
  let frame=shadows.records[slice].frame;
  let r=frame[0].xyz;let u=frame[1].xyz;let f=frame[2].xyz;let zNear=frame[0].w;let far=frame[1].w-zNear;
@@ -108,9 +109,10 @@ fn composeSun(k:u32,slice:u32,level:i32,x:f32,y:f32){
  let mid=shadowBoxMid(-1.0,1.0,h);let half=shadowBoxHalf(-1.0,1.0,h);
  let v=k*CULL_WORDS;
  volumeVec(v,vec4f(along3(along3(along3(eye,f,far*0.5),r,mid),u,mid),far*0.5));volumeVec(v+4u,vec4f(f,-1.0));
- volumeVec(v+8u,vec4f(r,half));volumeVec(v+12u,vec4f(u,half));
+ volumeVec(v+8u,vec4f(r,half));volumeVec(v+12u,vec4f(u,half));volumeF(v+18u,1.0/shadowSunTexelMetres(level));
 }
-/** A lamp page: its face's clip cropped to the page; its cone the host's (\`coneModel.ts\`). */
+/** A lamp page: its face's clip cropped to the page; its cone the host's (\`coneModel.ts\`); its
+ *  texels per unit of the face's tangent, its focal (#831). */
 fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  let m=shadows.records[slice].faces[view>>4u];
  let pages=f32(LAMP_PAGE_COUNT>>u32(view&15));
@@ -128,7 +130,7 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  let halfFov=atan(t);let axis=shadowConeAxis(f,r,u,t,halfFov,u0,u1,v0,v1);
  let s=params.slices[slice];let w=k*CULL_WORDS;
  volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeSpread(f,r,u,t,halfFov,axis,u0,u1,v0,v1)));
- volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));
+ volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));volumeF(w+18u,pages*PAGE_TEXELS/(2.0*t));
 }
 /** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`), no pair
  *  counted yet. */
@@ -152,20 +154,24 @@ fn composeRegion(k:u32){
  let regions=workgroupUniformLoad(&regionCount);
  for(var k=lane;k<regions;k+=FRESH_LANES){composeRegion(k);}
  if(lane<params.layers){
-  let clear=freshDraw(lane,${FRESH_CLEAR}u);let casters=freshDraw(lane,${FRESH_CASTERS}u);
+  let clear=freshDraw(lane,${FRESH_CLEAR}u);
   args[clear]=6u;args[clear+1u]=layerCount[lane];args[clear+2u]=lane<<FRESH_LAYER_SHIFT;args[clear+3u]=0u;
-  args[casters]=0u;args[casters+1u]=0u;args[casters+2u]=lane<<FRESH_LAYER_SHIFT;args[casters+3u]=0u;
+  for(var kind=${FRESH_CASTERS}u;kind<=${FRESH_MOVING}u;kind++){
+   let casters=freshDraw(lane,kind);
+   args[casters]=0u;args[casters+1u]=0u;args[casters+2u]=lane<<FRESH_LAYER_SHIFT;args[casters+3u]=0u;
+  }
  }
  if(lane==0u){
   let rows=params.rows+params.blendEnd-params.blendFirst;
   dispatch[0]=select((rows+CULL_GROUP-1u)/CULL_GROUP,0u,regions==0u);dispatch[1]=regions;dispatch[2]=1u;
   args[FRESH_REGIONS]=regions;args[FRESH_CORNERS]=0u;
+  args[FRESH_STILL_PAIRS]=0u;args[FRESH_MOVING_PAIRS]=0u;args[FRESH_LAST_PAIR]=params.capacity-1u;
  }
 }
 /** After the pair cull: each region admitted whole is readable — in the sun's current
  *  range —; one left short (\`FRESH_SHORT\`) is not, and waits unclaimed for the next
- *  frame's pick. Each layer draws the pairs kept; the pairs every region counted go to the pool's
- *  counts, which the host reads back to grow the list by (\`pairGrowth.ts\`). */
+ *  frame's pick. Each layer draws the pairs kept — all, the still, the moving —; the pairs every region counted go to the pool's
+ *  counts, a diagnostic: the list is fixed by the pool (\`pairRows.ts\`). */
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
@@ -179,8 +185,12 @@ fn composeRegion(k:u32){
   }
  }
  if(lane<params.layers){
-  let casters=freshDraw(lane,${FRESH_CASTERS}u);
-  args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
+  // Every kept caster, the still ones from the list's start, the moving ones from its end down.
+  let still=args[FRESH_STILL_PAIRS];let moving=args[FRESH_MOVING_PAIRS];
+  let kept=freshDraw(lane,${FRESH_CASTERS}u);let first=freshDraw(lane,${FRESH_STILL}u);let last=freshDraw(lane,${FRESH_MOVING}u);
+  args[kept]=args[FRESH_CORNERS];args[kept+1u]=still+moving;
+  args[first]=args[FRESH_CORNERS];args[first+1u]=still;
+  args[last]=args[FRESH_CORNERS];args[last+1u]=moving;
  }
  if(lane==0u){countSet(COUNT_PAIRS,args[FRESH_NEED]);}
 }`;

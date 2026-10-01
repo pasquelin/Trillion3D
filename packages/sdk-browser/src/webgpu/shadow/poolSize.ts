@@ -9,6 +9,7 @@ import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts
 import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
 import { startGrant } from '../../gpu/core/errorScope.ts';
 import { shadowPoolFor } from './poolFor.ts';
+import { reserveStaticLayer } from './staticReserve.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
@@ -62,17 +63,19 @@ export const shadowPoolShapeOf = (
  *  pages' pairs grew the cull's by (`pairBytes`, `pairGrowth.ts`) are asked for it too. */
 export function staticLayerGranted(
   lights: WebgpuLightState,
-  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  diagnose?: WebgpuPagesRuntime['diag']['engineDiagnostic'],
   grantBytes = SHADOW_GRANT_BYTES,
 ) {
+  // Silent without `diagnose`: the reservation with the pool; the first move asks and says it.
   const { side, layers } = lights.plan.pool,
-    transmittance = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers);
+    transmittance = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers),
+    bytes = shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes);
   return grantsShadowLayer(
     lights,
     diagnose,
     'static-layer-over-grant',
     'The shadow static layer is past the shadow grant',
-    shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes),
+    bytes,
     grantBytes,
     transmittance,
   );
@@ -186,11 +189,12 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       adoptShadowPool(rt, atlas, device, granted, ask.wanted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
+      await reserveStaticLayer(rt, staticLayerGranted(lights));
       run.gate.resourcesChanged();
     },
     (error: unknown) => {
       if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);
     },
   );
-  lights.shadowGrant = startGrant(done);
+  lights.shadowGrant = startGrant(done, { sizesPool: true });
 }

@@ -8,7 +8,7 @@ import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
+import { shadowPoolShown } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import { shadowWorkMetrics } from '../../shadow/work.ts';
 import { shadowCpuMetrics } from '../../shadow/cpuSteps.ts';
@@ -31,7 +31,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
-  const poolHeld = lights.shadows?.texture ? shadowPoolHeld(lights) : null;
+  const poolHeld = shadowPoolShown(lights);
   // What the occlusion test dropped, from the path that ran it: the GPU's last sampled counts, or
   // the CPU oracle's where no GPU test runs; `null` when neither counted, never an unmeasured 0.
   const gpuHizCounts = vis.gpuPartition?.counts();
@@ -171,7 +171,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.pageRequests = undefined;
   disposeStaticLayer(rt.lights);
   rt.lights.mobilityRows?.destroy();
-  rt.lights.mobilityRows = undefined;
+  rt.lights.rowLods?.buffer.destroy();
+  rt.lights.mobilityRows = rt.lights.rowLods = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
   rt.sunFar.gpu?.dispose();
@@ -183,8 +184,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
   rt.lights.cpuCasters?.indirect.destroy();
-  rt.lights.cpuCasters = undefined;
-  rt.lights.lightCut = undefined;
+  rt.lights.cpuCasters = rt.lights.lightCut = undefined;
   rt.lights.spheres?.buffer.destroy();
   rt.lights.spheres = undefined;
   rt.lights.shadowGroups.fill(undefined);

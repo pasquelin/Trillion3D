@@ -127,7 +127,7 @@ const both =
 
 /**
  * Before a plan: the pages a light cut drew short go stale again — residency having moved
- * (`residencyMoved`) and the camera rested when that is what they waited for, withdrawn meanwhile
+ * (`residencyMoved`), when that is what they waited for, withdrawn meanwhile
  * only when they miss casters (`../../gpu/dag/lightCutRedraws.ts`) —, and the plan draws them in
  * the frame, with every other stale page the image reads (`admit.ts`). A page the static layer
  * restored drew its moving casters alone: only they go stale again, and the layer stays (#990).
@@ -141,9 +141,13 @@ export function redrawShortPages(
   const { lights } = rt,
     { plan } = lights,
     redraws = lights.lightCut?.redraws;
+  // The coarser pages are counted per frame, as the frame's draw calls are (#831).
+  lights.lightCutCoarsePages = 0;
   if (!redraws) return;
+  // Released as residency brings what they lacked, the camera moving or not, as Unreal's virtual
+  // shadow maps redraw a page once Nanite streams its finer clusters in (#831): a page drawn from
+  // a coarse ancestor showed its large triangles in the shadow for as long as the drive lasted.
   if (residencyMoved) redraws.residencyChanged();
-  if (plan.resting) redraws.rest();
   const { pool } = plan;
   const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;
