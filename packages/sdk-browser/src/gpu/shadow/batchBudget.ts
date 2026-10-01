@@ -31,7 +31,7 @@ export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
  *  residency change over the view. On drive-a-car at the maintainer's screen (2 601 pages, 82 a
  *  frame) no frame's static layer passed 16 ms, where eight frames (163) still let one reach 47 ms;
  *  driving never left a page pending more than four frames (#831). */
-export const SHADOW_FILL_FRAMES = 16;
+const SHADOW_FILL_FRAMES = 16;
 /**
  * THE STATIC FILL A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws together:
  * the pages whose still casters are rasterised — a page mapped anew, or one whose static layer is

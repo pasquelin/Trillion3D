@@ -44,11 +44,16 @@ export function shadowPoolShapeOf(
   const layerSide = limits && layerSideOf(limits),
     // The `shadowLocalToClip` option's bins store a matrix a row: their bytes come off the pages.
     binStride = explorerSwitch(context, 'shadowLocalToClip') ? BIN_STORED_STRIDE : 1,
-    within = shadowPoolWithin(SHADOW_POOL_SETTING_BYTES, layerSide, context.sunWindow, binStride),
+    { side, layers } = shadowPoolWithin(
+      SHADOW_POOL_SETTING_BYTES,
+      layerSide,
+      context.sunWindow,
+      binStride,
+    ),
     asked = context.shadowPoolPages;
-  return asked && asked < within.side ** 2 * within.layers
+  return asked && asked < side * side * layers
     ? shadowPoolShape(asked, layerSide)
-    : within;
+    : { side, layers };
 }
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the

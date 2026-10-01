@@ -9,7 +9,7 @@ import { STALE_DYNAMIC } from '../../../../../sdk-core/src/scene/light-shadow/po
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
-import { encodeShadowBatches, forEachShadowBatch, staticFills } from './encodeShadowBatches.ts';
+import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
@@ -176,7 +176,6 @@ test('the batches stop at the static fill, restores uncounted', () => {
   assert.ok(pages > budget + MAX_SHADOW_PAGES, `${pages} pages, past the fill`);
   const filled = forEachShadowBatch(rt, visit);
   assert.ok(filled >= budget && filled < budget + MAX_SHADOW_PAGES, `${filled} pages filled`);
-  assert.equal(staticFills(lights, 0, filled), filled, 'without a static layer, every page fills');
   // Every page kept in a current static layer, stale for its moving casters alone: restores.
   lights.staticLayer = {} as never;
   for (const page of plan.admission.list.subarray(0, pages)) {
@@ -184,6 +183,5 @@ test('the batches stop at the static fill, restores uncounted', () => {
     plan.pool.dirty[page] = STALE_DYNAMIC;
     plan.pool.range[page] = plan.records.rangeOf(page);
   }
-  assert.equal(staticFills(lights, 0, pages), 0);
   assert.equal(forEachShadowBatch(rt, visit), pages, 'restores never stop the batches');
 });

@@ -5,11 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import {
-  MAX_SHADOW_RUNS,
-  SHADOW_FILL_FRAMES,
-  shadowPagesPerFrame,
-} from '../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import { MAX_SHADOW_PAGES } from '../../gpu/shadow/atlas.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
@@ -22,7 +18,7 @@ const { lits } = floorTiles(tileGrid(-40, 40, -80, 0), 2),
 const BUDGET = 4 * MAX_SHADOW_PAGES;
 
 test('the static fill is a view over sixteen frames, a batch at least, the grant at most', () => {
-  assert.equal(shadowPagesPerFrame(2601), Math.ceil(2601 / (2 * SHADOW_FILL_FRAMES)));
+  assert.equal(shadowPagesPerFrame(2601), Math.ceil(2601 / (2 * 16)));
   assert.equal(shadowPagesPerFrame(64), MAX_SHADOW_PAGES, 'a batch at least');
   assert.equal(shadowPagesPerFrame(8), 8, 'the pool when smaller');
   assert.equal(shadowPagesPerFrame(64 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS, 'the grant at most');
