@@ -91,7 +91,7 @@ export async function createWaterComposites(
     waterCompositeTargets(false),
   );
   // The modules by display route (low bit) and unbounded mirror (the bit above).
-  const modules: (GPUShaderModule | undefined)[] = [module, undefined, undefined, undefined];
+  const modules: (GPUShaderModule | undefined)[] = [module];
   const moduleAt = (filtered: boolean, unbounded: boolean) => {
     const label = (filtered ? 'WATER_ROUTED' : 'WATER_COMPOSITE') + (unbounded ? '_UNBOUNDED' : '');
     return (modules[+filtered + 2 * +unbounded] ??= device.createShaderModule({
