@@ -74,7 +74,7 @@ test('each family module is a chunk of its own: one the core holds fails the gat
   }
 });
 
-test('the gate lists the core by source folder, and fails on measurement, diagnostics or a renderer', () => {
+test('the gate lists the core by source folder, and fails on measurement, diagnostics, a renderer or its shadows', () => {
   const held = (sources: Record<string, number>) =>
     bundle({
       ...files,
@@ -101,6 +101,9 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     'sdk-browser/src/diagnostic/viewCode.js',
     'sdk-browser/src/webgpu/pages/pages.js',
     'sdk-browser/src/backend/autonomous/pages.js',
+    'sdk-browser/src/gpu/shadow/atlas.js',
+    'sdk-browser/src/webgpu/shadow/pageRequests.js',
+    'sdk-browser/src/residency/shadowBudgetBytes.js',
   ]) {
     const dist = held({ [source]: 10 });
     try {

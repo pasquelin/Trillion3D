@@ -24,9 +24,9 @@ import { shadowPoolFor } from '../../webgpu/shadow/poolFor.ts';
 import {
   SHADOW_HOST_BYTES,
   SHADOW_POOL_BYTES,
-  BOUNCE_PROBE_BYTES,
   SHADOW_ATLAS_BYTES,
 } from '../../residency/shadowBudgetBytes.ts';
+import { BOUNCE_PROBE_BYTES } from '../../residency/shadowShares.ts';
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts';
 
 const budget = (
