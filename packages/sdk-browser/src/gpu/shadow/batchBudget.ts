@@ -1,8 +1,12 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS, PAGE_BIND_ALIGN } from '../draw/contract.ts';
-import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
-import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
+import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
+import {
+  DAG_UNIFORM_BYTES,
+  MAX_SHADOW_PAGES,
+  MAX_SHADOW_REGIONS,
+  SHADOW_FACE_STRIDE,
+} from './sizes.ts';
 
 /**
  * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws every page it marks, in as many batches as
@@ -38,8 +42,7 @@ export const shadowPagesPerFrame = (poolPages: number) => Math.min(poolPages, MA
  *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */
 export const SHADOW_FLAG_FRAMES = 8;
 
-/** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
-export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
+export { SHADOW_FACE_STRIDE } from './sizes.ts';
 /** Words of one face's cull uniform (`cull.ts`), of the light cut's cull uniform and its
  *  dispatch argument (`lightCull.ts`), of a region's occlusion slot and the occlusion uniform
  *  (`occlusion.ts`), of one page's bounds in the page pyramids (`pageHiz.ts`), and of a raster bin

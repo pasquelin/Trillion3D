@@ -1,9 +1,5 @@
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { shadowEntryBits, laneRequestWgsl, subgroupRequestWgsl } from './requestLanesWgsl.ts';
-/** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
- *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
-export const shadowRequestBits = (pages = SUN_WINDOW) => shadowEntryBits(pages);
-
+import { laneRequestWgsl, subgroupRequestWgsl } from './requestLanesWgsl.ts';
 /**
  * What a reading asks of the scheduler. The shading that marks writes the page into the request
  * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does not

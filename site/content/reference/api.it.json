@@ -1272,7 +1272,8 @@
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
-      "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`."
+      "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`.",
+      "options.debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito."
     }
   },
   "crossVector3": {
@@ -1637,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "I vertici di un modello caricato sono stati letti prima di `await geometry.loadVertices()`: una sessione li legge al primo bisogno, mai in anticipo.",
       "SESSION_OPEN_FAILED": "La sessione del mondo non si è potuta aprire, per un motivo senza un codice proprio (`world.diagnostic.error`): l’errore lanciato è in `details.cause`.",
       "WEBGPU_LOST": "WebGPU ha perso il suo dispositivo, oppure un errore su di esso ha lasciato uno stato da cui nulla può disegnare: lanciato da `render`, `flush` e dalle letture che richiedono il dispositivo, nominato dalla diagnostica `gpu-device-lost`, e su `world.diagnostic.error` quando una sessione non si è potuta aprire per questo.",
-      "FAMILY_LOAD_FAILED": "Una famiglia opzionale del motore (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) non si è caricata, dopo aver ritentato la sua importazione (`T3D-E090`): `details.family` la nomina, su `world.diagnostic.error`. I fotogrammi che disegnano con essa la attendono, e viene richiesta di nuovo al prossimo uso.",
+      "FAMILY_LOAD_FAILED": "Una famiglia opzionale del motore (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) non si è caricata, dopo aver ritentato la sua importazione (`T3D-E090`): `details.family` la nomina, su `world.diagnostic.error`. I fotogrammi che disegnano con essa la attendono, e viene richiesta di nuovo al prossimo uso.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "PHYSICS_BUDGET": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`), oppure la posa o i vertici di un corpo sono diventati non finiti ed è uscito dalla simulazione (`PHYSICS_DIVERGED`): su `world.physics.error`.",
@@ -1657,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Osserva fotogramma dopo fotogramma e dice con quale fluidità gira il motore, e cosa lo rallenta.",
+    "description": "Come una build di produzione toglie i suoi strumenti di statistica (#1353), il nucleo contiene solo questa facciata: il suo codice è il blocco della misura (`FrameProfile`, `../host/families.ts`), scaricato appena la modalità di debug si attiva o al primo uso del profiler. Finché non è arrivato, un fotogramma non è contato e il rapporto dice che attende (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalli mantenuti, dal più vecchio al più recente: ciò che riceve `frameStatistics`.",
       "setMetadata": "Le dice quale modello è caricato.",
@@ -1664,7 +1666,7 @@
       "getReport": "Un riepilogo degli ultimi fotogrammi.",
       "formatReport": "Quel riepilogo in testo.",
       "printReport": "Mostra quel riepilogo nella console.",
-      "startAutoLog": "Lo mostra ogni pochi secondi; restituisce una funzione che lo ferma.",
+      "startAutoLog": "Lo mostra ogni pochi secondi, in modalità di debug, l’unica che riempie il rapporto; restituisce una funzione che lo ferma.",
       "stopAutoLog": "Ferma la visualizzazione.",
       "dispose": "Ferma e dimentica tutto."
     }
@@ -2212,8 +2214,8 @@
     "description": "Sconosciuto vale `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durata GPU di ogni blocco di una misura (`../../stage/mapping.ts` dice quale è quale).",
-    "description": "`null` ovunque per una misura assente o troncata, e `null` per un blocco il cui pass non ha una durata utilizzabile: una somma parziale passerebbe per una misura. `null` anche per un blocco che l'immagine non ha mai eseguito — uno zero si leggerebbe come «misurato a zero». I tre blocchi si sommano al `totalMs` della misura quando tutti e tre sono misurati, e non vengono mai sommati a una durata CPU."
+    "summary": "Durata GPU di ogni blocco di una misura (`../stage/mapping.ts` dice quale è quale).",
+    "description": "`null` ovunque per una misura assente o troncata, e `null` per un blocco il cui pass non ha una durata utilizzabile: una somma parziale passerebbe per una misura. `null` anche per un blocco che l'immagine non ha mai eseguito — uno zero si leggerebbe come «misurato a zero». I tre blocchi si sommano al `totalMs` della misura quando tutti e tre sono misurati, e non vengono mai sommati a una durata CPU. Finché la tabella dei passaggi non è arrivata, ogni blocco è `null`, come per una misura che non ha misurato nulla."
   },
   "GpuPassBlockTotals": {
     "summary": "Tempo GPU di un fotogramma in tre blocchi: visibilità, materiali, il resto.",
@@ -6842,7 +6844,8 @@
       "mode": "La modalità di vista: `'beauty'` per l'immagine normale, o una modalità che mostra come lavora il motore.",
       "sessions": "Le sessioni che il mondo ha aperto finora: una modifica che ne riapre una si vede qui.",
       "error": "Perché l’ultima sessione non si è potuta aprire, come errore nominato del motore: il suo `code` è uno di quelli documentati su `EngineError` (`WEBGPU_LOST` quando WebGPU ha perso il dispositivo; `FAMILY_LOAD_FAILED` quando una famiglia opzionale non si è caricata, anche allora), oppure `SESSION_OPEN_FAILED` per un motivo senza codice proprio. Un `EngineError` con codice documentato è quello lanciato; ogni altro errore viene convertito, e l’errore lanciato è allora in `details.cause`. `null` dall’inizio di ogni apertura, e quando non si tenta nulla.",
-      "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
+      "modes": "Ogni modalità di vista offerta dal motore di rendering attuale.",
+      "debug": "La modalità di debug della pagina (`WorldOptions.debug`): i fotogrammi vengono registrati nel profilo dei passi CPU e nel rapporto dei fotogrammi solo in essa, dal fotogramma successivo."
     }
   },
   "world.materials": {
@@ -7078,7 +7081,8 @@
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
-      "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`."
+      "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`.",
+      "debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito."
     }
   },
   "RenderScale": {

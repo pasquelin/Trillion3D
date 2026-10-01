@@ -15,7 +15,7 @@ import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
+import { POOL_COUNTS } from './allocLayout.ts';
 
 const GPU_PAGE_WORK = ['composeShadowPages', 'shadowCullPairs', 'sealShadowPages'];
 

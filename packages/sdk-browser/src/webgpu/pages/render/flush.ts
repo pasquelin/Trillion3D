@@ -1,7 +1,7 @@
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { collectPendingUrls } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
-import { outputColorDiagnostic } from '../helpers.ts';
+import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { directLightingState } from './encodeLights.ts';
 import { bounceState } from '../state/bounce.ts';

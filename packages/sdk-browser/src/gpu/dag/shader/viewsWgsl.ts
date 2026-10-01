@@ -27,10 +27,7 @@ const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`);
 
-/** Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`). */
-export const DAG_VIEW_WORDS = 64;
-/** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
-export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
+export { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from '../../shadow/sizes.ts';
 /** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each: live count,
  *  live offset, drawn count; then one word, the most sixty-four-wide groups any view drew — the
  *  width of the shadow cull that reads every view's log in one dispatch (`dagWorkLayout`). */

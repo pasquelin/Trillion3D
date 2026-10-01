@@ -20,7 +20,7 @@ import {
   runShadowWords,
 } from './allocRun.fixture.ts';
 import { runShadowFresh } from './freshRun.fixture.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './allocLayout.ts';
 import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';

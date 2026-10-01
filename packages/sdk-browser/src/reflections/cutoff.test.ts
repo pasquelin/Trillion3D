@@ -8,7 +8,6 @@ import { createScreenReflection, reflectionPlan } from './gpu.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts';
 import { coatedScreenReflects, screenReflects } from './eligible.ts';
-import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { contractLighting } from '../lighting/deferred/contractLighting.fixture.ts';
 import { REFLECTION_SOURCE_PASS } from './sourcePass.ts';
@@ -22,6 +21,7 @@ import {
   sceneOf,
 } from './receivers.fixture.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
+import { DEFERRED_LIGHTING_PASS } from '../stage/passLabels.ts';
 
 test('a matte-only scene allocates no reflection target and runs no reflection pass', async () => {
   const h = await contractLighting();
