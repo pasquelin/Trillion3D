@@ -30,11 +30,13 @@ export const CASTERS_ALL = 0,
   CASTERS_STATIC = 1,
   CASTERS_MOVING = 2;
 /** Bits of a row's mobility word (`../../webgpu/shadow/mobility.ts`): its placement moves; its
- *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965); and, from
+ *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965); a finer resident
+ *  form of its surface stands for it, which the GPU's own page draws keep instead (#831); and, from
  *  `MOBILITY_CORNER_SHIFT` up, the corners its page-table row draws (#966). */
 export const MOBILITY_MOVING = 1,
   MOBILITY_CUTOUT = 2,
-  MOBILITY_CORNER_SHIFT = 2;
+  MOBILITY_COARSER = 4,
+  MOBILITY_CORNER_SHIFT = 3;
 /**
  * A region's two lists in its slot of `capacity` rows (#965): the casters no fragment can cut from
  * the slot's start up, counted by the region's first command and drawn with no fragment stage; the

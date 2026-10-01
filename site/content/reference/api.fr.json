@@ -5694,7 +5694,7 @@
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
       "receive": "Un rapport de demandes est revenu : la liste de pages du GPU compte aussitôt (`gpu.hear`), le reste est lu par le prochain plan.",
       "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
-      "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée.",
+      "size": "Le pool à la taille que le périphérique a accordée (`webgpu/shadow/poolSize.ts`), une fois, avant qu’aucune page soit placée : il n’est jamais redimensionné ensuite, aucune page ne change donc de place (#831).",
       "sunWindow": "Pages par côté du clipmap d’un soleil avec lequel tourne une session (`referenceMode.ts`).",
       "gpu": "L’allocation du GPU (`mirror.ts`) : s’il place les pages, ce que l’hôte lui demande."
     }

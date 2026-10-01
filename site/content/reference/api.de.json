@@ -5686,7 +5686,7 @@
       "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
       "receive": "Ein Anforderungsbericht kam zurück: die Seitenliste der GPU zählt sofort (`gpu.hear`), den Rest liest der nächste Plan.",
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste.",
-      "resize": "Der Pool in anderer Größe, seine Seiten behalten, seine Arrays neu: gibt zurück, wohin jede Seite ging.",
+      "size": "Der Pool in der Größe, die das Gerät gewährt hat (`webgpu/shadow/poolSize.ts`), einmal, bevor eine Seite zugeordnet ist: Er wird danach nie in der Größe geändert, sodass keine Seite je ihren Platz wechselt (#831).",
       "sunWindow": "Seiten pro Seite der Clipmap einer Sonne, mit der eine Sitzung läuft (`referenceMode.ts`).",
       "gpu": "Die Zuteilung der GPU (`mirror.ts`): ob sie die Seiten zuordnet und was der Host von ihr verlangt."
     }

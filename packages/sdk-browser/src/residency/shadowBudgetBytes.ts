@@ -15,8 +15,8 @@ import { bounceProbeBytes } from '../bounce/limits.ts';
 /** The pool the shadows are counted at, 3840 × 2160 under one sun (`shadowPoolSize`): its atlas
  *  bytes are the most the grant allots a pool (`webgpu/shadow/poolSize.ts`). */
 const { side, layers } = shadowPoolShape(shadowPoolSize(3840, 2160));
-/** Its pages: the budget's whole pool, what the first frame that casts is granted (`poolSize.ts`). */
-export const SHADOW_POOL_PAGES = side * side * layers;
+/** Its pages: the most a pool is granted, whatever its screen or option asks. */
+const SHADOW_POOL_PAGES = side * side * layers;
 
 export const SHADOW_ATLAS_BYTES = shadowAtlasBytes(side, layers);
 

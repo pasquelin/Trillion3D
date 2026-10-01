@@ -1,6 +1,7 @@
-import { sameElements } from '../../math/matrixElements.ts';
+import { poseHoldsBox, sameElements } from '../../math/matrixElements.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import {
+  MOBILITY_COARSER,
   MOBILITY_CORNER_SHIFT,
   MOBILITY_CUTOUT,
   MOBILITY_MOVING,
@@ -33,6 +34,10 @@ export function createShadowMobility() {
     wholeRows = true;
   /** Rows of each raster bin's class (OMB-26). */
   const classes = new Uint32Array(SHADOW_BIN_CLASSES);
+  /** Whether `world` leaves placement `rank` where it was last seen: the same pose, or, given its
+   *  local `box`, one that moves it by less than a float32 step (`poseHoldsBox`). */
+  const holds = (rank: number, world: ArrayLike<number>, box?: ArrayLike<number>) =>
+    box ? poseHoldsBox(poses, world, box, rank * 16) : sameElements(poses, world, rank * 16);
   return {
     /** True while a row's caster falls in class `c` (`../../gpu/shadow/binShader.ts`): without
      *  one, no region's bin of that class holds a caster. */
@@ -59,6 +64,7 @@ export function createShadowMobility() {
     get rowWords() {
       return rows;
     },
+    holds,
     /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
      *  the poses `worldOf` gives. Placements that joined in place
      *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state,
@@ -82,13 +88,15 @@ export function createShadowMobility() {
     },
     /**
      * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
-     * at, or whatever its pose when `forced` — a row taken or parked, a node moved. Returns
+     * at, or whatever its pose when `forced` — a row taken or parked, a node moved, or a pose
+     * `holds` already weighed as a move. A pose `holds` keeps is not stored: the next one is
+     * weighed against the last move. Returns
      * `MOVE_NONE`, `MOVE_MOVING` — it was moving already, its static casters stay — or
      * `MOVE_PROMOTED`, its first move.
      */
     move(rank: number, world: ArrayLike<number>, forced = false) {
       if (rank < 0 || rank >= moving.length) return MOVE_PROMOTED;
-      if (!forced && sameElements(poses, world, rank * 16)) return MOVE_NONE;
+      if (!forced && holds(rank, world)) return MOVE_NONE;
       poses.set(world, rank * 16);
       if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
@@ -103,7 +111,8 @@ export function createShadowMobility() {
      * lives in the transmittance layer, which a restored page starts again from. A row `cutout`
      * says is filed with the casters drawn with the fragment test (#965); a blended caster's never
      * is: the transmittance pass reads the other list alone. `corners` is the count a row draws,
-     * what its region's command is sized by (#966).
+     * what its region's command is sized by (#966). A row `coarser` says — one a finer resident form of
+     * its surface stands for — is left out of the GPU's own page draws (#831).
      */
     writeRows(
       placementOf: (row: number) => number,
@@ -114,6 +123,7 @@ export function createShadowMobility() {
       corners: (row: number) => number,
       alwaysMoving = rowCount,
       cutout: (row: number) => boolean = () => false,
+      coarser: (row: number) => boolean = () => false,
     ) {
       if (wholeRows) {
         from = 0;
@@ -126,7 +136,10 @@ export function createShadowMobility() {
         const placement = placementOf(row),
           blended = row >= alwaysMoving,
           moves = blended || (placement >= 0 && moving[placement] === 1),
-          flags = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
+          flags =
+            (moves ? MOBILITY_MOVING : 0) |
+            (!blended && cutout(row) ? MOBILITY_CUTOUT : 0) |
+            (!blended && coarser(row) ? MOBILITY_COARSER : 0),
           word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags;
         cutouts += +((flags & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
         classes[shadowBinOf(rows[row])]--;
