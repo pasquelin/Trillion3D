@@ -12,7 +12,7 @@ import { shadowPoolFor } from './poolFor.ts';
 import { reserveStaticLayer } from './staticReserve.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
+import { grantsShadowLayer, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import {
   grantShadowTransmittance,
   sceneCastsBlended,
@@ -66,18 +66,34 @@ export function staticLayerGranted(
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
   grantBytes = SHADOW_GRANT_BYTES,
 ) {
-  const { side, layers } = lights.plan.pool,
-    transmittance = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers);
+  const { bytes, transmittance } = staticLayerAsk(lights);
   return grantsShadowLayer(
     lights,
     diagnose,
     'static-layer-over-grant',
     'The shadow static layer is past the shadow grant',
-    shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes),
+    bytes,
     grantBytes,
     transmittance,
   );
 }
+
+/** The static layer's bytes and the transmittance layer's still to come (`staticLayerGranted`). */
+function staticLayerAsk(lights: WebgpuLightState) {
+  const { side, layers } = lights.plan.pool;
+  return {
+    bytes: shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes),
+    transmittance: transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers),
+  };
+}
+
+/** Whether the grant would hold the static layer, asked silently: the reservation made with the
+ *  pool (`staticReserve.ts`) records no pressure for a scene where nothing may ever move — the
+ *  first move asks `staticLayerGranted`, which says it. */
+const staticLayerFits = (lights: WebgpuLightState, grantBytes = SHADOW_GRANT_BYTES) => {
+  const { bytes, transmittance } = staticLayerAsk(lights);
+  return shadowPoolHeld(lights) + bytes + transmittance <= grantBytes;
+};
 
 /** What the shadow pool asks of the device for `wanted` pages — the plan's —, granted at most
  *  the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`); nothing without a caster, or during a
@@ -187,12 +203,12 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       adoptShadowPool(rt, atlas, device, granted, ask.wanted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
-      await reserveStaticLayer(rt, staticLayerGranted(lights, diag.engineDiagnostic));
+      await reserveStaticLayer(rt, staticLayerFits(lights));
       run.gate.resourcesChanged();
     },
     (error: unknown) => {
       if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);
     },
   );
-  lights.shadowGrant = startGrant(done);
+  lights.shadowGrant = startGrant(done, { sizesPool: true });
 }

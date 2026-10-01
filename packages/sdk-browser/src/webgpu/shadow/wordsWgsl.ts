@@ -36,7 +36,8 @@ export const sentShadowWord = (table: ShadowTable, entry: number) => {
  *
  * A word that does not map and says \`PAGE_WITHDRAWN\` is an entry the host has not adopted yet,
  * covered by a mover (\`invalidate.ts\`): a page the GPU drew for it loses its depth (\`withdrawGpuDraw\`).
- * Those marks the host's list cannot hold withdraw every page the GPU drew itself (\`every\`).
+ * Those marks the host's list cannot hold withdraw every page the GPU drew itself (\`every\`,
+ * \`withdrawGpuPages\`), dispatched before the words.
  *
  * A page that loses its depth here — withdrawn by the host, or overwritten for another entry —
  * while this frame asks for it (`POOL_REQUESTED`) joins the frame's draw list (`listDraw`): the GPU
@@ -95,5 +96,9 @@ fn applyShadowWord(i:u32){
 }
 @compute @workgroup_size(${WORDS_GROUP}) fn applyShadowWords(@builtin(global_invocation_id) id:vec3u){
  if(id.x<shadowWords.count){applyShadowWord(id.x);}
+}
+/** Every page the GPU drew itself withdrawn (\`every\`), in its own dispatch before the words: a
+ *  word that lands a host draw on such a page is applied after, never raced (#831). */
+@compute @workgroup_size(${WORDS_GROUP}) fn withdrawGpuPages(@builtin(global_invocation_id) id:vec3u){
  if(shadowWords.every!=0u&&id.x<shadowWords.pages){withdrawGpuPage(id.x);}
 }`;
