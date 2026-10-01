@@ -1,7 +1,7 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { shadowPoolShapeOf } from '../shadow/poolSize.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -120,13 +120,14 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
-  // The shadow pool's side, the seed's: the first frame that casts grants it, before any page
-  // exists, and the reports size it to the scene's demand (`../shadow/poolResize.ts`).
+  // The shadow pool's shape, its setting's: the first frame that casts grants it, before any page
+  // exists, and it keeps that size (`../shadow/poolSize.ts`).
   // The sun clipmap window: the ordinary constant, raised for a reference session so every pixel
   // reads the finest level (`referenceMode.ts`); the plan, the table, the atlas and the shadow
   // shader all follow it.
   const sunWindow = context.sunWindow ?? SUN_WINDOW;
-  const lights = createWebgpuLightState(SEED_POOL_SIDE, context.sceneLights, sunWindow);
+  const pool = shadowPoolShapeOf(context, context.gpuDevice?.limits);
+  const lights = createWebgpuLightState(pool.side, context.sceneLights, sunWindow, pool.layers);
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,

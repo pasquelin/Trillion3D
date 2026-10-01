@@ -58,18 +58,10 @@ export function createShadowThresholds(pool: ShadowPool) {
       }
       return staled;
     },
-    /** The pool was resized: each page's threshold goes where the page went (`moved`,
-     *  `resizeShadowPool`). */
-    follow(moved: Int32Array) {
-      const next = new Float64Array(pool.pages).fill(NaN),
-        nextFrom = new Float64Array(pool.pages * 3);
-      for (const [page, to] of moved.entries()) {
-        if (to < 0) continue;
-        next[to] = drawnAt[page];
-        nextFrom.set(drawnFrom.subarray(page * 3, page * 3 + 3), to * 3);
-      }
-      drawnAt = next;
-      drawnFrom = nextFrom;
+    /** The pool took its granted size, empty (`plan.size`): one entry per page, none drawn. */
+    sized() {
+      drawnAt = new Float64Array(pool.pages).fill(NaN);
+      drawnFrom = new Float64Array(pool.pages * 3);
     },
     reset() {
       drawnAt.fill(NaN);

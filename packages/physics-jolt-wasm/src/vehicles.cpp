@@ -63,6 +63,8 @@ struct Vehicle {
   float omega = 0, damping = 0, barStep = 0;
   /** Steps its state was written since its body last rested (`REST_WRITES`). */
   uint32_t restWrites = 0;
+  /** Not driven since it was made or last stood still: it holds its brakes (`applyInput`). */
+  bool parked = true;
 };
 
 std::vector<Vehicle> vehicles;
@@ -309,13 +311,18 @@ void setBars(Vehicle &v, float dt) {
 
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
-/// inner track, or turns on the spot at a standstill (Jolt's vehicle samples).
+/// inner track, or turns on the spot at a standstill (Jolt's vehicle samples). Parked — not driven
+/// since it was made or since it last stood still with its pedals released — a vehicle holds its
+/// brakes: set down on a slope it stays where it landed instead of rolling down it forever, and
+/// Jolt lets it sleep (`parkedVehicles.test.ts`). Driven then released, it coasts until it stops.
 void applyInput(Vehicle &v, float dt) {
   const Body &body = *v.constraint->GetVehicleBody();
   float speed = (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD);
   float turn = dt * v.steerRate;
   v.steered += Clamp(v.steer - v.steered, -turn, turn);
   float forward = v.throttle, brake = v.brake;
+  if (forward > 0 || brake > 0) v.parked = false;
+  else if (std::abs(speed) < STOPPED) v.parked = true;
   if (brake > 0 && forward == 0 && speed < STOPPED) forward = -brake, brake = 0;
   else if (forward > 0 && speed < -STOPPED) brake = forward, forward = 0;
   VehicleController *controller = v.constraint->GetController();
@@ -324,9 +331,11 @@ void applyInput(Vehicle &v, float dt) {
     float &inner = v.steered > 0 ? right : left;
     if (amount > 0 && forward == 0 && brake == 0 && std::abs(speed) < PIVOT) forward = amount, inner = -1;
     else inner = 1 - amount * (1 - v.trackTurn);
+    if (v.parked && forward == 0) brake = 1;
     static_cast<TrackedVehicleController *>(controller)->SetDriverInput(forward, left, right, std::max(brake, v.handbrake));
     return;
   }
+  if (v.parked) brake = 1;
   // Leaned, a motorcycle brakes less, or it slides out from under its rider (Jolt's sample).
   if (v.kind == MOTORCYCLE && brake > 0) {
     Vec3 up = body.GetRotation() * UP, ahead = body.GetRotation() * FORWARD;
