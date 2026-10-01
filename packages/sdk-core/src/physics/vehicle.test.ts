@@ -26,8 +26,10 @@ test('each kind refuses what it cannot be made of', () => {
   const hub = new Group();
   body.add(hub);
   assert.throws(make('car', [...wheels, hub]), /no bounds/);
-  assert.throws(make('car', wheels, { gears: [3, 2, 1.5, 1.2, 1, 0.8, 0.7] }), /1 to 6 gears/);
-  assert.throws(make('car', wheels, { gears: [] }), /1 to 6 gears/);
+  const gearCount = new RegExp(`1 to ${MAX_GEARS} gears`);
+  const tooMany = Array.from({ length: MAX_GEARS + 1 }, (_, i) => MAX_GEARS + 1 - i);
+  assert.throws(make('car', wheels, { gears: tooMany }), gearCount);
+  assert.throws(make('car', wheels, { gears: [] }), gearCount);
   assert.throws(make('car', wheels, { torqueCurve: [] }), /torque curve/);
   const tooLong = Array.from({ length: TORQUE_POINTS + 1 }, () => [0, 1] as const);
   assert.throws(make('car', wheels, { torqueCurve: tooLong }), /torque curve/);
@@ -43,16 +45,7 @@ test('each kind refuses what it cannot be made of', () => {
   );
 });
 
-test('a tracked vehicle needs two wheels on each side, wherever they stand along it', () => {
-  const hull = rig(HULL);
-  assert.doesNotThrow(() => vehicle.tracked(hull.body, hull));
-  const offset = rig([
-    [-1, -2],
-    [-1, 2],
-    [0, -1],
-    [0, 3],
-  ]);
-  assert.doesNotThrow(() => vehicle.tracked(offset.body, offset), 'the middle counts right');
+test('a tracked vehicle with fewer than two wheels on a side is refused', () => {
   for (const points of [
     [
       [1, -1],

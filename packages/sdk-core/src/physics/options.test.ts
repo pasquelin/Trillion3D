@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EngineError } from '../contracts/cache.ts';
+import { refuses } from '../contracts/cache.fixture.ts';
 import {
   checkPhysicsBudget,
   collisionBytesOf,
@@ -12,16 +12,9 @@ import { MODULE_MEMORY } from './wire.fixture.ts';
 
 const declared = { bodies: 7, decorative: 3, softVertices: 11, memoryBytes: 1001 };
 
-/** Asserts `run` refuses a budget by name: its code, the budget in its details and message. */
-function refused(run: () => void, details: Record<string, unknown>) {
-  assert.throws(run, (error: unknown) => {
-    assert.ok(error instanceof EngineError);
-    assert.equal(error.code, 'PHYSICS_BUDGET');
-    assert.deepEqual(error.details, details);
-    for (const value of Object.values(details)) assert.ok(error.message.includes(String(value)));
-    return true;
-  });
-}
+/** Asserts `run` refuses a budget by name: its code, and each detail in its message. */
+const refused = (run: () => unknown, details: Record<string, unknown>) =>
+  refuses(run, 'PHYSICS_BUDGET', details, Object.values(details).map(String));
 
 test('a budget keeps what it declares over the defaults, sealed against a key that is no budget', () => {
   const budget = physicsBudgetOf(declared);
@@ -53,12 +46,13 @@ test('the static collision holds a share of the memory, never more than all of i
 test('a request at its limit fits, the first past it is refused naming the governing budget', () => {
   const budget = physicsBudgetOf(declared);
   const collision = collisionBytesOf(budget);
-  for (const [key, limit, name] of [
-    ['bodies', declared.bodies, 'bodies'],
-    ['decorative', declared.decorative, 'decorative'],
-    ['softVertices', declared.softVertices, 'softVertices'],
-    ['collisionBytes', collision, 'memoryBytes'],
+  for (const [key, limit] of [
+    ['bodies', declared.bodies],
+    ['decorative', declared.decorative],
+    ['softVertices', declared.softVertices],
+    ['collisionBytes', collision],
   ] as const) {
+    const name = key === 'collisionBytes' ? 'memoryBytes' : key;
     assert.doesNotThrow(() => checkPhysicsBudget(budget, key, 0));
     assert.doesNotThrow(() => checkPhysicsBudget(budget, key, limit));
     refused(() => checkPhysicsBudget(budget, key, limit + 1), {
