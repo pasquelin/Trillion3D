@@ -16,6 +16,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 type Fake = { size: number[]; destroyed: boolean };
 
+/** The maintainer's screen, 1 728 × 1 117 CSS pixels at DPR 2. */
+export const SCREEN: [number, number] = [3456, 2234];
+
 /** A device 8 192 texels wide that refuses, as out of memory, every texture past `limit.bytes`. */
 function device(limit: { bytes: number }) {
   const gpu = asWebgpuDevice({
@@ -45,14 +48,15 @@ function sunGrid(plan: WebgpuLightState['plan'], slice: number, count: number) {
   );
 }
 
-/** A session with a sun, its pool allocated at the first frame — `shadowPoolPages` of them, the
- *  setting's by default — and a first report naming nothing: nothing said yet; its atlas records
+/** A session with a sun, opened on the maintainer's 3 456 × 2 234 screen, its pool allocated at
+ *  the first frame — `shadowPoolPages` of them, what that screen reads by default — and a first
+ *  report naming nothing: nothing said yet; its atlas records
  *  the textures it takes. */
 export async function session(shadowPoolPages?: number) {
   installGpuGlobals();
   const limit = { bytes: Infinity },
     gpu = device(limit),
-    context = { shadowPoolPages },
+    context = { shadowPoolPages, viewport: SCREEN },
     shape = shadowPoolShapeOf(context, gpu.device.limits),
     lights = createWebgpuLightState(shape.side, undefined, undefined, shape.layers),
     said: Array<[string, Record<string, unknown>]> = [],
@@ -73,7 +77,7 @@ export async function session(shadowPoolPages?: number) {
     lights,
     context,
     capture: { capturing: false },
-    setup: { viewport: [1280, 720] },
+    setup: { viewport: SCREEN },
     blendState: { blendGpu: [] },
     gpu: { device: gpu.device },
     run: { lost: false, frame: 0, gate: { resourcesChanged() {} } },
