@@ -2933,7 +2933,7 @@
       "shadowNearFraction": "Piano vicino di una fetta: una quota della portata, mai meno di questa soglia minima.",
       "shadowNearMin": "Distanza d'ombra più vicina.",
       "shadowNormalOffsetTexels": "Scarto del punto di campionamento lungo la normale, in texel della mappa letta: mezzo texel, il margine per ciò che non è il piano del ricevitore — la sua curvatura dentro un texel, l'arrotondamento delle due profondità. La pendenza del ricevitore è coperta da un margine di profondità sulla portata del PCF, e oltre i 45° da uno scarto ulteriore, negli stessi texel (`shadowDepthMargin`, `shadowNormalTexels`): nessun bias è una lunghezza della scena.",
-      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto. Un fotogramma disegna le pagine che marca in tanti lotti quanti servono, al massimo le pagine di uno strato del pool per fotogramma; le altre sono disegnate nei fotogrammi successivi e nel frattempo lette al livello più grossolano.",
+      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto. Un fotogramma disegna le pagine che marca in tanti lotti quanti servono, al massimo il suo riempimento statico, un trentaduesimo del pool per fotogramma; le altre sono disegnate nei fotogrammi successivi e nel frattempo lette al livello più grossolano.",
       "lampFaceSize": "Lato del mip più fine di una faccia di lampada, in texel: 32 × 32 pagine da 128 (il pool: `shadowPoolSize`).",
       "shadowRequestCap": "Pagine virtuali che l’ombreggiatura può chiedere per fotogramma; le altre richiedono al fotogramma successivo.",
       "sunLevels": "Livelli di clipmap di una luce direzionale. Il livello `L` ha texel di `2^L` metri, e un pixel legge il livello il cui texel non supera la propria impronta: sedici livelli coprono un rapporto lontano/vicino di 2^15. Oltre l’ultimo livello subentra l’ombra lontana.",
@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` ripristina la nostra: nessuna sessione la eredita."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Float di un volume di culling: centro e piano lontano, asse della faccia e semiangolo, poi — per un box, segnalato da un semiangolo negativo — gli altri due assi con le loro semiestensioni, poi la parola che dice quali proiettori disegna la regione, la vista del taglio di luce che li ha scelti, e due di riempimento."
+    "summary": "Float di un volume di culling: centro e piano lontano, asse della faccia e semiangolo, poi — per un box, segnalato da un semiangolo negativo — gli altri due assi con le loro semiestensioni, poi la parola che dice quali proiettori disegna la regione, la vista del taglio di luce che li ha scelti, i texel per metro di una pagina del sole (`underTexel`, `cullShader.ts`), e uno di riempimento."
   },
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."

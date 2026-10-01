@@ -52,7 +52,7 @@ function shapeTree(mesh: Mesh) {
 function nearestTriangle(mesh: Mesh) {
   const shape = shapeTree(mesh);
   if (!shape) return null;
-  const hit = nearestTriangleOnRay(shape.tree, local.origin.toArray(), local.direction.toArray());
+  const hit = nearestTriangleOnRay(shape.tree, local.origin.elements, local.direction.elements);
   if (!hit) return null;
   triangleNormal(faceNormal, shape.tree.triangles, hit.at);
   const normal = new Vector3(faceNormal[0], faceNormal[1], faceNormal[2]);
@@ -60,17 +60,29 @@ function nearestTriangle(mesh: Mesh) {
 }
 
 /** The face of `box` a local point lies on, as its outward axis. */
-function boxNormal(box: Box3, at: Vector3) {
-  const gaps = [
-    [at.x - box.min.x, -1, 0, 0],
-    [box.max.x - at.x, 1, 0, 0],
-    [at.y - box.min.y, 0, -1, 0],
-    [box.max.y - at.y, 0, 1, 0],
-    [at.z - box.min.z, 0, 0, -1],
-    [box.max.z - at.z, 0, 0, 1],
-  ];
-  const [, x, y, z] = gaps.reduce((a, b) => (Math.abs(b[0]) < Math.abs(a[0]) ? b : a));
-  return new Vector3(x, y, z);
+function boxNormal(box: Box3, at: Vector3, into: Vector3) {
+  // The narrowest of the six gaps between the point and a face, and that face's outward
+  // direction. The faces are walked, not listed: six arrays of four numbers, and a closure, to
+  // answer a question about three.
+  const point = at.elements,
+    min = box.min.elements,
+    max = box.max.elements;
+  let narrowest = Infinity,
+    axis = 0,
+    outward = -1;
+  for (let face = 0; face < 6; face++) {
+    const k = face >> 1,
+      upper = (face & 1) === 1,
+      gap = upper ? max[k] - point[k] : point[k] - min[k];
+    // Strictly narrower: of two faces at the same distance the first keeps it, as the walk it
+    // replaces did.
+    if (Math.abs(gap) < narrowest) {
+      narrowest = Math.abs(gap);
+      axis = k;
+      outward = upper ? 1 : -1;
+    }
+  }
+  return into.set(axis === 0 ? outward : 0, axis === 1 ? outward : 0, axis === 2 ? outward : 0);
 }
 
 /** Where `ray` meets one node's own content, in world terms, or null. A triangle mesh is tested
@@ -98,7 +110,7 @@ function hitNode(node: Object3D, ray: Ray): Intersection | null {
   if (mesh.isMesh) hit = nearestTriangle(mesh);
   else {
     const t = entry.clone().sub(local.origin).dot(local.direction) / local.direction.lengthSq();
-    hit = { t, face: -1, normal: boxNormal(box, entry) };
+    hit = { t, face: -1, normal: boxNormal(box, entry, new Vector3()) };
   }
   if (!hit) return null;
   const normal = hit.normal.applyMatrix3(normals.getNormalMatrix(node.matrixWorld)).normalize();

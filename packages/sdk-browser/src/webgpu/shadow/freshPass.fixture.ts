@@ -3,6 +3,7 @@
 // `freshStaticLayer.test.ts`.
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { FRESH_LAYER_PASS } from '../../stage/passLabels.ts';
 import { encodeFreshPages } from './freshPass.ts';
 
 export const LAYERS = 2;
@@ -18,6 +19,8 @@ export function frame(calls: unknown[][]) {
     calls.push([name, ...bound.map((buffer) => buffer.name), groups]);
   const buffers = ['state', 'drawList', 'freshFaces', 'freshVolumes', 'freshArgs', 'freshParams'];
   buffers.push('freshDispatch');
+  /** The static fill the frame handed the GPU's draws (`writeFresh`). */
+  const written = { budget: -1 };
   const lights = {
     store: createSceneLightStore(),
     plan: {
@@ -42,8 +45,12 @@ export function frame(calls: unknown[][]) {
       allocation: {
         seeded: true,
         lost: 0,
+        pagesPerFrame: 24,
         ...Object.fromEntries(buffers.map((k) => [k, named(k)])),
-        writeFresh: (...args: unknown[]) => calls.push(['params', ...args.slice(0, 5)]),
+        writeFresh: (...args: unknown[]) => {
+          written.budget = args[6] as number;
+          calls.push(['params', ...args.slice(0, 5)]);
+        },
       },
     },
     shadows: {
@@ -77,6 +84,7 @@ export function frame(calls: unknown[][]) {
     mobilityRows: named('mobility'),
     rowLods: { buffer: named('row lods') },
     staticLayer: undefined as unknown,
+    shadowWork: { rasterizedPages: 0 },
     shadowRenderPasses: 0,
     shadowDrawCalls: 0,
   };
@@ -107,5 +115,22 @@ export function frame(calls: unknown[][]) {
     },
   } as unknown as GPUCommandEncoder;
   const encode = () => encodeFreshPages(rt, device, encoder);
-  return { lights, encode };
+  return { lights, encode, written };
 }
+
+/** The pool's static layer, a group per pool layer: the bind groups it hands the fresh draws. */
+export const STATIC_GROUPS = Array.from({ length: LAYERS }, (_, layer) => `static group ${layer}`);
+
+/** Gives `lights` a static layer of `LAYERS` layers, each fresh pass labelled as the engine's. */
+export function withStaticLayer(lights: ReturnType<typeof frame>['lights']) {
+  const freshPasses = STATIC_GROUPS.map(() => ({ label: FRESH_LAYER_PASS }));
+  lights.staticLayer = {
+    passes: STATIC_GROUPS.map(() => ({})),
+    freshPasses,
+    groups: STATIC_GROUPS,
+  };
+}
+
+/** The labels of the render passes `calls` recorded, in order. */
+export const passLabels = (calls: unknown[][]) =>
+  calls.filter((call) => call[0] === 'pass').map((call) => call[1]);

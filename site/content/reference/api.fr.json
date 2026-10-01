@@ -2941,7 +2941,7 @@
       "shadowNearFraction": "Plan proche d’une tranche : une part de la portée, jamais moins que ce plancher.",
       "shadowNearMin": "Distance d’ombre la plus proche.",
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de la carte lue : un demi-texel, la marge de ce qui n’est pas le plan du récepteur — sa courbure dans un texel, l’arrondi des deux profondeurs. La pente du récepteur est couverte par une marge de profondeur sur la portée du PCF, et au-delà de 45° par un décalage supplémentaire, dans les mêmes texels (`shadowDepthMargin`, `shadowNormalTexels`) : aucun biais n’est une longueur de la scène.",
-      "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot. Une image dessine les pages qu’elle marque en autant de lots qu’il faut, au plus les pages d’une couche du pool par image ; les autres sont dessinées aux images suivantes, lues entre-temps au niveau plus grossier.",
+      "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot. Une image dessine les pages qu’elle marque en autant de lots qu’il faut, au plus son remplissage statique, un trente-deuxième du pool par image ; les autres sont dessinées aux images suivantes, lues entre-temps au niveau plus grossier.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSize`).",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
@@ -5590,7 +5590,7 @@
     "description": "`null`/`undefined` remet la nôtre : aucune session n’hérite."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Flottants du volume d’une région : centre et plan lointain, axe de la face et demi-angle, puis — pour une boîte, signalée par un demi-angle négatif — les deux autres axes avec leurs demi-étendues."
+    "summary": "Flottants du volume d’une région : centre et plan lointain, axe de la face et demi-angle, puis — pour une boîte, signalée par un demi-angle négatif — les deux autres axes avec leurs demi-étendues, puis le mot qui dit quels projeteurs la région dessine, la vue de la coupe de lumière qui les a choisis, les texels par mètre d’une page du soleil (`underTexel`, `cullShader.ts`), et un de remplissage."
   },
   "SHADOW_PAGE": {
     "summary": "Côté d’une page de l’atlas, en texels : la case d’invalidation d’une face."

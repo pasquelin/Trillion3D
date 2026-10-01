@@ -16,6 +16,7 @@ import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS, freshArgWords } from 
 import { POOL_COUNTS } from './allocLayout.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { FRESH_LANES } from './freshLanes.ts';
+import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/rankSpan.ts';
 import { ROW_LOD_FLOATS } from './rowLodWords.ts';
 import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
@@ -37,9 +38,9 @@ function paramsOf(params: Uint8Array) {
     const at = FRESH_PARAM_WORDS + s * FRESH_SLICE_FLOATS;
     return { emitter: [...floats.subarray(at, at + 4)], far: [...floats.subarray(at + 4, at + 8)] };
   };
-  const [pages, side, layers, rows, blendFirst, blendEnd, capacity] = words;
+  const [pages, side, layers, rows, blendFirst, blendEnd, capacity, , budget] = words;
   return {
-    ...{ pages, side, layers, rows, blendFirst, blendEnd, capacity, threshold: floats[7] },
+    ...{ pages, side, layers, rows, blendFirst, blendEnd, capacity, threshold: floats[7], budget },
     slices: Array.from({ length: MAX_SHADOW_SLICES }, (_, s) => slice(s)),
   };
 }
@@ -49,6 +50,8 @@ const FUNCTIONS = [
   ...'shadowConeAxis shadowConeSpread composeLamp composeRegion freshDraw'.split(' '),
   ...'freshRegionPairs poolAt shadowPoolPages poolLayer faceVec volumeVec'.split(' '),
   'shadowPoolPlace',
+  'freshWaiting',
+  'freshRank',
   ...PAGE_MODEL_FUNCTIONS,
 ];
 
@@ -75,6 +78,7 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
     faceF: (i: number, v: number) => void (f32(faces)[i] = v),
     volumeF: (i: number, v: number) => void (f32(volumes)[i] = v),
     layerCount: new Uint32Array(16),
+    rankCount: new Uint32Array(RANK_SPAN),
     regionCount: 0,
     workgroupUniformLoad: (p: Ref) => p.get(),
     storageBarrier: () => {},
@@ -118,7 +122,7 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
     SHADOW_FRESH_CULL_WGSL,
     [
       ...PAIR_STEPS,
-      ...'freshRow freshKeeps freshPixels drawsCluster drawsCompared freshRegionPairs sphereTouches laneRun'.split(
+      ...'freshRow freshKeeps freshPixels drawsCluster drawsCompared freshRegionPairs sphereTouches underTexel laneRun'.split(
         ' ',
       ),
     ],

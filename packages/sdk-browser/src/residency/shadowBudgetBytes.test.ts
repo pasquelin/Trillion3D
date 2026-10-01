@@ -35,10 +35,11 @@ test('the shadow shares read from the lean size modules are the very bytes of be
   // The bytes pinned: #1353 kept `develop`'s 939_423_092, 944_835_216 and 27_370_080; #831 changes
   // the pool's layout on purpose — a third field read back (`drawnBy`), the table words' pairs
   // capped at 5 per page (`wordsCap`), pair lists of a fixed size, the host
-  // table's list of the entries sent — hence these.
+  // table's list of the entries sent, the GPU draws' static fill (`budget`, four words with its
+  // padding) — hence these.
   assert.deepEqual(
     [SHADOW_GRANT_BYTES, SHADOW_POOL_BYTES, SHADOW_HOST_BYTES],
-    [939_468_564, 944_880_688, 27_459_968],
+    [939_468_580, 944_880_704, 27_459_968],
   );
   const { shadowPool, shadowMirror } = splitMemoryBudget(defaultGpuBudget(), DEFAULT_CPU_BUDGET);
   assert.deepEqual([shadowPool, shadowMirror], [SHADOW_POOL_BYTES, SHADOW_HOST_BYTES]);

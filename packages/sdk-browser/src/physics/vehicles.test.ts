@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { VEHICLE_SPECS } from '../../../sdk-core/src/physics/vehicleSpec.ts';
 import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { vehicleRig } from './vehicles.fixture.ts';
 
@@ -107,6 +108,9 @@ test('tracked: steered at a standstill, it turns on the spot', async () => {
   rig.hold({ steer: 1 }, 2);
   assert.ok(rig.yaw(rig.body) < -0.5, `pivoted ${rig.yaw(rig.body)}`);
   assert.ok(Math.hypot(rig.at(rig.body)[0], rig.at(rig.body)[2]) < 0.5, 'in place');
+  // Parked as it pivots, it drives all the same: its engine is never held at idle (#831).
+  const idle = VEHICLE_SPECS.tracked.idleRPM;
+  assert.ok(rig.vehicle.rpm > 1.1 * idle, `pivoting at ${rig.vehicle.rpm} rpm, idle ${idle}`);
 });
 
 test('the handbrake holds the car on its rear wheels', async () => {
