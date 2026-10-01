@@ -189,7 +189,7 @@ ${SHADOW_DEMAND_LIGHT_WGSL}
  let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
  let P=at+receiverOffset(pixel);
- let N=normalize(textureLoad(normalRough,coord,0).xyz);
+ let N=shadowBiasNormal(normalize(textureLoad(normalRough,coord,0).xyz));
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
  demandSlice(slice,at,P,N,thin,level.footprint);
 }`;

@@ -64,6 +64,16 @@ var<private> shadowUnjitter:vec3f=vec3f(0.0);
  *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
 fn shadowNormalTexels(cosine:f32)->f32{
  return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
+}
+/** The receiver's own plane, its triangle's normal (\`receiverOffset\`, #831): zero where no pass
+ *  set it. Its depth across the map is the one the caster drew, so the bias follows it. */
+var<private> shadowReceiverNormal:vec3f=vec3f(0.0);
+/** The normal a shadow read biases along: the receiver's plane on the side \`n\` shades, else
+ *  \`n\`. A smooth normal over a coarse triangle under-biases one side of every edge. */
+fn shadowBiasNormal(n:vec3f)->vec3f{
+ let g=shadowReceiverNormal;
+ if(dot(g,g)==0.0){return n;}
+ return select(g,-g,dot(g,n)<0.0);
 }`;
 }
 

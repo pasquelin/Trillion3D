@@ -67,6 +67,8 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       thinSubsurface: [0, 0, 0],
       surfaceModel: 2,
       shadowReceiverOffset: [0, 0, 0],
+      // No receiver plane: the read biases along the shading normal (`shadowBiasNormal`).
+      shadowBiasNormal: (n: number[]) => n,
       shadowTransmission: [1, 1, 1],
       // A lamp with no shadow slot: the shipped read answers one (`shadowFactor`).
       shadowFactor: () => 1,
