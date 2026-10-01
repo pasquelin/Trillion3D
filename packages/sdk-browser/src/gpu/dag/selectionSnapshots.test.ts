@@ -63,8 +63,13 @@ test('a residency republished identically does not drop the held cut', async () 
   const { device } = mockDagDevice(dag);
   const selection = await createGpuDagSelection(device, dag, { residentCut: true });
   assert.ok(selection);
-  const resident = new Uint32Array(dag.pageCount).fill(1);
-  assert.equal(selection.updateResidency(resident), true);
+  const resident = new Uint32Array(dag.pageCount).fill(1),
+    moved: number[] = [];
+  assert.equal(
+    selection.updateResidency(resident, undefined, (page) => moved.push(page)),
+    true,
+  );
+  assert.ok(moved.length > 0, 'the pages whose readiness moved are named (#831)');
   selection.dispatch(uniforms);
   assert.ok(await selection.flush());
   assert.ok(selection.peek(), 'the cut is held');

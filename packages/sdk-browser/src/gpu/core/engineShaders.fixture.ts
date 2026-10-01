@@ -18,7 +18,7 @@ import { SHADOW_GROUP_PAIRS_WGSL } from '../shadow/groupWgsl.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { shadowDepthShader } from '../shadow/depthModule.ts';
-import { PAGE_MOVE_SHADER, PAGE_QUAD_SHADER } from '../shadow/pageWgsl.ts';
+import { PAGE_QUAD_SHADER } from '../shadow/pageWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
@@ -125,7 +125,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_BIN_STORED: shadowBinShader(true),
   SHADOW_DEPTH_LAMP_GROUPS: shadowDepthShader({ features: new Set(['clip-distances']) } as never),
   PAGE_QUAD_SHADER,
-  PAGE_MOVE_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
   AS_IS_SHARE_SHADER,

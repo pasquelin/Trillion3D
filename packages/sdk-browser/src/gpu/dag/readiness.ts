@@ -103,6 +103,11 @@ export function createDagReadiness(packed: PackedDag) {
       const at = pageWorlds[page];
       return worlds[at].isChildReady(page - packed.cutLinks[at].pageBase);
     },
+    /** Whether packed page `page` is the finest representation its residency holds. */
+    isFinest(page: number) {
+      const at = pageWorlds[page];
+      return worlds[at].isFinest(page - packed.cutLinks[at].pageBase);
+    },
     /** The placements holding a state of their own: those a page of which is resident. */
     get heldPlacements() {
       return heldCount;
