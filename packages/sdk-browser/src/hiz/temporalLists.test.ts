@@ -6,9 +6,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { applyTemporalHiz, type HizPage, type TemporalHizState } from './hiz.ts';
-import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
+import { cameraAt } from '../../../../tests/fixtures/hiz.ts';
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
-import { locatedBy } from '../page/selection/placements.fixture.ts';
+import { quadScene, subLocations } from './temporalScene.fixture.ts';
 import type { VisPage } from '../visibility/buffer.ts';
 
 type Page = VisPage & HizPage & { matrix: G.Matrix4 };
@@ -18,20 +18,13 @@ const cam = readCameraWorld(createEngineCamera(), cameraAt(6));
 /** A large quad near the eye, two behind it and two beside: the cut splits them, the history's
  *  pyramid keeps the front half and rejects the rest, so every list of the pass is written. */
 function scene() {
-  const surface = G.basicSurface({ color: 0x3366ff });
-  const made = [
-    quad(surface, [-1.7, -1.7, 1], [1.7, 1.7, 1], 'front'),
-    quad(surface, [-1.2, -1.2, 0], [1.2, 1.2, 0], 'mid'),
-    quad(surface, [-0.6, -0.6, -1], [0.6, 0.6, -1], 'back'),
-    quad(surface, [2.1, 2.1, -2], [2.9, 2.9, -2], 'side'),
-    quad(surface, [-2.9, -2.9, -3], [-2.1, -2.1, -3], 'far'),
-  ];
-  const pages = made.map((q) => q.page as Page);
-  return {
-    pages,
-    locations: locatedBy(pages.map((page) => ({ world: page.matrix }))),
-    dispose: () => (made.forEach((q) => q.geometry.dispose()), surface.dispose()),
-  };
+  return quadScene([
+    [-1.7, -1.7, 1, 1.7, 1.7, 1],
+    [-1.2, -1.2, 0, 1.2, 1.2, 0],
+    [-0.6, -0.6, -1, 0.6, 0.6, -1],
+    [2.1, 2.1, -2, 2.9, 2.9, -2],
+    [-2.9, -2.9, -3, -2.1, -2.1, -3],
+  ]);
 }
 
 /** The names and the ranks of a cut, copied: what a caller that keeps a result has to hold. */
@@ -57,17 +50,12 @@ test('the cut rewrites the lists its history holds, and culls what the pyramid r
 });
 
 test('a cut of another width writes the same lists, and nothing of the wider one survives', () => {
-  const { pages, locations, dispose } = scene(),
+  const built = scene(),
+    { pages, locations, dispose } = built,
     history: TemporalHizState = {};
   const wide = applyTemporalHiz(pages, locations, cam, SIZE, history),
     narrow = pages.slice(0, 2);
-  const cut = applyTemporalHiz(
-    narrow,
-    locatedBy(narrow.map((page) => ({ world: page.matrix }))),
-    cam,
-    SIZE,
-    history,
-  );
+  const cut = applyTemporalHiz(narrow, subLocations(built, 2), cam, SIZE, history);
   assert.equal(cut.shown, wide.shown, 'the narrow cut wrote the list the history holds');
   assert.equal(cut.shownPacked, wide.shownPacked, 'and its ranks');
   assert.ok(cut.shown.length <= narrow.length, 'the narrow cut carries only its own pages');
