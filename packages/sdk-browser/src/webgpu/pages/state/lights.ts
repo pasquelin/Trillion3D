@@ -24,6 +24,7 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import type { ShadowRowLods } from '../../shadow/rowLods.ts';
 import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
@@ -46,8 +47,8 @@ export interface WebgpuLightState {
   residence: ReturnType<typeof createShadowResidence>;
   /** Which placements move, and the static layer their first move opens. */
   mobility: ShadowMobility;
-  /** One word per row, 1 for a moving placement's: what the page cull splits its lists by. */
-  mobilityRows: GPUBuffer | undefined;
+  mobilityRows: GPUBuffer | undefined; // a word per row, what the page cull splits its lists by
+  rowLods: ShadowRowLods | undefined; // each caster row's detail, its level chosen per page (#831)
   staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
   staticLayerPending: boolean;
   staticLayerTexture: GPUTexture | undefined; // made with the pool until the layer owns it (#831)
@@ -66,8 +67,7 @@ export interface WebgpuLightState {
   /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
   shadowGroupsKey: unknown[];
-  /** Store revision already pushed to the GPU: an image with no change writes nothing. */
-  uploadedEpoch: number;
+  uploadedEpoch: number; // store revision already pushed: an image with no change writes nothing
   /** Matrices of the batch's drawn pages, one per region. */
   faceMatrices: Float32Array;
   /** The batch's drawn light views, one light cut each (`../../shadow/runs.ts`). */
@@ -76,8 +76,7 @@ export interface WebgpuLightState {
   regions: ShadowRegionList;
   /** The light store slot of each shadow slice, as the image's records were written. */
   shadowSlots: Int32Array;
-  /** The threshold the image's light cuts select casters at. */
-  shadowPixelError: number;
+  shadowPixelError: number; // the threshold the image's light cuts select casters at
   plannedFrame: number; // the image whose shadow pages are planned, once (`planImageShadows`)
   /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
    *  they no longer do (`../../shadow/pages.ts`). */
@@ -134,6 +133,7 @@ export function createWebgpuLightState(
     residence: createShadowResidence(),
     mobility: createShadowMobility(),
     mobilityRows: undefined,
+    rowLods: undefined,
     staticLayer: undefined,
     staticLayerPending: false,
     staticLayerTexture: undefined,

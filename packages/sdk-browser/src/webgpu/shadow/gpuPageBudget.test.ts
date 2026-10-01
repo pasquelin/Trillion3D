@@ -1,11 +1,12 @@
-// #831: the GPU maps at most a frame's page budget. A burst — a scene's first frame, a camera cut —
-// mapped and drew every page it asked at once, 2 423 pages and 286 ms of GPU in one frame; past
-// the budget a need stays unmapped, reads the coarser page, and is mapped the next frames.
+// #831: the GPU maps at most a frame's page budget, the grant's batches' pages and the pool's when
+// fewer (`shadowPagesPerFrame`): a safety net, the pages' casters drawn at the level their texels
+// want. Past it a need stays unmapped, reads the coarser page, and is mapped the next frames.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_PAGES } from '../../gpu/shadow/atlas.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
@@ -13,11 +14,20 @@ import { PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 
 const { lits } = floorTiles(tileGrid(-40, 40, -80, 0), 2),
   { lits: near } = floorTiles(tileGrid(-16, 16, -32, 0), 2);
+/** A budget below the burst these views ask, four batches: the grant's holds these whole pools. */
+const BUDGET = 4 * MAX_SHADOW_PAGES;
+
+test('the page budget is the pages the granted batches hold, the pool’s when fewer', () => {
+  assert.equal(shadowPagesPerFrame(2601), 2601);
+  assert.equal(shadowPagesPerFrame(4 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS);
+  assert.equal(gpuFrames(48, [SUN]).allocation.pagesPerFrame, shadowPagesPerFrame(48 * 48));
+});
 
 test('the GPU maps at most the page budget a frame, the rest the next frames, none refused', async () => {
   const run = gpuFrames(48, [SUN]),
     { plan, owner } = run,
     inbox: ShadowRequestReport[] = [];
+  run.allocation.pagesPerFrame = BUDGET;
   const mapped = () => owner.filter((entry) => entry >= 0).length;
   const frame = async (at: number) => {
     for (const report of inbox.splice(0)) plan.receive(report);
@@ -30,11 +40,8 @@ test('the GPU maps at most the page budget a frame, the rest the next frames, no
     };
   };
   const first = await frame(1);
-  assert.ok(first.read > SHADOW_GPU_PAGES_PER_FRAME, `${first.read} pages read, past the budget`);
-  assert.ok(
-    first.allocated === SHADOW_GPU_PAGES_PER_FRAME,
-    `${first.allocated} pages mapped in one frame`,
-  );
+  assert.ok(first.read > BUDGET, `${first.read} pages read, past the budget`);
+  assert.equal(first.allocated, BUDGET, `${first.allocated} pages mapped in one frame`);
   assert.equal(run.refused(), 0, 'a need past the budget is no memory refusal');
   const second = await frame(2);
   assert.ok(second.mapped > first.mapped, 'the next frame maps the rest');
@@ -45,14 +52,15 @@ test('the GPU maps at most the page budget a frame, the rest the next frames, no
 test('once the view holds, every page read is drawn at its own level within the budget frames', async () => {
   const run = gpuFrames(32, [SUN]),
     inbox: ShadowRequestReport[] = [];
+  run.allocation.pagesPerFrame = BUDGET;
   const frame = async (at: number) => {
     for (const report of inbox.splice(0)) run.plan.receive(report);
     const read = await run.frame(at, VIEW, near, (report) => inbox.push(report));
     return { read: new Set(read).size, coarser: read.filter((e) => !(run.table[e] & PAGE_VALID)) };
   };
   const first = await frame(1);
-  assert.ok(first.read > SHADOW_GPU_PAGES_PER_FRAME, 'a burst past one frame');
-  const bound = 2 + Math.ceil(first.read / SHADOW_GPU_PAGES_PER_FRAME);
+  assert.ok(first.read > BUDGET, 'a burst past one frame');
+  const bound = 2 + Math.ceil(first.read / BUDGET);
   let at = 1,
     coarser = first.coarser.length;
   while (coarser && at < bound) coarser = (await frame(++at)).coarser.length;

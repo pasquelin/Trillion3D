@@ -7,14 +7,17 @@ import {
 } from './virtual.ts';
 
 /** Host bytes a table over `poolPages` pages allocates: a word and a change flag per entry, a
- *  base and a size per slice, four changed and four withdrawn words per pool page. `hostBytes`
- *  counts the arrays. */
+ *  base and a size per slice, four changed, four withdrawn and four sent words per pool page.
+ *  `hostBytes` counts the arrays. */
 export function shadowTableHostBytes(poolPages: number, entries = ENTRIES) {
-  return entries * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + 2 * poolPages * 4 * 4;
+  return entries * (4 + 1) + MAX_SHADOW_SLICES * (4 + 4) + 3 * poolPages * 4 * 4;
 }
 
+/** An entry's flags: its word waits in `changed`; it waits to go out withdrawn; it went out
+ *  withdrawn unmapped and no GPU page draw ran since (`withdrawUnmapped`). */
 const QUEUED = 1,
-  WITHDRAWN = 2;
+  WITHDRAWN = 2,
+  SENT = 4;
 
 /**
  * THE PAGE TABLE, host side: one word per virtual page of every shadow light — the physical page
@@ -38,9 +41,11 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
    *  `withdrawnList` (`withdraw`). */
   const queued = new Uint8Array(entries),
     changed = new Int32Array(changedCap),
-    withdrawnList = new Int32Array(changedCap);
+    withdrawnList = new Int32Array(changedCap),
+    sentList = new Int32Array(changedCap);
   let changedCount = 0,
     withdrawnCount = 0,
+    sentCount = 0,
     whole = true;
   const queue = (entry: number) => {
     if (whole || queued[entry] & QUEUED) return;
@@ -58,16 +63,26 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     table.version++;
     queue(entry);
   };
-  /** The withdrawn marks the flush sent: past the list, every entry's. */
+  /** Each entry of `list`'s first `count` that carries `flag` — past the list, every entry's. */
+  const eachFlagged = (
+    list: Int32Array,
+    count: number,
+    flag: number,
+    visit: (e: number) => void,
+  ) => {
+    if (count > changedCap) for (let e = 0; e < entries; e++) (queued[e] & flag) !== 0 && visit(e);
+    else for (let i = 0; i < count; i++) visit(list[i]);
+  };
+  const unflag = (flag: number) => (e: number) => void (queued[e] &= ~flag);
+  /** The withdrawn marks the flush sent. */
   const clearWithdrawn = () => {
-    if (withdrawnCount > changedCap) for (let e = 0; e < entries; e++) queued[e] &= QUEUED;
-    else for (let i = 0; i < withdrawnCount; i++) queued[withdrawnList[i]] &= QUEUED;
+    eachFlagged(withdrawnList, withdrawnCount, WITHDRAWN, unflag(WITHDRAWN));
     withdrawnCount = 0;
   };
   const table = {
     words,
     /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
-    hostBytes: [words, base, size, queued, changed, withdrawnList].reduce(
+    hostBytes: [words, base, size, queued, changed, withdrawnList, sentList].reduce(
       (sum, a) => sum + a.byteLength,
       0,
     ),
@@ -111,6 +126,24 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     },
     /** True while `entry` waits to go out withdrawn: read by the flush's sink. */
     withdrawn: (entry: number) => (queued[entry] & WITHDRAWN) !== 0,
+    /** Each entry waiting to go out withdrawn: what a whole upload sends beside the words (#831). */
+    eachWithdrawn: (visit: (entry: number) => void) =>
+      eachFlagged(withdrawnList, withdrawnCount, WITHDRAWN, visit),
+    /** `entry`, which the host does not map, is withdrawn — a box covered it while the GPU may hold
+     *  a draw of its own (`invalidate.ts`) —, once until a GPU page draw runs again (`gpuDrew`):
+     *  before that, the GPU holds no newer draw of it to withdraw. */
+    withdrawUnmapped(entry: number) {
+      if (queued[entry] & SENT) return;
+      queued[entry] |= SENT;
+      if (sentCount < changedCap) sentList[sentCount] = entry;
+      sentCount++;
+      table.withdraw(entry);
+    },
+    /** The GPU drew pages of its own: an entry withdrawn unmapped may be drawn again. */
+    gpuDrew() {
+      eachFlagged(sentList, sentCount, SENT, unflag(SENT));
+      sentCount = 0;
+    },
     /**
      * Hands the words changed since the last call, as contiguous runs `(first, count)`, or the
      * whole table once after a burst the list could not hold. Nothing when nothing changed.
@@ -119,7 +152,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
       if (whole) {
         whole = false;
         upload(0, entries);
-        for (let i = 0; i < changedCount; i++) queued[changed[i]] = 0;
+        for (let i = 0; i < changedCount; i++) queued[changed[i]] &= ~QUEUED;
         changedCount = 0;
         clearWithdrawn();
         return;
@@ -129,7 +162,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
         let last = i;
         while (last + 1 < changedCount && changed[last + 1] === changed[last] + 1) last++;
         upload(changed[i], last - i + 1);
-        for (let k = i; k <= last; k++) queued[changed[k]] = 0;
+        for (let k = i; k <= last; k++) queued[changed[k]] &= ~QUEUED;
         i = last + 1;
       }
       changedCount = 0;
@@ -140,7 +173,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
       base.fill(-1);
       size.fill(0);
       queued.fill(0);
-      changedCount = withdrawnCount = 0;
+      changedCount = withdrawnCount = sentCount = 0;
       whole = true;
       table.layoutEpoch++;
     },

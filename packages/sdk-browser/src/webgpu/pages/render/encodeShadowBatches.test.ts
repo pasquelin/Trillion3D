@@ -4,13 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
-import { MAX_SHADOW_BATCHES, SHADOW_PAGES_PER_FRAME } from '../../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
 import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
-import { MAX_SHADOW_SLICES, SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -151,15 +151,4 @@ test('at the cap, every sun turning every frame is drawn within the bound, none 
     for (let slot = 0; slot < store.count; slot++)
       assert.ok(f - lastDrawn[slot] <= bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
   }
-});
-
-test('a frame draws at most its page budget, the rest pending for the next frames (#831)', () => {
-  // A burst — a scene's first frames, a camera cut — drew every page at once: 2 423 pages took
-  // 286 ms of GPU in one frame. Past the budget the batches stop; the next frame takes the rest.
-  const { rt, lights, pages } = frame(MAX_SHADOW_SLICES);
-  assert.ok(pages > SHADOW_PAGES_PER_FRAME, `${pages} pages, past the budget`);
-  const visit = () => (lights.runs.reset(), true);
-  const drawn = forEachShadowBatch(rt, visit);
-  assert.ok(drawn >= SHADOW_PAGES_PER_FRAME && drawn < SHADOW_PAGES_PER_FRAME + MAX_SHADOW_PAGES);
-  assert.ok(drawn < pages, 'the rest waits');
 });
