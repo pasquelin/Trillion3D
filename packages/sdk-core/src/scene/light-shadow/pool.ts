@@ -163,8 +163,7 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
       for (let page = pool.pages - 1; page >= 0; page--)
         if (pool.owner[page] < 0) free[freeCount++] = page;
     },
-    /** The pool of another size, empty — `poolResize.ts` carries what it held first —; its
-     *  refetch count goes on. */
+    /** The pool at the size the device granted, empty, once before any page is mapped. */
     resize(nextSide: number, nextLayers: number) {
       const refetched = pool.refetched;
       Object.assign(pool, allocate(nextSide, nextLayers));
