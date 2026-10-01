@@ -112,6 +112,7 @@ function frame(capacity: number, holds: (k: number) => number[]) {
   }
   state[POOL_COUNTS.indexOf('drawn')] = listed;
   params.set([pages, 4, 1, rows, rows, rows, capacity]);
+  params[8] = pages; // The static fill (`budget`): every listed page.
   const bytes = (a: Uint32Array | Float32Array) => new Uint8Array(a.buffer);
   const fresh = (entry: string) =>
     runShadowFresh(

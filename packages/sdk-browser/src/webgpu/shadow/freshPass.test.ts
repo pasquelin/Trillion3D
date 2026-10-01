@@ -102,3 +102,15 @@ test('nothing is drawn by the GPU while it does not allocate', () => {
   encode();
   assert.deepEqual(calls, []);
 });
+
+// #831: one static fill a frame for the host's batches and the GPU's own draws together: the GPU
+// fills what the host's batches left of it, nothing once they reached it.
+test("the GPU's draws fill what the host's batches left of the frame's static fill", () => {
+  const { lights, encode, written } = frame([]);
+  lights.shadowWork.rasterizedPages = 10;
+  encode();
+  assert.equal(written.budget, 24 - 10);
+  lights.shadowWork.rasterizedPages = 30;
+  encode();
+  assert.equal(written.budget, 0);
+});

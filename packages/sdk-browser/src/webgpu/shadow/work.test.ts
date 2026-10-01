@@ -4,8 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
-import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
+import { castAt, floorCasterBackend } from './floorCaster.fixture.ts';
 
 test('the shadow work metrics tell restored pages from rasterised ones, and say why', async () => {
   const { backend, lights, scene } = await floorCasterBackend(SUN);
@@ -19,7 +19,7 @@ test('the shadow work metrics tell restored pages from rasterised ones, and say 
     await new Promise((settled) => setTimeout(settled, 0));
     return drawn;
   };
-  const move = (x: number) => () => backend.setTransform!('caster', along(x));
+  const move = (x: number) => () => backend.setTransform!('caster', castAt(x));
   // The caster's first moves make the static layer.
   for (let step = 1; step <= 4; step++) await frame(move(step * 0.05));
   const moved = await frame(move(0.3));

@@ -10,6 +10,7 @@ import { FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLa
 import { FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 import { FRESH_LANES } from './freshLanes.ts';
+import { FRESH_PICK_WGSL } from './freshPickWgsl.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -25,8 +26,9 @@ const MAX_FRESH_REGIONS = 65535;
  * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes it
  * (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
  * page is its view cropped by the orthography, its box the square by the range's depth. Every
- * listed page is picked (`pickPages`), as Unreal's virtual shadow maps draw every page a frame
- * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
+ * listed page is picked (`pickPages`) up to the frame's static fill, the coarsest first (#831): a
+ * burst — a view's first frames, a camera cut — is drawn over frames, a page past the fill reading
+ * the coarser one meanwhile, and every page the view still reads is drawn within them. The
  * pair list holds the pool's fixed pairs (`pairGrowth.ts`, #831); a region past the longest prefix
  * it holds whole is left short (`FRESH_SHORT`, `admitShadowPairs`) and the seal makes readable the
  * others alone — never a page short of a caster —; a short one waits, listed again, for the next
@@ -63,29 +65,7 @@ fn faceF(i:u32,v:f32){faces[i]=bitcast<u32>(v);}
 fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
-/** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
- *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`): every one of them, as many as
- *  the cull's dispatch holds. */
-fn pickPages(){
- for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
- let listed=min(countRead(COUNT_DRAWN),params.pages);
- var picked=0u;
- for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
-  let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
-  if(e<0){continue;}
-  let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
-  if((word&(PAGE_MAPPED|PAGE_VALID))!=PAGE_MAPPED||(word&PAGE_INDEX_MASK)!=p||shadowPool.pages[by]!=DRAWN_NONE){continue;}
-  shadowPool.pages[by]=DRAWN_GPU;drawList[picked]=p;picked++;
-  layerCount[poolLayer(p)]+=1u;
- }
- var start=0u;
- for(var l=0u;l<params.layers;l++){args[FRESH_LAYER_STARTS+l]=start;start+=layerCount[l];layerCount[l]=0u;}
- for(var i=0u;i<picked;i++){
-  let p=drawList[i];let l=poolLayer(p);
-  args[FRESH_REGION_PAGES+args[FRESH_LAYER_STARTS+l]+layerCount[l]]=p;layerCount[l]+=1u;
- }
- regionCount=picked;
-}
+${FRESH_PICK_WGSL}
 /** Clip column \`c\` of a view cropped on x and y (\`shadowCropped\`), its depth by \`zs, zo\`. */
 fn cropped(c:vec4f,a:f32,b:f32,cy:f32,d:f32,zs:f32,zo:f32)->vec4f{
  return vec4f(shadowCropped(c.x,c.w,a,b),shadowCropped(c.y,c.w,cy,d),shadowCropped(c.z,c.w,zs,zo),c.w);

@@ -19,7 +19,7 @@ test('a rough sample spends the bounded Hi-Z walk, and a miss reads the filtered
       stochasticReflectionShader(contractLightingShader(bounce, false), false),
       ['boundedReflectionRay'],
     );
-    assert.match(ray, /screenReflectionHiZ\(P,R\)/);
+    assert.match(ray, /screenReflectionHiZ\(P\+N\*shadowFootprint,R\)/);
     assert.ok(ray.includes(`filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END})`));
     assert.doesNotMatch(ray, /resolvedReflectionRay|proxyReflectionRay/);
   }

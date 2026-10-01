@@ -30,4 +30,4 @@ fn freshRegionPairs(pages:u32,k:u32)->u32{return FRESH_REGION_PAGES+pages+k;}`;
 
 /** The parameters as every pass declares them (`writeFresh`, `allocBuffers.ts`). */
 export const FRESH_PARAMS_WGSL = `struct ShadowFreshSlice{emitter:vec4f,far:vec4f,}
-struct ShadowFreshParams{pages:u32,side:u32,layers:u32,rows:u32,blendFirst:u32,blendEnd:u32,capacity:u32,threshold:f32,slices:array<ShadowFreshSlice,${MAX_SHADOW_SLICES}>,}`;
+struct ShadowFreshParams{pages:u32,side:u32,layers:u32,rows:u32,blendFirst:u32,blendEnd:u32,capacity:u32,threshold:f32,budget:u32,slices:array<ShadowFreshSlice,${MAX_SHADOW_SLICES}>,}`;

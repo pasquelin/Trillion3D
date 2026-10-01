@@ -90,7 +90,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       type: 'integer',
       minimum: 1,
       description:
-        'Physical pages of the shadow pool (128x128 texels, 64 KiB each), allocated once when a light first casts and never resized. By default what the whole display screen reads, or the canvas if wider: 2601 pages at 3456x2234 (163 MiB). A frame that reads more pages draws the coarser level past it.',
+        'Physical pages of the shadow pool (128x128 texels, 64 KiB each), allocated once when a light first casts and never resized. By default the most pages whose held bytes fit the shadow pool setting (360 MB with its static layer, request buffers and pair lists), whatever the display: 2601 pages. Fewer may be asked, never more. A frame that reads more pages draws the coarser level past it.',
     },
     bounce: {
       type: 'boolean',

@@ -18,6 +18,8 @@ export function frame(calls: unknown[][]) {
     calls.push([name, ...bound.map((buffer) => buffer.name), groups]);
   const buffers = ['state', 'drawList', 'freshFaces', 'freshVolumes', 'freshArgs', 'freshParams'];
   buffers.push('freshDispatch');
+  /** The static fill the frame handed the GPU's draws (`writeFresh`). */
+  const written = { budget: -1 };
   const lights = {
     store: createSceneLightStore(),
     plan: {
@@ -42,8 +44,12 @@ export function frame(calls: unknown[][]) {
       allocation: {
         seeded: true,
         lost: 0,
+        pagesPerFrame: 24,
         ...Object.fromEntries(buffers.map((k) => [k, named(k)])),
-        writeFresh: (...args: unknown[]) => calls.push(['params', ...args.slice(0, 5)]),
+        writeFresh: (...args: unknown[]) => {
+          written.budget = args[6] as number;
+          calls.push(['params', ...args.slice(0, 5)]);
+        },
       },
     },
     shadows: {
@@ -77,6 +83,7 @@ export function frame(calls: unknown[][]) {
     mobilityRows: named('mobility'),
     rowLods: { buffer: named('row lods') },
     staticLayer: undefined as unknown,
+    shadowWork: { rasterizedPages: 0 },
     shadowRenderPasses: 0,
     shadowDrawCalls: 0,
   };
@@ -107,5 +114,5 @@ export function frame(calls: unknown[][]) {
     },
   } as unknown as GPUCommandEncoder;
   const encode = () => encodeFreshPages(rt, device, encoder);
-  return { lights, encode };
+  return { lights, encode, written };
 }

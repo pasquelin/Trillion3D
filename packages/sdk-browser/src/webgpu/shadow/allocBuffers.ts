@@ -65,7 +65,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
     seeded: false,
-    /** The pages the GPU maps a frame at most (`shadowPagesPerFrame`): the rest the next frames. */
+    /** The pages the GPU maps a frame at most, its static fill (`shadowPagesPerFrame`): the rest
+     *  the next frames. */
     pagesPerFrame: shadowPagesPerFrame(pages),
     /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
     seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
@@ -88,7 +89,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     },
     /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the
      *  caster rows the cull tests — the table's, the blended casters' —, the pairs it may keep,
-     *  the error in texels it chooses their level at, then each slice's emitter and far plane. */
+     *  the error in texels it chooses their level at, the pages it may fill (`budget`, #831), then
+     *  each slice's emitter and far plane. */
     writeFresh(
       side: number,
       layers: number,
@@ -96,10 +98,12 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       blend: readonly [number, number],
       capacity: number,
       threshold: number,
+      budget: number,
       slices: Float32Array,
     ) {
       fresh.set([pages, side, layers, rows, blend[0], blend[1], capacity]);
       freshFloats[7] = threshold;
+      fresh[8] = budget;
       freshFloats.set(slices, FRESH_PARAM_WORDS);
       device.queue.writeBuffer(freshParams, 0, fresh);
     },
