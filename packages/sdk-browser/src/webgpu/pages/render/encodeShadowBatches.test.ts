@@ -37,11 +37,17 @@ test('the pages a frame marks are cut into batches the buffers hold, every one v
   const { rt, lights, pages } = frame(16);
   assert.ok(pages > 2 * MAX_SHADOW_PAGES, `${pages} pages, more than two batches`);
   const batches: number[][] = [];
-  const drawn = forEachShadowBatch(rt, (from, to, runBase) => {
-    batches.push([from, to, runBase]);
-    lights.runs.reset();
-    return true;
-  });
+  // The static fill apart (`staticFill.test.ts`): every page a batch.
+  const drawn = forEachShadowBatch(
+    rt,
+    (from, to, runBase) => {
+      batches.push([from, to, runBase]);
+      lights.runs.reset();
+      return true;
+    },
+    frameBatchCapacity(rt),
+    Infinity,
+  );
   assert.equal(drawn, pages);
   assert.deepEqual(batches[0].slice(0, 2), [0, MAX_SHADOW_PAGES]);
   for (let k = 1; k < batches.length; k++) assert.equal(batches[k][0], batches[k - 1][1]);
@@ -72,11 +78,16 @@ test("a frame draws at most its pool's batches, the rest pending", () => {
   assert.ok(pages > capacity.batches, `${pages} pages, more than the batches`);
   lights.plan.admission.batchEnd = (from) => from + 1;
   let batches = 0;
-  const drawn = forEachShadowBatch(rt, () => {
-    batches++;
-    lights.runs.reset();
-    return true;
-  });
+  const drawn = forEachShadowBatch(
+    rt,
+    () => {
+      batches++;
+      lights.runs.reset();
+      return true;
+    },
+    capacity,
+    Infinity,
+  );
   assert.equal(batches, capacity.batches);
   assert.equal(drawn, capacity.batches, 'where it stopped: the rest wait');
 });

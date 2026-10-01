@@ -26,11 +26,11 @@ export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
   visit: (from: number, to: number, runBase: number) => boolean,
   { views, batches } = frameBatchCapacity(rt),
+  budget = shadowPagesPerFrame(rt.lights.plan.pool.pages),
 ) {
   const { plan, runs } = rt.lights,
     { admission } = plan,
-    count = admission.count,
-    budget = shadowPagesPerFrame(plan.pool.pages);
+    count = admission.count;
   let runBase = 0,
     from = 0,
     fills = 0;
