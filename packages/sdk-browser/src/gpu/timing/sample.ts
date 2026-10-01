@@ -36,13 +36,12 @@ export type TimingEntry = { slot: number; name: string; part: number };
  * Sets each timed pass's own share of the image, ms: its span less what a pass the device began
  * earlier already covered (#1279). A device that overlaps passes reports each one's whole span, so
  * their durations add up past the image; these shares count an overlap once, on the pass begun
- * first, and add up to the time the timed passes cover. `timed` is in the passes' order.
+ * first, and add up to the time the timed passes cover. `timed`, in the passes' order, is sorted.
  */
 function setOwnShares(timed: { pass: { ownMs: number }; begin: bigint; end: bigint }[]) {
   let covered = 0n;
-  for (const { pass, begin, end } of [...timed].sort((a, b) =>
-    a.begin < b.begin ? -1 : a.begin > b.begin ? 1 : 0,
-  )) {
+  timed.sort((a, b) => (a.begin < b.begin ? -1 : a.begin > b.begin ? 1 : 0));
+  for (const { pass, begin, end } of timed) {
     const from = begin > covered ? begin : covered;
     pass.ownMs = nanosecondsToMs(Number(end > from ? end - from : 0n));
     if (end > covered) covered = end;
