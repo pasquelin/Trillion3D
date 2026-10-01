@@ -28,7 +28,8 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
 /**
  * What the core must never hold, by source (#1353): the debug tools, fetched only in debug mode —
  * the measurement's code and the diagnostic views —, and each renderer's own code, fetched only
- * by the page that draws with it — the WebGPU page raster, the WebGL2 page path.
+ * by the page that draws with it — the WebGPU page raster and its shadows, sized by their own
+ * formulas (`residency/shadowShares.ts`), the WebGL2 page path.
  */
 const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
@@ -39,6 +40,11 @@ const NOT_IN_CORE = {
   ],
   'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
   'the WebGL2 renderer': ['sdk-browser/src/backend/autonomous/', 'sdk-browser/src/webgl/cluster/'],
+  'the WebGPU shadows': [
+    'sdk-browser/src/gpu/shadow/',
+    'sdk-browser/src/webgpu/shadow/',
+    'sdk-browser/src/residency/shadowBudgetBytes.js',
+  ],
 };
 
 /** The folder a source is listed under: its package's own `src/` and the folder below it. */
