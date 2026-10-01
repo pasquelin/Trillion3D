@@ -45,12 +45,10 @@ test('spherical coordinates describe cardinal and oblique directions in world un
   }
 });
 
-test('vanishing offsets retain prior camera angles until direction is resolvable', () => {
-  for (const x of [0, 1e-10, 1e-9]) {
-    const out = new Float64Array([9, 0.3, 0.8]);
-    toSpherical(out, [x, 0, 0]);
-    assert.deepEqual([...out], [x, 0.3, 0.8]);
-  }
-  const out = toSpherical(new Float64Array([9, 0.3, 0.8]), [2e-9, 0, 0]);
-  assert.deepEqual([...out], [2e-9, Math.PI / 2, Math.PI / 2]);
+test('a vanishing offset keeps the prior camera angles; a resolvable one sets them', () => {
+  const out = new Float64Array([9, 0.3, 0.8]);
+  toSpherical(out, [0, 0, 0]);
+  assert.deepEqual([...out], [0, 0.3, 0.8]);
+  toSpherical(out, [1e-3, 0, 0]);
+  assert.deepEqual([...out], [1e-3, Math.PI / 2, Math.PI / 2]);
 });

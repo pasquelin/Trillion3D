@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { BufferAttribute, InterleavedBuffer, InterleavedBufferAttribute } from './attribute.ts';
+import {
+  BufferAttribute,
+  InterleavedBuffer,
+  InterleavedBufferAttribute,
+  ownAttribute,
+  indexList,
+  pendingAttribute,
+  pendingInterleaved,
+} from './attribute.ts';
 import { Geometry } from '../geometry/geometry.ts';
 
 test('a cloned attribute owns a copy of its numbers, type, normalisation and name', () => {
@@ -61,4 +69,151 @@ test('a component past the vertex reads 0, never the next vertex', () => {
   const flat = new BufferAttribute(new Float32Array([1, 2, 3, 4]), 2);
   assert.deepEqual([flat.getComponent(0, 2), flat.getZ(0), flat.getW(0)], [0, 0, 0]);
   assert.equal(flat.getComponent(1, 1), 4);
+});
+
+test('attribute components retain vertex offsets, normalization and independent copies', () => {
+  const value = new BufferAttribute(new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]), 4);
+  value.name = 'weights';
+  assert.equal(value.count, 2);
+  assert.deepEqual([value.getX(1), value.getY(1), value.getZ(1), value.getW(1)], [5, 6, 7, 8]);
+  value.setXYZ(1, 11, 12, 13).setW(1, 14);
+  assert.deepEqual([...value.array], [1, 2, 3, 4, 11, 12, 13, 14]);
+  value.setX(0, 21);
+  value.setY(0, 22);
+  value.setZ(0, 23);
+  value.setW(0, 24);
+  assert.deepEqual([...value.array], [21, 22, 23, 24, 11, 12, 13, 14]);
+  const clone = value.clone();
+  assert.equal(clone.name, 'weights');
+  assert.equal(clone.itemSize, 4);
+  assert.equal(clone.type, 'Float32Array');
+  assert.equal(clone.normalized, false);
+  assert.notEqual(clone.array, value.array);
+  clone.setX(0, 1);
+  assert.equal(value.getX(0), 21);
+  const ordered = ownAttribute(value, [1, 0, 1]);
+  assert.deepEqual([...ordered.array], [11, 12, 13, 14, 21, 22, 23, 24, 11, 12, 13, 14]);
+  const normalized = new BufferAttribute(new Uint8Array([0, 255, 128]), 3, true);
+  assert.equal(normalized.getX(0), 0);
+  assert.equal(normalized.getY(0), 1);
+  normalized.setZ(0, 1);
+  assert.equal(normalized.array[2], 255);
+  assert.equal(normalized.clone().normalized, true);
+});
+
+test('interleaved views share writes but extracted attributes own only selected components', () => {
+  const buffer = new InterleavedBuffer(new Float32Array([91, 1, 2, 3, 92, 4, 5, 6, 93]), 4);
+  const view = new InterleavedBufferAttribute(buffer, 3, 1);
+  assert.equal(buffer.count, 2);
+  assert.equal(view.count, 2);
+  assert.equal(view.array, buffer.array);
+  assert.deepEqual([view.getX(1), view.getY(1), view.getZ(1)], [4, 5, 6]);
+  view.setXYZ(1, 7, 8, 9);
+  assert.deepEqual([...buffer.array], [91, 1, 2, 3, 92, 7, 8, 9, 93]);
+  const extracted = buffer.attribute(3, 1);
+  assert.deepEqual([...extracted.array], [1, 2, 3, 7, 8, 9]);
+  assert.deepEqual([...view.clone().array], [1, 2, 3, 7, 8, 9]);
+  extracted.setX(1, 40);
+  assert.equal(view.getX(1), 7);
+  buffer.needsUpdate = false;
+  assert.equal(buffer.version, 0);
+  view.needsUpdate = true;
+  assert.equal(buffer.version, 1);
+  buffer.needsUpdate = true;
+  assert.equal(buffer.version, 2);
+  assert.equal(view.needsUpdate, false);
+  assert.equal(buffer.needsUpdate, false);
+});
+
+test('upload ranges and revisions track declared writes and index width preserves large vertices', () => {
+  const value = new BufferAttribute(new Float32Array([1, 2, 3]), 3);
+  let writes = 0;
+  value._onChange = () => writes++;
+  value.needsUpdate = false;
+  assert.equal(value.version, 0);
+  assert.equal(writes, 0);
+  value.needsUpdate = true;
+  assert.equal(value.version, 1);
+  assert.equal(writes, 1);
+  value.needsUpdate = true;
+  assert.equal(value.version, 2);
+  assert.equal(writes, 2);
+  assert.equal(value.needsUpdate, false);
+  value.addUpdateRange(2, 3);
+  value.addUpdateRange(7, 11);
+  assert.deepEqual(value.updateRanges, [
+    { start: 2, count: 3 },
+    { start: 7, count: 11 },
+  ]);
+  value.clearUpdateRanges();
+  assert.deepEqual(value.updateRanges, []);
+  assert.deepEqual([...indexList([0, 65535, 1]).array], [0, 65535, 1]);
+  assert.ok(indexList([0, 65535]).array instanceof Uint16Array);
+  const wide = indexList([1, 65536, 3]);
+  assert.ok(wide.array instanceof Uint32Array);
+  assert.deepEqual([...wide.array], [1, 65536, 3]);
+});
+
+test('deferred buffers expose counts before loading, share concurrent reads and retain loaded numbers', async () => {
+  let calls = 0;
+  const array = new Float32Array([1, 2, 3, 4, 5, 6]);
+  const attribute = pendingAttribute(
+    {
+      length: 6,
+      type: 'Float32Array',
+      read: async () => {
+        calls++;
+        return array;
+      },
+    },
+    3,
+    true,
+  );
+  assert.equal(attribute.count, 2);
+  assert.equal(attribute.type, 'Float32Array');
+  assert.equal(attribute.normalized, true);
+  assert.throws(
+    () => attribute.array,
+    (error: any) => error.code === 'VERTICES_NOT_LOADED',
+  );
+  await Promise.all([attribute._load(), attribute._load()]);
+  assert.equal(calls, 1);
+  assert.equal(attribute.array, array);
+  assert.equal(attribute._pending, null);
+  await attribute._load();
+  assert.equal(calls, 1);
+  const buffer = pendingInterleaved(
+    { length: 6, type: 'Float32Array', read: async () => array },
+    3,
+  );
+  assert.equal(buffer.count, 2);
+  assert.throws(
+    () => buffer.array,
+    (error: any) => error.code === 'VERTICES_NOT_LOADED',
+  );
+  await buffer._load();
+  assert.equal(buffer.array, array);
+});
+
+test('a failed deferred read is retried rather than caching a rejected promise', async () => {
+  let calls = 0;
+  const failure = new Error('network'),
+    array = new Float32Array([1, 2, 3]);
+  const attribute = pendingAttribute(
+    {
+      length: 3,
+      type: 'Float32Array',
+      read: async () => {
+        if (++calls === 1) throw failure;
+        return array;
+      },
+    },
+    3,
+    false,
+  );
+  await assert.rejects(attribute._load(), (error) => error === failure);
+  assert.equal(attribute.count, 1);
+  await attribute._load();
+  assert.equal(calls, 2);
+  assert.equal(attribute.array, array);
 });
