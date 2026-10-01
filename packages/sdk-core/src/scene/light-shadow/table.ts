@@ -70,8 +70,8 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     flag: number,
     visit: (e: number) => void,
   ) => {
-    if (count > changedCap) for (let e = 0; e < entries; e++) (queued[e] & flag) !== 0 && visit(e);
-    else for (let i = 0; i < count; i++) visit(list[i]);
+    if (count <= changedCap) for (let i = 0; i < count; i++) visit(list[i]);
+    else for (let e = 0; e < entries; e++) if (queued[e] & flag) visit(e);
   };
   const unflag = (flag: number) => (e: number) => void (queued[e] &= ~flag);
   /** The withdrawn marks the flush sent. */
