@@ -20,6 +20,7 @@ import { type WebglViewState } from './viewKeys.ts';
  */
 export function createImageCut(options: {
   roots: ClusterRoot<PageRec>[];
+  context?: { stereo?: import('../../page/cut/stereo.ts').StereoCut };
   /** The drawn view's lists and size, read at each cut (`views.ts`); what it asks for, `requested`,
    *  is cut to what the pool admits. */
   view: Pick<
@@ -55,7 +56,12 @@ export function createImageCut(options: {
     selectOptions.pixelError = pixelError;
     selectOptions.viewport = view.viewport;
     selectOptions.wanted = desired;
-    const selected = selectVisiblePages(roots, cam, selectOptions, view.shown);
+    const selected = (options.context?.stereo?.select ?? selectVisiblePages)(
+      roots,
+      cam,
+      selectOptions,
+      view.shown,
+    );
     // The packed ranks the cut published, rank by rank, kept beside the records (#1235): one record
     // serves many placements, so a consumer of these lists reads its instance's rank here.
     shownPacked.length = selected.shown.length;

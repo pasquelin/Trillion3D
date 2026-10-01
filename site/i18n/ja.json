@@ -477,14 +477,7 @@
       "sort-and-reduce": "GPU計算API",
       "a-software-rasteriser": "GPU計算API",
       "sound-from-the-gpu": "GPU計算API",
-      "breaking-things": "物理エンジンとの連携",
-      "a-room-in-vr": "WebXRセッション",
-      "a-360-photo-in-vr": "WebXRセッション",
-      "vr-composition-layers": "WebXRセッション:レイヤー",
-      "hands-in-vr": "WebXRセッション:手の追跡",
-      "teleport-in-vr": "WebXRセッション",
-      "controllers-in-vr": "WebXRセッション",
-      "ar-on-the-table": "WebXRセッション:AR"
+      "breaking-things": "物理エンジンとの連携"
     }
   },
   "api": {

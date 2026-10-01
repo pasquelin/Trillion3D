@@ -24,9 +24,10 @@ async function requestDevice(adapter: GPUAdapter) {
 export async function probeWorldRenderer(
   canvas: HTMLCanvasElement,
   forced: WorldRenderer | undefined,
+  xrCompatible = false,
 ): Promise<{ renderer: WorldRenderer; gpuDevice?: GPUDevice }> {
   if (forced !== 'webgl2') {
-    const gpu = await detectCapabilities('webgpu', canvas);
+    const gpu = await detectCapabilities('webgpu', canvas, { xrCompatible });
     // The world holds its device for its whole life: every session it opens draws on it.
     const granted = gpu.renderer && gpu.adapter ? await requestDevice(gpu.adapter) : null;
     if (granted?.device) return { renderer: 'webgpu', gpuDevice: granted.device };

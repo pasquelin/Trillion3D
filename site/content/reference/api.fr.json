@@ -1272,7 +1272,8 @@
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "options.xr": "Prépare XR avant de créer le contexte ; sans liaison GPU XR, le mode automatique choisit WebGL2."
     }
   },
   "crossVector3": {
@@ -7092,7 +7093,8 @@
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "xr": "Prépare XR avant de créer le contexte ; sans liaison GPU XR, le mode automatique choisit WebGL2."
     }
   },
   "RenderScale": {
@@ -8306,5 +8308,24 @@
   "validateImpostorSection": {
     "summary": "Une raison courte pour laquelle la section ne peut pas servir, ou `null`.",
     "description": "Une section absente n’est pas une erreur : un cache antérieur à elle dessine chaque maillage en entier, comme avant. Une présente est refusée en bloc quand sa version est inconnue ou qu’une entrée `baked` manque des nombres dont sa bascule et sa carte ont besoin."
+  },
+  "world.xr": {
+    "summary": "Sessions immersives, entrées, espace de référence et tests de contact AR.",
+    "members": {
+      "supported": "Indique si le navigateur peut accorder le mode immersif demandé.",
+      "inputs": "Les nœuds suivis sont dans l’espace de référence ; ajoutez les maillages comme enfants.",
+      "setReferenceSpace": "Remplace ensemble l’espace des poses, des entrées et des tests de contact.",
+      "teleport": "Déplace l’origine relative de l’espace de référence ; lacet en radians.",
+      "hitTest": "Contacts du rayon de vue AR dans le même espace que les yeux et les entrées.",
+      "createLayer": "Crée une couche d’image composée par le navigateur et détenue par la session active.",
+      "enter": "Entre dans le mode immersif demandé à partir d’une action utilisateur.",
+      "enterVR": "Entre en VR immersive à partir d’une action utilisateur.",
+      "enterAR": "Entre en AR immersive avec un environnement transparent à partir d’une action utilisateur.",
+      "timing": "Temps CPU mesuré et budget natif du casque ; les temps GPU inconnus restent null.",
+      "session": "La session XR native active, ou null en dehors d’une session.",
+      "referenceSpace": "L’espace partagé du casque, des entrées et des tests de contact, ou null.",
+      "exit": "Quitte l’immersion et attend la libération de toutes les ressources empruntées des yeux.",
+      "dispose": "Interdit définitivement l’entrée XR et libère les ressources à la destruction du monde."
+    }
   }
 }

@@ -31,6 +31,9 @@ function comparisonCompositor(gl: WebGL2RenderingContext) {
 
 /** The mutable state of one explorer host; every service reads and writes this same object. */
 export type ExplorerHostState = {
+  xrActive?: boolean;
+  xrMetrics?: ReturnType<RenderBackend['metrics']>;
+  xrDraw?: (backend: RenderBackend) => void;
   fallbackReason: string | null;
   active: RenderBackend;
   disposed: boolean;
@@ -117,7 +120,7 @@ export function createExplorerHostState(
           () => {
             throw new Error('The direct GPU path has no host composer');
           },
-          { dispose() {}, effectBytes: () => 0 },
+          { dispose() {}, effectBytes: () => 0, particleStep: () => undefined },
         ),
         compositor: undefined,
       };

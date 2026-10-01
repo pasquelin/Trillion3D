@@ -60,6 +60,12 @@
     "banner": {
       "close": "Kapat",
       "waiting": "Motoru bekliyor (#{issue})"
+    },
+    "xr": {
+      "checking": "XR desteği kontrol ediliyor…",
+      "enterVR": "VR’a gir",
+      "enterAR": "AR’a gir",
+      "unavailable": "Bu tarayıcı veya cihazda XR kullanılamıyor"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "Duruş"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "Uyumlu bir başlık kullanarak XR’a girin."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "360° görüntü seçin, ardından VR’a girin."
+  },
+  "vr-composition-layers": {
+    "banner": "Uyumlu bir başlık kullanarak XR’a girin."
+  },
+  "hands-in-vr": {
+    "banner": "Uyumlu bir başlık kullanarak XR’a girin."
+  },
+  "teleport-in-vr": {
+    "banner": "Bir metre ileri gitmek için kontrolcü tetiğine basın."
+  },
+  "controllers-in-vr": {
+    "banner": "Uyumlu bir başlık kullanarak XR’a girin."
+  },
+  "ar-on-the-table": {
+    "banner": "Küpü yerleştirmek için cihazı bir masaya yöneltin."
   }
 }

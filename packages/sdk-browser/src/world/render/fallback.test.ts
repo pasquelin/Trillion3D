@@ -25,6 +25,7 @@ function fixture(lost: boolean) {
     compose: Object.assign(() => void drawn.push('compose'), {
       dispose() {},
       effectBytes: () => 0,
+      particleStep: () => undefined,
     }),
   };
   return { events, drawn, state, baseline, inputs };

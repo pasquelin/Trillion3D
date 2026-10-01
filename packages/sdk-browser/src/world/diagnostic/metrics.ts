@@ -127,16 +127,16 @@ export function createExplorerMetrics(
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
   if (options.logInterval && options.logInterval > 0) profiler.startAutoLog(options.logInterval);
-  const fillMetrics = (backend: RenderBackend) => {
+  const fillMetrics = (backend: RenderBackend, xr?: ReturnType<RenderBackend['metrics']>) => {
     const { loaded, pageBytesRead, streamingError, effectBytes, gpu } = state();
-    const backendMetrics = backend.metrics() as FrameMetrics;
+    const backendMetrics = (xr ?? backend.metrics()) as FrameMetrics;
     const stream = streamer.stats();
     // Every measurement the engine publishes as-is, in contract order: `null` means "not
     // held by this engine", never "zero". The held-frame flag is part of that — without this
     // copy, `explorer.render()` published `null` while the engine had in fact held the frame.
     for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key);
     // An engine that times no pass of its own: the image the host's WebGL2 timer read.
-    if (metricsScratch.gpuPassMs === null && gpu.passes) {
+    if (!xr && metricsScratch.gpuPassMs === null && gpu.passes) {
       metricsScratch.gpuPassMs = gpu.passes;
       metricsScratch.gpuFrameMs = gpu.frameMs;
     }

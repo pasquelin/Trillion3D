@@ -60,6 +60,12 @@
     "banner": {
       "close": "閉じる",
       "waiting": "エンジン待ち（#{issue}）"
+    },
+    "xr": {
+      "checking": "XR対応を確認中…",
+      "enterVR": "VRを開始",
+      "enterAR": "ARを開始",
+      "unavailable": "このブラウザーまたは端末はXRを利用できません"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "ポーズ"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "対応ヘッドセットを使用してXRを開始してください。"
+  },
+  "a-360-photo-in-vr": {
+    "banner": "360°画像を選択してからVRを開始してください。"
+  },
+  "vr-composition-layers": {
+    "banner": "対応ヘッドセットを使用してXRを開始してください。"
+  },
+  "hands-in-vr": {
+    "banner": "対応ヘッドセットを使用してXRを開始してください。"
+  },
+  "teleport-in-vr": {
+    "banner": "トリガーを押すと1メートル前進します。"
+  },
+  "controllers-in-vr": {
+    "banner": "対応ヘッドセットを使用してXRを開始してください。"
+  },
+  "ar-on-the-table": {
+    "banner": "端末をテーブルに向けて立方体を配置してください。"
   }
 }

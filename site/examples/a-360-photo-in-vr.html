@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A 360 Photo In VR</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101729;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, object, geometry, material, light } from '../runtime/engine.js';
+      import { xrControls } from '../runtime/kit.js';
+      const world = createWorld('view', { xr: true, controls: 'orbit', renderScale: 1 });
+      world.camera.position.set(0, 1.6, 3);
+      world.camera.lookAt(0, 1.2, -2);
+      world.scene.add(
+        object.mesh(geometry.box(6, 0.1, 6), material.meshStandard({ color: '#253350' })),
+        light.ambient({ intensity: 1 }),
+        light.directional({ intensity: 2, position: [2, 5, 3] }),
+      );
+      for (const [x, color] of [
+        [-1, '#56b4e9'],
+        [0, '#ffd166'],
+        [1, '#d55e00'],
+      ]) {
+        const box = object.mesh(geometry.box(0.5, 0.5, 0.5), material.meshStandard({ color }));
+        box.position.set(x, 1.2, -2);
+        world.scene.add(box);
+      }
+      let image;
+      const file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'image/*';
+      file.style.cssText = 'position:fixed;top:24px;left:24px;z-index:10';
+      document.body.append(file);
+      file.onchange = async () => {
+        if (!file.files[0]) return;
+        const next = await createImageBitmap(file.files[0]);
+        image?.close();
+        image = next;
+      };
+      window.addEventListener('pagehide', () => image?.close(), { once: true });
+      await xrControls(world, false, () => {
+        if (!image) return;
+        file.disabled = true;
+        world.xr.session.addEventListener('end', () => (file.disabled = false), { once: true });
+        world.xr
+          .createLayer('equirect', {
+            space: world.xr.referenceSpace,
+            radius: 0,
+            centralHorizontalAngle: 2 * Math.PI,
+            upperVerticalAngle: Math.PI / 2,
+            lowerVerticalAngle: -Math.PI / 2,
+            viewPixelWidth: image.width,
+            viewPixelHeight: image.height,
+          })
+          .update(image);
+      });
+    </script>
+  </body>
+</html>

@@ -1,3 +1,4 @@
+import { explorerXrApi } from '../xr/api.ts';
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import type { ExplorerProbe } from '../session/capabilityProbe.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
@@ -58,6 +59,7 @@ export function createExplorerApi(inputs: Inputs) {
   } = inputs;
   const materialReleases: (() => void)[] = [];
   return {
+    ...explorerXrApi(inputs),
     capabilities,
     get fallbackReason() {
       return state.fallbackReason;

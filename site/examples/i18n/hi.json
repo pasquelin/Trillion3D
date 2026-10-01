@@ -60,6 +60,12 @@
     "banner": {
       "close": "बंद करो",
       "waiting": "इंजन की प्रतीक्षा में (#{issue})"
+    },
+    "xr": {
+      "checking": "XR समर्थन की जाँच…",
+      "enterVR": "VR शुरू करें",
+      "enterAR": "AR शुरू करें",
+      "unavailable": "इस ब्राउज़र या डिवाइस पर XR उपलब्ध नहीं है"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "मुद्रा"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "संगत हेडसेट का उपयोग करके XR शुरू करें।"
+  },
+  "a-360-photo-in-vr": {
+    "banner": "360° चित्र चुनें, फिर VR शुरू करें।"
+  },
+  "vr-composition-layers": {
+    "banner": "संगत हेडसेट का उपयोग करके XR शुरू करें।"
+  },
+  "hands-in-vr": {
+    "banner": "संगत हेडसेट का उपयोग करके XR शुरू करें।"
+  },
+  "teleport-in-vr": {
+    "banner": "एक मीटर आगे जाने के लिए ट्रिगर दबाएँ।"
+  },
+  "controllers-in-vr": {
+    "banner": "संगत हेडसेट का उपयोग करके XR शुरू करें।"
+  },
+  "ar-on-the-table": {
+    "banner": "घन रखने के लिए डिवाइस को मेज की ओर करें।"
   }
 }

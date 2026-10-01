@@ -1570,44 +1570,37 @@
     {
       "id": "a-room-in-vr",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-room-in-vr.html"
     },
     {
       "id": "a-360-photo-in-vr",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-360-photo-in-vr.html"
     },
     {
       "id": "vr-composition-layers",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/vr-composition-layers.html"
     },
     {
       "id": "hands-in-vr",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/hands-in-vr.html"
     },
     {
       "id": "teleport-in-vr",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/teleport-in-vr.html"
     },
     {
       "id": "controllers-in-vr",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/controllers-in-vr.html"
     },
     {
       "id": "ar-on-the-table",
       "theme": "xr",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/ar-on-the-table.html"
     }
   ]
 }

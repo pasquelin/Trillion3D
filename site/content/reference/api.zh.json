@@ -4455,7 +4455,8 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "xr": "在创建上下文前准备 XR；没有 XR GPU 绑定时，自动模式选择 WebGL2。"
     }
   },
   "RenderScale": {
@@ -5099,7 +5100,8 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "options.xr": "在创建上下文前准备 XR；没有 XR GPU 绑定时，自动模式选择 WebGL2。"
     }
   },
   "crossVector3": {
@@ -8306,5 +8308,24 @@
   "validateImpostorSection": {
     "summary": "该区段无法使用的简短原因,或 `null`。",
     "description": "区段缺失不算错误:早于它的缓存会像以前一样完整绘制每个网格。当区段版本未知,或某个 `baked` 条目缺少其切换和卡片所需的数字时,整个区段会被拒绝。"
+  },
+  "world.xr": {
+    "summary": "沉浸式会话、输入、参考空间和 AR 命中测试。",
+    "members": {
+      "supported": "浏览器是否可以提供请求的沉浸式模式。",
+      "inputs": "跟踪节点位于参考空间中；将网格添加为子节点。",
+      "setReferenceSpace": "同时替换姿态、输入和命中测试所使用的空间。",
+      "teleport": "相对于参考空间移动原点；偏航角以弧度表示。",
+      "hitTest": "与双眼和输入处于同一空间的 AR 视线射线命中结果。",
+      "createLayer": "创建由浏览器合成、归当前会话所有的图像图层。",
+      "enter": "通过用户操作进入请求的沉浸模式。",
+      "enterVR": "通过用户操作进入沉浸式 VR。",
+      "enterAR": "通过用户操作进入周围环境透明的沉浸式 AR。",
+      "timing": "测得的 CPU 提交时间和头显原生预算；未知 GPU 时间保持为 null。",
+      "session": "当前原生 XR 会话，未激活时为 null。",
+      "referenceSpace": "头显、输入和命中测试共用的空间，或 null。",
+      "exit": "退出沉浸模式并等待所有借用的眼部资源释放。",
+      "dispose": "永久停止 XR 进入，并在销毁世界时释放资源。"
+    }
   }
 }

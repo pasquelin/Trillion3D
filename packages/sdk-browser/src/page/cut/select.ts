@@ -1,3 +1,4 @@
+import { prepareCutViews } from './viewSet.ts';
 import {
   clipPlanesFromMatrix,
   frustumFarPlane,
@@ -36,6 +37,7 @@ function growPlanes(planes: Float64Array, reach: number) {
 
 export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages;
+  s.lenses = s.views ? prepareCutViews(s.views, root) : undefined;
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch;
   // The packed rank of this root's first page: what `take` adds to a page's index to name the
   // instance, as the world below names its placement (#1235).
@@ -49,6 +51,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // is left out (its default 1 passes).
   const near = s.cam.near;
   s.flatExact =
+    !s.lenses &&
     s.pixelError === 0 &&
     s.flatStretch > 0 &&
     frameParametersSound(s.flatStretch, s.flatFocal, near);

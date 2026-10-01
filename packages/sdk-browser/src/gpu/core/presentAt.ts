@@ -1,4 +1,4 @@
-import { PRESENT_AT_SHADER } from './presentWgsl.ts';
+import { presentAtShader } from './presentWgsl.ts';
 
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number };
@@ -39,7 +39,7 @@ export function createPresentAt(
       height = Math.min(at.height, canvas.height - at.y);
     if (width <= 0 || height <= 0 || at.x < 0 || at.y < 0) return;
     if (!pipeline) {
-      const module = device.createShaderModule({ code: PRESENT_AT_SHADER });
+      const module = device.createShaderModule({ code: presentAtShader(format) });
       pipeline = device.createRenderPipeline({
         layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
         vertex: { module, entryPoint: 'fullscreenAt' },

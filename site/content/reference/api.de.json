@@ -1272,7 +1272,8 @@
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert.",
+      "options.xr": "Bereitet XR vor dem Kontext vor; ohne XR-GPU-Anbindung wählt Automatik WebGL2."
     }
   },
   "crossVector3": {
@@ -7084,7 +7085,8 @@
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert.",
+      "xr": "Bereitet XR vor dem Kontext vor; ohne XR-GPU-Anbindung wählt Automatik WebGL2."
     }
   },
   "RenderScale": {
@@ -8306,5 +8308,24 @@
   "validateImpostorSection": {
     "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
     "description": "Ein fehlender Abschnitt ist kein Fehler: Ein Cache, der ihn voraussetzt, zeichnet jedes Mesh vollständig, wie zuvor. Ein vorhandener wird als Ganzes abgelehnt, wenn seine Version unbekannt ist oder einem `baked`-Eintrag die Zahlen fehlen, die seine Umschaltung und seine Karte brauchen."
+  },
+  "world.xr": {
+    "summary": "Immersive Sitzungen, Eingaben, Referenzraum und AR-Treffertests.",
+    "members": {
+      "supported": "Ob der Browser den gewünschten immersiven Modus bereitstellen kann.",
+      "inputs": "Verfolgte Knoten liegen im Referenzraum; Meshes als Kinder hinzufügen.",
+      "setReferenceSpace": "Ersetzt den Raum für Posen, Eingaben und Treffertests gemeinsam.",
+      "teleport": "Verschiebt den Ursprung relativ zum Referenzraum; Gierwinkel in Radiant.",
+      "hitTest": "AR-Treffer des Blickstrahls im selben Raum wie Augen und Eingaben.",
+      "createLayer": "Erstellt eine vom Browser zusammengesetzte Bildebene im Besitz der aktiven Sitzung.",
+      "enter": "Startet den angeforderten immersiven Modus durch eine Benutzeraktion.",
+      "enterVR": "Startet immersive VR durch eine Benutzeraktion.",
+      "enterAR": "Startet immersive AR mit transparenter Umgebung durch eine Benutzeraktion.",
+      "timing": "Gemessene CPU-Zeit und natives Headset-Budget; unbekannte GPU-Zeiten bleiben null.",
+      "session": "Die aktive native XR-Sitzung oder null, wenn keine aktiv ist.",
+      "referenceSpace": "Der gemeinsame Raum für Headset, Eingaben und Treffertests oder null.",
+      "exit": "Beendet die Immersion und wartet auf die Freigabe aller geliehenen Augenressourcen.",
+      "dispose": "Sperrt den XR-Einstieg dauerhaft und gibt beim Zerstören der Welt Ressourcen frei."
+    }
   }
 }

@@ -61,6 +61,7 @@ test('the explicit capture binds the drawing buffer, samples it, composes, then 
       compose: Object.assign(() => void steps.push('compose'), {
         dispose() {},
         effectBytes: () => 0,
+        particleStep: () => undefined,
       }),
     });
     capture();
@@ -105,7 +106,11 @@ function presentation(options: object, background: unknown) {
     },
     check: () => {},
     diagnose: (_phase, _message, context) => found.push((context ?? {}) as Record<string, unknown>),
-    compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
+    compose: Object.assign(() => {}, {
+      dispose() {},
+      effectBytes: () => 0,
+      particleStep: () => undefined,
+    }),
   });
   capture();
   const raised = found.filter((entry) => entry.kind === 'presentation');

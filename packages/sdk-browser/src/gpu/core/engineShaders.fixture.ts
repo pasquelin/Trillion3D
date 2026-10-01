@@ -1,7 +1,7 @@
 import { stochasticReflectionShader } from '../../reflections/sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL } from '../../reflections/resolveWgsl.ts';
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts';
-import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts';
+import { PRESENT_SHADER, presentAtShader } from './presentWgsl.ts';
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts';
 import { withScreenErrorVariant } from '../dag/shader/error.ts';
@@ -104,7 +104,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_SOURCE_WGSL,
   MIP_DEPTH_SHADER: mipShader(true),
   PRESENT_SHADER,
-  PRESENT_AT_SHADER,
+  PRESENT_AT_SHADER: presentAtShader('rgba8unorm'),
+  PRESENT_AT_SRGB: presentAtShader('rgba8unorm-srgb'),
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
   DAG_SELECTION_SHADER,
   DAG_SELECTION_REFERENCE: withScreenErrorVariant(DAG_SELECTION_SHADER, 'reference'),

@@ -477,14 +477,7 @@
       "sort-and-reduce": "GPU compute API",
       "a-software-rasteriser": "GPU compute API",
       "sound-from-the-gpu": "GPU compute API",
-      "breaking-things": "physics integration",
-      "a-room-in-vr": "WebXR session",
-      "a-360-photo-in-vr": "WebXR session",
-      "vr-composition-layers": "WebXR session: layers",
-      "hands-in-vr": "WebXR session: hand input",
-      "teleport-in-vr": "WebXR session",
-      "controllers-in-vr": "WebXR session",
-      "ar-on-the-table": "WebXR session: AR"
+      "breaking-things": "physics integration"
     }
   },
   "api": {

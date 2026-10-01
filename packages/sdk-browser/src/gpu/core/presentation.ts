@@ -1,3 +1,4 @@
+import { createBorrowedPresent } from './borrowedPresent.ts';
 import { sharedGpuDevice } from './sessionHandle.ts';
 import { PRESENT_SHADER } from './presentWgsl.ts';
 import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts';
@@ -35,6 +36,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         },
       ],
     });
+    const borrowed = createBorrowedPresent(device, layout);
     const module = device.createShaderModule({ code: PRESENT_SHADER });
     const pipeline = started(
       preparedPipeline(device, {
@@ -59,8 +61,8 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
     return {
       canvas,
       targetView,
-      /** The image over the whole canvas, sized to it; at `at`, a persistent view's rectangle of
-       *  the canvas, which keeps its size and what else it shows this frame. */
+      borrow: borrowed.set,
+      /** Presents to the whole canvas, a view rectangle, or the borrowed XR destination. */
       present(
         encoder: GPUCommandEncoder,
         image: GPUTexture,
@@ -68,6 +70,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         height: number,
         at?: PresentRect,
       ) {
+        if (borrowed.present(encoder, image)) return;
         if (at) {
           // Not this frame's whole image (its targets still asked, say): the canvas keeps the
           // last frame it showed, never a blank one with this view alone on it.

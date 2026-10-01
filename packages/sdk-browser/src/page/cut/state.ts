@@ -1,3 +1,4 @@
+import type { CutView, CutLens } from './viewSet.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { FRUSTUM_PLANE_VALUES } from '../../../../sdk-core/src/index.ts';
 import { createConeContext, type ConeContext, type NormalCone } from '../cone/cone.ts';
@@ -20,6 +21,8 @@ export interface PageRecord extends ClusterCut {
 
 export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
+  views?: readonly CutView[];
+  lenses?: readonly CutLens[];
   wanted: T[];
   shown: T[];
   /** The same two cuts by packed catalogue rank, rank by rank (the root's `packedBase` plus the

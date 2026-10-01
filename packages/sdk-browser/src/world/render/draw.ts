@@ -25,7 +25,10 @@ type Inputs = {
   directGpu: boolean;
   webglSurface?: WebglSurface;
   baseline: RenderBackend;
-  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active' | 'hostFrame'>;
+  state: Pick<
+    ExplorerHostState,
+    'measuring' | 'fallbackReason' | 'active' | 'hostFrame' | 'xrDraw'
+  >;
   compose: ReturnType<typeof createFrameComposer>;
 };
 
@@ -75,7 +78,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     scale?.tick(frameStart(), gpuTimer?.supported === true);
     // Before any command: the errors of allocations the GPU ran past, read without a wait.
     settleAllocations(webglSurface?.context);
-    backend.render(camera);
+    if (state.xrDraw) state.xrDraw(backend);
+    else backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
     if (missing.length > 0) {
@@ -128,7 +132,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const retainEnd = performance.now();
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
-    if (directGpu) {
+    if (directGpu || state.xrDraw) {
       // The engine draws into the page canvas: nothing to compose, but the frame closes here,
       // where the bounds the host just sampled still belong to it.
       fenceAllocations(webglSurface?.context);

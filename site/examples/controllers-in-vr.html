@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Controllers In VR</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101729;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, object, geometry, material, light } from '../runtime/engine.js';
+      import { xrControls } from '../runtime/kit.js';
+      const world = createWorld('view', { xr: true, controls: 'orbit', renderScale: 1 });
+      world.camera.position.set(0, 1.6, 3);
+      world.camera.lookAt(0, 1.2, -2);
+      world.scene.add(
+        object.mesh(geometry.box(6, 0.1, 6), material.meshStandard({ color: '#253350' })),
+        light.ambient({ intensity: 1 }),
+        light.directional({ intensity: 2, position: [2, 5, 3] }),
+      );
+      for (const [x, color] of [
+        [-1, '#56b4e9'],
+        [0, '#ffd166'],
+        [1, '#d55e00'],
+      ]) {
+        const box = object.mesh(geometry.box(0.5, 0.5, 0.5), material.meshStandard({ color }));
+        box.position.set(x, 1.2, -2);
+        world.scene.add(box);
+      }
+      const pool = Array.from({ length: 2 }, () => {
+        const beam = object.mesh(
+          geometry.box(0.01, 0.01, 1),
+          material.meshBasic({ color: '#ffd166' }),
+        );
+        const handle = object.mesh(
+          geometry.box(0.06, 0.1, 0.15),
+          material.meshStandard({ color: '#56b4e9' }),
+        );
+        beam.position.z = -0.5;
+        beam.visible = handle.visible = false;
+        world.scene.add(beam, handle);
+        return { beam, handle };
+      });
+      const all = pool.slice();
+      let attached = new WeakSet();
+      world.beforeFrame(() => {
+        for (const input of world.xr.inputs) {
+          if (attached.has(input.source) || !pool.length) continue;
+          attached.add(input.source);
+          const { beam, handle } = pool.pop();
+          beam.visible = handle.visible = true;
+          input.ray.add(beam);
+          input.grip.add(handle);
+          world.scene.add(input.ray, input.grip);
+        }
+      });
+      await xrControls(world, false, () => {
+        world.xr.session.addEventListener(
+          'end',
+          () => {
+            attached = new WeakSet();
+            pool.length = 0;
+            pool.push(...all);
+            for (const pair of all) {
+              pair.beam.visible = pair.handle.visible = false;
+              world.scene.add(pair.beam, pair.handle);
+            }
+          },
+          { once: true },
+        );
+      });
+    </script>
+  </body>
+</html>

@@ -1,3 +1,4 @@
+import { webglViewApi } from './persistentView.ts';
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { autonomousPlacements } from '../../placement/autonomousPlacements.ts';
@@ -66,7 +67,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   });
   const { sync, acceptGeometryPage } = geometryStore;
   const classes = createClassPages({ context, roots, draws, geometryStore, wears, gate });
-  // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, draws, blendOf };
   const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, draws, hostCeiling });
   const ceiling =
@@ -117,6 +117,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     hostTableBytes: frame.hostBytes,
     hostDiagnostics: pageDiagnostics,
     captureAside: views.captureAside,
+    ...webglViewApi(views, gate.resourcesChanged),
     capabilities: autonomousCapabilities(!!context.metadata.simplification),
     get overBudget() {
       return state.overBudget;
@@ -128,7 +129,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // The draw's own preparation, before any frame (`sceneDraw.ts`).
       const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
@@ -166,10 +166,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
     syncResident: () => (gate.resourcesChanged(), sync()),
-    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
     updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
-      // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
       if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed();
       if (alpha) classes.follow(alpha, allPages);

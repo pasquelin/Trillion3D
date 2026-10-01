@@ -1,3 +1,4 @@
+import type { CutView } from './viewSet.ts';
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { castsNoShadow, drawsCard, openToCamera, selectFlat } from './select.ts';
@@ -29,6 +30,8 @@ export function selectVisiblePages<T extends PageRecord>(
   cam: EngineCamera,
   options: {
     pixelError?: number;
+    /** One traversal, union visibility and the strictest headset-pixel error. */
+    views?: readonly CutView[];
     viewport?: [number, number];
     /** The pool's residency, when the cut holds it: its rule and the rule's readiness of the
      *  roots, moved by the pool's residency feed (`./held.ts`). Absent, every page is resident. */
@@ -56,6 +59,9 @@ export function selectVisiblePages<T extends PageRecord>(
   // counts, so a reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
+  if (options.views && !options.views.length) throw new Error('A cut needs at least one view');
+  if (options.views && options.light) throw new Error('A light cut cannot use camera views');
+  state.views = options.views;
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
@@ -93,15 +99,27 @@ export function selectVisiblePages<T extends PageRecord>(
     if (
       box &&
       !openToCamera(state, root) &&
-      frustumExcludesBox(
-        worldPlanes,
-        box[0] - g,
-        box[1] - g,
-        box[2] - g,
-        box[3] + g,
-        box[4] + g,
-        box[5] + g,
-      )
+      (options.views
+        ? options.views.every(({ camera }) =>
+            frustumExcludesBox(
+              camera.planes,
+              box[0] - g,
+              box[1] - g,
+              box[2] - g,
+              box[3] + g,
+              box[4] + g,
+              box[5] + g,
+            ),
+          )
+        : frustumExcludesBox(
+            worldPlanes,
+            box[0] - g,
+            box[1] - g,
+            box[2] - g,
+            box[3] + g,
+            box[4] + g,
+            box[5] + g,
+          ))
     ) {
       state.frustumRejected++;
       continue;
@@ -137,6 +155,8 @@ export function selectVisiblePages<T extends PageRecord>(
   // An image's cut lets go of the readiness of the roots no cut saw since the previous one.
   if (!options.light) held?.endImage();
   // The reused state keeps no hold on this image's scene.
+  state.views = undefined;
+  state.lenses = undefined;
   state.held = undefined;
   state.light = undefined;
   state.flatHeld = undefined;

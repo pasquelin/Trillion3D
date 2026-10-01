@@ -1,6 +1,6 @@
 /** The per-page half of the cut's descent: a leaf's clusters tested and kept (`visit.ts`). */
 import { coneSkipsPage } from '../selection/helpers.ts';
-import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
+import { clipCutViews } from './viewSet.ts';
 import { boxMissesLightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { framePixels } from '../selection/frame.ts';
 import { pixelsAtZero } from '../selection/projection.ts';
@@ -32,8 +32,21 @@ function missesLight<T extends PageRecord>(
 }
 
 /** Frustum test of a page's world box against the selection planes. */
-function clipRecordBox(min: readonly number[], max: readonly number[]) {
-  return frustumClipBox(selectionScratch.planes, min[0], min[1], min[2], max[0], max[1], max[2]);
+function clipRecordBox(
+  s: SelectionState<PageRecord>,
+  min: readonly number[],
+  max: readonly number[],
+) {
+  return clipCutViews(
+    s.lenses,
+    selectionScratch.planes,
+    min[0],
+    min[1],
+    min[2],
+    max[0],
+    max[1],
+    max[2],
+  );
 }
 
 /** Keep a cluster in the requested cut when `wanted`, in the drawn one when `drawn`. A requested
@@ -93,7 +106,7 @@ export function take<T extends PageRecord>(
     const min = rec.min,
       max = rec.max;
     if (!min || !max) return;
-    if (clipRecordBox(min, max) === 0) {
+    if (clipRecordBox(s, min, max) === 0) {
       s.frustumRejected++;
       return;
     }
@@ -122,8 +135,15 @@ export function take<T extends PageRecord>(
     uncovered &&= drawsCluster(true, pixels[1], pixels[0], childReady, t);
     if (!wanted && !drawn && !uncovered) return;
   }
-  if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
-    return;
+  if (cones && rec.cone) {
+    const misses = s.lenses
+      ? s.lenses.every(({ camera }) => {
+          s.flatCone.ready = false;
+          return coneSkipsPage(rec, s.flatCone, s.flatWorld, camera, rec.min!, rec.max!);
+        })
+      : coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!);
+    if (misses) return;
+  }
   if (uncovered) s.uncoveredTriangles += rec.triangles;
   keep(s, rec, index, wanted, drawn);
 }

@@ -147,7 +147,7 @@ export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
         view: rt.gpu.colorView!,
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: clearValueOf(rt.run.clearColor),
+        clearValue: rt.context.stereo?.transparent ? [0, 0, 0, 0] : clearValueOf(rt.run.clearColor),
       },
     ],
     depthStencilAttachment: {

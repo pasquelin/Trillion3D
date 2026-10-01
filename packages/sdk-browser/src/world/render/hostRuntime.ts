@@ -122,6 +122,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     scope,
     directGpu,
     webglSurface,
+    particleStep: compose.particleStep,
     viewport,
     context,
     homeOffset,

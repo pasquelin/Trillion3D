@@ -38,3 +38,5 @@ export { healthCheck, showVerdict } from './verdict.ts';
 export { language, words } from './words.ts';
 export { isCapture, play, type Game, type PlayOptions } from './play.ts';
 export type { GameKey, GameOption } from './gameMenu.ts';
+
+export { xrControls } from './xr.ts';

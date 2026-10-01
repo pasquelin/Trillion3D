@@ -477,14 +477,7 @@
       "sort-and-reduce": "API вычислений на GPU",
       "a-software-rasteriser": "API вычислений на GPU",
       "sound-from-the-gpu": "API вычислений на GPU",
-      "breaking-things": "интеграция физического движка",
-      "a-room-in-vr": "сессия WebXR",
-      "a-360-photo-in-vr": "сессия WebXR",
-      "vr-composition-layers": "сессия WebXR: слои",
-      "hands-in-vr": "сессия WebXR: отслеживание рук",
-      "teleport-in-vr": "сессия WebXR",
-      "controllers-in-vr": "сессия WebXR",
-      "ar-on-the-table": "сессия WebXR: дополненная реальность"
+      "breaking-things": "интеграция физического движка"
     }
   },
   "api": {

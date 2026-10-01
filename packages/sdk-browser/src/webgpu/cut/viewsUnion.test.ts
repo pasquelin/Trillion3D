@@ -154,3 +154,25 @@ test('one view asks, keeps and ranks what it did before views existed', () => {
     }
   }
 });
+
+test('XR suspends the main cut pins while eye views retain the shared budget, then main can publish again', () => {
+  const { tracking, sets, publication, main, side, draw, keys, budget } = bench();
+  draw(main, [0, 1, 2, 3]);
+  draw(side, [1, 4, 5]);
+  publication.setMainViewActive(false);
+  budget(3);
+  assert.deepEqual(keysOf(tracking.keep), keys([1, 4, 5]));
+  assert.equal(sets.requestedCount, 3);
+  assert.deepEqual(
+    keysOf(tracking.wanted),
+    keys([1, 4, 5]),
+    'stale screen pins do not compete with eye detail',
+  );
+  publication.setMainViewActive(false);
+  publication.releaseView(side);
+  publication.setMainViewActive(true);
+  draw(main, [6, 7]);
+  budget(3);
+  assert.deepEqual(keysOf(tracking.keep), keys([6, 7]));
+  assert.equal(sets.requestedCount, 2);
+});

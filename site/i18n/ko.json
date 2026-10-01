@@ -477,14 +477,7 @@
       "sort-and-reduce": "GPU 연산 API",
       "a-software-rasteriser": "GPU 연산 API",
       "sound-from-the-gpu": "GPU 연산 API",
-      "breaking-things": "물리 엔진 연동",
-      "a-room-in-vr": "WebXR 세션",
-      "a-360-photo-in-vr": "WebXR 세션",
-      "vr-composition-layers": "WebXR 세션: 레이어",
-      "hands-in-vr": "WebXR 세션: 손 추적",
-      "teleport-in-vr": "WebXR 세션",
-      "controllers-in-vr": "WebXR 세션",
-      "ar-on-the-table": "WebXR 세션: 증강현실"
+      "breaking-things": "물리 엔진 연동"
     }
   },
   "api": {

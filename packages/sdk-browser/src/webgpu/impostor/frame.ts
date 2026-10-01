@@ -20,6 +20,7 @@ import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { CARD_FLOATS } from './cardWgsl.ts';
 import { createImpostorPass, type ImpostorPass } from './pass.ts';
+import { constrainStereoImpostors } from './stereo.ts';
 
 /** One run of cards that share a mesh's atlas: one bind and one instanced draw. */
 type CardRun = { group: GPUBindGroup; first: number; count: number };
@@ -34,6 +35,7 @@ function createWebgpuImpostors(pass: ImpostorPass, section: ImpostorSection) {
     baked: impostorBakedByMesh(section),
     /** The plan, planned again in place every image (`planImpostors`' `into`). */
     plan: undefined as ImpostorPlan | undefined,
+    stereoPlan: undefined as ImpostorPlan | undefined,
     /** This image's card records, `CARD_FLOATS` each, in draw order. */
     records: new Float32Array(CARD_FLOATS * 16),
     count: 0,
@@ -134,6 +136,13 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   pixelScaleOf(cam.projection, rt.setup.viewport ?? rt.gpu.targetSize, pixelScale);
   const focal = Math.max(pixelScale[0], pixelScale[1]);
   const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan));
+  state.stereoPlan = constrainStereoImpostors(
+    roots,
+    state.section,
+    rt.context.stereo?.views,
+    plan,
+    state.stereoPlan,
+  );
   plan.cards.sort(byMesh);
   state.count = state.runCount = 0;
   const floats = plan.cards.length * CARD_FLOATS;
@@ -143,6 +152,7 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     mesh = -1,
     group: GPUBindGroup | undefined;
   for (const card of plan.cards) {
+    if (!plan.switched[card.root]) continue;
     const entry = state.baked.get(card.mesh)!,
       centre = entry.centre ?? ORIGIN,
       R = card.radius;

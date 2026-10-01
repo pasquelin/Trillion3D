@@ -1,3 +1,4 @@
+import type { BackendViews } from './view.ts';
 import type { AdmitGpuMemory } from '../residency/activeMemory.ts';
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera } from '../camera/world.ts';
@@ -21,7 +22,7 @@ import type { BackendHostDraw } from './hostDraw.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 type ViewSize = { width: number; height: number };
-export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
+export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw, BackendViews {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
@@ -113,6 +114,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   dispose(): void | Promise<void>; // A release that finishes later resolves when it has.
 }
 export interface BackendContext {
+  stereo?: import('../page/cut/stereo.ts').StereoCut;
   source: Object3D;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
@@ -124,7 +126,6 @@ export interface BackendContext {
   readTextureLevel?: import('../texture/levelReader.ts').TextureLevelReader;
   signal?: AbortSignal;
   maxResidentPages?: number;
-  /** What host-memory engines keep resident without a host ceiling; the WebGPU pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
   pixelError?: number;
@@ -165,7 +166,6 @@ export interface BackendContext {
   /** A reference session's raised sun window, pages a side (`frame/referenceMode.ts`). */
   sunWindow?: number;
   unboundedReflections?: boolean; // a reference session's rough trace (`reflectionTrace`, #33)
-  /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
   /** The world's guides, drawn over the image, and its particle pools, stepped once per image. */

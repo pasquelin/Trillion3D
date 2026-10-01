@@ -60,6 +60,12 @@
     "banner": {
       "close": "关闭",
       "waiting": "等待引擎（#{issue}）"
+    },
+    "xr": {
+      "checking": "正在检查XR支持…",
+      "enterVR": "进入VR",
+      "enterAR": "进入AR",
+      "unavailable": "此浏览器或设备不支持XR"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "位姿"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "使用兼容头显并进入XR进行探索。"
+  },
+  "a-360-photo-in-vr": {
+    "banner": "选择360°图像，然后进入VR。"
+  },
+  "vr-composition-layers": {
+    "banner": "使用兼容头显并进入XR进行探索。"
+  },
+  "hands-in-vr": {
+    "banner": "使用兼容头显并进入XR进行探索。"
+  },
+  "teleport-in-vr": {
+    "banner": "按下控制器扳机向前移动一米。"
+  },
+  "controllers-in-vr": {
+    "banner": "使用兼容头显并进入XR进行探索。"
+  },
+  "ar-on-the-table": {
+    "banner": "将设备朝向桌面以放置立方体。"
   }
 }
