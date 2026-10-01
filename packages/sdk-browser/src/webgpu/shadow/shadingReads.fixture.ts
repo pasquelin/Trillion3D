@@ -3,7 +3,14 @@
 // readback carries (#1209). `READ` holds the WGSL lines restated here; the tests pin them. With it,
 // floor tiles: the clusters a frame draws and the points their pixels light.
 import { LIGHT_KIND, type ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
-import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import {
+  basisMatrix4,
+  createCameraFrame,
+  crossVector3,
+  perspectiveProjection,
+  transformHomogeneousPoint,
+  updateCameraFrame,
+} from '../../../../sdk-core/src/math/index.ts';
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
@@ -103,6 +110,25 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
 /** The pixel's footprint at `P`, in metres: what a read there takes its level from. */
 export const footprintAt = (view: ShadowViewpoint, P: Vec) =>
   (view.pixelNear * dot(sub(P, view.position), view.forward)) / view.near;
+
+/** The view-projection of `view` (`perspectiveProjection`: reversed depth, infinite far plane),
+ *  its `forward` of unit length and level. */
+export function viewProjectionOf(view: ShadowViewpoint) {
+  const f = view.forward,
+    right = crossVector3([0, 0, 0], f, [0, 1, 0]).map((c) => c / Math.hypot(f[0], f[2])),
+    up = crossVector3([0, 0, 0], right, f),
+    back = f.map((c) => -c),
+    world = basisMatrix4(new Float64Array(16), right, up, back, view.position),
+    projection = new Float64Array(16);
+  perspectiveProjection(projection, (view.halfFovY * 360) / Math.PI, view.aspect, view.near, 1);
+  return updateCameraFrame(createCameraFrame(), projection, world).viewProjection;
+}
+
+/** Pixel and depth of `P` through `viewProjection` on a `width` × `height` target. */
+export function pixelOf(viewProjection: ArrayLike<number>, P: Vec, width: number, height: number) {
+  const [x, y, z, w] = transformHomogeneousPoint([0, 0, 0, 0], viewProjection, P[0], P[1], P[2]);
+  return { pixel: [((x / w + 1) / 2) * width, ((1 - y / w) / 2) * height], z: z / w };
+}
 
 /** Every page the frame's shading reads at the points `lits`, each named once: what its readback
  *  lists, seen from `view`. */
