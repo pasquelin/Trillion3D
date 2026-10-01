@@ -66,7 +66,7 @@ function cutout(
 }
 
 function fillIds(
-  ids: Uint32Array,
+  ids: Uint32Array | undefined,
   depth: Float32Array,
   width: number,
   height: number,
@@ -111,7 +111,8 @@ function fillIds(
         o = row + x;
       if (!depthNearer(z, depth[o])) continue;
       depth[o] = z;
-      ids[o] = packed;
+      // The pyramid reads the depth alone, so a caller with no ids pays for nothing here.
+      if (ids) ids[o] = packed;
     }
   }
 }
@@ -129,7 +130,35 @@ export function rasterVisibility(
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
-  depth.fill(-Infinity);
+  rasterise(pages, locations, cam, viewport, pixelRatio, ids, depth);
+  return { ids, depth };
+}
+
+export function rasterVisibilityIds(
+  pages: VisPage[],
+  locations: PageLocations,
+  cam: EngineCamera,
+  viewport: [number, number],
+  pixelRatio = DEFAULT_PIXEL_RATIO,
+) {
+  return rasterVisibility(pages, locations, cam, viewport, pixelRatio).ids;
+}
+
+/** The raster itself, into the depth every entry point hands it: the sentinel is cleared over the
+ *  image's own pixels and left at the far value, whatever the buffer holds beyond them. `ids` is
+ *  absent when the caller reads no id. */
+function rasterise(
+  pages: VisPage[],
+  locations: PageLocations,
+  cam: EngineCamera,
+  viewport: [number, number],
+  pixelRatio: number,
+  ids: Uint32Array | undefined,
+  depth: Float32Array,
+) {
+  const [width, height] = viewport,
+    pixels = width * height;
+  depth.fill(-Infinity, 0, pixels);
   for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
     const page = pages[pageIndex],
       index = page.array;
@@ -158,16 +187,28 @@ export function rasterVisibility(
       fillIds(ids, depth, width, height, tri.a, tri.b, tri.c, packVisibilityId(pageIndex, t), keep);
     }
   }
-  for (let i = 0; i < depth.length; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
-  return { ids, depth };
+  for (let i = 0; i < pixels; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
 }
 
-export function rasterVisibilityIds(
+/**
+ * The same raster, depth only: the Hi-Z pyramid is built from the depth and from nothing else, and
+ * it copies it into its own buffer (`sdk-core/src/hiz/pyramidFlat.ts:107`), so a cut that shades
+ * nothing was writing four bytes per pixel into an array nobody read. `into` belongs to the caller
+ * and is cleared over this image's pixels on every call, whatever it held: a buffer of a wider
+ * image keeps its tail, which no reader of this one reaches.
+ *
+ * `into` must hold `width * height` values. A buffer too short is refused by the name the pyramid
+ * itself raises, never grown here: the caller that owns it knows the viewport before the raster.
+ */
+export function rasterDepth(
   pages: VisPage[],
   locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
-  pixelRatio = DEFAULT_PIXEL_RATIO,
+  pixelRatio: number,
+  into: Float32Array,
 ) {
-  return rasterVisibility(pages, locations, cam, viewport, pixelRatio).ids;
+  if (into.length < viewport[0] * viewport[1]) throw new Error('HIZ_DEPTH_SIZE');
+  rasterise(pages, locations, cam, viewport, pixelRatio, undefined, into);
+  return into;
 }

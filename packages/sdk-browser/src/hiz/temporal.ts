@@ -1,11 +1,11 @@
-import { rasterVisibility, type VisPage } from '../visibility/buffer.ts';
+import { rasterDepth, type VisPage } from '../visibility/buffer.ts';
 import { buildHizPyramid } from './depth.ts';
 import { createEngineCamera, holdCameraWorld, type EngineCamera } from '../camera/world.ts';
 import { countUnoccluded, filterUnoccluded } from './unoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './counts.ts';
 import { splitOccludersInto } from './split.ts';
 import { keepStaleRegions } from './staleRegions.ts';
-import { copyRanks, listsOf, unoccludedOf } from './cutLists.ts';
+import { copyRanks, depthOf, listsOf, unoccludedOf } from './cutLists.ts';
 import type { CutLists } from './cutLists.ts';
 import type { HizPage, HizPyramid } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
@@ -22,6 +22,8 @@ export type TemporalHizState = {
   stale?: HizPage[];
   /** The lists the cut writes and returns, held from one image to the next (`./cutLists.ts`). */
   lists?: CutLists;
+  /** The depth the three rasters of the cut write, held like the lists (`./cutLists.ts`). */
+  depth?: Float32Array;
 };
 
 /** Same tolerance, same walk, without allocating: `Array.prototype.every` asked for a closure
@@ -113,7 +115,7 @@ function noCull<T extends HizPage & VisPage>(
     history,
     cam,
     viewport,
-    rasterVisibility(selected, locations, cam, viewport, pixelRatio).depth,
+    rasterDepth(selected, locations, cam, viewport, pixelRatio, depthOf(history, viewport)),
   );
   return {
     shown: selected,
@@ -138,7 +140,14 @@ function drawnCut<T extends HizPage & VisPage>(
   const { occluders, occludersPacked, rest, restPacked, kept, keptIndices, shown, shownPacked } =
     lists;
   history.passPyramid = buildHizPyramid(
-    rasterVisibility(occluders, lists.occludersAt, cam, viewport, pixelRatio).depth,
+    rasterDepth(
+      occluders,
+      lists.occludersAt,
+      cam,
+      viewport,
+      pixelRatio,
+      depthOf(history, viewport),
+    ),
     viewport[0],
     viewport[1],
     history.passPyramid,
@@ -164,11 +173,12 @@ function drawnCut<T extends HizPage & VisPage>(
     shown.push(disoccluded[i]);
     shownPacked.push(restPacked[keptIndices[i]]);
   }
+  // The pass-1 pyramid above already copied its depth, so this raster writes the same buffer again.
   retiens(
     history,
     cam,
     viewport,
-    rasterVisibility(shown, lists.shownAt, cam, viewport, pixelRatio).depth,
+    rasterDepth(shown, lists.shownAt, cam, viewport, pixelRatio, depthOf(history, viewport)),
   );
   return {
     shown,
