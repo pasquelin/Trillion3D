@@ -103,7 +103,7 @@ export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 export type { GraphSurface } from './host/graph/surface.ts';
 export type { GraphTexture } from './host/graph/texture.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
-export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
+export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';
 export { createDiagnosticChannel } from './diagnostic/channel.ts';
 export type {

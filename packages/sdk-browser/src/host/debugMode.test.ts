@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { debugMode, setDebugMode } from './debugMode.ts';
 import { worldDiagnostic } from '../world/core/worldHandles.ts';
 import { EngineProfiler } from '../diagnostic/telemetry.ts';
+import { families } from './families.ts';
 
 test('debug mode is off unless the page asks: a world option, its setter, or ?profile', (t) => {
   t.after(() => {
@@ -22,11 +23,13 @@ test('debug mode is off unless the page asks: a world option, its setter, or ?pr
   assert.equal(debugMode(), true, '`?profile` in the address turns it on');
 });
 
-test('the auto-log turns debug mode on, as it reads the frame report only debug mode files', (t) => {
+test('the auto-log turns debug mode on, which fetches the debug code the frame report runs', async (t) => {
   t.after(() => setDebugMode(false));
   const stop = new EngineProfiler().startAutoLog(60);
   try {
     assert.equal(debugMode(), true);
+    await families.measurement.settled();
+    assert.equal(families.measurement.arrived, true, 'debug mode on, the measurement chunk comes');
   } finally {
     stop();
   }
