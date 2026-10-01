@@ -9,6 +9,7 @@ import {
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import { allocated } from '../core/allocation.ts';
 import { SUBSURFACE_UNIT } from '../cluster/materialMaps.ts';
+import { sentBytes } from '../cluster/sentBytes.ts';
 
 /** The units of the card records and of the three atlas maps: past every unit the cluster program
  *  binds (`setClusterSamplers`, the subsurface map last), so a card draw leaves its bindings as
@@ -23,7 +24,7 @@ export type WebglAtlas = readonly WebGLTexture[];
 const atlasBytes = (maps: ImpostorMaps) =>
   ATLAS_MAPS.reduce(
     (sum, name) =>
-      maps[name].levels.reduce((bytes, { width, height }) => bytes + width * height * 4, sum),
+      maps[name].levels.reduce((bytes, { width, height }) => bytes + sentBytes(width, height), sum),
     0,
   );
 

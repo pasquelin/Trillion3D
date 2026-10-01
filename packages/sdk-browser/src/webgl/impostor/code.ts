@@ -17,23 +17,17 @@ export function webglImpostorTier(...args: Parameters<typeof createWebglImpostor
   const [context, , gate] = args;
   if (!context.metadata.impostors?.baked) return undefined;
   // `null` once made without one: no level reader or no context.
-  let tier: WebglImpostors | null | undefined,
-    waiting = false;
-  const cards: WebglCards = (...draw) => tier?.cards(...draw) ?? false;
+  let tier: WebglImpostors | null | undefined;
+  const cards: WebglCards = (camera, lights, pass, linear) =>
+    tier?.cards(camera, lights, pass, linear) ?? false;
+  const asker = {};
   return {
     cards,
     /** The image's plan at `cam` for `viewport`, before its cut, once the code has landed. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
       if (tier === undefined) {
-        const code = families.impostors.get();
+        const code = families.impostors.ask(asker, () => gate.resourcesChanged());
         if (code) tier = code.createWebglImpostors(...args) ?? null;
-        else if (!waiting) {
-          waiting = true;
-          void families.impostors.settled().then(() => {
-            waiting = false;
-            gate.resourcesChanged();
-          });
-        }
       }
       tier?.plan(cam, viewport);
     },
