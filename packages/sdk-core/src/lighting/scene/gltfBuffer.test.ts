@@ -54,6 +54,8 @@ test('accessors count elements and bound each component of the stored values', (
     [indices.type, indices.count, indices.min, indices.max],
     ['SCALAR', 3, [0], [2]],
   );
+  const other = accessor(meshes[1].primitives[0].indices);
+  assert.deepEqual([other.min, other.max], [[0], [2]]);
   for (const item of gltf.accessors) assert.equal(item.byteOffset, 0);
 });
 
@@ -83,6 +85,7 @@ test('index views and vertex views name their buffer targets apart', () => {
 test('the scene lists every node, each naming its mesh, material and metadata', () => {
   const { gltf, meshes, nodes } = twoMeshes();
   assert.equal(gltf.asset.version, '2.0');
+  assert.ok(gltf.asset.generator.length > 0);
   assert.equal(gltf.scene, 0);
   assert.deepEqual(gltf.scenes, [{ nodes: [0, 1] }]);
   assert.deepEqual(gltf.materials, [{ name: 'paint' }, { name: 'stone' }]);
