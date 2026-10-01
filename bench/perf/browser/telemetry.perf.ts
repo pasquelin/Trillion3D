@@ -2,7 +2,7 @@
 import { frameStatistics } from '../../../packages/sdk-core/src/index.ts';
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 import { EngineProfiler } from '../../../packages/sdk-browser/src/diagnostic/telemetry.ts';
-import { toHex } from '../../../packages/sdk-browser/src/measurement/sha256Hex.ts';
+import { toHex } from '../../../packages/sdk-browser/src/streaming/sha256Hex.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceHex, referenceIntervals } from '../../oracles/browser/telemetry.ts';
 

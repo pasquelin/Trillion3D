@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 import { createPageStreamer } from './pageStreamer.ts';
 import { servedPages } from './servedPages.fixture.ts';
 
