@@ -8,7 +8,7 @@ import { cullingBounds } from '../page/cut/bounds.ts';
 
 /** The world DAG the cook publishes, as the runtime reads it (`worldRootDag`), with the group that
  *  replaces each cluster and the leaf units it covers attached, so a coverage check can read them. */
-export function worldDag(): RuleDag {
+export function worldDag(): RuleDag & { origins: Int32Array } {
   const { clusters, groups, leaves } = worldRootsDag();
   const owner = new Array<number | null>(clusters.length).fill(null);
   for (const [at, group] of groups.entries()) for (const child of group.children) owner[child] = at;
