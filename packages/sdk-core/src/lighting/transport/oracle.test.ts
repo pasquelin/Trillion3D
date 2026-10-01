@@ -1,37 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SINGULAR_PIVOT, solveTransportOracle } from './oracle.ts';
-import {
-  LIGHTING_TRANSPORT_ALGORITHM_VERSION,
-  LIGHTING_TRANSPORT_FORMAT_VERSION,
-  type TransportProgress,
-  type TransportSnapshot,
-} from './contracts.ts';
+import { ones, system } from './oracle.fixture.ts';
+import { LIGHTING_TRANSPORT_FORMAT_VERSION, type TransportSnapshot } from './contracts.ts';
 
-/**
- * The snapshot whose radiance is `solution`: its source is `(I − albedo ⊙ matrix) · solution`, per
- * channel, so the oracle must return `solution` whatever pivots it takes.
- */
-function system(matrix: number[], albedo: number[], solution: number[]): TransportSnapshot {
-  const size = solution.length / 3;
-  const source = solution.map((value, at) => {
-    const row = Math.floor(at / 3),
-      channel = at % 3;
-    let sum = value;
-    for (let j = 0; j < size; j++)
-      sum -= albedo[at] * matrix[row * size + j] * solution[j * 3 + channel];
-    return sum;
-  });
-  return {
-    formatVersion: LIGHTING_TRANSPORT_FORMAT_VERSION,
-    algorithmVersion: LIGHTING_TRANSPORT_ALGORITHM_VERSION,
-    patchCount: size,
-    matrix: Float64Array.from(matrix),
-    source: Float64Array.from(source),
-    albedo: Float64Array.from(albedo),
-  };
-}
-const ones = (size: number) => Array.from({ length: size * 3 }, () => 1);
 function solves(snapshot: TransportSnapshot, solution: number[], tolerance = 1e-12) {
   const result = solveTransportOracle(snapshot);
   result.radiance.forEach((value, i) =>
@@ -150,55 +122,4 @@ test('the oracle refuses a snapshot of another format, a wrong size or a nonfini
         (error: any) => error.code === 'INVALID_SNAPSHOT' && /nonfinite/.test(error.message),
       );
     }
-});
-
-test('the oracle reports progress from zero to its total, now and then inside a long channel', () => {
-  for (const size of [1, 2, 32, 40]) {
-    const events: TransportProgress[] = [];
-    solveTransportOracle(system(Array(size * size).fill(0.5 / size), ones(size), ones(size)), {
-      onProgress: (event) => events.push(event),
-    });
-    assert.ok(
-      events.every(
-        (event) => event.stage === 'oracle' && event.total === size * 3 && event.eventVersion === 1,
-      ),
-    );
-    const done = events.map((event) => event.completed);
-    assert.deepEqual([done[0], done.at(-1)], [0, size * 3]);
-    assert.ok(
-      done.every((value, i) => i === 0 || value > done[i - 1]),
-      `${done}`,
-    );
-    for (let channel = 0; channel < 3; channel++)
-      assert.ok(done.includes(channel * size), `${size} ${done}`);
-    if (size > 2) {
-      assert.ok(
-        done.some((value) => value > 0 && value < size),
-        `${done}`,
-      );
-      // Progress is a summary: far fewer events than pivots.
-      assert.ok(events.length < size, `${events.length}`);
-    }
-  }
-});
-
-test('a cancellation stops the oracle before it publishes any further progress', () => {
-  assert.throws(
-    () => solveTransportOracle(system([0.5], ones(1), ones(1)), { cancelled: () => true }),
-    (error: any) => error.code === 'CANCELLED',
-  );
-  let requested = false;
-  const events: unknown[] = [];
-  assert.throws(
-    () =>
-      solveTransportOracle(system(Array(1600).fill(0.01), ones(40), ones(40)), {
-        cancelled: () => requested,
-        onProgress: (event) => {
-          events.push(event);
-          requested = true;
-        },
-      }),
-    (error: any) => error.code === 'CANCELLED',
-  );
-  assert.equal(events.length, 1);
 });
