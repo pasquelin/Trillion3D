@@ -27,16 +27,17 @@ import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBu
 const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages'>) =>
   context.shadowPoolPages ?? LIGHT_SETTINGS.shadowPoolPages;
 
-/** The pool's shape on a device of `limits` — one layer as wide as it draws, as `askShadowPool`
- *  asks —: the host plan is made at it, before the grant confirms it (`../pages/runtime.ts`). */
+/** Pages a side of one layer as wide as a device of `limits` draws: a pool that fits it is one
+ *  pass a batch. */
+const layerSideOf = (limits: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>) =>
+  Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE);
+
+/** The pool's shape on a device of `limits`, as `askShadowPool` asks it: the host plan is made at
+ *  it, before the grant confirms it (`../pages/runtime.ts`). */
 export const shadowPoolShapeOf = (
   context: Pick<BackendContext, 'shadowPoolPages'>,
   limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
-) =>
-  shadowPoolShape(
-    shadowPoolPagesOf(context),
-    limits ? Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE) : undefined,
-  );
+) => shadowPoolShape(shadowPoolPagesOf(context), limits && layerSideOf(limits));
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
  *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). The layer
@@ -71,9 +72,7 @@ function askShadowPool(
 ) {
   const casters = rt.capture.capturing ? 0 : shadowCasterLights(rt.lights.store);
   if (!casters) return undefined;
-  // One layer as wide as the device draws: a pool that fits it is one pass a batch, as before.
-  const layerSide = Math.floor(device.limits.maxTextureDimension2D / SHADOW_PAGE),
-    rule = shadowPoolFor(wanted, layerSide);
+  const rule = shadowPoolFor(wanted, layerSideOf(device.limits));
   // Granted from the budget itself: a pool it holds short of `wanted` stays named `ceiling`.
   const grant = () =>
     grantedShadowPool(device, SHADOW_ATLAS_BYTES, rule, rt.diag.engineDiagnostic, (pool) =>
