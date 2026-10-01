@@ -110,18 +110,16 @@ test('a triangle read at an offset of a flat list', () => {
 
 test('the point found is reported as the face, an edge, or a corner of it', () => {
   const out = new Float64Array(6);
-  closestSegmentTriangle(out, [0.3, 0.4, 1, 0.6, 0.2, 2], TRIANGLE, 0);
-  assert.equal(touched.edge, -1);
+  /** The feature the pair of `segment` and the triangle lies on: edge and place along it. */
+  const feature = (segment: number[]) => {
+    closestSegmentTriangle(out, segment, TRIANGLE, 0);
+    return `${touched.edge} ${touched.along}`;
+  };
+  assert.equal(feature([0.3, 0.4, 1, 0.6, 0.2, 2]).split(' ')[0], '-1');
   // Beside the edge from corner 0 to corner 1, halfway along it.
-  closestSegmentTriangle(out, [1, -1, 0.5, 1, -1, 1], TRIANGLE, 0);
-  assert.deepEqual([touched.edge, touched.along], [0, 0.5]);
+  assert.equal(feature([1, -1, 0.5, 1, -1, 1]), '0 0.5');
   // Off corner 2, the end of the edge from corner 1 and the start of the edge to corner 0.
-  closestSegmentTriangle(out, [-1, 3, 1, -1, 3, 2], TRIANGLE, 0);
-  assert.ok(
-    (touched.edge === 1 && touched.along === 1) || (touched.edge === 2 && touched.along === 0),
-    `${touched.edge} at ${touched.along}`,
-  );
+  assert.ok(['1 1', '2 0'].includes(feature([-1, 3, 1, -1, 3, 2])));
   // A piercing segment touches the face.
-  closestSegmentTriangle(out, [0.5, 0.25, -1, 0.5, 0.25, 3], TRIANGLE, 0);
-  assert.equal(touched.edge, -1);
+  assert.equal(feature([0.5, 0.25, -1, 0.5, 0.25, 3]).split(' ')[0], '-1');
 });
