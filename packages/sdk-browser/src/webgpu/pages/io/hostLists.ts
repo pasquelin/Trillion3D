@@ -3,10 +3,19 @@ import { awaitedPages } from '../../row/pageSlots.ts';
 import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The cut the host keeps: the requested one, or past the page budget the part the pool accepted —
- *  the rest is drawn by its nearest resident ancestor and never fetched. */
-const retainedCut = (rt: WebgpuPagesRuntime): readonly PageRec[] =>
-  rt.run.coverageBudgetLimited ? rt.services.residencySets.wantedPages : rt.run.desired;
+/** Host pins cover every live camera, not only the camera that happened to render last. */
+function retainViews(rt: WebgpuPagesRuntime, mark: (records: readonly PageRec[]) => void) {
+  const { views, run } = rt;
+  const visit = (view: typeof views.main) => {
+    const state = view === views.active ? run : view.run;
+    mark(state.shown);
+    if (!run.coverageBudgetLimited) withClosure(state.desired, mark);
+  };
+  visit(views.main);
+  for (const view of views.persistent) visit(view);
+  if (views.active !== views.main && !views.persistent.includes(views.active)) visit(views.active);
+  if (run.coverageBudgetLimited) withClosure(rt.services.residencySets.wantedPages, mark);
+}
 
 /**
  * Addresses the image still waits for. They are a function of the requested cut, the budget flag,
@@ -65,8 +74,7 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   urlScratch.length = 0;
   stamps.begin();
   stamps.mark(rt.setup.bootstrap, urlScratch);
-  stamps.mark(run.shown, urlScratch);
-  withClosure(retainedCut(rt), (list) => stamps.mark(list, urlScratch));
+  retainViews(rt, (list) => stamps.mark(list, urlScratch));
   return urlScratch;
 }
 
@@ -92,7 +100,6 @@ export function retainedRanks(rt: WebgpuPagesRuntime) {
   held.limited = run.coverageBudgetLimited;
   ranks.begin();
   ranks.mark(rt.setup.bootstrap);
-  ranks.mark(run.shown);
-  withClosure(retainedCut(rt), ranks.mark);
+  retainViews(rt, ranks.mark);
   return ranks.finish();
 }

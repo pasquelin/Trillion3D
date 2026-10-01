@@ -98,7 +98,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 789);
+  assert.equal(inventory.exports.length, 792);
   assert.deepEqual(inventory.collisions, []);
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair.
@@ -126,6 +126,9 @@ test('generated inventory and explicit facade files are current', async () => {
     ['JobSnapshot', 'trillion3d (common)'],
     ['World', 'trillion3d (browser condition)'],
     ['WorldOptions', 'trillion3d (browser condition)'],
+    ['WorldView', 'trillion3d (browser condition)'],
+    ['WorldViewOptions', 'trillion3d (browser condition)'],
+    ['ViewRect', 'trillion3d (browser condition)'],
     ['CompilationJob', 'trillion3d (node condition)'],
     ['CompilationResult', 'trillion3d (node condition)'],
     ['PrepareOptions', 'trillion3d (node condition)'],

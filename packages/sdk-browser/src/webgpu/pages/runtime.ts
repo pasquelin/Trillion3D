@@ -20,7 +20,6 @@ import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/captu
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
 import type { PresentRect } from '../../gpu/core/presentAt.ts';
-import type { HostCamera } from '../../camera/world.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -47,9 +46,7 @@ export type WebgpuPagesBackend = RenderBackend &
     /** Internal: a texture taken by the atlas after open (`io/appendTexture.ts`); its slot. */
     appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>;
     /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
-    addView(
-      rect: PresentRect,
-    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>;
+    addView(rect: PresentRect): Promise<import('../../backend/view.ts').BackendView>;
   };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */

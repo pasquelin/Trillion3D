@@ -59,6 +59,8 @@ export function createExplorerApi(inputs: Inputs) {
   const materialReleases: (() => void)[] = [];
   return {
     capabilities,
+    /** Persistent views sharing this session and its residency budget. */
+    views: inputs.views,
     get fallbackReason() {
       return state.fallbackReason;
     },
@@ -79,7 +81,7 @@ export function createExplorerApi(inputs: Inputs) {
     gpuDevice,
     dispose() {
       materialReleases.splice(0).forEach((release) => release());
-      dispose();
+      return dispose();
     },
     setPose,
     awaitPages,

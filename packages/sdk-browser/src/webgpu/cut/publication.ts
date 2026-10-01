@@ -150,8 +150,13 @@ export function createWebgpuCutPublication(
       drawnDelta.hostBytes +
       cutPending.hostBytes +
       tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0) +
-      // Another view's differences, counted while it is drawn: a capture's live only for its call.
-      (views.active === views.main
+      // Persistent views keep their differences while another camera draws.
+      views.persistent.reduce(
+        (bytes, view) =>
+          bytes + (view.cut?.asked.hostBytes ?? 0) + (view.cut?.drawn.hostBytes ?? 0),
+        0,
+      ) +
+      (views.active === views.main || views.persistent.includes(views.active)
         ? 0
         : (views.active.cut?.asked.hostBytes ?? 0) + (views.active.cut?.drawn.hostBytes ?? 0)),
     adoptGpuCut,

@@ -1261,7 +1261,7 @@
     }
   },
   "createWorld": {
-    "summary": "Crée un monde : la scène, la caméra, le moteur de rendu et la boucle d’une vue, dessinée dès qu’il sait comment.",
+    "summary": "Crée un monde : une scène, un moteur de rendu et une boucle partagés par ses caméras, dessiné dès qu’il est prêt.",
     "parameters": {
       "target": "Le canevas où dessiner, un élément dans lequel dessiner, ou l’ID de l’un d’eux.",
       "options": "Comment le monde dessine et écoute ; ne rien dire est le cas normal.",
@@ -4873,7 +4873,9 @@
       "enablePan": "Si glisser fait défiler la vue.",
       "rotateSpeed": "Vitesse de rotation au glissé.",
       "zoomSpeed": "Vitesse du zoom à la molette.",
-      "update": "Réécrit la caméra à partir de la pose que l’hôte a pu modifier — `object.position` et `target` — bornée par `minDistance`/`maxDistance`. Renvoie si quelque chose a bougé, et émet `change` exactement dans ce cas : une scène immobile ne prévoit aucun travail."
+      "update": "Réécrit la caméra à partir de la pose que l’hôte a pu modifier — `object.position` et `target` — bornée par `minDistance`/`maxDistance`. Renvoie si quelque chose a bougé, et émet `change` exactement dans ce cas : une scène immobile ne prévoit aucun travail.",
+      "minZoom": "Grossissement orthographique minimal pour les contrôleurs de déplacement-zoom et de boule virtuelle.",
+      "maxZoom": "Grossissement orthographique maximal pour les contrôleurs de déplacement-zoom et de boule virtuelle."
     }
   },
   "PixelImage": {
@@ -6733,7 +6735,7 @@
     }
   },
   "World": {
-    "summary": "Ce que renvoie `createWorld` : une vue."
+    "summary": "Ce que renvoie `createWorld` : une scène et ses vues."
   },
   "world.canvas": {
     "summary": "Le canevas où le monde dessine."
@@ -6802,7 +6804,9 @@
       "onJump": "Personnage seulement : appelée quand le corps quitte le sol sur un saut ; `null` par défaut.",
       "mass": "Personnage seulement, avec la physique : kilogrammes que le corps pèse sur ce qui le porte ; 80 par défaut.",
       "pushStrength": "Personnage seulement, avec la physique : newtons avec lesquels le corps pousse les corps ; 250 par défaut, la poussée soutenue d’un adulte.",
-      "vehicle": "Véhicule seulement : ce que conduisent les contrôles `'vehicle'` — tout objet doté de `drive(input)`, qui reçoit l’accélérateur, le frein, la direction et le frein à main à chaque changement des touches. `null` par défaut, et `kind = 'vehicle'` lève `NO_VEHICLE` tant qu’il l’est."
+      "vehicle": "Véhicule seulement : ce que conduisent les contrôles `'vehicle'` — tout objet doté de `drive(input)`, qui reçoit l’accélérateur, le frein, la direction et le frein à main à chaque changement des touches. `null` par défaut, et `kind = 'vehicle'` lève `NO_VEHICLE` tant qu’il l’est.",
+      "minZoom": "Grossissement orthographique minimal pour les contrôleurs de déplacement-zoom et de boule virtuelle.",
+      "maxZoom": "Grossissement orthographique maximal pour les contrôleurs de déplacement-zoom et de boule virtuelle."
     }
   },
   "world.renderer": {
@@ -8306,5 +8310,21 @@
   "validateImpostorSection": {
     "summary": "Une raison courte pour laquelle la section ne peut pas servir, ou `null`.",
     "description": "Une section absente n’est pas une erreur : un cache antérieur à elle dessine chaque maillage en entier, comme avant. Une présente est refusée en bloc quand sa version est inconnue ou qu’une entrée `baked` manque des nombres dont sa bascule et sa carte ont besoin."
+  },
+  "world.addView": {
+    "summary": "Ajoute une caméra de cette scène dans un rectangle en pixels CSS sur ce canvas, avec les mêmes budgets.",
+    "parameters": {
+      "options": "Une caméra de la même scène, affichée dans un autre rectangle du canvas du monde.",
+      "options.camera": "La caméra par laquelle cette vue observe la scène partagée.",
+      "options.rect": "Le rectangle sur le canvas, en pixels CSS.",
+      "options.controls": "Le contrôleur qui reçoit les gestes dans ce rectangle ; aucun par défaut.",
+      "options.exclude": "Sous-arbres omis par cette caméra et ses ombres ; la scène partagée reste inchangée."
+    }
+  },
+  "world.exclude": {
+    "summary": "Sous-arbres omis par la caméra principale et ses ombres ; les autres vues restent inchangées."
+  },
+  "world.rect": {
+    "summary": "Le rectangle de la caméra principale en pixels CSS ; null (par défaut) remplit le canvas."
   }
 }

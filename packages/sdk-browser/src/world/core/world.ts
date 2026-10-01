@@ -1,3 +1,7 @@
+import { worldLoopMethods } from './worldLoopMethods.ts';
+import { finishWorldRelease } from './worldRelease.ts';
+import { worldViewApi, viewControllers } from '../views/worldViewApi.ts';
+import { createWorldViews } from '../views/worldViews.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { cameraAdopter } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -19,7 +23,7 @@ import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
 import { worldSwitches } from './worldSwitches.ts';
 import { worldMaterialMethods } from './worldMaterialMethods.ts';
-/** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
+/** Creates a world: one scene, renderer and loop shared by its cameras, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
  * @example const world = createWorld('viewer', { controls: 'orbit' });
@@ -61,21 +65,38 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
           if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
         },
       }),
-    opened(explorer) {
+    async opened(explorer) {
       device.renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2';
       diagnostic.apply(explorer);
+      await views.opened(explorer);
     },
+    followViews: () => views.beforeFrame(),
+    closingViews: () => views.closed(),
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping, fog: sceneFogOf(scene.fog) }),
     diagnostic,
   });
+  const views = createWorldViews(
+    canvas,
+    () => camera,
+    invalidate,
+    runtime.withViewMask,
+    diagnostic.failed,
+  );
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
   adopt(camera);
-  const kind = options.controls ?? 'none';
-  const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character);
-  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics.frame));
+  const controls = worldControlsHandle(
+    options.controls ?? 'none',
+    () => camera,
+    views.mainSurface,
+    invalidate,
+    physics.character,
+  );
+  const combined = viewControllers(controls, views);
+  const ahead = (by: typeof controls | null) =>
+    (animating = frames.step(by ? combined : null, scene, physics.frame));
   const live = () => {
     if (disposed) throw new Error('World disposed');
     return runtime.explorer;
@@ -120,17 +141,14 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       live()?.setPixelError(value);
       invalidate();
     },
-    /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied
-     *  in place on a path that carries it, taken by the next opening on one that does not. */
+    /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
       return switches.bounce;
     },
     set bounce(on: boolean) {
       switches.bounce = on;
     },
-    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
-     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
-     *  image carries: false on WebGL2, and while the program compiles after it was turned on. */
+    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on. */
     get temporalAntialiasing() {
       return switches.temporalAntialiasing;
     },
@@ -155,25 +173,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** The object a canvas point or a world ray meets, and a node reached by its name
      *  (`worldSceneMethods`): the world's methods over the nodes of its scene. */
     ...worldSceneMethods(scene, () => camera, canvas, physics.session, runtime),
-    /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
-    onFrame: frames.add,
-    /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
-     * A frame runs: the camera's controller (unless `controls.autoUpdate` is false or the host
-     * leads, `render()`), the clips, the physics, these hooks in their order, the draw, then the
-     * `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this
-     * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
-    beforeFrame: frames.before,
-    /** Another name for `onFrame`. */ loop: frames.add,
-    /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop: clips and physics step with it. */ render() {
-      if (live()) runtime.render(() => ahead(null));
-    },
-    /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
-     *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */
-    resize(width = canvas.clientWidth, height = canvas.clientHeight) {
-      live()?.resize(Math.floor(width), Math.floor(height));
-      invalidate();
-    },
+    ...worldLoopMethods(frames, runtime, canvas, () => ahead(null), live),
     ...worldTelemetry(live),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`).
      *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
@@ -182,18 +182,19 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
-      for (const part of [controls, physics, runtime]) part.dispose();
+      for (const part of [views, controls, physics]) part.dispose();
+      const released = runtime.dispose();
       pools.pageCache.clear();
       diagnostic.close();
       frames.clear();
-      device.dispose();
-      releaseCanvas();
+      finishWorldRelease(released, device, releaseCanvas);
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
-  return world;
+  return worldViewApi(world, views);
 }
-
-/** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
+/** What `createWorld` returns: a scene and its views. */ export type World = ReturnType<
+  typeof createWorld
+>;
 export type { FrameInfo, BeforeFrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };

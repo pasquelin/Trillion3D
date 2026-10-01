@@ -53,7 +53,7 @@ function banc(capturing = false) {
   const rt = {
     run,
     gpu: {},
-    views: { main: mainView, active: capturing ? {} : mainView },
+    views: { main: mainView, active: capturing ? {} : mainView, persistent: [] },
     capture: { capturing },
     lights: {
       store: { count: 1 },

@@ -18,6 +18,8 @@ import { createWebgpuVisState, type WebgpuVisState } from './vis.ts';
  * each view's own (`WebgpuView.hiz`).
  */
 export const VIEW_RUN_KEYS = [
+  'diagnostic',
+  'clearColor',
   'lastCamera',
   'motion',
   'desired',

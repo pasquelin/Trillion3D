@@ -2671,7 +2671,9 @@
       "enablePan": "拖动是否会滑动视图。",
       "rotateSpeed": "拖动旋转的速度。",
       "zoomSpeed": "滚轮缩放的速度。",
-      "update": "根据宿主可能编辑过的姿态——`object.position` 和 `target`——重新写出摄像机,并按 `minDistance`/`maxDistance` 做限幅。返回是否发生了任何移动,并且只有在确实发生移动时才会精确地发出一次 `change`:静止的场景不会安排任何工作。"
+      "update": "根据宿主可能编辑过的姿态——`object.position` 和 `target`——重新写出摄像机,并按 `minDistance`/`maxDistance` 做限幅。返回是否发生了任何移动,并且只有在确实发生移动时才会精确地发出一次 `change`:静止的场景不会安排任何工作。",
+      "minZoom": "平移缩放和轨迹球控制器的最小正交放大倍数。",
+      "maxZoom": "平移缩放和轨迹球控制器的最大正交放大倍数。"
     }
   },
   "PixelImage": {
@@ -4110,7 +4112,7 @@
     }
   },
   "World": {
-    "summary": "`createWorld` 返回的内容:一个视图。"
+    "summary": "`createWorld` 返回的对象：一个场景及其视图。"
   },
   "world.canvas": {
     "summary": "世界绘制所用的画布。"
@@ -4179,7 +4181,9 @@
       "onJump": "仅角色模式:身体因跳跃离开地面时调用;默认值为 `null`。",
       "mass": "仅角色，需物理：身体压在支撑物上的千克数；默认 80。",
       "pushStrength": "仅角色，需物理：身体推动其他物体的牛顿数；默认 250，成年人持续的推力。",
-      "vehicle": "仅载具：`'vehicle'` 控制所驾驶的对象——任何带有 `drive(input)` 的对象，按键每次变化时它都会收到油门、刹车、转向和手刹。默认 `null`；为 `null` 时 `kind = 'vehicle'` 会抛出 `NO_VEHICLE`。"
+      "vehicle": "仅载具：`'vehicle'` 控制所驾驶的对象——任何带有 `drive(input)` 的对象，按键每次变化时它都会收到油门、刹车、转向和手刹。默认 `null`；为 `null` 时 `kind = 'vehicle'` 会抛出 `NO_VEHICLE`。",
+      "minZoom": "平移缩放和轨迹球控制器的最小正交放大倍数。",
+      "maxZoom": "平移缩放和轨迹球控制器的最大正交放大倍数。"
     }
   },
   "world.renderer": {
@@ -5088,7 +5092,7 @@
     }
   },
   "createWorld": {
-    "summary": "创建一个世界:一个视图的场景、摄像机、渲染器和循环,一旦它知道如何绘制就会开始绘制。",
+    "summary": "创建一个世界：各相机共享同一场景、渲染器和循环，准备就绪后开始绘制。",
     "parameters": {
       "target": "要绘制到的画布、要在其内部绘制的元素,或者两者之一的 ID。",
       "options": "世界如何绘制、如何监听;通常情况下什么都不需要指定。",
@@ -8306,5 +8310,21 @@
   "validateImpostorSection": {
     "summary": "该区段无法使用的简短原因,或 `null`。",
     "description": "区段缺失不算错误:早于它的缓存会像以前一样完整绘制每个网格。当区段版本未知,或某个 `baked` 条目缺少其切换和卡片所需的数字时,整个区段会被拒绝。"
+  },
+  "world.addView": {
+    "summary": "在此 canvas 上以 CSS 像素指定的矩形中添加该场景的一个相机，共享相同预算。",
+    "parameters": {
+      "options": "同一场景的一个相机，显示在世界 canvas 的另一个矩形中。",
+      "options.camera": "此视图用于观察共享场景的相机。",
+      "options.rect": "canvas 上的矩形，单位为 CSS 像素。",
+      "options.controls": "接收此矩形内手势的控制器；默认无控制器。",
+      "options.exclude": "此相机及其阴影忽略的子树；共享场景保持不变。"
+    }
+  },
+  "world.exclude": {
+    "summary": "主相机及其阴影忽略的子树；其他视图保持不变。"
+  },
+  "world.rect": {
+    "summary": "主相机的矩形，单位为 CSS 像素；null（默认值）表示填满 canvas。"
   }
 }

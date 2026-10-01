@@ -38,6 +38,11 @@ export function createWebglViews(
     active: main,
     all,
     others,
+    /** The main view's size, detached from the host's full canvas only while it has a rectangle. */
+    setMainSize(size: [number, number] | null) {
+      main.viewport = size ?? viewport;
+      if (views.active === main) live.viewport = main.viewport;
+    },
     /** A capture is drawn (`captureAside`): the pool ranks its requests first (`poolUnion.ts`). */
     capturing: false,
     /** Whether the drawn view is a capture, whose cut is ranked first under the one budget. */
@@ -72,6 +77,7 @@ export function createWebglViews(
       views.use(main);
       all.splice(at, 1);
       others.splice(others.indexOf(view), 1);
+      moved();
     },
     /** Runs `work` in a view of its own at `size`, released after, whatever `work` did: the main
      *  view keeps its cut and its motion. */

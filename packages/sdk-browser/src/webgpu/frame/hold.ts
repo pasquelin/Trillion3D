@@ -1,3 +1,4 @@
+import { presentDrawnView } from '../pages/state/presentation.ts';
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { forgetShadowCpuSteps } from '../shadow/cpuSteps.ts';
@@ -178,8 +179,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // Nothing drawn yet, or targets not granted: nothing is shown.
   if (gpu.presenter && gpu.displayTexture && run.imageRevision > 0 && !awaited) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
-    const [width, height] = gpu.displaySize;
-    gpu.presenter.present(encoder, gpu.displayTexture, width, height, rt.views.active.rect);
+    presentDrawnView(rt, encoder);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
     presented = true;

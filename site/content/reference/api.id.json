@@ -2689,7 +2689,9 @@
       "enablePan": "Apakah menyeret menggeser tampilan.",
       "rotateSpeed": "Seberapa cepat seretan berputar.",
       "zoomSpeed": "Seberapa cepat roda memperbesar.",
-      "update": "Menulis ulang kamera dari pose yang mungkin diedit host — `object.position` dan `target` — dijepit oleh `minDistance`/`maxDistance`. Mengembalikan apakah ada yang bergerak, dan memancarkan `change` persis saat itu terjadi: sebuah adegan diam tidak menjadwalkan pekerjaan apa pun."
+      "update": "Menulis ulang kamera dari pose yang mungkin diedit host — `object.position` dan `target` — dijepit oleh `minDistance`/`maxDistance`. Mengembalikan apakah ada yang bergerak, dan memancarkan `change` persis saat itu terjadi: sebuah adegan diam tidak menjadwalkan pekerjaan apa pun.",
+      "minZoom": "Pembesaran ortografis minimum untuk pengontrol geser-zoom dan trackball.",
+      "maxZoom": "Pembesaran ortografis maksimum untuk pengontrol geser-zoom dan trackball."
     }
   },
   "PixelImage": {
@@ -4250,7 +4252,7 @@
     }
   },
   "World": {
-    "summary": "Yang dikembalikan `createWorld`: satu view."
+    "summary": "Hasil `createWorld`: sebuah adegan dan tampilannya."
   },
   "WorldControls": {
     "summary": "Cara-cara sebuah halaman bisa mengarahkan kamera dengan mouse dan papan ketik, atau `'none'`.",
@@ -5058,7 +5060,7 @@
     }
   },
   "createWorld": {
-    "summary": "Membuat sebuah dunia: scene, kamera, renderer dan loop satu tampilan, digambar begitu ia tahu caranya.",
+    "summary": "Membuat dunia: satu adegan, perender, dan perulangan yang dipakai bersama oleh kameranya; digambar setelah siap.",
     "parameters": {
       "target": "Kanvas untuk digambar, sebuah elemen untuk digambar di dalamnya, atau ID salah satunya.",
       "options": "Bagaimana dunia menggambar dan mendengarkan; tidak mengatakan apa pun adalah kasus normal.",
@@ -7213,7 +7215,9 @@
       "yawInput": "Hanya flight: stick yaw dalam [-1, 1] (kiri), ditambahkan ke tombol panah; 0 secara default.",
       "mass": "Hanya karakter, dengan fisika: kilogram yang ditekankan tubuh pada pijakannya; bawaan 80.",
       "pushStrength": "Hanya karakter, dengan fisika: newton yang dipakai tubuh untuk mendorong benda; bawaan 250, dorongan berkelanjutan orang dewasa.",
-      "vehicle": "Hanya kendaraan: yang dikemudikan kontrol `'vehicle'` — apa pun yang punya `drive(input)`, yang menerima gas, rem, setir, dan rem tangan setiap kali tombol berubah. Bawaan `null`, dan selama itu `kind = 'vehicle'` melempar `NO_VEHICLE`."
+      "vehicle": "Hanya kendaraan: yang dikemudikan kontrol `'vehicle'` — apa pun yang punya `drive(input)`, yang menerima gas, rem, setir, dan rem tangan setiap kali tombol berubah. Bawaan `null`, dan selama itu `kind = 'vehicle'` melempar `NO_VEHICLE`.",
+      "minZoom": "Pembesaran ortografis minimum untuk pengontrol geser-zoom dan trackball.",
+      "maxZoom": "Pembesaran ortografis maksimum untuk pengontrol geser-zoom dan trackball."
     }
   },
   "world.diagnostic": {
@@ -8307,5 +8311,21 @@
   "validateImpostorSection": {
     "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",
     "description": "Bagian yang tidak ada bukanlah kesalahan: cache yang mendahuluinya menggambar setiap mesh secara utuh, seperti sebelumnya. Bagian yang ada ditolak seluruhnya ketika versinya tidak diketahui atau entri `baked` kehilangan angka yang dibutuhkan sakelar dan kartunya."
+  },
+  "world.addView": {
+    "summary": "Menambahkan kamera adegan ini dalam persegi panjang piksel CSS pada canvas ini, dengan anggaran bersama yang sama.",
+    "parameters": {
+      "options": "Kamera dari adegan yang sama, ditampilkan dalam persegi panjang lain pada canvas dunia.",
+      "options.camera": "Kamera yang digunakan tampilan ini untuk melihat adegan bersama.",
+      "options.rect": "Persegi panjang pada canvas, dalam piksel CSS.",
+      "options.controls": "Pengontrol yang menerima gestur di dalam persegi panjang ini; secara bawaan tidak ada.",
+      "options.exclude": "Subpohon yang diabaikan oleh kamera ini dan bayangannya; adegan bersama tetap tidak berubah."
+    }
+  },
+  "world.exclude": {
+    "summary": "Subpohon yang diabaikan oleh kamera utama dan bayangannya; tampilan lain tetap tidak berubah."
+  },
+  "world.rect": {
+    "summary": "Persegi panjang kamera utama dalam piksel CSS; null (bawaan) memenuhi canvas."
   }
 }

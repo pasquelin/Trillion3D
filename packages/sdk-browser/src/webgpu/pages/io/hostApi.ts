@@ -58,7 +58,7 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   if (!gpu.presenter || !gpuDevice || !gpu.displayTexture || busy)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
-  gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize);
+  gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
   gpuDevice.queue.submit([encoder.finish()]);
   if (!gpu.synchronousCapture) {
     gpu.synchronousCapture = createSynchronousCanvasCapture();

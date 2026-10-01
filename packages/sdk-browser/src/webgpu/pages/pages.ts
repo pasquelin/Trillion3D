@@ -5,11 +5,10 @@ import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
 import { setWebgpuTemporalAntialiasing } from '../../taa/prepare.ts';
-import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
 import { captureColorView } from './io/colorCapture.ts';
-import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
+import { webgpuViewApi } from './state/viewApi.ts';
 import {
   captureImage,
   pageUrls,
@@ -108,9 +107,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         setup.preparing = undefined;
       }
     },
-    render(camera) {
-      renderWebgpuPages(rt, camera);
-    },
+    ...webgpuViewApi(rt),
     syncResident: () => syncResident(rt),
     // The feedback A/B measurements, diagnostic views on demand (`../../host/families.ts`).
     setFeedbackTargetAb: async (target) => (await views()).setFeedbackTargetAb(rt, target),
@@ -127,13 +124,6 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     captureColorView(camera, size) {
       return captureColorView(rt, camera, size);
-    },
-    async addView(rect) {
-      const view = await addWebgpuView(rt, rect);
-      return {
-        render: (camera) => renderWebgpuView(rt, view, camera),
-        release: () => removeWebgpuView(rt, view),
-      };
     },
     capture() {
       return captureImage(rt);

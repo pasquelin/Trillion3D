@@ -27,7 +27,6 @@
         position: relative;
         overflow: hidden;
         border-radius: 4px;
-        background: #11151c;
         cursor: zoom-in;
       }
       .focus .big {
@@ -36,14 +35,12 @@
         cursor: zoom-out;
       }
       canvas {
+        position: fixed;
+        inset: 0;
         display: block;
         width: 100%;
         height: 100%;
-        opacity: 0;
-        transition: opacity 0.6s;
-      }
-      .live canvas {
-        opacity: 1;
+        pointer-events: none;
       }
       .tag {
         position: absolute;
@@ -70,6 +67,7 @@
       .nosignal {
         position: absolute;
         inset: 0;
+        background: #11151c;
         display: grid;
         place-items: center;
         font: 600 12px ui-monospace, monospace;
@@ -91,14 +89,14 @@
     </style>
   </head>
   <body>
-    <div class="feed"><canvas id="view"></canvas></div>
+    <canvas id="view"></canvas>
+    <div class="feed"></div>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
       import { controls, readout, seeded, words } from '../runtime/kit.js';
       const say = words();
 
-      // Six security cameras round a town square, each one a world of its own drawing the same
-      // square from its own lens. The first feed is the page's canvas; the others are added here.
+      // Six security cameras share one town square and one canvas, each through its own lens.
       const FEEDS = [
         { name: 'northGate', at: [-10, 6.5, -24], pole: true },
         { name: 'fountain', at: [9, 5, 10], pole: true },
@@ -110,7 +108,6 @@
       const first = document.querySelector('.feed');
       const cells = FEEDS.map((_, k) => {
         const cell = k ? document.body.appendChild(first.cloneNode(false)) : first;
-        if (k) cell.append(Object.assign(document.createElement('canvas'), { id: `cam${k + 1}` }));
         const tag = document.createElement('div'), signal = document.createElement('div'), name = document.createElement('span'), status = document.createElement('span');
         tag.className = 'tag';
         name.className = 'rec';
@@ -125,9 +122,8 @@
       const random = seeded(7);
       const TOWN = Array.from({ length: 16 }, (_, k) => ({ side: Math.floor(k / 4), slot: k % 4, high: 9 + Math.floor(random() * 4) * 3, hue: Math.floor(random() * 5) }));
 
-      // The square, built once per world: the same seeded town in each, so every lens sees one
-      // place. Everything that moves is returned for the frame to pose.
-      function build(world, own) {
+      // The square is built once. Everything that moves is returned for the frame to pose.
+      function build(world) {
         const paint = (color, roughness = 0.8, metalness = 0) => material.meshStandard({ color, roughness, metalness });
         const add = (shape, look, x, y, z) => {
           const mesh = object.mesh(shape, look);
@@ -188,9 +184,9 @@
         balloon.add(object.mesh(geometry.box(1.2, 1, 1.2).translate(0, -1.2, 0), wood));
         world.scene.add(balloon);
         // The cameras themselves: a mount, a turret that pans and a head that tilts. A lens never
-        // sees its own housing: its head is hidden in its own world.
+        // sees its own housing: each view excludes only its own turret.
         const white = paint('#eef0f2', 0.4, 0.1), lens = paint('#15181d', 0.1, 0.7);
-        const units = FEEDS.map(({ at, pole }, k) => {
+        const units = FEEDS.map(({ at, pole }) => {
           if (pole) add(geometry.cylinder(0.12, 0.16, at[1], 10), iron, at[0], at[1] / 2, at[2]);
           else add(geometry.box(0.3, 0.3, 0.3), iron, at[0], at[1] + 0.1, at[2]);
           const turret = object.group(), head = object.group();
@@ -199,7 +195,6 @@
           turret.add(object.mesh(geometry.cylinder(0.08, 0.08, 0.35, 8).translate(0, 0.17, 0), iron), head);
           head.add(object.mesh(geometry.box(0.38, 0.32, 0.8), white), object.mesh(geometry.box(0.46, 0.05, 0.95).translate(0, 0.19, 0.05), white), object.mesh(geometry.cylinder(0.12, 0.12, 0.1, 16).rotateX(Math.PI / 2).translate(0, 0, 0.42), lens));
           head.add(object.mesh(geometry.sphere(0.035, 8, 6).translate(0.13, -0.08, 0.41), material.meshStandard({ color: '#ff3030', emissive: '#ff2020', emissiveIntensity: 2 })));
-          turret.visible = k !== own;
           world.scene.add(turret);
           return { turret, head };
         });
@@ -227,7 +222,7 @@
         return { x: cx - nx * BEND * Math.cos(a) + dx * BEND * Math.sin(a), z: cz - nz * BEND * Math.cos(a) + dz * BEND * Math.sin(a), yaw: Math.atan2(dx * Math.cos(a) + nx * Math.sin(a), dz * Math.cos(a) + nz * Math.sin(a)) };
       }
 
-      // What every world shows at this instant, moved on once per frame whichever world asks first.
+      // What every view shows at this instant, moved once before the shared frame.
       const wrap = (angle) => angle - Math.PI * 2 * Math.round(angle / (Math.PI * 2));
       const state = {
         time: 0, last: performance.now(), watch: 'patrol',
@@ -264,27 +259,41 @@
         });
       }
 
-      // One world per feed; each poses its copy of the square from the shared state, then its lens.
-      const worlds = FEEDS.map((_, k) => {
-        const world = createWorld(k ? `cam${k + 1}` : 'view');
-        const scene = build(world, k);
-        world.onFrame(() => {
-          advance();
-          scene.car.position.set(state.car.x, 0.1, state.car.z);
-          scene.car.rotation.set(0, state.car.yaw, 0);
-          for (const wheel of scene.wheels) wheel.rotation.set((state.time * 9) / 0.4, 0, 0);
-          scene.balloon.position.set(...state.balloon);
-          scene.units.forEach(({ turret, head }, j) => {
-            turret.rotation.set(0, state.units[j].yaw, 0);
-            head.rotation.set(-state.units[j].pitch, 0, 0);
-          });
-          const { yaw, pitch, fov } = state.units[k], at = FEEDS[k].at;
-          world.camera.fov = fov;
-          world.camera.position.set(at[0], at[1] + 0.35, at[2]);
-          world.camera.lookAt(at[0] + Math.sin(yaw) * Math.cos(pitch), at[1] + 0.35 + Math.sin(pitch), at[2] + Math.cos(yaw) * Math.cos(pitch));
-          world.invalidate();
+      const world = createWorld('view');
+      const scene = build(world);
+      world.exclude = [scene.units[0].turret];
+      const views = [world, ...FEEDS.slice(1).map((_, index) => world.addView({
+        camera: camera.perspective({ far: 900 }),
+        rect: { x: 0, y: 0, width: 1, height: 1 },
+        exclude: [scene.units[index + 1].turret],
+      }))];
+      const fit = () => {
+        const canvas = world.canvas.getBoundingClientRect();
+        cells.forEach(({ cell }, index) => {
+          const box = cell.getBoundingClientRect();
+          if (box.width && box.height) views[index].rect = { x: box.left - canvas.left, y: box.top - canvas.top, width: box.width, height: box.height };
         });
-        return world;
+      };
+      const layout = new ResizeObserver(fit);
+      cells.forEach(({ cell }) => layout.observe(cell));
+      fit();
+      world.beforeFrame(() => {
+        advance();
+        scene.car.position.set(state.car.x, 0.1, state.car.z);
+        scene.car.rotation.set(0, state.car.yaw, 0);
+        for (const wheel of scene.wheels) wheel.rotation.set((state.time * 9) / 0.4, 0, 0);
+        scene.balloon.position.set(...state.balloon);
+        scene.units.forEach(({ turret, head }, index) => {
+          turret.rotation.set(0, state.units[index].yaw, 0);
+          head.rotation.set(-state.units[index].pitch, 0, 0);
+        });
+        views.forEach((view, index) => {
+          const { yaw, pitch, fov } = state.units[index], at = FEEDS[index].at;
+          view.camera.fov = fov;
+          view.camera.position.set(at[0], at[1] + 0.35, at[2]);
+          view.camera.lookAt(at[0] + Math.sin(yaw) * Math.cos(pitch), at[1] + 0.35 + Math.sin(pitch), at[2] + Math.cos(yaw) * Math.cos(pitch));
+        });
+        world.invalidate();
       });
 
       // A click puts a feed on the big screen; a click on the big one brings the wall back.
@@ -293,6 +302,7 @@
           const again = cell.classList.contains('big') && document.body.classList.contains('focus');
           cells.forEach((other) => other.cell.classList.toggle('big', other.cell === cell && !again));
           document.body.classList.toggle('focus', !again);
+          fit();
         }),
       );
       // The opening: the feeds come on one after the other, like a wall of monitors warming up.
@@ -300,7 +310,7 @@
 
       controls({
         watch: ['patrol', 'car', 'balloon'],
-      }, (values) => (state.watch = values.watch), worlds[0]);
+      }, (values) => (state.watch = values.watch), world);
       const seen = readout('camerasSeeingCar');
       const clock = (seconds) => new Date(Date.UTC(2026, 8, 23, 18, 42) + seconds * 1000).toISOString().slice(11, 19);
       setInterval(() => {

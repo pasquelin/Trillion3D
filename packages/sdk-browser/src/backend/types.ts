@@ -1,3 +1,4 @@
+import type { BackendViews, ViewSize } from './view.ts';
 import type { AdmitGpuMemory } from '../residency/activeMemory.ts';
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera } from '../camera/world.ts';
@@ -20,8 +21,7 @@ import type { BackendSceneUpdates } from '../placement/backendSceneUpdates.ts';
 import type { BackendHostDraw } from './hostDraw.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
-type ViewSize = { width: number; height: number };
-export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
+export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw, BackendViews {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
