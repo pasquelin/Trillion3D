@@ -2,7 +2,7 @@ import { grantPending, startGrant, type DeviceGrant } from '../../../gpu/core/er
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { shadowBatchWrites } from '../../../gpu/shadow/batchWrites.ts';
-import { setWebgpuMemoryBudgets } from '../io/memory.ts';
+import { setWebgpuMemoryBudgets, textureBytesBeside } from '../io/memory.ts';
 import { vertexBytesOf } from '../io/metrics.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -38,7 +38,7 @@ export function fundFrameTargets(
   if (!admit) return;
   const { setup, gpu, vis, lights, bounce } = rt;
   const vertexBytes = vertexBytesOf(gpu, vis);
-  const sourceBytes = vis.textures?.sources.liveBytes ?? 0;
+  const sourceBytes = textureBytesBeside(rt);
   const geometryMinimum = setup.geometryPoolFor(1).allocatedBytes + vertexBytes;
   const textureMinimum = (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) + sourceBytes;
   const history =

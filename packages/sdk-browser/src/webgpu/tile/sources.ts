@@ -3,7 +3,7 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { PoolEncoding } from '../../texture/blockFormats.ts';
 import { writeTileFromBlocks } from './writeBlocks.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
-import { createWebgpuTileLevels, type LevelKey } from './levels.ts';
+import { createWebgpuTileLevels, readHeldLevel, type LevelKey } from './levels.ts';
 import type { TileScratch } from './scratch.ts';
 import { buildHostScratch, createScratchBuilds } from './scratchBuilds.ts';
 import { copyLiveTexture, pictureFits } from './live.ts';
@@ -15,8 +15,6 @@ import {
   tileRegion,
   writeTileFromBitmap,
 } from './write.ts';
-/** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
-const MAX_LEVEL_READS = 6;
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
  * by the browser, or a block tile's record as the file holds it, held in the level store, or a
@@ -99,15 +97,13 @@ export function createTileSources(options: {
           level: key.level,
           format: encoding.levelFormat(lane),
         };
-        const held = levels?.get(levelKey, size, key.tx, key.ty);
-        if (!held) {
-          if (!atlas.roomFor(key.slot, frame)) return 'refused';
-          const asked = levels && levels.inFlight < MAX_LEVEL_READS;
-          // A level that cannot fit beside the pages kept will not come: refused, not waited for.
-          return asked && !levels.request(levelKey, frame, size, key.tx, key.ty)
-            ? 'refused'
-            : 'waiting';
-        }
+        // A level that cannot fit beside the pages kept will not come: refused, not waited for.
+        const roomFor = () => atlas.roomFor(key.slot, frame),
+          held = levels
+            ? readHeldLevel(levels, levelKey, frame, size, key.tx, key.ty, roomFor)
+            : roomFor() && 'waiting';
+        if (!held) return 'refused';
+        if (typeof held === 'string') return held;
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
         if (held instanceof Uint8Array)

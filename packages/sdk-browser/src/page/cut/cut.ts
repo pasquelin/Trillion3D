@@ -1,6 +1,6 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { castsNoShadow, openToCamera, selectFlat } from './select.ts';
+import { castsNoShadow, drawsCard, openToCamera, selectFlat } from './select.ts';
 import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
@@ -37,11 +37,6 @@ export function selectVisiblePages<T extends PageRecord>(
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
     light?: LightPages;
-    /** Per-root suppression of the impostor plan (`ImpostorPlan.switched`, #1239/#1314): one entry
-     *  per root, `1` at a switched root. The plan already tied the switch to its card, so a `1`
-     *  here is the whole decision: the root's clusters are skipped and its card is drawn instead.
-     *  Absent, every root is cut as before — WebGL2 and a pre-impostor cache keep their behaviour. */
-    switched?: ArrayLike<number>;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -86,13 +81,12 @@ export function selectVisiblePages<T extends PageRecord>(
   state.nodesTested = 0;
   state.lodLevel = 0;
   state.complete = true;
-  const { switched } = options;
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank];
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
-    // light's cut takes no root that casts no shadow. A switched root is drawn by its card
-    // (`planImpostors`): its clusters are dropped here, in the same breath as the card it yields.
-    if (root.parked || castsNoShadow(root.mark, state.light) || switched?.[rank]) continue;
+    // light's cut takes no root that casts no shadow, a camera's none its impostor card draws.
+    const { mark } = root;
+    if (root.parked || castsNoShadow(mark, state.light) || drawsCard(mark, state.light)) continue;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;
