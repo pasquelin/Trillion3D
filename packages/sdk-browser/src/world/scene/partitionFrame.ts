@@ -152,8 +152,10 @@ export function createPartitionFrame(inputs: Inputs) {
         growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
       },
       outgrown: renew,
-      // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
+      // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332), and the
+      // world bundles held are its super-roots' residency (#1333).
       lens: lensOf(backend, camera),
+      holdWorldBundles: backend.holdWorldBundles,
     };
     const { eye, reach } = viewOf(camera);
     later = false;

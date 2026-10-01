@@ -47,10 +47,13 @@ export type WorldRootsDagTable = {
 export function worldRootDag(
   table: WorldRootsDagTable,
   pagesOf: typeof worldRootPages,
-): (DagRoot & { origins: Int32Array }) | undefined {
+): (DagRoot & { origins: Int32Array; bundles: Int32Array }) | undefined {
   const { clusters, groups } = table;
   if (!clusters?.length || !groups?.length) return undefined;
-  const { roots, pages, origins } = pagesOf(clusters, table.payload?.url || WORLD_ROOTS_BIN);
+  const { roots, pages, origins, bundles } = pagesOf(
+    clusters,
+    table.payload?.url || WORLD_ROOTS_BIN,
+  );
   const structure = structureIndex({ version: 1, roots, groups }, pages.length);
   return {
     world: IDENTITY_WORLD,
@@ -58,7 +61,9 @@ export function worldRootDag(
     structure,
     // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
     culling: flatHierarchy(pages),
-    // Each object root's placed object, which its residency mirrors (`gpu/dag/worldMirror.ts`).
+    // Each object root's placed object and each super-root's bundle, which its residency mirrors
+    // (`gpu/dag/worldMirror.ts`).
     origins,
+    bundles,
   };
 }

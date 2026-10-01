@@ -80,6 +80,9 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
    *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
   worldCut?(): SelectionUniforms | undefined;
+  /** The world bundles a partition holds now, the `pinned` top and `held` past it, which that cut
+   *  reads as its super-roots' residency (#1333); true once taken, false while none packs it. */
+  holdWorldBundles?(pinned: number, held: readonly number[]): boolean;
   /** A resource the session was not opened with enters it (#572): its pages join the same cache,
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */

@@ -40,8 +40,8 @@ import { worldRootDag } from './worldSuperRoots.ts';
 import { cellSuperRoots } from './partition/superRoots.ts';
 
 /** The world pages' detached source, their DAG (#1238) and each cell's super-root bound, which a
- *  partition's plan reads (`partition/superRoots.ts`, #1332): nothing draws from them yet (#1333),
- *  so a scene opens without them, and their page server and DAG file are read on first use. */
+ *  partition's plan reads (`partition/superRoots.ts`, #1332): a scene opens without them, and their
+ *  page server and DAG file are read on first use. */
 type WorldStream = {
   source: ReturnType<typeof worldRootsPageSource>;
   dag: ReturnType<typeof worldRootDag>;
@@ -116,13 +116,14 @@ export async function openWorldRoots(
   const topBundles = await readBundles(read, url, table, [0, table.pinned], meter);
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
   const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
-  let heldBytes = 0;
+  let [heldBytes, revision] = [0, 0]; // its bytes, and how many times it changed
   const release = (cell: number) => {
     for (const bundle of cellDependencies(table, cell)) {
       const own = held.get(bundle);
       if (!own || --own.cells > 0) continue;
       held.delete(bundle);
       heldBytes -= table.bundles[bundle].bytes;
+      revision++;
     }
   };
   /** A bundle's pages: the pinned top's and a placed cell's from what is held, any other read and
@@ -154,8 +155,8 @@ export async function openWorldRoots(
     table,
     /** The world pages' detached source, both engines' shape (`worldRootsPage.ts`), and their DAG
      *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a cache
-     *  without its DAG file), opened once, on first use. A table out of its
-     *  rank is refused here (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */
+     *  without its DAG file), opened once, on first use. A table out of its rank is refused here
+     *  (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */
     stream: openStream,
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
     pinned: { bundles: table.pinned, pages: topBundles.flat(), bytes: table.pinnedTopBytes },
@@ -168,6 +169,7 @@ export async function openWorldRoots(
           const pages = readBundles(read, url, table, [bundle, bundle + 1]).then(([p]) => p);
           held.set(bundle, (own = { cells: 0, pages }));
           heldBytes += table.bundles[bundle].bytes;
+          revision++;
         }
         own.cells++;
         return own.pages;
@@ -179,8 +181,11 @@ export async function openWorldRoots(
     },
     /** `cell` left: a bundle no placed cell needs any more is let go. */
     release,
-    /** The bundles past the top the placed cells hold now, ascending. */
+    /** The bundles past the top the placed cells hold now, ascending, and how often they moved. */
     held: () => [...held.keys()].sort((a, b) => a - b),
+    get revision() {
+      return revision;
+    },
     /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
      *  server that ignores the Range answered (`rangedReader`). */
     bytes: () =>

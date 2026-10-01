@@ -10,12 +10,15 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { CellRows } from './cellDecode.ts';
 import { createPlacementWrites, type Placement } from './follow.ts';
 import { createTouchedRows, releaseRow, rowsFree, takeRow, type PlacedMesh } from './rows.ts';
+import { writeCellOrigins, type WorldCells } from './worldObjects.ts';
 
-/** The rows of the cells placed under `root` and the core `parents`, on the rows of `meshes`. */
+/** The rows of the cells placed under `root` and the core `parents`, on the rows of `meshes`, each
+ *  row naming the world-roots object it places among `objects`, the table's cells (#1333). */
 export function createCellPlacements(
   root: Object3D,
   parents: readonly Object3D[],
   meshes: ReadonlyMap<number, PlacedMesh>,
+  objects?: WorldCells,
 ) {
   const held = new Map<number, Placement[]>();
   const touched = createTouchedRows();
@@ -35,6 +38,7 @@ export function createCellPlacements(
         placements.push({ mesh, row: takeRow(mesh), parent, local });
         write(placements[node]);
       }
+      writeCellOrigins(objects, cell, placements);
       held.set(cell, placements);
       return true;
     },
