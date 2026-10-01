@@ -2,16 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Surface, Vec3 } from '../scene/experimentScene.ts';
 import { neighbours } from './intersections.fixture.ts';
-import {
-  DEGENERATE_GRAM,
-  EPSILON,
-  GRAZING,
-  SURFACE_STRIDE,
-  intersectSurface,
-  packSurface,
-} from './intersections.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './contracts.ts';
+import { EPSILON, SURFACE_STRIDE, intersectSurface, packSurface } from './intersections.ts';
 import { centre, cross, unit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
+const { degenerateGram: DEGENERATE_GRAM, grazing: GRAZING } = LIGHTING_TRANSPORT_LIMITS;
 const panel = (origin: Vec3, u: Vec3, v: Vec3) => ({ origin, u, v }) as Surface;
 /** A packed `surface` and its hit test: `[distance, u, v, front]`, or null on a miss. */
 function packed(surface: Surface) {
