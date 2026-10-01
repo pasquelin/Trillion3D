@@ -7,11 +7,7 @@
  * to; the catalogue resolves a packed rank back to its record, and `placement` to its root.
  */
 import { createPageCatalogue, type PageCatalogue } from '../../page/selection/catalogue.ts';
-import {
-  livePlacementIndex,
-  postPackedBases,
-  type PlacementIndex,
-} from '../../page/selection/placements.ts';
+import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
@@ -42,13 +38,32 @@ const blank = (page: PageRec, sibling?: PageDraw): PageDraw => ({
 export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   let pages: PageRec[] = [],
     draws: PageDraw[] = [],
-    catalogue: PageCatalogue = createPageCatalogue(pages),
-    placement: PlacementIndex = postPackedBases(roots);
+    catalogue: PageCatalogue = createPageCatalogue(pages);
+  /** The per-placement tables: one object for the session, rewritten in place at each layout, so a
+   *  reader built once — the pool's parents, the held residency — never reads a stale one. */
+  const placement: PlacementIndex = postPackedBases(roots);
   /** The packed ranks of each record's instances, in packed order: its first names the page. */
   let ranks = new Map<PageRec, number[]>();
-  /** The draws of each root, by record, carried from one layout to the next: a row's state is its
-   *  own, and a layout that inserts or moves a page keeps the others' (#1234). */
-  let owned = new Map<ClusterRoot<PageRec>, Map<PageRec, PageDraw>>();
+  /** The roots of the last layout, by rank: a root's draws are carried from the packed base that
+   *  layout posted on it (`packedBase`), one pointer per root and no table per instance (#1235). */
+  let laidOut: readonly ClusterRoot<PageRec>[] = [];
+
+  /** The rank `root` held in the last layout, or -1: read from the packed base it carries, checked
+   *  against that layout's own tables, else looked up — a base another layout posted is not ours. */
+  const formerRank = (root: ClusterRoot<PageRec>) => {
+    const base = root.packedBase,
+      rank = base === undefined ? -1 : (placement.rootOfPacked[base] ?? -1);
+    if (rank >= 0 && laidOut[rank] === root && placement.baseOfRoot[rank] === base) return rank;
+    return laidOut.indexOf(root);
+  };
+  /** The draw `root` carried for `rec` in the last layout: its own instance, never another root's. */
+  const carriedDraw = (rank: number, rec: PageRec) => {
+    const base = placement.baseOfRoot[rank],
+      end = rank + 1 < laidOut.length ? placement.baseOfRoot[rank + 1] : draws.length;
+    for (let packed = base; packed < end; packed++)
+      if (draws[packed].page === rec) return draws[packed];
+    return undefined;
+  };
 
   /** Lays `roots` out: one packed rank per (placement, page), the catalogue over the packed order,
    *  and each instance's draw state carried from the root it belonged to; a new instance wears what
@@ -56,16 +71,15 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   function layOut(next: readonly ClusterRoot<PageRec>[]) {
     const nextPages: PageRec[] = [],
       nextDraws: PageDraw[] = [],
-      nextRanks = new Map<PageRec, number[]>(),
-      nextOwned = new Map<ClusterRoot<PageRec>, Map<PageRec, PageDraw>>();
+      nextRanks = new Map<PageRec, number[]>();
     // Pass 1: the draw a root it is already known by carries, by record.
     const carried: (PageDraw | undefined)[][] = [],
       assigned = new Set<PageRec>();
     for (const root of next) {
-      const before = owned.get(root),
+      const rank = formerRank(root),
         row: (PageDraw | undefined)[] = [];
       for (const rec of root.pages) {
-        const draw = before?.get(rec);
+        const draw = rank < 0 ? undefined : carriedDraw(rank, rec);
         if (draw) assigned.add(rec);
         row.push(draw);
       }
@@ -74,8 +88,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     // Pass 2: a root without one reclaims a single-instance record's draw, never one already taken:
     // a re-layout that recreates the root object — a synthetic layout — carries it this way (#1235).
     for (let r = 0; r < next.length; r++) {
-      const root = next[r],
-        byRecord = new Map<PageRec, PageDraw>();
+      const root = next[r];
       for (let p = 0; p < root.pages.length; p++) {
         const rec = root.pages[p];
         let draw = carried[r][p];
@@ -85,20 +98,18 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
           assigned.add(rec);
         }
         if (!draw) draw = blank(rec, before && draws[before[0]]);
-        byRecord.set(rec, draw);
         const own = nextRanks.get(rec);
         if (own) own.push(nextPages.length);
         else nextRanks.set(rec, [nextPages.length]);
         nextPages.push(rec);
         nextDraws.push(draw);
       }
-      nextOwned.set(root, byRecord);
     }
     pages = nextPages;
     draws = nextDraws;
     ranks = nextRanks;
-    owned = nextOwned;
-    placement = postPackedBases(next);
+    laidOut = next.slice();
+    postPackedBases(next, placement);
     catalogue = createPageCatalogue(pages);
   }
   layOut(roots);
@@ -127,12 +138,8 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
       const packed = ranks.get(rec)?.[0];
       return packed === undefined ? -1 : (placement.rootOfPacked[packed] ?? -1);
     },
-    /** The per-placement tables, rebuilt at each layout (#1235). */
-    get placement(): PlacementIndex {
-      return placement;
-    },
-    /** The same tables for a reader built once: each lookup reads the current layout's. */
-    livePlacement: livePlacementIndex(() => placement),
+    /** The per-placement tables (#1235): the same object across layouts, rewritten in place. */
+    placement,
     layOut,
     at,
     find,
