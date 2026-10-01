@@ -9,11 +9,14 @@ use crate::dag::{DagCluster, DagGroup};
 /// The per-cluster metadata the runtime's cut projects, for every world cluster — object roots
 /// included — named by its world rank, the same rank its group's `children` and `outputs` use. A
 /// super-root names its page's place in the binary (`bundle`, `offset`); an object root names its
-/// `origin` (the placed instance) and keeps its own page in the primitive's streams.
+/// `origin`, the placed object of the table that draws it (`object_of` its instance, its rank
+/// `object_dependencies` gives, #1332), and
+/// keeps its own page in the primitive's streams.
 pub(super) fn clusters(
     dag: &[DagCluster],
     world: &WorldDag,
     located: &[Option<(usize, usize)>],
+    object_of: &[Option<usize>],
 ) -> Vec<Value> {
     (0..dag.len())
         .map(|slot| {
@@ -29,7 +32,7 @@ pub(super) fn clusters(
                 "sphere":cluster.sphere,"parentError":parent,"parentSphere":parent_sphere,
                 "min":min,"max":max,"triangles":cluster.triangles(),
                 "material":world.materials[slot],"bundle":bundle,"offset":offset,
-                "origin":world.origins[slot]})
+                "origin":world.origins[slot].and_then(|instance| object_of[instance])})
         })
         .collect()
 }
