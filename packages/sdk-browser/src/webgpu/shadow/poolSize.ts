@@ -24,7 +24,7 @@ import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBu
 
 /** The pages a world's shadow pool holds: its `shadowPoolPages` option, else the setting's
  *  (`LIGHT_SETTINGS.shadowPoolPages`); the memory budget's pool bounds it (`shadowPoolFor`). */
-export const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages'>) =>
+const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages'>) =>
   context.shadowPoolPages ?? LIGHT_SETTINGS.shadowPoolPages;
 
 /** The pool's shape on a device of `limits` — one layer as wide as it draws, as `askShadowPool`
