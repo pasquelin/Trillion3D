@@ -9,7 +9,7 @@ import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
-import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
+import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
 import { OPEN_PLANES, openMark } from './openRoot.ts';
 
 /** True when a camera cut walks `root` open (`openMark`). */
@@ -20,6 +20,11 @@ export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
  *  (`CASTS_NO_SHADOW`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
 export const castsNoShadow = (mark: number | undefined, light: unknown) =>
   !!light && ((mark ?? 0) & CASTS_NO_SHADOW) !== 0;
+
+/** True when a camera's cut leaves a root to its impostor card (`CARD_ROOT`); a light's never
+ *  does. Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
+export const drawsCard = (mark: number | undefined, light: unknown) =>
+  !light && ((mark ?? 0) & CARD_ROOT) !== 0;
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
  *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */

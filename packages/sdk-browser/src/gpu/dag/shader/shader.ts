@@ -13,7 +13,11 @@ import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_GRID_WGSL } from './gridWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
+import {
+  CARD_ROOT,
+  CASTS_NO_SHADOW,
+  SPRITE_UNCULLED,
+} from '../../../visibility/shader/spriteWgsl.ts';
 import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
@@ -99,8 +103,11 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  if(i>=rangeCount()*views[0u].viewCount){return;}
  let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
- let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
+ // light cut opens none on a primitive that casts no shadow, a camera cut none on one its impostor
+ // card draws (\`markOf\`, \`castsNoShadow\`, \`drawsCard\`).
+ let mark=markOf(w);
+ let skips=select((mark&${CARD_ROOT}u)!=0u,(mark&${CASTS_NO_SHADOW}u)!=0u,isLightCut());
+ let root=select(rootOf(w),0xffffffffu,skips);
  setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
  let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.

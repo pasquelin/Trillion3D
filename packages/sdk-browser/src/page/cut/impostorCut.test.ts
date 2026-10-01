@@ -1,8 +1,8 @@
-// #1314 To-do 3: `selectVisiblePages` consumes the impostor plan's `switched`, so a switched
-// root's clusters are dropped in the same breath as the card `planImpostors` yields for it. The
-// option is indexed by the root's rank in the plan's `roots` array and is inert when absent, which
-// keeps WebGL2 and any pre-impostor cache byte-for-byte unchanged. Fails on develop: the `switched`
-// option, its suppression and this file are new.
+// #1314 To-do 3, #1335: a root the impostor plan switches carries the card bit of its mark
+// (`CARD_ROOT`), so every camera cut drops its clusters in the same breath as the card
+// `planImpostors` yields for it, while every light cut still walks them: the object keeps its
+// mesh's shadow. A root without the bit — WebGL2, any pre-impostor cache — is cut as before. Fails
+// on develop: the card bit and its reading are new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts';
@@ -10,6 +10,8 @@ import { collectClusterPages, selectVisiblePages } from '../selection/selection.
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
+import { markCard } from '../../visibility/shader/spriteWgsl.ts';
+import { castsNoShadow, drawsCard } from './select.ts';
 
 /** The engine camera of a host camera, as frame entry reads it (`readCameraWorld`). */
 const engineOf = (cam: ReturnType<typeof frontCamera>) =>
@@ -83,7 +85,7 @@ function planFor(
   return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam));
 }
 
-test('a switched root is suppressed by the cut, by its rank in the plan', () => {
+test('a switched root is left to its card by the camera cut, never by a light cut', () => {
   const { fixture, roots } = impostorRoots();
   const near = frontCamera(5),
     far = frontCamera(200, 5000);
@@ -91,21 +93,22 @@ test('a switched root is suppressed by the cut, by its rank in the plan', () => 
   const plan = planFor(far, roots);
   assert.deepEqual([...plan.switched], [1], 'the far root switches');
   assert.equal(plan.cards.length, 1);
-  assert.equal(plan.cards[0]?.mesh, MESH, 'the card reports the mesh, the skip reads the rank');
+  assert.equal(plan.cards[0]?.mesh, MESH, 'the card reports the mesh, the mark sits on the root');
   assert.deepEqual([...planFor(near, roots).switched], [0], 'the near root does not');
-  // Without the option the root's clusters are cut as before; with the plan's `switched` they are
-  // gone — the skip and the card are one decision.
-  const whole = selectVisiblePages(roots, engineOf(far), {
-    pixelError: 0,
-    viewport: VIEWPORT,
-  });
-  assert.ok(whole.shown.length > 0, 'the root draws whole without the plan');
-  const carded = selectVisiblePages(roots, engineOf(far), {
-    pixelError: 0,
-    viewport: VIEWPORT,
-    switched: plan.switched,
-  });
+  const options = { pixelError: 0, viewport: VIEWPORT };
+  const whole = selectVisiblePages(roots, engineOf(far), options);
+  assert.ok(whole.shown.length > 0, 'the root draws whole without its card bit');
+  assert.equal(markCard(roots[0], true), true, 'the switch marks the root');
+  const carded = selectVisiblePages(roots, engineOf(far), options);
   assert.deepEqual(carded.shown, [], 'the switched root shows no cluster');
   assert.deepEqual(carded.wanted, [], 'the switched root wants no cluster');
+  // A light's cut keeps it: the card bit is no shadow bit.
+  const light = {};
+  assert.equal(drawsCard(roots[0].mark, undefined), true);
+  assert.equal(drawsCard(roots[0].mark, light), false, 'a light cut walks the root');
+  assert.equal(castsNoShadow(roots[0].mark, light), false, 'the object keeps its shadow');
+  assert.equal(markCard(roots[0], false), true);
+  assert.equal(roots[0].mark, undefined, 'cleared, the mark is as before');
+  assert.ok(selectVisiblePages(roots, engineOf(far), options).shown.length > 0);
   fixture.geometry.dispose();
 });
