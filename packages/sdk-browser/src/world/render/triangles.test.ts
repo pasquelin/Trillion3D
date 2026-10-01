@@ -9,6 +9,7 @@ import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import { setDebugMode } from '../../host/debugMode.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `trillion3dFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */
@@ -17,6 +18,7 @@ function harness(options: {
   counted?: number | null;
   order?: string[];
   fails?: boolean;
+  recorded?: unknown[];
 }) {
   const note = (step: string) => void options.order?.push(step);
   const active = { id: 'test-backend' } as unknown as RenderBackend;
@@ -61,7 +63,7 @@ function harness(options: {
       metricsScratch.totalSubmittedTriangles = options.counted ?? null;
     },
     metricsScratch,
-    profiler: { record: () => {} } as never,
+    profiler: { record: (metrics: unknown) => options.recorded?.push(metrics) } as never,
     pageIdByUrl: new Map(),
     streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
     compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
@@ -99,4 +101,17 @@ test('each frame moves the followed guides once, and integrates within its budge
   order.length = 0;
   assert.throws(harness({ directGpu: false, order, fails: true }).render);
   assert.deepEqual(order, ['follow', 'open', 'drain', 'pause'], 'a drain that throws still pauses');
+});
+
+// #1353: the frame report is a debug tool, as a development build's: a page that never asks for
+// debug mode files no frame into it.
+test('a frame is filed into the frame report only in debug mode', (t) => {
+  t.after(() => setDebugMode(false));
+  const recorded: unknown[] = [];
+  const { render } = harness({ directGpu: false, recorded });
+  render();
+  assert.equal(recorded.length, 0, 'outside debug mode, no frame is filed');
+  setDebugMode(true);
+  render();
+  assert.equal(recorded.length, 1, 'in debug mode, the frame is filed');
 });

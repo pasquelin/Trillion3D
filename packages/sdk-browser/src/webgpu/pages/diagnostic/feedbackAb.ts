@@ -1,5 +1,5 @@
 import { makeFeedbackTarget } from '../prepare/targets.ts';
-import { sha256Hex } from '../../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../../streaming/sha256Hex.ts';
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts';

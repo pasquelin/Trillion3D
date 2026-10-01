@@ -7,9 +7,6 @@ import {
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
  *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
-/** Header words, before the first column. */
-export const PROXY_HEADER_WORDS = 20;
-export const PROXY_HEADER_BYTES = PROXY_HEADER_WORDS * 4;
 /** The four shadow-ray settings, at the front: offset, start, range, presence. */
 export const PROXY_PARAM_FLOATS = 4;
 /** The count flag, then the two counters of the counted frame, in bytes from the start. */

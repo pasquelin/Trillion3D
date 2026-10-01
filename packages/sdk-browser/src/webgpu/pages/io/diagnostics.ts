@@ -115,5 +115,7 @@ export function createWebgpuDiagnostics(
     loggedFailures.add(phase);
     engineDiagnostic(phase, 'WebGPU path failed', details);
   };
-  return { traceDiagnostic, engineDiagnostic, diagnosticFailure, drainTraceNow };
+  /** Whether a diagnostic channel listens: what it hears is then measured (`endCpuFrame`). */
+  const listened = !!onDiagnostic;
+  return { traceDiagnostic, engineDiagnostic, diagnosticFailure, drainTraceNow, listened };
 }

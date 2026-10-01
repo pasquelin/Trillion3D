@@ -1,9 +1,7 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { layerPasses, layerViews } from './layers.ts';
 import { shadowAtlasBytes } from './atlas.ts';
-
-/** Label of the pass that fills the static layer: timed with the Shadows stage. */
-export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
+import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
 
 /** The layout of a static layer's group: one layer of its depth, read by the restore
  *  (`pageQuads.ts`). */

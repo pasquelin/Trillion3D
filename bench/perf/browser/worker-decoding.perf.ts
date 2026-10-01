@@ -16,7 +16,7 @@ import {
   verifyPageBytes,
 } from '../../../packages/sdk-browser/src/page/decode/host.ts';
 import { restorePageDecode } from '../../../packages/sdk-browser/src/page/decode/task.ts';
-import { sha256Hex } from '../../../packages/sdk-browser/src/measurement/sha256Hex.ts';
+import { sha256Hex } from '../../../packages/sdk-browser/src/streaming/sha256Hex.ts';
 
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const alea = graine(211);

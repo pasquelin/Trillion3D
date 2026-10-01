@@ -2,6 +2,7 @@ import { type CameraPose, type FrameMetrics } from '../../../../sdk-core/src/ind
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts';
 import { handleExplorerRenderError } from './fallback.ts';
 import { createHostFrameCostAudit } from '../../frame/costAudit.ts';
+import { debugMode } from '../../host/debugMode.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { BoundTarget, ExplorerHostState } from './hostState.ts';
@@ -148,7 +149,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.
     metricsScratch.triangles = metricsScratch.totalSubmittedTriangles ?? null;
     auditFrame(state.active.id, frameNumber, metricsScratch);
-    profiler.record(metricsScratch);
+    if (debugMode()) profiler.record(metricsScratch); // the frame report is a debug tool
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
       active: state.active,

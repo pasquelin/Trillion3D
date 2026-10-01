@@ -6,8 +6,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { along, camera } from '../testScenes.fixture.ts';
-import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
 import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts';
+import { SHADOW_LAYER_PASS } from '../../../stage/passLabels.ts';
 
 /** A caster over a floor, lit by the sun, moved once: its static layer is on its way. `fail`
  *  breaks the device's layouts from then on; `dispose` closes the session before it lands; `late`

@@ -15,7 +15,7 @@ import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/spher
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 export { packDrawn, unpackDrawn } from './runtimePack.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import { clusterCones } from './cutCones.ts';
 import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts';
 import { positionGridExponent, textureGridExponent, type GridInputs } from './cutGrid.ts';
