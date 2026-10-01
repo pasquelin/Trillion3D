@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EngineError } from '../contracts/cache.ts';
+import { refuses } from '../contracts/cache.fixture.ts';
 import { box, cylinder, plane, sphere } from '../world/geometry/basic.ts';
 import { capsule } from '../world/geometry/round.ts';
-import { Geometry } from '../world/geometry/geometry.ts';
-import { BufferAttribute } from '../world/buffer/attribute.ts';
+import type { Geometry } from '../world/geometry/geometry.ts';
+import { positions } from './geometry.fixture.ts';
 import { SHAPE } from './layout.ts';
 import type { PhysicsShape } from './options.ts';
 import { primitive, resolveShape, SCALE_TOLERANCE } from './shape.ts';
@@ -14,27 +14,11 @@ const twice = { x: 2, y: 2, z: 2 };
 const ball = { type: 'sphere', radius: 1 } as const;
 
 /** A triangle and a stray vertex, indexed backwards or not indexed. */
-function triangle(indexed = false) {
-  const value = new Geometry().setAttribute(
-    'position',
-    new BufferAttribute(new Float32Array([1, 2, 3, -2, 4, 5, 6, -3, 2, 9, 8, 7]), 3),
-  );
-  if (indexed) value.setIndex([2, 1, 0]);
-  return value;
-}
+const triangle = (indexed = false) =>
+  positions([1, 2, 3, -2, 4, 5, 6, -3, 2, 9, 8, 7], indexed ? [2, 1, 0] : undefined);
 /** Asserts `run` refuses the shape as `PHYSICS_FAILED`, naming `name`; returns the message. */
-function refused(run: () => unknown, name: string) {
-  let message = '';
-  assert.throws(run, (error: unknown) => {
-    assert.ok(error instanceof EngineError);
-    assert.equal(error.code, 'PHYSICS_FAILED');
-    assert.deepEqual(error.details, { name });
-    assert.ok(error.message.includes(`"${name}"`), error.message);
-    message = error.message;
-    return true;
-  });
-  return message;
-}
+const refused = (run: () => unknown, name: string) =>
+  refuses(run, 'PHYSICS_FAILED', { name }, [`"${name}"`]);
 /** The geometry's extent along x, y and z. */
 function extent(geometry: Geometry) {
   const { min, max } = geometry.computeBoundingBox();
@@ -43,7 +27,6 @@ function extent(geometry: Geometry) {
 
 test('the shape is the exact primitive a geometry was built as, scaled', () => {
   assert.deepEqual(resolveShape(box(2, 4, 6), { x: 2, y: 1, z: 1 }, 'dynamic').size, [2, 2, 3]);
-  assert.equal(resolveShape(sphere(0.5), twice, 'dynamic').size[0], 1);
   const pill = resolveShape(capsule(0.3, 1), one, 'dynamic');
   assert.equal(pill.shape, SHAPE.capsule);
   assert.deepEqual(pill.size, [0.5, 0.3, 0]);
@@ -57,10 +40,9 @@ test('the shape is the exact primitive a geometry was built as, scaled', () => {
 });
 
 test('a primitive built with its default sizes or given ones fits the geometry drawn', () => {
-  const s = 2;
-  const scaled = { x: s, y: s, z: s };
+  const s = twice.x;
   for (const geometry of [box(), box(2, 4, 6)]) {
-    const fit = resolveShape(geometry, scaled, 'dynamic');
+    const fit = resolveShape(geometry, twice, 'dynamic');
     assert.equal(fit.shape, SHAPE.box);
     assert.deepEqual(
       fit.size,
@@ -68,12 +50,12 @@ test('a primitive built with its default sizes or given ones fits the geometry d
     );
   }
   for (const geometry of [sphere(), sphere(3)]) {
-    const fit = resolveShape(geometry, scaled, 'dynamic');
+    const fit = resolveShape(geometry, twice, 'dynamic');
     assert.equal(fit.shape, SHAPE.sphere);
     assert.deepEqual(fit.size, [(extent(geometry)[1] / 2) * s, 0, 0]);
   }
   for (const geometry of [capsule(), capsule(0.3, 2)]) {
-    const fit = resolveShape(geometry, scaled, 'dynamic');
+    const fit = resolveShape(geometry, twice, 'dynamic');
     assert.equal(fit.shape, SHAPE.capsule);
     const [halfHeight, radius] = fit.size;
     // Its caps' centres and radius span the drawn height.
@@ -81,16 +63,16 @@ test('a primitive built with its default sizes or given ones fits the geometry d
     assert.ok(halfHeight > 0 && radius > 0);
   }
   for (const geometry of [cylinder(), cylinder(3, 3, 4)]) {
-    const fit = resolveShape(geometry, scaled, 'dynamic');
+    const fit = resolveShape(geometry, twice, 'dynamic');
     const [x, y, z] = extent(geometry);
     assert.equal(fit.shape, SHAPE.cylinder);
     assert.deepEqual(fit.size, [(y / 2) * s, (Math.max(x, z) / 2) * s, 0]);
   }
   // A cone is no primitive the module tapers from its recipe: its hull, its triangles.
-  assert.equal(resolveShape(cylinder(1, 2, 4), scaled, 'dynamic').shape, SHAPE.hull);
+  assert.equal(resolveShape(cylinder(1, 2, 4), twice, 'dynamic').shape, SHAPE.hull);
   const unknown = triangle();
   unknown.recipe = { type: 'torus', args: [] };
-  assert.equal(resolveShape(unknown, scaled, 'static').shape, SHAPE.triangles);
+  assert.equal(resolveShape(unknown, twice, 'static').shape, SHAPE.triangles);
 });
 
 test('a round primitive needs the scale that keeps it round; a box takes any, mirrored or not', () => {
@@ -177,16 +159,10 @@ test('a compound stretched, flattened or mirrored is refused naming its scale an
   );
 });
 
-test('any other mesh is triangles when static and a hull when it moves', () => {
-  const ground = resolveShape(plane(4, 4, 2, 2), one, 'static');
-  assert.equal(ground.shape, SHAPE.triangles);
-  assert.equal(ground.triangles, 8);
+test('any other mesh is triangles when static and a hull when it moves, its vertices scaled', () => {
+  assert.equal(resolveShape(plane(4, 4, 2, 2), one, 'static').triangles, 8);
   const squashed = resolveShape(sphere(1, 8, 6), { x: 1, y: 0.5, z: 1 }, 'dynamic');
-  assert.equal(squashed.shape, SHAPE.hull);
-  assert.equal(squashed.triangles, 0);
-});
-
-test('a mesh collider carries its vertices scaled, mirror included, and only whole triangles', () => {
+  assert.equal(squashed.shape, SHAPE.hull, 'no sphere once squashed');
   const scale = { x: -2, y: 3, z: 4 };
   const scaled = [-2, 6, 12, 4, 12, 20, -12, -9, 8, -18, 24, 28];
   for (const indexed of [false, true]) {

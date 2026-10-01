@@ -9,6 +9,10 @@ import { softSettings } from './softSettings.ts';
 import { SOFT_WORDS } from './wire.fixture.ts';
 
 const one = { x: 1, y: 1, z: 1 };
+/** Each SOFT field's word, as `soft.cpp` reads it: the pose, scale, matter and compliances from
+ *  `pose`, the pressure, then the vertex, corner and byte counts. */
+const SOFT_AT = { pose: 2, pressure: 18, counts: 19 };
+const counts = (words: Uint32Array) => [...words.subarray(SOFT_AT.counts, SOFT_WORDS)];
 
 test('SOFT carries its fixed words at their layout offsets, then the vertices and corners', () => {
   const settings = softSettings({ type: 'volume', stretch: 0.25, bend: 0.5, pressure: 0.5 });
@@ -23,10 +27,10 @@ test('SOFT carries its fixed words at their layout offsets, then the vertices an
     floats = new Float32Array(words.buffer);
   assert.deepEqual([...words.subarray(0, 2)], [OP.soft, 9]);
   assert.deepEqual(
-    [...floats.subarray(2, 19)],
+    [...floats.subarray(SOFT_AT.pose, SOFT_AT.counts)],
     [1, 2, 3, 0, 0, 0, 1, 2, 3, 4, 0.125, 0.375, 0.5, 0.0625, 0.25, 0.5, 0.5],
   );
-  assert.deepEqual([words[19], words[20], words[21]], [4, 6, 0]);
+  assert.deepEqual(counts(words), [4, 6, 0]);
   assert.deepEqual([...floats.subarray(SOFT_WORDS, SOFT_WORDS + 16)], [...record.vertices]);
   assert.deepEqual([...words.subarray(SOFT_WORDS + 16)], [...record.indices]);
 });
@@ -40,8 +44,8 @@ test('a cooked SOFT carries no vertex nor corner: its settings bytes, padded to 
     record: { cooked: Uint8Array.of(1, 2, 3, 4, 5), pressure: 7 },
   });
   const words = writer.take();
-  assert.equal(new Float32Array(words.buffer)[18], 7, 'the pressure word');
-  assert.deepEqual([words[19], words[20], words[21]], [0, 0, 5]);
+  assert.equal(new Float32Array(words.buffer)[SOFT_AT.pressure], 7, 'the pressure word');
+  assert.deepEqual(counts(words), [0, 0, 5]);
   assert.equal(words.length, SOFT_WORDS + 2);
   assert.deepEqual([...new Uint8Array(words.buffer, SOFT_WORDS * 4, 8)], [1, 2, 3, 4, 5, 0, 0, 0]);
 });

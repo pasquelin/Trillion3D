@@ -7,6 +7,7 @@ import { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts';
 import { MAX_GEARS, TORQUE_POINTS, VEHICLE, WHEEL_ROLE } from './vehicleLayout.ts';
 import { DRIVE_WORDS, VEHICLE_WORDS, WHEEL_WORDS } from './wire.fixture.ts';
 import { BIKE, FOUR, HULL, rig } from './vehicle.fixture.ts';
+import { near } from '../math/near.fixture.ts';
 
 /** Each option's spec word after the VEHICLE header, as `vehicles.cpp` reads it (`s + n`). */
 const SPEC_WORD = {
@@ -39,7 +40,6 @@ const written = (made: Vehicle) => {
   return writer.take();
 };
 const specOf = (words: Uint32Array) => new Float32Array(words.buffer).subarray(HEADER);
-const near = (n: number) => +n.toFixed(5);
 
 test('VEHICLE carries its header, every option at its own word, then its wheels', () => {
   const { body, wheels } = rig(FOUR);
@@ -63,13 +63,13 @@ test('VEHICLE carries its header, every option at its own word, then its wheels'
   const motorcycle = written(vehicle.motorcycle(bike.body, { ...bike, maxLean }));
   assert.equal(motorcycle[2], VEHICLE.motorcycle);
   assert.equal(specOf(motorcycle)[SPEC_WORD.maxLean], maxLean);
-  assert.deepEqual([...spec.subarray(...CURVE)].map(near), torqueCurve.flat().map(near));
-  assert.deepEqual([...spec.subarray(...GEARS)].map(near), gears.map(near));
+  near(spec.subarray(...CURVE), torqueCurve.flat(), 'torque curve', 1e-6);
+  near(spec.subarray(...GEARS), gears, 'gears', 1e-6);
   // The steered wheels' lock, from the turning radius: a wheelbase of 2.5 m in a 5 m radius.
-  assert.equal(near(spec[SPEC_WORD.antiRoll + 1]), near(Math.asin(2.5 / 5)));
+  near([spec[SPEC_WORD.antiRoll + 1]], [Math.asin(2.5 / 5)], 'lock', 1e-6);
   // The first wheel follows the spec: its centre, radius and width, its role.
   const wheel = [...spec.subarray(VEHICLE_WORDS - HEADER, VEHICLE_WORDS - HEADER + WHEEL_WORDS)];
-  assert.deepEqual(wheel.map(near), [-0.8, -0.3, -1.25, 0.3, 0.2, WHEEL_ROLE.steers]);
+  near(wheel, [-0.8, -0.3, -1.25, 0.3, 0.2, WHEEL_ROLE.steers], 'first wheel', 1e-6);
 });
 
 test('a short torque curve and gearbox fill the rest of their words with no point and no gear', () => {
