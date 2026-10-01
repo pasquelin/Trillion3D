@@ -1,9 +1,11 @@
-// #1335: the card atlas streams through the engine's one level reader and its one store. Each level
-// is read at its own url, handed to the GPU feed, then held by the store within its budget; a level
-// the store already holds is not read again. Fails on develop: `atlas.ts` is not there.
+// #1335: the card atlas streams through the engine's one held-level read, the tiles' own
+// (`readHeldLevel`): each level is read at its own url, once even while it is in flight, held by
+// the reader's store within its room, and a failed read is reported. Fails on develop: `atlas.ts`
+// is not there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadImpostorAtlas } from './atlas.ts';
+import { createWebgpuTileLevels } from '../webgpu/tile/levels.ts';
 import { createTextureLevelStore } from '../texture/levelStore.ts';
 import type { TextureLevelRequest, TextureLevelReader } from '../texture/levelReader.ts';
 import type { ImpostorMap, ImpostorMaps } from '../../../sdk-core/src/index.ts';
@@ -25,6 +27,9 @@ const maps: ImpostorMaps = {
   orm: chain('data', 'd'),
 };
 
+/** A decoded 4×4 level, as the browser hands a lossless one. */
+const bitmap = () => ({ width: 4, height: 4, close() {} }) as ImageBitmap;
+
 /** A reader over a store opened for one cook, as `createTextureLevelReader` makes it. */
 function fakeReader() {
   const store = createTextureLevelStore(1 << 20);
@@ -32,18 +37,23 @@ function fakeReader() {
   const asked: TextureLevelRequest[] = [];
   const read = (async (request: TextureLevelRequest) => {
     asked.push(request);
-    return new Uint8Array(8);
+    if (request.url.endsWith('d.png')) throw new Error('404');
+    return bitmap();
   }) as TextureLevelReader;
   return { reader: Object.assign(read, { store, key: 'k1' }) as TextureLevelReader, asked, store };
 }
 
-test('the atlas reads each level at its own url, hands it over, then the store holds it', async () => {
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test('the atlas reads each level once at its own url, held by the one store, a failure reported', async () => {
   const { reader, asked, store } = fakeReader();
-  const counts = await loadImpostorAtlas(maps, reader, (atlas) => {
-    assert.equal(store.bytes, 0, 'the feed sees the levels before the store takes them');
-    return [atlas.colourCoverage.length, atlas.normalDepth.length, atlas.orm.length];
+  const failed: string[] = [];
+  const levels = createWebgpuTileLevels({
+    read: reader,
+    onFailure: (key) => failed.push(key.sha256),
   });
-  assert.deepEqual(counts, [2, 1, 1]);
+  assert.equal(loadImpostorAtlas(maps, levels, 0), 'waiting', 'asked, not yet held');
+  assert.equal(loadImpostorAtlas(maps, levels, 1), 'waiting');
   assert.deepEqual(
     asked.map((request) => [request.url, request.level]),
     [
@@ -52,10 +62,18 @@ test('the atlas reads each level at its own url, hands it over, then the store h
       ['../../objects/c.png', 0],
       ['../../objects/d.png', 0],
     ],
+    'a read in flight is never asked again',
   );
-  assert.equal(store.bytes, 32, 'four levels held, one budget');
-  // Read again — an atlas the GPU feed let go —, every level comes from the store.
-  await loadImpostorAtlas(maps, reader, () => undefined);
-  assert.equal(asked.length, 4, 'nothing read twice');
-  assert.equal(store.bytes, 32);
+  await settle();
+  assert.deepEqual(failed, ['d'.repeat(64)], 'the failed level is reported, not swallowed');
+  assert.equal(store.bytes, 3 * 64, 'three levels held, in the one store');
+  assert.equal(loadImpostorAtlas(maps, levels, 2), 'waiting', 'the failed level is asked again');
+  await settle();
+  // The level comes from another reader of the store. Once every level is held, the atlas is handed over, and nothing is read again.
+  store.take(`${'d'.repeat(64)}/0/0/png`, bitmap(), 'k1');
+  const atlas = loadImpostorAtlas(maps, levels, 3);
+  assert.notEqual(typeof atlas, 'string');
+  const counts = Object.values(atlas as object).map((chain: unknown[]) => chain.length);
+  assert.deepEqual(counts, [2, 1, 1]);
+  assert.equal(asked.length, 5, 'only the failed level was read again');
 });

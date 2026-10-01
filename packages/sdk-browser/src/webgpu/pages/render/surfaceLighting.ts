@@ -18,6 +18,7 @@ import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts';
 import { encodeBlend, prepareBlend } from './encodeBlend.ts';
 import { encodeBlendShadowMarks } from '../../blend/marks.ts';
 import { viewProj } from '../helpers.ts';
+import { encodeImpostorCards } from '../../impostor/encode.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
@@ -37,6 +38,8 @@ export function encodeSurfaceLighting(
     clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
+  // The impostor cards complete the opaque surfaces before anything reads them.
+  encodeImpostorCards(rt, encoder);
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty';
   invertMatrix4(inverseViewProj, viewProj);
