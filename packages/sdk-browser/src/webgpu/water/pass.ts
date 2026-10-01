@@ -31,6 +31,22 @@ export function boundWaterPass(
 }
 
 /**
+ * Whether the water pass draws the image's transmission slice, as far as the frame knows before
+ * it binds: the shadow marks pick the water stage on it (`../blend/marks.ts`) and the pass encodes
+ * on it, so both take the same decision.
+ */
+export function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
+  const { blendState } = rt;
+  return (
+    composesWater(rt, composes) &&
+    blendState.transmissiveInView > 0 &&
+    !!blendState.argsBuffer &&
+    !!blendState.viewBuffer &&
+    !!blendState.lighting
+  );
+}
+
+/**
  * Encodes the water pass after the blends, on the image they left (`frame.ts`).
  * Returns whether the pass was encoded: without a transmissive surface in view, without the
  * pipelines, under a diagnostic view or a capture from a second camera, nothing of it exists in
@@ -48,14 +64,13 @@ export function encodeWaterPass(
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
   // fragment carries that colouring, and the composite has none. A capture from a second camera
   // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
+  const { viewBuffer, lighting } = blendState;
   if (
-    !composesWater(rt, composes) ||
+    !drawsWater(rt, composes) ||
     !water ||
-    !blendState.transmissiveInView ||
-    !blendState.argsBuffer ||
-    !blendState.viewBuffer ||
-    !blendState.lighting ||
-    !water.frame.bind(gpu, blendState.viewBuffer, blendState.lighting)
+    !viewBuffer ||
+    !lighting ||
+    !water.frame.bind(gpu, viewBuffer, lighting)
   )
     return false;
   countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces), true);
