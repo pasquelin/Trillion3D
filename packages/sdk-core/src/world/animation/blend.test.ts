@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Blend, Blends } from './blend.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const close = (actual: number[], expected: number[]) =>
-  actual.forEach((value, i) =>
-    assert.ok(Math.abs(value - expected[i]) < 1e-12, `${actual} differs from ${expected}`),
-  );
+const close = (actual: number[], expected: number[]) => within(actual, expected, 'blend', 1e-12);
 
 test('one property shares a blend across targets while arrays preserve untracked values and their identity', () => {
   const owner = { weights: [4, 8, 12, 99], other: 10 };

@@ -4,13 +4,9 @@ import { Vector3, readVec3 } from './vector3.ts';
 import { Matrix3, Matrix4 } from './matrix4.ts';
 import { Quaternion } from './quaternion.ts';
 import { listen } from './observed.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const near = (actual: number[], expected: number[]) => {
-  assert.equal(actual.length, expected.length);
-  actual.forEach((value, i) =>
-    assert.ok(Math.abs(value - expected[i]) < 1e-10, `${actual} != ${expected}`),
-  );
-};
+const near = (actual: number[], expected: number[]) => within(actual, expected, 'vector', 1e-10);
 
 test('vector arithmetic preserves every component and supports in-place operands', () => {
   const a = new Vector3(2, -3, 4),
