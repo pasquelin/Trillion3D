@@ -17,6 +17,7 @@ function draw(hosts: {
   texturePoolBytes?: number;
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
+  cardBytes?: () => number;
   sides?: readonly number[];
   /** Indices of `sides` whose picture is not there yet at the census (`missing`). */
   missing?: readonly number[];
@@ -131,4 +132,29 @@ test('the queue stops at the texture pool: what it leaves uploads at its first d
   const { image, pictures } = draw({ texturePoolBytes: 1 });
   assert.deepEqual(image(), [pictures[0]], 'the first map fills the pool; the others are left');
   assert.deepEqual(image(), []);
+});
+
+// #1336: the impostor atlases are paid from the same pool, beside the maps (`../impostor/feed.ts`):
+// a map whose picture arrives once they hold the rest of the pool is left to its first draw, so
+// maps and atlases together never pass it. Fails before: the queue counted its maps alone.
+test('the atlases held beside the maps fill the same pool: a late map is left to its draw', async () => {
+  const held = (side: number) => Math.ceil((sentBytes(side, side) * 4) / 3);
+  const { image, prepare, pictures, surfaces } = draw({
+    sides: [4, 8],
+    missing: [1],
+    texturePoolBytes: held(4) + held(8),
+    cardBytes: () => held(8),
+    maxTextureTransferBytesPerFrame: sentBytes(8, 8),
+    maxTextureUploadMsPerFrame: 1e9,
+  });
+  assert.deepEqual(await prepare(), [pictures[0]], 'the first map fits beside the atlases');
+  const late = surfaces[1].map as G.GraphTexture;
+  late.image = pictures[1];
+  late.needsUpdate = true;
+  hostTextureWritten();
+  assert.deepEqual(
+    image(),
+    [],
+    'the atlases hold the rest of the pool: the late map waits its draw',
+  );
 });
