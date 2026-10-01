@@ -18,6 +18,7 @@ export function filterUnoccluded<T extends HizPage>(
   viewport: [number, number],
   keptIndices?: number[],
   bias = 0,
+  kept?: T[],
 ) {
   resetHizCounts(discardedCounts);
   return countUnoccluded(
@@ -29,6 +30,7 @@ export function filterUnoccluded<T extends HizPage>(
     discardedCounts,
     keptIndices,
     bias,
+    kept,
   );
 }
 
@@ -38,6 +40,8 @@ export function filterUnoccluded<T extends HizPage>(
  * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
  * `keptIndices`, when given, receives the rank in `pages` of every kept page: one record may stand
  * for several placements (#1235), so a caller tells the instances apart by rank, never by record.
+ * `kept`, when given, receives the kept pages themselves instead of a list of its own: what a
+ * caller that walks the cut image after image passes (`./cutLists.ts`).
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
@@ -48,9 +52,11 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
   counts: HizCounts,
   keptIndices?: number[],
   bias = 0,
+  keptInto?: T[],
 ) {
-  const kept: T[] = [],
-    bounds = boundsFor(pages.length);
+  const kept: T[] = keptInto ?? [];
+  if (keptInto) keptInto.length = 0;
+  const bounds = boundsFor(pages.length);
   if (keptIndices) keptIndices.length = 0;
   projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
