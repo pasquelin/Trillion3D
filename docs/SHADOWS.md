@@ -160,8 +160,11 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   depth-read-only stage with no colour target that calls the demand's own `demandLight`
   (`webgpu/blend/marks.ts`), and reads of the material only the base colour's alpha its opacity
   test needs — no lighting, no other map (`marksWgsl.ts`) —, so the blend pass reads its own level and keeps its early depth
-  reject. Water surfaces read what the others asked for. Without the demand or allocation pipeline, the
-  readback's report maps the pages on the host, frames later.
+  reject. Water surfaces mark theirs in the same pass (#1412), by a second fragment stage of that
+  module (`markWaterShadows`): at the point, footprint and eye-facing normal the water composite
+  rebuilds from the depth through the deferred view (`webgpu/water/shadowReadWgsl.ts`, one text for
+  both), so a water pixel reads the level it asked for. Without the demand or allocation pipeline,
+  the readback's report maps the pages on the host, frames later.
 - **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps and
   those mapped before that no draw has filled; the host's words list every page whose depth they
   take (withdrawn on a light move, or overwritten for another entry). One workgroup composes the
