@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
+import '../../impostor/lent.fixture.ts';
 import { createImpostorFeed } from './feed.ts';
 
 /** One mesh's maps, one 8×8 level each: 3 × 256 bytes on the GPU. */
