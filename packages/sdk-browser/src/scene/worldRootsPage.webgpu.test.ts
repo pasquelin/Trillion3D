@@ -9,7 +9,7 @@ import { fakeDevice, replayWrites, written } from '../../../../tests/kit/gpu/fak
 import { createVertexPool } from '../webgpu/core/geometryPool.ts';
 import { createGpuPageCache } from '../gpu/page/pages.ts';
 import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts';
-import { worldRootsPageAddress } from './worldRootsPage.ts';
+import { worldRootsPageAddress } from './worldPageServe.ts';
 
 test('every page lands in the WebGPU float pool and a page slot as cooked (#1238)', async () => {
   installGpuGlobals();
