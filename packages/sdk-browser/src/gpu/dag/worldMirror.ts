@@ -20,6 +20,8 @@
  */
 import type { ResidencyChanges } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
+import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts';
+import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts';
 
 /** The mirror of `packed`, whose root `world` (`packed.cutLinks`), packed last, is the world DAG
  *  with `origins` per rank (`worldRootDag`): the placed object of an object root, -1 otherwise. */
@@ -50,19 +52,41 @@ export function createWorldResidencyMirror(
   /** The placement drawing each object, -1 when none; each placement's objects. */
   const placementOf = new Int32Array(objects).fill(-1),
     objectsOf = new Map<number, Set<number>>();
-  /** Objects whose placement or cover moved, and super-roots whose bundle did, since `update`. */
+  /** Objects whose placement or cover moved since `update`; the pages whose flag moved, each once,
+   *  as the row journal lists them (`webgpu/row/journal.ts`). */
   const dirty = new Set<number>(),
-    superRoots = new Map<number, boolean>();
-  const changed: number[] = [];
-  let pages = new Int32Array(64);
+    changed = createDenseKeySet();
+  const moved = {
+    get pages() {
+      return changed.list;
+    },
+    get count() {
+      return changed.count;
+    },
+    sorted: true,
+  } satisfies ResidencyChanges;
+  /** Whether `moved` was handed over: the next write starts a new list. */
+  let handed = false;
+  /** Writes `page`'s flag; whether it moved. */
   const write = (page: number, value: number) => {
-    if (flags[page] === value) return;
+    if (flags[page] === value) return false;
+    if (handed) changed.clear();
+    handed = false;
     flags[page] = value;
-    changed.push(page);
+    changed.add(page);
+    return true;
   };
   /** Whether every root of placement `w`'s cover is resident: a primitive without its group
    *  structure is all roots. */
+  const covers = new Map<number, boolean>();
   const coverResident = (w: number) => {
+    const known = covers.get(w);
+    if (known !== undefined) return known;
+    const resident = readCover(w);
+    covers.set(w, resident);
+    return resident;
+  };
+  const readCover = (w: number) => {
     const { structure, pageBase: base, pageCount: count } = packed.cutLinks[w];
     if (structure) return structure.roots.every((root) => flags[base + root] !== 0);
     for (let page = base; page < base + count; page++) if (!flags[page]) return false;
@@ -74,37 +98,37 @@ export function createWorldResidencyMirror(
     for (let at = first[object]; at < first[object + 1]; at++) write(pageBase + ranks[at], value);
   };
   const scenePage = (scene: ArrayLike<number>, page: number) => {
-    const value = scene[page] ? 1 : 0;
-    if (flags[page] === value) return;
-    write(page, value);
-    for (const object of objectsOf.get(pageWorlds[page]) ?? []) dirty.add(object);
+    if (!write(page, scene[page] ? 1 : 0)) return;
+    const own = objectsOf.get(pageWorlds[page]);
+    if (own) for (const object of own) dirty.add(object);
   };
+  /** Object `object` left its placement: its object roots turn out at the next `update`. */
+  function unplace(object: number) {
+    const w = object < objects ? placementOf[object] : -1;
+    if (w < 0) return;
+    placementOf[object] = -1;
+    const own = objectsOf.get(w)!;
+    own.delete(object);
+    if (!own.size) objectsOf.delete(w);
+    dirty.add(object);
+  }
   return {
     /** The residency the cut reads, every packed page: the scene's, then the world DAG's. */
     flags,
     /** Object `object` (an `origin`) is drawn by scene placement `w` (`packed.cutLinks`). */
     place(object: number, w: number) {
       if (object >= objects || placementOf[object] === w) return;
-      this.unplace(object);
+      unplace(object);
       placementOf[object] = w;
       const own = objectsOf.get(w);
       if (own) own.add(object);
       else objectsOf.set(w, new Set([object]));
       dirty.add(object);
     },
-    /** Object `object` left its placement: its object roots turn out at the next `update`. */
-    unplace(object: number) {
-      const w = object < objects ? placementOf[object] : -1;
-      if (w < 0) return;
-      placementOf[object] = -1;
-      const own = objectsOf.get(w)!;
-      own.delete(object);
-      if (!own.size) objectsOf.delete(w);
-      dirty.add(object);
-    },
+    unplace,
     /** Super-root `rank` of the world DAG is resident, or no longer: its bundle is held or left. */
     superRoot(rank: number, resident: boolean) {
-      if (origins[rank] < 0) superRoots.set(rank, resident);
+      if (origins[rank] < 0) write(pageBase + rank, resident ? 1 : 0);
     },
     /**
      * The scene's residency `scene` — the rows' flags, one per scene page — at the pages `changes`
@@ -113,20 +137,16 @@ export function createWorldResidencyMirror(
      */
     update(scene: Uint32Array, changes?: ResidencyChanges) {
       if (scene.length !== pageBase) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      changed.length = 0;
+      if (handed) changed.clear();
       if (changes?.sorted)
         for (let i = 0; i < changes.count; i++) scenePage(scene, changes.pages[i]);
       else for (let page = 0; page < pageBase; page++) scenePage(scene, page);
-      for (const [rank, resident] of superRoots) write(pageBase + rank, resident ? 1 : 0);
-      superRoots.clear();
       for (const object of dirty) mirror(object);
       dirty.clear();
-      changed.sort((a, b) => a - b);
-      if (pages.length < changed.length) pages = new Int32Array(changed.length * 2);
-      pages.set(changed);
-      return { flags, changes: { pages, count: changed.length, sorted: true } as ResidencyChanges };
+      covers.clear();
+      sortPages(changed.list, changed.count);
+      handed = true;
+      return { flags, changes: moved };
     },
   };
 }
-
-export type WorldResidencyMirror = ReturnType<typeof createWorldResidencyMirror>;
