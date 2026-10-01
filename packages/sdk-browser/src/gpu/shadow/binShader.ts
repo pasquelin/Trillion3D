@@ -19,11 +19,11 @@ import { KEPT_LISTS_WGSL, MOBILITY_CORNER_SHIFT } from './cullShader.ts';
  * triangles, and no command more corners than its region's list did, so a region never runs more
  * vertex invocations than before. The last class takes every larger caster: a line page's, say.
  */
-export const SHADOW_BIN_CLASSES = 4,
-  SHADOW_BIN_CORNERS = 96;
+export const SHADOW_BIN_CLASSES = 4;
+const SHADOW_BIN_CORNERS = 96;
 /** A region's commands — its two lists' (`KEPT_LISTS_WGSL`), one per class each — and bytes. */
-export const SHADOW_BIN_COMMANDS = SHADOW_REGION_COMMANDS * SHADOW_BIN_CLASSES,
-  SHADOW_BIN_REGION_BYTES = SHADOW_BIN_COMMANDS * DRAW_INDIRECT_STRIDE;
+const SHADOW_BIN_COMMANDS = SHADOW_REGION_COMMANDS * SHADOW_BIN_CLASSES;
+export const SHADOW_BIN_REGION_BYTES = SHADOW_BIN_COMMANDS * DRAW_INDIRECT_STRIDE;
 /** Words a caster place holds with its stored matrix (OMB-25): its row, then 16 floats. */
 export const BIN_STORED_STRIDE = 17;
 /** Invocations of a bin workgroup: one workgroup a region. */
