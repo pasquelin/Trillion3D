@@ -12,7 +12,7 @@ import { SHADOW_FRESH_DRAWS_WGSL } from './freshDrawsWgsl.ts';
 import { FRESH_ARG, FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING } from './freshLayout.ts';
 import { FRESH_PARAMS, FRESH_STILL, freshArgWords, freshDrawWord } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL } from './freshLayoutWgsl.ts';
-import { LAYERS, frame } from './freshPass.fixture.ts';
+import { LAYERS, STATIC_GROUPS, frame, passLabels, withStaticLayer } from './freshPass.fixture.ts';
 import { runShadowPairs } from './freshRun.fixture.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -20,11 +20,9 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 test('each layer draws its new pages’ still casters into the static layer, then restores the pool from it under the moving ones', () => {
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
-  const layerGroups = ['static group 0', 'static group 1'];
-  const freshPasses = layerGroups.map(() => ({ label: FRESH_LAYER_PASS }));
-  lights.staticLayer = { passes: [{}, {}], freshPasses, groups: layerGroups };
+  withStaticLayer(lights);
   encode();
-  const passes = calls.filter((call) => call[0] === 'pass').map((call) => call[1]);
+  const passes = passLabels(calls);
   assert.deepEqual(passes, [FRESH_LAYER_PASS, 'layer 0', FRESH_LAYER_PASS, 'layer 1']);
   for (let layer = 0; layer < LAYERS; layer++) {
     const into = calls.findIndex((call) => call[1] === `layer ${layer}`),
@@ -38,7 +36,7 @@ test('each layer draws its new pages’ still casters into the static layer, the
     ]);
     assert.deepEqual(calls.slice(into + 3, into + 9), [
       ['group', 2, 'pool group'],
-      ['group', 3, layerGroups[layer]],
+      ['group', 3, STATIC_GROUPS[layer]],
       ['pipeline', 'restore'],
       ['draw', 'freshArgs', 4 * freshDrawWord(layer, FRESH_CLEAR)],
       ['pipeline', 'movingCasters'],

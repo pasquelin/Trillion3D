@@ -27,3 +27,26 @@ export function reflectionLayout(device: GPUDevice) {
   }
   return layout;
 }
+
+/** The bindings of the rough reflection resolve (`resolveWgsl.ts`). */
+export function reflectionResolveLayout(device: GPUDevice) {
+  const visibility = GPUShaderStage.FRAGMENT;
+  return device.createBindGroupLayout({
+    entries: [
+      ...Array.from({ length: 8 }, (_, binding) => ({
+        binding,
+        visibility,
+        texture: {
+          sampleType: (binding === 2 || binding === 5
+            ? 'depth'
+            : binding === 4 || binding === 7
+              ? 'uint'
+              : 'unfilterable-float') as GPUTextureSampleType,
+        },
+      })),
+      { binding: 8, visibility, buffer: { type: 'uniform' } },
+      { binding: 9, visibility, buffer: { type: 'read-only-storage' } },
+      { binding: 10, visibility, buffer: { type: 'read-only-storage' } },
+    ],
+  });
+}

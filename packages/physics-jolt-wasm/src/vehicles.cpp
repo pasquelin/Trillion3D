@@ -309,6 +309,31 @@ void setBars(Vehicle &v, float dt) {
   }
 }
 
+/// The vehicle's engine, whichever its controller.
+VehicleEngine &vehicleEngine(Vehicle &v) {
+  VehicleController *controller = v.constraint->GetController();
+  if (v.kind == TRACKED) return static_cast<TrackedVehicleController *>(controller)->GetEngine();
+  return static_cast<WheeledVehicleController *>(controller)->GetEngine();
+}
+
+/// The vehicle's gearbox, whichever its controller.
+const VehicleTransmission &vehicleGearbox(const Vehicle &v) {
+  const VehicleController *controller = v.constraint->GetController();
+  if (v.kind == TRACKED) return static_cast<const TrackedVehicleController *>(controller)->GetTransmission();
+  return static_cast<const WheeledVehicleController *>(controller)->GetTransmission();
+}
+
+/// Holds a parked vehicle's brakes, its engine turning nothing: it idles. Jolt lets a vehicle
+/// sleep only once its engine idles (`VehicleEngine::AllowSleep`); left to spin down from
+/// 2,500 rpm for seven seconds, a car braked to a stop stayed awake, its body shaking 0.4 mm a
+/// step on its brakes, and every shadow page under it and its wheels was drawn again each frame
+/// (#831). A tracked vehicle pivoting on the spot is parked too, but drives: its engine runs.
+float holdParked(Vehicle &v) {
+  VehicleEngine &engine = vehicleEngine(v);
+  if (!engine.AllowSleep()) engine.SetCurrentRPM(engine.mMinRPM);
+  return 1;
+}
+
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
 /// inner track, or turns on the spot at a standstill (Jolt's vehicle samples). Parked — not driven
@@ -331,11 +356,11 @@ void applyInput(Vehicle &v, float dt) {
     float &inner = v.steered > 0 ? right : left;
     if (amount > 0 && forward == 0 && brake == 0 && std::abs(speed) < PIVOT) forward = amount, inner = -1;
     else inner = 1 - amount * (1 - v.trackTurn);
-    if (v.parked && forward == 0) brake = 1;
+    if (v.parked && forward == 0) brake = holdParked(v);
     static_cast<TrackedVehicleController *>(controller)->SetDriverInput(forward, left, right, std::max(brake, v.handbrake));
     return;
   }
-  if (v.parked) brake = 1;
+  if (v.parked) brake = holdParked(v);
   // Leaned, a motorcycle brakes less, or it slides out from under its rider (Jolt's sample).
   if (v.kind == MOTORCYCLE && brake > 0) {
     Vec3 up = body.GetRotation() * UP, ahead = body.GetRotation() * FORWARD;
@@ -404,9 +429,8 @@ void writeVehicles() {
     if (body.IsActive()) vehicle.restWrites = 0;
     else if (vehicle.restWrites >= REST_WRITES) continue;
     else ++vehicle.restWrites;
-    const auto *controller = vehicle.constraint->GetController();
-    const VehicleEngine &engine = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetEngine() : static_cast<const WheeledVehicleController *>(controller)->GetEngine();
-    const VehicleTransmission &gearbox = vehicle.kind == TRACKED ? static_cast<const TrackedVehicleController *>(controller)->GetTransmission() : static_cast<const WheeledVehicleController *>(controller)->GetTransmission();
+    const VehicleEngine &engine = vehicleEngine(vehicle);
+    const VehicleTransmission &gearbox = vehicleGearbox(vehicle);
     uint32_t count = uint32_t(vehicle.constraint->GetWheels().size());
     state.push_back(vehicle.id);
     state.push_back(count);
