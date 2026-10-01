@@ -16,7 +16,7 @@ import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS, freshArgWords } from 
 import { POOL_COUNTS } from './poolWgsl.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { FRESH_LANES } from './freshLanes.ts';
-import { NO_PARENT, ROW_LOD_FLOATS } from './rowLods.ts';
+import { ROW_LOD_FLOATS } from './rowLodWords.ts';
 import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 /** Word of region `k`'s pairs in the arguments of a pool of `pages`: the last `pages` words
@@ -137,7 +137,7 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
         get: (_, row) => {
           const at = ROW_LOD_FLOATS * Number(row),
             of = (i: number) => (lodFloats ? [...lodFloats.subarray(at + i, at + i + 4)] : null);
-          return { own: of(0) ?? [0, 0, 0, 0], parent: of(4) ?? [0, 0, 0, NO_PARENT] };
+          return { own: of(0) ?? [0, 0, 0, 0], parent: of(4) ?? [0, 0, 0, Infinity] };
         },
       }),
       laneScan,
