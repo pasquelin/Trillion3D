@@ -20,7 +20,7 @@ const REFLECTION_FILTER_PLANE = 0.1;
  *  neighbourhood holds too few traced samples to clip it by (`REFLECTION_CLIP_SAMPLES`): a
  *  reflection there lags them by about this many frames. Everywhere else the history keeps its
  *  whole window, clipped (#831). */
-export const REFLECTION_MOVING_KEPT = 4;
+const REFLECTION_MOVING_KEPT = 4;
 /** While its sources or camera move, a history's mean is clipped to this image's neighbourhood —
  *  the traced texels around the pixel on its receiver, lobe and plane — at its mean plus or minus
  *  this many standard deviations, as the reference engine's temporal filters clip theirs (#831): a reflection
