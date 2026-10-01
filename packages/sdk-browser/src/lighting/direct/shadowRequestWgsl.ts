@@ -8,12 +8,13 @@ export const shadowRequestBits = (pages = SUN_WINDOW) => shadowEntryBits(pages);
  * What a reading asks of the scheduler. The shading that marks writes the page into the request
  * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does not
  * mark — the blend forward stage, which keeps its early depth reject — reads without asking.
- * `shadowRequesting` is the pass's to set on a lane that asks per subgroup.
+ * `shadowRequesting` is the pass's to set on a lane that asks per subgroup. The buffer is bound at
+ * `binding` of `group`: the transparents' marks bind it beside the blend pass's groups (#1411).
  */
-export const shadowRequestWgsl = (binding: number | null, pages = SUN_WINDOW) =>
+export const shadowRequestWgsl = (binding: number | null, pages = SUN_WINDOW, group = 0) =>
   binding === null
     ? 'fn requestShadowPage(e:u32){}'
-    : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
+    : `@group(${group}) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
 var<private> shadowRequesting:bool=false;
 ${laneRequestWgsl(pages)}`;
 

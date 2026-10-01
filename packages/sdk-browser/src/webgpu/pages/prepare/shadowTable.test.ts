@@ -23,6 +23,7 @@ test('a shadow-casting light added after prepare has its shadow in its first fra
     lights,
     context: {},
     vis: { visEnabled: true, visBindGroupLayout: {} },
+    blendState: { blendGpu: [] },
     layout: { rows: { casterSlots: 64 } },
     capabilities: { unsupported: [] },
     diag: {
