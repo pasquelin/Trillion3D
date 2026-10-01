@@ -1,5 +1,5 @@
 import { fallbackUniform } from './pipelineFor.ts';
-import { pageTableBuffer } from '../render/encodeDraws.ts';
+import { pageTableBuffer } from '../render/pageTable.ts';
 import { zeroFlagsBuffer } from '../../visibility/shaders.ts';
 import { growShadowRows } from '../../shadow/rowBuffers.ts';
 import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts';

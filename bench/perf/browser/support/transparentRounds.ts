@@ -11,9 +11,9 @@ import {
 import {
   instanceItem,
   RUN_SHARED,
-  RUN_WORDS,
   runOwner,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
+import { RUN_WORDS } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
 import {
   benchSide,
   glisse,

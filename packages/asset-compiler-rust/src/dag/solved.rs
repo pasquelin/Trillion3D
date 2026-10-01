@@ -18,8 +18,8 @@ use super::charts::{densities, folded_span, longest_edge, open_border_welded, we
 use super::grown::Placed;
 use super::placed::Local;
 use super::quality::backlit_corners;
-use super::reduce::Stop;
 use super::retries::{with_lock_retries, Pass};
+use super::stopped::Stop;
 use super::*;
 use crate::qem::solve::Region;
 use std::borrow::Cow;

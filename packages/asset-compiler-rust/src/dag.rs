@@ -171,6 +171,7 @@ pub(crate) mod quality;
 pub(crate) mod reduce;
 mod retries;
 mod solved;
+mod stopped;
 mod tally;
 #[cfg(test)]
 mod tests;

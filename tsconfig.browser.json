@@ -1,0 +1,11 @@
+{
+  "//": "The browser SDK's own types. `tsconfig.core.json` covers `sdk-core` alone, so a name that no longer resolves inside `sdk-browser` — a moved constant left behind, a re-export that publishes a name without binding it — reached the frame as a `ReferenceError` the fallback swallowed, and the failure arrived as a message about the wrong thing entirely. Six seconds to compile, and it is the largest package in the tree.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["node", "@webgpu/types"],
+    "noEmit": true
+  },
+  "include": ["packages/sdk-browser/**/*.ts"],
+  "exclude": ["packages/sdk-browser/**/*.test.ts", "packages/sdk-browser/**/*.fixture.ts"]
+}

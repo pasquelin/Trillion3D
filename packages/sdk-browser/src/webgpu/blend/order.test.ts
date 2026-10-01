@@ -5,7 +5,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { orderBlendPasses } from './order.ts';
-import { RUN_WORDS } from './runs.ts';
+import { RUN_WORDS } from './planLayout.ts';
 import { blendSceneOf } from './plan.fixture.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
 

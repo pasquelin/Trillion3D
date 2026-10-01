@@ -3,7 +3,7 @@ import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surfac
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
 import { filtersDisplay } from './equations.ts';
 import { buildBlendHierarchy } from './hierarchy.ts';
-import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
+import { RUN_WORDS, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 import {
   PLAN_PIPELINE_MASK,

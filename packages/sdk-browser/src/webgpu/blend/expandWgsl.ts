@@ -5,7 +5,8 @@ import {
   PLAN_SHIFT,
   PLAN_VERTEX_CULL_BIT,
 } from './planEntry.ts';
-import { EXPAND_GROUP, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
+import { INSTANCE_CULL_SHIFT } from './runs.ts';
+import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
 import { expandUniformWgsl } from './expandUniform.ts';
 import { EXPAND_BINDING as B } from './expandBindings.ts';
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';

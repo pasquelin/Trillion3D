@@ -6,7 +6,7 @@ import { sendDrawItemWords } from '../../visibility/itemWords.ts';
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
-import { encodeSurfaceLighting } from './encodeBlend.ts';
+import { encodeSurfaceLighting } from './surfaceLighting.ts';
 import { followDirtyRows } from './encodeDraws.ts';
 import {
   encodeEmptySurfaces,
