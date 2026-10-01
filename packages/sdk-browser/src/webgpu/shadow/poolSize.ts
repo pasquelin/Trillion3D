@@ -9,6 +9,7 @@ import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts
 import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
 import { startGrant } from '../../gpu/core/errorScope.ts';
 import { shadowPoolFor } from './poolFor.ts';
+import { reserveStaticLayer } from './staticReserve.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
@@ -186,6 +187,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       adoptShadowPool(rt, atlas, device, granted, ask.wanted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
+      await reserveStaticLayer(rt, staticLayerGranted(lights, diag.engineDiagnostic));
       run.gate.resourcesChanged();
     },
     (error: unknown) => {

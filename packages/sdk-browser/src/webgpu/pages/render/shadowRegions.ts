@@ -12,6 +12,7 @@ import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
+import { takeStaticLayerTexture } from '../../shadow/staticReserve.ts';
 
 import { shadowViewpointOf } from './shadowViewpoint.ts';
 
@@ -79,8 +80,13 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;
-  if (!staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
-  deviceMade(device, () => shadowLayerTexture(device, side, layers))
+  // Made with the pool when its grant held it (`staticReserve.ts`): the move allocates nothing.
+  const kept = takeStaticLayerTexture(lights);
+  if (!kept && !staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
+  (kept
+    ? Promise.resolve(kept)
+    : deviceMade(device, () => shadowLayerTexture(device, side, layers))
+  )
     .then((texture) => {
       if (texture) return createShadowStaticLayer(device, texture);
       noteShadowPressure(lights.memory, 'static-layer-refused');

@@ -1,6 +1,7 @@
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import { reservedStaticBytes } from './staticReserve.ts';
 
 /** A memory-pressure event of the shadows, by name (see `ShadowMemory`). */
 export type ShadowPressure =
@@ -45,7 +46,7 @@ export type ShadowMemory = {
  *  layers once made, its request buffer, and the kept lists' rows its GPU pages' pairs grew. */
 export const shadowPoolHeld = (lights: WebgpuLightState) =>
   (lights.shadows?.allocationBytes ?? 0) +
-  (lights.staticLayer?.bytes ?? 0) +
+  (lights.staticLayer?.bytes ?? reservedStaticBytes(lights)) +
   (lights.pageRequests?.bytes ?? 0) +
   lights.memory.pairBytes;
 
