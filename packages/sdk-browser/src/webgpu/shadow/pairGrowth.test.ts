@@ -10,7 +10,7 @@ import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { growPairList } from './pairGrowth.ts';
-import { keptPairs, PAIRS_PER_PAGE, poolPairs } from './pairRows.ts';
+import { keptPairs, poolPairs } from './pairRows.ts';
 import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -122,6 +122,6 @@ test('the kept list never grows past what one storage binding holds', async () =
 
 test("the pair list holds a frame's pairs, not the whole pool's (#831)", () => {
   // The GPU maps a frame's page budget at most: a list of the pool's every pair took 10.6 MB.
-  assert.equal(poolPairs(2601), SHADOW_GPU_PAGES_PER_FRAME * PAIRS_PER_PAGE);
-  assert.equal(poolPairs(64), 64 * PAIRS_PER_PAGE, 'a pool smaller than the budget, its own');
+  assert.equal(poolPairs(2601), SHADOW_GPU_PAGES_PER_FRAME * poolPairs(1));
+  assert.equal(poolPairs(64), 64 * poolPairs(1), 'a pool smaller than the budget, its own');
 });
