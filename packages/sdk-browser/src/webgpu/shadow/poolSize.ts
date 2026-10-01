@@ -22,11 +22,27 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
-/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else what the screen it
- *  opened on asks (`screenPoolPages`), chosen once; the memory budget's pool bounds it
+type PoolContext = Pick<BackendContext, 'shadowPoolPages' | 'viewport' | 'pixelRatio'>;
+
+/** The widest drawing buffer a session can reach: its canvas as it opens, or its display's whole
+ *  screen at its pixel ratio, whichever is wider each way. A window enlarged or put full screen
+ *  later then keeps the shadow pages it reads, with a pool never resized (#831). */
+function shadowPoolScreen(context: PoolContext) {
+  const display = globalThis.screen;
+  const [width, height] = context.viewport ?? [1, 1];
+  if (!display) return [width, height] as const;
+  const ratio = context.pixelRatio?.() ?? 1;
+  return [
+    Math.max(width, Math.floor(display.width * ratio)),
+    Math.max(height, Math.floor(display.height * ratio)),
+  ] as const;
+}
+
+/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else what its screen reads
+ *  (`screenPoolPages`, `shadowPoolScreen`), chosen once; the memory budget's pool bounds it
  *  (`shadowPoolFor`). */
-const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages' | 'viewport'>) =>
-  context.shadowPoolPages ?? screenPoolPages(...(context.viewport ?? [1, 1]));
+const shadowPoolPagesOf = (context: PoolContext) =>
+  context.shadowPoolPages ?? screenPoolPages(...shadowPoolScreen(context));
 
 /** Pages a side of one layer as wide as a device of `limits` draws: a pool that fits it is one
  *  pass a batch; the portable side when the device names none. */
@@ -36,7 +52,7 @@ const layerSideOf = (limits: Partial<Pick<GPUSupportedLimits, 'maxTextureDimensi
 /** The pool's shape on a device of `limits`, chosen once as the session opens: the host plan is
  *  made at it (`../pages/runtime.ts`), and the grant asks its pages (`sizeShadowPool`). */
 export const shadowPoolShapeOf = (
-  context: Pick<BackendContext, 'shadowPoolPages' | 'viewport'>,
+  context: PoolContext,
   limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
 ) => shadowPoolShape(shadowPoolPagesOf(context), limits && layerSideOf(limits));
 
@@ -122,20 +138,10 @@ function adoptShadowPool(
   });
 }
 
-/** The pool full, said once as it comes to be (`poolCeiling.ts`), as the reference engine warns of a physical
- *  page pool overflow: what the scene asks past it reads the coarser level (`shadowPagesOverflow`). */
-export function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
-  rt.diag.engineDiagnostic(
-    'shadow-pool',
-    'The shadow pool is full: the pages past it read the coarser level',
-    { kind: 'warning', version: 2, wanted, pages: rt.lights.plan.pool.pages, clamp: 'ceiling' },
-  );
-}
-
 /**
  * Allocates the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
- * once, at the pages the plan was made at — the `shadowPoolPages` option, else what the screen the
- * session opened on reads (`shadowPoolPagesOf`) —, as the reference engine allocates its physical pages up front
+ * once, at the pages the plan was made at — the `shadowPoolPages` option, else what the display's screen
+ * reads (`shadowPoolPagesOf`) —, as the reference engine allocates its physical pages up front
  * from `a reference setting`: it is never resized after (`poolCeiling.ts`), so a page
  * keeps its place, its depth and its static layer for as long as it is mapped (#831). Until then
  * no shadow page exists; the plan built at creation pages the granted pool from then on

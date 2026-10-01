@@ -26,7 +26,7 @@ export function poseHoldsBox(
   heldAt = 0,
 ) {
   if (sameElements(held, now, heldAt)) return true;
-  for (const i of [3, 7, 11, 15]) if (held[heldAt + i] !== now[i]) return false;
+  for (let i = 3; i < 16; i += 4) if (held[heldAt + i] !== now[i]) return false;
   let moved = 0,
     reach = 0;
   for (let row = 0; row < 3; row++) {
