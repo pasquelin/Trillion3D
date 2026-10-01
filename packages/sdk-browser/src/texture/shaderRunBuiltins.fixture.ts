@@ -76,6 +76,11 @@ const float = (x: Scalar) => Number(x);
 const int = (x: Scalar) => Math.trunc(Number(x));
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)));
+/** A float's 32 bits as an unsigned integer, and back: `bitcast`. */
+const WORD = new Float32Array(1),
+  BITS = new Uint32Array(WORD.buffer);
+const toBits = each((x) => ((WORD[0] = n(x)), BITS[0]));
+const toFloat = each((x) => ((BITS[0] = n(x)), WORD[0]));
 const vec = (value: Value) => value as number[];
 
 /** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */
@@ -99,6 +104,10 @@ export const builtins = {
   vec4f: vector(4, float),
   vec2i: vector(2, int),
   vec2u: vector(2, (x) => int(x) >>> 0),
+  vec3u: vector(3, (x) => int(x) >>> 0),
+  bitcast_u32: toBits,
+  bitcast_vec3u: toBits,
+  bitcast_f32: toFloat,
   f32: each(float),
   i32: each(int),
   u32: each((x) => int(x) >>> 0),

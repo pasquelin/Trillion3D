@@ -25,9 +25,9 @@ export type LitPrograms = ContractVariantOptions & {
   bounce: boolean;
 };
 
-/** The contract program these resources light with: with bounce, narrow, unshadowed. */
-const contractOf = (direct: DirectLightResources) =>
-  [!!direct.bounceGrid && !!direct.probes, !!direct.narrow, !!direct.unshadowed] as const;
+/** The contract program these resources light with: with bounce, narrow, unshadowed, rectless. */
+const contractOf = ({ bounceGrid, probes, narrow, unshadowed, rectless }: DirectLightResources) =>
+  [!!bounceGrid && !!probes, !!narrow, !!unshadowed, !!rectless] as const;
 
 /** Deferred and frozen-source lighting programs: the lit ones from the start when `lit` says so,
  *  else compiled lazily for the active lighting mode. */

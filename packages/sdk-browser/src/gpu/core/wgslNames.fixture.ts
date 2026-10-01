@@ -21,7 +21,7 @@ const WGSL_OWN = new Set(
     'r32float r32uint rg32float rgba8unorm rgba16float rgba32float rgba32uint ' +
     'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicLoad ' +
     'atomicMax atomicMin atomicOr atomicStore atomicSub ceil clamp cos countLeadingZeros countOneBits cross ' +
-    'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit ' +
+    'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit firstTrailingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
     'pack2x16float pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
     'sign sin smoothstep sqrt step storageBarrier subgroupAny subgroupBroadcastFirst subgroupElect ' +

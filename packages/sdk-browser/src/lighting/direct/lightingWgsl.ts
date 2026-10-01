@@ -6,7 +6,7 @@ import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
-import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
+import { directLightSamplingWgsl } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
@@ -21,29 +21,30 @@ export const CONTRACT_SHADOW_BINDINGS = {
   translucentDepth: 19,
 };
 
-/** A tile's slice of lights: a list, a pool slice past `TILE_LIGHTS`, or every light — what the
- *  wide resolve walks, and the shadow demand pass (`../../webgpu/shadow/demandWgsl.ts`). */
+/** A cell's list of lights — what the resolves walk, and the shadow demand pass
+ *  (`../../webgpu/shadow/demandWgsl.ts`). */
 export const TILE_SLICE_WGSL = `
-/** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
- *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
- *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
-fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
- let kept=tileLights[base+countSlot];
- if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
- let first=tileLights[base+firstSlot];
- return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
+/** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
+ *  many (#1369). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+fn cellSlice(base:u32)->vec2u{
+ let first=tileLights[base+1u];
+ return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }`;
-/** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting, the range reject without
- *  shadow code (`sliceLightingWgsl`). */
-const wideSliceWgsl = (reject: boolean) => `${TILE_SLICE_WGSL}${sliceLightingWgsl(false, reject)}`;
 /**
- * The narrow resolve's slices (#849): a scene of at most `TILE_LIGHTS` lights runs the narrow
- * tile pass, so no tile passes its list and none walks the pool or the whole scene. The slice is
- * the list itself — the same lights in the same order as the wide loop, so the same sum, bit for
- * bit — run on a device against the wide loop by `tests/browser/probes/narrow-resolve-gpu.ts`.
+ * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the shadow
+ * demand pass (`../../webgpu/shadow/demandWgsl.ts`), both on the deferred view (#1369). Without
+ * `shadowed`, the program with no shadow code: no cell reads a shadow.
  */
-const narrowSliceWgsl = (reject: boolean) => `
-fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}${sliceLightingWgsl(true, reject)}`;
+export const pixelCellWgsl = (shadowed = true) => `
+/** The record of the pixel's cell at depth \`z\`, \`TILE_NO_SLICE\` with no list: no light, or past
+ *  the grid. The surface reads it once, for its shadow setup and its lighting. */
+fn pixelCell(pixel:vec2f,z:f32)->u32{
+ if(u32(view.lightParams.x)==0u){return TILE_NO_SLICE;}
+ return gridCell(pixel,z,vec2u(view.lightParams.yz));
+}
+/** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
+ *  of its count. */
+fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`;
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
@@ -64,6 +65,7 @@ const lightingBase = (
   pages: number,
   narrow = false,
   shadowed = true,
+  rects = true,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
@@ -76,7 +78,7 @@ var<private> thinSubsurface:vec3f=vec3f(0.0);
 /** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
  * Material contract: reference public Two Sided Foliage; this is our Lambert implementation. */
 fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
-${declaredLightWgsl(shadowed)}
+${declaredLightWgsl(shadowed, rects)}
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
@@ -84,17 +86,13 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
-fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
-${narrow ? narrowSliceWgsl(!shadowed) : wideSliceWgsl(!shadowed)}
-fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
- return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
-}`;
+${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed)}`;
 
 /**
  * Resolve of the direct-lighting contract in the visibility buffer. The pixel loop is bounded
- * by its tile list, never by the scene light count (X2); Lambert and GGX come from
- * `standardLighting`, the only reference implementation; attenuation is physical and cancels
- * at range.
+ * by the list of its cell of the light grid, never by the scene light count (X2); Lambert and GGX
+ * come from `standardLighting`, the only reference implementation; attenuation is physical and
+ * cancels at range.
  *
  * No light without a declared source (P6): there is no ambient term here, no constant sky, no
  * lighting written in the scene. A surface that no declared light reaches is exactly zero,
@@ -103,46 +101,48 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * `view.viewport.w` is the rank of a SAMPLED image — a moving one that temporal antialiasing
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
- * over every light of the tile, character for character; so is it on a sampled image whose tile
- * list holds no shadowed light (`tileShadowed`, #1249), a flag the tile pass writes once.
+ * over every light of the cell, character for character; so is it on a sampled image whose cell
+ * lists no shadowed light (#1249), a flag the grid pass writes once in the cell's count.
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
- * that long and its slice loop no pool branch (`narrowSliceWgsl`), as the narrow tile pass
- * writes (`../tiles/shader.ts`). Without `shadowed`, the resolve of a scene no light of which
- * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249)
- * and the range reject in its loop (`sliceLightingWgsl`).
+ * that long. Without `shadowed`, the resolve of a scene no light of which holds a shadow slot: the
+ * same sums with no shadow code compiled in (`declaredLightWgsl`, #1249) and the range reject in
+ * its loop (`sliceLightingWgsl`). Without `rects`, the resolve of a scene that holds no rectangle
+ * light: the same sums with no rectangle code in the light loop (`declaredLightWgsl`, #1369).
  */
-export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW, shadowed = true) => `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed)}
-${DIRECT_LIGHT_SAMPLING_WGSL}
-/** Contribution of the contract lights to the pixel, tile by tile and light by light. */
-fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
- if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
- let tile=pixelTile(pixel);
- let tilesX=u32(view.lightParams.y);
- let tilesY=u32(view.lightParams.z);
- if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
+export const directLightingWgsl = (
+  narrow = false,
+  pages = SUN_WINDOW,
+  shadowed = true,
+  rects = true,
+) => `
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed, rects)}
+${directLightSamplingWgsl(rects)}
+${pixelCellWgsl(shadowed)}
+/** Contribution of the contract lights to the pixel, light by light of its cell's list;
+ *  \`shadowed\` is \`cellShadowed(cell)\`. The full sum has this one call site: a list the draw
+ *  refuses — short, long, or with no room in the pool — takes it, as a still image does. */
+fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,cell:u32,shadowed:bool)->vec3f{
+ if(cell==TILE_NO_SLICE){return vec3f(0.0);}
+ let slice=cellSlice(cell);
  let rank=u32(view.viewport.w);
- if(rank==0u||!tileShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
- return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
+ if(rank==0u||!shadowed||slice.x==TILE_NO_SLICE||!sampledList(slice.y)){return sliceLighting(rgb,metal,rough,N,V,P,ao,slice);}
+ return sampledSliceLighting(rgb,metal,rough,N,V,P,ao,slice,rank,pixel);
 }`;
 export const DIRECT_LIGHTING_WGSL = directLightingWgsl();
 
 /**
- * Declared lights that light a blend surface, taken from the **blend slice** of its tile
- * list: the one that goes from the near plane to the opaque background, and that is the tile's
- * whole column where any pixel sees the sky. That is the slice that is needed, because a
- * blend surface is drawn in front of its pixel's opaque: the opaque slice would take declared
- * lights away from it, and foliage placed in front of the sky would keep none.
+ * Declared lights that light a blend surface, taken from the list of the cell its own depth `z`
+ * falls in (#1369): a blend surface drawn in front of its pixel's opaque, or against the sky,
+ * finds the lights of the cell it stands in, never those of the opaque behind it.
  *
  * The loop stays **exact**, and its sum is that of the loop over every light, bit for bit:
- * a light absent from the list meets no point of the slice — its range sphere does not
- * touch the slice's box or column —, so `declaredLight` would have returned exactly `vec3f(0.0)`, and
- * removing a zero from a float sum does not change it. What changes is the number of lights
- * walked, hence the number of shadow-atlas reads.
+ * a light absent from the list meets no point of the cell, so `declaredLight` would have returned
+ * exactly `vec3f(0.0)`, and removing a zero from a float sum does not change it. What changes is
+ * the number of lights walked, hence the number of shadow-atlas reads.
  *
- * With no list — a device that could not fit the tile pass —, the loop falls back on the
- * declared lights, every one of them.
+ * With no list — a device that could not fit the grid pass, or a pixel past the grid —, the loop
+ * falls back on the declared lights, every one of them.
  */
 export const declaredLightingWgsl = (
   proxyBinding: number,
@@ -151,12 +151,9 @@ export const declaredLightingWgsl = (
   pages = SUN_WINDOW,
 ) => `
 ${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding, pages)}
-fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
- let tilesX=u32(uni.lightTiles.x);
- let tilesY=u32(uni.lightTiles.y);
- let tile=pixelTile(pixel);
- if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
-  return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count));
- }
- return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
+ let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
+ var slice=vec2u(TILE_NO_SLICE,directLights.count);
+ if(cell!=TILE_NO_SLICE){slice=cellSlice(cell);}
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,slice);
 }`;

@@ -36,6 +36,9 @@ export const AS_IS_FLAG = 3;
 export const SURFACE_MODEL_MASK = 7;
 /** The r8 surface target's high bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128;
+/** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`
+ *  (`surfaceEmission.ts`, #1369); 32 is the thin subsurface's (`subsurface.ts`). */
+export const EMISSIVE_AO_SURFACE_FLAG = 16;
 /** The forward item's model lane has one free bit after the three model bits. */
 export const FOG_FREE_MODEL_BIT = 8;
 

@@ -13,7 +13,6 @@ import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageM
 import { laneRequestWgsl, subgroupRequestWgsl } from '../../lighting/direct/requestLanesWgsl.ts';
 import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
 import { mipShader } from '../../texture/mipsWgsl.ts';
-import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
@@ -28,7 +27,3 @@ export const LANE_REQUEST_WGSL = laneRequestWgsl();
 export const SUBGROUP_REQUEST_WGSL = subgroupRequestWgsl();
 export const WATER_COMPOSITE_SHADER = waterCompositeShader();
 export const MIP_SHADER = mipShader(false);
-
-const lightTiles = new Map<string, string>(LIGHT_TILES_SHADERS);
-export const LIGHT_TILES_SHADER = lightTiles.get('LIGHT_TILES_SHADER')!;
-export const LIGHT_TILES_NARROW_SHADER = lightTiles.get('LIGHT_TILES_NARROW_SHADER')!;
