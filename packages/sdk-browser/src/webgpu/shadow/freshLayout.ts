@@ -29,6 +29,9 @@ export const FRESH_LAYER_SHIFT = 16;
  * (`dispatch`, `allocBuffers.ts`).
  */
 export const FRESH_ARG = { regions: 0, pairs: 1, corners: 2, need: 3 } as const;
+/** The bit of a pair's region word set for a moving caster row (#831): the static layer's draw
+ *  leaves it out, as the host's static regions leave out what moves. No region reaches it. */
+export const FRESH_MOVING_PAIR = 2 ** 31;
 /** Draws of a layer: its pages' squares cleared, then every kept caster. */
 export const FRESH_CLEAR = 0,
   FRESH_CASTERS = 1;

@@ -45,12 +45,20 @@ export function createShadowMirror(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
-  previous?: { on: boolean; drawn: number; drewAt: number; drewLast: number },
+  previous?: {
+    on: boolean;
+    drawn: number;
+    drewAt: number;
+    drewLast: number;
+    layeredFrom?: number;
+  },
 ) {
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
   let from = 0,
-    drops = records.drops;
+    drops = records.drops,
+    /** The frame of the last snapshot followed: a page it did not map was drawn after it. */
+    followed = -Infinity;
   const apply = (
     snapshot: ShadowPoolSnapshot,
     reportFrame: number,
@@ -58,6 +66,10 @@ export function createShadowMirror(
     frame: number,
   ) => {
     const { owner, requested } = snapshot;
+    // Every GPU draw since the last snapshot wrote the static layer too (`freshPass.ts`): a page
+    // this one maps for the first time was drawn since, its still casters in the layer.
+    const layered = followed >= mirror.layeredFrom;
+    followed = reportFrame;
     let moved = false;
     for (let page = 0; page < pool.pages; page++) {
       if (owner[page] === pool.owner[page]) continue;
@@ -81,9 +93,9 @@ export function createShadowMirror(
       pool.y[page] = at[2];
       pool.rank[page] = entries.rankOf(slice, at);
       // Drawn once, as the reference engine draws a page: the GPU's draw is kept, never drawn again by the host
-      // until what it holds changes; its static layer is made then (`pool.drawMode`).
+      // until what it holds changes, restored from its static layer when it holds one (#831).
       if (snapshot.gpuDrawn?.[page])
-        pool.keepDraw(page, entries.isSun(slice) ? sun.ranges.current[slice] : 0);
+        pool.keepDraw(page, entries.isSun(slice) ? sun.ranges.current[slice] : 0, layered);
     }
     if (moved) pool.rebuildFree();
   };
@@ -123,8 +135,13 @@ export function createShadowMirror(
       drops = records.drops;
       from = Math.max(from, frame);
     },
-    /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn. */
-    drew(frame: number) {
+    /** The first frame from which every GPU page draw wrote the static layer too; none, Infinity. */
+    layeredFrom: previous?.layeredFrom ?? Infinity,
+    /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn, its
+     *  still casters into the static layer too when `layered`. */
+    drew(frame: number, layered = false) {
+      if (!layered) mirror.layeredFrom = Infinity;
+      else if (mirror.layeredFrom === Infinity) mirror.layeredFrom = frame;
       mirror.drewAt = Math.min(mirror.drewAt, frame);
       mirror.drewLast = Math.max(mirror.drewLast, frame);
     },
