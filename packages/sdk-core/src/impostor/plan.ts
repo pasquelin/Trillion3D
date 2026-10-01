@@ -86,42 +86,52 @@ function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
   return byMesh;
 }
 
+/** The pivot's view-space point, reused: the plan runs every image. */
+const point = /* @__PURE__ */ new Float64Array(3);
+
 /**
  * Plans the impostor tier for one view: every root whose mesh has a baked entry and whose switch
  * holds yields a card and is marked suppressed. `view` maps world to view space (column-major) and
- * `focalPixels` is the engine's one focal length in pixels at the image's viewport.
+ * `focalPixels` is the engine's one focal length in pixels at the image's viewport. `into`, a plan
+ * a previous view returned, is planned again in place: its `switched` and its cards are reused, so
+ * a runtime planning every image allocates nothing once its card count settles.
  */
 export function planImpostors(
   roots: readonly ImpostorRoot[],
   section: ImpostorSection | undefined,
   view: ArrayLike<number>,
   focalPixels: number,
+  into?: ImpostorPlan,
 ): ImpostorPlan {
-  const switched = new Uint8Array(roots.length),
-    cards: ImpostorCard[] = [];
+  const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) };
+  if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length);
+  else plan.switched.fill(0);
+  const { cards, switched } = plan;
+  let count = 0;
   const byMesh = bakedLookup(section);
-  const point = new Float64Array(3);
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
       entry = byMesh.get(root.mesh);
     if (!entry) continue;
     const input = impostorSwitchOf(entry, maxStretch(root.world.elements));
     if (!input) continue;
-    const world = root.world.elements,
-      centre: [number, number, number] = [world[12], world[13], world[14]];
-    transformAffinePoint(point, view, centre[0], centre[1], centre[2]);
+    const world = root.world.elements;
+    transformAffinePoint(point, view, world[12], world[13], world[14]);
     if (!drawsImpostor(input, focalPixels, hypot3(point[0], point[1], point[2]))) continue;
     switched[rank] = 1;
-    cards.push({
-      root: rank,
-      mesh: entry.mesh,
-      world,
-      centre,
-      radius: impostorRadius(input.objectRadius, input.maxWorldScale),
-      frames: entry.frames,
-      hemi: entry.hemi === true,
-      maps: entry.maps,
-    });
+    const card = (cards[count++] ??= {} as ImpostorCard);
+    card.root = rank;
+    card.mesh = entry.mesh;
+    card.world = world;
+    card.centre ??= [0, 0, 0];
+    card.centre[0] = world[12];
+    card.centre[1] = world[13];
+    card.centre[2] = world[14];
+    card.radius = impostorRadius(input.objectRadius, input.maxWorldScale);
+    card.frames = entry.frames;
+    card.hemi = entry.hemi === true;
+    card.maps = entry.maps;
   }
-  return { cards, switched };
+  cards.length = count;
+  return plan;
 }

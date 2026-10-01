@@ -59,8 +59,13 @@ export type WorldRoots = {
     count: number;
     at(page: number): { bundle: number; offset: number; level: number; lodError: number };
   };
-  /** The world cells: how many, and the placed primitives one holds, read at their records. */
-  cells: { count: number; objects(cell: number): WorldRootsObject[] };
+  /** The world cells: how many, the placed primitives one holds, read at their records, and the
+   *  cell holding object `object` — an object root's `origin` (#1332). */
+  cells: {
+    count: number;
+    objects(cell: number): WorldRootsObject[];
+    cellOf(object: number): number;
+  };
 };
 /** One super-root page viewed on its bundle's bytes: its own vertices in world space, and its
  *  triangles as local indices. */
@@ -117,7 +122,8 @@ export function worldBundlePages(bytes: Uint8Array, count: number, bundle: numbe
 /** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots; #1238),
  *  in rank order (`cluster` is its index, which the groups name): the fields the runtime cut
  *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
- *  object root its `origin` (the placed instance). Kept out of the exported `WorldRoots`, whose
+ *  object root its `origin`, the rank among the table's objects of the placed object drawing it
+ *  (`cells.cellOf` finds its cell, #1332). Kept out of the exported `WorldRoots`, whose
  *  shape the API reference translates. */
 export type WorldRootsCluster = {
   cluster: number;

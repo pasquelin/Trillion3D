@@ -5,6 +5,7 @@ import { tileCatalogue } from '../../tile/catalogue.ts';
 import * as grants from '../../residency/poolGrants.ts';
 import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { textureBytesBeside } from './memory.ts';
 
 /** The append each session runs last: the next one draws its lane from the pool that one left. */
 const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>();
@@ -62,7 +63,7 @@ async function appendNow(
     { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
     poolLayerBytes(encoding.texelBytes(lane)),
     {
-      budgetBytes: grants.budgetBeside(setup.texturePoolBudget, streamer.sources.liveBytes).bytes,
+      budgetBytes: grants.budgetBeside(setup.texturePoolBudget, textureBytesBeside(rt)).bytes,
       maxLayers: device.limits.maxTextureArrayLayers,
     },
   );

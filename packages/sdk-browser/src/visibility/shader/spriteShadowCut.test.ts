@@ -63,9 +63,10 @@ test('the CPU and GPU light cuts select no mesh set to cast no shadow', () => {
 });
 
 test('the GPU light cut deposits no root for a sprite in its first queue', () => {
+  // A light cut skips a root that casts no shadow (5), a camera cut one its impostor card draws (8).
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&5u)!=0u);',
+      'let skips=select((mark&8u)!=0u,(mark&5u)!=0u,isLightCut());\n let root=select(rootOf(w),0xffffffffu,skips);',
     ),
   );
 });
