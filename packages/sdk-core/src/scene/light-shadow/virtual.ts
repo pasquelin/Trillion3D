@@ -15,7 +15,7 @@ import { SHADOW_PAGE, SUN_LEVELS, tiles, priorPoolPages, sunEntries } from './su
  *
  * The physical pool is the one size here that depends on the world: `shadowPoolSize`.
  */
-export { SHADOW_PAGE, SUN_LEVELS, sunLevelEntries } from './sunEntries.ts';
+export { SHADOW_PAGE, SUN_LEVELS, screenPoolPages, sunLevelEntries } from './sunEntries.ts';
 /** Pages per side of a lamp face's finest mip. */
 export const LAMP_SIDE = Math.floor(LIGHT_SETTINGS.lampFaceSize / SHADOW_PAGE);
 export const SUN_WINDOW: number = LIGHT_SETTINGS.sunLevelPages;
