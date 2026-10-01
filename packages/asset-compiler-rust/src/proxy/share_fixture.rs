@@ -60,7 +60,8 @@ pub fn lattice(count: usize, cut: Vec<f32>) -> SceneProxy {
     stage_proxy(&inputs).expect("proxy")
 }
 
-/// Develop's v3 columns, encoded independently of the sharing writer.
+/// The flat columns (version 3's, then each source node's mesh, #966), encoded independently of
+/// the sharing writer.
 pub fn flat_file(proxy: &SceneProxy) -> Vec<u8> {
     let p = &proxy.provenance;
     let mut words = vec![
@@ -81,6 +82,7 @@ pub fn flat_file(proxy: &SceneProxy) -> Vec<u8> {
     words.extend_from_slice(&p.group_offsets);
     words.extend_from_slice(&p.owners);
     words.extend(p.source_parents.iter().map(|v| *v as u32));
+    words.extend(p.source_meshes.iter().map(|v| *v as u32));
     let mut bytes: Vec<u8> = words.into_iter().flat_map(u32::to_le_bytes).collect();
     for v in &p.bind_worlds {
         bytes.extend_from_slice(&v.to_le_bytes());

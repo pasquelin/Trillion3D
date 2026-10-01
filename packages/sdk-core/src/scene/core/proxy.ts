@@ -143,7 +143,7 @@ export function decodeSceneProxy(
       1 +
       descriptor.owners * 2) *
       4 +
-    descriptor.instances * (4 + 16 * 8);
+    descriptor.instances * (4 + 4 + 16 * 8);
   if (loose < 0 || buffer.byteLength !== wanted) throw wrongLength(wanted);
   const positions = integers(placed);
   const flat = { triangles: floats(loose * PROXY_TRIANGLE_FLOATS), albedo: integers(loose) };
