@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Object3D } from './object3d.ts';
 import { Matrix4 } from '../math/matrix4.ts';
+import { Vector3 } from '../math/vector3.ts';
 
 const translation = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z);
 
@@ -62,4 +63,63 @@ test('a node posed by storage of its own places its world by it, read after read
   assert.deepEqual([...node.matrixWorld.elements.slice(12, 15)], [2, 1, 0]);
   storage[13] = 5;
   assert.deepEqual([...node.matrixWorld.elements.slice(12, 15)], [2, 5, 0]);
+});
+
+test('a node is unnamed until named, and a cleared update flag reads cleared', () => {
+  const node = new Object3D();
+  assert.ok(!node.name);
+  node.matrixWorldNeedsUpdate = true;
+  assert.equal(node.matrixWorldNeedsUpdate, true);
+  node.matrixWorldNeedsUpdate = false;
+  assert.equal(node.matrixWorldNeedsUpdate, false);
+});
+
+test('localToWorld and worldToLocal take the parent where it stands now', () => {
+  const parent = new Object3D(),
+    child = new Object3D();
+  parent.add(child);
+  child.position.set(0, 1, 0);
+  parent.updateMatrixWorld(true);
+  parent.position.set(10, 0, 0);
+  assert.deepEqual(child.localToWorld(new Vector3(0, 0, 1)).toArray(), [10, 1, 1]);
+  parent.position.set(20, 0, 0);
+  assert.deepEqual(child.worldToLocal(new Vector3(20, 1, 1)).toArray(), [0, 0, 1]);
+});
+
+test('a matrix taken before its tree grows still writes the node', () => {
+  const root = new Object3D(),
+    child = new Object3D();
+  root.add(child);
+  child.matrixAutoUpdate = false;
+  child.matrix.copy(translation(0, 0, 0));
+  for (let i = 0; i < 300; i++) root.add(new Object3D());
+  child.matrix.copy(translation(1, 2, 3));
+  root.updateMatrixWorld(true);
+  assert.deepEqual(child.getWorldPosition().toArray(), [1, 2, 3]);
+});
+
+test('a destroyed node refuses to compose its world', () => {
+  const node = new Object3D();
+  node.destroy();
+  assert.throws(() => node.updateMatrixWorld(), { code: 'STALE_SCENE_NODE' });
+});
+
+test('a node posed by storage of its own reads its world against its tree as last composed', () => {
+  const parent = new Object3D(),
+    node = new Object3D(),
+    leaf = new Object3D();
+  parent.add(node);
+  node.add(leaf);
+  parent.updateMatrixWorld();
+  node.matrixAutoUpdate = false;
+  node.matrix.elements = translation(0, 1, 0).elements;
+  parent.position.set(9, 0, 0);
+  assert.deepEqual(
+    [...node.matrixWorld.elements.slice(12, 15)],
+    [0, 1, 0],
+    'the parent not composed yet',
+  );
+  assert.deepEqual([...leaf.matrixWorld.elements.slice(12, 15)], [0, 0, 0], 'nor the leaf');
+  parent.updateMatrixWorld();
+  assert.deepEqual([...leaf.matrixWorld.elements.slice(12, 15)], [9, 1, 0]);
 });
