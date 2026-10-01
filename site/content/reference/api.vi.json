@@ -3383,7 +3383,7 @@
       "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
       "receive": "Một báo cáo yêu cầu đã trả về: danh sách trang của GPU được tính ngay (`gpu.hear`), phần còn lại do kế hoạch tiếp theo đọc.",
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách.",
-      "resize": "Pool ở kích thước khác, các trang được giữ, các mảng được tạo lại: trả về nơi mỗi trang đã chuyển đến.",
+      "size": "Pool ở kích thước thiết bị đã cấp (`webgpu/shadow/poolSize.ts`), một lần, trước khi bất kỳ trang nào được ánh xạ: sau đó không bao giờ đổi kích thước, nên không trang nào đổi chỗ (#831).",
       "sunWindow": "Số trang mỗi cạnh của clipmap mặt trời mà một phiên chạy với (`referenceMode.ts`).",
       "gpu": "Việc cấp phát của GPU (`mirror.ts`): GPU có ánh xạ các trang không, và máy chủ yêu cầu gì ở nó."
     }

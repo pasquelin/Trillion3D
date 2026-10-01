@@ -126,12 +126,12 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
    let off=dot(offset,nr.xyz);
    if(off*off>plane*dot(offset,offset)){continue;}
   }
-  near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;
+  if(clipping){near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;}
   if(far>=reach){continue;}
   sum+=vec4f(traced.rgb*traced.a,traced.a)*(1.0-sqrt(far)/radius);
  }
  neighbourhood=vec4f(0.0);spread=vec3f(0.0);
- if(near.a>0.0){
+ if(clipping&&near.a>0.0){
   let mean=near.rgb/near.a;
   neighbourhood=vec4f(mean,near.a);spread=sqrt(max(square/near.a-mean*mean,vec3f(0.0)));
  }

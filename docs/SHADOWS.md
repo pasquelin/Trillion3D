@@ -18,7 +18,7 @@ coarser levels stand in for pages not drawn yet: a frame asks for at most
 hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
 finest mip is 32 × 32 pages (`lampFaceSize`).
 
-**The pool is fixed, as Unreal's** (#831). It holds what the screen the session opens on reads —
+**The pool is fixed, as Unreal's** (#831). It holds what the display's whole screen reads, or the canvas as it opens if wider (`shadowPoolScreen`), so a window put full screen later keeps its pages —
 one shadowed light's smooth read and a third more while pages wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉`
 pages (`screenPoolPages`): 2 601 at 3456 × 2234, 163 MiB of depth, above falling-boxes' 2 000 —,
 chosen once as Unreal sets `r.Shadow.Virtual.MaxPhysicalPages`, or what the session's

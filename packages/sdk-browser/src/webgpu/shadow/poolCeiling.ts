@@ -1,7 +1,6 @@
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
-import { sayShadowCeiling } from './poolSize.ts';
 
 /** Pages the latest report asked for: those of the pool it named, those it found no page for and
  *  those past its list. Nothing before any report. */
@@ -26,6 +25,16 @@ const ceilingOf = (lights: WebgpuLightState) => {
     ceilings.set(lights, (held = { latest: -1, ceiling: false, full: false, restFrom: -1 }));
   return held;
 };
+
+/** The pool full, said once as it comes to be, as Unreal warns of a physical
+ *  page pool overflow: what the scene asks past it reads the coarser level (`shadowPagesOverflow`). */
+function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
+  rt.diag.engineDiagnostic(
+    'shadow-pool',
+    'The shadow pool is full: the pages past it read the coarser level',
+    { kind: 'warning', version: 2, wanted, pages: rt.lights.plan.pool.pages, clamp: 'ceiling' },
+  );
+}
 
 /**
  * THE POOL AT ITS CEILING. The pool keeps the size its setting gave it (`poolSize.ts`), as Unreal
