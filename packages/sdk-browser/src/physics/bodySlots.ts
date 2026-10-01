@@ -1,5 +1,5 @@
 import { BODY_INDEX, type ObjectPhysics } from '../../../sdk-core/src/physics/index.ts';
-import type { Bodied } from './bodies.ts';
+import type { Bodied } from './bodied.ts';
 import type { CookedMadeBody, NodeMove } from './cookedBodies.ts';
 import type { CookedMade } from './cookedSoft.ts';
 import { createSimulatedIds } from './simulatedIds.ts';

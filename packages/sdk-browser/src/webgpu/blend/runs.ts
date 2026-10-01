@@ -1,4 +1,5 @@
 import { planItem, planShared } from './plan.ts';
+import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
 import { buildBlendRuns } from './runSlicing.ts';
 import { EXPAND_UNI } from './expandUniform.ts';
 
@@ -24,19 +25,6 @@ import { EXPAND_UNI } from './expandUniform.ts';
  * that share a pipeline — yields them all in one.
  */
 
-/** The two passes: blend, then transmission over the frozen background. */
-export const EXPAND_PASSES = 2;
-/** Plan entries a kernel thread GROUP covers, and therefore its threads: the shader interpolates
- *  this value in its `@workgroup_size`, so the two cannot diverge. */
-export const EXPAND_GROUP = 64;
-/**
- * TWO words per run: its first entry and their count, and nothing more.
- *
- * Pipeline and owner item are read on the plan's first entry, which already carries them in its
- * low bits. Writing them in the run as well doubled what the frame writes on a scene that
- * merges nothing — a scene of unpaged items, where each run holds only one entry.
- */
-export const RUN_WORDS = 2;
 /**
  * First word of an expanded instance: its item rank, and above it the cull mode the vertex stage
  * applies (`planVertexCull`, zero when the pipeline culls). The expansion kernel, its CPU model
@@ -61,17 +49,9 @@ export const RUN_SHARED = 0xffffffff;
  * draw only under an extension; `firstVertex` is always free when no vertex buffer is bound, and
  * that is the case of this pass.
  */
-export function blendVertexShift(maxVertexWords: number) {
-  let shift = 2;
-  while (shift < 30 && 1 << shift < Math.max(4, maxVertexWords)) shift++;
-  return shift;
-}
 
 /** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
  *  addressing stride lets through, and never more than the primitive carries. */
-export function blendChunkWords(shift: number, indexCount: number) {
-  return Math.max(3, Math.min(indexCount, 3 * Math.floor((1 << shift) / 3)));
-}
 
 /**
  * The runs of `order` sliced again from entry `at`, the first that moved; `out` holds the `count`
@@ -107,18 +87,6 @@ export function runOwner(order: Uint32Array, first: number, entries: number) {
     : item;
 }
 
-/** What each pass occupies: its order and runs in the plan, its indirect arguments. */
-export function planRegions(maxEntries: number) {
-  const regions = [];
-  for (let pass = 0; pass < EXPAND_PASSES; pass++)
-    regions.push({
-      order: pass * maxEntries * (1 + RUN_WORDS),
-      runs: pass * maxEntries * (1 + RUN_WORDS) + maxEntries,
-      args: pass * maxEntries * 4,
-    });
-  return regions;
-}
-
 /** Writes the expansion kernel's uniform words (`expandUniform.ts`) into `out`, at the rank each
  *  occupies. */
 export function blendExpandUniform(
@@ -138,8 +106,3 @@ export function blendExpandUniform(
   out[EXPAND_UNI.runsBase] = region.runs;
   return out;
 }
-
-/** Words the plan and the kernel scratch occupy for the whole scene. */
-export const planWords = (maxEntries: number) => maxEntries * (1 + RUN_WORDS) * EXPAND_PASSES;
-export const scratchWords = (maxEntries: number) =>
-  maxEntries + Math.ceil(maxEntries / EXPAND_GROUP);

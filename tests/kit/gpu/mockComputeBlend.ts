@@ -2,7 +2,7 @@
 // of the sorted plan, each through the CPU oracle the shader implements.
 import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts';
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
-import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
+import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts';
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
 import type { ComputeBind } from './mockCompute.ts';

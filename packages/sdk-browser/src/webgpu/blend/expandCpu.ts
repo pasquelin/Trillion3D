@@ -1,5 +1,6 @@
 import { DRAW_UNPAGED, planItem, planVertexCull } from './plan.ts';
-import { instanceWord, RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
+import { instanceWord, RUN_SHARED, runOwner } from './runs.ts';
+import { RUN_WORDS } from './planLayout.ts';
 import type { createWebgpuBlendState } from './state.ts';
 
 /**

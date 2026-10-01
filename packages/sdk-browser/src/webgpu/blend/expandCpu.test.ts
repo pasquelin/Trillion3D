@@ -1,13 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  blendChunkWords,
-  blendVertexShift,
-  instanceItem,
-  RUN_SHARED,
-  RUN_WORDS,
-  runOwner,
-} from './runs.ts';
+import { instanceItem, RUN_SHARED, runOwner } from './runs.ts';
+import { blendChunkWords, blendVertexShift, RUN_WORDS } from './planLayout.ts';
 import { buildBlendRuns } from './runSlicing.ts';
 import { expandBlendPlan, itemKept } from './expandCpu.ts';
 import { DRAW_UNPAGED } from './plan.ts';

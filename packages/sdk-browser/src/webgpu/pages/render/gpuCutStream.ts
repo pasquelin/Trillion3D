@@ -1,5 +1,5 @@
 import type { GpuSelection } from '../../../gpu/core/selection.ts';
-import { ensurePageTable } from './encodeDraws.ts';
+import { ensurePageTable } from './pageTable.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** The rows `markRow` marks: the stream's, set before each residency upload. */

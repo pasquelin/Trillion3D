@@ -2,7 +2,7 @@ import test from 'node:test';
 import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
 import assert from 'node:assert/strict';
 import { createWebgpuPagesRuntime } from '../pages/runtime.ts';
-import { ensurePageTable } from '../pages/render/encodeDraws.ts';
+import { ensurePageTable } from '../pages/render/pageTable.ts';
 import { refreshTransparentSpans } from './spans.ts';
 import { disposeWebgpuPages } from '../pages/io/metrics.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';

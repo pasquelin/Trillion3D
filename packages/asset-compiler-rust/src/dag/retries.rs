@@ -3,7 +3,7 @@
 //! exists: `reduce.rs`, **Added locks**.
 use super::border::{lock_triangles_touching, lost_locks};
 use super::quality::backlit_corners;
-use super::reduce::Stop;
+use super::stopped::Stop;
 use super::{attributes, GroupReductionInput, Result};
 use crate::qem::SimplifiedMesh;
 use std::borrow::Cow;

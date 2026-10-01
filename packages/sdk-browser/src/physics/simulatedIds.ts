@@ -5,7 +5,8 @@ import {
   MISS,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { hasBody, type createPhysicsBodies } from './bodies.ts';
+import { hasBody } from './bodied.ts';
+import type { createPhysicsBodies } from './bodies.ts';
 
 /** The engine id of `node`'s body: `MISS` for no node (the world), -1 while it is not simulated. */
 export function engineIdOf(bodies: ReturnType<typeof createPhysicsBodies>, node: Object3D | null) {

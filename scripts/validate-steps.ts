@@ -13,7 +13,9 @@
 //              417 functions that predate it — that is the queue it works through, not a failure,
 //              and a gate that cannot go green is not a gate;
 //   typescript the `tsc` build, the site build (`build:docs`) and the gates that read their
-//              products, the CDN core's gzip budget among them;
+//              products, the CDN core's gzip budget among them. `check:types:browser` belongs here:
+//              `check:structure` reads `tsconfig.core.json`, which covers `sdk-core` alone, so the
+//              browser SDK — the largest package — was compiled by no gate at all;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
 //              (`committed_colliders_hold_their_published_tolerance`);
 //   unit       the unit suite, which needs both the compiled compiler
@@ -37,6 +39,7 @@ export const VALIDATE_GROUPS = {
     'check:local',
     'format:check',
     'check:lines',
+    'check:cycles',
     'check:duplicates',
     'check:helpers',
     'lint:js',
@@ -51,6 +54,7 @@ export const VALIDATE_GROUPS = {
   ],
   typescript: [
     'generate:api',
+    'check:types:browser',
     'build',
     'check:bundle-size',
     'check:dts',

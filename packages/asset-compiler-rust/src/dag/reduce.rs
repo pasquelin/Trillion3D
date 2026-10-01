@@ -29,6 +29,7 @@
 //! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
 //! its top kept its underside there, on the top's and the edges' normals (#484). One driver runs
 //! these retries for the endpoint and the solved reductions alike (`retries.rs`).
+use super::stopped::Stop;
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
@@ -46,13 +47,6 @@ impl Attempt {
     pub(super) fn progresses(&self, children: usize) -> bool {
         self.clusters.len() < children
     }
-}
-/// Why an attempt stopped, before the stalled group is diagnosed.
-#[derive(Clone, Copy)]
-pub(super) enum Stop {
-    TooSmall,
-    NoCollapse,
-    BorderLost,
 }
 
 pub(super) fn reduce_group(
