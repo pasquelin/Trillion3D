@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createLightingScene, type Scene, type Vec3 } from './experimentScene.ts';
 import { LIGHTING_EYE } from './controls.ts';
 import { validateScene } from '../transport/validation.ts';
-import { cross, dot, firstHit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
+import { cross, dot, nearestHit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 const PATCH = 0.5;
 /** The eye, in the right room, and its mirror image across the partition, in the left room. */
@@ -15,19 +15,18 @@ const directions = Array.from({ length: 400 }, (_, k): Vec3 => {
     angle = k * Math.PI * (3 - Math.sqrt(5));
   return [radius * Math.cos(angle), y, radius * Math.sin(angle)];
 });
-const hit = (scene: Scene, origin: Vec3, direction: Vec3) =>
-  scene.surfaces.find((surface) => surface.id === firstHit(scene, origin, direction));
+const hit = (scene: Scene, origin: Vec3, direction: Vec3) => {
+  const found = nearestHit(scene, origin, direction);
+  return found && scene.surfaces[found.surface];
+};
 
-for (const doorAngle of [0, Math.PI / 2])
+for (const doorAngle of [0, Math.PI / 2]) {
+  const scene = createLightingScene({ doorAngle, lightIntensity: 1, patchSize: PATCH });
   test(`door at ${doorAngle}: rooms are valid transport scenes`, () => {
-    assert.doesNotThrow(() =>
-      validateScene(createLightingScene({ doorAngle, lightIntensity: 1, patchSize: PATCH })),
-    );
+    assert.doesNotThrow(() => validateScene(scene));
   });
 
-for (const doorAngle of [0, Math.PI / 2])
   test(`door at ${doorAngle}: every ray from inside a room meets a face turned to it, cut into patches`, () => {
-    const scene = createLightingScene({ doorAngle, lightIntensity: 1, patchSize: PATCH });
     const wrong: string[] = [];
     for (const eye of eyes)
       for (const direction of directions) {
@@ -43,9 +42,7 @@ for (const doorAngle of [0, Math.PI / 2])
     assert.deepEqual(wrong, []);
   });
 
-for (const doorAngle of [0, Math.PI / 2])
   test(`door at ${doorAngle}: no patch of a room face sits inside a solid wall or slab`, () => {
-    const scene = createLightingScene({ doorAngle, lightIntensity: 1, patchSize: PATCH });
     const wrong: string[] = [];
     for (const patch of scene.patches) {
       const surface = scene.surfaces[patch.surface];
@@ -64,3 +61,4 @@ for (const doorAngle of [0, Math.PI / 2])
     }
     assert.deepEqual(wrong, []);
   });
+}

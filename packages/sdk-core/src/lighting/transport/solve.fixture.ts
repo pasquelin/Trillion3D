@@ -11,7 +11,7 @@ import {
 import { sceneFromSurfaces } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 
 /** A closed unit box, every face turned inwards and cut in two by two; its ceiling emits. */
-export function box(albedo: Vec3, emission: Vec3 = [1, 2, 3]) {
+function box(albedo: Vec3, emission: Vec3 = [1, 2, 3]) {
   const faces: [Vec3, Vec3, Vec3][] = [
     [
       [0, 0, 0],
