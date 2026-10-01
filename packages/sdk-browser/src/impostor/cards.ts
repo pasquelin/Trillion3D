@@ -138,6 +138,9 @@ export function planImpostorCards<G>(
     const entry = state.baked.get(card.mesh)!,
       centre = entry.centre ?? ORIGIN,
       R = card.radius;
+    // Two primitives of one placement are two roots of one mesh, at one world: one card, the
+    // verdict of the first.
+    if (card.mesh === mesh && card.world === last) continue;
     transformAffinePoint(pivot, card.world, centre[0], centre[1], centre[2]);
     const x = pivot[0],
       y = pivot[1],
@@ -151,8 +154,6 @@ export function planImpostorCards<G>(
       plan.switched[card.root] = 0;
       continue;
     }
-    // Two primitives of one placement are two roots of one mesh, at one world: one card.
-    if (card.world === last) continue;
     last = card.world;
     impostorCardCorners(corners, cam.viewProjection, pivot, R);
     // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.

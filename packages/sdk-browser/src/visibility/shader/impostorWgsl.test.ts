@@ -22,9 +22,9 @@ function runnersOf(text: string) {
 }
 const LANGUAGES = { wgsl: runnersOf(IMPOSTOR_CARD_WGSL), glsl: runnersOf(IMPOSTOR_VIEW_CARD_GLSL) };
 
-// The three-frame weights sum to one on both triangles of a cell, as #817's compiler test proves.
-test('the card weights sum to one and are the barycentric coordinates of the cell', () => {
-  for (const { weights: runWeights } of Object.values(LANGUAGES))
+for (const [language, run] of Object.entries(LANGUAGES)) {
+  // The three-frame weights sum to one on both triangles of a cell, as #817's compiler test proves.
+  test(`the ${language} card weights sum to one and are the barycentric coordinates of the cell`, () => {
     for (const [fx, fy] of [
       [0.1, 0.2],
       [0.9, 0.4],
@@ -32,30 +32,33 @@ test('the card weights sum to one and are the barycentric coordinates of the cel
       [0.0, 0.75],
       [0.33, 0.66],
     ]) {
-      const weights = runWeights([fx, fy]),
+      const weights = run.weights([fx, fy]),
         oracle = cellWeights([7 + fx, 3 + fy], 12).map((cell) => cell.weight);
       assert.ok(Math.abs(weights[0] + weights[1] + weights[2] - 1) < 1e-9, `${fx},${fy} sums`);
       for (let k = 0; k < 3; k++)
         assert.ok(Math.abs(weights[k] - oracle[k]) < 1e-9, `${fx},${fy} weight ${k}`);
     }
-});
+  });
 
-// Direction → uv → direction matches the oracle at every step, for both mappings, on the lattices
-// #817 captures.
-test('the octahedral mapping in WGSL and GLSL matches the oracle on both grids', () => {
-  for (const { encode: runEncode, decode: runDecode } of Object.values(LANGUAGES))
+  // Direction → uv → direction matches the oracle at every step, for both mappings, on the
+  // lattices #817 captures.
+  test(`the octahedral mapping in ${language} matches the oracle on both grids`, () => {
     for (const hemi of [0, 1])
       for (const n of [5, 12])
         for (let i = 0; i < n; i++)
           for (let j = 0; j < n; j++) {
             const f = [i / (n - 1), j / (n - 1)],
               cpuDir = octDecode(f, hemi === 1),
-              wgslDir = runDecode(f, hemi);
+              shaderDir = run.decode(f, hemi);
             for (let k = 0; k < 3; k++)
-              assert.ok(Math.abs(cpuDir[k] - wgslDir[k]) < 1e-6, `decode ${hemi} ${i},${j} [${k}]`);
+              assert.ok(
+                Math.abs(cpuDir[k] - shaderDir[k]) < 1e-6,
+                `decode ${hemi} ${i},${j} [${k}]`,
+              );
             const cpuUv = octEncode(cpuDir, hemi === 1),
-              wgslUv = runEncode(cpuDir, hemi);
+              shaderUv = run.encode(cpuDir, hemi);
             for (let k = 0; k < 2; k++)
-              assert.ok(Math.abs(cpuUv[k] - wgslUv[k]) < 1e-6, `encode ${hemi} ${i},${j} [${k}]`);
+              assert.ok(Math.abs(cpuUv[k] - shaderUv[k]) < 1e-6, `encode ${hemi} ${i},${j} [${k}]`);
           }
-});
+  });
+}

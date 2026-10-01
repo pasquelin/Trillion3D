@@ -17,6 +17,7 @@ import {
 } from '../../visibility/shader/impostorGlsl.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { LIGHT_ROW_TEXELS } from '../cluster/lightTexture.ts';
+import { variant } from '../cluster/shaders.ts';
 
 /** Texels of one card record: four floats each. */
 export const CARD_TEXELS = CARD_FLOATS / 4;
@@ -59,8 +60,10 @@ void main(){
 /** The cluster fragment's inputs, which the card computes instead of interpolating. */
 const CLUSTER_INPUTS =
   'in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;';
+/** The three atlas maps' samplers, in `ATLAS_MAPS` order, as `impostorGlsl.ts` reads them. */
+export const ATLAS_SAMPLERS = ['impostorColour', 'impostorNormalDepth', 'impostorOrm'] as const;
 const CARD_INPUTS = `vec3 toEye;vec3 viewNormal;vec3 viewPosition;vec2 texcoord0;vec2 texcoord1;vec4 vertexColor;
-uniform sampler2D impostorColour,impostorNormalDepth,impostorOrm;
+uniform sampler2D ${ATLAS_SAMPLERS.join(',')};
 ${CARD_RECORD_GLSL}
 ${varyings('in')}
 ${IMPOSTOR_TAP_GLSL}`;
@@ -84,21 +87,11 @@ const CARD_SURFACE = `void main(){
  float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=b.orm.x;
 `;
 
-/** `text` with the one span from `from` up to `to` (kept) replaced by `by`, `to` the end of `from`
- *  when absent: a variant never drifts off its source. */
-function replaceOnce(text: string, from: string, by: string, to?: string) {
-  const start = text.indexOf(from),
-    end = to === undefined ? start + from.length : text.indexOf(to, start);
-  if (start < 0 || end < start || text.lastIndexOf(from) !== start)
-    throw new Error(`CARD_FRAGMENT_VARIANT:${from}`);
-  return text.slice(0, start) + by + text.slice(end);
-}
-
 /** The card's fragment stage of a cluster fragment program: its inputs and surface read replaced,
  *  the rest — lighting, reflections, fog, output — its own. */
 export const cardFragment = (fragment: string) =>
-  replaceOnce(
-    replaceOnce(fragment, CLUSTER_INPUTS, CARD_INPUTS),
+  variant(
+    variant(fragment, CLUSTER_INPUTS, CARD_INPUTS),
     'void main(){',
     CARD_SURFACE,
     'vec3 rgb=lit?shade(',
