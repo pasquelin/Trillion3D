@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freshReport, slide } from './characterMove.ts';
+import type { CapsuleContact } from './capsule.ts';
 import { MOVE_PASSES } from './characterSettings.ts';
 import { triangleCollision } from './characterCollision.ts';
 import { buildTriangleTree } from './triangleTree.ts';
@@ -43,4 +44,37 @@ test('an overlap no push resolves is asked MOVE_PASSES times a part and looked a
   // MOVE_PASSES passes, then one look at what they left: no overlap deeper than before.
   assert.equal(asked, 3 * (MOVE_PASSES + 1));
   near(capsule.feet, [1.2, 0, 0], 'feet', 1e-12);
+});
+
+/** A world whose only surface is an overlap `depth(feet)` deep, always there, its way out up:
+ *  no pass can leave it, so every part ends with its passes spent. */
+function overlap(depth: (feet: Float64Array) => number) {
+  return {
+    groundBelow: () => null,
+    resolveCapsule: (capsule: { feet: Float64Array }, push: (touch: CapsuleContact) => void) => {
+      push({
+        normal: new Float64Array([0, -1, 0]),
+        surface: new Float64Array([0, -1, 0]),
+        point: Float64Array.from(capsule.feet),
+        depth: depth(capsule.feet),
+      });
+      return true;
+    },
+  };
+}
+
+test('a part that carries a body no deeper into an overlap is taken; one carrying it deeper is not', () => {
+  const report = () => freshReport({ ground: false, wall: false, impact: 0 });
+  const move = (depth: (feet: Float64Array) => number) => {
+    const capsule = { feet: new Float64Array(3), radius: 1, height: 2 };
+    const velocity = new Float64Array([2, 0, 0]);
+    const into = slide(overlap(depth), { capsule, velocity }, rules, [0.4, 0, 0], report());
+    return { x: capsule.feet[0], vx: velocity[0], wall: into.wall };
+  };
+  // As deep all along, or shallower ahead: the part is taken.
+  assert.ok(Math.abs(move(() => 0.1).x - 0.4) < 1e-12);
+  assert.ok(Math.abs(move((feet) => 0.5 - feet[0] / 2).x - 0.4) < 1e-12);
+  // Deeper ahead: the body stays, loses the speed that drove it in, and meets a wall.
+  const deeper = move((feet) => 0.1 + feet[0]);
+  assert.deepEqual(deeper, { x: 0, vx: 0, wall: true });
 });

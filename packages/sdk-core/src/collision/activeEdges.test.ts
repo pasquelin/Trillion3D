@@ -46,9 +46,12 @@ function wall(flip = false) {
 }
 
 test("beside a flat wall, a capsule leaves it along the wall's normal wherever its seam runs", () => {
+  // Behind the wall, out of reach, a strut touches it at one point inside its seam's span: it
+  // shares no edge with the wall.
+  const strut = [0, 1.5, -2.5, 1, 1.5, -2.5, 1, 1.6, -2.4];
   for (const flip of [false, true])
     for (const z of [-0.2, 0.4, 1.3]) {
-      const seen = contacts(wall(flip), [-0.2, 0, z]);
+      const seen = contacts([...wall(flip), ...strut], [-0.2, 0, z]);
       assert.ok(seen.length > 0);
       for (const { normal, depth } of seen) {
         near(normal, [-1, 0, 0], `normal at ${z}`, 1e-12);
