@@ -141,6 +141,8 @@ export function redrawShortPages(
   const { lights } = rt,
     { plan } = lights,
     redraws = lights.lightCut?.redraws;
+  // The coarser pages are counted per frame, as the frame's draw calls are (#831).
+  lights.lightCutCoarsePages = 0;
   if (!redraws) return;
   // Released as residency brings what they lacked, the camera moving or not, as the reference engine's virtual
   // shadow maps redraw a page once cluster streams its finer clusters in (#831): a page drawn from

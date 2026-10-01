@@ -96,7 +96,7 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages the light cut sent back to be drawn again, withdrawn or coarser (`redrawShortPages`). */
+  /** Pages the light cut sends back (`redrawShortPages`): withdrawn in all, coarser this frame. */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
   /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
@@ -105,7 +105,7 @@ export interface WebgpuLightState {
   shadowDrawCalls: number;
   /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
   shadowRenderPasses: number;
-  /** Why the shadow atlas does not exist, when it does not. */ shadowReason: string | null;
+  shadowReason: string | null; // why the shadow atlas does not exist, when it does not
   /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
   memory: ShadowMemory;
   /** The transmittance layer is past the grant or refused: never asked again (`transmittanceGrant.ts`). */
