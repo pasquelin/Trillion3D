@@ -3,7 +3,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../../lighting/deferred/shaders.ts';
 import { PIXEL_FOOTPRINT_WGSL } from '../../lighting/deferred/footprintWgsl.ts';
 import { LAMP_SOFT_DISK_WGSL } from '../../lighting/direct/lampSoftWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from '../../lighting/direct/lightWgsl.ts';
-import { TILE_SLICE_WGSL } from '../../lighting/direct/lightingWgsl.ts';
+import { TILE_SLICE_WGSL, pixelCellWgsl } from '../../lighting/direct/lightingWgsl.ts';
 import { SHADOW_READ_AT_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../lighting/direct/shadowWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
-import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
 
 /** Pixels a side of a workgroup of the demand pass. */
@@ -52,6 +52,7 @@ ${shadowRequestWgsl(7, pages)}
 ${receiverOffsetWgsl(DEMAND_RECEIVER_BINDING)}
 ${DIRECT_LIGHT_WGSL}
 ${TILE_SLICE_WGSL}
+${pixelCellWgsl()}
 ${shadowPageReadWgsl(pages)}
 ${SHADOW_READ_AT_WGSL}
 ${PCF_TAPS_WGSL}
@@ -156,15 +157,15 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
 @compute @workgroup_size(${SHADOW_DEMAND_GROUP},${SHADOW_DEMAND_GROUP}) fn markShadowDemand(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)||u32(view.lightParams.x)==0u){return;}
  let coord=vec2i(id.xy);
- let flag=textureLoad(flags,coord,0).r&${FOG_FREE_SURFACE_FLAG - 1}u;
+ let flag=textureLoad(flags,coord,0).r&${SURFACE_MODEL_MASK}u;
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
- let tile=id.xy/TILE_SIZE;let tilesX=u32(view.lightParams.y);
- if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
- // A tile without a light asks nothing: its pixels load no depth.
- let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
- if(slice.y==0u){return;}
- // The resolve's point and footprint, at the pixel's centre (\`surfaceWgsl.ts\`).
+ // The resolve's cell (\`pixelCell\`, \`surfaceWgsl.ts\`): a cell that lists no light with a shadow
+ // slot asks nothing, as the resolve sets up no shadow read there (\`cellShadowed\`).
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
+ let cell=pixelCell(pixel,z);
+ if(!cellShadowed(cell)){return;}
+ let slice=cellSlice(cell);
+ // The resolve's point and footprint, at the pixel's centre (\`surfaceWgsl.ts\`).
  let at=worldAt(pixel,z);
  let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
