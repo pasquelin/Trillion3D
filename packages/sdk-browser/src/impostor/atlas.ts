@@ -8,7 +8,8 @@
  */
 import { PREVIEW_LOSSLESS_FORMAT, type ImpostorMaps } from '../../../sdk-core/src/index.ts';
 import type { TextureLevel, TextureLevelRequest } from '../texture/levelReader.ts';
-import { readHeldLevel, type HeldLevels } from '../texture/heldLevels.ts';
+import type { HeldLevels } from '../texture/heldLevels.ts';
+import { core } from './borrowed.ts';
 
 /** The three maps of one card, each its levels, level 0 first. */
 export type ImpostorAtlasLevels = Record<keyof ImpostorMaps, TextureLevel[]>;
@@ -38,7 +39,7 @@ export function loadImpostorAtlas(
         format: PREVIEW_LOSSLESS_FORMAT,
         url,
       };
-      const held = readHeldLevel(levels, request, frame, [width, height]);
+      const held = core.readHeldLevel(levels, request, frame, [width, height]);
       if (typeof held !== 'string') chain.push(held);
       else if (verdict !== 'refused') verdict = held;
     });

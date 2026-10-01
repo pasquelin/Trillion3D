@@ -15,7 +15,7 @@ import {
   IMPOSTOR_TAP_GLSL,
   IMPOSTOR_VIEW_CARD_GLSL,
 } from '../../visibility/shader/impostorGlsl.ts';
-import type * as Lent from './lent.ts';
+import type * as Lent from '../../impostor/lent.ts';
 
 /** Texels of one card record: four floats each. */
 export const CARD_TEXELS = CARD_FLOATS / 4;
