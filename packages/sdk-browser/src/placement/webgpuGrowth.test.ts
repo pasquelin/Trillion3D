@@ -125,3 +125,20 @@ test('a growth past the page table during a prepare is taken in place, the table
     session.dispose();
   }
 });
+
+test('the placement tables the group closure and page parents hold follow a growth in place', async () => {
+  // Built once at open (`services.ts`), they would read the open's tables past a growth, and a page
+  // of a new row would find no root (#1235).
+  const session = await placedSession(5);
+  try {
+    const { layout } = session.rt,
+      held = layout.placement;
+    await scaleDown(session);
+    await session.draw();
+    assert.equal(layout.placement, held, 'the same tables, rewritten in place');
+    assert.equal(held.rootOfPacked.length, layout.packedPages.length, 'every instance ranked');
+    assert.equal(held.baseOfRoot.length, layout.selectionRoots.length, 'every root based');
+  } finally {
+    session.dispose();
+  }
+});
