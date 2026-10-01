@@ -15,6 +15,7 @@ import { shadowPoolShapeOf } from './poolSize.ts';
 import { SHADOW_POOL_SETTING_BYTES, shadowHeldBytes } from './poolSetting.ts';
 import { shadowPoolHeld, shadowPoolShown } from './memoryGrant.ts';
 import { disposeStaticLayer } from '../pages/state/lights.ts';
+import { BIN_STORED_STRIDE } from '../../gpu/shadow/binShader.ts';
 
 /** The pages the setting holds: 2 601, a pool of 51². */
 const SCREEN_POOL = 51 * 51;
@@ -89,6 +90,11 @@ test('the held bytes are the setting on a large display and on its canvas alike'
   assert.deepEqual(narrow, { side: 29, layers: 3 });
   assert.ok(shadowHeldBytes(narrow.side, narrow.layers) <= SHADOW_POOL_SETTING_BYTES);
   assert.ok(shadowHeldBytes(52) > SHADOW_POOL_SETTING_BYTES, 'one more side would pass it');
+  // Bins that store a matrix a row (the `shadowLocalToClip` option) take their bytes off the pages.
+  const stored = shadowPoolShapeOf({ shadowLocalToClip: true });
+  assert.ok(stored.side ** 2 * stored.layers < SCREEN_POOL, 'fewer pages');
+  const held = shadowHeldBytes(stored.side, stored.layers, undefined, BIN_STORED_STRIDE);
+  assert.ok(held <= SHADOW_POOL_SETTING_BYTES, 'never past the setting');
 });
 
 // The bytes shown are the setting's from the first frame (#831): the static layer was made at the

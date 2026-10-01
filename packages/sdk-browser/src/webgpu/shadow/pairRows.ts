@@ -30,6 +30,13 @@ const rowsFor = (need: number) =>
  *  rows (`followPairBytes`). */
 export const pairRows = (pages: number) => rowsFor(poolPairs(pages));
 
+/** Bytes of `rows` rows of the kept lists the pairs are held in: the cull's, the occlusion test's
+ *  (`occlusion`, made with the static layer), and the raster bins' — `binStride` words a row, a row
+ *  and, stored, its matrix (`../../gpu/shadow/bins.ts`). One formula for the setting
+ *  (`poolSetting.ts`) and the bytes held (`followPairBytes`). */
+export const keptListBytes = (rows: number, binStride: number, occlusion = true) =>
+  rows * ROW_BYTES * (1 + (occlusion ? 1 : 0) + binStride);
+
 /** The rows a region of the kept list holds: the table's `casterSlots`, or more for the GPU pages'
  *  `need` pairs — by `ROW_STEP` —, never past what one storage binding holds. */
 export function keptRows(casterSlots: number, need: number, limits?: GPUSupportedLimits) {
