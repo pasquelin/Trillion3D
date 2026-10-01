@@ -3,28 +3,7 @@ import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_BYTES as RECT_OFFSET } from '
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
 
-// The two page draws of the shadow pool: the move of a resized pool (`pageMoves.ts`) and the page
-// quads of a render pass (`pageQuads.ts`).
-
-/**
- * Each instance is one page moved: two triangles over its square of the target layer, whose
- * fragments write the depth of the texel at the same place of the page in the source — texel for
- * texel, as the restore does (`../core/depthRestoreWgsl.ts`), only shifted. WebGPU copies a depth
- * texture whole, never a region of it.
- */
-export const PAGE_MOVE_SHADER = `struct Move{was:vec4u,now:vec4u,}
-@group(0) @binding(0) var<storage,read> moves:array<Move>;
-@group(0) @binding(1) var pool:texture_depth_2d_array;
-struct Moved{@builtin(position) p:vec4f,@location(0) @interpolate(flat) shift:vec3i,}
-@vertex fn move_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) k:u32)->Moved{
- let m=moves[k];
- let corner=vec2f(f32((0x32u>>i)&1u),f32((0x2cu>>i)&1u));
- let texel=(vec2f(m.now.xy)+corner*f32(m.was.w))/f32(m.now.w);
- return Moved(vec4f(texel.x*2.0-1.0,1.0-texel.y*2.0,0.0,1.0),vec3i(vec2i(m.was.xy)-vec2i(m.now.xy),i32(m.was.z)));
-}
-@fragment fn move_fs(v:Moved)->@builtin(frag_depth) f32{
- return textureLoad(pool,vec2i(v.p.xy)+v.shift.xy,v.shift.z,0);
-}`;
+// The page quads of a render pass (`pageQuads.ts`).
 
 /**
  * What the page quads read, in one storage binding — the face buffer: every region's view, `rect`

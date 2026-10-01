@@ -27,7 +27,7 @@ export const layerPasses = (label: string, depths: GPUTextureView[], colours?: G
  * The pool's texture, `layers × poolSide²` pages, made not taken: what the grant allots under its
  * out-of-memory check (`../../webgpu/residency/poolGrants.ts`). `COPY_SRC` is there only for the
  * proof: the host can reread the pool and compare its fingerprint between two runs. No frame pass
- * copies it; a resize moves its pages through a draw (`pageMoves.ts`), depth being copied whole only.
+ * copies it: the pool keeps its size, its pages their place (`../../webgpu/shadow/poolSize.ts`).
  */
 export const shadowPoolTexture = (device: GPUDevice, poolSide: number, layers: number) =>
   device.createTexture({
