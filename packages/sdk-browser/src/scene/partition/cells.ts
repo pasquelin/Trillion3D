@@ -34,7 +34,6 @@ import { heldSide, rowsAt, rungOf } from './sizing.ts';
 import { createCellPlacements } from './placements.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
 import { createFarCells } from './farCells.ts';
-import type { SuperRootLens } from './superRoots.ts';
 
 type Inputs = {
   partition: TablePartition;
@@ -57,8 +56,7 @@ export function createPartitionCells(inputs: Inputs) {
   const rows = createCellPlacements(root, parents, meshes);
   const { held, touched } = rows;
   const far = createFarCells(world, held);
-  /** Cells a mesh short of rows keeps waiting; the rung the rows are sized for (`RUNGS`: every
-   *  node); the widest a frame asked. */
+  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
   let waiting = 0,
     sized = -1,
     wanted = -1;
@@ -81,11 +79,8 @@ export function createPartitionCells(inputs: Inputs) {
     return true;
   };
   const cellUrl = (cell: number) => index.cell(cell).url;
-  const place = (cell: number, decoded: CellRows) => {
-    if (!rows.place(cell, decoded, cellUrl(cell))) return false;
-    manifest.hold(cell);
-    return true;
-  };
+  const place = (cell: number, decoded: CellRows) =>
+    rows.place(cell, decoded, cellUrl(cell)) && (manifest.hold(cell), true);
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell));
   const partitionCells = {
@@ -119,8 +114,14 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void;
         grow?: PlacementGrowth;
         outgrown?: () => void;
-        /** The cut's lens while it packs the world DAG (#1332): far cells, held by super-roots. */
-        lens?: SuperRootLens;
+        /** The cut's lens while it packs the world DAG (#1332), structurally a `SuperRootLens`. */
+        lens?: {
+          pixelScale: [number, number];
+          pixelError: number;
+          near: number;
+          perspective?: number;
+          slope: number;
+        };
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
@@ -190,8 +191,7 @@ export function createPartitionCells(inputs: Inputs) {
       touched.clear();
       return bytes;
     },
-    /** The decodes the frames asked since the last call: a still camera is drawn again once one
-     *  lands, so the page it brings is opened or the cell placed. */
+    /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   };
   return withHoldings({ meshes, manifest }, partitionCells);
