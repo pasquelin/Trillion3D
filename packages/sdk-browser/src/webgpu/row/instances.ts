@@ -1,6 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts';
 import { pageAddress } from './pageSlots.ts';
+import type { PageList } from '../pages/prepare/catalogue.ts';
 
 type Root = { readonly pages: readonly PageRec[] };
 /** One page of a primitive: the root ranks of the primitive's placements, shared by all its pages,
@@ -68,8 +69,11 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
   return instances;
 }
 
-/** The instances of a flat list of pages, each its own rank: one root holds them all. */
-export function flatInstances(pages: readonly PageRec[]) {
+/** The instances of a flat list of pages, each its own rank: one root holds them all. A layout
+ *  hands its own instead (`createWebgpuPagesLayout`): this is a table built without one. */
+export function flatInstances(list: PageList) {
+  const pages =
+    'recordOf' in list ? Array.from({ length: list.length }, (_, i) => list.recordOf(i)!) : list;
   const roots = [{ pages }];
   return createPackedInstances(roots, postPackedBases(roots));
 }
