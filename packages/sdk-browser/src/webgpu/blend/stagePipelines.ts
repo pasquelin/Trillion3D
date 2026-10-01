@@ -82,7 +82,8 @@ export interface BlendModePipelines extends RankedPipelines {
 /**
  * The three cull modes of one fragment stage of the blend module, on the blend bind group layout:
  * the forward blend, which writes no depth, and the water surface stage, which writes it so the
- * nearest surface of a pixel is the one composed. Same vertex stage, same rank picks the same side.
+ * nearest surface of a pixel is the one composed, and the shadow marks (`marks.ts`), which write
+ * neither and bind their own `group2`. Same vertex stage, same rank picks the same side.
  */
 export async function blendStagePipelines(
   device: GPUDevice,
@@ -90,9 +91,10 @@ export async function blendStagePipelines(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
+  group2?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
   const [none, front, back] = await Promise.all(
-    stageDescriptors(device, module, layout, fragment, depthWrite).map((stage) =>
+    stageDescriptors(device, module, layout, fragment, depthWrite, group2).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
   );
@@ -101,18 +103,18 @@ export async function blendStagePipelines(
 
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back'];
 
-/** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
- *  display mask's layout, as group 2 of a filtered image's pipelines. */
+/** The descriptors of those three, one per cull mode: what a blend mode compiles; `group2`, the
+ *  display mask's layout of a filtered image's pipelines, or the shadow marks' group. */
 export function stageDescriptors(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  mask?: GPUBindGroupLayout,
+  group2?: GPUBindGroupLayout,
 ): GPURenderPipelineDescriptor[] {
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, reflectionLayout(device), ...(mask ? [mask] : [])],
+    bindGroupLayouts: [layout, reflectionLayout(device), ...(group2 ? [group2] : [])],
   });
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,

@@ -168,6 +168,9 @@ export interface MeasuredWorldOptions {
   /** Page-by-page shadow-map invalidation. On by default; `false` restarts the whole face
    *  as soon as an object moves in its range, as before the virtualized-shadows batch. */
   shadowPageInvalidation?: boolean;
+  /** Shadow casters placed by a LocalToClip stored once per caster and light view (OMB-25), one
+   *  matrix-vector product per vertex. Off by default: its depths may differ by one ulp. */
+  shadowLocalToClip?: boolean;
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean;
