@@ -103,9 +103,16 @@ function build(cascades: BounceCascades, extent: readonly number[], boxes: Array
   // would not equal the exact eight-block of the previous level, lying by one cell out of two.
   const align = 2 ** (cascades.levels.length - 1);
   const floorTo = (value: number) => Math.floor(value / align) * align;
-  const origin = [0, 1, 2].map((axis) => floorTo(Math.floor(extent[axis] / spacing) - 2));
+  // The margin is one coarsest cell at least, so that each level keeps the boundary cell its
+  // dilation gives the extent's faces: a narrower one cut it on the coarse levels.
+  const origin = [0, 1, 2].map((axis) =>
+    floorTo(Math.floor(extent[axis] / spacing) - Math.max(2, align)),
+  );
   const dims = [0, 1, 2].map((axis) =>
-    Math.max(align, floorTo(Math.floor(extent[3 + axis] / spacing) + 3 - origin[axis]) + align),
+    Math.max(
+      align,
+      floorTo(Math.floor(extent[3 + axis] / spacing) + Math.max(3, align) - origin[axis]) + align,
+    ),
   );
   const first = new Uint8Array(dims[0] * dims[1] * dims[2]);
   const low = [0, 0, 0],
