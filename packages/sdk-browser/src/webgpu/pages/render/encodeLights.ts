@@ -22,9 +22,10 @@ const viewpoint = new Float64Array(3);
 
 /**
  * Direct lighting of an image, in order: shadow scheduling, per-tile light lists, the per-pixel
- * demand of shadow pages and their GPU allocation, depth pass into the atlas and record and table
- * writes, then the parameters deferred resolve will reread. A scene with no declared light
- * launches neither shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo.
+ * demand of shadow pages, the other receivers' marks (`receivers`, the blend runs'), and their GPU
+ * allocation, depth pass into the atlas and record and table writes, then the parameters deferred
+ * resolve will reread. A scene with no declared light launches neither shadows nor lists: it pays
+ * nothing, and the unlit view outputs its raw albedo.
  */
 export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
@@ -32,6 +33,7 @@ export function encodeDirectLights(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
+  receivers?: () => void,
 ) {
   const { lights } = rt,
     { store, tiles } = lights;
@@ -72,9 +74,9 @@ export function encodeDirectLights(
   // shadow light yet: nothing to record (`../../shadow/poolSize.ts`).
   if (lights.shadows?.texture) lights.pageRequests?.clear(encoder);
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye);
-  // The plan's floors, then, per pixel, the pages the resolve will read, marked before any page is
-  // drawn, and mapped.
-  encodeShadowAsks(rt, encoder, listed);
+  // The plan's floors, then, per pixel, the pages the resolve will read and those the transparents
+  // will, marked before any page is drawn, and mapped.
+  encodeShadowAsks(rt, encoder, listed, receivers);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.
