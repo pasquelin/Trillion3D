@@ -50,3 +50,17 @@ test('a shape changed since its tree was built is not answered by the old tree',
   assert.equal(heldTree(box.geometry), null);
   assert.ok(Math.abs(raycast(box, down)[0].point.y - 6) < 1e-9);
 });
+
+test('ray trees reuse unchanged geometry and store one original face rank per triangle', () => {
+  const shape = geometry.box(2, 2, 2),
+    mesh = object.mesh(shape);
+  const ray = new Ray(new Vector3(0, 0, 5), new Vector3(0, 0, -1));
+  assert.equal(raycast(mesh, ray).length, 1);
+  const cached = heldTree(shape)!;
+  assert.equal(cached.ranks.length, 12);
+  assert.equal(new Set(cached.ranks).size, 12);
+  assert.equal(raycast(mesh, ray).length, 1);
+  assert.equal(heldTree(shape), cached);
+  shape.dispose();
+  assert.equal(heldTree(shape), null);
+});
