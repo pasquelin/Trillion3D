@@ -1,7 +1,7 @@
 import { reflectionLayout } from '../../../packages/sdk-browser/src/reflections/layout.ts';
 import { createWebgpuBlendPipelines } from '../../../packages/sdk-browser/src/webgpu/blend/pipelines.ts';
 import { BLEND_BINDINGS as B } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
-import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
+import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
 import { ltcTable } from '../../../packages/sdk-core/src/lighting/ltcTable.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/core/environment.ts';

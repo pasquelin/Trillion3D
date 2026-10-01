@@ -6,7 +6,7 @@ import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/sr
 import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
-import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
+import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';

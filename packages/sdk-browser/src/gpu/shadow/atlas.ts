@@ -1,11 +1,11 @@
-import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import type { ShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
 import {
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowDepthShader } from './depthModule.ts';
-import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
+import { createShadowRecordPack } from './recordPack.ts';
 import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { arrayView, layerPasses, layerViews, shadowPoolTexture } from './layers.ts';
@@ -15,23 +15,18 @@ import { shadowDepthDraws } from './depthDraws.ts';
 import { shadowFreshDraws } from '../../webgpu/shadow/freshDraws.ts';
 import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
+import {
+  MAX_SHADOW_REGIONS,
+  SHADOW_FACE_STRIDE as FACE_STRIDE,
+  SHADOW_TABLE_OFFSET,
+  dataBytesOf,
+  shadowAtlasBytes,
+  shadowBufferBytes,
+} from './sizes.ts';
+import { SHADOW_PASS } from '../../stage/passLabels.ts';
 
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
-
-/** Label of the measured pass; `gpuShadowsMs` is read under this name. */
-export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
-/** Bytes of the records, before the page table in the same buffer: where the table starts. */
-export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-/** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
-const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
-/** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`plan.ts`). */
-const shadowBufferBytes = (tableEntries: number) =>
-  MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(tableEntries);
-export const SHADOW_BUFFER_BYTES = shadowBufferBytes(SHADOW_TABLE_ENTRIES);
-/** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
-export const shadowAtlasBytes = (poolSide: number, layers = 1) =>
-  (poolSide * SHADOW_PAGE) ** 2 * 4 * layers;
+export { SHADOW_TABLE_OFFSET, shadowAtlasBytes } from './sizes.ts';
 
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 

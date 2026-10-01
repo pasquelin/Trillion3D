@@ -5,7 +5,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import { pageViews } from './geometryPageBlock.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import type {
   PageDecodeAnswer,
   PageDecodeDone,

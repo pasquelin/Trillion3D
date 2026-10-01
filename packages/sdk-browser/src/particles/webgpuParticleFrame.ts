@@ -4,11 +4,6 @@ import { viewProj } from '../webgpu/pages/helpers.ts';
 import { routedFilter } from '../webgpu/blend/displayFilter.ts';
 import { particleCode } from './particleFamily.ts';
 
-/** The pass label the GPU timings name the particle step by (`passesGpu`). */
-export const PARTICLES_PASS = 'Trillion3D particles';
-/** The pass label the GPU timings name the particle draw by (`passesGpu`). */
-export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
-
 /** True while one of the world's pools moves: the image changes, and is not held. */
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
 

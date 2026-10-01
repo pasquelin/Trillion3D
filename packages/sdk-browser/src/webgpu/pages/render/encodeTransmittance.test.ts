@@ -16,7 +16,6 @@ import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   SHADOW_TRANSMITTANCE_FORMAT,
-  SHADOW_TRANSMITTANCE_PASS,
 } from '../../../gpu/shadow/transmittance.ts';
 import { createShadowRegionList } from '../../shadow/regions.ts';
 import { planPagePasses } from '../../shadow/pagePasses.ts';
@@ -24,6 +23,7 @@ import { encodeTransmittance } from './encodeTransmittance.ts';
 import { drawRegionCasters } from './encodeRegionDraws.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
+import { SHADOW_TRANSMITTANCE_PASS } from '../../../stage/passLabels.ts';
 
 const volumes = new Float32Array(R * SHADOW_CULL_FLOATS),
   volumeWords = new Uint32Array(volumes.buffer);

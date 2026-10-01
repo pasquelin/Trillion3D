@@ -14,7 +14,7 @@ import { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import { assertSamePage, edgePages, randomPage } from '../../page/decode/randomPages.fixture.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';

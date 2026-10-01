@@ -103,7 +103,7 @@ export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 export type { GraphSurface } from './host/graph/surface.ts';
 export type { GraphTexture } from './host/graph/texture.ts';
 export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts';
-export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpu/core/passBlocks.ts';
+export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts';
 export { createDiagnosticChannel } from './diagnostic/channel.ts';
 export type {
@@ -147,7 +147,7 @@ export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts';
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';
-export { detectCapabilities } from './measurement/capabilities.ts';
+export { detectCapabilities } from './world/capability/capabilities.ts';
 export {
   HIERARCHY_ROOT,
   MATRIX_VALUES,

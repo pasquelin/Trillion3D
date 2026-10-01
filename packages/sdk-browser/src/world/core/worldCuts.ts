@@ -6,7 +6,7 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
 import { composesWithBackground } from '../../scene/materialBlending.ts';
