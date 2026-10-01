@@ -28,6 +28,15 @@ function rig() {
 const mat = (arm: ReturnType<typeof rig>['arm']) =>
   arm.material as unknown as { color: { r: number }; opacity: number };
 
+/** A mixer on `rig()` with one action sliding `arm` from x 0 to x 10 over one second. */
+function slide() {
+  const { root, arm } = rig();
+  const clip = animation.clip('slide', 1, [
+    animation.numberTrack('arm.position.x', [0, 1], [0, 10]),
+  ]);
+  return { root, arm, action: animation.createMixer(root).clipAction(clip) };
+}
+
 test('an action of weight 0 leaves the rest pose on every track kind', () => {
   const { root, arm, walk } = rig();
   const mixer = animation.createMixer(root);
@@ -117,15 +126,6 @@ test('a rotation and its opposite sign blend to that rotation, not to zero', () 
   close(Math.abs(arm.quaternion.w), Math.SQRT1_2);
   close(arm.quaternion.y * arm.quaternion.w, 0.5);
 });
-
-/** A mixer on `rig()` with one action sliding `arm` from x 0 to x 10 over one second. */
-function slide() {
-  const { root, arm } = rig();
-  const clip = animation.clip('slide', 1, [
-    animation.numberTrack('arm.position.x', [0, 1], [0, 10]),
-  ]);
-  return { root, arm, action: animation.createMixer(root).clipAction(clip) };
-}
 
 test('a seek poses a stopped action at once, and the loop leaves it there', () => {
   const { root, arm, action } = slide();
