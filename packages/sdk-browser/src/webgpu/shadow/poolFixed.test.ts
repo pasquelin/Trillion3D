@@ -11,6 +11,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
+import { shadowPoolShapeOf } from './poolSize.ts';
 
 /** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
 const SCREEN_POOL = 51 * 51;
@@ -57,4 +58,26 @@ test('a world’s shadowPoolPages option sets the pool it allocates once', async
   assert.deepEqual(s.taken[0].size, [32 * 128, 32 * 128, 1]);
   s.ask(1800, true);
   assert.equal(s.lights.plan.pool.pages, 1024, 'a demand past it reads coarser, never resizes');
+});
+
+// A fixed pool is sized for the widest buffer the session can reach (#831): a window opened small
+// and put full screen later reads the display's pages, never a coarser level for want of them.
+test("the default pool is the display's whole screen, or the canvas if wider", () => {
+  const pixelRatio = () => 2,
+    shape = (viewport: [number, number]) => shadowPoolShapeOf({ viewport, pixelRatio });
+  assert.deepEqual(shape([960, 540]), shadowPoolShape(screenPoolPages(960, 540)), 'no display');
+  Object.defineProperty(globalThis, 'screen', {
+    value: { width: 1728, height: 1117 },
+    configurable: true,
+  });
+  try {
+    assert.deepEqual(shape([960, 540]), shadowPoolShape(screenPoolPages(...SCREEN)));
+    assert.deepEqual(
+      shape([4000, 540]),
+      shadowPoolShape(screenPoolPages(4000, 2234)),
+      'a canvas wider than the display',
+    );
+  } finally {
+    delete (globalThis as { screen?: unknown }).screen;
+  }
 });
