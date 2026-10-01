@@ -1,10 +1,19 @@
 import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Bytes of a kept pair: its region, its row. */
 const PAIR_BYTES = 8;
 /** Rows asked at once: a need growing pair by pair asks the device rarely. */
 const ROW_STEP = 64;
+
+/** Pairs the kept list holds per page of the pool, sized once with it and never grown (#831), as
+ *  the reference engine's culling buffers are fixed (`a reference setting`): a page's texels over the
+ *  32 a kept cluster covers at least. A page past them waits, whole, for the host. */
+export const PAIRS_PER_PAGE = (SHADOW_PAGE * SHADOW_PAGE) / 32;
+
+/** The pairs a pool of `pages` pages holds: its pair list's fixed size. */
+export const poolPairs = (pages: number) => pages * PAIRS_PER_PAGE;
 
 /** Pairs a kept list of `rows` rows a region holds. */
 export const keptPairs = (rows: number) => Math.floor((rows * ROW_BYTES) / PAIR_BYTES);
