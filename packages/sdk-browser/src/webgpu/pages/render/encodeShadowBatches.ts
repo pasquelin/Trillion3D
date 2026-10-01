@@ -49,7 +49,7 @@ export function forEachShadowBatch(
 /** Of the listed pages `[from, to)`, those a batch draws their still casters for: every one
  *  without a static layer, else those whose layer is stale (`pool.drawMode`, `DRAW_DYNAMIC` the
  *  restores). */
-export function staticFills(lights: WebgpuLightState, from: number, to: number) {
+function staticFills(lights: WebgpuLightState, from: number, to: number) {
   const { pool, admission, records } = lights.plan,
     layer = !!lights.staticLayer;
   let fills = 0;

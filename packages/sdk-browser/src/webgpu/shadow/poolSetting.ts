@@ -16,7 +16,7 @@ import { keptListBytes, pairRows } from './pairRows.ts';
  * pairs' share of the kept lists (`pairRows`) — every byte `shadowPoolHeld` counts, the
  * transmittance layer of blended casters apart (`transmittanceGrant.ts`).
  */
-export function shadowHeldBytes(side: number, layers = 1, sunWindow = SUN_WINDOW, binStride = 1) {
+function shadowHeldBytes(side: number, layers = 1, sunWindow = SUN_WINDOW, binStride = 1) {
   const pages = side * side * layers;
   return (
     shadowBufferBytes(shadowTableEntries(sunWindow)) +
@@ -43,7 +43,7 @@ export const SHADOW_POOL_SETTING_BYTES = (() => {
 })();
 
 /** The largest pool whose held bytes (`shadowHeldBytes`) fit `bytes`, in layers of `layerSide`
- *  pages a side, its bins `binStride` words a row; one page at least. */
+ *  pages a side, its bins `binStride` words a row; one page at least. With its `heldBytes`. */
 export function shadowPoolWithin(
   bytes: number,
   layerSide?: number,
@@ -62,5 +62,6 @@ export function shadowPoolWithin(
     if (fits(mid)) low = mid;
     else high = mid - 1;
   }
-  return shapeOf(low);
+  const shape = shapeOf(low);
+  return { ...shape, heldBytes: shadowHeldBytes(shape.side, shape.layers, sunWindow, binStride) };
 }
