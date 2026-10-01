@@ -11,7 +11,9 @@ export const vec = (...parts: Array<number | Record<string, number>>) => {
 export function functionsOf(source: string, names: string[]) {
   return names
     .map((name) => {
-      const header = new RegExp(`(?:fn |\\b(?:uint|float|uvec2|bool) )${name}\\(`).exec(source);
+      const header = new RegExp(`(?:fn |\\b(?:uint|float|bool|u?vec[234]) )${name}\\(`).exec(
+        source,
+      );
       if (!header) throw new Error(`no function ${name}`);
       let depth = 0,
         end = source.indexOf('{', header.index);

@@ -2,7 +2,8 @@ import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
 import { VIS_DEPTH, visTargets } from '../visibility/pipelines.ts';
 import { grownCapacity } from '../../placement/rows.ts';
-import { CARD_FLOATS, CARD_PASS_WGSL, CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { CARD_PASS_WGSL, CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { createImpostorFeed } from './feed.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 
