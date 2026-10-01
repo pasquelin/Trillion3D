@@ -43,7 +43,6 @@ export const BLEND_MARKS_BINDINGS = { requests: 8, depth: 9 };
  * where the blend pass's reads ask nothing and keep their early depth reject.
  */
 export function blendShadowMarksWgsl(pages = SUN_WINDOW) {
-  const request = { binding: BLEND_MARKS_BINDINGS.requests, group: BLEND_MARKS_GROUP };
   return `${BLEND_VERTEX_WGSL}
 ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
@@ -51,7 +50,7 @@ ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.shadowData}) var<storage,read> shadows:ShadowData;
-${shadowRequestWgsl(request, pages)}
+${shadowRequestWgsl(BLEND_MARKS_BINDINGS.requests, pages, BLEND_MARKS_GROUP)}
 @group(${BLEND_MARKS_GROUP}) @binding(${BLEND_MARKS_BINDINGS.depth}) var markDepth:texture_depth_2d;
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -67,8 +66,9 @@ ${BLEND_SURFACE_NORMAL_WGSL}
 ${BLEND_SHADOW_FOOTPRINT_WGSL}
 /** Marks the pages a lit transparent point's lights read (\`declaredLighting\`): those of the cell
  *  its own depth \`z\` falls in, or every declared light past the grid, each at the point, normal
- *  and footprint its read takes. A cell that lists no shadowed light marks nothing. */
-fn markBlendShadows(pixel:vec2f,z:f32,P:vec3f,N:vec3f,thin:bool,footprint:f32){
+ *  and footprint its read takes, and, \`bothSides\`, at its normal unturned too. A cell that lists
+ *  no shadowed light marks nothing. */
+fn markBlendShadows(pixel:vec2f,z:f32,P:vec3f,N:vec3f,thin:bool,bothSides:bool,footprint:f32){
  let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
  var slice=vec2u(TILE_NO_SLICE,directLights.count);
  if(cell!=TILE_NO_SLICE){
@@ -76,25 +76,25 @@ fn markBlendShadows(pixel:vec2f,z:f32,P:vec3f,N:vec3f,thin:bool,footprint:f32){
   slice=cellSlice(cell);
  }
  demandSlice(slice,P,P,N,thin,footprint);
+ if(bothSides){demandSlice(slice,P,P,N,false,footprint);}
 }
-/** A blend fragment the pass lights marks its pages: past the material's rejects (\`blendSurface\`:
- *  the dash, the opacity test, the side), lit, outside the debug views, and in front of the opaque
- *  — the pass's depth test, made here before any write, as a stage that writes memory may run its
- *  depth test late. The derivatives come first, in uniform control flow; the opacity read takes
- *  explicit levels (\`textureSampleLevel\`), valid past any branch. A thin surface whose factor a
- *  map scales marks its pages on both sides: the map, which may zero it, is not fetched. */
+/** A blend fragment the pass lights marks its pages: lit, outside the debug views, in front of the
+ *  opaque — the pass's depth test, made here before any write, as a stage that writes memory may
+ *  run its depth test late — and past the material's rejects (\`blendSurface\`: the dash, the
+ *  opacity test, the side), the cheap tests before the one fetch. The derivatives come first, in
+ *  uniform control flow; the opacity read takes explicit levels (\`textureSampleLevel\`), valid
+ *  past any branch. A thin surface whose factor a map scales marks its pages on both sides: the
+ *  map, which may zero it, is not fetched. */
 @fragment fn markShadows(in:VSOut,@builtin(front_facing) front:bool){
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let N=blendGeometricNormal(in,front,dpdx(in.view),dpdy(in.view));
  let flags=in.ids.y;
- if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}
- let alpha=maskAlpha(in.ids.x,in.uv,gradX,gradY,(flags&${FLAG_SAMPLED}u)!=0u)*in.color.w;
- if(alpha<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front)){discard;}
  if((flags&${FLAG_LIT}u)==0u||(flags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)!=0u){return;}
  if(in.position.z<=textureLoad(markDepth,vec2i(in.position.xy),0)){return;}
+ if(!lineDash(in.uv.x,in.alphaAo.zw)||facingDiscarded(in.water>>${FACING_SHIFT}u,front)){return;}
+ let alpha=maskAlpha(in.ids.x,in.uv,gradX,gradY,(flags&${FLAG_SAMPLED}u)!=0u)*in.color.w;
+ if(alpha<in.alphaAo.x){return;}
  let thin=any(vec3f(in.normal.w,in.tangent.w,in.bitangent.w)>vec3f(0.0));
- let footprint=blendShadowFootprint(in.view);
- markBlendShadows(in.position.xy,in.position.z,in.view,N,thin,footprint);
- if(thin&&in.emissive.w!=0.0){markBlendShadows(in.position.xy,in.position.z,in.view,N,false,footprint);}
+ markBlendShadows(in.position.xy,in.position.z,in.view,N,thin,thin&&in.emissive.w!=0.0,blendShadowFootprint(in.view));
 }`;
 }

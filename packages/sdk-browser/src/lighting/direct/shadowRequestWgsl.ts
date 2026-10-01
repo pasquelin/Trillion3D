@@ -2,10 +2,6 @@ import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import { shadowEntryBits, laneRequestWgsl, subgroupRequestWgsl } from './requestLanesWgsl.ts';
 /** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
  *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
-/** Where a module's request buffer is bound: none (it reads without asking), a binding of group
- *  0, or a binding of another group. */
-export type ShadowRequestSlot = number | { binding: number; group: number } | null;
-
 export const shadowRequestBits = (pages = SUN_WINDOW) => shadowEntryBits(pages);
 
 /**
@@ -13,13 +9,13 @@ export const shadowRequestBits = (pages = SUN_WINDOW) => shadowEntryBits(pages);
  * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does not
  * mark — the blend forward stage, which keeps its early depth reject — reads without asking.
  * `shadowRequesting` is the pass's to set on a lane that asks per subgroup. The buffer is bound at
- * `slot`: a binding of group 0, or a binding of a group of its own — the transparents' marks bind
- * it beside the blend pass's groups (#1411).
+ * `binding` of `group`, group 0 but for the transparents' marks, which bind it beside the blend
+ * pass's groups (#1411); `null`, a module that reads without asking.
  */
-export const shadowRequestWgsl = (slot: ShadowRequestSlot, pages = SUN_WINDOW) =>
-  slot === null
+export const shadowRequestWgsl = (binding: number | null, pages = SUN_WINDOW, group = 0) =>
+  binding === null
     ? 'fn requestShadowPage(e:u32){}'
-    : `@group(${typeof slot === 'number' ? 0 : slot.group}) @binding(${typeof slot === 'number' ? slot : slot.binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
+    : `@group(${group}) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
 var<private> shadowRequesting:bool=false;
 ${laneRequestWgsl(pages)}`;
 
