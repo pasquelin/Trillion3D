@@ -64,6 +64,11 @@ async function main(): Promise<void> {
       case 'check:lines':
         run('node', ['scripts/check-file-lines.ts', '--changed']);
         break;
+      // The two bounds a runtime module answers to instead of the line count, read on the modules
+      // this branch touches.
+      case 'check:cohesion':
+        run('node', ['scripts/check-cohesion.ts', '--changed']);
+        break;
       case 'format':
         run('node_modules/.bin/prettier', [
           '--check',

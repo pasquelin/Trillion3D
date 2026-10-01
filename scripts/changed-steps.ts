@@ -39,6 +39,7 @@ export type ChangedStep =
   | 'generate:api'
   | 'compile:caches'
   | 'check:lines'
+  | 'check:cohesion'
   | 'format'
   | 'lint'
   | 'types'
@@ -65,6 +66,9 @@ export function changedSteps(
   if (existing.some((file) => formatPattern.test(file))) steps.push('format');
   const sources = existing.some((file) => sourcePattern.test(file));
   if (sources) steps.push('lint');
+  // The bound a runtime module answers to instead of the line count. It reads the modules the
+  // branch touches, so a change elsewhere in the tree is never held to it.
+  if (sources) steps.push('check:cohesion');
   if (code) steps.push('types');
   if (sources || existing.some((file) => file.endsWith('.rs'))) steps.push('duplicates');
   // A deleted source can leave an export only its tests used: any code change, deletions included.
