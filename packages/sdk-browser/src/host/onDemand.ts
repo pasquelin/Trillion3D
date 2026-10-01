@@ -14,9 +14,7 @@ const FAMILY_LOAD_FAILED_ID = 'T3D-E090';
  * family, told to `refused` once per round.
  * A refusal is not kept for the session: the next ask starts a new round, once the longest wait
  * of the HTTP loader (`RETRY_AFTER_CAP_MS`) has passed since it. `get` starts the import and
- * answers the module once it has arrived, `undefined` until then; `ask` does so too, and tells
- * `then` once the round in flight is over — once per round for each `asker`, however many images
- * asked —, so a frame drawn without the module is drawn again; `arrived` says it has;
+ * answers the module once it has arrived, `undefined` until then; `arrived` says it has;
  * `settled` waits for the round in flight and `load` for the module itself, refused as the round
  * was. A frame never reads a module that has not arrived: what uses it waits for it first
  * (`families.ts`).
@@ -56,20 +54,10 @@ export function onDemand<M>(
     refused(refusal);
   };
   const start = () => (loading ??= round());
-  const asking = new WeakSet<object>();
   return {
     get(): M | undefined {
       if (module === undefined) void start();
       return module;
-    },
-    ask(asker: object, then: () => void): M | undefined {
-      if (module !== undefined || asking.has(asker)) return module;
-      asking.add(asker);
-      void start().then(() => {
-        asking.delete(asker);
-        then();
-      });
-      return undefined;
     },
     get arrived() {
       return module !== undefined;

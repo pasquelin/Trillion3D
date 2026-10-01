@@ -8033,7 +8033,7 @@
       "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
       "bundles": "Bundel, menurut urutan biner.",
       "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, levelnya, dan galatnya, dibaca dari rekamannya.",
-      "cells": "Sel dunia: berapa banyak, dan primitif tertempatkan yang dipegang satu sel, dibaca dari rekamannya."
+      "cells": "Sel dunia: berapa banyak, primitif terpasang yang dimuat satu sel, dibaca pada rekamannya, dan sel yang memuat objek `object` — `origin` sebuah akar objek (#1332)."
     }
   },
   "WorldRootsBundle": {

@@ -8,25 +8,23 @@ import {
 } from '../../impostor/feed.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import { allocated } from '../core/allocation.ts';
-import { SUBSURFACE_UNIT } from '../cluster/materialMaps.ts';
-import { sentBytes } from '../cluster/sentBytes.ts';
-
-/** The units of the card records and of the three atlas maps: past every unit the cluster program
- *  binds (`setClusterSamplers`, the subsurface map last), so a card draw leaves its bindings as
- *  they were. */
-export const CARD_RECORD_UNIT = SUBSURFACE_UNIT + 1;
-export const ATLAS_UNITS = [CARD_RECORD_UNIT + 1, CARD_RECORD_UNIT + 2, CARD_RECORD_UNIT + 3];
+import type * as Lent from './lent.ts';
 
 /** A mesh's atlas on WebGL2: its three textures, in `ATLAS_MAPS` order. */
 export type WebglAtlas = readonly WebGLTexture[];
 
 /** Bytes of a mesh's atlas, its three RGBA8 chains, read from its maps before any level is. */
-const atlasBytes = (maps: ImpostorMaps) =>
-  ATLAS_MAPS.reduce(
-    (sum, name) =>
-      maps[name].levels.reduce((bytes, { width, height }) => bytes + sentBytes(width, height), sum),
-    0,
-  );
+const atlasBytes =
+  ({ sentBytes }: typeof Lent) =>
+  (maps: ImpostorMaps) =>
+    ATLAS_MAPS.reduce(
+      (sum, name) =>
+        maps[name].levels.reduce(
+          (bytes, { width, height }) => bytes + sentBytes(width, height),
+          sum,
+        ),
+      0,
+    );
 
 /**
  * THE PER-MESH ATLAS FEED on WebGL2 (#1336): the shared feed (`impostor/feed.ts`), the same reads,
@@ -40,8 +38,10 @@ export function createWebglImpostorFeed(
   gl: WebGL2RenderingContext,
   reader: TextureLevelReader,
   options: AtlasFeedOptions,
+  lent: typeof Lent,
 ) {
-  const { onFailure } = options;
+  const { onFailure } = options,
+    { ATLAS_UNITS } = lent;
   const make = (
     key: string,
     _maps: ImpostorMaps,
@@ -79,6 +79,6 @@ export function createWebglImpostorFeed(
     });
     entry.group = textures;
   };
-  const feed = createAtlasFeed<WebglAtlas>(reader, { ...options, bytesOf: atlasBytes, make });
+  const feed = createAtlasFeed<WebglAtlas>(reader, { ...options, bytesOf: atlasBytes(lent), make });
   return feed;
 }

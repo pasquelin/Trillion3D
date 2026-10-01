@@ -38,7 +38,7 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   });
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies });
   const spec: WorldRootsSpec = {
-    version: 2,
+    version: 3,
     budgetBytes: 4 << 20,
     pinned: 1,
     pinnedTopBytes: bundles[0].bytes,
