@@ -8,6 +8,7 @@ import {
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_BIND_ALIGN } from '../draw/contract.ts';
+import { VIEW_BLOCK_WORDS } from '../dag/viewLayout.ts';
 
 // The shadow sizes read before any pass is built — the batches' memory (`batchBudget.ts`), the
 // pool's grant and the memory budget's shadow shares (`../../residency/shadowBudgetBytes.ts`) —
@@ -23,8 +24,11 @@ export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
 
 /** Words of one view's uniform block: the uniform array's stride (`../dag/shader/shader.ts`,
- *  `Uniforms`). */
-export const DAG_VIEW_WORDS = 64;
+ *  `Uniforms`). It is the field table's own size (`../dag/viewLayout.ts`) — the table that also
+ *  generates the struct — so a field added to the block moves this byte count with it, rather than
+ *  leaving a literal here to be one word short of the shader. Not exported: the DAG reads the
+ *  stride from the table itself (`../dag/shader/viewsWgsl.ts`), and only this count is shadow's. */
+const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs — one
  *  view per page a batch draws at most (`DAG_MAX_VIEWS`, `../dag/shader/viewsWgsl.ts`). */
 export const DAG_UNIFORM_BYTES = MAX_SHADOW_PAGES * DAG_VIEW_WORDS * 4;
