@@ -120,7 +120,7 @@ pub(super) fn pack_world(
     refuse_over_budget(world, &top, (pinned_bytes, budget))?;
     let (objects, ranks) =
         object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
-    let clusters = clusters(dag, world, (&located, &ranks));
+    let clusters = clusters(dag, world, &located, &ranks);
     let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
         "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects,
         "clusters":clusters,"groups":group_list(&world.groups)});

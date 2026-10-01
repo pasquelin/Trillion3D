@@ -8032,7 +8032,7 @@
       "payload": "El binario donde los paquetes van uno tras otro: su dirección, su huella y su longitud.",
       "bundles": "Los paquetes, en el orden del binario.",
       "pages": "Las páginas: cuántas, y de una su paquete, su desplazamiento en él, su nivel y su error, leídos en su registro.",
-      "cells": "Las celdas del mundo: cuántas, y las primitivas colocadas que contiene una, leídas en sus registros."
+      "cells": "Las celdas del mundo: cuántas, las primitivas colocadas que contiene una, leídas en sus registros, y la celda que contiene el objeto `object`, el `origin` de una raíz de objeto (#1332)."
     }
   },
   "WorldRootsBundle": {

@@ -15,7 +15,8 @@ use crate::dag::{DagCluster, DagGroup};
 pub(super) fn clusters(
     dag: &[DagCluster],
     world: &WorldDag,
-    (located, object_of): (&[Option<(usize, usize)>], &[Option<usize>]),
+    located: &[Option<(usize, usize)>],
+    object_of: &[Option<usize>],
 ) -> Vec<Value> {
     (0..dag.len())
         .map(|slot| {
