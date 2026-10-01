@@ -8,7 +8,6 @@ import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 
 /** Threads of a cache-pass workgroup: one texel per thread. */
 export const SURFACE_WORKGROUP = 64;
-export { surfaceCacheTexels } from './sizes.ts';
 /**
  * Cache bytes, the single source of truth: the pass that creates it and the binding plan
  * read the same formula. A texel holds a `vec4f` — the face's outgoing radiance and its flag —,

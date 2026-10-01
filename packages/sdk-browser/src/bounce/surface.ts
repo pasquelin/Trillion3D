@@ -5,8 +5,8 @@ import {
   BOUNCE_SURFACE_SHADER,
   SURFACE_WORKGROUP,
   surfaceCacheBytes,
-  surfaceCacheTexels,
 } from './surfaceWgsl.ts';
+import { surfaceCacheTexels } from './sizes.ts';
 import type { GpuBounceProxy } from './proxy.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
