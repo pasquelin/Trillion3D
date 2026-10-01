@@ -23,6 +23,8 @@ export function webglImpostorTier(...args: Parameters<typeof createWebglImpostor
   const asker = {};
   return {
     cards,
+    /** GPU bytes of the atlases held: none until the tier is made. */
+    bytes: () => tier?.bytes ?? 0,
     /** The image's plan at `cam` for `viewport`, before its cut, once the code has landed. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
       if (tier === undefined) {

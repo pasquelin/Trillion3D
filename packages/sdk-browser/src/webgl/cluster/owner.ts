@@ -21,6 +21,8 @@ export type TextureHosts = Pick<
 > & {
   /** The session's impostor cards (#1336), drawn beside the clusters. */
   cards?: WebglCards;
+  /** The GPU bytes of their atlases, held in the texture pool beside the maps. */
+  cardBytes?: () => number;
 };
 
 /**
@@ -50,7 +52,11 @@ export class WebglClusterOwner {
     const declared = new Set(materials);
     this.display.textures.physicalMaps?.cache.census(declared);
     for (const material of declared) this.display.textures.file(material);
-    this.ahead.order(declared, hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET);
+    this.ahead.order(
+      declared,
+      hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
+      hosts.cardBytes,
+    );
     this.cards = hosts.cards;
     this.ahead.budget.declare(
       hosts.maxTextureTransferBytesPerFrame,
