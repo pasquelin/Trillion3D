@@ -3,6 +3,7 @@ import { DIAGNOSTICS, type EngineError } from '../../../../sdk-core/src/index.ts
 import type { MeasuredWorld } from '../session/explorer.ts';
 import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
 import { familyRefusals } from '../../host/families.ts';
+import { debugMode, setDebugMode } from '../../host/debugMode.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
 
@@ -18,7 +19,8 @@ const WORLD_MODES = [
  * does not know, or one the session in place refuses, is said once on the console and ignored:
  * the view keeps the mode it had, and a session opening later never inherits it.
  */
-export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
+export function worldDiagnostic(explorer: () => MeasuredWorld | null, debug?: boolean) {
+  if (debug) setDebugMode(true); // `WorldOptions.debug`
   let mode = 'beauty',
     sessions = 0,
     error: EngineError | null = null;
@@ -60,6 +62,14 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       }
       const session = explorer();
       if (!session || put(session, next)) mode = next;
+    },
+    /** The page's debug mode (`WorldOptions.debug`): the frames are filed into the CPU step
+     *  profile and the frame report only in it, from the next frame. */
+    get debug() {
+      return debugMode();
+    },
+    set debug(on: boolean) {
+      setDebugMode(on);
     },
     /** Sessions the world has opened so far: a change that reopens one shows here. */
     get sessions() {

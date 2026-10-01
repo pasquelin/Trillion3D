@@ -8,9 +8,9 @@ import { createScreenReflection, reflectionPlan } from './gpu.ts';
 import { physical, sceneOf } from './receivers.fixture.ts';
 import { contractLighting } from '../lighting/deferred/contractLighting.fixture.ts';
 import { REFLECTION_SOURCE_PASS } from './sourcePass.ts';
-import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
 import { TEXTURE_MIPS_PASS } from '../texture/mipsPass.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { DEFERRED_LIGHTING_PASS } from '../stage/passLabels.ts';
 
 test('a transmissive scene builds the depth bounds its water mirror walks; a reference one none', async () => {
   const h = await contractLighting();

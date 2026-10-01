@@ -13,10 +13,6 @@ import {
 } from './historyWgsl.ts';
 import { YCOCG_WGSL } from './ycocgWgsl.ts';
 
-/** Pass label; its timestamp duration absorbs that of the passes that precede it on
- *  some devices (apple metal-3), and is only read safely by envelope difference. */
-export const TAA_PASS = 'Trillion3D temporal antialiasing';
-
 /**
  * Where this pixel was on the previous frame, in history texture coordinates, and whether that
  * position is readable. The pixel is rebuilt in homogeneous from its depth — the background, at

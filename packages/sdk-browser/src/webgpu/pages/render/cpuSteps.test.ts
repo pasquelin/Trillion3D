@@ -6,6 +6,7 @@ import { createCpuStepProfile } from '../../../stage/cpuProfile.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from './cpuStepTable.ts';
 import { endCpuFrame, hostCpuStep } from './cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { setDebugMode } from '../../../host/debugMode.ts';
 
 /** What image close reads, and nothing else: a profile, a flag, an image number. */
 function banc() {
@@ -53,7 +54,9 @@ test('the four host bounds each have their place in the profile row', () => {
   );
 });
 
-test('an image that has not filled its row deposits nothing, a filled image deposits it once', () => {
+test('an image that has not filled its row deposits nothing, a filled image deposits it once', (t) => {
+  setDebugMode(true);
+  t.after(() => setDebugMode(false));
   const { rt, timing } = banc();
   hostCpuStep(rt, 'pendingMs', 1.25);
   endCpuFrame(rt);
@@ -71,7 +74,9 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   assert.equal(resume?.worst[0].frame, 7);
 });
 
-test('the host window keeps every filed row until it is read, whatever the publish cadence forgot', () => {
+test('the host window keeps every filed row until it is read, whatever the publish cadence forgot', (t) => {
+  setDebugMode(true);
+  t.after(() => setDebugMode(false));
   const { rt, timing } = banc();
   for (const total of [4, 2]) {
     timing.cpuProfile.row[CPU_STEP.totalMs] = total;
@@ -81,4 +86,14 @@ test('the host window keeps every filed row until it is read, whatever the publi
   assert.equal(timing.cpuProfile.summary()?.frames, 2, 'the publish window reads and forgets');
   assert.equal(timing.cpuWindow.summary()?.frames, 2, 'the host window still holds both images');
   assert.equal(timing.cpuWindow.summary(), null, 'read once, then forgotten');
+});
+
+test('outside debug mode, no one profiles: a filled image files no row and its next row is free', () => {
+  const { rt, timing } = banc();
+  timing.cpuProfile.row[CPU_STEP.totalMs] = 4;
+  timing.rowFilled = true;
+  endCpuFrame(rt);
+  assert.equal(timing.rowFilled, false, 'the image is closed');
+  assert.equal(timing.cpuProfile.summary(), null);
+  assert.equal(timing.cpuWindow.summary(), null);
 });

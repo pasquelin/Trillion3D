@@ -1,20 +1,22 @@
-import { BOUNCE_PROBE_PASS } from '../bounce/probeWgsl.ts';
-import { BOUNCE_SURFACE_PASS } from '../bounce/surfaceWgsl.ts';
-import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
-import { TAA_PASS } from '../taa/shaderWgsl.ts';
-import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
-import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
-import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
-import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
 import {
+  BOUNCE_PROBE_PASS,
+  BOUNCE_SURFACE_PASS,
+  DEFERRED_LIGHTING_PASS,
+  LIGHT_CUT_PASS,
+  LIGHT_TILES_PASS,
+  MATERIAL_DEPTH_PASS,
+  MATERIAL_SURFACES_PASS,
+  MATERIAL_TILES_PASS,
+  PARTICLES_PASS,
+  PARTICLE_DRAW_PASS,
+  REST_COMPACT_PASS,
+  SHADOW_LAYER_PASS,
+  SHADOW_PAGE_PASSES,
+  SHADOW_PASS,
   SHADOW_TRANSMITTANCE_CLEAR_PASS,
   SHADOW_TRANSMITTANCE_PASS,
-} from '../gpu/shadow/transmittance.ts';
-import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
-import { SHADOW_PAGE_PASSES } from '../webgpu/shadow/allocPass.ts';
-import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
-import { MATERIAL_TILES_PASS } from '../webgpu/core/materialTiles.ts';
-import { PARTICLE_DRAW_PASS, PARTICLES_PASS } from '../particles/webgpuParticleFrame.ts';
+  TAA_PASS,
+} from './passLabels.ts';
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts';
 
 /**
@@ -38,6 +40,8 @@ export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: Shado
  * already carries. This is the only read of deposit labels: direct-light durations, the per-stage
  * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
  * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
+ * The labels come from `passLabels.ts`, which every pass reads its own from: an import of the
+ * passes would put them and their shaders in the CDN core, on a WebGL2 page too (#1353).
  */
 const SHADOW_PAGE_ROW: PassRow = ['shadows', 'other', 'cull'];
 

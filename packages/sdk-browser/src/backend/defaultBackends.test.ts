@@ -5,8 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { chooseBackends } from './defaultBackends.ts';
-import { autonomousPagesBackend } from './autonomous/pages.ts';
-import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
+import { engineBackends } from './engines.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import { referenceBackend } from '../../../../bench/witnesses/referenceBackend.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
@@ -18,7 +17,7 @@ const { device } = fakeDevice();
 
 test('a WebGPU machine renders through the engine page raster by default', () => {
   const choice = chooseBackends({}, cache('scene.gltf'), device);
-  assert.deepEqual(choice.factories, [webgpuPagesBackend]);
+  assert.deepEqual(choice.factories, [engineBackends.webgpu]);
   assert.equal(choice.autonomous, false);
   assert.equal(choice.renderer, 'webgpu-page-raster');
   assert.equal(choice.origin, 'default');
@@ -27,7 +26,7 @@ test('a WebGPU machine renders through the engine page raster by default', () =>
 
 test("a WebGL2-only machine renders through the engine's own autonomous path", () => {
   const choice = chooseBackends({}, cache('scene.gltf'), undefined);
-  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
+  assert.deepEqual(choice.factories, [engineBackends.webgl2]);
   assert.equal(choice.renderer, 'autonomous-pages-webgl');
   assert.equal(choice.autonomous, true);
   assert.equal(choice.origin, 'default');
@@ -49,7 +48,7 @@ test('a witness renders only because the host opted into it', () => {
 
 test('a cache without a prepared scene still draws, through source.gltf', () => {
   const choice = chooseBackends({}, cache(null), undefined);
-  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
+  assert.deepEqual(choice.factories, [engineBackends.webgl2]);
   assert.equal(choice.renderer, 'autonomous-pages-webgl');
   // The same path, reading the source scene: an image, not autonomy and not a refusal.
   assert.equal(choice.autonomous, false);
@@ -75,7 +74,7 @@ test('an explicit autonomous request still refuses a cache without a prepared sc
       error instanceof EngineError && error.code === 'AUTONOMOUS_SCENE_UNAVAILABLE',
   );
   const choice = chooseBackends({ autonomousGeometry: true }, cache('scene.gltf'), undefined);
-  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
+  assert.deepEqual(choice.factories, [engineBackends.webgl2]);
   assert.equal(choice.renderer, 'autonomous-pages-webgl');
   assert.equal(choice.origin, 'host');
 });

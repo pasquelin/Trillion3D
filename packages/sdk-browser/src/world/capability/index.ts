@@ -1,4 +1,4 @@
-import { detectCapabilities } from '../../measurement/capabilities.ts';
+import { detectCapabilities } from './capabilities.ts';
 import { sessionOf } from '../core/worldSession.ts';
 
 /** The `capability` family: what the machine grants, before an image is promised. */

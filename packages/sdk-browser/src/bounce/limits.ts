@@ -9,8 +9,7 @@
  */
 
 import { PROBE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts';
-import { PROXY_HEADER_BYTES } from './nodeWgsl.ts';
-import { surfaceCacheTexels } from './surfaceWgsl.ts';
+import { PROXY_HEADER_BYTES, surfaceCacheTexels } from './sizes.ts';
 import { atlasExtent } from './atlas.ts';
 import { BOUNCE_GRID_BYTES } from './uniform.ts';
 

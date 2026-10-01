@@ -10,12 +10,13 @@ import {
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
 import { atlasBytes, probeAtlasExtent } from './atlas.ts';
 import { ensureBounceFits } from './limits.ts';
-import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
+import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { createBounceSchedule } from './schedule.ts';
 import { createProbeStorage } from './probeStorage.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
 import { syncBounceProbes } from './probeSync.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { BOUNCE_PROBE_PASS } from '../stage/passLabels.ts';
 
 /** Proxy, lights, queue, frozen probes, output and canonical surface cache: the three atlases
  *  of `atlas.ts`. */

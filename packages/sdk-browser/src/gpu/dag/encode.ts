@@ -1,13 +1,11 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import type { createDagResources } from './resources.ts';
 import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts';
+import { LIGHT_CUT_PASS } from '../../stage/passLabels.ts';
 
 /** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
  *  and bind group, the views it runs this frame and its queue capacity (`lightCut.ts`); it keeps no
  *  draw flag and compacts no drawable list — each view's log goes to the light compaction. */
-/** Label of a light cut's passes: shadow work, profiled as a stage of its own and never in the
- *  visibility block the camera's cut belongs to (`../../stage/mapping.ts`). */
-export const LIGHT_CUT_PASS = 'Trillion3D light cut';
 
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>> & {
   light?: { views: number; queueCap: number };

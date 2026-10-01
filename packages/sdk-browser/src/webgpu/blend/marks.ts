@@ -1,5 +1,4 @@
 import { isCancelled } from '../../backend/common.ts';
-import { BLEND_SHADOW_MARKS_PASS } from '../shadow/allocPass.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { drawBlendRuns } from './draw.ts';
 import { voidStaleBlendGroups } from './identity.ts';
@@ -8,6 +7,7 @@ import { BLEND_MARKS_BINDINGS, BLEND_MARKS_GROUP, blendShadowMarksWgsl } from '.
 import { blendStagePipelines, stageDescriptors, type RankedPipelines } from './stagePipelines.ts';
 import { drawsWater } from '../water/pass.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { BLEND_SHADOW_MARKS_PASS } from '../../stage/passLabels.ts';
 
 /** The three cull modes picked by plan rank, as the blend and water passes pick theirs. */
 const ranked = (culls: readonly GPURenderPipeline[]): RankedPipelines => ({

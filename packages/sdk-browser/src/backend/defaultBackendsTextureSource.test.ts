@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { chooseBackends, resolveTextureSource } from './defaultBackends.ts';
-import { autonomousPagesBackend } from './autonomous/pages.ts';
+import { engineBackends } from './engines.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
@@ -37,13 +37,13 @@ function onRuntime(bitmaps: boolean, body: () => void) {
 test('the images the loader opens follow the backend the engine chose', () => {
   onRuntime(true, () => {
     const withGpu = chooseBackends({}, metadata, device);
-    assert.deepEqual(withGpu.factories, [webgpuPagesBackend]);
+    assert.deepEqual(withGpu.factories, [engineBackends.webgpu]);
     assert.equal(resolveTextureSource(undefined, withGpu.factories), 'cache');
 
     // No device: #297's degraded default is the engine's own WebGL2 page path, which samples
     // the host images — they are read, default option or not.
     const withoutGpu = chooseBackends({}, metadata, undefined);
-    assert.deepEqual(withoutGpu.factories, [autonomousPagesBackend]);
+    assert.deepEqual(withoutGpu.factories, [engineBackends.webgl2]);
     assert.equal(resolveTextureSource(undefined, withoutGpu.factories), 'host');
     assert.equal(resolveTextureSource('cache', withoutGpu.factories), 'host');
   });
