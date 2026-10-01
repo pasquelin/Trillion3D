@@ -57,7 +57,14 @@ export const sessionPools = (pools: Pools) => ({
         active,
       );
       pools.activeGpu = { ...active };
-      return { geometryPoolBytes: split.geometryPool, texturePoolBytes: split.texturePool };
+      // The share is a ceiling over a pool the page asked, never a pool grown past it: prepare
+      // builds its tables for the pool asked (`memory-on-a-budget`'s 768 KiB), and an admission
+      // growing it there refused the frame targets (`TARGET_ADMISSION_REQUIRES_TABLE_GROWTH`).
+      const under = (asked: number | undefined, share: number) => Math.min(asked ?? share, share);
+      return {
+        geometryPoolBytes: under(pools.geometryPool, split.geometryPool),
+        texturePoolBytes: under(pools.texturePool, split.texturePool),
+      };
     },
     { limit: () => gpuOf(pools) },
   ),
