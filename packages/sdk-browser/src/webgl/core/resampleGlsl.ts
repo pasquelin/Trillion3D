@@ -1,4 +1,4 @@
-import { LANCZOS2_GLSL } from '../../taa/upscaleWgsl.ts';
+import { LANCZOS2_GLSL } from '../../taa/lanczos2Wgsl.ts';
 
 /**
  * WebGL2's resample of an image drawn below the display, per DISPLAY pixel: the upscale of the
