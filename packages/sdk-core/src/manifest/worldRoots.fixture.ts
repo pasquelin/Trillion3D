@@ -1,5 +1,7 @@
-import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts';
+import type { WorldRootsCluster } from './worldRoots.ts';
 import type { ClusterGroup } from '../contracts/geometry.ts';
+import { encodeWorldRoots, type WorldRootsSpec } from './worldRootsRecords.fixture.ts';
+import { readWorldRoots } from './worldRootsTable.ts';
 
 /** One super-root page as the cook writes it: a triangle of three vertices, `x` its offset. */
 export function worldPage(x: number) {
@@ -16,6 +18,7 @@ export function worldPage(x: number) {
  * A world of three cells over four bundles of one page each: the top, bundle 0, pinned; bundles 1
  * and 2 the super-roots of cells 0 and 1; bundle 3, which cells 0 and 1 both need. Cell 2's
  * objects reach the top alone. `sha256` names each bundle's digest, `table.payload` the binary.
+ * `spec` states it plainly, `bytes` are its records (`world-roots.table`) and `table` reads them.
  */
 export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => '0') {
   const pages = [0, 1, 2, 3].map(worldPage);
@@ -34,8 +37,8 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
     return bundle;
   });
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies });
-  const table: WorldRoots = {
-    version: 1,
+  const spec: WorldRootsSpec = {
+    version: 2,
     budgetBytes: 4 << 20,
     pinned: 1,
     pinnedTopBytes: bundles[0].bytes,
@@ -48,7 +51,8 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
       { objects: [object([0])] },
     ],
   };
-  return { table, bin };
+  const bytes = encodeWorldRoots(spec);
+  return { spec, bytes, table: readWorldRoots(bytes), bin };
 }
 
 /** A world cluster (`WorldRootsCluster`) with the test-only `units`: the leaf unit span it
@@ -58,7 +62,7 @@ type WorldRootsCookedCluster = WorldRootsCluster & { units: [number, number] };
 /**
  * A world of three cells along x, each four object roots (level 0, kept in the objects' own
  * streams), continued into one cell super-root (level 1) and one world top (level 2): the shape
- * the cook publishes, its `clusters` and `groups` as #1238 adds them to `world-roots.json`. Cell
+ * the cook publishes, its `clusters` and `groups` as #1238 adds them (`world-roots.dag`). Cell
  * 2 far, its object roots unread, its super-root must stand in. `units` spans the leaf unit each
  * cluster covers, so a coverage check can read it.
  */
