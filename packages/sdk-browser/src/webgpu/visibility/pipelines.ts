@@ -22,6 +22,18 @@ export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promi
   if (error) throw error;
   return value;
 }
+/** The visibility raster's targets: the identifiers, and the pyramid's level 0 when `hiz`. Every
+ *  raster drawing into the visibility pass — clusters and impostor cards — uses these. */
+const VIS_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }];
+const VIS_HIZ_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }, { format: 'r32float' }];
+export const visTargets = (hiz: boolean) => (hiz ? VIS_HIZ_TARGETS : VIS_TARGETS);
+/** The visibility raster's depth: written, tested as every opaque raster. */
+export const VIS_DEPTH: GPUDepthStencilState = {
+  format: 'depth32float',
+  depthWriteEnabled: true,
+  depthCompare: DEPTH_COMPARE,
+};
+
 export function createWebgpuVisibilityRasterPipelines(
   device: GPUDevice,
   visModule: GPUShaderModule,
@@ -30,14 +42,7 @@ export function createWebgpuVisibilityRasterPipelines(
   variant?: DiagnosticGpuVariant,
 ) {
   const layout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
-  const depth: GPUDepthStencilState = {
-    format: 'depth32float',
-    depthWriteEnabled: true,
-    depthCompare: DEPTH_COMPARE,
-  };
-  const targets: GPUColorTargetState[] = hiz
-    ? [{ format: 'r32uint' }, { format: 'r32float' }]
-    : [{ format: 'r32uint' }];
+  const targets = visTargets(hiz);
   const make = (
     vertex: string,
     fragment: string,
@@ -49,7 +54,7 @@ export function createWebgpuVisibilityRasterPipelines(
       vertex: { module: visModule, entryPoint: vertex },
       fragment: { module: visModule, entryPoint: fragment, targets },
       primitive: { topology: 'triangle-list', cullMode, frontFace },
-      depthStencil: depth,
+      depthStencil: VIS_DEPTH,
     });
   return scoped(device, async () => {
     const fragment = visVariantFragment(hiz, variant);
@@ -91,9 +96,7 @@ export function createWebgpuCoplanarLayerPipelines(
   variant?: DiagnosticGpuVariant,
 ) {
   const layout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
-  const targets: GPUColorTargetState[] = hiz
-    ? [{ format: 'r32uint' }, { format: 'r32float' }]
-    : [{ format: 'r32uint' }];
+  const targets = visTargets(hiz);
   const fragment = visVariantFragment(hiz, variant);
   return scoped(device, () => {
     const pipelines: Promise<GPURenderPipeline>[] = [];

@@ -904,7 +904,8 @@ grows.
 
 `clusters.json` carries `impostors` (version 1, #817): the compiler's verdict on every drawn mesh
 and, for each eligible one, an octahedral atlas standing in for it far away. The runtime switch and
-card are #1239, the crossfade and shadow casting #1240; this section fixes what the cache holds.
+card are #1239, their WebGPU draw #1335 (a switched root keeps its mesh's shadow), the crossfade and
+shadow casting #1240; this section fixes what the cache holds.
 
 **Capture.** In object space, pivot at the bounding-sphere centre (`centre`, `objectRadius` R, the
 DAG's `bounding_sphere`), +Y up, from `frames`×`frames` = 12×12 directions: frame `(i, j)` looks

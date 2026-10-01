@@ -1638,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "Los vértices de un modelo cargado se leyeron antes de `await geometry.loadVertices()`: una sesión los lee a la primera necesidad, nunca de antemano.",
       "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse, por un motivo sin código propio (`world.diagnostic.error`): el error lanzado está en `details.cause`.",
       "WEBGPU_LOST": "WebGPU perdió su dispositivo, o un error en él dejó un estado desde el que nada puede dibujar: lo lanzan `render`, `flush` y las lecturas que necesitan el dispositivo, lo nombra el diagnóstico `gpu-device-lost`, y aparece en `world.diagnostic.error` cuando una sesión no pudo abrirse por ello.",
-      "FAMILY_LOAD_FAILED": "Una familia opcional del motor (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) no se cargó, tras reintentar antes su importación (`T3D-E090`): `details.family` la nombra, en `world.diagnostic.error`. Los fotogramas que dibujan con ella la esperan, y se vuelve a pedir en el siguiente uso.",
+      "FAMILY_LOAD_FAILED": "Una familia opcional del motor (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) no se cargó, tras reintentar antes su importación (`T3D-E090`): `details.family` la nombra, en `world.diagnostic.error`. Los fotogramas que dibujan con ella la esperan, y se vuelve a pedir en el siguiente uso.",
       "UNSUPPORTED_SCENE_FORMAT": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
       "SCENE_NOT_SAVABLE": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
       "PHYSICS_BUDGET": "Se pidió a la física más allá de uno de sus límites (`world.budget.physics`: cuerpos, cuerpos decorativos, memoria), o un cuerpo dinámico no era hijo directo de la escena (`PHYSICS_NESTED`), o el módulo de física falló (`PHYSICS_FAILED`), o la pose o los vértices de un cuerpo dejaron de ser finitos y salió de la simulación (`PHYSICS_DIVERGED`): en `world.physics.error`.",
@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Planifica el nivel de impostores para una vista: cada raíz cuya malla tiene una entrada horneada y cuya conmutación se mantiene produce una tarjeta y se marca como suprimida.",
-    "description": "`view` lleva el mundo al espacio de vista (por columnas) y `focalPixels` es la única distancia focal del motor en píxeles en el viewport de la imagen."
+    "description": "`view` lleva el mundo al espacio de vista (por columnas) y `focalPixels` es la única distancia focal del motor en píxeles en el viewport de la imagen. `into`, un plan que devolvió una vista anterior, se vuelve a planificar en su lugar: se reutilizan su `switched` y sus tarjetas, de modo que un runtime que planifica cada imagen no asigna nada una vez que su número de tarjetas se estabiliza."
   },
   "validateImpostorSection": {
     "summary": "Un motivo breve por el que la sección no se puede usar, o `null`.",
