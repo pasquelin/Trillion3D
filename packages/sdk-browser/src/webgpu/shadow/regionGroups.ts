@@ -4,6 +4,13 @@ import { visBindEntries } from '../core/bindEntries.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
+ * The raster bins the pool draws by this frame (OMB-26), none while every caster falls in the first
+ * class and no LocalToClip is stored: the region lists then draw the very same corners.
+ */
+export const drawnBins = ({ bins, mobility }: WebgpuPagesRuntime['lights']) =>
+  bins && (bins.stored || mobility.binsSplit()) ? bins : undefined;
+
+/**
  * Bind group of a region: the visibility-buffer raster's, three bindings aside — the instance list
  * is the one culling kept for this region, or the one the occlusion test left visible (`visible`),
  * or their raster bins', the slot table places it in that list, and the uniform names the slot.
@@ -18,7 +25,8 @@ export function shadowRegionGroup(
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
     { visBindGroupLayout, concatPos, concatUv, pageTable, textures, mapsSampler } = vis;
-  const { cull, occlusion, bins } = lights;
+  const { cull, occlusion } = lights,
+    bins = drawnBins(lights);
   if (
     !visBindGroupLayout ||
     !cacheBuffer ||
@@ -57,7 +65,7 @@ export function shadowRegionGroup(
   }
   // With the raster bins, every region draws from their list (OMB-26).
   const instances = bins?.list ?? (visible && occlusion ? occlusion.visible : cull.kept),
-    slot = region + (instances === occlusion?.visible ? MAX_SHADOW_REGIONS : 0);
+    slot = region + (!bins && visible && occlusion ? MAX_SHADOW_REGIONS : 0);
   let group = lights.shadowGroups[slot];
   if (!group) {
     group = device.createBindGroup({
