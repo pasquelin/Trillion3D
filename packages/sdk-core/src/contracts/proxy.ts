@@ -50,7 +50,7 @@ export interface SceneProxyColumns {
   bindWorlds: Float64Array;
   /** Source hierarchy, including partition nodes not currently instantiated by the host. */
   sourceParents: Int32Array;
-  /** The source file's mesh each source node places, `-1` for none: what a partition's cell node draws. */
+  /** The compiled mesh each source node places, `-1` for none: what a partition's cell node draws. */
   sourceMeshes: Int32Array;
 }
 
