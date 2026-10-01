@@ -82,6 +82,8 @@ export function gpuFrames(
   return {
     plan,
     store,
+    /** The GPU allocation's buffers: its page budget a test may lower (`pagesPerFrame`). */
+    allocation,
     /** The GPU's page table, the entry each GPU page maps, and its other fields. */
     table,
     owner,
@@ -145,7 +147,7 @@ export function gpuFrames(
         gpuDraws === 'wanted' ? freshWanted(plan, store.epoch, allocation.lost) : gpuDraws;
       if (draws) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.
-        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, freshSlices(store));
+        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, 1, freshSlices(store));
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
         fresh.push(allocation.freshVolumes, allocation.freshArgs, allocation.freshParams);
         fresh.push(allocation.freshDispatch);

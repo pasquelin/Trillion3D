@@ -75,6 +75,7 @@ export function frame(calls: unknown[][]) {
     cull: { kept, capacity: 11, drawUniform: named('draw slots'), offsets: named('offsets') },
     spheres: { buffer: named('spheres') },
     mobilityRows: named('mobility'),
+    rowLods: { buffer: named('row lods') },
     staticLayer: undefined as unknown,
     shadowRenderPasses: 0,
     shadowDrawCalls: 0,

@@ -18,7 +18,7 @@ import {
   PAGE_VALID,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
+import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 
@@ -91,7 +91,7 @@ test('at a cold start, every page the first frame reads is drawn in it, within i
   // More than a batch of the host's regions holds: the GPU draws past it, as its pair list allows,
   // up to the pages it maps a frame (#831), past which they wait for the next.
   assert.ok(first.length > MAX_SHADOW_REGIONS, `${first.length} pages first read`);
-  assert.ok(first.length <= SHADOW_GPU_PAGES_PER_FRAME, 'within the budget');
+  assert.ok(first.length <= shadowPagesPerFrame(run.plan.pool.pages), 'within the budget');
   assert.deepEqual(
     read.filter((entry) => !(run.table[entry] & PAGE_VALID)),
     [],

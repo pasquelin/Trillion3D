@@ -1,6 +1,6 @@
 import { TRANSMITTANCE_CLEAR_WGSL } from '../../gpu/shadow/transmittance.ts';
 import { depthRestoreWgsl } from '../../gpu/core/depthRestoreWgsl.ts';
-import { FRESH_CLEAR, FRESH_MOVING_PAIR } from './freshLayout.ts';
+import { FRESH_CLEAR } from './freshLayout.ts';
 
 /**
  * THE DRAWS OF THE PAGES THE GPU DRAWS ITSELF (#1275), entries of the shadow depth shader
@@ -18,6 +18,8 @@ import { FRESH_CLEAR, FRESH_MOVING_PAIR } from './freshLayout.ts';
  *   the static layer's draw —, or of the moving ones alone, over the page restored from that layer
  *   (`restore_fs`, group 3): as the reference engine renders a new page's static casters into its
  *   static cache and merges them under the dynamic ones, the still geometry is drawn once (#831).
+ *   The still pairs lie from the list's start, the moving ones from its end down: each draw walks
+ *   its own (`freshPairAt`), the draw of every kept caster both.
  */
 export const SHADOW_FRESH_DRAWS_WGSL = `
 /** A GPU page's view as the depth pass reads a face, then its page's clip square in the layer's. */
@@ -33,15 +35,24 @@ fn pageHolds(view:ShadowView,at:vec2f)->bool{
 }
 /** Whether layer texel \`at\` lies in \`page\`. */
 fn freshInPage(page:FreshView,at:vec2f)->bool{return pageHolds(page.view,at);}
-/** The \`instance\`-th pair's caster at corner \`vertexIndex\`, if its region lies in the draw's layer. */
 /** Which casters a draw keeps (\`freshCaster\`): every one, the still ones, or the moving ones. */
 const FRESH_ALL:u32=0u;const FRESH_STILL:u32=1u;const FRESH_MOVING:u32=2u;
+/** The place in the pair list of a draw's \`instance\`-th caster: the still ones from the start,
+ *  the moving ones from the end down, every kept one the first then the second. */
+fn freshPairAt(instance:u32,keep:u32)->u32{
+ let still=freshArgs[FRESH_STILL_PAIRS];let last=freshArgs[FRESH_LAST_PAIR];
+ if(keep==FRESH_MOVING){return last-instance;}
+ if(keep==FRESH_STILL||instance<still){return instance;}
+ return last-(instance-still);
+}
+/** The \`instance\`-th caster \`keep\` draws, at corner \`vertexIndex\`, if its region lies in the
+ *  draw's layer. */
 fn freshCaster(vertexIndex:u32,instance:u32,blended:bool,keep:u32)->ShadowOut{
- let layer=vertexIndex>>FRESH_LAYER_SHIFT;let word=freshPairs[2u*instance];let k=word&${FRESH_MOVING_PAIR - 1}u;
+ let layer=vertexIndex>>FRESH_LAYER_SHIFT;let at=freshPairAt(instance,keep);let k=freshPairs[2u*at];
  let first=freshArgs[FRESH_LAYER_STARTS+layer];
- if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]||(keep==FRESH_STILL&&word!=k)||(keep==FRESH_MOVING&&word==k)){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
+ if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
  let page=freshFaces[k];
- var out=shadowVertexIn(page.view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
+ var out=shadowVertexIn(page.view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*at+1u],blended);
  out.position=freshPlace(page,out.position);out.region=k;
  return out;
 }

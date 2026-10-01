@@ -8,7 +8,7 @@ import {
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
+import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
@@ -20,8 +20,8 @@ const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 /** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
 const snapshotWords = (pages: number) => POOL_COUNTS.length + 3 * pages;
 /** Pairs the host's table words hold at most: the table's changed words of a frame, or every
- *  mapped page once (`table.ts`, `flush`). */
-const wordsCap = (pages: number) => 4 * pages;
+ *  mapped page once and the entries withdrawn (`table.ts`, `flush`, `eachWithdrawn`). */
+const wordsCap = (pages: number) => 5 * pages;
 
 type Usage = keyof typeof GPUBufferUsage;
 /** Words of each buffer of the allocation of a pool of `pages`, with its label and its usages
@@ -82,6 +82,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
     seeded: false,
+    /** The pages the GPU maps a frame at most (`shadowPagesPerFrame`): the rest the next frames. */
+    pagesPerFrame: shadowPagesPerFrame(pages),
     /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
     seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
       const { pool, records, table } = plan,
@@ -103,16 +105,18 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     },
     /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the
      *  caster rows the cull tests — the table's, the blended casters' —, the pairs it may keep,
-     *  then each slice's emitter and far plane. */
+     *  the error in texels it chooses their level at, then each slice's emitter and far plane. */
     writeFresh(
       side: number,
       layers: number,
       rows: number,
       blend: readonly [number, number],
       capacity: number,
+      threshold: number,
       slices: Float32Array,
     ) {
       fresh.set([pages, side, layers, rows, blend[0], blend[1], capacity]);
+      freshFloats[7] = threshold;
       freshFloats.set(slices, FRESH_PARAM_WORDS);
       device.queue.writeBuffer(freshParams, 0, fresh);
     },
@@ -126,42 +130,48 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       params[3] = count;
       params[4] = needSpan;
       params[5] = keepFrom;
-      params[6] = SHADOW_GPU_PAGES_PER_FRAME;
+      params[6] = allocation.pagesPerFrame;
       params.set(generation, 8);
       params.set(asks.entries.subarray(0, count), ALLOC_PARAM_WORDS);
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
     },
     /** Sends the table words frame `frame`'s plan changed that map a page (`wordsWgsl.ts`): its
-     *  table's flush, run through `flush`. Returns how many. */
+     *  table's flush, run through `flush`. Returns the invocations they take: one a word, or one a
+     *  page when the list could not hold every withdrawn entry — every GPU-only draw then lost. */
     writeWords(
       plan: ShadowPlan,
       frame: number,
       flush: (sink: (first: number, count: number) => void) => void,
     ) {
-      const { pool, table } = plan;
-      let count = 0;
+      const { pool, table } = plan,
+        cap = wordsCap(pages);
+      let count = 0,
+        every = 0;
       allocation.lost = 0;
       const send = (entry: number) => {
         const word = sentShadowWord(table, entry);
         // An entry the host does not map goes out only withdrawn: a GPU draw of it is redone.
         if (!(word & (PAGE_MAPPED | PAGE_WITHDRAWN))) return;
+        if (count === cap) return void (every = 1);
         if (!(word & PAGE_VALID)) allocation.lost++;
         words[WORDS_HEADER + 2 * count] = entry;
         words[WORDS_HEADER + 2 * count++ + 1] = word;
       };
       flush((first, runs) => {
-        // The whole table: every page the host maps, once.
-        if (runs === table.entries)
-          for (let page = 0; page < pool.pages; page++) {
-            if (pool.owner[page] >= 0) send(pool.owner[page]);
-          }
-        else for (let entry = first; entry < first + runs; entry++) send(entry);
+        if (runs !== table.entries) {
+          for (let entry = first; entry < first + runs; entry++) send(entry);
+          return;
+        }
+        // The whole table: every page the host maps once, and every entry withdrawn it does not
+        // map, whose GPU draw would otherwise be adopted current (#831).
+        for (let page = 0; page < pool.pages; page++)
+          if (pool.owner[page] >= 0) send(pool.owner[page]);
+        table.eachWithdrawn((entry) => void (!(table.words[entry] & PAGE_MAPPED) && send(entry)));
       });
-      words[0] = count;
-      words[1] = pages;
-      words[2] = frame;
-      if (count) device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
-      return count;
+      words.set([count, pages, frame, every]);
+      if (count || every)
+        device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
+      return every ? Math.max(count, pages) : count;
     },
     /** Reads a snapshot's words into `into`. */
     read(from: Uint32Array, into: ShadowPoolSnapshot) {

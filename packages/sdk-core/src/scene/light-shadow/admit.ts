@@ -22,7 +22,7 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
 
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
- * reads now —, all of them, up to the frame's page budget (`SHADOW_PAGES_PER_FRAME`, #831): a
+ * reads now —, all of them, up to the frame's page budget (`shadowPagesPerFrame`, #831): a
  * burst past it — a scene's first frames, a camera cut — is drawn over the next frames, in the
  * order below, the coarsest and the oldest first. Otherwise the cost is held by caching — a page is drawn only once it
  * is marked, and it is marked only when what it holds changed (`invalidate.ts`) or it was just
