@@ -1004,7 +1004,7 @@
       "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
-      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
+      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
@@ -4404,7 +4404,8 @@
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "debug": "Mode debug, alat build pengembangan dibandingkan build rilis: frame hanya dicatat ke profil langkah CPU (`world.cpuSteps`) dan laporan frame dalam mode ini. Mode ini milik halaman, seperti `?profile` di alamatnya yang menyalakannya; `world.diagnostic.debug` mengubahnya kemudian."
     }
   },
   "RenderScale": {
@@ -5063,7 +5064,8 @@
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "options.debug": "Mode debug, alat build pengembangan dibandingkan build rilis: frame hanya dicatat ke profil langkah CPU (`world.cpuSteps`) dan laporan frame dalam mode ini. Mode ini milik halaman, seperti `?profile` di alamatnya yang menyalakannya; `world.diagnostic.debug` mengubahnya kemudian."
     }
   },
   "crossVector3": {
@@ -7216,7 +7218,8 @@
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
       "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya; `FAMILY_LOAD_FAILED` ketika sebuah keluarga opsional tidak termuat, saat itu juga), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
-      "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
+      "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang.",
+      "debug": "Mode debug halaman (`WorldOptions.debug`): frame hanya dicatat ke profil langkah CPU dan laporan frame dalam mode ini, mulai frame berikutnya."
     }
   },
   "world.materials": {
