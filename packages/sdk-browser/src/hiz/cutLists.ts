@@ -77,6 +77,16 @@ export function listsOf<T>(history: { lists?: CutLists }, locations: PageLocatio
   return lists;
 }
 
+/** The depth the cut rasters into, wide enough for this image: one array for the three passes,
+ *  widened when the viewport grew, never narrowed. Reusing it is safe because `hizBuildFlat` copies
+ *  the depth into each pyramid's own buffer (`sdk-core/src/hiz/pyramidFlat.ts:107`) — the history's
+ *  and the first pass's are two pyramids of their own and never alias. */
+export function depthOf(history: { depth?: Float32Array }, viewport: [number, number]) {
+  const pixels = viewport[0] * viewport[1];
+  if (!history.depth || history.depth.length < pixels) history.depth = new Float32Array(pixels);
+  return history.depth;
+}
+
 /** One cleared byte per page of the cut, wide enough to carry them: widened when the cut grew,
  *  never narrowed, never reallocated for a cut that did not. */
 export function unoccludedOf<T>(lists: CutLists<T>, count: number) {
