@@ -1,5 +1,5 @@
 /** Every per-page array of a shadow pool of `pages` pages (`pool.ts`): what a page holds and how
- *  current it is. A resize makes them anew (`poolResize.ts`). */
+ *  current it is. The grant makes them at the pool's size (`plan.size`). */
 export const shadowPageArrays = (pages: number) => ({
   owner: new Int32Array(pages).fill(-1),
   slice: new Int32Array(pages),

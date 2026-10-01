@@ -86,6 +86,13 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       description:
         'Shadow casters placed by a LocalToClip matrix stored once per caster and light view, one matrix-vector product per vertex. Off by default: depths may differ by one ulp from the default path.',
     },
+    shadowPoolPages: {
+      type: 'integer',
+      default: 4096,
+      minimum: 1,
+      description:
+        'Physical pages of the shadow pool (128x128 texels, 64 KiB each), allocated once when a light first casts and never resized. Default 4096 (256 MiB). A frame that reads more pages draws the coarser level past it.',
+    },
     bounce: {
       type: 'boolean',
       default: /* @__PURE__ */ explorerSwitchDefault('bounce'),

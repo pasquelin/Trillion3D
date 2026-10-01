@@ -1,4 +1,9 @@
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  SHADOW_PAGE,
+  shadowPoolShape,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts';
+import type { BackendContext } from '../../backend/types.ts';
 import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
 import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
@@ -12,17 +17,26 @@ import {
   sceneCastsBlended,
   transmittanceSettled,
 } from './transmittanceGrant.ts';
-import {
-  shadowTransmittanceBytes,
-  type ShadowTransmittance,
-} from '../../gpu/shadow/transmittance.ts';
+import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
-import {
-  SHADOW_ATLAS_BYTES,
-  SHADOW_GRANT_BYTES,
-  SHADOW_POOL_PAGES,
-} from '../../residency/shadowBudgetBytes.ts';
+import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+
+/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else the setting's
+ *  (`LIGHT_SETTINGS.shadowPoolPages`); the memory budget's pool bounds it (`shadowPoolFor`). */
+export const shadowPoolPagesOf = (context: Pick<BackendContext, 'shadowPoolPages'>) =>
+  context.shadowPoolPages ?? LIGHT_SETTINGS.shadowPoolPages;
+
+/** The pool's shape on a device of `limits` — one layer as wide as it draws, as `askShadowPool`
+ *  asks —: the host plan is made at it, before the grant confirms it (`../pages/runtime.ts`). */
+export const shadowPoolShapeOf = (
+  context: Pick<BackendContext, 'shadowPoolPages'>,
+  limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
+) =>
+  shadowPoolShape(
+    shadowPoolPagesOf(context),
+    limits ? Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE) : undefined,
+  );
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
  *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). The layer
@@ -46,10 +60,10 @@ export function staticLayerGranted(
   );
 }
 
-/** What the shadow pool asks of the device for `wanted` pages — the budget's, then what the scene
- *  reads (`followDemand`) —, granted at most the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`);
- *  nothing without a caster, or during a capture. `grant` asks it (`grantedShadowPool`). */
-export function askShadowPool(
+/** What the shadow pool asks of the device for `wanted` pages — its setting's —, granted at most
+ *  the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`); nothing without a caster, or during a
+ *  capture. `grant` asks it (`grantedShadowPool`). */
+function askShadowPool(
   rt: WebgpuPagesRuntime,
   atlas: GpuShadowAtlas,
   device: GPUDevice,
@@ -72,26 +86,24 @@ export function askShadowPool(
 type GrantedPool = Granted<ReturnType<ReturnType<typeof shadowPoolFor>>, GPUTexture>;
 
 /**
- * Takes the pool the device granted for `wanted` pages: the plan pages it, keeping every page it
- * holds (`plan.resize`); the atlas holds its texture, and `layer`, the transmittance layer made for
- * it; the region list and the request return path follow its pages, the old path freed once its
- * reads have landed. Returns the plan's page moves and what the atlas held before, if anything.
+ * Takes the pool the device granted for `wanted` pages, once: the plan pages it (`plan.size`); the
+ * atlas holds its texture; the region list and the request return path follow its pages, the
+ * seed's path freed once its reads have landed.
  */
-export function adoptShadowPool(
+function adoptShadowPool(
   rt: WebgpuPagesRuntime,
   atlas: GpuShadowAtlas,
   device: GPUDevice,
   granted: GrantedPool,
   wanted: number,
-  layer?: ShadowTransmittance,
 ) {
   const { lights, diag } = rt,
     { side, layers, clamp, allocatedBytes } = granted.pool;
   // Coarser pages for memory alone, by name: the halvings the device's refusals took.
   if (granted.halvings) noteShadowPressure(lights.memory, 'pool-shrunk', granted.halvings);
-  const moved = lights.plan.resize(side, layers),
-    held = atlas.sizePool(side, layers, granted.made, layer),
-    requests = lights.pageRequests;
+  lights.plan.size(side, layers);
+  atlas.sizePool(side, layers, granted.made);
+  const requests = lights.pageRequests;
   lights.regions = createShadowRegionList(side);
   lights.pageRequests = createShadowPageRequests(
     device,
@@ -99,40 +111,35 @@ export function adoptShadowPool(
     lights.plan.sunWindow,
   );
   void requests?.settled().then(requests.dispose);
-  diag.engineDiagnostic(
-    'shadow-pool',
-    held ? "Shadow pool resized to the scene's demand" : 'Shadow pool seeded at the first frame',
-    {
-      version: 2,
-      wanted,
-      side,
-      layers,
-      pages: lights.plan.pool.pages,
-      bytes: allocatedBytes,
-      clamp,
-    },
-  );
-  return { moved, held };
+  diag.engineDiagnostic('shadow-pool', 'Shadow pool allocated at its setting', {
+    version: 2,
+    wanted,
+    side,
+    layers,
+    pages: lights.plan.pool.pages,
+    bytes: allocatedBytes,
+    clamp,
+  });
 }
 
-/** The pool full at its ceiling, said once as it comes to be, as Unreal warns of a physical page
- *  pool overflow: what the scene asks past it reads the coarser level (`shadowPagesOverflow`). */
+/** The pool full, said once as it comes to be (`poolCeiling.ts`), as Unreal warns of a physical
+ *  page pool overflow: what the scene asks past it reads the coarser level (`shadowPagesOverflow`). */
 export function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
   rt.diag.engineDiagnostic(
     'shadow-pool',
-    'The shadow pool is full at its ceiling: the pages past it read the coarser level',
+    'The shadow pool is full: the pages past it read the coarser level',
     { kind: 'warning', version: 2, wanted, pages: rt.lights.plan.pool.pages, clamp: 'ceiling' },
   );
 }
 
 /**
- * Seeds the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
- * before any report says what the scene reads: the budget's whole pool, as Unreal allocates its
- * physical pages up front from a setting (`r.Shadow.Virtual.MaxPhysicalPages`), so the first
- * frames never read a coarser level for want of pages. Until then no shadow page exists; the plan
- * built at creation pages the granted pool from then on (`adoptShadowPool`), keeping the host's
- * settings. A capture never sizes the pool: the next frame does. The first report then sizes it to
- * the scene's demand, and the reports after it follow that demand (`poolResize.ts`).
+ * Allocates the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
+ * once, at its setting (`shadowPoolPagesOf`), as Unreal allocates its physical pages up front from
+ * `r.Shadow.Virtual.MaxPhysicalPages`: it is never resized after (`poolCeiling.ts`), so a page
+ * keeps its place, its depth and its static layer for as long as it is mapped (#831). Until then
+ * no shadow page exists; the plan built at creation pages the granted pool from then on
+ * (`adoptShadowPool`), keeping the host's settings. A capture never sizes the pool: the next
+ * frame does.
  *
  * The atlas texture is allocated under an out-of-memory check, like the geometry and texture pools
  * (`grantedShadowPool`): a pool the device refuses is drawn at half its bytes, down to the smallest
@@ -150,7 +157,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     atlas = lights.shadows,
     device = rt.gpu.device;
   if (!atlas || !device || atlas.texture || lights.shadowGrant) return;
-  const ask = askShadowPool(rt, atlas, device, SHADOW_POOL_PAGES);
+  const ask = askShadowPool(rt, atlas, device, shadowPoolPagesOf(rt.context));
   if (!ask) return;
   const done = ask.grant().then(
     async (granted) => {

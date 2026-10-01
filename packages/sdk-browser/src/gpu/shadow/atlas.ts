@@ -39,8 +39,8 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
  * buffer of the records then the session's whole page table, up front (`SHADOW_DATA_WGSL`); the
  * opaque resolve's page records; each drawn page's uniform, read by dynamic offset. The texture
- * waits for `sizePool`: the first frame that casts grants the budget's pool, then the pages the
- * scene reads size it (`poolDemand.ts`), the shading reading the placeholder until then.
+ * waits for `sizePool`: the first frame that casts grants the pool its setting asks
+ * (`../../webgpu/shadow/poolSize.ts`), the shading reading the placeholder until then.
  */
 export async function createGpuShadowAtlas(
   device: GPUDevice,
@@ -121,26 +121,17 @@ export async function createGpuShadowAtlas(
       faceStride: FACE_STRIDE,
       allocationBytes: fixedBytes,
       makePool,
-      /** Takes the pool's texture — granted or made now — before the first page is drawn; again at
-       *  a resize (`poolResize.ts`), with its transmittance layer when one is held. Returns what it
-       *  held then, which the caller copies from and destroys. */
-      sizePool(
-        poolSide: number,
-        layers = 1,
-        granted = makePool(poolSide, layers),
-        layer = transmittance,
-      ) {
-        const held = texture && { texture, transmittance };
+      /** Takes the pool's texture — granted or made now — once, before the first page is drawn:
+       *  the pool keeps that size (`../../webgpu/shadow/poolSize.ts`). */
+      sizePool(poolSide: number, layers = 1, granted = makePool(poolSide, layers)) {
         atlas.allocationBytes =
-          fixedBytes + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
+          fixedBytes + shadowAtlasBytes(poolSide, layers) + (transmittance?.bytes ?? 0);
         atlas.size = poolSide * SHADOW_PAGE;
         texture = granted;
-        transmittance = layer;
         atlas.view = arrayView(granted);
         atlas.targets = layerViews(granted);
         atlas.passes = layerPasses(SHADOW_PASS, atlas.targets);
         pack.setPoolSide(poolSide);
-        return held;
       },
       /** Compiles the transmittance layer's draws off the frame (`shadowTransmittanceDraws`). */
       prepareTransmittance: transmittanceDraws.prepare,
