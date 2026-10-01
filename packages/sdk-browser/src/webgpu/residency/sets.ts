@@ -3,7 +3,7 @@ import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -23,7 +23,7 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
   bootstrapKey: Uint8Array;
-  packedPages: readonly PageRec[];
+  packedPages: PageList;
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;

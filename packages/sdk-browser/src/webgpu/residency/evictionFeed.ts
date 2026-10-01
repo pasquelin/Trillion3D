@@ -1,8 +1,7 @@
-import type { PageRec } from '../../page/selection/selection.ts';
 import type { GpuSelection } from '../../gpu/core/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import { pageAddress } from '../row/pageSlots.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 
 type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>;
 
@@ -11,10 +10,7 @@ type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>;
  * Addresses are read on a page's record as each victim is taken, never
  * the catalogue. A CPU cut's image (`null`) evicts the least recent page (`requestAdmission.ts`).
  */
-export function createEvictionFeed(
-  packedPages: readonly PageRec[],
-  getCache: () => Cache | undefined,
-) {
+export function createEvictionFeed(packedPages: PageList, getCache: () => Cache | undefined) {
   let last: unknown,
     ids = new Int32Array(0);
   const { recordOf } = createPageCatalogue(packedPages);

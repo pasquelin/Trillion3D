@@ -3,7 +3,7 @@ import type { IdDelta } from './delta.ts';
 import { createDenseKeySet } from './denseKeys.ts';
 import { createSparseInts } from '../../page/cut/sparseInts.ts';
 import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -22,7 +22,7 @@ import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 export type CutPending = ReturnType<typeof createCutPending>;
 
 export function createCutPending(
-  packedPages: readonly PageRec[],
+  packedPages: PageList,
   delta: IdDelta,
   accepted: (rec: PageRec) => boolean = () => true,
   /** Changes whenever `accepted` may answer differently: the awaited list is rebuilt then only. */

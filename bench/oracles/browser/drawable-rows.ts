@@ -26,14 +26,7 @@ type RowWriter = (
 /** Row state before batch F: a page's rank lived in a hash table. */
 export function referenceRowState(packedPages: readonly PageRec[], drawSlots: number) {
   const pageIndexByRec = new Map<PageRec, number>();
-  const pageIndicesByUrl = new Map<string, number[]>();
-  for (let i = 0; i < packedPages.length; i++) {
-    pageIndexByRec.set(packedPages[i], i);
-    const url = packedPages[i].url,
-      indices = pageIndicesByUrl.get(url);
-    if (indices) indices.push(i);
-    else pageIndicesByUrl.set(url, [i]);
-  }
+  for (let i = 0; i < packedPages.length; i++) pageIndexByRec.set(packedPages[i], i);
   // The journal of named pages and residencies that moved during the pass: later than
   // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
   // the shared rank sync runs identically on both sides.
@@ -41,7 +34,6 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
   const etat = {
     ...journal,
     residentFlags: new Uint32Array(packedPages.length),
-    pageIndicesByUrl,
     residentOffsetWords: new Int32Array(packedPages.length).fill(-1),
     rowPageIndex: new Int32Array(drawSlots).fill(-1),
     rowOffsetWords: new Int32Array(drawSlots).fill(-1),
