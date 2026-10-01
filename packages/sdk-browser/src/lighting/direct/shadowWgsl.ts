@@ -11,7 +11,7 @@ import {
 import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
 import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
-import { shadowRequestWgsl, type ShadowRequestSlot } from './shadowRequestWgsl.ts';
+import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
@@ -82,7 +82,7 @@ fn shadowNormalTexels(cosine:f32)->f32{
  */
 export const directShadowWgsl = (
   dataBinding: number,
-  requestBinding: ShadowRequestSlot,
+  requestBinding: number | null,
   transmittanceBinding: number,
   pages = SUN_WINDOW,
 ) => `
