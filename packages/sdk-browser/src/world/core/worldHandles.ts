@@ -63,8 +63,8 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null, debug?: bo
       const session = explorer();
       if (!session || put(session, next)) mode = next;
     },
-    /** The page's debug mode (`WorldOptions.debug`, `../../host/debugMode.ts`): the frames are
-     *  filed into the CPU step profile and the frame report only in it, from the next frame. */
+    /** The page's debug mode (`WorldOptions.debug`): the frames are filed into the CPU step
+     *  profile and the frame report only in it, from the next frame. */
     get debug() {
       return debugMode();
     },

@@ -40,8 +40,8 @@ export function statsCard(corner: keyof typeof statsCorners = 'bottom-left') {
  * also kept as `window.__profile`. What it returns stops the corner's timers.
  */
 export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {
-  // The corner reads the engine's CPU steps, which only its debug mode files, as Unreal's `stat`
-  // commands exist only in a Development build: a page without the corner pays for none of it.
+  // The corner reads the engine's CPU steps, which only its debug mode files, as a development
+  // build's tools: a page without the corner pays for none of it.
   if (world.diagnostic) world.diagnostic.debug = true;
   const show = statsCard(corner);
   let profiled: [string, string][] = [];
