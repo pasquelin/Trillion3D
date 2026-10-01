@@ -58,6 +58,7 @@ export interface WebgpuLightState {
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
+  /** The pool's raster bins (OMB-26). */ bins?: import('../../../gpu/shadow/bins.ts').ShadowBins;
   /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
   movingGroups: ShadowMovingGroups | undefined;
   /** Each pass's clears and restores, two instanced draws; made with the atlas. */
@@ -107,8 +108,7 @@ export interface WebgpuLightState {
   shadowDrawCalls: number;
   /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
   shadowRenderPasses: number;
-  /** Why the shadow atlas does not exist, when it does not. */
-  shadowReason: string | null;
+  /** Why the shadow atlas does not exist, when it does not. */ shadowReason: string | null;
   /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
   memory: ShadowMemory;
   /** The transmittance layer is past the grant or refused: never asked again (`transmittanceGrant.ts`). */

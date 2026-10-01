@@ -19,15 +19,17 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 const asking = new WeakMap<object, number>();
 const PAST_GRANT = 'The shadow pair list is past the grant';
 
-/** Bytes of `rows` rows of the kept lists: the cull's, and the occlusion test's that follows it. */
-const listBytes = (rows: number, occlusion: boolean) => rows * ROW_BYTES * (occlusion ? 2 : 1);
+/** Bytes of `rows` rows of the kept lists: the cull's, the occlusion test's that follows it, and
+ *  the raster bins' — a row and, stored, its matrix (`../../gpu/shadow/bins.ts`). */
+const listBytes = (rows: number, { occlusion, bins }: WebgpuPagesRuntime['lights']) =>
+  rows * ROW_BYTES * (1 + (occlusion ? 1 : 0) + (bins?.stride ?? 0));
 
-/** The bytes the kept lists — the cull's, the occlusion test's alike — hold past the table's caster
+/** The bytes the kept lists — the cull's, the occlusion test's, the bins' alike — hold past the table's caster
  *  rows, the pairs' share the shadow grant holds (`shadowPoolHeld`): recounted after each growth. */
 export function followPairBytes(rt: WebgpuPagesRuntime) {
-  const { cull, occlusion } = rt.lights,
+  const { cull } = rt.lights,
     rows = cull ? Math.max(0, cull.capacity - rt.layout.rows.casterSlots) : 0;
-  rt.lights.memory.pairBytes = listBytes(rows, !!occlusion);
+  rt.lights.memory.pairBytes = listBytes(rows, rt.lights);
 }
 
 /**
@@ -48,7 +50,7 @@ export function growPairList(rt: WebgpuPagesRuntime) {
     need = lights.pageRequests?.allocation.pairNeed ?? 0;
   if (!cull || !device || memory.events.includes('pairs-refused')) return;
   const rows = keptRows(layout.rows.casterSlots, need, device.limits),
-    bytes = listBytes(rows - cull.capacity, !!lights.occlusion);
+    bytes = listBytes(rows - cull.capacity, lights);
   if (bytes <= 0 || rows <= (asking.get(cull) ?? 0)) return;
   // The transmittance layer still to come keeps its share, as the static layer leaves it
   // (`staticLayerGranted`): a grown list never takes the blended casters' shadows.
@@ -68,15 +70,19 @@ export function growPairList(rt: WebgpuPagesRuntime) {
       );
   if (!admitted) return;
   asking.set(cull, rows);
-  const { occlusion } = lights,
+  const { occlusion, bins } = lights,
     stale = () =>
-      run.lost || rt.signal.aborted || lights.cull !== cull || lights.occlusion !== occlusion;
+      run.lost ||
+      rt.signal.aborted ||
+      lights.cull !== cull ||
+      lights.occlusion !== occlusion ||
+      lights.bins !== bins;
   const grow = async () => {
     if (stale() || rows <= cull.capacity) return;
     let made = pendingAll([]);
     const granted = await deviceMade(
       device,
-      () => (made = pendingAll([cull.grow(rows), occlusion?.grow(rows)])),
+      () => (made = pendingAll([cull.grow(rows), occlusion?.grow(rows), bins?.grow(rows)])),
     );
     if (!granted) {
       noteShadowPressure(memory, 'pairs-refused');

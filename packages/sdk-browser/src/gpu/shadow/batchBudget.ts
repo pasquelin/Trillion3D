@@ -32,8 +32,11 @@ export const SHADOW_FLAG_FRAMES = 8;
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
 /** Words of one face's cull uniform (`cull.ts`), of the light cut's cull uniform and its
  *  dispatch argument (`lightCull.ts`), of a region's occlusion slot and the occlusion uniform
- *  (`occlusion.ts`), and of one page's bounds in the page pyramids (`pageHiz.ts`). */
+ *  (`occlusion.ts`), of one page's bounds in the page pyramids (`pageHiz.ts`), and of a raster bin
+ *  run's uniform, two runs a batch (`bins.ts`). */
 export const CULL_UNIFORM_WORDS = 8,
+  BIN_UNIFORM_WORDS = 4,
+  BIN_RUNS = 2,
   LIGHT_CULL_UNIFORM_WORDS = 8,
   LIGHT_CULL_ARG_WORDS = 3,
   OCCLUSION_SLOT_WORDS = 4,
@@ -83,6 +86,7 @@ export const SHADOW_BATCH_WRITE_BYTES =
   MAX_SHADOW_REGIONS * (OCCLUSION_SLOT_WORDS * 4 + SHADOW_REGION_INDIRECT_BYTES) +
   OCCLUSION_UNIFORM_WORDS * 4 +
   MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4 +
+  BIN_RUNS * BIN_UNIFORM_WORDS * 4 +
   MAX_SHADOW_REGIONS * 4 +
   4 +
   GROUP_TABLE_WORDS * 4;
