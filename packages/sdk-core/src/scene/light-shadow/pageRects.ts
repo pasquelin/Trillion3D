@@ -17,11 +17,6 @@ const SLACK = 1 / (16 * SHADOW_PAGE);
 /** Whether the span `[lo, hi]` of pages holds a sample point: a caster within it writes a texel. */
 const holdsSample = (lo: number, hi: number) =>
   Math.ceil((lo - SLACK) * SAMPLES) <= Math.floor((hi + SLACK) * SAMPLES);
-/** A moving box whose diagonal spans less than this share of a sun level's texel is under it: the
- *  cull draws no moving caster whose sphere is under a texel into that level's pages (`underTexel`,
- *  `cullShader.ts`), and a cluster's sphere spans at most the diagonal of a box that holds it — the
- *  slack keeps the f32 of the GPU's test on the same side. */
-const UNDER_TEXEL = 15 / 16;
 
 /**
  * THE PAGES A WORLD BOX COVERS in each view of a shadow light — a sun's clipmap level, a lamp
@@ -73,8 +68,8 @@ export function createPageRects() {
 
   /** The pages of every clipmap level the box covers, within the level's extent: a page meets the
    *  box's light-plane rectangle, edges included. A box of moving casters alone (`moving`) covers
-   *  none at a level it is under a texel of (`UNDER_TEXEL`): none of them is drawn there, as the reference engine
-   *  culls a caster too small for a clipmap level's texels (#831). Returns the pages covered. */
+   *  none at a level it is under a texel of: none of them is drawn there, as the reference engine culls a caster
+   *  too small for a clipmap level's texels (#831). Returns the pages covered. */
   function sunRects(
     sun: SunLevels,
     slice: number,
@@ -83,7 +78,13 @@ export function createPageRects() {
     moving = false,
   ) {
     sunBoxRect(sun.frame, slice * 9, min, max, plane, 0);
-    const reach = moving ? Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) : NaN;
+    // A moving box whose diagonal spans less than 15/16 of a level's texel is under it: the cull
+    // draws no moving caster whose sphere is under a texel into that level's pages (`underTexel`,
+    // `cullShader.ts`), and a cluster's sphere spans at most the diagonal of a box that holds it —
+    // the slack keeps the f32 of the GPU's test on the same side.
+    const reach = moving
+      ? (16 / 15) * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2])
+      : NaN;
     // A bound that is no number — `NaN`, or `0 · ∞` on an axis the frame does not lean on — bounds
     // nothing on that side: the box covers the extent's edge there, never none.
     for (let side = 0; side < 4; side++)
@@ -93,7 +94,7 @@ export function createPageRects() {
       const level = sun.finest[slice] + view;
       const ox = sun.originOf(slice, level, 0),
         oy = sun.originOf(slice, level, 1);
-      if (reach < UNDER_TEXEL * PAGES.shadowSunTexelMetres(level)) emptyRect(view);
+      if (reach < PAGES.shadowSunTexelMetres(level)) emptyRect(view);
       else covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.windowPages);
     }
     return covered;
