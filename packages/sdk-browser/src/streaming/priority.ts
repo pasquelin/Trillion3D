@@ -28,8 +28,6 @@ export interface PriorityRecord {
   parentSphere?: number[] | null;
   min: number[];
   max: number[];
-  /** Rank of the root whose world places it (`rootOf`). */
-  placementIndex?: number;
 }
 /** What the order reads of the engine camera: its view, its near plane and its projection's
  *  clip-w weight (`EngineCamera.perspective`, 1 when absent), nothing else. */

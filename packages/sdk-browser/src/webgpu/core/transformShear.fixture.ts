@@ -50,7 +50,7 @@ export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWor
   boxTransform(worldBox, 0, localBox, 0, world.elements);
   return {
     world,
-    pages: [{ sourceMesh: mesh, packedIndex: 0 } as unknown as PageRec],
+    pages: [{ sourceMesh: mesh } as unknown as PageRec],
     worldBox,
     localBox,
   } as ClusterRoot<PageRec>;

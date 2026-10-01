@@ -22,7 +22,6 @@ export function fixturePages(count: number, transparent: (index: number) => bool
         triangles: i + 1,
         transparent: transparent(i),
         array: new Uint32Array(3),
-        packedIndex: i,
       }) as unknown as PageRec,
   );
 }

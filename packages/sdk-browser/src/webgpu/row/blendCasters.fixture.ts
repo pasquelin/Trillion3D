@@ -38,7 +38,7 @@ export function catalogue(opacity: number, blended = true, transparentShadow = t
   const metadata = { primitives } as unknown as ClusterManifest;
   const indices = new Map(primitives.map((_, i) => [`p${i}`, Uint32Array.of(0, 1, 2)] as const));
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const pages = collected.allPages.map((rec, i) => Object.assign(rec, { placementIndex: i }));
+  const pages = collected.allPages;
   return Object.assign(pages, { glass: materials[1] });
 }
 
