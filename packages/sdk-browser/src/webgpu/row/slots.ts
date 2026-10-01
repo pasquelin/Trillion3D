@@ -2,7 +2,7 @@ import { sortPages } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRowWriters } from './writers.ts';
 import { createWebgpuRowClaims, serveClaims } from './claims.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import type { createWebgpuRowState } from './state.ts';
@@ -33,7 +33,7 @@ type Writer = ReturnType<typeof createPageRowWriter>;
  */
 export function createWebgpuRowSlots(
   rows: Rows,
-  packedPages: PageRec[],
+  packedPages: PageList,
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec, page: number) => void,
 ) {

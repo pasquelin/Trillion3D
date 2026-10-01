@@ -16,6 +16,7 @@ import {
   VIEWPORT,
 } from './selectionHelpers.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
+import { dagPageUrls } from './pack.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
@@ -102,18 +103,18 @@ test('the GPU flat cut selects the same single cluster per chain as the CPU cut'
 test('a cut with nothing resident but the roots draws the root cover', () => {
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
-  const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0)));
+  const resident = Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)));
   const result = evaluateDagSelectionKernel(
     dag,
     kernelUniforms(dag, roots, wideCamera(), 0),
     ruleResidency(dag, resident),
   );
   assert.deepEqual(
-    (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]),
+    (result.drawablePageIds ?? []).map((id) => dag.pageUrlOf(id)),
     ['root'],
   );
   // The wanted list still reports the detail the streamer has to fetch.
-  assert.deepEqual((result.pageIds ?? []).map((id) => dag.pageUrls[id]).sort(), [
+  assert.deepEqual((result.pageIds ?? []).map((id) => dag.pageUrlOf(id)).sort(), [
     'leaf0',
     'leaf1',
     'leaf2',
@@ -127,13 +128,13 @@ test('a missing cluster is replaced by its nearest resident ancestor, and only i
   const { dag, roots } = packed(fixture);
   // Every cluster is resident except one leaf: its group's replacement covers the gap on its own,
   // and the other group keeps its leaves.
-  const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'leaf0' ? 0 : 1)));
+  const resident = Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'leaf0' ? 0 : 1)));
   const result = evaluateDagSelectionKernel(
     dag,
     kernelUniforms(dag, roots, wideCamera(), 0),
     ruleResidency(dag, resident),
   );
-  const drawn = (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]).sort();
+  const drawn = (result.drawablePageIds ?? []).map((id) => dag.pageUrlOf(id)).sort();
   assert.deepEqual(drawn, ['leaf2', 'leaf3', 'mid-left']);
   fixture.geometry.dispose();
 });
@@ -170,7 +171,7 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
   selection.dispatch(uniforms);
   const gpu = await selection.flush();
   assert.ok(gpu);
-  assert.deepEqual(gpu.pageIds.map((id) => dag.pageUrls[id]).sort(), cpuUrls(fixture, 3.4, cam));
+  assert.deepEqual(gpu.pageIds.map((id) => dag.pageUrlOf(id)).sort(), cpuUrls(fixture, 3.4, cam));
   assert.equal(selection.peek()?.uniforms.pixelError, 3.4);
   selection.dispose();
   fixture.geometry.dispose();

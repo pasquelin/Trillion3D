@@ -10,7 +10,8 @@ import { boundTableRows } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
 import { postPackedBases } from '../../../page/selection/placements.ts';
-import { createPageCatalogue } from './catalogue.ts';
+import { createPackedPages, createPageCatalogue } from './catalogue.ts';
+import { createPackedInstances } from '../../row/instances.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
@@ -19,6 +20,7 @@ export type PoolCopies = { byAddress: Map<string, number>; max: number };
 
 /** Counts `pages` into `copies`, `by` more placements each. */
 export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 1) {
+  if (by <= 0) return copies;
   for (const page of pages) {
     const address = pageAddress(page),
       n = (copies.byAddress.get(address) ?? 0) + by;
@@ -36,6 +38,24 @@ export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 
  * rows behind them, which only the shadow pass reads: as many as the pool can hold resident at
  * once, and none in a scene that blends nothing.
  */
+/** The placements of each primitive among `roots`, a primitive being its shared `pages` array. */
+export function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRec[] }[]) {
+  const counts = new Map<readonly PageRec[], number>();
+  for (const { pages } of roots) counts.set(pages, (counts.get(pages) ?? 0) + 1);
+  return counts;
+}
+
+/** Counts the pages of `roots` into `copies`: each primitive page once, by its placement count —
+ *  O(primitive pages), never one step per packed instance (#1235). */
+export function countRootCopies(
+  copies: PoolCopies,
+  roots: readonly { readonly pages: readonly PageRec[] }[],
+) {
+  for (const [pages, placements] of placementsByPrimitive(roots))
+    countCopies(copies, pages, placements);
+  return copies;
+}
+
 export function askedTableRows(
   opaque: number,
   blended: number,
@@ -66,12 +86,15 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // — a (placement, page) pair —, and the per-placement tables say which root each packed rank
   // belongs to. Every reader finds a page's world, row and winding through `placement`, never on
   // the shared record.
+  // No list holds one entry per instance: a rank resolves through `placement` to its root and the
+  // root's shared `pages` (`createPackedPages`), as a cluster instance reads its primitive's pages
+  // from its own base.
   const placement = postPackedBases(selectionRoots);
-  const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
+  const packedPages = createPackedPages(selectionRoots, placement);
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;
-  const copies = countCopies({ byAddress: new Map(), max: 1 }, packedPages);
+  const copies = countRootCopies({ byAddress: new Map(), max: 1 }, selectionRoots);
   const { drawSlots, blendSlots, bounded } = askedTableRows(
     opaquePageCount,
     packedPages.length - opaquePageCount,
@@ -82,7 +105,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // The one catalogue over `packedPages`: its `recordOf` is how a consumer resolves the packed
   // ranks the cut publishes, and the row state indexes it once (`./catalogue.ts`).
   const catalogue = createPageCatalogue(packedPages);
-  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, catalogue);
+  const instances = createPackedInstances(selectionRoots, placement);
+  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances);
   return {
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */

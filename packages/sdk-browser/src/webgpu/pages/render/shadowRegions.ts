@@ -29,7 +29,7 @@ export function planShadowRegions(
 ) {
   const { lights } = rt,
     { shadows, plan, store, runs, regions } = lights,
-    { rows, packedPages, selectionRoots: roots } = rt.layout;
+    { rows, recordOf, selectionRoots: roots } = rt.layout;
   runs.reset();
   regions.reset();
   lights.packedBatch.frame = -1;
@@ -38,7 +38,7 @@ export function planShadowRegions(
   const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    noteResidenceChange(lights, roots, rt.layout.placement.rootOfPacked, page, packedPages[page]);
+    noteResidenceChange(lights, roots, rt.layout.placement.rootOfPacked, page, recordOf(page)!);
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;
