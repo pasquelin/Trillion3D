@@ -33,31 +33,23 @@ export function locationOf(locations: PageLocations, i: number) {
 }
 
 /** The packed rank of each root's first page, by root rank, and the root rank of each packed rank.
- *  One table per layout (#483 rule 4): the packed order is the instances, group by group. */
+ *  One table per layout (#483 rule 4): the packed order is the instances, group by group. An engine
+ *  holds ONE such object and rewrites its two tables in place at each layout, growth or mount, so a
+ *  reader built once reads the current tables, never those of its creation (#1235). */
 export type PlacementIndex = {
-  readonly baseOfRoot: Int32Array;
-  readonly rootOfPacked: Int32Array;
+  baseOfRoot: Int32Array;
+  rootOfPacked: Int32Array;
 };
 
-/** The tables `read` returns at each lookup: a reader built once follows every layout, growth or
- *  mount that replaces them, never a stale table. */
-export function livePlacementIndex(read: () => PlacementIndex): PlacementIndex {
-  return {
-    get baseOfRoot() {
-      return read().baseOfRoot;
-    },
-    get rootOfPacked() {
-      return read().rootOfPacked;
-    },
-  };
-}
-
 /**
- * Posts each root's packed base, and returns the two tables that resolve a packed rank back to its
- * root. What an engine does once its roots were laid out, grown, mounted or removed, before any
- * reader looks one up.
+ * Posts each root's packed base, and writes the two tables that resolve a packed rank back to its
+ * root into `into` — the engine's one index, a new one if none —, which it returns. What an engine
+ * does once its roots were laid out, grown, mounted or removed, before any reader looks one up.
  */
-export function postPackedBases(roots: readonly Ranked[]): PlacementIndex {
+export function postPackedBases(
+  roots: readonly Ranked[],
+  into: Partial<PlacementIndex> = {},
+): PlacementIndex {
   let packed = 0;
   for (let rank = 0; rank < roots.length; rank++) {
     roots[rank].packedBase = packed;
@@ -71,5 +63,7 @@ export function postPackedBases(roots: readonly Ranked[]): PlacementIndex {
     baseOfRoot[rank] = base;
     for (let at = base; at < end; at++) rootOfPacked[at] = rank;
   }
-  return { baseOfRoot, rootOfPacked };
+  into.baseOfRoot = baseOfRoot;
+  into.rootOfPacked = rootOfPacked;
+  return into as PlacementIndex;
 }

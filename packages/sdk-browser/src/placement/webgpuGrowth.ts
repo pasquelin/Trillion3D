@@ -57,7 +57,7 @@ export function growWebgpuPlacements(
     setup.roots.push(root);
   }
   if (packedPages.length === first) return;
-  layout.placement = postPackedBases(selectionRoots);
+  postPackedBases(selectionRoots, layout.placement); // in place: readers hold this object
   layout.opaquePageCount += packedPages.length - first;
   rows.addPages(first);
   const worlds = new Float32Array(selectionRoots.length * 16);
