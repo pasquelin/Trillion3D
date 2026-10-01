@@ -11,8 +11,8 @@ export const CHUNK_PREFIX = 'trillion3d-';
  *  share code with the core in as many more chunks. Physics, whose session starts its worker and
  *  its WebAssembly; particles; WebGPU transmission, glass and water; WebGPU
  *  deformation; the effect chain; the guides; the diagnostic views; the measurement's build
- *  provenance and comparison compositor; the world pages' server; the WebGPU impostor draw. A
- *  scene that uses none of them fetches none. */
+ *  provenance and comparison compositor; the world pages' server; the impostor draw. A scene that uses none of them
+ *  fetches none. */
 export const FAMILY_MODULES = {
   webgpu: ['sdk-browser/src/webgpu/pages/webgpuCode.js'],
   webgl2: ['sdk-browser/src/backend/autonomous/webglCode.js'],
@@ -25,7 +25,7 @@ export const FAMILY_MODULES = {
   diagnostics: ['sdk-browser/src/diagnostic/viewCode.js'],
   measurement: ['sdk-browser/src/measurement/measurementCode.js'],
   worldStream: ['sdk-browser/src/scene/worldPageServe.js'],
-  impostors: ['sdk-browser/src/webgpu/impostor/impostorCode.js'],
+  impostors: ['sdk-browser/src/impostor/impostorCode.js'],
 };
 export type Family = keyof typeof FAMILY_MODULES;
 
