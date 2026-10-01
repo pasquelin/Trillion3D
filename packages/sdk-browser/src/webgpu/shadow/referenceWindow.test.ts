@@ -14,7 +14,8 @@ import {
 import { pageModel } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { NUMBERS } from '../../../../sdk-core/src/scene/light-shadow/pageOps.ts';
 import { blendShader } from '../blend/shader.ts';
-import { waterCompositeShader, waterRoutedShader } from '../water/compositeWgsl.ts';
+import { waterCompositeShader } from '../water/compositeWgsl.ts';
+import { waterRoutedShader } from '../water/routedWgsl.ts';
 import { allocationWgsl } from './allocWgsl.ts';
 import { shadowDemandWgsl } from './demandWgsl.ts';
 import { shadowFreshWgsl } from './freshWgsl.ts';

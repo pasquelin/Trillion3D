@@ -11,13 +11,13 @@ export type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
 export interface GpuPassTiming {
   /** The pass's name. */ name: string;
   /** GPU time of the pass. */ gpuMs: number | null;
+  /** Its time less what a pass begun earlier covered (WebGPU). */ ownMs?: number;
   /** Why it went unmeasured. */ reason?: string;
 }
 /**
- * GPU durations of one image, pass by pass, as the device itself reported them. `totalMs` is the sum
- * of the listed passes and nothing else: it is never added to a `cpu*` field, and it is null as soon
- * as one pass is unmeasured or the list was truncated. `frame` names the image the sample describes,
- * which lags the current one because the readback never blocks an image.
+ * GPU durations of one image, pass by pass, as the device reported them. `totalMs` sums the listed
+ * passes and nothing else: never added to a `cpu*` field, null once a pass is unmeasured or the list
+ * truncated. `frame` names the image described, behind the current one: readback never blocks one.
  */
 export interface GpuPassTimings {
   /** The image described. */ frame: number;
