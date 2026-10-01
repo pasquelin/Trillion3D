@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  PROXY_HEADER_BYTES,
-  PROXY_HEADER_WORDS,
-  residentProxyWgsl,
-} from '../../bounce/nodeWgsl.ts';
+import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
+import { PROXY_HEADER_BYTES, PROXY_HEADER_WORDS } from '../../bounce/sizes.ts';
 import {
   createDeferredLightingLayout,
   createDeferredPlaceholders,

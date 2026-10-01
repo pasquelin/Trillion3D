@@ -1,6 +1,5 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import type { MeasuredWorldOptions } from './options.ts';
 
@@ -41,7 +40,7 @@ export function directWebgpu(
   factories: BackendFactory[],
   device: GPUDevice | undefined,
 ) {
-  const requested = factories.length === 1 && factories[0] === webgpuPagesBackend;
+  const requested = factories.length === 1 && factories[0].renderer === 'webgpu';
   if (explorerSwitch(options, 'interactive') && options.backends && requested && !device)
     throw new EngineError(
       'WEBGPU_UNAVAILABLE',

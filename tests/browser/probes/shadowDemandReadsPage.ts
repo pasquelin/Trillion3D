@@ -27,10 +27,10 @@ import {
   shadowTableStride,
   SUN_WINDOW,
 } from '../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
-import { shadowRequestBits } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+import { shadowEntryBits } from '../../../packages/sdk-browser/src/webgpu/shadow/allocLayout.ts';
 
 const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
-const SHADOW_REQUEST_BITS = shadowRequestBits();
+const SHADOW_REQUEST_BITS = shadowEntryBits();
 
 const MIN = [-50, 0, -50],
   MAX = [50, 10, 50],
