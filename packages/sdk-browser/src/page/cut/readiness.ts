@@ -107,6 +107,10 @@ export function createCutReadiness(
     get hostBytes() {
       return bytes();
     },
+    /** True when nothing is resident and nothing is pending: the state reads as one just made. */
+    get holdsNothing() {
+      return !pending.length && !resident.size && !groupReady.size && !closed.size;
+    },
     /** Records page `page`'s residency; `settle` propagates it. True when it changed. */
     set(page: number, value: boolean) {
       if (resident.set(page, value ? 1 : 0) === (value ? 1 : 0)) return false;

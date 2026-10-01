@@ -1,5 +1,6 @@
 import { createCutReadiness, type CutReadiness } from '../../page/cut/readiness.ts';
 import type { ResidencyChanges } from '../core/selection.ts';
+import type { CullingLinks } from '../../page/cut/links.ts';
 import type { DagCutLinks, PackedDag } from './types.ts';
 import { DAG_NODE_FLOATS } from './types.ts';
 import { NODE_OPEN } from './nodeLayout.ts';
@@ -24,17 +25,17 @@ export function createDagReadiness(packed: PackedDag) {
       packed.pageCones.byteOffset,
       packed.pageCount,
     );
-  // A placement holds its own state only once one of its pages is resident: until then it reads
+  // A placement holds its own state only while one of its pages is resident: otherwise it reads
   // its primitive's state with nothing resident, one shared by every placement of the primitive
-  // (Nanite's instances read their resource's pages, they hold none). The load heap thus follows
-  // what is resident, never the placement count (#1235).
-  const blank = new Map<DagCutLinks['links'], { structure: unknown; readiness: CutReadiness }>();
+  // (Nanite's instances read their resource's pages, they hold none). The heap thus follows what
+  // is resident, never the placement count (#1235, #483 rule 6).
+  const blank = new Map<CullingLinks, Map<DagCutLinks['structure'], CutReadiness>>();
   const blankOf = ({ structure, links }: DagCutLinks) => {
-    const shared = blank.get(links);
-    if (shared?.structure === structure) return shared.readiness;
-    const readiness = createCutReadiness(structure, links);
-    if (!shared) blank.set(links, { structure, readiness });
-    return readiness;
+    let byStructure = blank.get(links);
+    if (!byStructure) blank.set(links, (byStructure = new Map()));
+    let shared = byStructure.get(structure);
+    if (!shared) byStructure.set(structure, (shared = createCutReadiness(structure, links)));
+    return shared;
   };
   const worlds: CutReadiness[] = packed.cutLinks.map(blankOf);
   const held = new Uint8Array(packed.cutLinks.length);
@@ -65,7 +66,17 @@ export function createDagReadiness(packed: PackedDag) {
   const settle = () => {
     pages.length = 0;
     nodes.length = 0;
-    for (const touched of dirty) hostBytes += worlds[(w = touched)].settle(onPage, onNode);
+    for (const touched of dirty) {
+      const world = worlds[(w = touched)];
+      hostBytes += world.settle(onPage, onNode);
+      // Its last page left: it reads the shared state again, which holds the same values.
+      if (world.holdsNothing) {
+        hostBytes -= world.hostBytes;
+        worlds[touched] = blankOf(packed.cutLinks[touched]);
+        held[touched] = 0;
+        heldCount--;
+      }
+    }
     dirty.clear();
     return { pages: sortedUnique(pages), nodes: sortedUnique(nodes) };
   };
@@ -92,7 +103,7 @@ export function createDagReadiness(packed: PackedDag) {
       const at = pageWorlds[page];
       return worlds[at].isChildReady(page - packed.cutLinks[at].pageBase);
     },
-    /** The placements holding a state of their own: those a page of which was ever resident. */
+    /** The placements holding a state of their own: those a page of which is resident. */
     get heldPlacements() {
       return heldCount;
     },
