@@ -62,12 +62,12 @@ fn impTap(frame:vec2f,eye:vec3f,ray:vec3f,radius:f32,frames:f32,hemi:f32,lod:f32
  return ImpTap((frame+clamp(uv,vec2f(0.0),vec2f(1.0)))*cell,h+(d-0.5)*2.0*radius*v/vn);
 }
 struct ImpBlend{colour:vec4f,normal:vec3f,orm:vec3f,point:vec3f}
-/** The blended card at \`pivotToEye\` (object space): colour, normal, ORM and the surface point,
+/** The blended card seen from \`eye\` (object space, pivot-relative): colour, normal, ORM and the surface point,
  *  whose view-projection is the fragment depth so other objects intersect the card where the mesh
  *  would. */
-fn impBlend(eye:vec3f,ray:vec3f,pivotToEye:vec3f,radius:f32,frames:f32,hemi:f32,lod:f32)->ImpBlend{
+fn impBlend(eye:vec3f,ray:vec3f,radius:f32,frames:f32,hemi:f32,lod:f32)->ImpBlend{
  let last=frames-1.0;
- let g=clamp((impOctEncode(normalize(pivotToEye),hemi)*0.5+0.5)*last,vec2f(0.0),vec2f(last));
+ let g=clamp((impOctEncode(normalize(eye),hemi)*0.5+0.5)*last,vec2f(0.0),vec2f(last));
  let g0=min(floor(g),vec2f(last-1.0));
  let f=g-g0;
  let w=impWeights(f);

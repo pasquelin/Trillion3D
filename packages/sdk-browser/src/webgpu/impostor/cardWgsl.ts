@@ -46,7 +46,7 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let c=cards[in.card];
  let eye=(c.inverse*vec4f(view.eye.xyz,1.0)).xyz-c.pivot.xyz;
  let ray=normalize((c.inverse*vec4f(in.world,1.0)).xyz-c.pivot.xyz-eye);
- let b=impBlend(eye,ray,eye,c.shape.x,c.shape.y,c.shape.z,c.shape.w);
+ let b=impBlend(eye,ray,c.shape.x,c.shape.y,c.shape.z,c.shape.w);
  if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let n=normalize((transpose(c.inverse)*vec4f(b.normal,0.0)).xyz);
  let clip=view.viewProj*(c.world*vec4f(b.point+c.pivot.xyz,1.0));
