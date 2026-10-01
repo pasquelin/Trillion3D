@@ -36,7 +36,7 @@ function bench() {
     readTextureLevel: reader,
     webglContext: context.gl,
     onDiagnostic: () => undefined,
-  } as unknown as Parameters<typeof createWebglImpostors>[1];
+  } as unknown as Parameters<typeof createWebglImpostors>[0];
   const gate = { resourcesChanged: () => void landed++ };
   const impostors = createWebglImpostors(session, roots, gate, () => 1 << 20)!;
   const renderer = new WebglClusterRenderer(

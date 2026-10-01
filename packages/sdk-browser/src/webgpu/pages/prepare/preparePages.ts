@@ -26,6 +26,7 @@ import { grantWebgpuPagesCache } from './cache.ts';
 import { litPrograms } from './contractLight.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 import { loadImpostorCode } from '../../../impostor/code.ts';
+import * as impostorLent from '../../impostor/lent.ts';
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
  *  backend closed or a device lost starts no further step; the teardown releases what steps built. */
@@ -39,7 +40,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     return work();
   };
   // The impostor draw's code, on its way beside every step below, awaited before the first image.
-  const impostorCode = loadImpostorCode(rt.context);
+  const impostorCode = loadImpostorCode(rt.context, impostorLent);
   const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store);
   rt.lights.buffer = lightBuffer;
   // No more light written into the scene: opaques and transparents read the same declared-light buffer.
