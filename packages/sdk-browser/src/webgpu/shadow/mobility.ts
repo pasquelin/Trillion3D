@@ -27,15 +27,18 @@ export function createShadowMobility() {
      *  move. */
     poses = new Float64Array(0),
     rows = new Uint32Array(0),
-    /** Rows whose word carries `MOBILITY_CUTOUT`, and rows of each raster bin's class (OMB-26). */
+    /** Rows whose word carries `MOBILITY_CUTOUT`. */
     cutouts = 0,
     anyMoving = false,
     wholeRows = true;
+  /** Rows of each raster bin's class (OMB-26). */
   const classes = new Uint32Array(SHADOW_BIN_CLASSES);
   return {
     /** True while a row's caster falls in class `c` (`../../gpu/shadow/binShader.ts`): without
      *  one, no region's bin of that class holds a caster. */
     binHolds: (c: number) => classes[c] > 0,
+    /** True while a row's caster falls past the first class: only then do the bins draw less. */
+    binsSplit: () => classes.some((rows, c) => c > 0 && rows > 0),
     /** True once a placement has moved: the pool then keeps a static layer. */
     get layered() {
       return anyMoving;

@@ -4,23 +4,36 @@ import type { GpuBounceProxy } from '../../../bounce/proxy.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
-/** Each ranked source node and the meshes it draws itself, indexed once per runtime. */
-const indexes = new WeakMap<WebgpuPagesRuntime, Map<number, Object3D>>();
+/** Each ranked source node, and the host meshes each mesh rank a partition's cells place is drawn
+ *  by (`placed.ts`): indexed once per runtime, in one walk. */
+const indexes = new WeakMap<
+  WebgpuPagesRuntime,
+  { nodes: Map<number, Object3D>; placed: Map<number, Object3D[]> }
+>();
 
 const drawnOf = new WeakMap<WebgpuPagesRuntime, Map<number, Object3D[]>>();
 
-/** Source identity is indexed once. */
-export function sourceNodes(rt: WebgpuPagesRuntime) {
-  let nodes = indexes.get(rt);
-  if (nodes) return nodes;
-  nodes = new Map<number, Object3D>();
+function sourceIndex(rt: WebgpuPagesRuntime) {
+  let index = indexes.get(rt);
+  if (index) return index;
+  const nodes = new Map<number, Object3D>(),
+    placed = new Map<number, Object3D[]>();
   rt.setup.source.traverse((node) => {
-    const rank = preparedNodeRank(node);
+    const rank = preparedNodeRank(node),
+      mesh = placedMeshRank(node);
     if (rank !== undefined) nodes.set(rank, node);
+    if (mesh !== undefined) {
+      const parts = placed.get(mesh);
+      if (parts) parts.push(node);
+      else placed.set(mesh, [node]);
+    }
   });
-  indexes.set(rt, nodes);
-  return nodes;
+  indexes.set(rt, (index = { nodes, placed }));
+  return index;
 }
+
+/** Source identity is indexed once. */
+export const sourceNodes = (rt: WebgpuPagesRuntime) => sourceIndex(rt).nodes;
 
 /** The meshes each ranked source node draws: itself, or the parts under it no other rank carries. */
 function drawnMeshes(rt: WebgpuPagesRuntime) {
@@ -38,21 +51,6 @@ function drawnMeshes(rt: WebgpuPagesRuntime) {
   }
   drawnOf.set(rt, drawn);
   return drawn;
-}
-
-/** The host meshes each mesh rank a partition's cells place is drawn by (`placed.ts`). */
-const placedOf = new WeakMap<WebgpuPagesRuntime, Map<number, Object3D[]>>();
-
-function placedParts(rt: WebgpuPagesRuntime) {
-  let placed = placedOf.get(rt);
-  if (placed) return placed;
-  placed = new Map<number, Object3D[]>();
-  rt.setup.source.traverse((part) => {
-    const rank = placedMeshRank(part);
-    if (rank !== undefined) placed.set(rank, [...(placed.get(rank) ?? []), part]);
-  });
-  placedOf.set(rt, placed);
-  return placed;
 }
 
 /** The keys whose every mesh says `castShadow = false`. */
@@ -84,7 +82,7 @@ export function syncSunFarCasters(rt: WebgpuPagesRuntime) {
   const last = proxy && casts.get(proxy);
   if (!proxy || last?.epoch === epoch) return;
   const none = castingNone(drawnMeshes(rt)),
-    meshes = castingNone(placedParts(rt));
+    meshes = castingNone(sourceIndex(rt).placed);
   casts.set(proxy, { epoch, none, meshes });
   if (sameSet(none, last?.none) && sameSet(meshes, last?.meshes)) return;
   const held = sourceNodes(rt);

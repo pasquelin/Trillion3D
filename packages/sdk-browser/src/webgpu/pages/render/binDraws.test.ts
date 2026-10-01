@@ -14,8 +14,9 @@ import { planPagePasses } from '../../shadow/pagePasses.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { drawRegionCasters, encodeBins } from './encodeRegionDraws.ts';
 
-/** Two regions of the CPU cut, drawn by the pool's three draws; `bins` given or not. */
-function frame(bins?: object) {
+/** Two regions of the CPU cut, drawn by the pool's three draws; `bins` given or not, rows held
+ *  in the classes `held` names. */
+function frame(bins?: object, held = (c: number) => c !== 2) {
   const lights = createWebgpuLightState(32),
     volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS);
   for (const page of [0, 1])
@@ -27,7 +28,11 @@ function frame(bins?: object) {
     bins: bins && { ...bins, list, commands: 'bins' },
     mobilityRows: 'mobility',
     shadows: { faceGroup: {}, faceStride: 256, faceUniform: 'faces', hasEnvelope: () => false },
-    mobility: { hasCutouts: true, binHolds: (c: number) => c !== 2 },
+    mobility: {
+      hasCutouts: true,
+      binHolds: held,
+      binsSplit: () => [1, 2, 3].some(held),
+    },
   });
   const rt = {
     lights,
@@ -111,4 +116,22 @@ test('without the bins, each region draws its two commands from the lists', () =
   ]);
   assert.equal(drawn, 4);
   assert.deepEqual(instances, ['lists', 'lists']);
+});
+
+test('with every row in the first class and nothing stored, the bins stay idle', () => {
+  const runs: unknown[] = [];
+  const bins = { stored: false, encode: () => void runs.push(1) };
+  const { rt, drawn, instances, draws } = frame(bins, (c) => c === 0);
+  assert.equal(drawn, 4, 'the lists draw the very same corners');
+  assert.deepEqual(
+    draws.filter((d) => d.startsWith('drawIndirect')),
+    [0, 16, SHADOW_REGION_INDIRECT_BYTES, SHADOW_REGION_INDIRECT_BYTES + 16].map(
+      (at) => `drawIndirect ${at}`,
+    ),
+  );
+  assert.deepEqual(instances, ['lists', 'lists']);
+  encodeBins(rt, {} as GPUCommandEncoder, 2, false);
+  assert.equal(runs.length, 0);
+  const stored = frame({ ...bins, stored: true }, (c) => c === 0);
+  assert.deepEqual(stored.instances, ['bins', 'bins'], 'a stored LocalToClip keeps the bins');
 });

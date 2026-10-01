@@ -13,9 +13,10 @@ import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { FLAG_HAS_UV, FLAG_MASK } from '../../visibility/types.ts';
 import { DRAW_INDIRECT_WORDS as WORDS } from '../draw/contract.ts';
 import { MOBILITY_CORNER_SHIFT, MOBILITY_CUTOUT } from './cullShader.ts';
-import { SHADOW_BIN_CLASSES, SHADOW_BIN_COMMANDS } from './binShader.ts';
+import { BIN_STORED_STRIDE, SHADOW_BIN_CLASSES, SHADOW_BIN_COMMANDS } from './binShader.ts';
 import { createShadowBins } from './bins.ts';
-import { asF32, binKernel, runBins } from './binReplay.fixture.ts';
+import { binKernel, runBins } from './binReplay.fixture.ts';
+import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts';
 import { keptList } from './keptList.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
@@ -98,7 +99,7 @@ function storedMatches(rng: () => number, rows: number, special?: number) {
     list[REGION * capacity + (cutout(row) ? capacity - 1 - rank : rank)] = row;
     counts[command] = Math.max(counts[command], world.pages[row].indexCount);
   }
-  const binned = new Array<number>(MAX_SHADOW_REGIONS * capacity * 17).fill(0),
+  const binned = new Array<number>(MAX_SHADOW_REGIONS * capacity * BIN_STORED_STRIDE).fill(0),
     commands = new Array<number>((REGION + 1) * SHADOW_BIN_COMMANDS * WORDS).fill(0);
   const views = Array.from({ length: REGION + 1 }, () => world.shadow);
   const uni = { regions: REGION + 1, capacity, maskLow: 1 << REGION, maskHigh: 0 };
@@ -123,7 +124,7 @@ function storedMatches(rng: () => number, rows: number, special?: number) {
   const base = depth.shadowEntries(all);
   let source = SHADOW_STORED_WGSL.replace(/@\w+(?:\([^)]*\))? ?/g, '')
     .replace(/var (\w+):\w+;/g, 'let $1={};')
-    .replace(/bitcast<f32>\(/g, 'asF32(');
+    .replace(/bitcast<f32>\(/g, 'bitcast_f32(');
   for (const [shape, spelled] of [
     ['storedLocalToClip(place)*local', 'mul(storedLocalToClip(place),local)'],
     ['(page.world*local).xyz-shadow.emitter.xyz', 'sub3(mul(page.world,local),shadow.emitter)'],
@@ -133,7 +134,8 @@ function storedMatches(rng: () => number, rows: number, special?: number) {
   }
   const { vec2f, vec3f, vec4f, mul, sub3 } = depth;
   const mat4x4f = (...columns: unknown[]) => columns;
-  const scope = { ...all, ...base, vec2f, vec3f, vec4f, mul, sub3, asF32, mat4x4f };
+  const { bitcast_f32 } = builtins;
+  const scope = { ...all, ...base, vec2f, vec3f, vec4f, mul, sub3, bitcast_f32, mat4x4f };
   const stored = shaderFunctions<Record<string, Entry>>(source, STORED, scope);
   const corner = (base as unknown as { shadowVertexIn: Corner }).shadowVertexIn;
   let corners = 0;
@@ -190,7 +192,7 @@ test('the option is off by default, and the default path keeps its entries and l
   const off = await createShadowBins(device, 10, false),
     on = await createShadowBins(device, 10, true);
   assert.equal(off.list.size, keptList(device, 10).size);
-  assert.equal(on.list.size, 17 * keptList(device, 10).size);
+  assert.equal(on.list.size, BIN_STORED_STRIDE * keptList(device, 10).size);
   // Past one storage binding, the bins keep the rows alone, drawn by the default entries.
   on.grow(1e7).commit();
   assert.deepEqual([on.stored, on.list.size], [false, keptList(device, 1e7).size]);
