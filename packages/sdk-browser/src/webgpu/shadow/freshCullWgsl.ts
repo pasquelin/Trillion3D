@@ -66,6 +66,7 @@ fn freshKeeps(k:u32,i:u32)->bool{
  let row=freshRow(i);
  if(row<0||k>=atomicLoad(&args[FRESH_REGIONS])){return false;}
  if(!sphereTouches(volumes[k],spheres[u32(row)])){return false;}
+ if((mobility[u32(row)]&${MOBILITY_MOVING}u)!=0u&&underTexel(volumes[k],spheres[u32(row)])){return false;}
  let lod=lods[u32(row)];
  return drawsCluster(true,freshPixels(k,lod.parent),freshPixels(k,lod.own),true,params.threshold);
 }
