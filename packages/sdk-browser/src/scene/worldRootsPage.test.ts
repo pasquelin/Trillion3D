@@ -134,3 +134,21 @@ test('a bundle is fetched once for both WebGPU views of its page, asked apart (#
   await source.read(at(1));
   assert.deepEqual(reads, [1, 2, 3, 1], 'a later request streams the bundle again');
 });
+
+test('a page owing its other WebGPU view holds its bundle within the pending budget (#1238)', async () => {
+  const { source, reads } = worldRootsPageFixtureSource(1),
+    at = (bundle: number) => worldRootsPageAddress('world-roots.bin', bundle, 0);
+  // Only `read` is asked of bundle 1 (a WebGL2 run, an evicted slot): bundle 2 owing a view next
+  // pushes it past a budget of one, so it is let go and never held for the life of the scene.
+  await source.read(at(1));
+  await source.read(at(2));
+  await source.attributes(at(2));
+  assert.deepEqual(reads, [1, 2], 'the newest pair is still served by one read');
+  await source.attributes(at(1));
+  assert.deepEqual(reads, [1, 2, 1], 'the oldest owed bundle was let go');
+  // The other half asked already aborted: the pair is broken, the bundle let go.
+  await source.attributes(at(3));
+  await assert.rejects(source.read(at(3), AbortSignal.abort()));
+  await source.attributes(at(3));
+  assert.deepEqual(reads, [1, 2, 1, 3, 3], 'a broken pair holds no bundle');
+});

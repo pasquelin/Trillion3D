@@ -3,18 +3,22 @@ import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifes
 import { worldRootsPageSource } from './worldRootsPage.ts';
 
 /** The page source of `table` over `bin`, the cook's world binary, and the bundles it reads. */
-export function worldRootsBinSource(table: WorldRoots, bin: Uint8Array) {
+export function worldRootsBinSource(table: WorldRoots, bin: Uint8Array, pendingBundles?: number) {
   const reads: number[] = [];
-  const source = worldRootsPageSource(table, async (bundle) => {
-    reads.push(bundle);
-    const { offset, bytes, count } = table.bundles[bundle];
-    return worldBundlePages(bin.slice(offset, offset + bytes), count, bundle);
-  });
+  const source = worldRootsPageSource(
+    table,
+    async (bundle) => {
+      reads.push(bundle);
+      const { offset, bytes, count } = table.bundles[bundle];
+      return worldBundlePages(bin.slice(offset, offset + bytes), count, bundle);
+    },
+    pendingBundles,
+  );
   return { source, reads };
 }
 
 /** The cook's world fixture, its table and its page source. */
-export function worldRootsPageFixtureSource() {
+export function worldRootsPageFixtureSource(pendingBundles?: number) {
   const { table, bin } = worldRootsFixture();
-  return { table, ...worldRootsBinSource(table, bin) };
+  return { table, ...worldRootsBinSource(table, bin, pendingBundles) };
 }
