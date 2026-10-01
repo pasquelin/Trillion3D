@@ -54,8 +54,8 @@ export class WebglClusterLights {
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
   private lights: Light[] = [];
   private ltc: WebGLTexture;
-  private probe: WebglClusterProbe;
-  private fog: WebglClusterFog;
+  readonly probe: WebglClusterProbe;
+  readonly fog: WebglClusterFog;
   /** The scene's fog last read, and the lighting's form of it: read again when it is replaced. */
   private heldFog: Fog | null | undefined = null;
   private readFog: SceneFog | undefined;
@@ -190,16 +190,6 @@ export class WebglClusterLights {
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
     gl.bindTexture(gl.TEXTURE_2D, this.ltc);
     return count;
-  }
-  /**
-   * The frame's lights as last uploaded, to another program of the path drawing in the same pass
-   * (the impostor card's, `../impostor/draw.ts`): its uniforms only, bound now — the records, the
-   * lists and the lobe stay on the units the upload left them, which it samples too.
-   */
-  send(at: (name: string) => WebGLUniformLocation | null) {
-    this.lists.send(at);
-    this.probe.send(at);
-    this.fog.send(at);
   }
   dispose() {
     this.records.dispose();
