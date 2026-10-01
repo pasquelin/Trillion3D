@@ -8,7 +8,7 @@ import {
   LIGHTING_TRANSPORT_ALGORITHM_VERSION,
   LIGHTING_TRANSPORT_FORMAT_VERSION,
 } from './contracts.ts';
-import { sceneFromSurfaces } from '../../../../../tests/fixtures/lightingTransportScene.ts';
+import { createLightingScenePatches } from '../scene/geometry.ts';
 
 /** A closed unit box, every face turned inwards and cut in two by two; its ceiling emits. */
 function box(albedo: Vec3, emission: Vec3 = [1, 2, 3]) {
@@ -44,20 +44,19 @@ function box(albedo: Vec3, emission: Vec3 = [1, 2, 3]) {
       [1, 0, 0],
     ],
   ];
-  return sceneFromSurfaces(
-    faces.map(([origin, u, v], i): Surface => ({
-      id: `face_${i}`,
-      origin,
-      u,
-      v,
-      albedo: [...albedo],
-      emission: i === 3 ? [...emission] : [0, 0, 0],
-      kind: 'diffuse',
-      moving: false,
-      columns: 2,
-      rows: 2,
-    })),
-  );
+  const surfaces = faces.map(([origin, u, v], i): Surface => ({
+    id: `face_${i}`,
+    origin,
+    u,
+    v,
+    albedo: [...albedo],
+    emission: i === 3 ? [...emission] : [0, 0, 0],
+    kind: 'diffuse',
+    moving: false,
+    columns: 2,
+    rows: 2,
+  }));
+  return { surfaces, patches: createLightingScenePatches(surfaces) };
 }
 /** The transport state of `scene` with its operator traced, ready to solve. */
 export function traced(albedo: Vec3, options: TransportOptions = {}, emission?: Vec3) {
