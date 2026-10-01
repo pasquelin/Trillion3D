@@ -1658,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Regarde image après image et dit avec quelle fluidité tourne le moteur, et ce qui le ralentit.",
+    "description": "Comme une version de production retire ses outils de statistiques (#1353), le cœur ne contient que cette façade : son code est le morceau de la mesure (`FrameProfile`, `../host/families.ts`), téléchargé dès que le mode débogage s’active ou au premier usage du profileur. Tant qu’il n’est pas arrivé, une image n’est pas comptée et le rapport dit qu’il attend (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalles gardés, du plus ancien au plus récent : ce que reçoit `frameStatistics`.",
       "setMetadata": "Lui dit quel modèle est chargé.",
@@ -1665,7 +1666,7 @@
       "getReport": "Un résumé des dernières images.",
       "formatReport": "Ce résumé en texte.",
       "printReport": "Affiche ce résumé dans la console.",
-      "startAutoLog": "L’affiche toutes les quelques secondes ; renvoie une fonction qui arrête.",
+      "startAutoLog": "L’affiche toutes les quelques secondes, en mode débogage, le seul qui remplit le rapport ; renvoie une fonction qui arrête.",
       "stopAutoLog": "Arrête l’affichage.",
       "dispose": "Arrête et oublie tout."
     }
@@ -2221,8 +2222,8 @@
     "description": "Inconnu vaut `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durée GPU de chaque bloc d’une mesure (`../../stage/mapping.ts` dit lequel est lequel).",
-    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU."
+    "summary": "Durée GPU de chaque bloc d’une mesure (`../stage/mapping.ts` dit lequel est lequel).",
+    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU. Tant que la table des passes n’est pas arrivée, chaque bloc vaut `null`, comme pour une mesure qui n’a rien mesuré."
   },
   "GpuPassBlockTotals": {
     "summary": "Temps GPU d’une image en trois blocs : visibilité, matériaux, le reste.",

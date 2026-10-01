@@ -1658,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Sieht Bild für Bild zu und sagt, wie flüssig die Engine läuft, und was sie ausbremst.",
+    "description": "Wie ein Release-Build seine Statistikwerkzeuge entfernt (#1353), enthält der Kern nur diese Fassade: ihr Code ist der Chunk der Messung (`FrameProfile`, `../host/families.ts`), geladen, sobald der Debug-Modus eingeschaltet wird oder der Profiler zum ersten Mal genutzt wird. Bis er angekommen ist, wird kein Bild gezählt und der Bericht sagt, dass er wartet (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Gehaltene Intervalle, vom ältesten zum neuesten: das, was `frameStatistics` erhält.",
       "setMetadata": "Sagt ihr, welches Modell geladen ist.",
@@ -1665,7 +1666,7 @@
       "getReport": "Eine Zusammenfassung der letzten Bilder.",
       "formatReport": "Diese Zusammenfassung als Text.",
       "printReport": "Zeigt diese Zusammenfassung in der Konsole an.",
-      "startAutoLog": "Zeigt sie alle paar Sekunden an; gibt eine stoppende Funktion zurück.",
+      "startAutoLog": "Zeigt sie alle paar Sekunden an, im Debug-Modus, der allein den Bericht füllt; gibt eine stoppende Funktion zurück.",
       "stopAutoLog": "Stoppt die Anzeige.",
       "dispose": "Stoppt und vergisst alles."
     }
@@ -2213,8 +2214,8 @@
     "description": "Unbekannt ergibt `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "GPU-Dauer jedes Blocks einer Messung (`../../stage/mapping.ts` sagt, welcher welcher ist).",
-    "description": "`null` überall für eine fehlende oder abgeschnittene Messung, und `null` für einen Block, dessen Durchgang keine nutzbare Dauer hat: eine Teilsumme würde für eine Messung durchgehen. `null` auch für einen Block, den das Bild nie laufen ließ — eine Null würde sich lesen wie „mit null gemessen“. Die drei Blöcke summieren sich zum `totalMs` der Messung, wenn alle drei gemessen sind, und werden nie zu einer CPU-Dauer addiert."
+    "summary": "GPU-Dauer jedes Blocks einer Messung (`../stage/mapping.ts` sagt, welcher welcher ist).",
+    "description": "`null` überall für eine fehlende oder abgeschnittene Messung, und `null` für einen Block, dessen Durchgang keine nutzbare Dauer hat: eine Teilsumme würde für eine Messung durchgehen. `null` auch für einen Block, den das Bild nie laufen ließ — eine Null würde sich lesen wie „mit null gemessen“. Die drei Blöcke summieren sich zum `totalMs` der Messung, wenn alle drei gemessen sind, und werden nie zu einer CPU-Dauer addiert. Bis die Passtabelle angekommen ist, ist jeder Block `null`, wie bei einer Messung, die nichts gemessen hat."
   },
   "GpuPassBlockTotals": {
     "summary": "GPU-Zeit eines Bildes in drei Blöcken: Sichtbarkeit, Materialien, der Rest.",
