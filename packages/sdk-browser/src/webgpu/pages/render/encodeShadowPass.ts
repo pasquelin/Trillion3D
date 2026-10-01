@@ -1,8 +1,8 @@
 import { pagePlan, planPagePasses } from '../../shadow/pagePasses.ts';
-import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
+import { drawnBins, shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
-import { drawRegionCasters, encodeOcclusion } from './encodeRegionDraws.ts';
+import { drawRegionCasters, encodeBins, encodeOcclusion } from './encodeRegionDraws.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
 import { frameTransmittance } from '../../shadow/transmittanceGrant.ts';
 import { feedbackPublished } from './encoder.ts';
@@ -14,8 +14,9 @@ import { feedbackPublished } from './encoder.ts';
  * then the moving casters of each restored page tested against its static layer; then a render
  * pass per layer of the pool. In each pass, every region starts from its page cleared to far or
  * restored from the static layer — two instanced draws for the pass, whatever its regions
- * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters: the moving casters of its
- * restored pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
+ * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters by raster bin (`encodeBins`), the
+ * moving casters of its restored pages by group, one or two instanced draws each
+ * (`../../shadow/movingGroups.ts`).
  *
  * **The casters' viewport is the physical page, the matrix the virtual page's own projection.**
  * The page fills the clip square, so the rasterizer clips every caster at its edge and no other
@@ -52,7 +53,7 @@ export function encodeShadowAtlas(
   planPagePasses(regions, count);
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
-  const depthDraws = shadows.depthDraws();
+  const depthDraws = shadows.depthDraws(!!drawnBins(lights)?.stored);
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport, or by group (`grouped`).
   const draw = (
@@ -84,8 +85,10 @@ export function encodeShadowAtlas(
       pass.end();
     }
   };
+  encodeBins(rt, encoder, count, false);
   if (regions.layered) draw(staticLayer!.passes, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
+  if (tested) encodeBins(rt, encoder, count, true);
   // The restored sun pages' moving casters, by group (`movingGroups.ts`): after the lists they read.
   const groups = lights.movingGroups?.encode(rt, encoder, count, tested) ?? 0,
     grouped = groups ? lights.movingGroups!.grouped : undefined;

@@ -1,7 +1,7 @@
 import { viewProj } from '../pages/helpers.ts';
 import { pixelFootprintOf } from '../../streaming/priority.ts';
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
+import { FLAG_DIAGNOSTIC_VIEW, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { writeBlendDiagnostic } from './diagnostic.ts';
 import { directTiles } from '../pages/render/encodeLights.ts';
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts';
@@ -94,7 +94,7 @@ function diagnosticBits(diagnostic: DiagnosticMode) {
           : diagnostic === 'screen-error'
             ? 0x04000000
             : 0;
-  return (0x40000000 | mode) >>> 0;
+  return (FLAG_DIAGNOSTIC_VIEW | mode) >>> 0;
 }
 
 /**

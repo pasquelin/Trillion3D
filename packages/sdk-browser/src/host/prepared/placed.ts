@@ -6,6 +6,7 @@
  * bounds of a loaded model take the whole world, whichever cells are read.
  */
 import { numbered } from '../graph/serial.ts';
+import { registerPlacedMeshRank } from './sourceRanks.ts';
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { HostBox, HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -28,6 +29,7 @@ export function placedMeshes(
       const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box });
       // A cell places only shown nodes; the part may be a hidden core node's own mesh (#519).
       mesh.visible = true;
+      registerPlacedMeshRank(mesh, rank);
       scene.add(mesh);
       return mesh;
     });
