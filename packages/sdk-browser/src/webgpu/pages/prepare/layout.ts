@@ -92,8 +92,12 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,
-    /** The root rank of each packed rank, and the packed base of each root (#1235). */
-    placement,
+    /** The root rank of each packed rank, and the packed base of each root (#1235): one object for
+     *  the session, read-only here, which a growth rewrites in place (`postPackedBases(roots, into)`)
+     *  so the readers built once — the closure, the page parents, the held residency — follow it. */
+    get placement() {
+      return placement;
+    },
     opaquePageCount,
     /** The pool addresses' placements, which rows grown in place add to. */
     copies,
