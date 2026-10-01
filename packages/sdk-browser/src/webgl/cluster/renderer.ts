@@ -18,7 +18,9 @@ import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { WebglClusterSubmission } from './submission.ts';
 import type { FramePass } from '../core/frameTimer.ts';
 import { WebglClusterDeformation, type DeformationSource } from './deformation.ts';
-import { cardPass, type CardSwitches, type WebglCards } from '../impostor/pass.ts';
+import type { CardPass, WebglCards } from '../impostor/pass.ts';
+
+const REFLECTION_SWITCHES = ['reflectionEnabled', 'reflectionResolve', 'reflectionOutput'];
 
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
@@ -94,10 +96,29 @@ export class WebglClusterRenderer {
     this.pass.forget();
     this.submission.forget();
   }
-  /** The cards in a pass, with this program's switches there; this program is bound again. */
-  private drawCards(camera: HostDrawCamera, scene: WebglClusterScene, ...on: CardSwitches) {
-    const pass = cardPass(this.toneCurve, this.resolvePasses > 0, ...on);
-    if (this.cards?.(camera, scene, pass, !!this.display)) this.setOutput(pass.srgbDestination);
+  /** The pass the cards draw in, written again by each (`drawCards`). */
+  private readonly cardPass: CardPass = {
+    ...{ toneMapped: false, srgbDestination: false, capture: false },
+    ...{ reflections: false, resolve: false, toneCurve: 0 },
+  };
+  /** The cards in a pass, with this program's switches and lights there; this program is bound
+   *  again after. */
+  private drawCards(
+    camera: HostDrawCamera,
+    toneMapped: boolean,
+    srgbDestination: boolean,
+    capture: boolean,
+    reflections: boolean,
+  ) {
+    if (!this.cards) return;
+    const pass = this.cardPass;
+    pass.toneMapped = toneMapped;
+    pass.srgbDestination = srgbDestination;
+    pass.capture = capture;
+    pass.reflections = reflections;
+    pass.resolve = this.resolvePasses > 0;
+    pass.toneCurve = this.toneCurve;
+    if (this.cards(camera, this.lights, pass, !!this.display)) this.setOutput(srgbDestination);
   }
   draw(
     meshes: readonly ClusterDrawMesh[],
@@ -129,8 +150,7 @@ export class WebglClusterRenderer {
     const mirrors = receivers(drawn),
       mirroring = mirrors ? mirrorMeshes(drawn) : [];
     this.backdropSubmissions = this.copySubmissions = this.resolvePasses = 0;
-    for (const name of ['reflectionEnabled', 'reflectionResolve', 'reflectionOutput'])
-      gl.uniform1i(this.at(name), 0);
+    for (const name of REFLECTION_SWITCHES) gl.uniform1i(this.at(name), 0);
     if (mirrors) pass?.('Trillion3D WebGL2 reflection capture');
     capture(gl, this.reflection, mirrors, this.at('reflectionCapture'), () => {
       this.setOutput(false);
@@ -138,7 +158,7 @@ export class WebglClusterRenderer {
         this.submission.submit(meshes, camera, false, true) +
         this.submission.submit(diagnosticMeshes, camera, false, true);
       this.copySubmissions += this.submission.submit(plain, camera, false, true);
-      this.drawCards(camera, scene, false, false, true, false);
+      this.drawCards(camera, false, false, true, false);
     });
     // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
     // units; the frozen source is bound again for the trace they aliased before it (#1292).
@@ -166,7 +186,7 @@ export class WebglClusterRenderer {
         this.submission.submit(meshes, camera, false) +
         this.submission.submit(diagnosticMeshes, camera, false);
       this.copySubmissions += this.submission.submit(plain, camera, false);
-      this.drawCards(camera, scene, false, false, false, false);
+      this.drawCards(camera, false, false, false, false);
       this.backdrop.end();
     }
     this.backdropPasses = (transmissive.length ? 1 : 0) + (mirrors ? 1 : 0);
@@ -177,7 +197,7 @@ export class WebglClusterRenderer {
       this.submission.submit(meshes, camera, toneMapped) +
       this.submission.submit(diagnosticMeshes, camera, toneMapped);
     this.copySubmissions += this.submission.submit(plain, camera, toneMapped);
-    this.drawCards(camera, scene, toneMapped, srgbDestination, false, mirrors);
+    this.drawCards(camera, toneMapped, srgbDestination, false, mirrors);
     if (transmissive.length) {
       pass?.('Trillion3D WebGL2 transmission');
       this.backdrop.bind();

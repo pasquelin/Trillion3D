@@ -1,3 +1,4 @@
+import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
@@ -36,8 +37,7 @@ export function createWebglImpostors(
   let feed = makeFeed(),
     draw = createWebglCardDraw(gl),
     image = 0;
-  const atlasOf = (mesh: number, maps: Parameters<typeof feed.group>[1]) =>
-    feed.group(mesh, maps, image);
+  const atlasOf = (mesh: number, maps: ImpostorMaps) => feed.group(mesh, maps, image);
   const restored = () => {
     feed.dispose();
     draw.dispose();
@@ -45,15 +45,11 @@ export function createWebglImpostors(
     dropImpostorCards(state, roots);
   };
   gl.canvas.addEventListener('webglcontextrestored', restored);
-  const cards: WebglCards = (camera, scene, pass, linear) =>
-    draw.draw(state, image, camera, scene, pass, linear);
+  const cards: WebglCards = (camera, lights, pass, linear) =>
+    draw.draw(state, image, camera, lights, pass, linear);
   return {
     state,
     cards,
-    /** GPU bytes of the atlases held. */
-    get bytes() {
-      return feed.bytes;
-    },
     /** The image's plan at `cam` for `viewport`, before its cut. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
       image++;

@@ -20,8 +20,10 @@ import {
   impostorScene,
   impostorSection,
   settle,
+  VIEWPORT,
 } from '../../impostor/section.fixture.ts';
 import { createWebglImpostors } from './frame.ts';
+import { CARD_FLOATS } from '../../impostor/cards.ts';
 
 /** A WebGL2 session reduced to what the plan and the draw read, on a recording context. */
 function bench() {
@@ -52,7 +54,7 @@ function bench() {
 test('a switched root draws its card on WebGL2 once its atlas is made', async () => {
   const { context, fixture, roots, asked, impostors, draw, landed } = bench();
   // First image: the atlas is asked through the one reader, and the root keeps its clusters.
-  impostors.plan(engineAt(200), [1280, 720]);
+  impostors.plan(engineAt(200), VIEWPORT);
   assert.equal(roots[0].mark, undefined, 'no card before the atlas: the root stays whole');
   assert.ok(cutAt(roots, 200).shown.length > 0, 'no hole while the atlas streams');
   assert.deepEqual(
@@ -62,7 +64,7 @@ test('a switched root draws its card on WebGL2 once its atlas is made', async ()
   await settle();
   assert.ok(landed() >= 1, 'the landing breaks a held image');
   // The image that finds the levels makes the atlas and switches the root.
-  impostors.plan(engineAt(200), [1280, 720]);
+  impostors.plan(engineAt(200), VIEWPORT);
   const formats = context.of('texStorage2D').map((args) => args[2]);
   assert.deepEqual(formats, ['SRGB8_ALPHA8', 'RGBA8', 'RGBA8'], 'colour sRGB, data linear');
   assert.equal(roots[0].mark, CARD_ROOT, 'the switch marks the root');
@@ -105,7 +107,10 @@ test('a switched root draws its card on WebGL2 once its atlas is made', async ()
   const sent = calls.find(
     (call) => call.name === 'texSubImage2D' && call.args[8] instanceof Float32Array,
   );
-  assert.deepEqual((sent?.args[8] as Float32Array).subarray(0, 56), state.records.subarray(0, 56));
+  assert.deepEqual(
+    (sent?.args[8] as Float32Array).subarray(0, CARD_FLOATS),
+    state.records.subarray(0, CARD_FLOATS),
+  );
   const programs = calls.filter((call) => call.name === 'useProgram').map((call) => call.args[0]);
   const after = calls.slice(at).find((call) => call.name === 'useProgram');
   assert.equal(after?.args[0], programs[0], 'the cluster program draws on');
@@ -115,11 +120,11 @@ test('a switched root draws its card on WebGL2 once its atlas is made', async ()
 
 test('a near root draws whole again and no card is drawn', async () => {
   const { context, fixture, roots, impostors, draw } = bench();
-  impostors.plan(engineAt(200), [1280, 720]);
+  impostors.plan(engineAt(200), VIEWPORT);
   await settle();
-  impostors.plan(engineAt(200), [1280, 720]);
+  impostors.plan(engineAt(200), VIEWPORT);
   assert.equal(roots[0].mark, CARD_ROOT);
-  impostors.plan(engineAt(5), [1280, 720]);
+  impostors.plan(engineAt(5), VIEWPORT);
   assert.equal(roots[0].mark, undefined, 'its card bit cleared');
   assert.ok(cutAt(roots, 5).shown.length > 0);
   draw(5);
