@@ -8024,7 +8024,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu.",
+    "summary": "`world-roots.table`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu —, halaman dan selnya dibaca dari rekamannya.",
     "members": {
       "version": "Versi format.",
       "budgetBytes": "Byte terbanyak yang diizinkan proses masak untuk puncak yang disematkan.",
@@ -8032,8 +8032,8 @@
       "pinnedTopBytes": "Byte puncak yang disematkan.",
       "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
       "bundles": "Bundel, menurut urutan biner.",
-      "pages": "Setiap halaman: bundelnya, offset di dalamnya, levelnya, dan galatnya.",
-      "cells": "Setiap sel dunia: primitif tertempatkan yang dipegangnya."
+      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, levelnya, dan galatnya, dibaca dari rekamannya.",
+      "cells": "Sel dunia: berapa banyak, dan primitif tertempatkan yang dipegang satu sel, dibaca dari rekamannya."
     }
   },
   "WorldRootsBundle": {

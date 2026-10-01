@@ -14,8 +14,9 @@ import { worldRootsPageAddress } from './worldPageServe.ts';
 test('every page lands in the WebGPU float pool and a page slot as cooked (#1238)', async () => {
   installGpuGlobals();
   const { table, source } = worldRootsPageFixtureSource();
-  assert.equal(table.pages.length, 4);
-  for (const { bundle, offset } of table.pages) {
+  assert.equal(table.pages.count, 4);
+  for (let at = 0; at < table.pages.count; at++) {
+    const { bundle, offset } = table.pages.at(at);
     const address = worldRootsPageAddress(table.payload.url, bundle, offset),
       x = bundle; // the fixture's page `bundle` is the triangle at x = bundle
     // Its world positions, packed by the engine's float pool, no pose applied.
