@@ -1,6 +1,7 @@
 import type { ClusterStructureIndex } from '../selection/types.ts';
 import { createSparseInts } from './sparseInts.ts';
 import { baseOpen, type CullingLinks } from './links.ts';
+import { drawsCluster } from './rule.ts';
 
 /**
  * THE RESIDENCY THE CUT RULE READS (`./rule.ts`), derived from the per-cluster residency of one
@@ -60,6 +61,17 @@ export function createCutReadiness(
     const source = structure ? structure.sources[page] : -1;
     return source < 0 || groupReady.get(source) !== 0;
   };
+  /** The cut rule at a threshold of 0 (`./rule.ts`): `page` is the finest representation the
+   *  residency holds of its surface — a cluster nothing produced meets any threshold, any other
+   *  none —, the one a view that wants every detail draws. */
+  const isFinest = (page: number) =>
+    drawsCluster(
+      isReady(page),
+      Infinity,
+      (structure ? structure.sources[page] : -1) < 0 ? 0 : Infinity,
+      isChildReady(page),
+      0,
+    );
   /** Where `writeOpen` writes, read by one callback built once: a walk allocates nothing. */
   const opened = { out: NO_OUT as Int32Array | Uint32Array, count: 0 };
   const openNode = (node: number, value: number) => {
@@ -91,6 +103,7 @@ export function createCutReadiness(
   return {
     isReady,
     isChildReady,
+    isFinest,
     openAt,
     /** Writes the first `count` open counts into `out`: a walk that reads them densely. */
     writeOpen(out: Int32Array | Uint32Array, count: number) {

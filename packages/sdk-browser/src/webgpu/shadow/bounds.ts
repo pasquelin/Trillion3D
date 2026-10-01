@@ -13,11 +13,12 @@ export { growClusterBox, packClusterSpheres, uploadClusterSpheres } from './sphe
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /**
- * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, the
- * corners its row draws (#966) — pushed on the same dirty interval as the spheres and the page
- * table's flags, and every row once when a placement turns moving: what the page cull splits a
- * page's casters by, static layer or moving casters, and drawn with no fragment stage or with the
- * cutout test (#965).
+ * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, whether
+ * a finer resident form stands for it (#831), the corners its row draws (#966) — pushed on the same
+ * dirty interval as the spheres and the page table's flags — a row whose cut readiness moved is
+ * marked too (`gpuCutStream.ts`) —, and every row once when a placement turns moving: what the
+ * page cull splits a page's casters by, static layer or moving casters, and drawn with no fragment
+ * stage or with the cutout test (#965).
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
@@ -42,6 +43,7 @@ export function uploadRowMobility(
   }
   const buffer = lights.mobilityRows,
     ints = rows.pageTableInts,
+    selection = rt.run.gpuSelection,
     // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
     corners = (row: number) => ints?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners;
   mobility.writeRows(
@@ -53,6 +55,8 @@ export function uploadRowMobility(
     corners,
     rows.blendFirst,
     (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
+    (row) =>
+      !!selection && !!rows.packedRecs[row] && !selection.isFinest(rows.packedPageIndex[row]),
   );
 }
 
