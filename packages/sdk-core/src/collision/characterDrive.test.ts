@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDrive, driveAtRest, driveTick, REST_GLIDE } from './characterDrive.ts';
-import { HUMAN_BODY, RESPONSE_LEFT, type CharacterSettings } from './characterSettings.ts';
+import { createDrive, driveAtRest, driveTick } from './characterDrive.ts';
+import {
+  HUMAN_BODY,
+  RESPONSE_LEFT,
+  REST_GLIDE,
+  type CharacterSettings,
+} from './characterSettings.ts';
 import { PHYSICS_MATERIALS } from '../physics/options.ts';
 import { gripOf } from './grip.ts';
 
