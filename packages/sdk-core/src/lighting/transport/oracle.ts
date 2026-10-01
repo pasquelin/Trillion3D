@@ -4,6 +4,7 @@ import {
   type TransportSnapshot,
   type TransportOptions,
 } from './contracts.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './limits.ts';
 import { fail, checkpoint, progress } from './validation.ts';
 import { maximumResidual } from './step.ts';
 
@@ -46,7 +47,7 @@ export function solveTransportOracle(
       for (let row = pivot + 1; row < size; row++)
         if (Math.abs(matrix[row * size + pivot]) > Math.abs(matrix[winner * size + pivot]))
           winner = row;
-      if (Math.abs(matrix[winner * size + pivot]) < 1e-14)
+      if (Math.abs(matrix[winner * size + pivot]) < LIGHTING_TRANSPORT_LIMITS.singularPivot)
         fail('SINGULAR_TRANSPORT', 'Transport oracle encountered a singular system');
       if (winner !== pivot) {
         for (let col = pivot; col < size; col++) {
