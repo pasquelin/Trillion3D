@@ -24,6 +24,7 @@ fn the_table_publishes_every_cluster_and_its_groups_for_the_runtime_cut() {
         assert!(cluster["sphere"].is_array());
         let origin = world.origins[slot];
         if origin.is_some() {
+            // Every instance places a covered primitive: its rank among the objects is its own.
             assert_eq!(cluster["origin"].as_u64(), origin.map(|o| o as u64));
             assert!(
                 cluster["bundle"].is_null(),
@@ -53,6 +54,35 @@ fn the_table_publishes_every_cluster_and_its_groups_for_the_runtime_cut() {
             assert!(rank < world.clusters.len(), "rank {rank} out of the world");
         }
     }
+}
+
+#[test]
+fn an_object_root_names_the_table_object_that_draws_it_past_uncovered_primitives() {
+    // The second primitive has no DAG (`ExactClusters`): its instances list no table object.
+    let [covered, _] = covers();
+    let covers = [covered, RootCover::default()];
+    let instances = world(&covers, 2);
+    let cooked = cooked(&instances, 4, WORLD_TOP_BUDGET_BYTES).expect("cooked");
+    let world = world_dag(&instances, &|| Ok(())).expect("world");
+    let objects: Vec<&Value> = cooked.table["cells"]
+        .as_array()
+        .expect("cells")
+        .iter()
+        .flat_map(|cell| cell["objects"].as_array().expect("objects"))
+        .collect();
+    let clusters = cooked.table["clusters"].as_array().expect("clusters");
+    let mut named = 0;
+    for (slot, instance) in world.origins.iter().enumerate() {
+        let Some(instance) = *instance else { continue };
+        let object = objects[clusters[slot]["origin"].as_u64().expect("origin") as usize];
+        assert_eq!(
+            object["node"].as_u64(),
+            Some(instances[instance].node as u64)
+        );
+        assert_eq!(object["primitive"].as_u64(), Some(0));
+        named += 1;
+    }
+    assert!(named > 0 && objects.len() * 2 == instances.len());
 }
 
 #[test]

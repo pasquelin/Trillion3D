@@ -699,7 +699,7 @@ roots included, reaches the world top.
 Three products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a
 page is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
 triangles as `u16` local indices, padded to four bytes. `world-roots.table` and `world-roots.dag`
-(version 2, #1232) are **fixed-size little-endian records**, read at their rank straight from their
+(version 3, #1332: version 2 named an object root by its instance) are **fixed-size little-endian records**, read at their rank straight from their
 bytes (`packages/sdk-core/src/manifest/worldRootsTable.ts`), never one string of the whole world:
 the open world's table weighed 866 MiB as JSON, past the 512 MiB a JavaScript string holds. Each
 record names a variable list — a bundle's or an object's dependencies, an object's roots, a group's
@@ -719,8 +719,8 @@ children and outputs — by its first word and its length in a `u32` **pool** af
   `WRTD`, version, the counts of clusters and groups, the pool's length, zero —; a 152-byte
   **cluster** for every world cluster, object roots included, at its world rank — the rank the
   groups use —: its level, its triangles, its material, its page's `bundle` and `offset` in the bin
-  (a super-root) and its `origin`, the placed instance whose own stream holds its page (an object
-  root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
+  (a super-root) and its `origin`, the rank among the table's objects of the placed object whose
+  own stream holds its page (an object root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
   its sphere, its parent's sphere (NaN for a root), its minimum and its maximum —; a 64-byte
   **group** — its level, its children and outputs, zero, then as `f64` its error and sphere —, the
   relation the runtime flattens into its cluster structure; then the pool.
@@ -745,6 +745,18 @@ a load. Object roots are no longer pinned: held with the placements
 the view holds, a placed cell holding the bundles past the top its objects' `dependencies` name,
 each once, until the last cell needing it leaves ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool),
 Pinned bytes). The super-roots are not drawn yet (#1238): the image is unchanged.
+
+Packed last in the one cut, the world DAG reads a mirror of the scene's residency
+(`packages/sdk-browser/src/gpu/dag/worldMirror.ts`, #1332), which the cut that packs it builds and
+feeds the rows' flags through: a super-root resident while its bundle is held, an object root while
+its placed object (`origin`) is placed and its root cover resident, so the cut keeps a cell's
+super-root until its objects are drawable. A partition's plan reads the cut's own choice
+(`scene/partition/superRoots.ts`, `farCells.ts`), each cell's bound read once the world stream
+opens (an object root's cell is its object's, `cells.cellOf`): a cell is held by its super-roots,
+its object pages unread, until their largest `parentError` projects past the pixel target on the
+frustum's diagonal; a placed cell gives its objects back once that error is within the target over
+`1 + KEEP`. Both wait for a cut that packs the world DAG (#1333): until then no cell is held far
+and the rows' flags go up as they are.
 
 ## `physics.json` — cooked colliders
 
