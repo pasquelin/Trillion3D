@@ -16,8 +16,12 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     lights.runs.reset();
     return 0;
   }
-  if (lights.plannedFrame === run.frame) return lights.plan.admission.count;
+  const view = rt.views?.active;
+  if (lights.plannedFrame === run.frame && lights.plannedView === view)
+    return lights.plan.admission.count;
+  lights.packedBatch.frame = -1;
   lights.plannedFrame = run.frame;
+  lights.plannedView = view;
   const started = performance.now(),
     count = planShadowRegions(rt, cam, run.frame, started);
   recordShadowPlan(rt, performance.now() - started);
@@ -39,7 +43,7 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
     run.frame,
     plan.table.layoutEpoch,
     plan.stamp(store),
-    plan.receive,
+    plan.receiver(),
     plan.gpu.on,
   );
   if (settle) timing.shadowPageRequests = settle;

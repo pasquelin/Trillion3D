@@ -18,11 +18,14 @@ function askedPages(plan: ShadowPlan) {
  *  pool holds less than two of them (`ceiling`), whether one asked past it (`full`), and the frame
  *  the view came to rest, −1 while it moves. */
 type Ceiling = { latest: number; ceiling: boolean; full: boolean; restFrom: number };
-const ceilings = new WeakMap<WebgpuLightState, Ceiling>();
+const ceilings = new WeakMap<ShadowPlan['requests'], Ceiling>();
 const ceilingOf = (lights: WebgpuLightState) => {
-  let held = ceilings.get(lights);
+  let held = ceilings.get(lights.plan.requests);
   if (!held)
-    ceilings.set(lights, (held = { latest: -1, ceiling: false, full: false, restFrom: -1 }));
+    ceilings.set(
+      lights.plan.requests,
+      (held = { latest: -1, ceiling: false, full: false, restFrom: -1 }),
+    );
   return held;
 };
 
@@ -68,5 +71,5 @@ export function followShadowCeiling(rt: WebgpuPagesRuntime) {
 export function shadowKeptFrom(lights: WebgpuLightState, frame: number) {
   const held = ceilingOf(lights);
   held.restFrom = lights.plan.resting ? (held.restFrom < 0 ? frame : held.restFrom) : -1;
-  return held.ceiling && held.restFrom >= 0 ? held.restFrom : frame;
+  return lights.plan.keptFrom(held.ceiling && held.restFrom >= 0 ? held.restFrom : frame);
 }

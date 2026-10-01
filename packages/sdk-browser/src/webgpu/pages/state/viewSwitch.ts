@@ -14,6 +14,7 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const { views, run, gpu, vis, setup } = rt,
     from = views.active;
   if (from === view) return;
+  rt.lights?.plan.registerView(view === views.main ? undefined : view, rt.lights.store);
   trade(run, from.run, view.run, VIEW_RUN_KEYS);
   trade(gpu, from.gpu, view.gpu, VIEW_GPU_KEYS);
   trade(vis, from.vis, view.vis, VIEW_VIS_KEYS);
@@ -22,6 +23,7 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   from.viewport = setup.viewport;
   setup.viewport = view.viewport;
   views.active = view;
+  rt.lights?.plan.useView(view === views.main ? undefined : view);
   tradeCamera(run.gate, from, view);
   from.hold = run.gate.useViewHold(view.hold);
   // Hi-Z dropped while `view` was aside: the pyramid it kept goes too.
@@ -56,5 +58,6 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.gpu.temporal?.dispose();
   view.gpu.effects?.dispose();
   view.gpu.temporal = view.gpu.effects = undefined;
+  rt.lights?.plan.removeView(view);
   rt.services.releaseView(view);
 }

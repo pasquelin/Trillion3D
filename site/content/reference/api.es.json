@@ -1227,8 +1227,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "El planificador de sombras de los mapas virtuales.",
-    "description": "El sombreado anota las páginas que lee; su informe, releído unos fotogramas después, asigna lo que falta del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma: lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no pide nada y no dibuja nada. Todos los arrays se reservan una vez; `plan()` no reserva nada."
+    "summary": "Pool y tabla de sombras compartidos, con planificación de cámara independiente para cada vista activa."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -5420,10 +5419,10 @@
       "ids": "El nombre de la luz de cada plaza.",
       "count": "Cuántas luces.",
       "epoch": "Aumentado cuando cambia el conjunto de luces.",
-      "transportEpoch": "Aumenta con la época, salvo por un cambio solo de la niebla: la niebla es un término del rayo de vista, no del transporte de luz, así que lo que guarda en caché la luz transportada (las sondas de rebote) la conserva.",
+      "transportEpoch": "Revisión del transporte de luz, sin niebla ni asignaciones de segmentos de sombra dependientes de la vista.",
       "environment": "El entorno de la escena.",
       "lightingView": "Vista solicitada por el host, tal cual: `auto` mientras no haya pedido nada.",
-      "unlit": "Verdadero cuando la imagen debe salir en albedo puro, sin luz. Es el comportamiento por defecto mientras no se declare ninguna luz: una escena sin fuente no tiene nada que iluminar, y una imagen negra no ayudaría a ningún banco de pruebas de geometría. En cuanto existe una luz, la iluminación real toma el relevo — salvo que el host haya pedido explícitamente la vista de diagnóstico.",
+      "unlit": "Sin luces se muestra el albedo bruto, salvo que el anfitrión elija explícitamente una vista de iluminación.",
       "setView": "Fija lo que el host pide ver.",
       "light": "El registro mantenido, el del almacenamiento: los backends lo leen en el camino de la imagen y no copian nada. No para el host — la API pública da copias `cloneSceneLight`.",
       "slotOf": "El emplazamiento de una luz.",
@@ -5432,7 +5431,8 @@
       "remove": "Retira una luz.",
       "setEnvironment": "Fija el entorno.",
       "assignSlice": "Registra la porción de atlas que ocupa una luz, sin tocar el resto de sus campos. La revisión del almacenamiento solo sube si la porción ha cambiado de verdad: si no, nada se envía a la GPU.",
-      "capacity": "Plazas que tiene la tabla: el búfer GPU de luces tiene esta longitud."
+      "capacity": "Plazas que tiene la tabla: el búfer GPU de luces tiene esta longitud.",
+      "contentEpoch": "Revisión del contenido luminoso, sin asignaciones de segmentos de sombra dependientes de la vista."
     }
   },
   "SceneLink": {
@@ -5679,7 +5679,7 @@
       "table": "La tabla de páginas: una palabra por página virtual, y el rango que ocupa cada luz en ella.",
       "pool": "Las páginas físicas del pool y la página virtual que contiene cada una.",
       "sun": "El clipmap de cada sol: su marco, rango de profundidad, nivel más fino y extensiones.",
-      "records": "Las porciones de sombra, una por luz que proyecta sombra.",
+      "records": "Los segmentos de sombra, compartidos entre lámparas y separados para cada sol y vista.",
       "requests": "Los informes de peticiones leídos de vuelta: lo que nombró el último, asignó o rechazó.",
       "admission": "Las páginas de este fotograma, vista de luz por vista de luz.",
       "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
@@ -5688,7 +5688,13 @@
       "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista.",
       "size": "El pool al tamaño que el dispositivo concedió (`webgpu/shadow/poolSize.ts`), una vez, antes de asignar ninguna página: nunca se redimensiona después, así que ninguna página cambia de lugar (#831).",
       "sunWindow": "Páginas por lado del clipmap de un sol con el que corre una sesión (`referenceMode.ts`).",
-      "gpu": "La asignación de la GPU (`mirror.ts`): si coloca las páginas y lo que el anfitrión le pide."
+      "gpu": "La asignación de la GPU (`mirror.ts`): si coloca las páginas y lo que el anfitrión le pide.",
+      "eachSlice": "Recorre los segmentos de sombra de cada vista activa y sus fuentes de luz.",
+      "keptFrom": "El fotograma más antiguo cuyas páginas de sombra aún necesita una vista activa.",
+      "registerView": "Reserva una vista en el presupuesto compartido de sombras o la rechaza antes de dibujar.",
+      "useView": "Selecciona el estado de sombras dependiente de la cámara para una clave de vista estable.",
+      "removeView": "Libera los segmentos solares de una vista y devuelve sus páginas al pool compartido.",
+      "receiver": "Captura la vista actual y el orden de envío para un informe GPU posterior."
     }
   },
   "ShadowStaleReason": {
@@ -7673,7 +7679,9 @@
       "stamp": "El sello del plan cuando se codificó esa imagen (`ShadowPlan.stamp`).",
       "count": "Entradas pedidas, quizá más de las que caben en `entries`: el resto vuelve a pedirse en la siguiente imagen.",
       "entries": "Las entradas pedidas, como mucho las primeras `count`.",
-      "pool": "El pool del asignador de la GPU tras la asignación de ese fotograma, cuando asigna la GPU."
+      "pool": "El pool del asignador de la GPU tras la asignación de ese fotograma, cuando asigna la GPU.",
+      "submission": "Orden de envío del anfitrión, incluidas las vistas separadas dibujadas en el mismo fotograma.",
+      "generation": "Revisión del ciclo de vida de los segmentos cuando se solicitó el informe GPU."
     }
   },
   "VehicleDriver": {

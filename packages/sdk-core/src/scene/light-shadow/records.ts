@@ -108,8 +108,9 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       }
     },
     /** Frees every slice no live shadow-casting light holds any more. */
-    release(store: SceneLightStore) {
+    release(store: SceneLightStore, retained?: Uint8Array) {
       claimed.fill(0);
+      if (retained) claimed.set(retained);
       for (let slot = 0; slot < store.count; slot++) {
         const slice = store.sliceOf(slot);
         if (slice < 0) continue;

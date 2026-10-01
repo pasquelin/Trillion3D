@@ -3058,10 +3058,10 @@
       "ids": "Her slotun ışık adı.",
       "count": "Kaç ışık.",
       "epoch": "Işık kümesi değiştiğinde artırılır.",
-      "transportEpoch": "Epoch ile birlikte artar, yalnızca sisin değişmesi dışında: sis ışık taşınımının değil, bakış ışınının bir terimidir, bu yüzden taşınan ışığı önbelleğe alan (sekme sondaları) onu korur.",
+      "transportEpoch": "Sis ve görünüme bağlı gölge dilimi bağlamaları hariç ışık taşınımı revizyonu.",
       "environment": "Sahnenin ortamı.",
       "lightingView": "Host'un istediği görünüm, olduğu gibi: hiçbir şey istemediği sürece `auto`.",
-      "unlit": "Görselin ışık olmadan, ham albedo olarak çıkması gerektiğinde doğru. Bu, hiçbir ışık bildirilmediği sürece varsayılan davranıştır: kaynağı olmayan bir sahnenin aydınlatacak hiçbir şeyi yoktur, ve siyah bir görsel hiçbir geometri benchmark'ına yardımcı olmazdı. Bir ışık var olur olmaz, gerçek aydınlatma devralır — host açıkça tanı görünümünü istemedikçe.",
+      "unlit": "Ana uygulama açıkça bir aydınlatma görünümü seçmedikçe, ışık yoksa ham albedo gösterilir.",
       "setView": "Host'un görmek istediğini ayarlar.",
       "light": "Tutulan kayıt, deponun kendisine ait: motorlar onu kare yolunda okur ve hiçbir şey kopyalamaz. Host için değil — herkese açık API `cloneSceneLight` kopyaları verir.",
       "slotOf": "Bir ışığın slotu.",
@@ -3070,7 +3070,8 @@
       "remove": "Bir ışığı kaldırır.",
       "setEnvironment": "Ortamı ayarlar.",
       "assignSlice": "Diğer alanlarına dokunmadan, bir ışığın kapladığı atlas kesitini kaydeder. Depo revizyonu yalnızca kesit gerçekten değiştiyse yükselir: aksi halde GPU'ya hiçbir şey itilmez.",
-      "capacity": "Tablonun tuttuğu yuvalar: GPU ışık tamponu bu uzunluktadır."
+      "capacity": "Tablonun tuttuğu yuvalar: GPU ışık tamponu bu uzunluktadır.",
+      "contentEpoch": "Görünüme bağlı gölge dilimi bağlamaları hariç aydınlatma içeriği revizyonu."
     }
   },
   "SceneLightingView": {
@@ -3292,7 +3293,7 @@
       "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
       "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
       "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
-      "records": "Gölge dilimleri, gölge düşüren her ışık için bir tane.",
+      "records": "Lambalar için ortak, her güneş ve görünüm için ayrı gölge dilimleri.",
       "requests": "Geri okunan istek raporları: sonuncusunun adlandırdığı, ayırdığı ya da reddettiği.",
       "admission": "Bu karenin sayfaları, ışık görünümü ışık görünümü.",
       "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
@@ -3301,7 +3302,13 @@
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
       "size": "Aygıtın verdiği boyuttaki havuz (`webgpu/shadow/poolSize.ts`), bir kez, herhangi bir sayfa eşlenmeden önce: sonrasında asla yeniden boyutlandırılmaz, bu yüzden hiçbir sayfa yer değiştirmez (#831).",
       "sunWindow": "Bir oturumun çalıştığı güneş clipmap’inin bir kenarındaki sayfa sayısı (`referenceMode.ts`).",
-      "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri."
+      "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri.",
+      "eachSlice": "Her etkin görünümün gölge dilimlerini ve bunların ışık kaynaklarını dolaşır.",
+      "keptFrom": "Etkin bir görünümün gölge sayfalarına hâlâ ihtiyaç duyduğu en eski kare.",
+      "registerView": "Ortak gölge bütçesinde bir görünüm ayırır veya çizimden önce reddeder.",
+      "useView": "Kararlı bir görünüm anahtarı için kameraya bağlı gölge durumunu seçer.",
+      "removeView": "Görünümün güneş dilimlerini serbest bırakır ve sayfalarını ortak havuza döndürür.",
+      "receiver": "Sonraki bir GPU raporu için geçerli görünümü ve gönderim sırasını kaydeder."
     }
   },
   "ShadowStaleReason": {
@@ -5047,8 +5054,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Sanal haritaların gölge zamanlayıcısı.",
-    "description": "Gölgelendirme okuduğu sayfaları kaydeder; birkaç kare sonra geri okunan raporları, eksik olanı sabit havuzdan ayırır. Hareket eden, kapladığı ayrılmış sayfaları eskitir. Ardından bir kare, görüntünün okuduğu her eski sayfayı, hepsini o karede çizer: maliyeti tutan önbellektir — bir sayfa yalnızca içeriği değiştiğinde yeniden çizilir —, ve havuz tek sınırdır. Gölgelendirmesi artık çalışmayan durgun bir sahne hiçbir şey istemez ve hiçbir şey çizmez. Tüm diziler bir kez ayrılır; `plan()` hiçbir şey ayırmaz."
+    "summary": "Her etkin görünüm için bağımsız kamera zamanlaması olan ortak gölge havuzu ve tablosu."
   },
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
@@ -7673,7 +7679,9 @@
       "stamp": "O kare kodlandığında planın damgası (`ShadowPlan.stamp`).",
       "count": "İstenen girdiler, belki `entries`’in tuttuğundan fazla: kalanlar sonraki karede yeniden ister.",
       "entries": "İstenen girdiler, en fazla ilk `count` tanesi.",
-      "pool": "GPU ayırdığında, o karenin ayırmasından sonraki GPU ayırıcısının havuzu."
+      "pool": "GPU ayırdığında, o karenin ayırmasından sonraki GPU ayırıcısının havuzu.",
+      "submission": "Aynı karede ayrı çizilen görünümler dahil ana uygulamanın gönderim sırası.",
+      "generation": "GPU raporu istendiğinde dilim yaşam döngüsünün revizyonu."
     }
   },
   "VehicleDriver": {

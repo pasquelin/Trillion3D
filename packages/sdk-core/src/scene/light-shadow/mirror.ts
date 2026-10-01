@@ -48,7 +48,11 @@ export function createShadowMirror(
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
   let from = 0,
-    drops = records.drops;
+    drops = records.drops,
+    followed = -1,
+    followedSubmission = -1,
+    heard = -1,
+    heardSubmission = -1;
   const apply = (
     snapshot: ShadowPoolSnapshot,
     reportFrame: number,
@@ -115,6 +119,7 @@ export function createShadowMirror(
       mirror.moved = moved;
       if (records.drops === drops) return;
       drops = records.drops;
+      followed = -1;
       from = Math.max(from, frame);
     },
     /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn. */
@@ -127,7 +132,14 @@ export function createShadowMirror(
      *  Its listings move the shadow version only once a draw ran by its frame: a page listed and
      *  not drawn is listed again each frame until it is, and changes no image (#1346). */
     hear(report: ShadowRequestReport) {
-      if (!report.pool) return;
+      if (
+        !report.pool ||
+        report.frame < heard ||
+        (report.frame === heard && (report.submission ?? 0) < heardSubmission)
+      )
+        return;
+      heard = report.frame;
+      heardSubmission = report.submission ?? 0;
       mirror.listed = report.pool.drawn;
       if (report.frame < mirror.drewAt) return;
       mirror.drawn = report.pool.listings;
@@ -137,8 +149,18 @@ export function createShadowMirror(
     /** Follows the GPU's pool in `report`; false when it is not the GPU's, or can no longer be. */
     follow(report: ShadowRequestReport, nowMs: number, frame: number) {
       const snapshot = report.pool;
-      if (!snapshot || report.frame < from || snapshot.owner.length !== pool.pages) return false;
+      if (
+        !snapshot ||
+        report.frame < from ||
+        (report.generation !== undefined && report.generation !== records.drops) ||
+        report.frame < followed ||
+        (report.frame === followed && (report.submission ?? 0) < followedSubmission) ||
+        snapshot.owner.length !== pool.pages
+      )
+        return false;
       if (report.layoutEpoch !== table.layoutEpoch) return false;
+      followed = report.frame;
+      followedSubmission = report.submission ?? 0;
       apply(snapshot, report.frame, nowMs, frame);
       return true;
     },

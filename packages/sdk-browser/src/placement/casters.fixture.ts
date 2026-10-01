@@ -46,6 +46,7 @@ export function armCasters(rt: WebgpuPagesRuntime) {
       cull: lights.cull,
       runs: lights.runs,
       plannedFrame: lights.plannedFrame,
+      plannedView: lights.plannedView,
       admission: lights.plan.admission,
       packedBatch: lights.packedBatch,
       shadowTier: services.shadowTier,
@@ -54,6 +55,7 @@ export function armCasters(rt: WebgpuPagesRuntime) {
   if (added) lights.store.add(SUN);
   lights.cull = { dispose() {} } as never;
   lights.plannedFrame = rt.run.frame;
+  lights.plannedView = rt.views?.active;
   lights.runs = faces();
   lights.plan.admission = ADMISSION as never;
   lights.packedBatch = { frame: rt.run.frame, from: 0, to: 1 };
@@ -65,6 +67,7 @@ export function armCasters(rt: WebgpuPagesRuntime) {
     lights.cull = saved.cull;
     lights.runs = saved.runs;
     lights.plannedFrame = saved.plannedFrame;
+    lights.plannedView = saved.plannedView;
     lights.plan.admission = saved.admission;
     lights.packedBatch = saved.packedBatch;
     services.shadowTier = saved.shadowTier;

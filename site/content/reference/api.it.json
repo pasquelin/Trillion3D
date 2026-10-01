@@ -1227,8 +1227,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Lo scheduler delle ombre delle mappe virtuali.",
-    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
+    "summary": "Pool e tabella delle ombre condivisi, con pianificazione della camera indipendente per ogni vista attiva."
   },
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
@@ -5420,10 +5419,10 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
-      "transportEpoch": "Aumenta con l’epoca, tranne per un cambio della sola nebbia: la nebbia è un termine del raggio di vista, non del trasporto della luce, quindi ciò che tiene in cache la luce trasportata (le sonde di rimbalzo) la conserva.",
+      "transportEpoch": "Revisione del trasporto della luce, esclusi nebbia e assegnazioni delle sezioni d’ombra dipendenti dalla vista.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
-      "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",
+      "unlit": "Senza luci si mostra l’albedo grezzo, salvo che l’host scelga esplicitamente una vista di illuminazione.",
       "setView": "Imposta ciò che l'host chiede di vedere.",
       "light": "Il record mantenuto, quello della memorizzazione: i backend lo leggono sul percorso dell'immagine e non copiano nulla. Non per l'host — l'API pubblica dà copie `cloneSceneLight`.",
       "slotOf": "Il posto di una luce.",
@@ -5432,7 +5431,8 @@
       "remove": "Rimuove una luce.",
       "setEnvironment": "Imposta l'ambiente.",
       "assignSlice": "Registra la fetta di atlante occupata da una luce, senza toccare il resto dei suoi campi. La revisione della memorizzazione sale solo se la fetta è davvero cambiata: altrimenti nulla viene inviato alla GPU.",
-      "capacity": "Posti che la tabella tiene: il buffer GPU delle luci è lungo così."
+      "capacity": "Posti che la tabella tiene: il buffer GPU delle luci è lungo così.",
+      "contentEpoch": "Revisione del contenuto luminoso, escluse le assegnazioni delle sezioni d’ombra dipendenti dalla vista."
     }
   },
   "SceneLink": {
@@ -5679,7 +5679,7 @@
       "table": "La tabella delle pagine: una parola per pagina virtuale, e l’intervallo che ogni luce vi occupa.",
       "pool": "Le pagine fisiche del pool e la pagina virtuale che ognuna contiene.",
       "sun": "Il clipmap di ogni sole: il suo riferimento, intervallo di profondità, livello più fine ed estensioni.",
-      "records": "Le fette d’ombra, una per luce che proietta ombra.",
+      "records": "Le sezioni d’ombra, condivise fra le lampade e separate per ogni sole e vista.",
       "requests": "I rapporti di richieste riletti: ciò che l’ultimo ha nominato, assegnato o rifiutato.",
       "admission": "Le pagine di questo fotogramma, vista di luce per vista di luce.",
       "stamp": "Ciò che ombreggiatura, luci e vista passano all’immagine successiva: un rapporto timbrato con esso che non nomina nulla di nuovo prova che l’immagine legge solo ciò che è disegnato.",
@@ -5688,7 +5688,13 @@
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
       "size": "Il pool alla dimensione concessa dal dispositivo (`webgpu/shadow/poolSize.ts`), una volta, prima che una pagina sia mappata: non viene mai ridimensionato dopo, quindi nessuna pagina cambia posto (#831).",
       "sunWindow": "Pagine per lato del clipmap di un sole con cui gira una sessione (`referenceMode.ts`).",
-      "gpu": "L’allocazione della GPU (`mirror.ts`): se colloca le pagine e cosa le chiede l’host."
+      "gpu": "L’allocazione della GPU (`mirror.ts`): se colloca le pagine e cosa le chiede l’host.",
+      "eachSlice": "Visita le sezioni d’ombra di ogni vista attiva e le relative sorgenti luminose.",
+      "keptFrom": "Il fotogramma più vecchio le cui pagine d’ombra servono ancora a una vista attiva.",
+      "registerView": "Riserva una vista nel budget condiviso delle ombre oppure la rifiuta prima del disegno.",
+      "useView": "Seleziona lo stato delle ombre dipendente dalla camera per una chiave di vista stabile.",
+      "removeView": "Libera le sezioni solari di una vista e restituisce le pagine al pool condiviso.",
+      "receiver": "Acquisisce la vista corrente e l’ordine di invio per un successivo rapporto GPU."
     }
   },
   "ShadowStaleReason": {
@@ -7673,7 +7679,9 @@
       "stamp": "Il timbro del piano quando quel fotogramma è stato codificato (`ShadowPlan.stamp`).",
       "count": "Voci richieste, forse più di quante ne contenga `entries`: le altre richiedono al fotogramma successivo.",
       "entries": "Le voci richieste, al massimo le prime `count`.",
-      "pool": "Il pool dell’allocatore GPU dopo l’allocazione di quel fotogramma, quando alloca la GPU."
+      "pool": "Il pool dell’allocatore GPU dopo l’allocazione di quel fotogramma, quando alloca la GPU.",
+      "submission": "Ordine di invio dell’host, incluse le viste distinte disegnate nello stesso fotogramma.",
+      "generation": "Revisione del ciclo di vita delle sezioni al momento della richiesta del rapporto GPU."
     }
   },
   "VehicleDriver": {

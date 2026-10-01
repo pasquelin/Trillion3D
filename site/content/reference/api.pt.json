@@ -3058,10 +3058,10 @@
       "ids": "O nome da luz de cada slot.",
       "count": "Quantas luzes.",
       "epoch": "Incrementado quando o conjunto de luzes muda.",
-      "transportEpoch": "Aumenta com a época, exceto por uma mudança só da névoa: a névoa é um termo do raio de visão, não do transporte de luz, então o que guarda em cache a luz transportada (as sondas de rebote) a mantém.",
+      "transportEpoch": "Revisão do transporte de luz, excluindo neblina e atribuições de fatias de sombra dependentes da vista.",
       "environment": "O ambiente da cena.",
       "lightingView": "Visão pedida pelo host, como está: `auto` enquanto ele não pediu nada.",
-      "unlit": "Verdadeiro quando a imagem precisa sair como albedo bruto, sem luz. Esse é o comportamento padrão enquanto nenhuma luz é declarada: uma cena sem fonte não tem nada para iluminar, e uma imagem preta não ajudaria nenhum benchmark de geometria. Assim que uma luz existe, a iluminação real assume o controle — a menos que o host tenha pedido explicitamente a visão de diagnóstico.",
+      "unlit": "Sem luzes, mostra o albedo bruto, exceto se o host escolher explicitamente uma vista de iluminação.",
       "setView": "Define o que o host pede para ver.",
       "light": "O registro mantido, próprio do armazenamento: os motores o leem no caminho do quadro e não copiam nada. Não é para o host — a API pública entrega cópias de `cloneSceneLight`.",
       "slotOf": "O slot de uma luz.",
@@ -3070,7 +3070,8 @@
       "remove": "Remove uma luz.",
       "setEnvironment": "Define o ambiente.",
       "assignSlice": "Registra o recorte de atlas que uma luz ocupa, sem tocar no resto de seus campos. A revisão do armazenamento só sobe se o recorte realmente mudou: caso contrário, nada é empurrado para a GPU.",
-      "capacity": "Vagas que a tabela mantém: o buffer de luzes da GPU tem este comprimento."
+      "capacity": "Vagas que a tabela mantém: o buffer de luzes da GPU tem este comprimento.",
+      "contentEpoch": "Revisão do conteúdo luminoso, excluindo atribuições de fatias de sombra dependentes da vista."
     }
   },
   "SceneLightingView": {
@@ -3292,7 +3293,7 @@
       "table": "A tabela de páginas: uma palavra por página virtual, e o intervalo que cada luz ocupa nela.",
       "pool": "As páginas físicas do pool e a página virtual que cada uma guarda.",
       "sun": "O clipmap de cada sol: o seu referencial, intervalo de profundidade, nível mais fino e extensões.",
-      "records": "As fatias de sombra, uma por luz que projeta sombra.",
+      "records": "As fatias de sombra, compartilhadas pelas lâmpadas e separadas para cada sol e vista.",
       "requests": "Os relatórios de pedidos lidos de volta: o que o último nomeou, alocou ou recusou.",
       "admission": "As páginas deste quadro, vista de luz por vista de luz.",
       "stamp": "O que o sombreamento, as luzes e a vista entregam à imagem seguinte: um relatório carimbado com ele que não nomeia nada novo prova que a imagem só lê o que está desenhado.",
@@ -3301,7 +3302,13 @@
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista.",
       "size": "O pool no tamanho que o dispositivo concedeu (`webgpu/shadow/poolSize.ts`), uma vez, antes de qualquer página ser mapeada: nunca é redimensionado depois, então nenhuma página muda de lugar (#831).",
       "sunWindow": "Páginas por lado do clipmap de um sol com que corre uma sessão (`referenceMode.ts`).",
-      "gpu": "A alocação da GPU (`mirror.ts`): se ela mapeia as páginas e o que o anfitrião lhe pede."
+      "gpu": "A alocação da GPU (`mirror.ts`): se ela mapeia as páginas e o que o anfitrião lhe pede.",
+      "eachSlice": "Percorre as fatias de sombra de cada vista ativa e suas fontes de luz.",
+      "keptFrom": "O quadro mais antigo cujas páginas de sombra uma vista ativa ainda precisa.",
+      "registerView": "Reserva uma vista no orçamento compartilhado de sombras ou a recusa antes de desenhar.",
+      "useView": "Seleciona o estado de sombras dependente da câmera para uma chave de vista estável.",
+      "removeView": "Libera as fatias solares de uma vista e devolve suas páginas ao pool compartilhado.",
+      "receiver": "Captura a vista atual e a ordem de envio para um relatório GPU posterior."
     }
   },
   "ShadowStaleReason": {
@@ -5047,8 +5054,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "O escalonador de sombras dos mapas virtuais.",
-    "description": "O sombreamento anota as páginas que lê; seu relatório, relido alguns quadros depois, aloca o que falta do pool fixo. O que se moveu invalida as páginas alocadas que cobre. Um quadro desenha então cada página obsoleta que a imagem lê, todas nesse quadro: o que segura o custo é o cache — uma página só é redesenhada quando o que ela contém mudou —, e o pool é o único limite. Uma cena parada, cujo sombreamento não roda mais, não pede nada e não desenha nada. Todos os arrays são alocados uma vez; `plan()` não aloca nada."
+    "summary": "Pool e tabela de sombras compartilhados, com planejamento de câmera independente para cada vista ativa."
   },
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
@@ -7673,7 +7679,9 @@
       "stamp": "O carimbo do plano quando esse quadro foi codificado (`ShadowPlan.stamp`).",
       "count": "Entradas pedidas, talvez mais do que `entries` guarda: o resto pede de novo no quadro seguinte.",
       "entries": "As entradas pedidas, no máximo as primeiras `count`.",
-      "pool": "O pool do alocador da GPU após a alocação desse quadro, quando a GPU aloca."
+      "pool": "O pool do alocador da GPU após a alocação desse quadro, quando a GPU aloca.",
+      "submission": "Ordem de envio do host, incluindo vistas separadas desenhadas no mesmo quadro.",
+      "generation": "Revisão do ciclo de vida das fatias quando o relatório GPU foi solicitado."
     }
   },
   "VehicleDriver": {

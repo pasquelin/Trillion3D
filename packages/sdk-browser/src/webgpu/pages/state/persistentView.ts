@@ -24,6 +24,7 @@ export async function addWebgpuView(rt: WebgpuPagesRuntime, rect: PresentRect) {
     height: Math.max(1, Math.round(rect.height)),
   };
   const view = createWebgpuView(at.width, at.height);
+  rt.lights.plan.registerView(view, rt.lights.store);
   view.rect = at;
   rt.views.persistent.push(view);
   try {

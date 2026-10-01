@@ -80,8 +80,8 @@ export interface WebgpuLightState {
   shadowPixelError: number;
   /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
   plannedFrame: number;
-  /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
-   *  they no longer do (`../../shadow/pages.ts`). */
+  plannedView?: unknown;
+  /** Batch held in runs and regions; frame −1 invalidates it (`../../shadow/pages.ts`). */
   packedBatch: { frame: number; from: number; to: number };
   /** Light views the last image's cuts ran, every batch together; zero on a still frame. */
   lightRuns: number;

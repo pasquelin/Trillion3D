@@ -34,7 +34,7 @@ export function encodeFreshPages(
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
   if (!cull || !spheres || !mobilityRows) return;
-  if (!freshWanted(plan, lights.store.epoch, buffers.lost)) return;
+  if (!freshWanted(plan, lights.store.contentEpoch, buffers.lost)) return;
   growPairList(rt);
   const pairs = cull.kept,
     groups = freshGroups(rt, device, pairs);

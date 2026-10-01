@@ -26,22 +26,22 @@ export function writeShadowRecords(lights: WebgpuLightState) {
   const { store, plan, shadows } = lights;
   slotOf.fill(-1);
   if (!shadows) return slotOf;
-  for (let slot = 0; slot < store.count; slot++) {
-    const slice = store.sliceOf(slot),
-      light = slice >= 0 ? store.light(store.ids[slot]) : undefined;
-    if (!light) continue;
+  plan.eachSlice((slice, id) => {
+    const slot = store.slotOf(id),
+      light = store.light(id);
+    if (!light) return;
     slotOf[slice] = slot;
     const base = plan.table.baseOf(slice);
     if (light.kind === 'directional') {
       shadows.writeSun(slice, plan.sun, SUN_LEVELS, base);
-      continue;
+      return;
     }
     const faces = lampFacesOf(LIGHT_KIND[light.kind]);
     let planes = { near: 0, halfFov: 0 };
     for (let face = 0; face < faces; face++)
       planes = writeFace(lampMatrices, face * 16, null, 0, light, face);
     shadows.writeLamp(slice, lampMatrices, faces, Math.tan(planes.halfFov), planes.near, base);
-  }
+  });
   for (let slice = 0; slice < slotOf.length; slice++)
     if (slotOf[slice] < 0) shadows.clearRecord(slice);
   return slotOf;

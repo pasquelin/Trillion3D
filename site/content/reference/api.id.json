@@ -3142,10 +3142,10 @@
       "ids": "Nama cahaya tiap slot.",
       "count": "Berapa banyak cahaya.",
       "epoch": "Dinaikkan saat set cahaya berubah.",
-      "transportEpoch": "Naik bersama epoch, kecuali oleh perubahan kabut saja: kabut adalah suku sinar pandang, bukan transpor cahaya, jadi yang menyimpan cahaya yang ditranspor (probe pantulan) tetap menyimpannya.",
+      "transportEpoch": "Revisi transportasi cahaya, tanpa kabut dan pengikatan irisan bayangan yang bergantung pada tampilan.",
       "environment": "Lingkungan scene itu.",
       "lightingView": "View yang diminta host, apa adanya: `auto` selama tidak meminta apa pun.",
-      "unlit": "Benar saat gambar harus keluar sebagai albedo mentah, tanpa cahaya. Ini perilaku bawaan selama tidak ada cahaya yang dideklarasikan: sebuah scene tanpa sumber tidak punya apa pun untuk disinari, dan sebuah gambar hitam tidak akan membantu benchmark geometri apa pun. Begitu ada sebuah cahaya, pencahayaan sungguhan mengambil alih — kecuali host secara eksplisit meminta tampilan diagnostik.",
+      "unlit": "Tanpa lampu, albedo mentah ditampilkan kecuali host secara eksplisit memilih tampilan pencahayaan.",
       "setView": "Mengatur apa yang diminta host untuk dilihat.",
       "light": "Catatan yang tersimpan, milik store sendiri: mesin membacanya di jalur bingkai dan tidak menyalin apa pun. Bukan untuk host — API publik menyerahkan salinan `cloneSceneLight`.",
       "slotOf": "Slot sebuah cahaya.",
@@ -3154,7 +3154,8 @@
       "remove": "Menghapus sebuah cahaya.",
       "setEnvironment": "Mengatur lingkungan itu.",
       "assignSlice": "Mencatat irisan atlas yang ditempati sebuah cahaya, tanpa menyentuh bidang lainnya. Revisi store hanya naik jika irisannya benar-benar berubah: kalau tidak, tidak ada yang didorong ke GPU.",
-      "capacity": "Slot yang disimpan tabel: buffer lampu GPU sepanjang ini."
+      "capacity": "Slot yang disimpan tabel: buffer lampu GPU sepanjang ini.",
+      "contentEpoch": "Revisi isi pencahayaan, tanpa pengikatan irisan bayangan yang bergantung pada tampilan."
     }
   },
   "SceneLightingView": {
@@ -3376,7 +3377,7 @@
       "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
       "pool": "Halaman fisik pool dan halaman virtual yang disimpan masing-masing.",
       "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
-      "records": "Irisan bayangan, satu per cahaya yang menghasilkan bayangan.",
+      "records": "Irisan bayangan, dibagi bersama oleh lampu dan dipisahkan untuk setiap matahari dan tampilan.",
       "requests": "Laporan permintaan yang dibaca kembali: yang disebut, dialokasikan, atau ditolak laporan terakhir.",
       "admission": "Halaman frame ini, tampilan cahaya demi tampilan cahaya.",
       "stamp": "Yang diserahkan shading, cahaya, dan tampilan ke gambar berikutnya: laporan yang dicap dengannya dan tidak menyebut hal baru membuktikan gambar hanya membaca yang sudah digambar.",
@@ -3385,7 +3386,13 @@
       "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar.",
       "size": "Pool dengan ukuran yang diberikan perangkat (`webgpu/shadow/poolSize.ts`), sekali, sebelum halaman mana pun dipetakan: ukurannya tidak pernah diubah sesudahnya, jadi tidak ada halaman yang berpindah tempat (#831).",
       "sunWindow": "Halaman per sisi clipmap matahari yang dijalankan sebuah sesi (`referenceMode.ts`).",
-      "gpu": "Alokasi GPU (`mirror.ts`): apakah GPU memetakan halaman, dan apa yang diminta host darinya."
+      "gpu": "Alokasi GPU (`mirror.ts`): apakah GPU memetakan halaman, dan apa yang diminta host darinya.",
+      "eachSlice": "Menelusuri irisan bayangan setiap tampilan aktif beserta sumber cahayanya.",
+      "keptFrom": "Bingkai tertua yang halaman bayangannya masih diperlukan oleh tampilan aktif.",
+      "registerView": "Mencadangkan tampilan dalam anggaran bayangan bersama, atau menolaknya sebelum menggambar.",
+      "useView": "Memilih status bayangan yang bergantung pada kamera untuk kunci tampilan yang stabil.",
+      "removeView": "Melepas irisan matahari suatu tampilan dan mengembalikan halamannya ke kumpulan bersama.",
+      "receiver": "Merekam tampilan saat ini dan urutan pengiriman untuk laporan GPU berikutnya."
     }
   },
   "ShadowStaleReason": {
@@ -5017,8 +5024,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Penjadwal bayangan peta virtual.",
-    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa frame kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpetakan yang ditutupinya. Lalu sebuah frame menggambar setiap halaman usang yang dibaca gambar, semuanya dalam frame itu: yang menahan biaya adalah cache — sebuah halaman digambar ulang hanya jika isinya berubah —, dan pool adalah satu-satunya batas. Adegan diam, yang shading-nya tidak lagi berjalan, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
+    "summary": "Kumpulan dan tabel bayangan bersama, dengan penjadwalan kamera independen untuk setiap tampilan aktif."
   },
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
@@ -7674,7 +7680,9 @@
       "stamp": "Cap rencana saat bingkai itu dikodekan (`ShadowPlan.stamp`).",
       "count": "Entri yang diminta, mungkin lebih dari yang dimuat `entries`: sisanya meminta lagi pada bingkai berikutnya.",
       "entries": "Entri yang diminta, paling banyak `count` pertama.",
-      "pool": "Pool pengalokasi GPU setelah alokasi frame itu, saat GPU yang mengalokasikan."
+      "pool": "Pool pengalokasi GPU setelah alokasi frame itu, saat GPU yang mengalokasikan.",
+      "submission": "Urutan pengiriman host, termasuk tampilan terpisah yang digambar pada bingkai yang sama.",
+      "generation": "Revisi siklus hidup irisan saat laporan GPU diminta."
     }
   },
   "VehicleDriver": {
