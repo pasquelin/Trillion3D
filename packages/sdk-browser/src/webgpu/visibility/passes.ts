@@ -4,7 +4,7 @@ import { restSlotCount } from '../../gpu/draw/contract.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { ComputeRasterStages } from '../pages/render/encodeVisSetup.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { drawImpostorVisibility } from '../impostor/encode.ts';
+import { impostorCode } from '../impostor/code.ts';
 
 /**
  * The Hi-Z pyramid, its occlusion test and the recompaction it allows: what splits the occluder
@@ -101,7 +101,7 @@ export function encodeWebgpuVisibilityPasses(
   visPass.setViewport(0, 0, width, height, 0, 1);
   drawVis(rt, device, visPass, false, useIndirect);
   // The impostor cards occlude as their meshes would: in the depth and the pyramid built next.
-  drawImpostorVisibility(rt, device, visPass, !!gpuHiz);
+  impostorCode(rt)?.drawImpostorVisibility(rt, device, visPass, !!gpuHiz);
   visPass.end();
   compute?.occluders(encoder);
   rt.run.hizPyramidFresh = false;
