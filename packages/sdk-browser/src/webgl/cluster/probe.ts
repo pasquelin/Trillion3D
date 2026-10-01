@@ -1,3 +1,4 @@
+import { uniformLocations } from './uniforms.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { environmentReflectionShader } from '../../reflections/environmentShader.ts';
@@ -26,13 +27,11 @@ ${environmentReflectionShader('glsl', PROBE_ENVIRONMENT)}`;
 export class WebglClusterProbe {
   private sh = new Float32Array(ENVIRONMENT_COEFFICIENTS * 3);
   private rotation = new Float32Array(9);
-  private shAt: WebGLUniformLocation | null;
-  private rotationAt: WebGLUniformLocation | null;
+  private at: (name: string) => WebGLUniformLocation | null;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
-    this.shAt = gl.getUniformLocation(program, 'probeSh');
-    this.rotationAt = gl.getUniformLocation(program, 'viewRotation');
+    this.at = uniformLocations(gl, program);
   }
   reset() {
     this.sh.fill(0);
@@ -45,7 +44,11 @@ export class WebglClusterProbe {
   upload(view: ArrayLike<number>) {
     for (let column = 0; column < 3; column++)
       for (let row = 0; row < 3; row++) this.rotation[column * 3 + row] = view[column * 4 + row];
-    this.gl.uniform3fv(this.shAt, this.sh);
-    this.gl.uniformMatrix3fv(this.rotationAt, false, this.rotation);
+    this.send(this.at);
+  }
+  /** The coefficients and rotation as last written, into the program bound now. */
+  send(at: (name: string) => WebGLUniformLocation | null) {
+    this.gl.uniform3fv(at('probeSh'), this.sh);
+    this.gl.uniformMatrix3fv(at('viewRotation'), false, this.rotation);
   }
 }

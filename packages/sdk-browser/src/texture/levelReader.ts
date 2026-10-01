@@ -60,7 +60,7 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the
  * bytes that reach the atlas by this path are those that reached it by the other. A block level
  * is read as bytes — one tile's record by an HTTP Range (#962), or the whole file —, whose length
- * `webgpu/tile/levels.ts` checks. A cache whose levels are of another version is refused before
+ * `heldLevels.ts` checks. A cache whose levels are of another version is refused before
  * any read (`assertCacheIdentity`).
  *
  * Levels are kept in `store` under the cook's `key`, which hashes the source, its images, the
