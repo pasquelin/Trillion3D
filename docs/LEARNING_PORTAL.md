@@ -186,8 +186,11 @@ packages; none stays external or comes from a CDN.
       hides it by posting `{ type: 'trillion3d:controls', visible }` ([contract](#examples)).
    2. **Stats**: given the world last (`controls({ … }, onChange, world)` or
       `controls({ … }, world)`) it also opens the stats corner, bottom left — frames drawn per
-      second (`held` while the image stands still) and the last frame's measured counters, a line
-      left out when the engine did not measure it; `stats(world)` opens it alone.
+      second (`held` while the image stands still), the last frame's measured counters, and where
+      the frame's time went as the reference engine's `stat unit`: the CPU frame, its stages (cut and culling,
+      page preparation, shadow planning, command encoding, physics step) and the costliest GPU
+      passes, a line left out when the engine did not measure it; hidden, it reads no CPU time;
+      `stats(world)` opens it alone.
    3. **Readouts**: `readout(key)`, declared after it, adds a live line and returns the function
       writing it (a counter read every frame); `physicsReadouts(world, ['bodies', 'awake', 'step'])`
       adds the physics' lines from `world.physics.stats` each frame (`page` adds the page's share of
