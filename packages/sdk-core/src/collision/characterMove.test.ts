@@ -4,6 +4,7 @@ import { arc, freshReport, isFloor, slide } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
 import { triangleCollision } from './characterCollision.ts';
 import { buildTriangleTree } from './triangleTree.ts';
+import { near } from '../math/near.fixture.ts';
 
 const rules = { maxSlope: Math.PI / 4, onGround: false, stepTop: 1 };
 const contact = (normal: number[], surface = normal, y = 0): CapsuleContact => ({
@@ -12,10 +13,6 @@ const contact = (normal: number[], surface = normal, y = 0): CapsuleContact => (
   point: new Float64Array([0, y, 0]),
   depth: 0.2,
 });
-const close = (actual: ArrayLike<number>, expected: number[]) =>
-  Array.from(actual).forEach((v, k) =>
-    assert.ok(Math.abs(v - expected[k]) < 1e-10, `${v} != ${expected[k]}`),
-  );
 
 test('floor classification respects the normal, supporting face and exact step height', () => {
   assert.equal(isFloor(contact([0, 1, 0], [1, 0, 0], 1), rules), true);
@@ -48,13 +45,17 @@ test('airborne oblique contacts remove inward velocity and preserve outward and 
       };
       const report = freshReport({ ground: true, wall: true, impact: 1 });
       slide(world, { capsule, velocity }, rules, [0, 0, 0], report);
-      close(
+      near(
         capsule.feet,
         normal.map((v) => v * 0.2),
+        'feet',
+        1e-10,
       );
-      close(
+      near(
         velocity,
         normal.map((v) => (sign < 0 ? 0 : v * 5)),
+        'velocity',
+        1e-10,
       );
       assert.equal(report.ground, false);
       assert.equal(report.wall, normal[1] >= 0);
@@ -78,17 +79,17 @@ test('a grounded steep contact moves horizontally and clips the remaining moveme
   };
   const report = freshReport({ ground: false, wall: false, impact: 0 });
   slide(world, { capsule, velocity }, { ...rules, onGround: true }, [-0.6, 0, -0.8], report);
-  close(capsule.feet, [-0.15, 0, -0.2]);
-  close(velocity, [0, 0, 0]);
+  near(capsule.feet, [-0.15, 0, -0.2], 'feet', 1e-10);
+  near(velocity, [0, 0, 0], 'velocity', 1e-10);
   assert.equal(report.wall, true);
   assert.equal(report.ground, false);
 });
 
 test('vertical arcs resolve the apex and use separate ascending and falling acceleration', () => {
-  close(arc(4, 0.25, 8, 16), [0.75, 2]);
-  close(arc(4, 0.75, 8, 16), [0.5, -4]);
-  close(arc(-2, 0.5, 8, 16), [-3, -10]);
-  close(arc(0, 0.5, 8, 16), [-2, -8]);
+  near(arc(4, 0.25, 8, 16), [0.75, 2], 'arc(4, 0.25, 8, 16)', 1e-10);
+  near(arc(4, 0.75, 8, 16), [0.5, -4], 'arc(4, 0.75, 8, 16)', 1e-10);
+  near(arc(-2, 0.5, 8, 16), [-3, -10], 'arc(-2, 0.5, 8, 16)', 1e-10);
+  near(arc(0, 0.5, 8, 16), [-2, -8], 'arc(0, 0.5, 8, 16)', 1e-10);
 });
 
 test('a grounded body leaves an oblique ceiling along its normal rather than being lifted or shoved sideways', () => {
@@ -111,8 +112,8 @@ test('a grounded body leaves an oblique ceiling along its normal rather than bei
     [0, 0, 0],
     freshReport({ ground: false, wall: false, impact: 0 }),
   );
-  close(capsule.feet, [0.12, -0.16, 0]);
-  close(velocity, [0, 0, 0]);
+  near(capsule.feet, [0.12, -0.16, 0], 'feet', 1e-10);
+  near(velocity, [0, 0, 0], 'velocity', 1e-10);
 });
 
 test('a vertical overlap above the step limit has a finite upward escape when no horizontal direction exists', () => {
@@ -134,8 +135,8 @@ test('a vertical overlap above the step limit has a finite upward escape when no
     [0, 0, 0],
     freshReport({ ground: false, wall: false, impact: 0 }),
   );
-  close(capsule.feet, [0, 3.2, 0]);
-  close(velocity, [0, 0, 0]);
+  near(capsule.feet, [0, 3.2, 0], 'feet', 1e-10);
+  near(velocity, [0, 0, 0], 'velocity', 1e-10);
 });
 
 test('perching on a floor edge raises the sphere vertically to exactly one radius from the contact', () => {
@@ -158,13 +159,7 @@ test('perching on a floor edge raises the sphere vertically to exactly one radiu
     },
   };
   const report = freshReport({ ground: false, wall: false, impact: 0 });
-  slide(
-    world,
-    { capsule, velocity },
-    { onGround: true, maxSlope: Math.PI / 4, stepTop: 1 },
-    [0, 0, 0],
-    report,
-  );
+  slide(world, { capsule, velocity }, { ...rules, onGround: true }, [0, 0, 0], report);
   assert.equal(capsule.feet[0], 0);
   assert.equal(capsule.feet[2], 0);
   assert.ok(Math.abs(Math.hypot(0.48, capsule.feet[1] + 1 - 0.36) - 1) < 1e-12);
@@ -182,7 +177,7 @@ test('a long movement cannot tunnel across a thin triangle wall and keeps tangen
   slide(
     triangleCollision(tree),
     { capsule, velocity },
-    { onGround: false, maxSlope: Math.PI / 4, stepTop: Infinity },
+    { ...rules, stepTop: Infinity },
     [10, 0, 1],
     report,
   );

@@ -4,9 +4,7 @@ import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import type { CharacterCollision } from './characterCollision.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { block } from './character.fixture.ts';
-
-const EAST = { wishX: 1, wishZ: 0, sprint: false };
+import { block, EAST } from './character.fixture.ts';
 
 /** The deepest overlap of a capsule standing on `feet` with `world`, metres. */
 function deepest(world: CharacterCollision, feet: Float64Array, radius: number, height: number) {

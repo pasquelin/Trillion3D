@@ -17,15 +17,16 @@ function floor(y: number, down: boolean) {
 
 test('feet put on a floor at any height rest on it, wound either way', () => {
   for (const down of [false, true])
-    for (const y of [-4, -1, 0, 0.5, 1, 1.5, 2, 3, 8, 100])
+    for (const y of [-4, -1, 0, 0.5, 1, 1.5, 2, 3, 8, 100]) {
+      const world = floor(y, down);
       for (const radius of [0.2, 0.3, 0.31, 0.35, 0.4]) {
-        const world = floor(y, down);
         const capsule = { feet: new Float64Array([0.57, y, 0]), radius, height: 1.75 };
         // Asked with no depth to search: the floor the feet are on is still found, at 0.
         const drop = world.groundBelow(capsule, 0, () => true);
         assert.ok(drop !== null && Math.abs(drop) < 1e-12, `${drop} at ${y}, radius ${radius}`);
         assert.deepEqual([...capsule.feet], [0.57, y, 0], 'the feet are left where they were');
       }
+    }
 });
 
 test('the ground below is the highest support the filter accepts, within the depth', () => {

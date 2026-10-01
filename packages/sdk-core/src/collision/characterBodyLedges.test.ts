@@ -3,14 +3,10 @@ import assert from 'node:assert/strict';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { block } from './character.fixture.ts';
-import { box } from '../world/geometry/basic.ts';
-import { Mesh } from '../world/object/mesh.ts';
+import { near } from '../math/near.fixture.ts';
+import { block, EAST, STILL } from './character.fixture.ts';
 
-const still = { wishX: 0, wishZ: 0, sprint: false };
 const floor = () => block(-50, -1, -50, 50, 0, 50);
-const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
-  Array.from(actual).forEach((value, k) => assert.ok(Math.abs(value - expected[k]) < 1e-10));
 
 test('a rejected raised step cannot steal sliding velocity through an otherwise clear passage', () => {
   const run = (beam: boolean) => {
@@ -27,8 +23,8 @@ test('a rejected raised step cannot steal sliding velocity through an otherwise 
     belowBeam = run(true);
   assert.ok(clear.velocity[2] > 1);
   // The beam is above the real capsule. Only a discarded speculative step touches it.
-  close(belowBeam.feet, clear.feet);
-  close(belowBeam.velocity, clear.velocity);
+  near(belowBeam.feet, [...clear.feet], 'feet', 1e-10);
+  near(belowBeam.velocity, [...clear.velocity], 'velocity', 1e-10);
 });
 
 test('a speculative step cannot add horizontal travel before committing the shorter move', () => {
@@ -59,7 +55,7 @@ test('disabling steps prevents even a ledge lower than the capsule radius from l
   body.place(0.9, 0, 0);
   assert.ok(Math.abs(body.feet[1]) < 1e-12, 'settling against the edge stays on the floor');
   for (let tick = 0; tick < 60; tick++) {
-    body.advance(1 / 120, { wishX: 1, wishZ: 0, sprint: false });
+    body.advance(1 / 120, EAST);
   }
   assert.ok(Math.abs(body.feet[1]) < 1e-8, 'the walker remains at floor height');
   assert.ok(body.feet[0] < 1, 'the ledge blocks horizontal travel');
@@ -67,17 +63,13 @@ test('disabling steps prevents even a ledge lower than the capsule radius from l
 
 test('a successful step keeps the incoming horizontal speed and a rejected step keeps the stopped pose', () => {
   for (const stepHeight of [0.2, 0.4]) {
-    const floor = new Mesh(box(40, 1, 40));
-    floor.position.y = 2.5;
-    const ledge = new Mesh(box(10, 0.3, 20));
-    ledge.position.set(6, 3.15, 0);
     const body = createCharacterBody({ ...HUMAN_BODY, stepHeight });
-    body.setWorld(meshCollision([floor, ledge]));
+    body.setWorld(meshCollision([block(-20, 2, -20, 20, 3, 20), block(1, 3, -10, 11, 3.3, 10)]));
     body.place(0.7, 3, 0);
     body.velocity[0] = 3.5;
     let climbed = false;
     for (let i = 0; i < 12; i++) {
-      body.advance(1 / 120, { ...still, wishX: 1 });
+      body.advance(1 / 120, EAST);
       if (body.feet[1] > 3 + 1e-6) {
         climbed = true;
         assert.ok(body.velocity[0] > 3.49);
@@ -97,12 +89,12 @@ test('elevated steps climb in both horizontal axes, while disabled steps keep fe
   for (const base of [-3, 3])
     for (const axis of [0, 2])
       for (const stepHeight of [0, 0.4]) {
-        const floor = new Mesh(box(40, 1, 40));
-        floor.position.set(0, base - 0.5, 0);
-        const ledge = new Mesh(box(axis === 0 ? 10 : 20, 0.3, axis === 2 ? 10 : 20));
-        ledge.position.set(axis === 0 ? 6 : 0, base + 0.15, axis === 2 ? 6 : 0);
+        const ledge =
+          axis === 0
+            ? block(1, base, -10, 11, base + 0.3, 10)
+            : block(-10, base, 1, 10, base + 0.3, 11);
         const body = createCharacterBody({ ...HUMAN_BODY, stepHeight });
-        body.setWorld(meshCollision([floor, ledge]));
+        body.setWorld(meshCollision([block(-20, base - 1, -20, 20, base, 20), ledge]));
         body.place(0, base, 0);
         assert.equal(body.onGround, true, 'placing feet on an elevated floor grounds immediately');
         for (let i = 0; i < 120; i++)

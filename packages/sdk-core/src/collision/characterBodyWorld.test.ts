@@ -5,9 +5,7 @@ import { HUMAN_BODY } from './characterSettings.ts';
 import { triangleCollision } from './characterCollision.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { buildTriangleTree } from './triangleTree.ts';
-import { block } from './character.fixture.ts';
-
-const still = { wishX: 0, wishZ: 0, sprint: false };
+import { block, EAST, STILL } from './character.fixture.ts';
 
 test('a worldless body moves in both horizontal axes, ignores jumps, and draws between ticks', () => {
   const body = createCharacterBody({ ...HUMAN_BODY });
@@ -30,11 +28,11 @@ test('a worldless body moves in both horizontal axes, ignores jumps, and draws b
   assert.ok(Math.abs(draw[2] - (-2 + body.feet[2]) / 2) < 1e-12);
   assert.equal(draw[1], 7);
   assert.equal(jumps, 0);
-  assert.deepEqual([...body.advance(0, still)], draw);
+  assert.deepEqual([...body.advance(0, STILL)], draw);
   body.place(-5, 11, 9);
-  assert.deepEqual([...body.advance(0, still)], [-5, 11, 9]);
+  assert.deepEqual([...body.advance(0, STILL)], [-5, 11, 9]);
   assert.deepEqual([...body.velocity], [0, 0, 0]);
-  body.advance(1 / 120, still);
+  body.advance(1 / 120, STILL);
   assert.deepEqual([...body.feet], [-5, 11, 9]);
 });
 
@@ -62,22 +60,22 @@ test('world changes immediately settle the current position and update the live 
   assert.deepEqual(observed, [0.8, 3]);
   settings.capsuleRadius = 0.6;
   settings.capsuleHeight = 2.5;
-  body.advance(1 / 60, still);
+  body.advance(1 / 60, STILL);
   assert.deepEqual(observed, [0.6, 2.5]);
   assert.ok(body.feet[1] < 8);
   body.setWorld(null);
   assert.equal(body.onGround, true);
   const y = body.feet[1];
-  body.advance(1 / 60, still);
+  body.advance(1 / 60, STILL);
   assert.equal(body.feet[1], y);
 });
 
 test('a teleport is drawn exactly where it lands, not between it and the last pose', () => {
   const body = createCharacterBody({ ...HUMAN_BODY });
   body.place(100.1, 0, 0);
-  body.advance(1 / 120, still);
+  body.advance(1 / 120, STILL);
   body.place(0.1, 0, 0);
-  assert.deepEqual([...body.advance(0, still)], [0.1, 0, 0]);
+  assert.deepEqual([...body.advance(0, STILL)], [0.1, 0, 0]);
 });
 
 test('an airborne body loses normal velocity at a steep slope and slides along its tangent', () => {
@@ -85,7 +83,7 @@ test('an airborne body loses normal velocity at a steep slope and slides along i
   body.setWorld(triangleCollision(buildTriangleTree([-6, -8, -6, 6, 8, -6, -6, -8, 6])));
   body.place(-1, -4 / 3, -2);
   assert.equal(body.onGround, false);
-  body.advance(1 / 120, still);
+  body.advance(1 / 120, STILL);
   assert.equal(body.onGround, false);
   assert.ok(body.velocity[0] < 0);
   assert.ok(body.velocity[1] < 0);
@@ -102,7 +100,7 @@ test('brushing a ledge during ascent preserves the jump and does not report an u
   const impacts: number[] = [];
   let apex = 0;
   for (let tick = 0; tick < 100; tick++) {
-    body.advance(1 / 120, { ...still, wishX: 1 }, { onLand: (impact) => impacts.push(impact) });
+    body.advance(1 / 120, EAST, { onLand: (impact) => impacts.push(impact) });
     apex = Math.max(apex, body.feet[1]);
   }
   assert.equal(impacts.length, 1);
@@ -124,7 +122,7 @@ test('a horizontal contact can land with exactly zero vertical impact', () => {
   assert.equal(body.onGround, false);
   body.velocity[0] = 3;
   const impacts: number[] = [];
-  body.advance(1 / 120, { ...still, wishX: 1 }, { onLand: (impact) => impacts.push(impact) });
+  body.advance(1 / 120, EAST, { onLand: (impact) => impacts.push(impact) });
   assert.equal(body.onGround, true);
   assert.equal(impacts.length, 1);
   assert.ok(impacts[0] === 0);
