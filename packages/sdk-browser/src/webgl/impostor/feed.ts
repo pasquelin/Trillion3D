@@ -53,7 +53,7 @@ export function createWebglImpostorFeed(
         textures.push(texture);
         gl.activeTexture(gl.TEXTURE0 + ATLAS_UNITS[map]);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        const format = map === 0 ? gl.SRGB8_ALPHA8 : gl.RGBA8;
+        const format = name === 'colourCoverage' ? gl.SRGB8_ALPHA8 : gl.RGBA8;
         gl.texStorage2D(gl.TEXTURE_2D, levels.length, format, levels[0].width, levels[0].height);
         levels.forEach((level, mip) =>
           gl.texSubImage2D(gl.TEXTURE_2D, mip, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, level),

@@ -1,6 +1,6 @@
 import { families } from '../host/families.ts';
 import type { BackendContext } from '../backend/types.ts';
-import * as lent from './lent.ts';
+import type { Lent } from './borrowed.ts';
 
 /**
  * The impostor draw's code (`impostorCode.ts`), a family on demand (#1335, #1336), the one load
@@ -9,9 +9,9 @@ import * as lent from './lent.ts';
  * —, as deformation's and transmission's are, so its first image already draws the cards; never by
  * another. A refused import (`FAMILY_LOAD_FAILED`, told by the loader) is no refused scene: without
  * its code the session plans no card, and every root keeps its clusters, as one whose atlas still
- * streams. The family arrives lent the core's pieces it draws with (`lent.ts`, `borrowed.ts`).
+ * streams. The family arrives lent the pieces of its caller's renderer (`lent`, `borrowed.ts`).
  */
-export const loadImpostorCode = (context: Pick<BackendContext, 'metadata'>) =>
+export const loadImpostorCode = (context: Pick<BackendContext, 'metadata'>, lent: Lent) =>
   context.metadata.impostors?.baked
     ? families.impostors.load().then(
         (code) => (code.lend(lent), code),
