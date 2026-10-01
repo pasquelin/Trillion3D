@@ -11,7 +11,7 @@ import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { followPairBytes, growPairList } from './pairGrowth.ts';
-import { keptPairs, poolPairs } from './pairRows.ts';
+import { keptPairs, pairRows, poolPairs } from './pairRows.ts';
 import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -67,11 +67,7 @@ test("the kept list grows once to the pool's pairs, counted in the shadow grant,
   const rows = await grow();
   assert.ok(keptPairs(rows) >= poolPairs(2), "the list holds the pool's pairs");
   assert.ok(poolPairs(2) > keptPairs(8), "past the table's rows");
-  assert.equal(
-    rt.lights.memory.pairBytes,
-    (rows - 8) * ROW_BYTES,
-    'its rows past the table in the grant',
-  );
+  assert.equal(rt.lights.memory.pairBytes, rows * ROW_BYTES, 'the pairs’ rows in the grant');
   assert.equal(shadowPoolHeld(rt.lights), rt.lights.memory.pairBytes);
   const asked = fake.buffers.length,
     held = shadowPoolHeld(rt.lights);
@@ -136,16 +132,31 @@ test("the occlusion list's share is held from the static layer's reservation: a 
     { rt, grow } = runtime(fake.device, 2);
   const rows = await grow(),
     { lights } = rt;
-  assert.equal(lights.memory.pairBytes, (rows - 8) * ROW_BYTES, 'the cull’s rows alone');
+  assert.equal(lights.memory.pairBytes, rows * ROW_BYTES, 'the cull’s pair rows alone');
   lights.staticLayerTexture = {} as GPUTexture;
   followPairBytes(rt);
   const reserved = shadowPoolHeld(lights);
-  assert.equal(lights.memory.pairBytes, 2 * (rows - 8) * ROW_BYTES, 'and the occlusion’s');
+  assert.equal(lights.memory.pairBytes, 2 * rows * ROW_BYTES, 'and the occlusion’s');
   // The first move: the layer takes the reserved texture, the occlusion list is made.
   lights.staticLayerTexture = undefined;
   lights.staticLayer = { bytes: shadowAtlasBytes(8) } as never;
   lights.occlusion = {} as never;
   followPairBytes(rt);
-  assert.equal(lights.memory.pairBytes, 2 * (rows - 8) * ROW_BYTES);
+  assert.equal(lights.memory.pairBytes, 2 * rows * ROW_BYTES);
   assert.equal(shadowPoolHeld(lights), reserved, 'the bytes shown are unchanged');
+});
+
+// #831: the city read 549 001 232 bytes where drive-a-car read 551 758 544 on one display: the
+// pairs' share was the rows grown past the table's, so a scene of more casters held less. It is
+// the rows the pool's pairs take, grown for them or shared with the table's: the same on every scene.
+test("the pairs' share is the same bytes whatever the table's caster rows", async () => {
+  const shares = [];
+  for (const casterSlots of [8, 5000]) {
+    const { rt, grow } = runtime(fakeDevice().device, 2, casterSlots);
+    await grow();
+    // Counted as the pool is sized, grown or not (`sizeShadowPool`).
+    followPairBytes(rt);
+    shares.push(rt.lights.memory.pairBytes);
+  }
+  assert.deepEqual(shares, [pairRows(2) * ROW_BYTES, pairRows(2) * ROW_BYTES]);
 });

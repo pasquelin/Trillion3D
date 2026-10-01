@@ -12,15 +12,17 @@ import {
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
 import { shadowPoolShapeOf } from './poolSize.ts';
+import { SHADOW_POOL_SETTING_BYTES, shadowHeldBytes } from './poolSetting.ts';
 import { shadowPoolHeld, shadowPoolShown } from './memoryGrant.ts';
 import { disposeStaticLayer } from '../pages/state/lights.ts';
 
-/** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
+/** The pages the setting holds: 2 601, a pool of 51². */
 const SCREEN_POOL = 51 * 51;
 
-// The default is the screen's page budget, chosen once (#831): one shadowed light's smooth read
-// over it and a third more while pages wait, where the 4 096 pages declared before held 555 MB.
-test('the pool a session opens with is what its screen reads: 2 601 pages, 163 MiB a layer', async () => {
+// The default is the setting's pages (#831): one shadowed light's smooth read over the
+// maintainer's screen and a third more while pages wait, where the 4 096 pages declared before held
+// 555 MB.
+test('the pool a session opens with is what its setting holds: 2 601 pages, 163 MiB a layer', async () => {
   assert.equal(screenPoolPages(...SCREEN), 2520);
   assert.deepEqual(shadowPoolShape(screenPoolPages(...SCREEN)), { side: 51, layers: 1 });
   const s = await session();
@@ -28,7 +30,8 @@ test('the pool a session opens with is what its screen reads: 2 601 pages, 163 M
   assert.deepEqual(s.taken[0].size, [51 * 128, 51 * 128, 1]);
   // The pool and the static layer that mirrors it page for page: 2 × 170 459 136 bytes.
   assert.equal(shadowAtlasBytes(51), 170_459_136);
-  assert.equal(screenPoolPages(1280, 720), 320, 'a smaller screen, a smaller pool');
+  const small = await session(undefined, [1280, 720]);
+  assert.equal(small.lights.plan.pool.pages, SCREEN_POOL, 'a smaller canvas, the same pool');
 });
 
 test('the pool keeps its size whatever the reports ask: no page changes place', async () => {
@@ -62,34 +65,40 @@ test('a world’s shadowPoolPages option sets the pool it allocates once', async
   assert.equal(s.lights.plan.pool.pages, 1024, 'a demand past it reads coarser, never resizes');
 });
 
-// A fixed pool is sized for the widest buffer the session can reach (#831): a window opened small
-// and put full screen later reads the display's pages, never a coarser level for want of them.
-test("the default pool is the display's whole screen, or the canvas if wider", () => {
-  const pixelRatio = () => 2,
-    shape = (viewport: [number, number]) => shadowPoolShapeOf({ viewport, pixelRatio });
-  assert.deepEqual(shape([960, 540]), shadowPoolShape(screenPoolPages(960, 540)), 'no display');
+// #831: the boss's display read 552 MB where the setting says 359: the pool was sized from the
+// display's whole screen. The setting caps every byte the shadows hold — pool, static layer, request
+// buffers, pair and occlusion lists —, the pages follow from it, and a wider screen reads the pages
+// past them at the coarser level, as the reference engine's pages over budget do.
+test('the held bytes are the setting on a large display and on its canvas alike', async () => {
+  assert.equal(SHADOW_POOL_SETTING_BYTES, 360_088_288, 'the setting: 360 MB, 343 MiB');
   Object.defineProperty(globalThis, 'screen', {
-    value: { width: 1728, height: 1117 },
+    value: { width: 3456, height: 2234 },
     configurable: true,
   });
   try {
-    assert.deepEqual(shape([960, 540]), shadowPoolShape(screenPoolPages(...SCREEN)));
-    assert.deepEqual(
-      shape([4000, 540]),
-      shadowPoolShape(screenPoolPages(4000, 2234)),
-      'a canvas wider than the display',
-    );
+    for (const canvas of [SCREEN, [6912, 4468], [1280, 720]] as [number, number][]) {
+      const s = await session(undefined, canvas);
+      assert.equal(shadowPoolShown(s.lights), SHADOW_POOL_SETTING_BYTES, `${canvas}`);
+      assert.equal(s.lights.plan.pool.pages, SCREEN_POOL);
+    }
   } finally {
     delete (globalThis as { screen?: unknown }).screen;
   }
+  // A device of narrower layers takes the most pages the setting holds, never more bytes.
+  const narrow = shadowPoolShapeOf({}, { maxTextureDimension2D: 4096 });
+  assert.deepEqual(narrow, { side: 29, layers: 3 });
+  assert.ok(shadowHeldBytes(narrow.side, narrow.layers) <= SHADOW_POOL_SETTING_BYTES);
+  assert.ok(shadowHeldBytes(52) > SHADOW_POOL_SETTING_BYTES, 'one more side would pass it');
 });
 
 // The bytes shown are the setting's from the first frame (#831): the static layer was made at the
 // first move, so the same pool read 188 MB on a-field-of-pebbles and 359 MB once the car moved.
 test('the static layer is made with the pool: its bytes held before anything moves', async () => {
   const s = await session();
-  const layer = shadowAtlasBytes(51);
-  assert.equal(shadowPoolHeld(s.lights) - (s.lights.pageRequests?.bytes ?? 0), layer);
+  const layer = shadowAtlasBytes(51),
+    { shadows, pageRequests, memory } = s.lights;
+  const beside = shadows!.allocationBytes + (pageRequests?.bytes ?? 0) + memory.pairBytes;
+  assert.equal(shadowPoolHeld(s.lights) - beside, layer);
   assert.equal(shadowPoolShown(s.lights), shadowPoolHeld(s.lights), 'shown once granted');
   const pool = { sizesPool: true, settled: false, done: Promise.resolve() };
   s.lights.shadowGrant = pool;

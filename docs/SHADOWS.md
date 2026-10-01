@@ -18,11 +18,16 @@ coarser levels stand in for pages not drawn yet: a frame asks for at most
 hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
 finest mip is 32 × 32 pages (`lampFaceSize`).
 
-**The pool is fixed, as the reference engine's** (#831). It holds what the display's whole screen reads, or the canvas as it opens if wider (`shadowPoolScreen`), so a window put full screen later keeps its pages —
-one shadowed light's smooth read and a third more while pages wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉`
-pages (`screenPoolPages`): 2 601 at 3456 × 2234, 163 MiB of depth, above falling-boxes' 2 000 —,
-chosen once as the reference engine sets `a reference setting`, or what the session's
-`shadowPoolPages` option sets; lights past the first share it. It lies in the fewest square layers the device's texture side holds
+**The pool is fixed, as the reference engine's** (#831). Its setting is bytes, the hard cap of all the shadows
+hold — the pool, its static layer, its request and allocation buffers, the pairs' share of the kept
+lists (`SHADOW_POOL_SETTING_BYTES`, `webgpu/shadow/poolSetting.ts`): 360 088 288 bytes, what one
+shadowed light reads over the maintainer's screen — its smooth read and a third more while pages
+wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`screenPoolPages`), 2 601 at 3456 × 2234, 163 MiB of
+depth, above falling-boxes' 2 000. The pages follow from it (`shadowPoolWithin`), whatever the
+display or the canvas, chosen once as the reference engine sets `a reference setting`, or fewer when
+the session's `shadowPoolPages` option asks fewer: a wider screen reads the pages past them at the
+coarser level, never grows the pool past its setting. The blended casters' transmittance layer, made
+only for a scene that has them, is held beside it (`transmittanceGrant.ts`); lights past the first share it. It lies in the fewest square layers the device's texture side holds
 (`shadowPoolShape`), within the memory budget's pool (`SHADOW_ATLAS_BYTES`). It is granted at the
 first frame that casts, before any report, so no first frame reads a coarser level for want of
 pages, and never resized after: a page keeps its place, its depth, its static layer and its table

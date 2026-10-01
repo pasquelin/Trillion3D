@@ -19,7 +19,7 @@ import { SHADOW_ATLAS_BYTES } from '../../residency/shadowBudgetBytes.ts';
  *  past `limit` bytes; its atlas records the side it was sized at, and what the frame was told. */
 function session(viewport: [number, number], limit = Infinity) {
   installGpuGlobals();
-  const shape = shadowPoolShapeOf({ viewport }, { maxTextureDimension2D: 8192 }),
+  const shape = shadowPoolShapeOf({}, { maxTextureDimension2D: 8192 }),
     lights = createWebgpuLightState(shape.side, undefined, undefined, shape.layers);
   lights.plan.setPageInvalidation(false);
   const sized: number[] = [],
@@ -80,14 +80,14 @@ function session(viewport: [number, number], limit = Infinity) {
   };
 }
 
-/** The pool a 1280 × 720 screen reads on the sessions' device, 8 192 texels wide: one layer of
- *  18² — 320 pages asked (`screenPoolPages`). */
-const BUDGET = shadowPoolFor(18 * 18, 8192 / 128)(SHADOW_ATLAS_BYTES);
+/** The pool the setting holds on the sessions' device, 8 192 texels wide: one layer of 51², on a
+ *  1 280 × 720 screen as on any (`poolSetting.ts`). */
+const BUDGET = shadowPoolFor(51 * 51, 8192 / 128)(SHADOW_ATLAS_BYTES);
 
-// The first frame that casts is granted the pool the screen the session opened on reads, once, as
-// the reference engine allocates its physical pages up front from `a reference setting`; a later
-// canvas resizes nothing (#831).
-test('the first frame that casts is granted the pool its opening screen reads, once', async () => {
+// The first frame that casts is granted the pool its setting holds, once, as the reference engine allocates its
+// physical pages up front from `a reference setting`; a later canvas resizes
+// nothing (#831).
+test('the first frame that casts is granted the pool its setting holds, once', async () => {
   const viewport: [number, number] = [1280, 720];
   const s = session(viewport);
   s.capture.capturing = true;
@@ -99,10 +99,10 @@ test('the first frame that casts is granted the pool its opening screen reads, o
   assert.deepEqual(s.sized, [], 'no light casts a shadow: no pool');
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
-  assert.equal(screenPoolPages(...viewport), 320);
-  assert.deepEqual([BUDGET.side, BUDGET.layers], [18, 1]);
+  assert.equal(screenPoolPages(...viewport), 320, 'what the screen alone would read');
+  assert.deepEqual([BUDGET.side, BUDGET.layers], [51, 1]);
   assert.deepEqual(s.sized, [BUDGET.side]);
-  assert.equal(s.lights.plan.pool.pages, 18 * 18, 'the plan follows the atlas');
+  assert.equal(s.lights.plan.pool.pages, 51 * 51, 'the plan follows the atlas');
   assert.equal(s.lights.plan.pageInvalidation, false, "the host's setting is kept");
   assert.equal(s.changed, 1, 'the granted pool is a new resource: the next frame is drawn');
   viewport[0] = 3840;
