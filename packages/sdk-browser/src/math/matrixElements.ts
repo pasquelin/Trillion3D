@@ -10,6 +10,39 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, he
   return true;
 }
 
+/** One float32 step at magnitude 1: the GPU draws every world in float32. */
+const FLOAT32_STEP = 2 ** -23;
+
+/**
+ * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at
+ * `heldAt`) put it: no corner of it moves by one float32 step at the box's own reach in world. A
+ * change below that is one the float32 world the GPU draws with cannot show — a resting body's
+ * pose rounded again in float64 — and is no move (#831). The bound follows the box, never a scene.
+ */
+export function poseHoldsBox(
+  held: ArrayLike<number>,
+  now: ArrayLike<number>,
+  box: ArrayLike<number>,
+  heldAt = 0,
+) {
+  if (sameElements(held, now, heldAt)) return true;
+  for (const i of [3, 7, 11, 15]) if (held[heldAt + i] !== now[i]) return false;
+  let moved = 0,
+    reach = 0;
+  for (let row = 0; row < 3; row++) {
+    let shift = Math.abs(now[12 + row] - held[heldAt + 12 + row]),
+      far = Math.abs(now[12 + row]);
+    for (let col = 0; col < 3; col++) {
+      const extent = Math.max(Math.abs(box[col]), Math.abs(box[3 + col]));
+      shift += Math.abs(now[col * 4 + row] - held[heldAt + col * 4 + row]) * extent;
+      far += Math.abs(now[col * 4 + row]) * extent;
+    }
+    moved = Math.max(moved, shift);
+    reach = Math.max(reach, far);
+  }
+  return moved < FLOAT32_STEP * reach;
+}
+
 /** Whether `a` holds `b`'s values, as many: version lists and light reaches alike. */
 export function sameValues(a: ArrayLike<number>, b: ArrayLike<number>) {
   if (a.length !== b.length) return false;
