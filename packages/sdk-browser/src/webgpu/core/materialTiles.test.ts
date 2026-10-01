@@ -9,13 +9,10 @@ import {
   MATERIAL_TILE_SLOTS,
   MATERIAL_TILES_SHADER,
 } from '../../visibility/shader/materialTilesWgsl.ts';
-import {
-  MATERIAL_TILES_PASS,
-  createMaterialTiles,
-  materialTileDrawLayout,
-} from './materialTiles.ts';
+import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts';
 import { encodeMaterialPasses } from './materialPasses.ts';
 import { resolveFixture } from './materialPasses.fixture.ts';
+import { MATERIAL_TILES_PASS } from '../../stage/passLabels.ts';
 
 type Fn = (...args: number[]) => number;
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number };

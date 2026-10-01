@@ -76,3 +76,24 @@ test('a vehicle parked on a slope holds its brakes, stays where it stopped and g
     assert.ok(crept < 1e-3, `${kind}: held where it stopped, crept ${crept} m`);
   }
 });
+
+test('a vehicle parked on a slope drives off when the throttle is pressed (#831)', async (t) => {
+  // The parked brake holds only while the pedals rest: the throttle releases it in the step it
+  // reaches the vehicle, so a parked car drives off instead of standing in gear at 0 km/h.
+  const slope = (8 * Math.PI) / 180;
+  const rig = await jointRig();
+  const ground = new Mesh(box(200, 1, 200), new Material('meshStandard', { physics: 'stone' }));
+  ground.position.set(0, -0.5, 0);
+  ground.rotation.x = slope;
+  ground.physics = 'static';
+  rig.scene.add(ground);
+  const car = placeVehicle(rig, 'car', {}, [0, 0.3, 0]);
+  car.body.rotation.x = slope;
+  assert.equal(writes(t, rig, car.vehicle, 300).at(-1), false, 'parked, at rest');
+  const at = rig.at(car.body);
+  car.vehicle.drive({ ...RELEASED, throttle: 1 });
+  rig.run(120);
+  const moved = Math.hypot(...rig.at(car.body).map((v, i) => v - at[i]));
+  assert.ok(car.vehicle.speed > 1, `driving: ${car.vehicle.speed} m/s`);
+  assert.ok(moved > 1, `it left its place: ${moved} m`);
+});

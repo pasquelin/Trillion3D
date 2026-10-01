@@ -4,44 +4,29 @@ import type { ShadowAsks } from '../../../../sdk-core/src/scene/light-shadow/req
 import {
   PAGE_MAPPED,
   PAGE_VALID,
+  PAGE_WITHDRAWN,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { DRAWN_HOST } from './poolDrawn.ts';
-import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
+import { FRESH_PARAM_WORDS, FRESH_PARAMS } from './freshLayout.ts';
+import { DRAWN_GPU, DRAWN_HOST } from './poolDrawn.ts';
+import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
+import { sentShadowWord } from './wordsWgsl.ts';
+import {
+  ALLOC_PARAM_WORDS,
+  POOL_COUNTS,
+  POOL_FIELDS,
+  WORDS_HEADER,
+  allocationBuffers,
+  shadowAllocationBytes,
+  spanOf,
+  wordsCap,
+  type Usage,
+} from './allocLayout.ts';
 
-/** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
-const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
-/** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
-const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
-/** Pairs the host's table words hold at most: the table's changed words of a frame, or every
- *  mapped page once (`table.ts`, `flush`). */
-const wordsCap = (pages: number) => 4 * pages;
-
-type Usage = keyof typeof GPUBufferUsage;
-/** Words of each buffer of the allocation of a pool of `pages`, with its label and its usages
- *  beside `STORAGE`: its pool, keys, parameters and words, then the draw list, parameters,
- *  arguments, dispatch, views and volumes of the pages the GPU draws itself. */
-const allocationBuffers = (pages: number) =>
-  ({
-    state: ['GPU pool', POOL_COUNTS.length + POOL_FIELDS.length * pages, ['COPY_DST', 'COPY_SRC']],
-    keys: ['allocation keys', spanOf(shadowRequestCap(pages)) + spanOf(pages), []],
-    params: ['allocation', ALLOC_PARAM_WORDS + shadowRequestCap(pages), ['COPY_DST']],
-    words: ['table words', WORDS_HEADER + 2 * wordsCap(pages), ['COPY_DST']],
-    drawList: ['GPU draw list', pages, []],
-    freshParams: ['GPU pages', FRESH_PARAMS, ['COPY_DST']],
-    freshArgs: ['GPU page draws', freshArgWords(pages), ['INDIRECT']],
-    freshDispatch: ['GPU page cull', 3, ['INDIRECT']],
-    freshFaces: ['GPU page views', pages * FRESH_FACE_WORDS, []],
-    freshVolumes: ['GPU page volumes', pages * SHADOW_CULL_FLOATS, []],
-  }) satisfies Record<string, [string, number, Usage[]]>;
-
-/** GPU bytes of the allocation of a pool of `pages`: every buffer it makes. */
-export const shadowAllocationBytes = (pages: number) =>
-  Object.values(allocationBuffers(pages)).reduce((sum, [, words]) => sum + 4 * words, 0);
+/** Words a snapshot reads back from the GPU pool: its counts, then its fields up to `drawnBy` (its
+ *  owners, last requests and draws, `POOL_FIELDS`). */
+const snapshotWords = (pages: number) =>
+  POOL_COUNTS.length + (POOL_FIELDS.indexOf('drawnBy') + 1) * pages;
 
 /**
  * THE BUFFERS OF THE GPU ALLOCATION of one pool (`allocWgsl.ts`), made with its request buffer
@@ -80,9 +65,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
     seeded: false,
-    /** Pairs the latest snapshot's frame counted, kept or not: what the kept list grows to
-     *  (`pairGrowth.ts`). */
-    pairNeed: 0,
+    /** The pages the GPU maps a frame at most (`shadowPagesPerFrame`): the rest the next frames. */
+    pagesPerFrame: shadowPagesPerFrame(pages),
     /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
     seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
       const { pool, records, table } = plan,
@@ -104,16 +88,18 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     },
     /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the
      *  caster rows the cull tests — the table's, the blended casters' —, the pairs it may keep,
-     *  then each slice's emitter and far plane. */
+     *  the error in texels it chooses their level at, then each slice's emitter and far plane. */
     writeFresh(
       side: number,
       layers: number,
       rows: number,
       blend: readonly [number, number],
       capacity: number,
+      threshold: number,
       slices: Float32Array,
     ) {
       fresh.set([pages, side, layers, rows, blend[0], blend[1], capacity]);
+      freshFloats[7] = threshold;
       freshFloats.set(slices, FRESH_PARAM_WORDS);
       device.queue.writeBuffer(freshParams, 0, fresh);
     },
@@ -127,40 +113,52 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       params[3] = count;
       params[4] = needSpan;
       params[5] = keepFrom;
+      params[6] = allocation.pagesPerFrame;
       params.set(generation, 8);
       params.set(asks.entries.subarray(0, count), ALLOC_PARAM_WORDS);
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
     },
     /** Sends the table words frame `frame`'s plan changed that map a page (`wordsWgsl.ts`): its
-     *  table's flush, run through `flush`. Returns how many. */
+     *  table's flush, run through `flush`. Returns the invocations they take: one a word
+     *  (`words`), and one a page (`withdraw`) when the list could not hold every withdrawn entry —
+     *  every GPU-only draw then lost, before the words. */
     writeWords(
       plan: ShadowPlan,
       frame: number,
       flush: (sink: (first: number, count: number) => void) => void,
     ) {
-      const { pool, table } = plan;
-      let count = 0;
+      const { pool, table } = plan,
+        cap = wordsCap(pages);
+      let count = 0,
+        every = 0;
       allocation.lost = 0;
       const send = (entry: number) => {
         const word = sentShadowWord(table, entry);
-        if (!(word & PAGE_MAPPED)) return;
+        // An entry the host does not map goes out only withdrawn: a GPU draw of it is redone.
+        if (!(word & (PAGE_MAPPED | PAGE_WITHDRAWN))) return;
+        if (count === cap) return void (every = 1);
         if (!(word & PAGE_VALID)) allocation.lost++;
         words[WORDS_HEADER + 2 * count] = entry;
         words[WORDS_HEADER + 2 * count++ + 1] = word;
       };
       flush((first, runs) => {
-        // The whole table: every page the host maps, once.
-        if (runs === table.entries)
-          for (let page = 0; page < pool.pages; page++) {
-            if (pool.owner[page] >= 0) send(pool.owner[page]);
-          }
-        else for (let entry = first; entry < first + runs; entry++) send(entry);
+        if (runs !== table.entries) {
+          for (let entry = first; entry < first + runs; entry++) send(entry);
+          return;
+        }
+        // The whole table: every page the host maps once, and every entry withdrawn it does not
+        // map, whose GPU draw would otherwise be adopted current (#831).
+        for (let page = 0; page < pool.pages; page++)
+          if (pool.owner[page] >= 0) send(pool.owner[page]);
+        table.eachWithdrawn((entry) => void (!(table.words[entry] & PAGE_MAPPED) && send(entry)));
       });
       words[0] = count;
       words[1] = pages;
       words[2] = frame;
-      if (count) device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
-      return count;
+      words[3] = every;
+      if (count || every)
+        device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
+      return { words: count, withdraw: every ? pages : 0 };
     },
     /** Reads a snapshot's words into `into`. */
     read(from: Uint32Array, into: ShadowPoolSnapshot) {
@@ -169,9 +167,17 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.refused = from[POOL_COUNTS.indexOf('refused')];
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.listings = from[POOL_COUNTS.indexOf('listings')];
-      allocation.pairNeed = from[POOL_COUNTS.indexOf('pairs')];
-      into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
-      into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
+      const field = (name: (typeof POOL_FIELDS)[number]) => {
+        const start = POOL_COUNTS.length + POOL_FIELDS.indexOf(name) * pages;
+        return signed.subarray(start, start + pages);
+      };
+      into.owner.set(field('owner'));
+      into.requested.set(field('requested'));
+      const { gpuDrawn } = into;
+      if (gpuDrawn) {
+        const drawnBy = field('drawnBy');
+        for (let p = 0; p < pages; p++) gpuDrawn[p] = +(drawnBy[p] === DRAWN_GPU);
+      }
     },
     dispose() {
       for (const buffer of Object.values(buffers)) buffer.destroy();

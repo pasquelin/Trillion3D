@@ -191,10 +191,10 @@ export function createSceneDraw(
     },
     host,
     counters: () => (opened ? counters : null),
+    textureRoom: () => owner?.textureRoom ?? 0, // the impostor atlases' (`owner.ts`)
     dispose() {
       lists.dispose();
-      owner?.dispose();
-      owner = undefined;
+      owner = void owner?.dispose();
     },
   };
 }

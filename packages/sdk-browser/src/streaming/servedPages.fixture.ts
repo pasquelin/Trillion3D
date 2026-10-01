@@ -1,4 +1,4 @@
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 import type { StreamPage } from './types.ts';
 
 /** A catalogue of `urls`, each a verified 12-byte page, served by a `fetch` that records every

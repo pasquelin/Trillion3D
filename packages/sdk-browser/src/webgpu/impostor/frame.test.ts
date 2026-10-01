@@ -5,70 +5,36 @@
 // held-level read; until then the root keeps its clusters. Fails on develop: the file is new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import '../../impostor/lent.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { ImpostorSection } from '../../../../sdk-core/src/index.ts';
-import { collectClusterPages, selectVisiblePages } from '../../page/selection/selection.ts';
-import { dagFixture, frontCamera } from '../../page/selection/dag.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
+import { frontCamera } from '../../page/selection/dag.fixture.ts';
 import { impostorCardCorners } from '../../impostor/card.ts';
-import type { TextureLevelReader, TextureLevelRequest } from '../../texture/levelReader.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { CARD_FLOATS } from './cardWgsl.ts';
+import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts';
 import { planWebgpuImpostors } from './frame.ts';
 import { recordingEncoder } from './recorder.fixture.ts';
-import { IMPOSTOR_PASS } from './pass.ts';
+import { IMPOSTOR_PASS, prepareImpostorPipelines } from './pipelines.ts';
 import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import { castsNoShadow } from '../../page/cut/select.ts';
+import {
+  ATLAS_URLS,
+  MESH,
+  VIEWPORT,
+  cutAt as cut,
+  engineAt as engineOf,
+  impostorScene,
+  impostorSection as section,
+  settle,
+} from '../../impostor/section.fixture.ts';
 
-const VIEWPORT: [number, number] = [1280, 720];
-/** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
-const MESH = 3;
-const level = (name: string) => ({
-  url: `../../objects/${name}.png`,
-  sha256: name.repeat(64),
-  bytes: 64,
-  width: 8,
-  height: 8,
-});
-const section: ImpostorSection = {
-  version: 1,
-  frames: 12,
-  focalPixels: 1117,
-  textureLimit: 8192,
-  baked: 1,
-  refused: 0,
-  meshes: [
-    {
-      ...{ mesh: MESH, sourceMesh: MESH, name: 'fixture', placements: 1, masked: false },
-      ...{ rootTriangles: 100, radius: 1, status: 'baked', coverage: 0.5, hemi: false },
-      ...{ frames: 12, frameSide: 64, atlasSide: 768, objectRadius: 1 },
-      switchDepth: { texel: 0, triangles: 0 },
-      maps: {
-        colourCoverage: { kind: 'coverage', levels: [level('a')] },
-        normalDepth: { kind: 'data', levels: [level('b')] },
-        orm: { kind: 'data', levels: [level('c')] },
-      },
-    },
-  ],
-};
-
-/** A WebGPU runtime reduced to what the plan and the card pass read, on a recording device. */
-function bench() {
+/** A WebGPU runtime reduced to what the plan and the card pass read, on a recording device whose
+ *  card pipelines its prepare checked. */
+async function bench() {
   const gpu = fakeDevice();
-  const asked: TextureLevelRequest[] = [];
-  const reader = (async (request: TextureLevelRequest) => {
-    asked.push(request);
-    return { width: 8, height: 8, close() {} } as ImageBitmap;
-  }) as TextureLevelReader;
-  const fixture = dagFixture();
-  const { roots } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-  );
-  for (const root of roots) root.mesh = MESH;
+  assert.ok(await prepareImpostorPipelines(gpu.device, () => {}));
+  const { fixture, roots, reader, asked } = impostorScene();
   const marked: Array<[number, number]> = [];
   let landed = 0;
   const rt = {
@@ -94,26 +60,23 @@ function bench() {
   return { gpu, rt, roots, fixture, asked, marked, landed: () => landed };
 }
 
-const engineOf = (z: number) => readCameraWorld(createEngineCamera(), frontCamera(z, 5000));
-const cut = (roots: ReturnType<typeof bench>['roots'], z: number) =>
-  selectVisiblePages(roots, engineOf(z), { pixelError: 0, viewport: VIEWPORT });
 /** Images drawn until the atlas landed and was made: each lands what the one before asked. */
 async function imagesUntilResident(rt: WebgpuPagesRuntime, z: number) {
   for (let image = 0; image < 3; image++) {
     planWebgpuImpostors(rt, engineOf(z));
-    await new Promise((resolve) => setImmediate(resolve));
+    await settle();
   }
 }
 
 test('a switched root draws its card in visibility and surfaces once its atlas lands', async () => {
-  const { gpu, rt, roots, fixture, asked, marked, landed } = bench();
+  const { gpu, rt, roots, fixture, asked, marked, landed } = await bench();
   // First image: the atlas is asked through the one reader, and the root keeps its clusters.
   planWebgpuImpostors(rt, engineOf(200));
   assert.equal(roots[0].mark, undefined, 'no card before the atlas: the root stays whole');
   assert.ok(cut(roots, 200).shown.length > 0, 'no hole while the atlas streams');
   assert.deepEqual(
     asked.map((request) => request.url),
-    ['a', 'b', 'c'].map((name) => `../../objects/${name}.png`),
+    ATLAS_URLS,
   );
   await imagesUntilResident(rt, 200);
   assert.ok(landed() >= 2, 'the landing and the atlas made break a held image');
@@ -158,7 +121,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
 });
 
 test('a near root draws whole again and no card pass is encoded', async () => {
-  const { rt, roots, fixture, marked } = bench();
+  const { rt, roots, fixture, marked } = await bench();
   await imagesUntilResident(rt, 200);
   planWebgpuImpostors(rt, engineOf(200));
   planWebgpuImpostors(rt, engineOf(5));
@@ -171,8 +134,8 @@ test('a near root draws whole again and no card pass is encoded', async () => {
   fixture.geometry.dispose();
 });
 
-test('a card out of the view asks no atlas and leaves its root to the card', () => {
-  const { rt, roots, fixture, asked } = bench();
+test('a card out of the view asks no atlas and leaves its root to the card', async () => {
+  const { rt, roots, fixture, asked } = await bench();
   const away = frontCamera(200, 5000);
   away.lookAt(0, 0, 400);
   away.updateMatrixWorld();
@@ -184,7 +147,7 @@ test('a card out of the view asks no atlas and leaves its root to the card', () 
 });
 
 test('two meshes placed by one shared world each draw their own card', async () => {
-  const { rt, roots, fixture } = bench();
+  const { rt, roots, fixture } = await bench();
   // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
   const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 };
   rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] };

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { presentationColorDiagnostic } from '../../../measurement/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
-import { outputColorDiagnostic } from '../helpers.ts';
+import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts';
 import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';

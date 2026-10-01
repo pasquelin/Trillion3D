@@ -11,10 +11,10 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { OUT_FLAGS } from '../../gpu/dag/layout.ts';
 import { WORK_DROPPED } from '../../gpu/dag/shader/viewsWgsl.ts';
-import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts';
 import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
 
 /** What a frame's shadow pass drew. */
 type Drawn = {

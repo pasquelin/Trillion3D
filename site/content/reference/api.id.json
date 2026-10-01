@@ -69,7 +69,6 @@
       "cascadeShares": "Porsi anggaran per tingkat, dari terhalus ke terkasar. Tingkat terhalus mengelilingi kamera dan menerima proporsi alokasi sinar terbesar.",
       "raysPerProbe": "Sinar yang dilacak per probe per pembaruan. Anggaran tetap yang bisa diatur.",
       "raysPerFrame": "Jumlah maksimum sinar probe per bingkai: batas atas statis yang membatasi ukuran dispatch compute.",
-      "lightsPerRay": "Cahaya yang diuji per sel cache permukaan.",
       "surfaceTexelsPerFrame": "Batas atas sel cache permukaan yang diperbarui per bingkai.",
       "budgetMs": "Durasi target tahap pantulan di GPU per bingkai, dalam milidetik.",
       "budgetSmoothing": "Porsi koreksi galat yang disimpan per sampel untuk mencegah osilasi.",
@@ -1004,7 +1003,7 @@
       "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
-      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
+      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
@@ -1021,6 +1020,7 @@
   },
   "EngineProfiler": {
     "summary": "Mengawasi bingkai demi bingkai dan mengatakan seberapa mulus mesin berjalan, dan apa yang memperlambatnya.",
+    "description": "Seperti build rilis yang membuang alat statistiknya (#1353), inti hanya memuat fasad ini: kodenya adalah potongan pengukuran (`FrameProfile`, `../host/families.ts`), diunduh begitu mode debug menyala atau saat profiler pertama kali dipakai. Sebelum tiba, sebuah frame tidak dihitung dan laporan mengatakan bahwa ia menunggu (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Interval yang disimpan, dari terlama ke terbaru: yang diterima `frameStatistics`.",
       "setMetadata": "Memberitahunya model mana yang dimuat.",
@@ -1028,7 +1028,7 @@
       "getReport": "Ringkasan bingkai-bingkai terbaru.",
       "formatReport": "Ringkasan itu sebagai teks.",
       "printReport": "Mencetak ringkasan itu ke konsol.",
-      "startAutoLog": "Mencetaknya setiap beberapa detik; mengembalikan sebuah fungsi yang menghentikannya.",
+      "startAutoLog": "Mencetaknya setiap beberapa detik, dalam mode debug, satu-satunya yang mengisi laporan; mengembalikan sebuah fungsi yang menghentikannya.",
       "stopAutoLog": "Menghentikan pencetakan.",
       "dispose": "Menghentikan dan melupakan semuanya."
     }
@@ -1689,7 +1689,7 @@
       "shadowNearFraction": "Bidang dekat sebuah irisan: sebuah pecahan dari rentang, tidak pernah kurang dari batas bawah ini.",
       "shadowNearMin": "Jarak bayangan terdekat.",
       "shadowNormalOffsetTexels": "Offset titik sampel sepanjang normal, dalam texel peta yang dibaca: setengah texel, margin untuk apa yang bukan bidang penerima — lengkungannya di dalam satu texel, pembulatan kedua kedalaman. Kemiringan penerima ditutup oleh margin kedalaman sepanjang jangkauan PCF, dan lewat 45° oleh offset tambahan, dalam texel yang sama (`shadowDepthMargin`, `shadowNormalTexels`): tidak ada bias yang berupa panjang dari adegan.",
-      "shadowPagesPerBatch": "Halaman bayangan yang digambar satu batch GPU: ukuran buffer satu batch, tidak pernah batas sebuah frame. Sebuah frame menggambar setiap halaman yang ditandainya, dalam sebanyak mungkin batch yang diperlukan.",
+      "shadowPagesPerBatch": "Halaman bayangan yang digambar satu batch GPU: ukuran buffer satu batch. Sebuah frame menggambar halaman yang ditandainya dalam sebanyak batch yang diperlukan, paling banyak halaman satu lapisan pool per frame; sisanya digambar pada frame berikutnya dan sementara itu dibaca pada level yang lebih kasar.",
       "lampFaceSize": "Sisi mip terhalus dari muka lampu, dalam texel: 32 × 32 halaman berukuran 128 (pool: `shadowPoolSize`).",
       "shadowRequestCap": "Halaman virtual yang boleh diminta shading per bingkai; sisanya meminta lagi pada bingkai berikutnya.",
       "sunLevels": "Tingkat clipmap cahaya terarah. Tingkat `L` memiliki texel `2^L` meter, dan sebuah piksel membaca tingkat yang texelnya tidak melebihi jejaknya sendiri: enam belas tingkat mencakup rasio jauh/dekat 2^15. Di luar tingkat terakhir, bayangan jauh mengambil alih.",
@@ -3324,7 +3324,7 @@
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
-      "shadowCutCoarsePages": "Halaman yang digambar ulang karena sebuah tampilan menggambar klaster yang lebih kasar dari yang diinginkan, sejak penjelajah dibuka: dilepas setelah residensi berubah dan kamera diam.",
+      "shadowCutCoarsePages": "Halaman yang dikirim kembali oleh frame untuk digambar ulang karena sebuah tampilan menggambar cluster yang lebih kasar daripada yang diinginkan, dilepas setelah residensi membawa yang lebih halus, kamera bergerak atau tidak: hitungan per frame, seperti panggilan gambar frame (#831).",
       "shadowCutViewLimit": "Tampilan cahaya yang kini digambar oleh satu batch potongan cahaya: batas atas hingga sebuah batch membuang pekerjaan, lalu yang muat.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "tileLightPoolReserved": "Kata yang dipesan tile di luar daftarnya dalam pool indeks lampu tampilan, pada frame yang terakhir disampel perangkat selama adegan memuat lebih banyak lampu daripada satu daftar; `null` jika tidak (#849).",
@@ -3364,6 +3364,7 @@
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
       "changeRoom": "Kotak yang masih dapat disimpan terpisah oleh daftar sebelum meluap.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
+      "residencyChanged": "Sebuah pemberi bayangan masuk atau keluar dari residensi: kotaknya membuat halamannya basi pada rencana berikutnya, tetap dibaca sampai digambar ulang, kamera bergerak atau tidak (#831).",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
       "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
@@ -4321,7 +4322,7 @@
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
-      "shadowCutCoarsePages": "Halaman yang digambar ulang karena sebuah tampilan menggambar klaster yang lebih kasar dari yang diinginkan, sejak penjelajah dibuka: dilepas setelah residensi berubah dan kamera diam.",
+      "shadowCutCoarsePages": "Halaman yang dikirim kembali oleh frame untuk digambar ulang karena sebuah tampilan menggambar cluster yang lebih kasar daripada yang diinginkan, dilepas setelah residensi membawa yang lebih halus, kamera bergerak atau tidak: hitungan per frame, seperti panggilan gambar frame (#831).",
       "shadowCutViewLimit": "Tampilan cahaya yang kini digambar oleh satu batch potongan cahaya: batas atas hingga sebuah batch membuang pekerjaan, lalu yang muat.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "tileLightPoolReserved": "Kata yang dipesan tile di luar daftarnya dalam pool indeks lampu tampilan, pada frame yang terakhir disampel perangkat selama adegan memuat lebih banyak lampu daripada satu daftar; `null` jika tidak (#849).",
@@ -4404,7 +4405,8 @@
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "debug": "Mode debug, alat build pengembangan dibandingkan build rilis: frame hanya dicatat ke profil langkah CPU (`world.cpuSteps`) dan laporan frame dalam mode ini. Mode ini milik halaman, seperti `?profile` di alamatnya yang menyalakannya; `world.diagnostic.debug` mengubahnya kemudian."
     }
   },
   "RenderScale": {
@@ -5063,7 +5065,8 @@
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "options.debug": "Mode debug, alat build pengembangan dibandingkan build rilis: frame hanya dicatat ke profil langkah CPU (`world.cpuSteps`) dan laporan frame dalam mode ini. Mode ini milik halaman, seperti `?profile` di alamatnya yang menyalakannya; `world.diagnostic.debug` mengubahnya kemudian."
     }
   },
   "crossVector3": {
@@ -5409,8 +5412,8 @@
     "description": "Tidak diketahui adalah `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durasi GPU setiap blok dalam sebuah sampel (`../../stage/mapping.ts` mengatakan mana yang mana).",
-    "description": "`null` di mana pun untuk sampel yang hilang atau terpotong, dan `null` untuk blok yang pass-nya tidak punya durasi yang bisa dipakai: jumlah parsial akan lolos sebagai sebuah pengukuran. `null` juga untuk sebuah blok yang tidak pernah dijalankan bingkai — nol akan terbaca sebagai \"terukur pada nol\". Ketiga blok berjumlah `totalMs` sampel saat ketiganya terukur, dan tidak pernah ditambahkan ke durasi CPU."
+    "summary": "Durasi GPU setiap blok dalam sebuah sampel (`../stage/mapping.ts` mengatakan mana yang mana).",
+    "description": "`null` di mana pun untuk sampel yang hilang atau terpotong, dan `null` untuk blok yang pass-nya tidak punya durasi yang bisa dipakai: jumlah parsial akan lolos sebagai sebuah pengukuran. `null` juga untuk sebuah blok yang tidak pernah dijalankan bingkai — nol akan terbaca sebagai \"terukur pada nol\". Ketiga blok berjumlah `totalMs` sampel saat ketiganya terukur, dan tidak pernah ditambahkan ke durasi CPU. Sebelum tabel pass tiba, setiap blok bernilai `null`, seperti sampel yang tidak mengukur apa pun."
   },
   "gpuPassStageOf": {
     "summary": "Tahap sebuah pass, menurut labelnya.",
@@ -7216,7 +7219,8 @@
       "mode": "Mode tampilan: `'beauty'` untuk gambar normal, atau sebuah mode yang menunjukkan cara kerja mesin.",
       "sessions": "Sesi yang sudah dibuka dunia sejauh ini: perubahan yang membuka ulang sebuah sesi terlihat di sini.",
       "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya; `FAMILY_LOAD_FAILED` ketika sebuah keluarga opsional tidak termuat, saat itu juga), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
-      "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
+      "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang.",
+      "debug": "Mode debug halaman (`WorldOptions.debug`): frame hanya dicatat ke profil langkah CPU dan laporan frame dalam mode ini, mulai frame berikutnya."
     }
   },
   "world.materials": {
@@ -7660,6 +7664,7 @@
     "members": {
       "owner": "Entri yang dipetakan setiap halaman fisik, −1 untuk halaman bebas.",
       "requested": "Bingkai tempat setiap halaman terakhir diminta.",
+      "gpuDrawn": "1 di mana gambar GPU sendiri memegang kedalaman halaman (#831); jika tidak ada, tidak ada yang diketahui.",
       "allocated": "Halaman yang dipetakan bingkai itu, dan entri yang tidak mendapat halaman.",
       "refused": "Entri yang tidak mendapat halaman pada bingkai itu.",
       "drawn": "Halaman yang didaftar bingkai itu untuk digambar GPU (`listDraw`).",

@@ -5,6 +5,7 @@ import {
   PREVIEW_BLOCK_SIDE,
 } from '../../../../sdk-core/src/index.ts';
 import { levelSize, type TilePlace } from '../../texture/tiles.ts';
+import { LevelBytesError } from '../../texture/heldLevels.ts';
 import { cellOrigin, tailOrigin, type TileRegion } from './write.ts';
 
 /**
@@ -17,13 +18,6 @@ import { cellOrigin, tailOrigin, type TileRegion } from './write.ts';
  * tile's where its read resolves (`levels.ts`), a tail's level here.
  */
 const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE;
-
-/** A short or foreign level file: its bytes are not the whole blocks its dimensions imply. */
-export class LevelBytesError extends Error {
-  constructor([width, height]: readonly [number, number], bytes: number) {
-    super(`TEXTURE_LEVEL_BYTES ${width}x${height}: ${bytes}`);
-  }
-}
 
 /** Refuses a tail level whose bytes are not the whole blocks its dimensions imply. */
 function checkLevelBlocks(blocks: Uint8Array, size: readonly [number, number]) {

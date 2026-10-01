@@ -1,4 +1,3 @@
-import { TAA_PASS } from './shaderWgsl.ts';
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts';
@@ -7,6 +6,7 @@ import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
 import { createTaaFilterHistory } from './layers.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
+import { TAA_PASS } from '../stage/passLabels.ts';
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;

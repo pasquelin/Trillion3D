@@ -69,7 +69,6 @@
       "cascadeShares": "从最精细到最粗糙,各层所占的预算比例。最精细的一层围绕摄像机,获得最大比例的光线分配。",
       "raysPerProbe": "每次更新时每个探针追踪的光线数。固定且可配置的预算。",
       "raysPerFrame": "每帧探针光线数的上限:限制计算调度规模的静态上限。",
-      "lightsPerRay": "每个表面缓存单元测试的光源数。",
       "surfaceTexelsPerFrame": "每帧更新的表面缓存单元数上限。",
       "budgetMs": "GPU 上每帧间接光照通道的目标时长(毫秒)。",
       "budgetSmoothing": "为防止震荡而在每个样本中保留的误差修正比例。",
@@ -997,7 +996,7 @@
       "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
-      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
+      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors、WebGPU renderer、WebGL2 renderer）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
@@ -1014,6 +1013,7 @@
   },
   "EngineProfiler": {
     "summary": "逐帧观察,并说明引擎运行得有多流畅,以及是什么在拖慢它。",
+    "description": "正如发布版本会去掉统计工具(#1353),核心只包含这个外观:它的代码是测量模块的分块(`FrameProfile`、`../host/families.ts`),在调试模式开启或分析器首次使用时下载。在它到达之前,不统计任何帧,报告会说明正在等待(`docs/SDK.md`)。",
     "members": {
       "orderedIntervals": "保留的时间区间,按从旧到新排列:`frameStatistics` 接收的正是这些。",
       "setMetadata": "告诉它当前加载的是哪个模型。",
@@ -1021,7 +1021,7 @@
       "getReport": "近期帧的汇总。",
       "formatReport": "把该汇总转换为文本。",
       "printReport": "把该汇总打印到控制台。",
-      "startAutoLog": "每隔几秒打印一次;返回一个用于停止的函数。",
+      "startAutoLog": "在调试模式下每隔几秒打印一次(只有调试模式会填写报告);返回一个用于停止的函数。",
       "stopAutoLog": "停止打印。",
       "dispose": "停止并忘记一切。"
     }
@@ -1671,7 +1671,7 @@
       "shadowNearFraction": "一个切片的近平面:占其范围的一个比例,绝不会低于这个下限。",
       "shadowNearMin": "最近的阴影距离。",
       "shadowNormalOffsetTexels": "采样点沿法线方向的偏移量,以所读贴图的纹素为单位:半个纹素,用于覆盖不属于接收面平面的部分 —— 其在一个纹素内的曲率,以及两个深度的舍入。接收面的坡度由覆盖 PCF 范围的深度余量来处理,超过 45° 的部分由额外的偏移处理,单位同样是纹素(`shadowDepthMargin`, `shadowNormalTexels`):任何偏移都不是场景中的长度。",
-      "shadowPagesPerBatch": "一个 GPU 批次绘制的阴影页数：每批缓冲区的大小，而不是一帧的上限。一帧会绘制它标记的每一页，需要多少批就用多少批。",
+      "shadowPagesPerBatch": "一个 GPU 批次绘制的阴影页数：每批缓冲区的大小。一帧按需要的批次数绘制它标记的页面，每帧最多绘制池中一层的页面；其余页面在后续帧中绘制，在此之前以更粗的级别读取。",
       "lampFaceSize": "灯光面最细 mip 的边长（纹素）：32 × 32 个 128 的页（池：`shadowPoolSize`）。",
       "shadowRequestCap": "着色每帧可请求的虚拟页数；其余的在下一帧再次请求。",
       "sunLevels": "平行光的 clipmap 级别。级别 `L` 的纹素为 `2^L` 米，像素读取纹素不超过自身足迹的级别：十六个级别覆盖 2^15 的远近比。最后一级之外由远处阴影接管。",
@@ -3240,7 +3240,7 @@
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
-      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutCoarsePages": "因某个视图绘制的簇比其所需更粗而由该帧送回重绘的页面；无论相机是否移动，一旦驻留带来更精细的簇即被释放：与该帧的绘制调用一样，是每帧的计数 (#831)。",
       "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
@@ -3280,6 +3280,7 @@
       "worldChanged": "某个节点移动了：其包围盒在下一个计划中使其覆盖的页失效。",
       "changeRoom": "列表溢出前仍可分开保存的包围盒数量。",
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
+      "residencyChanged": "一个投影体进入或离开驻留：它的包围盒在下一次规划时使其页面过期，重绘前仍被读取，无论相机是否移动（#831）。",
       "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
       "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
@@ -4226,7 +4227,8 @@
       "mode": "视图模式:正常画面用 `'beauty'`,或者用来展示引擎工作方式的某种模式。",
       "sessions": "世界到目前为止打开过的会话：重新打开会话的修改会显示在这里。",
       "error": "最后一个会话为何无法打开，以具名的引擎错误表示：其 `code` 是 `EngineError` 上记录的代码之一（WebGPU 丢失设备时为 `WEBGPU_LOST`；可选家族未加载时为 `FAMILY_LOAD_FAILED`，此时也会设置），或对于没有自身代码的原因为 `SESSION_OPEN_FAILED`。带有已记录代码的 `EngineError` 就是抛出的那个错误；其他任何错误都会被转换，此时抛出的错误位于 `details.cause`。从每次打开开始时起，以及没有尝试任何打开时，为 `null`。",
-      "modes": "当前渲染器提供的所有视图模式。"
+      "modes": "当前渲染器提供的所有视图模式。",
+      "debug": "页面的调试模式（`WorldOptions.debug`）：只有在此模式下，帧才会记录到 CPU 步骤概况和帧报告中，从下一帧起生效。"
     }
   },
   "world.materials": {
@@ -4365,7 +4367,7 @@
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
-      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutCoarsePages": "因某个视图绘制的簇比其所需更粗而由该帧送回重绘的页面；无论相机是否移动，一旦驻留带来更精细的簇即被释放：与该帧的绘制调用一样，是每帧的计数 (#831)。",
       "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
@@ -4448,7 +4450,8 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。"
     }
   },
   "RenderScale": {
@@ -5093,7 +5096,8 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "options.debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。"
     }
   },
   "crossVector3": {
@@ -5439,8 +5443,8 @@
     "description": "未知的情况归为 `other`。"
   },
   "gpuPassBlockTotals": {
-    "summary": "某个样本中每个模块的 GPU 耗时(具体对应关系由 `../../stage/mapping.ts` 给出)。",
-    "description": "对于缺失或被截断的样本,所有值均为 `null`;对于某个通道没有可用耗时的模块,同样为 `null`——否则一个不完整的总和会被误当作一次真实测量结果。对于本帧从未运行过的模块也为 `null`——若给出零值,会被误读为“测得的结果就是零”。当这三个模块都被测量到时,它们的总和恰好等于该样本的 `totalMs`,并且绝不会被加到任何 CPU 耗时上。"
+    "summary": "某个样本中每个模块的 GPU 耗时(具体对应关系由 `../stage/mapping.ts` 给出)。",
+    "description": "对于缺失或被截断的样本,所有值均为 `null`;对于某个通道没有可用耗时的模块,同样为 `null`——否则一个不完整的总和会被误当作一次真实测量结果。对于本帧从未运行过的模块也为 `null`——若给出零值,会被误读为“测得的结果就是零”。当这三个模块都被测量到时,它们的总和恰好等于该样本的 `totalMs`,并且绝不会被加到任何 CPU 耗时上。在通道表到达之前,每个模块都是 `null`,就像一个什么也没测到的样本。"
   },
   "gpuPassStageOf": {
     "summary": "根据某个通道的标签,判断它所属的阶段。",
@@ -7659,6 +7663,7 @@
     "members": {
       "owner": "每个物理页映射的条目，空闲页为 −1。",
       "requested": "每个页最后一次被请求所在的帧。",
+      "gpuDrawn": "GPU 自身的绘制持有该页深度之处为 1（#831）；缺失时则一概未知。",
       "allocated": "该帧映射的页，以及它没有页可用的条目。",
       "refused": "该帧没有页可用的条目。",
       "drawn": "该帧列出以供 GPU 绘制的页（`listDraw`）。",

@@ -42,20 +42,16 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   assert.equal(redraws.limit.value, 1, 'drops floor the limit at one view');
 });
 
-// A view drew a placement coarser than it wanted: every page it drew waits for residency to move
-// and the camera to rest, and is then drawn again — a cluster that never comes costs nothing, and a
-// camera that only moves redraws none of them.
-test('the pages a view drew coarse are drawn again once residency changes at rest, and only then', async () => {
+// A view drew a placement coarser than it wanted: every page it drew waits for residency to move,
+// and is then drawn again, the camera moving or not (#831) — a cluster that never comes costs
+// nothing.
+test('the pages a view drew coarse are drawn again once residency changes, and only then', async () => {
   const { redraws, frame, taken } = redrawsWith({ value: coarserView(0) });
   assert.deepEqual(await frame([3, 7]), [], 'nothing arrived yet: they wait');
   assert.equal(redraws.unsettled, false, 'a wait for residency holds no image');
-  redraws.rest();
-  assert.deepEqual(taken(), [], 'at rest, residency unchanged: they still wait');
+  assert.deepEqual(taken(), [], 'residency unchanged: they still wait');
   redraws.residencyChanged();
-  assert.deepEqual(taken(), [], 'the camera moves: no redraw');
-  assert.equal(redraws.unsettled, true, 'the next rest releases them');
-  redraws.rest();
-  assert.deepEqual(taken(), [3, 7], 'residency moved, the camera rests: drawn again');
+  assert.deepEqual(taken(), [3, 7], 'residency moved: drawn again');
   assert.equal(redraws.limit.value, 24, 'coarse is not a drop: the limit stays');
 });
 
@@ -77,7 +73,6 @@ test('only the pages of the views that drew coarser wait for residency', async (
   const { redraws, frame, taken } = redrawsWith({ value: coarserView(1) });
   assert.deepEqual(await frame([3, 7, 8], true, [0, 1, 2]), []);
   redraws.residencyChanged();
-  redraws.rest();
   assert.deepEqual(taken(), [7]);
 });
 
@@ -171,6 +166,5 @@ test('a page drawn short is drawn again as it was drawn: its static casters only
   await drawn([5, 6], [DRAW_FULL, DRAW_DYNAMIC]);
   await drawn([5], [DRAW_DYNAMIC]);
   redraws.residencyChanged();
-  redraws.rest();
   assert.deepEqual(seen(), { whole: [5], moving: [6] }, 'a wait keeps what its first draw lacked');
 });

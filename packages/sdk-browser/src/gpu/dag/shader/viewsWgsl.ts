@@ -1,4 +1,5 @@
 import { MAX_SHADOW_PAGES } from '../../shadow/recordPack.ts';
+import { VIEW_BLOCK_WORDS } from '../viewLayout.ts';
 
 /**
  * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
@@ -27,8 +28,14 @@ const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`);
 
-/** Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`). */
-export const DAG_VIEW_WORDS = 64;
+/**
+ * Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`).
+ *
+ * It is the field table's own size (`../viewLayout.ts`), so a field added to the block moves the
+ * stride with it. It used to live in `../../shadow/sizes.ts` with the other shadow constants and
+ * came back here as a re-export; a stride is a property of the layout, not of the shadow.
+ */
+export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
 /** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each: live count,

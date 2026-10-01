@@ -64,6 +64,14 @@ var<private> shadowUnjitter:vec3f=vec3f(0.0);
  *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
 fn shadowNormalTexels(cosine:f32)->f32{
  return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
+}
+/** The normal a shadow read biases along: the receiver's own plane \`g\` — its triangle's normal
+ *  (\`shadowReceiver\`, #831), whose depth across the map is the one the caster drew — on the side
+ *  \`n\` shades; none (zero), \`n\`. A smooth normal over a coarse triangle under-biases one side of
+ *  every edge. */
+fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
+ if(dot(g,g)==0.0){return n;}
+ return select(g,-g,dot(g,n)<0.0);
 }`;
 }
 
@@ -96,7 +104,10 @@ const SHADOW_SUBTEXEL:f32=1.0/SHADOW_SUBTEXELS;
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
+/** The receiver's shading-point offset and its triangle's plane (\`shadowReceiver\`), set with the
+ *  footprint: zero in a pass that sets none. */
 var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
+var<private> shadowReceiverPlane:vec3f=vec3f(0.0);
 /** Depth margin, in metres toward the light, of a receiver whose depth changes by \`slope\` per
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */

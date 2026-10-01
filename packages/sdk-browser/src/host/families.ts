@@ -18,6 +18,10 @@ const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load,
  * could not load keeps the frames that draw with it waiting, and is asked again (`onDemand.ts`).
  */
 export const families = {
+  /** The WebGPU renderer: the page raster and every pass it draws with (`../backend/engines.ts`). */
+  webgpu: family('WebGPU renderer', () => import('../webgpu/pages/webgpuCode.ts')),
+  /** The WebGL2 renderer, on a machine that grants no WebGPU device (`../backend/engines.ts`). */
+  webgl2: family('WebGL2 renderer', () => import('../backend/autonomous/webglCode.ts')),
   /** The physics session and its worker (`../physics/worldPhysics.ts`). */
   physics: family('physics', () => import('../physics/session.ts')),
   /** The particle steps and draws of both renderers. */
@@ -36,8 +40,8 @@ export const families = {
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
   /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
-  /** The WebGPU impostor draw: card plan, pipelines, atlas feed (`../webgpu/impostor/impostorCode.ts`). */
-  impostors: family('impostors', () => import('../webgpu/impostor/impostorCode.ts')),
+  /** The impostor draw of both renderers: card plan, pipelines or program, atlas feed. */
+  impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
 };
 export type FamilyName = keyof typeof families;
 

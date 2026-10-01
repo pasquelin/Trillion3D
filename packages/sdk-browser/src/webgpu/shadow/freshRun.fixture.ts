@@ -1,8 +1,7 @@
 // The pages the GPU draws itself (#1275), run from their shipped WGSL through `shaderRun`: the
 // compose and the seal over the bytes their bindings hold, lane after lane as their barriers order
 // them, and the pair cull's count, admission and cull over every row and region they dispatch —
-// what the mock GPU dispatches
-// (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
+// what the mock GPU dispatches (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -14,9 +13,10 @@ import {
 } from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS, freshArgWords } from './freshLayout.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
+import { POOL_COUNTS } from './allocLayout.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { FRESH_LANES } from './freshLanes.ts';
+import { ROW_LOD_FLOATS } from './rowLodWords.ts';
 import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 /** Word of region `k`'s pairs in the arguments of a pool of `pages`: the last `pages` words
@@ -39,29 +39,15 @@ function paramsOf(params: Uint8Array) {
   };
   const [pages, side, layers, rows, blendFirst, blendEnd, capacity] = words;
   return {
-    ...{ pages, side, layers, rows, blendFirst, blendEnd, capacity },
+    ...{ pages, side, layers, rows, blendFirst, blendEnd, capacity, threshold: floats[7] },
     slices: Array.from({ length: MAX_SHADOW_SLICES }, (_, s) => slice(s)),
   };
 }
 
 const FUNCTIONS = [
-  'composeShadowPages',
-  'sealShadowPages',
-  'pickPages',
-  'cropped',
-  'along3',
-  'composeSun',
-  'shadowConeAxis',
-  'shadowConeSpread',
-  'composeLamp',
-  'composeRegion',
-  'freshDraw',
-  'freshRegionPairs',
-  'poolAt',
-  'shadowPoolPages',
-  'poolLayer',
-  'faceVec',
-  'volumeVec',
+  ...'composeShadowPages sealShadowPages pickPages cropped along3 composeSun'.split(' '),
+  ...'shadowConeAxis shadowConeSpread composeLamp composeRegion freshDraw'.split(' '),
+  ...'freshRegionPairs poolAt shadowPoolPages poolLayer faceVec volumeVec'.split(' '),
   'shadowPoolPlace',
   ...PAGE_MODEL_FUNCTIONS,
 ];
@@ -101,11 +87,13 @@ export const PAIR_STEPS = ['shadowCountPairs', 'admitShadowPairs', 'shadowCullPa
 
 /**
  * Runs the pair cull's `step` over its bindings' bytes, in binding order — the spheres, the
- * parameters, the volumes, the pairs, the arguments and the rows' mobility —: the admission's
- * workgroup lane after lane, every invocation of the dispatch the arguments say for the others.
+ * parameters, the volumes, the pairs, the arguments, the rows' mobility and their detail
+ * (`rowLods.ts`; none given, every row drawn by every page) —: the admission's workgroup lane after
+ * lane, every invocation of the dispatch the arguments say for the others.
  */
 export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: Uint8Array[]) {
-  const [spheres, params, volumes, pairs, args, mobility] = bound,
+  const [spheres, params, volumes, pairs, args, mobility, lods] = bound,
+    lodFloats = lods ? f32(lods) : undefined,
     sphereFloats = f32(spheres),
     faceFloats = f32(volumes),
     faceWords = u32(volumes),
@@ -123,12 +111,17 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
     return {
       ...{ center: vec(0), far: faceFloats[at(3)], axis: vec(4), halfAngle: faceFloats[at(7)] },
       ...{ right: vec(8), halfU: faceFloats[at(11)], up: vec(12), halfV: faceFloats[at(15)] },
-      casters: faceWords[at(16)],
+      ...{ casters: faceWords[at(16)], texel: faceFloats[at(18)] },
     };
   };
   const kernels = shaderRun<Lanes>(
     SHADOW_FRESH_CULL_WGSL,
-    [...PAIR_STEPS, 'freshRow', 'freshKeeps', 'freshRegionPairs', 'sphereTouches', 'laneRun'],
+    [
+      ...PAIR_STEPS,
+      ...'freshRow freshKeeps freshPixels drawsCluster drawsCompared freshRegionPairs sphereTouches laneRun'.split(
+        ' ',
+      ),
+    ],
     {
       ...wgslConstants(SHADOW_FRESH_CULL_WGSL),
       spheres: new Proxy([], {
@@ -142,6 +135,13 @@ export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: U
       pairs: u32(pairs),
       args: words,
       mobility: u32(mobility),
+      lods: new Proxy([], {
+        get: (_, row) => {
+          const at = ROW_LOD_FLOATS * Number(row),
+            of = (i: number) => (lodFloats ? [...lodFloats.subarray(at + i, at + i + 4)] : null);
+          return { own: of(0) ?? [0, 0, 0, 0], parent: of(4) ?? [0, 0, 0, Infinity] };
+        },
+      }),
       laneScan,
       laneSums,
     },

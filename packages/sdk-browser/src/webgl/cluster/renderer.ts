@@ -7,7 +7,7 @@ import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } f
 import { WebglClusterState } from './state.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
-import { Matrix3UniformCache, setClusterSamplers } from './uniforms.ts';
+import { Matrix3UniformCache, setClusterSamplers, uniformLocations } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 import { createClusterProgram } from './program.ts';
 import { clusterValidation, type ReadDegraded } from './validation.ts';
@@ -18,13 +18,14 @@ import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { WebglClusterSubmission } from './submission.ts';
 import type { FramePass } from '../core/frameTimer.ts';
 import { WebglClusterDeformation, type DeformationSource } from './deformation.ts';
+import { cardPassOf, type CardSwitches, type WebglCards } from '../impostor/pass.ts';
 
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private geometry: WebglClusterGeometry;
   readonly textures: WebglClusterTextures;
-  private uniforms = new Map<string, WebGLUniformLocation | null>();
+  private at: (name: string) => WebGLUniformLocation | null;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
   /** Reads each frame's surfaces; hears, by name and required, a lost feature or a left-out one. */
@@ -44,6 +45,7 @@ export class WebglClusterRenderer {
   /** The session's deformation records (#357), sent at each frame; shared with the display's. */
   readonly deformation: WebglClusterDeformation;
   deformationSource: DeformationSource | undefined;
+  cards: WebglCards | undefined;
   private readonly display: WebglClusterRenderer | undefined;
   private readonly locations: Record<string, number>;
   constructor(gl: WebGL2RenderingContext, degraded: ReadDegraded, display?: WebglClusterRenderer) {
@@ -51,6 +53,7 @@ export class WebglClusterRenderer {
     this.validation = clusterValidation(degraded);
     this.display = display;
     const program = (this.program = createClusterProgram(gl, display?.locations));
+    this.at = uniformLocations(gl, program);
     this.locations = display?.locations ?? {};
     if (!display)
       for (const name of [...ATTRIBUTES, 'instanceMatrix'])
@@ -84,16 +87,17 @@ export class WebglClusterRenderer {
   get backdropBytes() {
     return this.backdrop.bytes + this.reflection.bytes + this.resolve.bytes;
   }
-  private at(name: string) {
-    if (!this.uniforms.has(name))
-      this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
-    return this.uniforms.get(name)!;
-  }
   private setOutput(srgbDestination: boolean) {
+    this.gl.useProgram(this.program);
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
     this.pass.forget();
     this.submission.forget();
+  }
+  /** The cards in a pass, with its switches and lights; this program is bound again after. */
+  private drawCards(camera: HostDrawCamera, on: CardSwitches) {
+    const p = cardPassOf(this.toneCurve, this.resolvePasses > 0, on);
+    if (this.cards?.(camera, this.lights, p, !!this.display)) this.setOutput(p.srgbDestination);
   }
   draw(
     meshes: readonly ClusterDrawMesh[],
@@ -125,9 +129,8 @@ export class WebglClusterRenderer {
     const mirrors = receivers(drawn),
       mirroring = mirrors ? mirrorMeshes(drawn) : [];
     this.backdropSubmissions = this.copySubmissions = this.resolvePasses = 0;
-    gl.uniform1i(this.at('reflectionEnabled'), 0);
-    gl.uniform1i(this.at('reflectionResolve'), 0);
-    gl.uniform1i(this.at('reflectionOutput'), 0);
+    for (const name of ['reflectionEnabled', 'reflectionResolve', 'reflectionOutput'])
+      gl.uniform1i(this.at(name), 0);
     if (mirrors) pass?.('Trillion3D WebGL2 reflection capture');
     capture(gl, this.reflection, mirrors, this.at('reflectionCapture'), () => {
       this.setOutput(false);
@@ -135,6 +138,7 @@ export class WebglClusterRenderer {
         this.submission.submit(meshes, camera, false, true) +
         this.submission.submit(diagnosticMeshes, camera, false, true);
       this.copySubmissions += this.submission.submit(plain, camera, false, true);
+      this.drawCards(camera, { capture: true });
     });
     // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
     // units; the frozen source is bound again for the trace they aliased before it (#1292).
@@ -162,6 +166,7 @@ export class WebglClusterRenderer {
         this.submission.submit(meshes, camera, false) +
         this.submission.submit(diagnosticMeshes, camera, false);
       this.copySubmissions += this.submission.submit(plain, camera, false);
+      this.drawCards(camera, {});
       this.backdrop.end();
     }
     this.backdropPasses = (transmissive.length ? 1 : 0) + (mirrors ? 1 : 0);
@@ -172,6 +177,7 @@ export class WebglClusterRenderer {
       this.submission.submit(meshes, camera, toneMapped) +
       this.submission.submit(diagnosticMeshes, camera, toneMapped);
     this.copySubmissions += this.submission.submit(plain, camera, toneMapped);
+    this.drawCards(camera, { toneMapped, srgbDestination, reflections: mirrors });
     if (transmissive.length) {
       pass?.('Trillion3D WebGL2 transmission');
       this.backdrop.bind();
@@ -184,15 +190,9 @@ export class WebglClusterRenderer {
     return submitted;
   }
   dispose() {
+    const { backdrop, reflection, resolve, geometry, textures, deformation } = this;
     if (!this.display)
-      for (const shared of [
-        this.backdrop,
-        this.reflection,
-        this.resolve,
-        this.geometry,
-        this.textures,
-        this.deformation,
-      ])
+      for (const shared of [backdrop, reflection, resolve, geometry, textures, deformation])
         shared.dispose();
     this.lights.dispose();
     this.gl.deleteProgram(this.program);

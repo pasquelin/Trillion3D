@@ -106,8 +106,9 @@ export interface ShadowFrameMetrics {
   /** Pages drawn again because a light cut drew them wrong, since the explorer opened: its batch
    *  dropped work, or its flag was never read. They are withdrawn until redrawn. */
   shadowCutWithdrawnPages?: number | null;
-  /** Pages drawn again because a view drew a cluster coarser than it wanted, since the explorer
-   *  opened: released once residency changed and the camera rested. */
+  /** Pages the frame sends back to be drawn again because a view drew a cluster coarser than it
+   *  wanted, released once residency brought the finer one, the camera moving or not: a count per
+   *  frame, as the frame's draw calls are (#831). */
   shadowCutCoarsePages?: number | null;
   /** Light views one light-cut batch draws in now: the cap until a batch drops, then what fits. */
   shadowCutViewLimit?: number | null;

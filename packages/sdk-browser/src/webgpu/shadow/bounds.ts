@@ -13,8 +13,8 @@ export { growClusterBox, packClusterSpheres, uploadClusterSpheres } from './sphe
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /**
- * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, whether
- * a finer resident form stands for it (#831), the corners its row draws (#966) — pushed on the same
+ * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, the
+ * corners its row draws (#966) — pushed on the same
  * dirty interval as the spheres and the page table's flags — a row whose cut readiness moved is
  * marked too (`gpuCutStream.ts`) —, and every row once when a placement turns moving: what the
  * page cull splits a page's casters by, static layer or moving casters, and drawn with no fragment
@@ -43,7 +43,6 @@ export function uploadRowMobility(
   }
   const buffer = lights.mobilityRows,
     ints = rows.pageTableInts,
-    selection = rt.run.gpuSelection,
     // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
     corners = (row: number) => ints?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners;
   mobility.writeRows(
@@ -55,8 +54,6 @@ export function uploadRowMobility(
     corners,
     rows.blendFirst,
     (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
-    (row) =>
-      !!selection && !!rows.packedRecs[row] && !selection.isFinest(rows.packedPageIndex[row]),
   );
 }
 
@@ -75,9 +72,11 @@ export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
  * precision where it is, so the shadow maps of lights whose range touches this box
- * no longer describe it exactly and become candidates again — once the camera rests, since
- * the change is one of representation, not of the world. Without that, a settled map would
- * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
+ * no longer describe it exactly and become candidates again. Without that, a settled map would
+ * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). A
+ * residency change the cut reads (`atOnce`) stales its pages at the next plan, the camera moving
+ * or not (#831): a page kept with a superseded form of a surface shades the form the camera now
+ * draws in patches. Another change of the representation waits for the camera to rest. The
  * declared box is that of the cluster's world sphere; a moving placement's, or a blended
  * caster's (`moving`), leaves the static layer as it is.
  */
@@ -88,6 +87,7 @@ export function noteResidenceChange(
   packed: number,
   rec: PageRec,
   moving?: boolean,
+  atOnce = false,
 ) {
   const { store, plan } = lights;
   if (!store.count) return;
@@ -96,5 +96,6 @@ export function noteResidenceChange(
   const { box, min, max } = changeBoxes[+onlyMoving];
   boxEmpty(box, 0);
   growClusterBox(rec, roots, box, rank);
-  plan.representationChanged(min, max, onlyMoving);
+  if (atOnce) plan.residencyChanged(min, max, onlyMoving);
+  else plan.representationChanged(min, max, onlyMoving);
 }

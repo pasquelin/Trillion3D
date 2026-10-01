@@ -1,7 +1,6 @@
 import { poseHoldsBox, sameElements } from '../../math/matrixElements.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import {
-  MOBILITY_COARSER,
   MOBILITY_CORNER_SHIFT,
   MOBILITY_CUTOUT,
   MOBILITY_MOVING,
@@ -111,8 +110,7 @@ export function createShadowMobility() {
      * lives in the transmittance layer, which a restored page starts again from. A row `cutout`
      * says is filed with the casters drawn with the fragment test (#965); a blended caster's never
      * is: the transmittance pass reads the other list alone. `corners` is the count a row draws,
-     * what its region's command is sized by (#966). A row `coarser` says — one a finer resident form of
-     * its surface stands for — is left out of the GPU's own page draws (#831).
+     * what its region's command is sized by (#966).
      */
     writeRows(
       placementOf: (row: number) => number,
@@ -123,7 +121,6 @@ export function createShadowMobility() {
       corners: (row: number) => number,
       alwaysMoving = rowCount,
       cutout: (row: number) => boolean = () => false,
-      coarser: (row: number) => boolean = () => false,
     ) {
       if (wholeRows) {
         from = 0;
@@ -136,10 +133,7 @@ export function createShadowMobility() {
         const placement = placementOf(row),
           blended = row >= alwaysMoving,
           moves = blended || (placement >= 0 && moving[placement] === 1),
-          flags =
-            (moves ? MOBILITY_MOVING : 0) |
-            (!blended && cutout(row) ? MOBILITY_CUTOUT : 0) |
-            (!blended && coarser(row) ? MOBILITY_COARSER : 0),
+          flags = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
           word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags;
         cutouts += +((flags & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
         classes[shadowBinOf(rows[row])]--;
