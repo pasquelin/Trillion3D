@@ -99,25 +99,24 @@ export class Material {
     });
   }
   private assign(key: string, value: unknown) {
-    if (COLOURS.has(key) && value instanceof Color) {
-      const previous = this[key];
-      if (
-        previous instanceof Color &&
-        previous !== value &&
-        !Array.from(COLOURS).some((other) => other !== key && this[other] === previous)
-      )
-        unlisten(previous, this.heard);
-      listen(value, this.heard);
-    }
-    if (COLOURS.has(key) && !(value instanceof Color)) {
-      const current = this[key];
+    const current = this[key];
+    if (!COLOURS.has(key)) this[key] = value;
+    else if (!(value instanceof Color)) {
+      // A colour written as a value: into the held `Color`, or a new one heard like the others.
       if (current instanceof Color) current.set(value as ColorInput);
-      else {
-        const color = new Color(value as ColorInput);
-        listen(color, this.heard);
-        this[key] = color;
-      }
-    } else this[key] = value;
+      else listen((this[key] = new Color(value as ColorInput)), this.heard);
+    } else {
+      // A `Color` handed in is heard; the one it replaces no longer is, unless another field
+      // of this material still holds it.
+      if (
+        current instanceof Color &&
+        current !== value &&
+        !Array.from(COLOURS).some((other) => other !== key && this[other] === current)
+      )
+        unlisten(current, this.heard);
+      listen(value, this.heard);
+      this[key] = value;
+    }
     // A texture this material samples is heard like the material itself.
     const sampled = value as { isTexture?: boolean; _listeners?: Set<() => void> } | null;
     if (sampled?.isTexture) sampled._listeners?.add(this.heard);
