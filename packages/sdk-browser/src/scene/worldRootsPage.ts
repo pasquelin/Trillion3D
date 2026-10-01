@@ -59,7 +59,7 @@ const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices
 
 /** How many bundles may wait for the other GPU view of one of their pages, by default: the
  *  streamer's pending budget (as Nanite caps its pending page requests), never a scene's. */
-export const WORLD_PENDING_BUNDLES = 64;
+const WORLD_PENDING_BUNDLES = 64;
 
 /**
  * The detached page source of `table`, its bundles read through `bundlePages`: a page is resolved
