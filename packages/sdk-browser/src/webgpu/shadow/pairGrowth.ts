@@ -11,7 +11,7 @@ import {
 } from './memoryGrant.ts';
 import { transmittanceSettled } from './transmittanceGrant.ts';
 import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
-import { keptRows } from './pairRows.ts';
+import { keptRows, poolPairs } from './pairRows.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The rows each region cull asked and the device has not answered yet: asked once, not each
@@ -33,9 +33,10 @@ export function followPairBytes(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * THE KEPT LIST GROWN TO THE GPU PAGES' PAIRS (#1363). The pairs the latest frame read back
- * counted (`pairNeed`, the pool's `pairs` count) land in the region cull's kept list (`cull.kept`),
- * free once the host's batches are encoded. Past what it holds, it grows by the tables' own path
+ * THE KEPT LIST HOLDS THE GPU PAGES' PAIRS (#1363), at a size fixed by the pool (`poolPairs`,
+ * #831): the pool's bytes the frame shows are the ones it was set to, whatever the frames count
+ * (`pairNeed`). The pairs land in the region cull's kept list (`cull.kept`), free once the host's
+ * batches are encoded. Short of that size, it grows once by the tables' own path
  * (`growKeptList`, `pendingBuffers`), the occlusion test's list with it, queued behind the tables'
  * growths (`queueTableGrowth`), asked once until answered: asked of the shadow grant beside what
  * the pool holds (`grantsShadowLayer`), then of the device under an out-of-memory scope, put in place between two
@@ -47,7 +48,7 @@ export function growPairList(rt: WebgpuPagesRuntime) {
   const { lights, layout, gpu, diag, run } = rt,
     { cull, memory } = lights,
     device = gpu.device,
-    need = lights.pageRequests?.allocation.pairNeed ?? 0;
+    need = poolPairs(lights.plan.pool.pages);
   if (!cull || !device || memory.events.includes('pairs-refused')) return;
   const rows = keptRows(layout.rows.casterSlots, need, device.limits),
     bytes = listBytes(rows - cull.capacity, lights);
