@@ -1,6 +1,8 @@
 import { transform } from 'esbuild';
 import type { TestContext } from 'node:test';
 import type { Browser, Page } from 'playwright';
+import { collectPageErrors } from './page-errors.ts';
+export { collectPageErrors } from './page-errors.ts';
 
 /**
  * The module scripts of an example page, each parsed as the browser would load it: a syntax
@@ -163,14 +165,7 @@ export async function openExample(
   const errors: string[] = [],
     requests: string[] = [];
   const heard = (error: string) => declaredError(entry.id, error) || errors.push(error);
-  page.on('pageerror', (error) => heard(error.message));
-  // The engine says its own failures on the console — a session that cannot open, a frame the
-  // WebGL2 program refuses —, and Chrome a resource it could not load, which it names here.
-  page.on('console', (message) => {
-    if (message.type() !== 'error') return;
-    const text = message.text();
-    heard(text.startsWith('Failed to load resource') ? `${text} ${message.location().url}` : text);
-  });
+  collectPageErrors(page, heard);
   page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
     await page.addInitScript(() => {

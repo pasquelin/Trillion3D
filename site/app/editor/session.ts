@@ -1,10 +1,10 @@
-import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
+import type { Object3D } from '../../../packages/sdk/browser.ts';
 import { createHistory, type Command } from './history.ts';
 import { isWithin, poseCommand, poseOf, samePose, type Pose } from './commands.ts';
 import { writeAutosave } from './storage.ts';
 
 /** The engine's public module, as the editor loads it on demand. */
-export type Engine = typeof import('../../../packages/sdk-browser/src/index.ts');
+export type Engine = typeof import('../../../packages/sdk/browser.ts');
 
 /** The portal's stage (`--stage` in `portal.css`), the background every render sits on. */
 const STAGE = 0x0e1621;

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { advanceMixers, Camera, Scene } from '../packages/sdk-browser/src/index.ts';
+import { advanceMixers } from '../packages/sdk/browser.ts';
+import { fakeWorld } from './docs/examples/world.ts';
 import { catchPagehide } from './docs/examples/capture.ts';
 import { runControlledExample } from './docs/examples/controlled.ts';
 
@@ -15,18 +16,8 @@ test('door clip follows camera proximity once and manual control takes over', as
     new URL('../site/examples/doors-that-open.html', import.meta.url),
     'utf8',
   );
-  const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  const camera = new Camera('perspective');
-  let frame = () => {},
-    disposed = false;
-  const world = {
-    scene,
-    camera,
-    controls: { target: { copy() {} }, minDistance: 0, maxDistance: 0, maxPolarAngle: 0 },
-    beforeFrame: (hook: () => void) => void (frame = hook),
-    invalidate() {},
-    dispose: () => void (disposed = true),
-  };
+  const { world, state, frame } = fakeWorld();
+  const { scene, camera } = world;
   const pagehide = catchPagehide(t);
   const { values, change } = await runControlledExample<Values>(html, world);
 
@@ -64,5 +55,5 @@ test('door clip follows camera proximity once and manual control takes over', as
   near(right.rotation.y, 0.325);
 
   pagehide();
-  assert.ok(disposed);
+  assert.equal(state.disposals, 1);
 });

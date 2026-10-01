@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts';
+import { EngineError } from '../../../packages/sdk/browser.ts';
 import { failureText, isPassing } from './failure.ts';
 
 test('a video refused or cut short in passing does not open the error card', () => {

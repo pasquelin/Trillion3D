@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import * as engine from '../packages/sdk-browser/src/index.ts';
-import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
+import * as engine from '../packages/sdk/browser.ts';
 import { leafTexture, matcapBall, type MatcapLook } from '../site/examples/kit/painted.ts';
 import { walkingRobot } from '../site/examples/kit/robot.ts';
 import { vehicles } from '../site/examples/kit/vehicles.ts';
+
+const { Camera } = engine;
 
 // The SHA-256 of each picture's pixels as its page painted it before the kit held it.
 const LEAF = '6b09b3416dd339495616ba4f399ca2e3d852a5639f780c18ccf57a8f74128c21';

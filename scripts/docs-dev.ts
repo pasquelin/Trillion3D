@@ -8,6 +8,7 @@ import { createDocsServer, DOCS_PORT } from './docs-serve.ts';
 import { inHead } from './docs/measurement.ts';
 import { buildSite, SITE_OUTPUT, SITE_STEPS } from './docs/site.ts';
 import { ignoredPaths } from './git-paths.ts';
+import { cacheOf, COOKED_SCENES } from './site-caches.ts';
 import { contentType, listen } from './static-server.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -42,6 +43,14 @@ export const stepsReading = (paths: Iterable<string>) => {
 export async function followSite(root: string, out: string, port = 0) {
   const pages = new Set<ServerResponse>();
   const server = createDocsServer(out, {
+    // Cooked files are ignored by git and may change independently of a site rebuild.
+    // Read them in place, including deletions, instead of the stale built copy.
+    mounts: Object.values(COOKED_SCENES)
+      .filter(({ directory }) => directory.startsWith('site/'))
+      .map((scene) => ({
+        prefix: `/${scene.directory.slice(5)}/${cacheOf(scene)}/`,
+        dir: resolve(root, scene.directory, cacheOf(scene)),
+      })),
     answer: (request, response, url) => {
       if (url.pathname !== RELOAD_EVENTS) return false;
       response.writeHead(200, { 'content-type': 'text/event-stream' }).write(': open\n\n');
@@ -77,7 +86,10 @@ export async function followSite(root: string, out: string, port = 0) {
       } catch (error) {
         // A step empties its folder first: the pages are not reloaded onto a half-built tree.
         failed = paths;
-        console.error('docs:dev: the rebuild failed, it runs again with the next change:', error);
+        console.error(
+          `docs:dev: the rebuild failed${steps.some(({ name }) => name === 'caches') ? ' (pnpm compile:caches)' : ''}; it runs again with the next change:`,
+          error,
+        );
         continue;
       }
       failed = [];

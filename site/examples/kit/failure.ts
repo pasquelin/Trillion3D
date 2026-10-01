@@ -1,4 +1,4 @@
-import type { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts';
+import type { EngineError } from '../../../packages/sdk/browser.ts';
 import { overlay } from './overlay.ts';
 import { kitWord } from './words.ts';
 

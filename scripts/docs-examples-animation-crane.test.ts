@@ -1,46 +1,23 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import {
-  animation,
-  geometry,
-  light,
-  material,
-  math,
-  object,
-} from '../packages/sdk-browser/src/index.ts';
-import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
-import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
-import { describe } from '../site/examples/kit/controls.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { animation } from '../packages/sdk/browser.ts';
+import { fakeWorld } from './docs/examples/world.ts';
+import { runControlledExample } from './docs/examples/controlled.ts';
 
 type Values = { speed: number; paused: boolean };
-type Specs = {
-  speed: readonly [number, number, number, number];
-  paused: boolean;
-  replay: () => void;
-};
 
 test('the crane clip moves every mechanism and its controls pause, resume and replay it', async () => {
   const html = await readFile(
     new URL('../site/examples/a-crane-that-swings.html', import.meta.url),
     'utf8',
   );
-  const scene = new Scene(() => Promise.reject(new Error('the crane loads no asset')));
-  const camera = new Camera('perspective');
-  const target = math.vector3();
+  const { world } = fakeWorld();
+  const { scene } = world;
   let mixer: ReturnType<typeof animation.createMixer> | undefined;
   let clip: ReturnType<typeof animation.clip> | undefined;
-  let change = (_values: Values, _key?: keyof Values) => {};
-  let buttons = {} as Pick<Specs, 'replay'>;
-  await runExampleModule(html, {
+  const { change, specs } = await runControlledExample<Values>(html, world, {
     engine: {
-      createWorld: () => ({
-        scene,
-        camera,
-        controls: { target, maxPolarAngle: 0 },
-        invalidate() {},
-      }),
       animation: {
         ...animation,
         clip(...args: Parameters<typeof animation.clip>) {
@@ -50,20 +27,10 @@ test('the crane clip moves every mechanism and its controls pause, resume and re
           return (mixer = animation.createMixer(root));
         },
       },
-      geometry,
-      light,
-      material,
-      math,
-      object,
-    },
-    kit: {
-      controls(specs: Specs, callback: typeof change) {
-        buttons = specs;
-        change = callback;
-        callback(describe(specs).values as Values);
-      },
     },
   });
+  const replay = specs.replay;
+  assert.ok(typeof replay === 'function');
 
   assert.ok(mixer && clip);
   const action = mixer.clipAction(clip);
@@ -103,13 +70,13 @@ test('the crane clip moves every mechanism and its controls pause, resume and re
   assert.equal(action.playingNow, true);
   mixer.update(1);
   assert.notDeepEqual(pose(), paused);
-  buttons.replay();
+  replay();
   assert.equal(action.time, 0);
   assert.equal(action.playingNow, true);
   assert.deepEqual(pose(), start);
 
   change({ speed: 1.6, paused: true }, 'paused');
-  buttons.replay();
+  replay();
   assert.equal(action.playingNow, false, 'replay respects pause');
   assert.equal(mixer.update(1), false);
   assert.deepEqual(pose(), start);

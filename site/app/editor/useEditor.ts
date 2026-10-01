@@ -45,7 +45,7 @@ export function useEditor(
     const failed = (error: unknown) => {
       if (!gone) fail(failureText(language.current, error));
     };
-    void import('../../../packages/sdk-browser/src/index.ts')
+    void import('../../../packages/sdk/browser.ts')
       .then(async (engine) => {
         const target = canvas.current;
         if (gone || !target) return;

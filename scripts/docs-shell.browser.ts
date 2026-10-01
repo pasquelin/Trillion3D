@@ -4,6 +4,7 @@ import type { Browser } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { exampleTitle, readyEntries } from '../site/app/examples/list.ts';
+import { collectPageErrors } from './docs/examples/capture.ts';
 import { layoutFaults, ROUTES } from './docs/layout-faults.ts';
 import { LANGUAGES, loadDictionary } from '../site/content/i18n/dictionary.ts';
 
@@ -24,13 +25,7 @@ async function open(hash: string, width = 1440) {
   });
   const page = await context.newPage();
   const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
-  });
-  page.on('response', (response) => {
-    if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
-  });
+  collectPageErrors(page, (error) => errors.push(error));
   await page.goto(`http://127.0.0.1:${port}/${hash}`);
   return { page, errors };
 }
@@ -131,10 +126,7 @@ test('the layout holds on every page type, at every width, in every language', a
       const page = await context.newPage();
       // One page for every route: each goes to the next by its hash, as a reader does, so a fault
       // of one page's unmounting shows too.
-      page.on('pageerror', (error) => faults.push(`${page.url()} at ${width}: ${error.message}`));
-      page.on('console', (message) => {
-        if (message.type() === 'error') faults.push(`${page.url()} at ${width}: ${message.text()}`);
-      });
+      collectPageErrors(page, (error) => faults.push(`${page.url()} at ${width}: ${error}`));
       for (const route of ROUTES) {
         const hash = `#/${locale}/${route}`;
         await page.goto(`http://127.0.0.1:${port}/${hash}`);

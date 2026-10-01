@@ -99,7 +99,7 @@ test('every example file loads with no error and renders an image on its own, fe
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
     // #945: every page of site/examples, a parked one or one the gallery does not list included,
-    // loads with no error; a parked page is not asked to draw.
+    // loads with no error or engine console.info leakage; a parked page is not asked to draw.
     const [physics, pages] = await Promise.all([physicsExamples(ready), examplePages()]);
     const listed = new Set(ready.map(({ id }) => id));
     const blank: string[] = [],

@@ -1,4 +1,4 @@
-import { pathToFileURL } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import type { Plugin } from 'esbuild';
 
 /**
@@ -11,14 +11,25 @@ export const inlineModules: Plugin = {
   name: 'inline-modules',
   setup(bundler) {
     bundler.onLoad({ filter: /\.inline\.ts$/ }, async ({ path }) => {
-      // A fresh copy on every build, so a rebuild sees a file added since the last one.
-      const exports: Record<string, unknown> = await import(
-        `${pathToFileURL(path).href}?build=${Date.now()}`
-      );
+      // Each load gets a fresh module graph: cache-busting only the entry leaves its JSON
+      // and helper imports stale in Node's process-wide ESM cache during docs:dev rebuilds.
+      const worker = new Worker(new URL('./inline-worker.ts', import.meta.url), {
+        workerData: path,
+      });
+      let contents: string;
+      try {
+        contents = await new Promise<string>((resolve, reject) => {
+          worker.once('message', resolve);
+          worker.once('error', reject);
+          worker.once('exit', (code) =>
+            reject(new Error(`Inline module exited without exports (${code}): ${path}`)),
+          );
+        });
+      } finally {
+        await worker.terminate();
+      }
       return {
-        contents: Object.entries(exports)
-          .map(([name, value]) => `export const ${name} = ${JSON.stringify(value)};`)
-          .join('\n'),
+        contents,
         loader: 'js',
       };
     });
