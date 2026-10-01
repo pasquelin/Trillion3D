@@ -98,11 +98,9 @@ export function createTileSources(options: {
           format: encoding.levelFormat(lane),
         };
         // A level that cannot fit beside the pages kept will not come: refused, not waited for.
-        const roomFor = () => atlas.roomFor(key.slot, frame),
-          held = levels
-            ? readHeldLevel(levels, levelKey, frame, size, key.tx, key.ty, roomFor)
-            : roomFor() && 'waiting';
-        if (!held) return 'refused';
+        const roomFor = () => atlas.roomFor(key.slot, frame);
+        if (!levels) return roomFor() ? 'waiting' : 'refused';
+        const held = readHeldLevel(levels, levelKey, frame, size, key.tx, key.ty, roomFor);
         if (typeof held === 'string') return held;
         const place = atlas.place(key, frame);
         if (!place) return 'refused';

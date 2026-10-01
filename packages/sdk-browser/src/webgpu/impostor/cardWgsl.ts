@@ -8,9 +8,10 @@ export const CARD_VIEW_FLOATS = 20;
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2;
 /**
- * Coverage below which a card texel is no surface: the glTF default alpha cutoff, the one a masked
- * material without its own declares. The bake stores coverage, never a cut, so the cut is the
- * runtime's; a mesh whose material declares another keeps it on its own clusters.
+ * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
+ * masked material without its own declares (`MASK_CUTOFF`, the world API's: not imported into the
+ * shader layer). The bake stores coverage, never a cut, so the cut is the runtime's; a mesh whose
+ * material declares another keeps it on its own clusters.
  */
 const CARD_COVERAGE_CUT = 0.5;
 
@@ -68,13 +69,15 @@ struct CardVary{
   vec4f(k.w,c.shape.w),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),impFrameX(na),impFrameX(nb),impFrameX(nc),
   na,nb,nc,vec3f(m[0].x,m[1].x,m[2].x),vec3f(m[0].y,m[1].y,m[2].y),vec3f(m[0].z,m[1].z,m[2].z));
 }
-/** The card's surface at this pixel, and its depth: the blended surface point projected. */
+/** The card's surface at this pixel, and its depth: the blended surface point projected. A texel
+ *  under the coverage cut is no surface: the pixel is discarded, in every stage alike. */
 struct CardPixel{blend:ImpBlend,depth:f32}
 fn cardPixel(in:CardVary)->CardPixel{
  let eye=in.eyeRadius.xyz;let radius=in.eyeRadius.w;let lod=in.weightsLod.w;let cell=in.cCell.z;
  let ray=normalize(in.point-eye);
  let b=impBlend(impTap(in.ab.xy,in.xa,in.na,eye,ray,radius,cell,lod),impTap(in.ab.zw,in.xb,in.nb,eye,ray,radius,cell,lod),
   impTap(in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod),in.weightsLod.xyz,lod);
+ if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let c=cards[in.card];
  let clip=view.viewProj*(c.world*vec4f(b.point+c.pivot.xyz,1.0));
  return CardPixel(b,clip.z/clip.w);
@@ -82,19 +85,16 @@ fn cardPixel(in:CardVary)->CardPixel{
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_fs(in:CardVary)->CardVis{
  let px=cardPixel(in);
- if(px.blend.colour.a<${CARD_COVERAGE_CUT}){discard;}
  return CardVis(0u,px.depth);
 }
 struct CardVisHiz{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_hiz_fs(in:CardVary)->CardVisHiz{
  let px=cardPixel(in);
- if(px.blend.colour.a<${CARD_COVERAGE_CUT}){discard;}
  return CardVisHiz(0u,px.depth,px.depth);
 }
 struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@builtin(frag_depth) depth:f32}
 @fragment fn card_fs(in:CardVary)->CardOut{
  let px=cardPixel(in);let b=px.blend;
- if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let n=normalize(mat3x3f(in.n0,in.n1,in.n2)*b.normal);
  let ao=b.orm.x;
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);

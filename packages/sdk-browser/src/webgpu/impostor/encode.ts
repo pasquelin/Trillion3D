@@ -20,9 +20,10 @@ function drawRuns(
   state: WebgpuImpostors,
   pass: GPURenderPassEncoder,
   pipeline: GPURenderPipeline,
+  image = state.pass.imageGroup(state.count),
 ) {
   pass.setPipeline(pipeline);
-  pass.setBindGroup(0, state.pass.imageGroup(state.count).group);
+  pass.setBindGroup(0, image.group);
   for (let r = 0; r < state.runCount; r++) {
     const run = state.runs[r];
     pass.setBindGroup(1, run.group);
@@ -52,7 +53,7 @@ export function drawImpostorVisibility(
   const image = state.pass.imageGroup(state.count);
   device.queue.writeBuffer(state.pass.viewBuffer, 0, viewWords);
   device.queue.writeBuffer(image.buffer, 0, state.records, 0, state.count * CARD_FLOATS);
-  drawRuns(rt, state, pass, state.pass.visPipeline(hiz));
+  drawRuns(rt, state, pass, state.pass.visPipeline(hiz), image);
   return true;
 }
 

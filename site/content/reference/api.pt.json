@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Planeja a camada de impostores para uma vista: cada raiz cuja malha tem uma entrada pré-processada e cuja comutação se mantém gera um cartão e é marcada como suprimida.",
-    "description": "`view` mapeia o mundo para o espaço de vista (por colunas) e `focalPixels` é a única distância focal do motor em pixels no viewport da imagem."
+    "description": "`view` mapeia o mundo para o espaço de vista (por colunas) e `focalPixels` é a única distância focal do motor em pixels no viewport da imagem. `into`, um plano que uma vista anterior devolveu, é replanejado no lugar: seu `switched` e seus cartões são reutilizados, de modo que um runtime que planeja cada imagem não aloca nada depois que sua contagem de cartões se estabiliza."
   },
   "validateImpostorSection": {
     "summary": "Um motivo breve pelo qual a seção não pode ser usada, ou `null`.",

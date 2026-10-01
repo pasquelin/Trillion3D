@@ -151,7 +151,10 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       y = pivot[1],
       z = pivot[2];
     if (frustumExcludesBox(cam.planes, x - R, y - R, z - R, x + R, y + R, z + R)) continue;
-    if (card.mesh !== mesh) group = feed.group((mesh = card.mesh), card.maps, frame);
+    if (card.mesh !== mesh) {
+      group = feed.group((mesh = card.mesh), card.maps, frame);
+      last = undefined;
+    }
     if (!group) {
       plan.switched[card.root] = 0;
       continue;
