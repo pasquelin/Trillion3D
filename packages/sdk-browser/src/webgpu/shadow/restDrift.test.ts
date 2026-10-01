@@ -4,14 +4,14 @@
 // a real move of the camera runs them again.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { CHASE } from '../../../../sdk-core/src/scene/light-shadow/chaseSun.fixture.ts';
 import {
-  VIEW,
   planFrame,
   sunScene,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowViewpoint } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import { FRESH_LAYER_PASS } from '../../stage/passLabels.ts';
-import { frame } from './freshPass.fixture.ts';
+import { frame, passLabels, withStaticLayer } from './freshPass.fixture.ts';
 
 test('a camera easing by less than a float32 step runs no static layer pass; a real move does', () => {
   const { store, plan } = sunScene(),
@@ -19,18 +19,17 @@ test('a camera easing by less than a float32 step runs no static layer pass; a r
     { lights, encode } = frame(calls);
   plan.gpu.set(true, 0);
   lights.plan.gpu = plan.gpu as unknown as typeof lights.plan.gpu;
-  const freshPasses = [0, 1].map(() => ({ label: FRESH_LAYER_PASS }));
-  lights.staticLayer = { passes: [{}, {}], freshPasses, groups: ['layer 0', 'layer 1'] };
+  withStaticLayer(lights);
   // The chase camera's ease, `position.lerp(eye, 1 - exp(-5 delta))`, 2e-11 m off its eye.
-  const eye = [0, 2.4, 7.5],
-    at = [eye[0], eye[1], eye[2] + 2e-11];
-  const view = (): ShadowViewpoint => ({ ...VIEW, position: [at[0], at[1], at[2]] });
+  const eye = CHASE.position,
+    at: [number, number, number] = [eye[0], eye[1], eye[2] + 2e-11];
+  const view = (): ShadowViewpoint => ({ ...CHASE, position: [...at] });
   const passes = (frameAt: number) => {
     calls.length = 0;
     planFrame(plan, store, frameAt, view());
     plan.commit();
     encode();
-    return calls.filter((call) => call[0] === 'pass').map((call) => call[1]);
+    return passLabels(calls);
   };
   passes(1);
   for (let f = 2; f < 122; f++) {
