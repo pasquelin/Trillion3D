@@ -17,27 +17,35 @@ coarser levels stand in for pages not drawn yet: a frame asks for at most
 3840 × 2160, never what the pool holds. A real frame reads far less — a one-cube scene a few
 hundred pages at 3456 × 2234 —, so the pool holds what the latest report asked, twice — the report
 being read and the next — and a quarter more (`demandPoolPages`), in the fewest square layers the
-device's texture side holds (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`). A lamp face's finest
-mip is 32 × 32 pages (`lampFaceSize`).
+device's texture side holds (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`). Before any report,
+the first frame that casts is granted the budget's whole pool, as Unreal allocates its physical
+pages up front from a setting (`r.Shadow.Virtual.MaxPhysicalPages`): no first frame reads a coarser
+level for want of pages. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
 
-| Case                                                                            | Pages                        | Pool                                                                                                                                                        |
-| ------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| first frame, before any report                                                  | the seed (`SEED_POOL_PAGES`) | 16 × 16 = 256 pages, a 2 048² depth texture of 16 MiB                                                                                                       |
-| a frame that asks 300 pages                                                     | 750 held                     | 28 × 28 = 784 pages, 49 MiB; as much again for the static layer once something moves; half as much for the transmittance layer once a blended surface casts |
-| a frame that asks 2 000 pages                                                   | 5 000 held                   | two layers of 51² (5 202 pages, 325 MiB) on a device 8 192 texels wide                                                                                      |
-| the cap, the grant's atlas share (`SHADOW_ATLAS_BYTES`, one sun at 3840 × 2160) | —                            | two layers of 53², 5 618 pages, 351 MiB                                                                                                                     |
+| Case                                                                            | Pages                               | Pool                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| first frame, before any report                                                  | the budget's (`SHADOW_ATLAS_BYTES`) | two layers of 53², 5 618 pages, 351 MiB, until the first report; no static layer yet                                                                        |
+| a frame that asks 300 pages                                                     | 750 held                            | 28 × 28 = 784 pages, 49 MiB; as much again for the static layer once something moves; half as much for the transmittance layer once a blended surface casts |
+| a frame that asks 2 000 pages                                                   | 5 000 held                          | two layers of 51² (5 202 pages, 325 MiB) on a device 8 192 texels wide                                                                                      |
+| the cap, the grant's atlas share (`SHADOW_ATLAS_BYTES`, one sun at 3840 × 2160) | —                                   | two layers of 53², 5 618 pages, 351 MiB                                                                                                                     |
 
-The first frame a light casts grants the seed. After each report the pool follows the demand
-(`webgpu/shadow/poolResize.ts`, #1208, #1345): a report that asks more than half the pool — the
-two reports it holds would not fit — grows it; one that asks for a pool at most half as large,
-sixty reports in a row (`SHRINK_REPORTS`), shrinks it to the most they asked. A resize is by the
+The first frame a light casts grants the budget's pool, and its first report sizes it to what it
+asked; the static layer waits for that size (`shadowPoolSized`), the pages drawn whole meanwhile.
+After each report the pool follows the demand (`webgpu/shadow/poolResize.ts`, #1208, #1345): a
+report that asks more than half the pool — the two reports it holds would not fit — grows it; one
+that asks for a pool at most half as large shrinks it to the most they asked, sixty reports in a
+row (`SHRINK_REPORTS`) while anything moves, at once in a scene at rest — a still view whose report
+asks as many pages as the one before: it asks what it keeps asking, and sends no report once its
+image holds. A resize is by the
 same rule and grant, the frame held while the device answers: every page that
 fits keeps its entry, state and depth, copied texel for texel with its transmittance
 (`gpu/shadow/pageMoves.ts`), since reads are texel-exact (#831), so nothing is drawn again; a
 smaller pool keeps the pages it would evict last, every floor first. The batch capacity and request
 list follow the pool; the static layer is rebuilt at the new size by the next move. A refused
 resize keeps the pool, said under `gpu-out-of-memory`, and is not asked again until the demand asks
-another size. A demand past the cap is held there, said `ceiling` in the `shadow-pool` diagnostic. What the pool cannot hold is refused at
+another size. A demand past the cap is held there, said `ceiling` in the `shadow-pool` diagnostic,
+and once as a warning when the next report still asks past it, as Unreal warns of a physical page
+pool overflow (`sayShadowCeiling`). What the pool cannot hold is refused at
 allocation, published as memory (`shadowPagesOverflow`, #542) and read at the coarser level; pages
 are evicted least recently read first. Held at the ceiling under a still view, the GPU evicts none
 the view asked since it rested (`shadowKeptFrom`, the host's still cycle of #26): the jitter phases
@@ -48,7 +56,10 @@ image rests (`ceilingHold.test.ts`).
 
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest
 range a light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`). The GPU total's shadow share counts it with the pool
+(`SHADOW_TABLE_ENTRIES`), allocated up front at the session's window, as Unreal allocates its page
+table and budgets only the physical page pool: a light added at any time finds its window held,
+its shadow in its first frame (`shadowTable.test.ts`). The GPU total's shadow share counts it with
+the pool
 (`SHADOW_POOL_BYTES`, 902 MiB); less the batches' 5.2 MiB reserve, that share is the shadows' one
 grant (`SHADOW_GRANT_BYTES`, 896 MiB: the largest pool, its static layer, its transmittance layer,
 the table and the page requests, `webgpu/shadow/memoryGrant.ts`). A late allocation — static or
@@ -263,16 +274,26 @@ show a net gain beyond run spread, transition frames included.
 
 **Moving casters by group** (#1345, `webgpu/shadow/movingGroups.ts`). A restored page drew its
 moving casters in one draw of its own, in its page's viewport: 250 draws a frame for 35 turning
-antennas. The restored sun pages of one pass, in one block of the layer — a square of the layer's
-largest power of two of texels, at its start or its end on each axis, which holds every page — and
-with lists of one kind (the cull's, or the occlusion test's), are one group once two share it:
-after the cull and the occlusion test, a compute pass files each page's kept casters into its
-group's list and counts them into its two indirect commands, and the pass draws each group's
-opaque casters, then its cutout ones, in one instanced draw each. Each corner is carried from its
-page's viewport to the block's (`groupPlace`, `gpu/shadow/groupWgsl.ts`): the snapped sun corner
-and the power-of-two block make the rasterizer's f32 window position the one the page's own
-viewport gave, to the bit (`groupPlace.test.ts`), and the fragment keeps its page's texels alone.
-A lamp's perspective page, and a page alone in its block, keep their own draw.
+antennas. Unreal's virtual shadow maps draw all the pages of a light in one pass; so here every
+restored page of one pass whose lists are of one kind (the cull's, or the occlusion test's) is in
+a group: a sun page by its block of the layer — a square of the layer's largest power of two of
+texels, at its start or its end on each axis, which holds every page —, alone in it or not; a lamp
+page by its layer. After the cull and the occlusion test, a compute pass files each page's kept
+casters into its group's list and counts them into its two indirect commands, and the pass draws each group's opaque
+casters, then its cutout ones, in one instanced draw each; the transmittance layer's pass draws each
+group's blended casters, depth only then colour only, at half (`movingGroupDraws.ts`). A sun corner
+is carried from its page's viewport to the block's (`groupPlace`, `gpu/shadow/groupWgsl.ts`): the
+snapped sun corner and the power-of-two block make the rasterizer's f32 window position the one the
+page's own viewport gave, to the bit, at the pool's resolution and at half (`groupPlace.test.ts`).
+A lamp corner is carried onto its page's square of the layer in clip space by the GPU pages'
+`freshPlace` (`x·s + o·w`), each caster clipped to its page by four clip distances
+where the device has `clip-distances` — which only spares the overdraw: without them the fragment's
+`pageHolds` discards past the page all the same, and lamp pages are grouped on every device. After
+the f32 divide by `w`, its window position lies within one ulp of the one its page's viewport gave
+(one texel edge at most, `groupPlace.test.ts`) — class 2, against `develop`'s lamp shadows. The
+fragment keeps its page's texels alone, off a lamp's emitter envelope. Only a group whose pages keep
+a blended caster draws into the transmittance layer: the compute pass stretches the group's blended
+command over those pages' casters, and leaves it at no instance for a group of opaque casters alone.
 
 Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
 occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its

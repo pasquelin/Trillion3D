@@ -9,8 +9,9 @@ import { SHRINK_REPORTS } from './poolShrink.ts';
  * a few hundred pages whatever the display; a screen of foliage asks thousands.
  */
 
-/** The pool the first frame asks, before any report says what the scene reads: 16 × 16 pages, one
- *  2 048² texture. The first report sizes it (`demandPoolPages`). */
+/** The host plan's pool before any grant — 16 × 16 pages —, and the least the demand sizes it to.
+ *  The first grant is the budget's whole pool, as Unreal's `r.Shadow.Virtual.MaxPhysicalPages`
+ *  allocates it up front (`webgpu/shadow/poolSize.ts`), and the first report sizes it. */
 const SEED_POOL_PAGES = 256;
 /** Pages a side of the seed pool. */
 export const SEED_POOL_SIDE = shadowPoolShape(SEED_POOL_PAGES).side;
@@ -21,7 +22,7 @@ const HEADROOM = 1.25;
 
 /** Pages the latest report read asked for: those of the pool it named, those it found no page for
  *  and those past its list. Nothing before any report. */
-export function askedPages(plan: ShadowPlan) {
+function askedPages(plan: ShadowPlan) {
   const { pool, requests } = plan,
     latest = requests.latest;
   if (latest < 0) return 0;
@@ -33,22 +34,33 @@ export function askedPages(plan: ShadowPlan) {
 
 /** The pool pages for a frame that asks `asked` pages: the two reports it holds, with headroom;
  *  never below the seed. */
-export const demandPoolPages = (asked: number) =>
+const demandPoolPages = (asked: number) =>
   Math.max(SEED_POOL_PAGES, Math.ceil(2 * HEADROOM * asked));
 
-/** What the pool follows between reports: the last report weighed, how many in a row asked for a
- *  pool half as large, the most they asked, and whether the last one asked more than the pool
- *  holds (`over`). */
-export const createPoolDemand = () => ({ latest: -1, low: 0, peak: 0, over: false });
+/** What the pool follows between reports: the last report weighed and the pages it asked, how
+ *  many in a row asked for a pool half as large, the most they asked, whether the last one asked
+ *  more than the pool holds (`over`), and whether a report sized the pool yet (`sized`). */
+export const createPoolDemand = () => ({
+  latest: -1,
+  read: -1,
+  low: 0,
+  peak: 0,
+  over: false,
+  sized: false,
+});
 export type PoolDemand = ReturnType<typeof createPoolDemand>;
 
 /**
  * The pages the pool of `plan` is resized to after its latest report, or `undefined` to keep it.
- * It grows as soon as a report asks more than half of it — the two reports it holds would not fit
- * —, and shrinks once `SHRINK_REPORTS` reports in a row asked for a pool at most half as large, to
- * the most they asked. Each report is weighed once.
+ * The first report sizes the pool granted before it — the budget's, no demand yet — to what it
+ * asked. Then it grows as soon as a report asks more than half of it — the two reports it holds
+ * would not fit —, and shrinks once `SHRINK_REPORTS` reports in a row asked for a pool at most half
+ * as large, to the most they asked; or at once under a view at rest (`resting`) whose report asks
+ * as many pages as the one before — a scene at rest, which asks what it will keep asking and sends
+ * no report once its image holds; a moving world under a still camera asks more, then fewer. Each
+ * report is weighed once.
  */
-export function followDemand(plan: ShadowPlan, demand: PoolDemand) {
+export function followDemand(plan: ShadowPlan, demand: PoolDemand, resting = false) {
   const latest = plan.requests.latest;
   if (latest < 0 || latest === demand.latest) return undefined;
   demand.latest = latest;
@@ -56,6 +68,13 @@ export function followDemand(plan: ShadowPlan, demand: PoolDemand) {
     pages = plan.pool.pages,
     wanted = demandPoolPages(asked);
   demand.over = 2 * asked > pages;
+  const quiet = resting && asked === demand.read;
+  demand.read = asked;
+  if (!demand.sized || (quiet && 2 * wanted <= pages)) {
+    demand.sized = true;
+    demand.low = demand.peak = 0;
+    return wanted;
+  }
   if (demand.over || 2 * wanted > pages) {
     demand.low = demand.peak = 0;
     return demand.over ? wanted : undefined;
