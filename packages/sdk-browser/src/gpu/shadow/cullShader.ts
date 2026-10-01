@@ -47,8 +47,8 @@ export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return
 fn keptCorners(region:u32,cutout:bool)->u32{return keptCount(region,cutout)-1u;}
 fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** A region's volume and the test of a caster's sphere against it: every cull's
- *  (\`../../webgpu/shadow/freshCullWgsl.ts\` too). A GPU page's \`texel\` is its texels per metre,
- *  a lamp page's its focal in texels (#831); the host's regions leave it unread. */
+ *  (\`../../webgpu/shadow/freshCullWgsl.ts\` too). A sun page's \`texel\` is its texels per metre,
+ *  a GPU lamp page's its focal in texels (#831); a host lamp region leaves it unread. */
 export const SHADOW_VOLUME_WGSL = `struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,texel:f32,pad2:u32,}
 /** Whether a caster's world sphere touches a region's volume: the cone of a lamp page within its
@@ -75,7 +75,11 @@ fn sphereTouches(volume:Face,sphere:Sphere)->bool{
   }
  }
  return true;
-}`;
+}
+/** Whether a moving caster's sphere is under a texel of a sun page: it is drawn into no page of that
+ *  level, and its moves stale none (\`pageRects.ts\`), as the reference engine culls a caster too small for a
+ *  clipmap level's texels (#831). A static caster is always drawn: the static layer keeps it. */
+fn underTexel(volume:Face,sphere:Sphere)->bool{return volume.halfAngle<0.0&&2.0*sphere.radius*volume.texel<1.0;}`;
 
 /** What both entries share: the spheres and mobility words they test, the kept lists they fill,
  *  and the test itself — one caster row against one region. Each declares the volumes itself.
@@ -105,6 +109,7 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
  if(volume.casters!=${CASTERS_ALL}u&&((word&${MOBILITY_MOVING}u)!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
  atomicAdd(&tested,1u);
  if(!sphereTouches(volume,spheres[row])){return;}
+ if((word&${MOBILITY_MOVING}u)!=0u&&underTexel(volume,spheres[row])){return;}
  let cutout=(word&${MOBILITY_CUTOUT}u)!=0u;
  kept[keptAt(face,atomicAdd(&indirect[keptCount(face,cutout)],1u),capacity,cutout)]=row;
  let corners=word>>${MOBILITY_CORNER_SHIFT}u;

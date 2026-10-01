@@ -12,8 +12,8 @@ import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShad
 import { OUT_FLAGS } from '../../gpu/dag/layout.ts';
 import { WORK_DROPPED } from '../../gpu/dag/shader/viewsWgsl.ts';
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts';
-import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
-import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
+import { castAt, floorCasterBackend } from './floorCaster.fixture.ts';
 import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
 
 /** What a frame's shadow pass drew. */
@@ -64,7 +64,7 @@ async function floorAndCaster(light: SceneLight = SUN, placements?: PlacementRow
       culls: gpu.computes.slice(computes).filter((entry) => CULLS.has(entry)).length,
     };
   };
-  const move = (x: number) => () => backend.setTransform!('caster', along(x));
+  const move = (x: number) => () => backend.setTransform!('caster', castAt(x));
   /** The caster's first moves, by `to`: the static layer is made, and the pages it crossed drawn
    *  whole. */
   const warmUp = async (to = move) => {
@@ -120,7 +120,7 @@ test('hiding a moving caster redraws its pages from the static layer; hiding the
 
 test('a caster removed and put back redraws its pages from the static layer alone', async () => {
   const rows = createPlacementRows(1);
-  rows.matrices.set(along(0));
+  rows.matrices.set(castAt(0));
   rows.live[0] = 1;
   const run = await floorAndCaster(SUN, rows);
   const { backend, frame, warmUp } = run;
@@ -129,7 +129,7 @@ test('a caster removed and put back redraws its pages from the static layer alon
     act();
     backend.updatePlacements!(rows, 0, 0);
   };
-  const place = (x: number) => write(() => rows.matrices.set(along(x)));
+  const place = (x: number) => write(() => rows.matrices.set(castAt(x)));
   await warmUp(place);
   restoredOnly(await frame(place(0.25)), 'its row moved');
   // Parked, as the world parks a removed mesh's row: the pages it covered are restored, the floor

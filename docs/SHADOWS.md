@@ -263,7 +263,14 @@ So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts
 `moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
 coarse level, lying between the depth texels' centres and the transmittance layer's, a sixteenth of
 a texel of slack aside — writes no texel there before or after it moves: that level's pages keep
-(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moved root whose clusters are all it draws —
+(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moving caster goes further: a sun level whose
+texel is wider than its sphere draws it into none of its pages (`underTexel`, `cullShader.ts`, the
+GPU pages' cull too), so a box of moving casters whose diagonal is under that texel stales none
+there, as the reference engine culls a caster too small for a clipmap level; a cluster's sphere spans at most the
+diagonal of a box that holds it, with a sixteenth of slack for the GPU's f32. Its shadow there would
+be under a pixel: the level is read where a texel is about a pixel's footprint
+(`moverUnderTexel.test.ts`, `underTexel.test.ts`, #831). A still caster is always drawn: the static
+layer keeps it. A moved root whose clusters are all it draws —
 every page a leaf, as a run-time primitive's — declares each cluster's box at both poses rather
 than its own box, which holds what lies between them: a ring turning in its plane stales the pages
 along it and keeps its hollow's, a gear the pages under its disc and teeth

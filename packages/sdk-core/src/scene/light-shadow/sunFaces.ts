@@ -2,6 +2,7 @@ import { composeFace, shadowOrthographic } from './math.ts';
 import { FULL_FACE, writeBoxVolume } from './volume.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { PAGES, sunPageMetres } from './pageModel.ts';
+import { SHADOW_CULL_TEXEL } from './faces.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
 const axis: [number, number, number] = [0, 0, 0];
@@ -45,6 +46,8 @@ export function writeSunSquare(
   }
   const planes = shadowOrthographic((cells * page) / 2, far);
   composeFace(matrices, matBase, eye, axis);
-  if (cull) writeBoxVolume(cull, cullBase, boxCenter, (cells * page) / 2, far / 2, FULL_FACE);
+  if (!cull) return planes;
+  writeBoxVolume(cull, cullBase, boxCenter, (cells * page) / 2, far / 2, FULL_FACE);
+  cull[cullBase + SHADOW_CULL_TEXEL] = 1 / PAGES.shadowSunTexelMetres(level);
   return planes;
 }
