@@ -1,8 +1,9 @@
 import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
-import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
+import type { ContractKey, LitPrograms } from '../../../lighting/deferred/contractVariants.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { receiverResources } from '../../visibility/receiver.ts';
+import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -23,13 +24,39 @@ export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || run.diagnostic !== 'beauty';
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
- *  with bounce too when the session wants it; a failed one is said, then or later. */
+ *  with bounce too when the session wants it; a failed one is said, then or later. The one it
+ *  starts is the one the first frame asks for (`contractKey`), read off the declared lights. */
 export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   precompile: wantsContractLighting(rt),
   bounce: rt.bounce.wanted,
+  key: contractKey(rt.lights.store, true, {}),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   unboundedReflections: rt.context.unboundedReflections === true,
 });
+
+/**
+ * The contract program a frame lights with, keyed on stable state alone, the store walked once
+ * (#1362): narrow while the scene's lights fit a tile list (#849); shadow code while a light
+ * declares a shadow and `atlas` holds one (#1249); rectangle code while a light is a rectangle
+ * (#1369). Never on a slot held this frame: a lamp that moves, a page that comes and goes, asks no
+ * other program. Written into `key`, which a frame reuses from one image to the next.
+ */
+function contractKey(
+  store: WebgpuPagesRuntime['lights']['store'],
+  atlas: boolean,
+  key: Partial<ContractKey>,
+) {
+  let caster = false,
+    rect = false;
+  for (let slot = 0; slot < store.count && !(caster && rect); slot++) {
+    caster ||= castsShadow(store, slot);
+    rect ||= store.kindOf(slot) === LIGHT_KIND.rect;
+  }
+  key.narrow = store.count <= LIGHT_SETTINGS.tileLights;
+  key.unshadowed = !atlas || !caster;
+  key.rectless = !rect;
+  return key as ContractKey;
+}
 
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
@@ -44,22 +71,6 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 const contractResources: DirectLightResources = {};
 
 /**
- * Which code the frame's resolve needs, the store walked once: shadow code when a light holds a
- * shadow slot, as the shaders read it (`params.y > -1`, #1249), rectangle code when a light is a
- * rectangle (`isRect`, #1369). Without either, the program with none of it.
- */
-function leaveOut(resources: DirectLightResources, store: WebgpuPagesRuntime['lights']['store']) {
-  let sliced = false,
-    rect = false;
-  for (let slot = 0; slot < store.count && !(sliced && rect); slot++) {
-    sliced ||= store.sliceOf(slot) > -1;
-    rect ||= store.kindOf(slot) === LIGHT_KIND.rect;
-  }
-  resources.unshadowed = !sliced;
-  resources.rectless = !rect;
-}
-
-/**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
  * it is held elsewhere, never copied or rebuilt: the pass compares what it is given to what it has
  * bound, and rebuilds its bind group only if that has changed. The object itself is reused from one
@@ -70,12 +81,13 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  // A scene of at most `tileLights` lights resolves with a light array that long (#849).
-  contractResources.narrow =
-    active && !!lights.tiles && lights.store.count <= LIGHT_SETTINGS.tileLights;
-  // No light holds a shadow slot, or none is a rectangle: the resolve without that code.
-  if (active) leaveOut(contractResources, lights.store);
-  else contractResources.unshadowed = contractResources.rectless = false;
+  // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
+  // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
+  if (active) {
+    contractKey(lights.store, !!lights.shadows, contractResources);
+    contractResources.narrow &&= !!lights.tiles;
+  } else
+    contractResources.narrow = contractResources.unshadowed = contractResources.rectless = false;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
