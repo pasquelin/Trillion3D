@@ -13,7 +13,6 @@ import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { BlendFrame } from './encodeBlend.ts';
 
 /** The floats the deferred and blend passes reread: lights, tiles in X and Y, exposure, display
  *  curve, then the eye the fog is measured from. */
@@ -23,7 +22,7 @@ const viewpoint = new Float64Array(3);
 
 /**
  * Direct lighting of an image, in order: shadow scheduling, per-tile light lists, the per-pixel
- * demand of shadow pages, the marks of the transparents `blend` prepared, and their GPU
+ * demand of shadow pages, the other receivers' marks (`receivers`, the blend runs'), and their GPU
  * allocation, depth pass into the atlas and record and table writes, then the parameters deferred
  * resolve will reread. A scene with no declared light launches neither shadows nor lists: it pays
  * nothing, and the unlit view outputs its raw albedo.
@@ -34,7 +33,7 @@ export function encodeDirectLights(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
-  blend?: BlendFrame,
+  receivers?: () => void,
 ) {
   const { lights } = rt,
     { store, tiles } = lights;
@@ -77,7 +76,7 @@ export function encodeDirectLights(
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye);
   // The plan's floors, then, per pixel, the pages the resolve will read and those the transparents
   // will, marked before any page is drawn, and mapped.
-  encodeShadowAsks(rt, device, encoder, listed, blend);
+  encodeShadowAsks(rt, encoder, listed, receivers);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.

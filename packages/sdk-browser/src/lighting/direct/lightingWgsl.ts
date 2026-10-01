@@ -8,6 +8,7 @@ import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
 import { directLightSamplingWgsl } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
+import type { ShadowRequestSlot } from './shadowRequestWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
 import { FOG_WGSL } from '../fogShader.ts';
@@ -54,13 +55,14 @@ fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileL
  * The sun shadow beyond the last clipmap level is part of it: both passes bind the resident
  * proxy and fire the same ray. The parameters are the **ranks** of the bindings, which the
  * layouts number differently, and the right to write: the two count counters of the far ray,
- * and the shadow requests — the opaque resolve asks for the pages it reads; the blend and water
- * passes read what it asked for, and keep their early depth reject.
+ * and the shadow requests — the opaque resolve asks for the pages it reads, a binding of group 0
+ * that writes the far ray's counters too; the blend and water passes read without asking and keep
+ * their early depth reject, and the blend's shadow marks ask in a group of their own (#1411).
  */
 const lightingBase = (
   proxyBinding: number,
   shadowBinding: number,
-  requestBinding: number | null,
+  requestBinding: ShadowRequestSlot,
   transmittanceBinding: number,
   pages: number,
   narrow = false,
@@ -68,8 +70,8 @@ const lightingBase = (
   rects = true,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
-${residentProxyWgsl(proxyBinding, requestBinding !== null)}
-${sunFarShadowWgsl(requestBinding !== null)}
+${residentProxyWgsl(proxyBinding, typeof requestBinding === 'number')}
+${sunFarShadowWgsl(typeof requestBinding === 'number')}
 ${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding, pages)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
@@ -149,8 +151,9 @@ export const declaredLightingWgsl = (
   shadowBinding: number,
   transmittanceBinding: number,
   pages = SUN_WINDOW,
+  request: ShadowRequestSlot = null,
 ) => `
-${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding, pages)}
+${lightingBase(proxyBinding, shadowBinding, request, transmittanceBinding, pages)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
  let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
  var slice=vec2u(TILE_NO_SLICE,directLights.count);

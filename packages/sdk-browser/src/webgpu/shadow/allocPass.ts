@@ -8,8 +8,6 @@ import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
 import { shadowKeptFrom } from './poolResize.ts';
-import { encodeBlendShadowMarks } from '../blend/marks.ts';
-import type { BlendFrame } from '../pages/render/encodeBlend.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
@@ -123,22 +121,21 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
 
 /**
  * Maps, on the GPU, every page this image asks for: the plan's floors (`encodeShadowFloors`), then,
- * when its light lists were encoded, its pixels' demand (`demandPass.ts`) and the marks of the
- * transparents `blend` prepared (`../blend/marks.ts`), right before any page is drawn. The pages it
+ * when its light lists were encoded, its pixels' demand (`demandPass.ts`) and its other receivers'
+ * marks (`receivers`: the transparents', `../blend/marks.ts`), right before any page is drawn. The pages it
  * maps, and those it mapped before and saw no draw of since, it lists: the GPU draws them in this
  * frame once the host's pages and words are in (`freshPass.ts`).
  */
 export function encodeShadowAsks(
   rt: WebgpuPagesRuntime,
-  device: GPUDevice,
   encoder: GPUCommandEncoder,
   listed: boolean,
-  blend?: BlendFrame,
+  receivers?: () => void,
 ) {
   const bound = encodeShadowFloors(rt, encoder);
   if (listed) {
     encodeShadowDemand(rt, encoder);
-    if (blend?.textured) encodeBlendShadowMarks(rt, device, encoder, blend);
+    receivers?.();
   }
   if (bound) rt.lights.allocation!.allocate(encoder, bound, 1);
 }
