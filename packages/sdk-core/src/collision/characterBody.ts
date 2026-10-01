@@ -91,10 +91,15 @@ export function createCharacterBody(settings: CharacterSettings) {
     return land(rise);
   };
 
+  /** Whether the move `(dx, dz)`, raised by a step, comes down on a floor above `start`; a
+   *  micrometre of rise is the arithmetic's, not a step. */
+  const climbs = (dx: number, dz: number) => stepOver(dx, dz) && capsule.feet[1] > start[1] + 1e-6;
+
   /**
    * A walker blocked by a wall looks for a step: a foot put a radius ahead, raised by
    * `stepHeight`, must come down on a floor above the one it left. The body then takes its own
-   * move raised and set down, perched on the edge it rolls up on the next ticks.
+   * move raised and set down, perched on the edge it rolls up on the next ticks; where that move
+   * finds no floor above (a ceiling over the step), the body keeps the pose the wall left it.
    */
   const stepUp = (dx: number, dz: number) => {
     kept.set(capsule.feet);
@@ -102,14 +107,7 @@ export function createCharacterBody(settings: CharacterSettings) {
     const length = hypot2(dx, dz);
     if (length === 0) return;
     const reach = Math.max(1, settings.capsuleRadius / length);
-    // A micrometre of rise is the arithmetic's, not a step.
-    if (
-      stepOver(dx * reach, dz * reach) &&
-      capsule.feet[1] > start[1] + 1e-6 &&
-      stepOver(dx, dz) &&
-      capsule.feet[1] > start[1] + 1e-6
-    )
-      return;
+    if (climbs(dx * reach, dz * reach) && climbs(dx, dz)) return;
     capsule.feet.set(kept.subarray(0, 3));
     velocity.set(kept.subarray(3));
   };
