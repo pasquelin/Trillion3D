@@ -15,7 +15,9 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
   try {
     const { layout } = rt,
       cache = rt.gpu.cache!;
-    const ground = layout.packedPages.find((page) => page.url === 'ground')!;
+    const ground = layout.selectionRoots
+      .flatMap((root) => root.pages)
+      .find((page) => page.url === 'ground')!;
     const before = {
       drawSlots: layout.drawSlots,
       table: layout.rows.pageTableFloats,
@@ -49,7 +51,7 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
       [before.residentPages, before.uploadedBytes],
     );
     for (let packed = 0; packed < layout.packedPages.length; packed++)
-      assert.ok(layout.rows.residentOffsetWords[packed] >= 0, layout.packedPages[packed].url);
+      assert.ok(layout.rows.residentOffsetWords[packed] >= 0, layout.recordOf(packed)!.url);
   } finally {
     session.dispose();
   }
@@ -68,7 +70,7 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
       [...setup.tracking.pageCatalogIds].filter(([, key]) => setup.tracking.pinned.has(key));
     const before = {
       drawSlots: layout.drawSlots,
-      ranks: layout.packedPages.map((_, packed) => rows.rowOfPage[packed]),
+      ranks: Array.from(rows.rowOfPage.subarray(0, layout.packedPages.length)),
       pinned: pinned(),
       poolSlots: setup.slots,
       ...cache.stats(),
@@ -98,7 +100,7 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
     // The new rows' pages found rows: none waits for one.
     assert.equal(rows.candidateOverflow, 0);
     for (let packed = 0; packed < layout.packedPages.length; packed++)
-      assert.ok(rows.residentOffsetWords[packed] >= 0, layout.packedPages[packed].url);
+      assert.ok(rows.residentOffsetWords[packed] >= 0, layout.recordOf(packed)!.url);
   } finally {
     session.dispose();
   }

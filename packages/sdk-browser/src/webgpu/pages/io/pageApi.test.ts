@@ -23,7 +23,12 @@ function runtime(instances = [7]) {
       rows: {
         touchPage: (page: number) => touched.push(page),
         // Every packed instance of the page's address: one record serves them all (#1235).
-        pageIndicesByUrl: new Map([['p', instances]]),
+        instances: {
+          each(key: string, visit: (packed: number) => void) {
+            if (key === 'p') instances.forEach((packed) => visit(packed));
+            return key === 'p';
+          },
+        },
       },
     },
     setup: {

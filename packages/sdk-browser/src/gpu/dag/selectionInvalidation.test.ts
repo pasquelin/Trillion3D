@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createGpuDagSelection } from './selection.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
+import { dagPageUrls } from './pack.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 import { primitiveWordAt } from './worlds.ts';
@@ -117,12 +118,14 @@ test('the resident mask recomputes for residency changes with an unchanged camer
         (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
       ).slice(selection.maskOffset, selection.maskOffset + dag.pageCount),
     ]
-      .flatMap((flag, id) => (flag ? [dag.pageUrls[id]] : []))
+      .flatMap((flag, id) => (flag ? [dag.pageUrlOf(id)] : []))
       .sort();
-  selection.updateResidency(Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0))));
+  selection.updateResidency(
+    Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
+  );
   selection.dispatch(uniforms);
   assert.deepEqual(
-    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrls[id]),
+    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
     ['root'],
   );
   assert.deepEqual(mask(), ['root']);
@@ -130,7 +133,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
   assert.equal(selection.peek(), null);
   selection.dispatch(uniforms);
   assert.deepEqual(
-    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrls[id]).sort(),
+    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)).sort(),
     ['leaf0', 'leaf1', 'leaf2', 'leaf3'],
   );
   assert.equal(uniformWrites(), 2);
@@ -160,7 +163,9 @@ test('readback from an older resident cut cannot restore an invalidated drawable
     residentCut: true,
   });
   assert.ok(selection);
-  selection.updateResidency(Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0))));
+  selection.updateResidency(
+    Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
+  );
   selection.dispatch(uniforms);
   selection.updateResidency(new Uint32Array(dag.pageCount).fill(1));
   release();
