@@ -68,19 +68,21 @@ const COMPOSE_ENTRIES = [
  * water pixel is the frozen backdrop itself; a pixel with no water discards, and the target keeps
  * its value. The plain composite is compiled here; compiled on the first image that asks, the one
  * routed through the display layers (`waterRoutedShader`: the tint and the added value of a
- * normal layer), the ones carrying the reactive value (`asIsShare.ts`) as a last output, and a
- * reference session's, whose mirror ray is unbounded (`waterCompositeShader`). A scene with no
- * share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
+ * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output. A scene
+ * with no share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
+ * A reference session's (`unbounded`) walk the mirror ray whole (`waterCompositeShader`).
  */
 export async function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   sunWindow?: number,
+  unbounded = false,
 ) {
+  const suffix = unbounded ? '_UNBOUNDED' : '';
   const module = await createCheckedShaderModule(
     device,
-    waterCompositeShader(sunWindow),
-    'WATER_COMPOSITE',
+    waterCompositeShader(sunWindow, unbounded),
+    `WATER_COMPOSITE${suffix}`,
   );
   const layouts = [layout, reflectionLayout(device)];
   const base = await makeFullscreenPipeline(
@@ -90,20 +92,16 @@ export async function createWaterComposites(
     COMPOSE_ENTRIES[0],
     waterCompositeTargets(false),
   );
-  // The modules by display route (low bit) and unbounded mirror (the bit above).
-  const modules: (GPUShaderModule | undefined)[] = [module];
-  const moduleAt = (filtered: boolean, unbounded: boolean) => {
-    const label = (filtered ? 'WATER_ROUTED' : 'WATER_COMPOSITE') + (unbounded ? '_UNBOUNDED' : '');
-    return (modules[+filtered + 2 * +unbounded] ??= device.createShaderModule({
-      label,
-      code: filtered
-        ? waterRoutedShader(sunWindow, unbounded)
-        : waterCompositeShader(sunWindow, unbounded),
-    }));
-  };
-  const made: (GPURenderPipeline | undefined)[] = [base];
-  const build = (filtered: boolean, share: boolean, unbounded: boolean, entryPoint: string) => {
-    const code = moduleAt(filtered, unbounded);
+  const routedLabel = `WATER_ROUTED${suffix}`;
+  let routedModule: GPUShaderModule | undefined;
+  const made: (GPURenderPipeline | undefined)[] = [base, undefined, undefined, undefined];
+  const build = (filtered: boolean, share: boolean, entryPoint: string) => {
+    const code = filtered
+      ? (routedModule ??= device.createShaderModule({
+          label: routedLabel,
+          code: waterRoutedShader(sunWindow, unbounded),
+        }))
+      : module;
     const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts;
     return device.createRenderPipeline({
       layout: device.createPipelineLayout({ bindGroupLayouts }),
@@ -117,15 +115,10 @@ export async function createWaterComposites(
       primitive: { topology: 'triangle-list' },
     });
   };
-  // The display route is the low bit, the share the one above, the unbounded mirror the third.
-  const at = (filtered: boolean, share: boolean, unbounded = false) => {
-    const entry = +filtered + 2 * +share;
-    return (made[entry + 4 * +unbounded] ??= build(
-      filtered,
-      share,
-      unbounded,
-      COMPOSE_ENTRIES[entry],
-    ));
+  // The display route is the low bit, the share the one above: 0 base, 1 routed, 2 share, 3 both.
+  const at = (filtered: boolean, share: boolean) => {
+    const slot = +filtered + 2 * +share;
+    return (made[slot] ??= build(filtered, share, COMPOSE_ENTRIES[slot]));
   };
   return { at };
 }

@@ -12,23 +12,26 @@ import { waterRoutedShader } from './routedWgsl.ts';
 
 installGpuGlobals();
 
-test('the water mirror walks the depth bounds, but in a reference session', async () => {
+test('the water mirror walks the depth bounds, but in a reference session, chosen at creation', async () => {
   const ray = (shader: string) => functionText(shader, 'resolvedReflectionRay');
-  assert.match(ray(waterCompositeShader()), /screenReflectionHiZ\(P,R\)/);
-  assert.match(ray(waterRoutedShader()), /screenReflectionHiZ\(P,R\)/);
+  assert.match(ray(waterCompositeShader()), /return boundedReflectionRay\(P,N,R\);/);
+  assert.match(ray(waterRoutedShader()), /return boundedReflectionRay\(P,N,R\);/);
   for (const shader of [waterCompositeShader(undefined, true), waterRoutedShader(undefined, true)])
     assert.match(ray(shader), /screenReflection\(P,R\)[^]*reflectedRadiance\(/);
-  const { device, renderPipelines } = fakeDevice();
-  const composites = await createWaterComposites(device, createWaterCompositeLayout(device));
   // The fake device hands each descriptor back as its pipeline.
   const label = (pipeline: GPURenderPipeline) =>
     ((pipeline as unknown as GPURenderPipelineDescriptor).fragment!.module as { label: string })
       .label;
-  assert.equal(label(composites.at(false, false)), 'WATER_COMPOSITE');
-  assert.equal(label(composites.at(false, true, true)), 'WATER_COMPOSITE_UNBOUNDED');
-  assert.equal(label(composites.at(true, false, true)), 'WATER_ROUTED_UNBOUNDED');
-  assert.equal(label(composites.at(true, false)), 'WATER_ROUTED');
-  const made = renderPipelines.length;
-  composites.at(false, true, true);
-  assert.equal(renderPipelines.length, made, 'each pipeline is made once');
+  for (const unbounded of [false, true]) {
+    const { device, renderPipelines } = fakeDevice();
+    const layout = createWaterCompositeLayout(device);
+    const composites = await createWaterComposites(device, layout, undefined, unbounded);
+    const suffix = unbounded ? '_UNBOUNDED' : '';
+    assert.equal(label(composites.at(false, false)), `WATER_COMPOSITE${suffix}`);
+    assert.equal(label(composites.at(false, true)), `WATER_COMPOSITE${suffix}`);
+    assert.equal(label(composites.at(true, false)), `WATER_ROUTED${suffix}`);
+    const made = renderPipelines.length;
+    composites.at(false, true);
+    assert.equal(renderPipelines.length, made, 'each pipeline is made once');
+  }
 });

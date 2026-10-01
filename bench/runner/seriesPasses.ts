@@ -17,9 +17,9 @@ import type { PassesGpu } from './summaryPasses.ts';
  */
 export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesGpu | null {
   if (!samples || !samples.length) return null;
-  const parPasse = new Map<string, number[]>(),
-    /** Each pass's own share (`GpuPassTiming.ownMs`): overlapping passes told apart (#1279). */
-    own = new Map<string, number[]>();
+  /** Each pass's spans and own shares (`GpuPassTiming.ownMs`): overlapping passes told apart
+   *  (#1279). */
+  const parPasse = new Map<string, { gpu: number[]; own: number[] }>();
   const blocs: Record<'visibilityMs' | 'materialsMs' | 'otherMs', number[]> = {
     visibilityMs: [],
     materialsMs: [],
@@ -29,12 +29,10 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
     if (sample.truncated) continue;
     for (const pass of sample.passes) {
       if (typeof pass.gpuMs !== 'number') continue;
-      if (!parPasse.has(pass.name)) parPasse.set(pass.name, []);
-      parPasse.get(pass.name)?.push(pass.gpuMs);
-      if (typeof pass.ownMs === 'number') {
-        if (!own.has(pass.name)) own.set(pass.name, []);
-        own.get(pass.name)?.push(pass.ownMs);
-      }
+      let values = parPasse.get(pass.name);
+      if (!values) parPasse.set(pass.name, (values = { gpu: [], own: [] }));
+      values.gpu.push(pass.gpuMs);
+      if (typeof pass.ownMs === 'number') values.own.push(pass.ownMs);
     }
     const totals = gpuPassBlockTotals(sample);
     for (const bloc of Object.keys(blocs) as (keyof typeof blocs)[])
@@ -44,11 +42,11 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
     releves: samples.length,
     blocs: Object.fromEntries(Object.entries(blocs).map(([k, v]) => [k, distribution(v)])),
     passes: [...parPasse]
-      .map(([name, values]) => ({
+      .map(([name, { gpu, own }]) => ({
         name,
         bloc: gpuPassBlockOf(name),
-        gpuMs: distribution(values),
-        ownMs: distribution(own.get(name)),
+        gpuMs: distribution(gpu),
+        ownMs: distribution(own),
       }))
       .sort((a, b) => (b.gpuMs?.p50 ?? -1) - (a.gpuMs?.p50 ?? -1)),
   };
