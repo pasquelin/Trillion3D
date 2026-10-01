@@ -123,6 +123,7 @@ function allocationLanes(...bound: Uint8Array[]) {
       asks: words[3],
       candidateBase: words[4],
       keepFrom: i32(params)[5],
+      budget: words[6],
       generation: words.subarray(8, 8 + MAX_SHADOW_SLICES),
       entries: words.subarray(ALLOC_PARAM_WORDS),
     },

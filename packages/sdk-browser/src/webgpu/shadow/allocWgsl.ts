@@ -11,8 +11,8 @@ import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
 import { ALLOC_LANES } from './allocLanes.ts';
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
- *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
- *  generation. */
+ *  candidates' keys start, the first frame whose asks no need evicts, the pages a frame maps at
+ *  most, then each slice's generation. */
 export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
 
 /**
@@ -42,7 +42,9 @@ export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
  * 5. Both lists sorted (`sortStep`, bitonic), then `assignPages`: need `i` takes candidate `i` —
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
- *    past the candidates is refused: every page is one this frame asks for.
+ *    past the candidates is refused: every page is one this frame asks for. A need past the
+ *    frame's page budget (`budget`, `SHADOW_PAGES_PER_FRAME`) is not refused: it stays unmapped,
+ *    reads the coarser page, and is a need again the next frame, the coarsest first (#831).
  *
  * Sorted, the order is the atomics' no more: the same frame maps the same pages. The window is the
  * session's (`referenceMode.ts`), the ordinary constant by default.
@@ -53,7 +55,7 @@ ${SHADOW_DATA_WGSL}
 ${shadowRequestWgsl(1, pages)}
 @group(0) @binding(2) var<storage,read_write> shadowPool:ShadowPool;
 @group(0) @binding(3) var<storage,read_write> keys:array<u32>;
-struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,keepFrom:i32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
+struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,keepFrom:i32,budget:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
 @group(0) @binding(4) var<storage,read> params:ShadowAllocParams;
 @group(0) @binding(5) var<storage,read_write> drawList:array<u32>;
 ${pageModelWgsl(pages)}
@@ -146,6 +148,7 @@ fn sortStep(lane:u32,base:u32,span:u32,k:u32,j:u32){
 fn assignPages(lane:u32,needs:u32,candidates:u32){
  for(var i=lane;i<needs;i+=ALLOC_LANES){
   if(i>=candidates){countOne(COUNT_REFUSED);continue;}
+  if(i>=params.budget){continue;}
   let e=keys[i]&ENTRY_MASK;let p=keys[params.candidateBase+i]&PAGE_INDEX_MASK;
   let lost=shadowPool.pages[poolAt(POOL_OWNER,p)];
   if(lost>=0){shadows.table[u32(lost)]=0u;}
