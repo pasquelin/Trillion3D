@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { geometry } from './index.ts';
-import { drawnTriangles } from './drawn.ts';
+import { drawnTriangles, readList } from './drawn.ts';
 import { BufferAttribute } from '../buffer/index.ts';
+import { Geometry } from './geometry.ts';
+import { pendingAttribute } from '../buffer/attribute.ts';
 
 /** The corners of a drawn quad, four per segment: `a` twice, then `b` twice. */
 function corners(drawn: NonNullable<ReturnType<typeof drawnTriangles>>, quad: number) {
@@ -12,6 +14,11 @@ function corners(drawn: NonNullable<ReturnType<typeof drawnTriangles>>, quad: nu
     n: at(quad * 4 + k, drawn.normals),
   }));
 }
+
+const attr = (values: number[], width: number) =>
+  new BufferAttribute(new Float32Array(values), width);
+
+const position = (values: number[]) => new BufferAttribute(new Float32Array(values), 3);
 
 // #348: a segment is two triangles whose corners all sit on its endpoints, the direction in the
 // normal signed by side — the rasters widen it on screen. It was a closed prism of twelve
@@ -86,4 +93,86 @@ test('a dashed line carries the distance along the line; a solid one is unchange
   }
   const faces = drawnTriangles(geometry.box(1, 1, 1), 'triangles', { dashed: true })!;
   assert.deepEqual(faces, drawnTriangles(geometry.box(1, 1, 1), 'triangles'), 'faces stay faces');
+});
+
+test('drawn triangles preserve attributes, pad alpha and omit incomplete triangles', () => {
+  const g = new Geometry().setAttribute('position', attr([1, 2, 3, 4, 2, 3, 1, 6, 3, 7, 8, 9], 3));
+  g.setAttribute('normal', attr([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+  g.setAttribute('uv', attr([0, 0, 1, 0, 0, 1, 1, 1], 2));
+  g.setAttribute('color', attr([1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.5, 0.5], 3));
+  const drawn = drawnTriangles(g, 'triangles')!;
+  assert.deepEqual([...drawn.indices], [0, 1, 2]);
+  assert.deepEqual([...drawn.positions], [1, 2, 3, 4, 2, 3, 1, 6, 3, 7, 8, 9]);
+  assert.deepEqual([...drawn.normals], [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]);
+  assert.deepEqual([...drawn.uvs!], [0, 0, 1, 0, 0, 1, 1, 1]);
+  assert.deepEqual([...drawn.colors!], [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0.5, 0.5, 0.5, 1]);
+  const out = new Float32Array(16).fill(99);
+  assert.equal(readList(g, 'color', 4, 4, out), out);
+  assert.deepEqual(out, drawn.colors);
+  assert.equal(readList(g, 'missing', 3, 4), null);
+  assert.equal(readList(g, 'normal', 3, 5), null);
+  g.setIndex([2, 0]);
+  assert.equal(drawnTriangles(g, 'triangles'), null);
+  assert.equal(drawnTriangles(new Geometry(), 'points'), null);
+  assert.equal(
+    drawnTriangles(new Geometry().setAttribute('position', attr([], 3)), 'triangles'),
+    null,
+  );
+});
+
+test('point solids preserve source deformation per original point and material size', () => {
+  const g = new Geometry().setAttribute('position', attr([1, 2, 3, 8, 9, 10], 3));
+  g.morphAttributes.position = [attr([2, 3, 4, 9, 10, 11], 3)];
+  const drawn = drawnTriangles(g, 'points', { size: 4 })!;
+  assert.equal(drawn.indices.length, 48);
+  assert.equal(drawn.positions.length, 144);
+  assert.deepEqual([...drawn.sourceVertices!], [...Array(24).fill(0), ...Array(24).fill(1)]);
+  const points = new Set<string>();
+  for (let i = 0; i < drawn.positions.length; i += 3)
+    points.add(Array.from(drawn.positions.slice(i, i + 3)).join(','));
+  assert.deepEqual(
+    points,
+    new Set([
+      '3,2,3',
+      '-1,2,3',
+      '1,4,3',
+      '1,0,3',
+      '1,2,5',
+      '1,2,1',
+      '10,9,10',
+      '6,9,10',
+      '8,11,10',
+      '8,7,10',
+      '8,9,12',
+      '8,9,8',
+    ]),
+  );
+  assert.ok([...drawn.deformation!.targets[0].positions].every((x) => x === 1));
+});
+
+test('empty pending positions draw nothing without demanding unavailable vertex storage', () => {
+  const g = new Geometry().setAttribute(
+    'position',
+    pendingAttribute(
+      {
+        length: 0,
+        type: 'Float32Array',
+        read: async () => new Float32Array(),
+      },
+      3,
+      false,
+    ),
+  );
+  for (const primitive of ['triangles', 'points', 'lineStrip', 'sprite'] as const)
+    assert.equal(drawnTriangles(g, primitive), null);
+});
+
+test('attribute extraction leaves a caller-provided tail untouched', () => {
+  const g = new Geometry().setAttribute('normal', position([1, 2, 3, 4, 5, 6]));
+  const out = new Float32Array(9).fill(99);
+  assert.equal(readList(g, 'normal', 3, 2, out), out);
+  assert.deepEqual(Array.from(out), [1, 2, 3, 4, 5, 6, 99, 99, 99]);
+  out.fill(77);
+  assert.equal(readList(g, 'normal', 3, 0, out), out);
+  assert.deepEqual(Array.from(out), Array(9).fill(77));
 });
