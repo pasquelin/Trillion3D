@@ -18,6 +18,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
 import { beginTaaFrame, restartTaaOnLanding } from '../../../taa/frame.ts';
 import { frameStart } from '../../../frame/scheduling.ts';
+import { planWebgpuImpostors } from '../../impostor/frame.ts';
+import { parkSwitchedRoots } from '../../impostor/encode.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -126,12 +128,16 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
   // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
-  if (
+  const gpuCut =
     rt.views.active === rt.views.main &&
-    run.gpuSelection?.residentCut &&
-    vis.gpuDraw &&
-    vis.visEnabled
-  ) {
+    !!run.gpuSelection?.residentCut &&
+    !!vis.gpuDraw &&
+    vis.visEnabled;
+  // The impostor plan over the roots of the cut that draws: the cards, and the roots they replace.
+  const roots = gpuCut ? rt.layout.selectionRoots : rt.setup.roots;
+  const switched = planWebgpuImpostors(rt, cam, roots);
+  if (gpuCut) {
+    parkSwitchedRoots(rt, roots, switched);
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }
