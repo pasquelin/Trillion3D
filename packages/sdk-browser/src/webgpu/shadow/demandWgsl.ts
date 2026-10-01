@@ -144,7 +144,7 @@ fn demandSlice(slice:vec2u,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footprint:f
  *
  * Every step is the shading's own: the view and the world point its resolve reconstructs
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
- * (`receiverOffset`, the lighting's, recomputed from the visibility buffer), its normal turned
+ * (`shadowReceiver`, the lighting's, recomputed from the visibility buffer), its normal turned
  * from a light behind a thin subsurface surface (`declaredLight`), its tile slice, its light gate,
  * its footprint and point unjittered (`pixelLevel`), and the page model (`pageModel.ts`) its read
  * takes the level, the map texel, the entry and the PCF's pages from. Unlike the read, the demand
@@ -188,8 +188,8 @@ ${SHADOW_DEMAND_LIGHT_WGSL}
  let at=worldAt(pixel,z);
  let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
- let P=at+receiverOffset(pixel);
- let N=shadowBiasNormal(normalize(textureLoad(normalRough,coord,0).xyz));
+ let receiver=shadowReceiver(pixel);let P=at+receiver.offset;
+ let N=shadowBiasNormal(normalize(textureLoad(normalRough,coord,0).xyz),receiver.plane);
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
  demandSlice(slice,at,P,N,thin,level.footprint);
 }`;

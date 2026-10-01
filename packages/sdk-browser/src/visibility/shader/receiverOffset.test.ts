@@ -1,5 +1,5 @@
 // #1410: the shadow receiver offset is no longer stored by the resolve beside the G-buffer; its
-// readers recompute it from the visibility buffer. This runs the shipped `receiverOffset` against
+// readers recompute it from the visibility buffer. This runs the shipped `shadowReceiver` against
 // what the resolve stored before (`shadeWgsl.ts` up to #1410, its statements kept below but the
 // line widening, whose result it never stored), on the same pages, pixels and shared routines: the
 // same operations in the same order give the same bits, here in double precision.
@@ -147,10 +147,10 @@ const HELPERS = [
   'uniteOuZero',
   'shadingPointOffset',
 ];
-const { receiverOffset } = shaderRun<{ receiverOffset: (pixel: V) => V }>(
+const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,
-  ['receiverOffset', ...HELPERS],
-  scope,
+  ['shadowReceiver', ...HELPERS],
+  { ...scope, ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }) },
 );
 const { storedOffset } = shaderRun<{ storedOffset: (pixel: V) => V }>(
   `${STORED_WGSL}\n${SHIPPED}`,
@@ -171,7 +171,7 @@ test('the recomputed receiver offset is the stored one, bit for bit, on every pa
         id = pixelId;
         const pixel = [x + 0.5, y + 0.5];
         const expected = storedOffset(pixel);
-        assert.deepEqual(receiverOffset(pixel), expected, `id ${pixelId} at ${pixel}`);
+        assert.deepEqual(shadowReceiver(pixel).offset, expected, `id ${pixelId} at ${pixel}`);
         if (expected.some((v) => v !== 0)) curved++;
         checked++;
       }
