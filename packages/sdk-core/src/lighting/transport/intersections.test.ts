@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Surface, Vec3 } from '../scene/experimentScene.ts';
 import { neighbours } from './intersections.fixture.ts';
-import { LIGHTING_TRANSPORT_LIMITS } from './contracts.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './limits.ts';
 import { EPSILON, SURFACE_STRIDE, intersectSurface, packSurface } from './intersections.ts';
 import { centre, cross, unit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
