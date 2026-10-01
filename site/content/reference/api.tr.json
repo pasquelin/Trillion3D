@@ -2925,7 +2925,7 @@
     "summary": "Bu motorun paketinin sürümü."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Bir ayıklama hacminin float değerleri: merkez ve uzak düzlem, yüz ekseni ve yarım açı, sonra — negatif yarım açıyla işaretlenen bir kutu için — diğer iki eksen ve yarı uzunlukları, sonra bölgenin hangi gölge düşürücüleri çizdiğini söyleyen sözcük, onları seçen ışık kesiti görünümü ve iki dolgu."
+    "summary": "Bir ayıklama hacminin float değerleri: merkez ve uzak düzlem, yüz ekseni ve yarım açı, sonra — negatif yarım açıyla işaretlenen bir kutu için — diğer iki eksen ve yarı uzunlukları, sonra bölgenin hangi gölge düşürücüleri çizdiğini söyleyen sözcük, onları seçen ışık kesiti görünümü bir güneş sayfasının metre başına texel sayısı (`underTexel`, `cullShader.ts`) ve bir dolgu."
   },
   "SHADOW_PAGE": {
     "summary": "Bir gölge sayfasının kenarı, texel olarak: havuzun, sanal haritaların ve geçersiz kılmanın birimi."

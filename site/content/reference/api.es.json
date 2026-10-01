@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` restablece la nuestra: ninguna sesión la hereda."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Flotantes de un volumen de descarte: centro y plano lejano, eje de la cara y medio ángulo, luego — para una caja, marcada por un medio ángulo negativo — los otros dos ejes con sus semiextensiones, luego la palabra que dice qué proyectores dibuja la región, la vista del corte de luz que los eligió, y dos de relleno."
+    "summary": "Flotantes de un volumen de descarte: centro y plano lejano, eje de la cara y medio ángulo, luego — para una caja, marcada por un medio ángulo negativo — los otros dos ejes con sus semiextensiones, luego la palabra que dice qué proyectores dibuja la región, la vista del corte de luz que los eligió, los téxeles por metro de una página del sol (`underTexel`, `cullShader.ts`), y uno de relleno."
   },
   "SHADOW_PAGE": {
     "summary": "Lado de una página de sombra, en téxeles: la unidad del pool, de los mapas virtuales y de la invalidación."
