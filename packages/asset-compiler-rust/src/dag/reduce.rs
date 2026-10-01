@@ -29,11 +29,11 @@
 //! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
 //! its top kept its underside there, on the top's and the edges' normals (#484). One driver runs
 //! these retries for the endpoint and the solved reductions alike (`retries.rs`).
+use super::stopped::Stop;
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
 use retries::{with_lock_retries, Endpoint};
-use super::stopped::Stop;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
