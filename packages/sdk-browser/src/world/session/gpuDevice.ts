@@ -4,9 +4,10 @@ import { BLOCK_FEATURES } from '../../texture/blockFormats.ts';
 /**
  * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
  * timestamps, subgroups (the light tiles' depth bounds), 16-bit shader floats, depth clipping
- * control (the shadow pool's sun casters, #26), and the block-compressed texture formats the cache
- * bakes. A kernel that uses one branches on the device's own `features` and keeps its plain path
- * as the fallback when it is absent; the session publishes what the device got
+ * control (the shadow pool's sun casters, #26), clip distances (they spare a lamp's moving group
+ * the overdraw past its page, #1345), and the block-compressed texture formats the cache bakes. A
+ * kernel that uses one branches on the device's own `features` and keeps its plain path as the
+ * fallback when it is absent; the session publishes what the device got
  * (`grantedGpuFeatures`), never guesses it.
  */
 const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
@@ -15,6 +16,7 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   'subgroups',
   'shader-f16',
   'depth-clip-control',
+  'clip-distances',
   ...Object.values(BLOCK_FEATURES),
 ];
 

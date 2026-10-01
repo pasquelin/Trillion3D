@@ -18,19 +18,22 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/tileTexture.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 
+/** `each` of the live textures, summed per lane. The white fill (slot 0) never opens a lane: it
+ *  counts only in one a map opens, read from the white stand-in otherwise (`lanes.ts`), so no
+ *  layer is allocated before the first map. */
+const perLane = (textures: readonly TileTexture[], each: (texture: TileTexture) => number) => {
+  const counts = laneCounts(),
+    [fill] = textures;
+  for (let slot = 1; slot < textures.length; slot++)
+    if (!textures[slot].retired) counts[textures[slot].lane] += each(textures[slot]);
+  if (fill && counts[fill.lane]) counts[fill.lane] += each(fill);
+  return counts;
+};
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
-export const laneDemand = (textures: readonly TileTexture[]) => {
-  const demand = laneCounts();
-  for (const texture of textures)
-    if (!texture.retired) demand[texture.lane] += 1 + texture.layout.entries;
-  return demand;
-};
+export const laneDemand = (textures: readonly TileTexture[]) =>
+  perLane(textures, (texture) => 1 + texture.layout.entries);
 /** Textures per lane: the tails the pool keeps resident whole, one tile each. */
-export const laneTails = (textures: readonly TileTexture[]) => {
-  const tails = laneCounts();
-  for (const texture of textures) if (!texture.retired) tails[texture.lane]++;
-  return tails;
-};
+export const laneTails = (textures: readonly TileTexture[]) => perLane(textures, () => 1);
 
 /** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
 export const catalogueReport = (textures: readonly TileTexture[]) => ({

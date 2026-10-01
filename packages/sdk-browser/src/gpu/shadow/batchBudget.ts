@@ -58,10 +58,15 @@ export const emptyRegionCommands = (regions: number) =>
 /** Words of a moving group's entry in the group table (`groupWgsl.ts`): the first word of its
  *  pairs, the end of them, its block and whether its lists are the occlusion test's. The table: a
  *  word per region — its group plus one, 0 when drawn alone —, every group's entry, then the rows
- *  a region's lists hold (`GROUP_CAPACITY_WORD`). A batch holds a group per region at most. */
+ *  a region's lists hold (`GROUP_CAPACITY_WORD`), then the first blended caster's row
+ *  (`GROUP_BLEND_FIRST_WORD`). A batch holds a group per region at most. */
 export const GROUP_WORDS = 3,
   GROUP_CAPACITY_WORD = MAX_SHADOW_REGIONS * (1 + GROUP_WORDS),
-  GROUP_TABLE_WORDS = GROUP_CAPACITY_WORD + 1;
+  GROUP_BLEND_FIRST_WORD = GROUP_CAPACITY_WORD + 1,
+  GROUP_TABLE_WORDS = GROUP_CAPACITY_WORD + 2;
+/** The word of the moving groups' commands where each group's blended command starts, after
+ *  their opaque and cutout ones: one command a group (`SHADOW_GROUP_PAIRS_WGSL`). */
+export const GROUP_BLEND_COMMANDS = MAX_SHADOW_REGIONS * REGION_WORDS;
 
 /** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
  *  word count, never a literal twin of it. */
