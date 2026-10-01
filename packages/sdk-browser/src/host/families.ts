@@ -18,6 +18,10 @@ const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load,
  * could not load keeps the frames that draw with it waiting, and is asked again (`onDemand.ts`).
  */
 export const families = {
+  /** The WebGPU renderer: the page raster and every pass it draws with (`../backend/engines.ts`). */
+  webgpu: family('WebGPU renderer', () => import('../webgpu/pages/webgpuCode.ts')),
+  /** The WebGL2 renderer, on a machine that grants no WebGPU device (`../backend/engines.ts`). */
+  webgl2: family('WebGL2 renderer', () => import('../backend/autonomous/webglCode.ts')),
   /** The physics session and its worker (`../physics/worldPhysics.ts`). */
   physics: family('physics', () => import('../physics/session.ts')),
   /** The particle steps and draws of both renderers. */

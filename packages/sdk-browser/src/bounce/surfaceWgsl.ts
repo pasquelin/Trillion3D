@@ -1,5 +1,6 @@
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 import { atlasBytes, atlasExtent } from './atlas.ts';
+import { surfaceCacheTexels } from './sizes.ts';
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
 import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
 import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './nodeWgsl.ts';
@@ -7,8 +8,7 @@ import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 
 /** Threads of a cache-pass workgroup: one texel per thread. */
 export const SURFACE_WORKGROUP = 64;
-/** Surface-cache texels: two faces per proxy triangle, at least one. */
-export const surfaceCacheTexels = (triangleCount: number) => Math.max(1, triangleCount * 2);
+export { surfaceCacheTexels } from './sizes.ts';
 /**
  * Cache bytes, the single source of truth: the pass that creates it and the binding plan
  * read the same formula. A texel holds a `vec4f` — the face's outgoing radiance and its flag —,

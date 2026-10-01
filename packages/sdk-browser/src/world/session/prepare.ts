@@ -16,6 +16,7 @@ import { primePartitions } from '../scene/partitionFrame.ts';
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { sessionFamilies } from './familyUse.ts';
+import { loadRenderers } from '../../backend/engines.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -65,6 +66,10 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
   resources.gpuDevice = gpuDevice;
   const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
+  // The renderer chosen is a chunk of its own (#1353): it loads beside the scene, and the
+  // engines are built once it has arrived, before the first frame.
+  const renderers = loadRenderers(choice.factories);
+  renderers.catch(() => undefined); // awaited below; a session failing first leaves it unheard
   const autonomous = choice.autonomous;
   // What the loader opens follows what will draw: a path that samples the host images needs
   // them read, however the host set `textureSource`.
@@ -168,6 +173,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   }
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
+  await renderers;
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,

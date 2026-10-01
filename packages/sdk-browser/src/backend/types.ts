@@ -196,5 +196,9 @@ export interface BackendContext {
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
-export type BackendFactory = (context: BackendContext) => RenderBackend;
+/** The engine's own renderer a factory starts (`engines.ts`); a witness names none. */
+export type EngineRenderer = 'webgpu' | 'webgl2';
+export type BackendFactory = ((context: BackendContext) => RenderBackend) & {
+  readonly renderer?: EngineRenderer;
+};
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';
