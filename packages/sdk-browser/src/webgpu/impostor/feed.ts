@@ -2,14 +2,9 @@ import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts';
 import { loadImpostorAtlas, type ImpostorAtlasLevels } from '../../impostor/atlas.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import { evictOldest } from '../../streaming/evictOldest.ts';
-
-/**
- * The atlas budget: the GPU bytes every resident card atlas holds together, fixed and never read
- * from the machine (CONTRIBUTING, Streaming rule 5), as the reference streams its impostor and
- * HLOD textures into a pool of fixed size. Sixty-four mebibytes hold about twenty 2048² atlases
- * of three maps with their mips: a forest's species, not one per placement.
- */
-const IMPOSTOR_ATLAS_BUDGET_BYTES = 64 * 1024 * 1024;
+import { createWebgpuTileLevels } from '../tile/levels.ts';
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
+import { deviceMade } from '../../gpu/core/errorScope.ts';
 
 /** The three maps' formats: the colour is stored sRGB, the normal, depth and ORM linear. */
 const MAP_FORMATS: Record<keyof ImpostorAtlasLevels, GPUTextureFormat> = {
@@ -17,29 +12,57 @@ const MAP_FORMATS: Record<keyof ImpostorAtlasLevels, GPUTextureFormat> = {
   normalDepth: 'rgba8unorm',
   orm: 'rgba8unorm',
 };
+const NAMES = Object.keys(MAP_FORMATS) as (keyof ImpostorAtlasLevels)[];
 
+/** An atlas whose levels the browser decoded, as every lossless level is. */
+type DecodedAtlas = Record<keyof ImpostorAtlasLevels, ImageBitmap[]>;
 type Fed = { group?: GPUBindGroup; textures: GPUTexture[]; bytes: number; drawn: number };
 
-/** GPU bytes of one map's chain: four bytes a texel at every level. */
-const chainBytes = (levels: { width: number; height: number }[]) =>
-  levels.reduce((sum, level) => sum + level.width * level.height * 4, 0);
+/** The texture of one map, its whole mip chain, as the feed allocates it. */
+const mapTexture = (maps: ImpostorMaps, name: keyof ImpostorAtlasLevels, key: string) => {
+  const [first] = maps[name].levels;
+  return {
+    label: `Trillion3D impostor ${name} ${key}`,
+    size: [first.width, first.height],
+    mipLevelCount: maps[name].levels.length,
+    format: MAP_FORMATS[name],
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.RENDER_ATTACHMENT,
+  } satisfies GPUTextureDescriptor;
+};
+
+/** GPU bytes of a mesh's atlas, its three chains, read from its maps before any level is. */
+const atlasBytes = (maps: ImpostorMaps) =>
+  NAMES.reduce((sum, name) => sum + (textureBytesOf(mapTexture(maps, name, '')) ?? 0), 0);
 
 /**
- * THE PER-MESH ATLAS FEED (#1335): each baked mesh's three maps, read through the engine's one
- * level reader and store (`impostor/atlas.ts`), copied once into three textures with their mips
- * and bound in one group (`layout`, group 1 of the card pass). A mesh is fed the first time its
- * card is planned; until its group exists, `group` answers nothing and the root keeps its
- * clusters — never a hole. Within the budget, the atlases drawn least recently leave first; one a
- * frame draws never leaves during it. `landed` is told when an atlas lands, so a held image is
- * drawn again.
+ * THE PER-MESH ATLAS FEED (#1335): each baked mesh's three maps, read through the one held-level
+ * read the tiles use (`impostor/atlas.ts`), copied once into three textures with their mips under
+ * the device's out-of-memory scope (`deviceMade`), and bound in one group (`layout`, group 1 of the
+ * card pass). Its bytes are texture memory held beside the texture pool, within the one texture
+ * budget (`textureBytesBeside`): `room` is what that budget leaves them, and the pool is drawn
+ * again without them as they change. An atlas past the room is not read; within it the
+ * atlases drawn least recently leave first, one the frame draws never. Until its group exists,
+ * `group` answers nothing and the root keeps its clusters — never a hole. `landed` is told when
+ * levels land or an atlas is made, so a held image is drawn again.
  */
 export function createImpostorFeed(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   reader: TextureLevelReader,
-  landed: () => void,
-  budgetBytes = IMPOSTOR_ATLAS_BUDGET_BYTES,
+  options: {
+    room: () => number;
+    landed: () => void;
+    onFailure: (phase: string, error: unknown) => void;
+  },
 ) {
+  const { room, landed, onFailure } = options;
+  const levels = createWebgpuTileLevels({
+    read: reader,
+    onFailure: (key, error) => onFailure(`impostor-level-read-failed ${key.sha256}`, error),
+  });
   const sampler = device.createSampler({
     label: 'Trillion3D impostor atlas',
     magFilter: 'linear',
@@ -48,7 +71,10 @@ export function createImpostorFeed(
   });
   // Keyed by mesh number as text, in recency order: a group read re-inserts its mesh.
   const fed = new Map<string, Fed>();
-  let frame = 0,
+  // Meshes whose atlas the device refused, each with the feed's bytes then: asked again only once
+  // the feed holds less.
+  const refused = new Map<string, number>();
+  let watching = false,
     closed = false;
   const drop = (key: string) => {
     const entry = fed.get(key);
@@ -57,68 +83,60 @@ export function createImpostorFeed(
     feed.bytes -= entry.bytes;
     for (const texture of entry.textures) texture.destroy();
   };
-  /** Copies the three chains into textures and binds them; refuses an atlas past the budget. */
-  const upload = (key: string, atlas: ImpostorAtlasLevels) => {
-    const entry = fed.get(key);
-    if (closed || !entry) return;
-    const names = Object.keys(MAP_FORMATS) as (keyof ImpostorAtlasLevels)[];
-    if (names.some((name) => atlas[name].some((level) => level instanceof Uint8Array))) return;
-    const levels = atlas as Record<keyof ImpostorAtlasLevels, ImageBitmap[]>;
-    const bytes = names.reduce((sum, name) => sum + chainBytes(levels[name]), 0);
+  /** Frees the room `bytes` needs, the atlases drawn least recently first; false if it cannot. */
+  const fits = (key: string, bytes: number, frame: number) => {
     evictOldest(
       fed.keys(),
-      () => feed.bytes + bytes > budgetBytes,
+      () => feed.bytes + bytes > room(),
       (other) => other === key || !fed.get(other)!.group || fed.get(other)!.drawn === frame,
       drop,
     );
-    if (feed.bytes + bytes > budgetBytes) {
-      // The atlases this frame draws fill the budget: forget the ask, so the mesh is asked again
-      // once they leave. An atlas past the whole budget stays refused: it never fits.
-      if (bytes <= budgetBytes) fed.delete(key);
-      return;
-    }
-    for (const name of names) {
-      const chain = levels[name];
-      const texture = device.createTexture({
-        label: `Trillion3D impostor ${name} ${key}`,
-        size: [chain[0].width, chain[0].height],
-        mipLevelCount: chain.length,
-        format: MAP_FORMATS[name],
-        usage:
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_DST |
-          GPUTextureUsage.RENDER_ATTACHMENT,
-      });
-      entry.textures.push(texture);
-      chain.forEach((level, mipLevel) =>
-        device.queue.copyExternalImageToTexture({ source: level }, { texture, mipLevel }, [
-          level.width,
-          level.height,
-        ]),
-      );
-    }
-    entry.bytes = bytes;
+    return feed.bytes + bytes <= room();
+  };
+  /** Copies the three chains into textures under the out-of-memory scope, then binds them. */
+  const upload = (key: string, maps: ImpostorMaps, atlas: DecodedAtlas, bytes: number) => {
+    const entry: Fed = { textures: [], bytes, drawn: -1 };
+    fed.set(key, entry);
     feed.bytes += bytes;
-    entry.group = device.createBindGroup({
-      label: `Trillion3D impostor atlas ${key}`,
-      layout,
-      entries: [
-        ...entry.textures.map((texture, binding) => ({ binding, resource: texture.createView() })),
-        { binding: 3, resource: sampler },
-      ],
+    const make = () => {
+      const textures = NAMES.map((name) => {
+        const texture = device.createTexture(mapTexture(maps, name, key));
+        atlas[name].forEach((level, mipLevel) =>
+          device.queue.copyExternalImageToTexture({ source: level }, { texture, mipLevel }, [
+            level.width,
+            level.height,
+          ]),
+        );
+        return texture;
+      });
+      return { textures, destroy: () => textures.forEach((texture) => texture.destroy()) };
+    };
+    void deviceMade(device, make).then((made) => {
+      if (closed || fed.get(key) !== entry) return made?.destroy();
+      if (!made) {
+        drop(key);
+        refused.set(key, feed.bytes);
+        return onFailure('gpu-out-of-memory', new Error(`impostor atlas ${key}: ${bytes} bytes`));
+      }
+      entry.textures = made.textures;
+      entry.group = device.createBindGroup({
+        label: `Trillion3D impostor atlas ${key}`,
+        layout,
+        entries: [
+          ...made.textures.map((texture, binding) => ({ binding, resource: texture.createView() })),
+          { binding: 3, resource: sampler },
+        ],
+      });
+      landed();
     });
-    landed();
   };
   const feed = {
-    /** GPU bytes of the resident atlases. */
+    /** GPU bytes of the atlases held, those being made included. */
     bytes: 0,
-    /** Opens the image's frame: the atlases it draws are kept until the next one. */
-    beginFrame() {
-      frame++;
-    },
-    /** The group of `mesh`'s atlas, marked drawn this frame; absent until it lands, and its read
-     *  is asked the first time. A read that fails leaves the mesh to its clusters. */
-    group(mesh: number, maps: ImpostorMaps) {
+    /** The group of `mesh`'s atlas, marked drawn at `frame`; absent until it is made, its levels
+     *  read the first frames it is asked and fits. A refused or failed read leaves the mesh to its
+     *  clusters, and is asked again; an atlas the device refused, once the feed holds less. */
+    group(mesh: number, maps: ImpostorMaps, frame: number) {
       const key = String(mesh);
       const entry = fed.get(key);
       if (entry) {
@@ -127,13 +145,30 @@ export function createImpostorFeed(
         if (entry.group) entry.drawn = frame;
         return entry.group;
       }
-      fed.set(key, { textures: [], bytes: 0, drawn: frame });
-      loadImpostorAtlas(maps, reader, (atlas) => upload(key, atlas)).catch(() => undefined);
+      // An atlas past the whole room is never read: it would not fit even alone.
+      const bytes = atlasBytes(maps);
+      if (closed || bytes > room() || feed.bytes >= (refused.get(key) ?? Infinity))
+        return undefined;
+      refused.delete(key);
+      const atlas = loadImpostorAtlas(maps, levels, frame);
+      if (atlas === 'waiting' && !watching) {
+        watching = true;
+        void levels.settled().then(() => {
+          watching = false;
+          if (!closed) landed();
+        });
+      }
+      if (typeof atlas === 'string') return undefined;
+      if (NAMES.some((name) => atlas[name].some((level) => level instanceof Uint8Array)))
+        return undefined;
+      if (!fits(key, bytes, frame)) return undefined;
+      upload(key, maps, atlas as DecodedAtlas, bytes);
       return undefined;
     },
     dispose() {
       closed = true;
       for (const key of [...fed.keys()]) drop(key);
+      levels.destroy();
     },
   };
   return feed;
