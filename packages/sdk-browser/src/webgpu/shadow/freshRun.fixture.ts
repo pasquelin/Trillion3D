@@ -14,7 +14,7 @@ import {
 } from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS, freshArgWords } from './freshLayout.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
+import { POOL_COUNTS } from './allocLayout.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { FRESH_LANES } from './freshLanes.ts';
 import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';

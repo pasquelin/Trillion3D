@@ -4,6 +4,7 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
+import { shadowTransmittanceBytes } from './sizes.ts';
 import {
   SHADOW_TRANSMITTANCE_CLEAR_PASS,
   SHADOW_TRANSMITTANCE_PASS,
@@ -31,12 +32,9 @@ import {
  * its bytes nor its pass, and its shading reads no texel of it (one-texel stand-ins are bound
  * instead).
  */
+export { shadowTransmittanceBytes } from './sizes.ts';
 export const SHADOW_TRANSMITTANCE_FORMAT: GPUTextureFormat = 'rgba8unorm';
 export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
-/** Bytes for a pool of `layers` of `poolSide` pages a side: a quarter of the pool's texels, 4
- *  bytes of transmittance and 4 of depth each. */
-export const shadowTransmittanceBytes = (poolSide: number, layers = 1) =>
-  ((poolSide * SHADOW_PAGE) / 2) ** 2 * 8 * layers;
 export const TRANSMITTANCE_CLEAR_WGSL = `vec4f(${Object.values(TRANSMITTANCE_CLEAR).join(',')})`;
 /** Two translucent casters on one texel: their transmittances multiply. */
 const MULTIPLY: GPUBlendComponent = { operation: 'add', srcFactor: 'zero', dstFactor: 'src' };

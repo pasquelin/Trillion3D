@@ -15,8 +15,7 @@ import {
   effectTargetExcess,
   splitMemoryBudget,
 } from './memoryBudget.ts';
-import { SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts';
-import { BOUNCE_PROBE_BYTES } from './shadowShares.ts';
+import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts';
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts';
 
 const [width, height] = [3840, 2160];

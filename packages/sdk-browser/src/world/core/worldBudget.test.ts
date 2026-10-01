@@ -6,7 +6,7 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
 } from '../../residency/pools.ts';
 import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts';
-import { SHADOW_BUFFER_BYTES } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_BUFFER_BYTES } from '../../gpu/shadow/sizes.ts';
 import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../../gpu/shadow/batchBudget.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import {
@@ -24,9 +24,9 @@ import { shadowPoolFor } from '../../webgpu/shadow/poolFor.ts';
 import {
   SHADOW_HOST_BYTES,
   SHADOW_POOL_BYTES,
+  BOUNCE_PROBE_BYTES,
   SHADOW_ATLAS_BYTES,
 } from '../../residency/shadowBudgetBytes.ts';
-import { BOUNCE_PROBE_BYTES } from '../../residency/shadowShares.ts';
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts';
 
 const budget = (

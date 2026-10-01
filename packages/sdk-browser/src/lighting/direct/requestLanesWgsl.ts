@@ -1,10 +1,5 @@
-import {
-  SUN_WINDOW,
-  shadowTableEntries,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-
-/** Words of one bit per table entry of a session's window. */
-export const shadowEntryBits = (pages = SUN_WINDOW) => shadowTableEntries(pages) / 32;
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowEntryBits } from '../../webgpu/shadow/allocLayout.ts';
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
  *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. */
