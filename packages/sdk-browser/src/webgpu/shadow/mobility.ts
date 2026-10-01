@@ -104,8 +104,8 @@ export function createShadowMobility() {
      * lives in the transmittance layer, which a restored page starts again from. A row `cutout`
      * says is filed with the casters drawn with the fragment test (#965); a blended caster's never
      * is: the transmittance pass reads the other list alone. `corners` is the count a row draws,
-     * what its region's command is sized by (#966). A row `coarser` says a finer resident form of
-     * its surface stands for is left out of the GPU's own page draws (#831).
+     * what its region's command is sized by (#966). A row `coarser` says — one a finer resident form of
+     * its surface stands for — is left out of the GPU's own page draws (#831).
      */
     writeRows(
       placementOf: (row: number) => number,
