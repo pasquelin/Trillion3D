@@ -3233,7 +3233,8 @@
       "groupOffsets": "Độ lệch của các bản ghi chủ sở hữu trong mỗi nhóm, bao gồm giá trị đánh dấu cuối.",
       "owners": "Bản ghi chủ sở hữu: chỉ số nút nguồn và suất phản chiếu tuyến tính được đóng gói theo RGBA8.",
       "bindWorlds": "Các ma trận thế giới ban đầu của nút nguồn, mỗi nút có mười sáu giá trị độ chính xác kép.",
-      "sourceParents": "Cấu trúc phân cấp nguồn, bao gồm các nút phân vùng mà phía chủ hiện chưa tạo thực thể."
+      "sourceParents": "Cấu trúc phân cấp nguồn, bao gồm các nút phân vùng mà phía chủ hiện chưa tạo thực thể.",
+      "sourceMeshes": "Lưới tài liệu mà mỗi nút nguồn đặt, `-1` nếu không có: thứ mà một nút ô của phân vùng vẽ."
     }
   },
   "SceneProxyDescriptor": {
