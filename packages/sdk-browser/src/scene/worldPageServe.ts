@@ -18,15 +18,19 @@ export const worldRootsPageAddress = (url: string, bundle: number, offset: numbe
 /**
  * The world clusters of a table in the cook's rank, each the fields the cut projects and its page
  * named in the binary at `url` (a super-root; an object root's is left to its own stream), and the
- * world top — the clusters nothing replaces —, the structure's roots. A cluster out of its rank is
- * refused, `WORLD_CLUSTER_RANK`, since the groups name clusters by rank.
+ * world top — the clusters nothing replaces —, the structure's roots; and each cluster's `origin`,
+ * the placed object whose own stream holds an object root's page, -1 for a super-root (the
+ * residency mirror reads it, `gpu/dag/worldMirror.ts`). A cluster out of its rank is refused,
+ * `WORLD_CLUSTER_RANK`, since the groups name clusters by rank.
  */
 export function worldRootPages(clusters: readonly WorldRootsCluster[], url: string) {
-  const roots: number[] = [];
+  const roots: number[] = [],
+    origins = new Int32Array(clusters.length);
   const pages = clusters.map((cluster, rank) => {
     if (cluster.cluster !== rank)
       throw new Error(`WORLD_CLUSTER_RANK: ${cluster.cluster} at ${rank}`);
     if (cluster.parentError === null) roots.push(rank);
+    origins[rank] = cluster.origin ?? -1;
     const {
       bundle,
       offset,
@@ -40,7 +44,7 @@ export function worldRootPages(clusters: readonly WorldRootsCluster[], url: stri
       url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
     };
   });
-  return { roots, pages };
+  return { roots, pages, origins };
 }
 
 /** The bundle and the offset inside it that a world page address names. */

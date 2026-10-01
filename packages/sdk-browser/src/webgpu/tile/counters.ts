@@ -1,6 +1,6 @@
 import type { TextureFrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
-import type { WebgpuTileLevels } from './levels.ts';
+import type { HeldLevels } from '../../texture/heldLevels.ts';
 import type { WebgpuTilePool } from './pool.ts';
 
 /**
@@ -33,7 +33,7 @@ export function createTileCounters() {
     },
     metrics(
       atlases: readonly WebgpuTileAtlas[],
-      { levels, liveBytes }: { levels?: WebgpuTileLevels; liveBytes: number },
+      { levels, liveBytes }: { levels?: HeldLevels; liveBytes: number },
       family: string,
     ) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
