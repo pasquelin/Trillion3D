@@ -5,10 +5,9 @@ import {
   noteOwnMove,
   ownsMove,
 } from '../webgpu/pages/render/movedClusters.ts';
-import { sameElements } from '../math/matrixElements.ts';
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { followPlacementRows } from './update.ts';
+import { followPlacementRows, MOVE_NONE } from './update.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
 
 /** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
@@ -47,8 +46,12 @@ export function updateWebgpuPlacements(
     to,
     flipWorld(rt),
     (rank, world, forced) => {
-      const pose = mobility.poseOf(rank);
-      if (!forced && pose && !sameElements(pose, world)) noteOwnMove(rt, rank);
+      // Weighed once: a pose that moved is noted at its last pose, then taken as a move.
+      if (!forced && mobility.poseOf(rank)) {
+        if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE;
+        noteOwnMove(rt, rank);
+        forced = true;
+      }
       return mobility.move(rank, world, forced);
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),

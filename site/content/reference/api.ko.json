@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "로드된 모델의 정점을 `await geometry.loadVertices()` 전에 읽었습니다. 세션은 처음 필요할 때 읽으며 미리 읽지 않습니다.",
       "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
-      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
+      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했거나(`PHYSICS_FAILED`), 물체의 자세나 꼭짓점이 유한하지 않게 되어 시뮬레이션을 떠났습니다(`PHYSICS_DIVERGED`): `world.physics.error`에 있습니다.",
@@ -3299,7 +3299,7 @@
       "settled": "현재 상태가 아무것도 요청하지 않음을 보고서가 증명하면 참: 이미지를 유지해도 됩니다.",
       "receive": "요청 보고서가 돌아왔습니다. GPU의 페이지 목록은 즉시 반영되고(`gpu.hear`), 나머지는 다음 계획이 읽습니다.",
       "commit": "프레임 목록의 `[from, to)` 페이지가 인코딩되었습니다. 페이지 `from + i`는 `modes[i]`로 그려지며, 누가 읽기 전에 그리기가 끝납니다. 마지막 배치가 목록을 닫습니다.",
-      "resize": "다른 크기의 풀. 페이지는 유지되고 배열은 새로 만든다. 각 페이지가 옮겨 간 곳을 반환한다.",
+      "size": "장치가 허용한 크기의 풀(`webgpu/shadow/poolSize.ts`). 페이지가 매핑되기 전에 한 번만 정해지며, 이후 크기가 바뀌지 않으므로 어떤 페이지도 자리를 옮기지 않는다(#831).",
       "sunWindow": "세션이 실행하는 태양 클립맵의 한 변당 페이지 수(`referenceMode.ts`).",
       "gpu": "GPU 할당(`mirror.ts`): GPU가 페이지를 매핑하는지, 호스트가 GPU에 무엇을 요청하는지."
     }
@@ -8023,7 +8023,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: 컴파일러가 모든 객체의 루트 위로 이어 가는 월드 DAG — 번들, 페이지, 셀이며 고정된 상단이 먼저 옵니다.",
+    "summary": "`world-roots.table`: 컴파일러가 모든 객체의 루트 위로 이어 가는 월드 DAG — 번들, 페이지, 셀이며 고정된 상단이 먼저 옵니다 —, 페이지와 셀은 레코드에서 읽습니다.",
     "members": {
       "version": "형식 버전.",
       "budgetBytes": "쿡이 고정된 상단에 허용하는 최대 바이트.",
@@ -8031,8 +8031,8 @@
       "pinnedTopBytes": "고정된 상단의 바이트.",
       "payload": "번들이 차례로 놓인 바이너리: 주소, 해시, 길이.",
       "bundles": "번들, 바이너리 순서대로.",
-      "pages": "각 페이지: 번들, 그 안의 오프셋, 레벨, 오차.",
-      "cells": "각 월드 셀: 그 셀이 담는 배치된 프리미티브."
+      "pages": "페이지: 개수, 그리고 한 페이지의 번들, 그 안의 오프셋, 레벨, 오차를 레코드에서 읽습니다.",
+      "cells": "월드 셀: 개수, 한 셀이 담은 배치된 프리미티브(레코드에서 읽음), 그리고 객체 `object`를 담은 셀 — 객체 루트의 `origin`(#1332)."
     }
   },
   "WorldRootsBundle": {
@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "한 뷰에 대해 impostor 계층을 계획한다: 메시가 베이크 항목을 가지고 전환이 성립하는 모든 루트가 카드를 내며 억제됨으로 표시된다.",
-    "description": "`view`는 월드를 뷰 공간으로 매핑하고(열 우선), `focalPixels`는 이미지 뷰포트에서 엔진의 유일한 픽셀 단위 초점 거리다."
+    "description": "`view`는 월드를 뷰 공간으로 매핑하고(열 우선), `focalPixels`는 이미지 뷰포트에서 엔진의 유일한 픽셀 단위 초점 거리다. `into`는 이전 뷰가 반환한 계획으로, 제자리에서 다시 계획됩니다. 그 `switched`와 카드가 재사용되므로, 매 이미지마다 계획하는 런타임은 카드 수가 안정되면 아무것도 할당하지 않습니다."
   },
   "validateImpostorSection": {
     "summary": "섹션을 쓸 수 없는 짧은 이유, 또는 `null`.",

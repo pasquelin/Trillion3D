@@ -125,3 +125,28 @@ test('the state follows the resident pages: none held, none kept', () => {
   assert.equal(r.hostBytes, 0, 'every page gone, every table released');
   assert.deepEqual(dense(r).open, reference(new Uint8Array(pages)).open);
 });
+
+test('the finest form: a resident cluster no ready finer group replaces, leaves when all is resident', () => {
+  const r = createCutReadiness(s, dag.culling.links);
+  const resident = new Uint8Array(pages),
+    next = random(11),
+    finest = () => Uint8Array.from({ length: pages }, (_, p) => (r.isFinest(p) ? 1 : 0));
+  for (let step = 0; step < 100; step++) {
+    const p = Math.floor(next() * pages);
+    resident[p] ^= 1;
+    r.set(p, resident[p] === 1);
+    r.settle();
+    const { ready, childReady } = reference(resident);
+    const want = Uint8Array.from({ length: pages }, (_, q) =>
+      ready[q] && (s.sources[q] < 0 || !childReady[q]) ? 1 : 0,
+    );
+    assert.deepEqual(finest(), want, `step ${step}`);
+  }
+  for (let p = 0; p < pages; p++) r.set(p, true);
+  r.settle();
+  assert.deepEqual(
+    finest(),
+    Uint8Array.from({ length: pages }, (_, p) => (s.sources[p] < 0 ? 1 : 0)),
+    'everything resident: the leaves alone, no coarser level over them',
+  );
+});

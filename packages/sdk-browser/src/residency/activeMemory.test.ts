@@ -98,13 +98,13 @@ test('invalid reservations cannot create artificial space in the global budget',
 
 test('the existing open-world cell fixture keeps its pinned top and held-cell roots beside 4K history', () => {
   const { table } = worldRootsFixture();
-  const held = new Set([0, ...table.cells[0].objects.flatMap((object) => object.dependencies)]);
+  const held = new Set([0, ...table.cells.objects(0).flatMap((object) => object.dependencies)]);
   const roots = [...held].reduce((count, bundle) => count + table.bundles[bundle].count, 0);
   const pageBytes = Math.max(...table.bundles.map((bundle) => bundle.bytes / bundle.count));
   const floor = geometryPoolFor({
     budgetBytes: 1,
     pageBytes,
-    uniquePages: table.pages.length,
+    uniquePages: table.pages.count,
     rootPages: roots,
   });
   const active = {
@@ -118,7 +118,7 @@ test('the existing open-world cell fixture keeps its pinned top and held-cell ro
   const pool = geometryPoolFor({
     budgetBytes: split.geometryPool,
     pageBytes,
-    uniquePages: table.pages.length,
+    uniquePages: table.pages.count,
     rootPages: roots,
   });
   assert.equal(roots, 3, 'world top plus both bundles required by the placed cell');

@@ -2896,8 +2896,17 @@
       "level": "error",
       "group": "Browser runtime",
       "message": "An optional family of the browser engine did not load.",
-      "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it.",
+      "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it.",
       "action": "Check that every chunk of the bundle is served beside the entry module and reachable; the engine asks the family again on its next use."
+    },
+    {
+      "id": "T3D-E091",
+      "code": "INVALID_WORLD_ROOTS",
+      "level": "error",
+      "group": "Global",
+      "message": "The world roots' table could not be written as its records.",
+      "cause": "A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](FORMAT.md#world-super-roots)).",
+      "action": "Report it as a compiler bug, with the field the message names."
     }
   ]
 }

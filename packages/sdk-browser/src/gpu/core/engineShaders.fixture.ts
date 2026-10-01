@@ -18,7 +18,7 @@ import { SHADOW_GROUP_PAIRS_WGSL } from '../shadow/groupWgsl.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { shadowDepthShader } from '../shadow/depthModule.ts';
-import { PAGE_MOVE_SHADER, PAGE_QUAD_SHADER } from '../shadow/pageWgsl.ts';
+import { PAGE_QUAD_SHADER } from '../shadow/pageWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
@@ -68,13 +68,13 @@ import {
   SHADOW_DEMAND_WGSL,
   MIP_SHADER,
 } from './shaderTexts.fixture.ts';
+import { CARD_PASS_WGSL } from '../../webgpu/impostor/cardWgsl.ts';
 
 /**
- * Every WGSL text the engine hands to `createShaderModule`, by the name of its module, each
- * variant a pass can compile under its own name: the diagnostic and water additions, the DAG's
- * external-reference screen error, each composition input. A pass that sizes its text
- * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
- * changes a constant, never a name.
+ * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
+ * pass can compile under its own name: the diagnostic and water additions, the DAG's external-
+ * reference screen error, each composition input. A pass that sizes its text (`rasterSource`,
+ * `drawShader`, `transparentOcclusionShader`) is taken at one size: its size is no name.
  */
 
 const compositions = (label: string, sources: Record<string, string>) =>
@@ -125,7 +125,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_BIN_STORED: shadowBinShader(true),
   SHADOW_DEPTH_LAMP_GROUPS: shadowDepthShader({ features: new Set(['clip-distances']) } as never),
   PAGE_QUAD_SHADER,
-  PAGE_MOVE_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
   AS_IS_SHARE_SHADER,
@@ -196,4 +195,5 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
+  CARD_PASS_WGSL,
 };

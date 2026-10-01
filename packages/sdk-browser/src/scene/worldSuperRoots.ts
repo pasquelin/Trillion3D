@@ -2,7 +2,7 @@
  * THE WORLD SUPER-ROOTS AS THE ONE CUT READS THEM (#1238).
  *
  * The cook continues the DAG above every object's roots, per cell and material, up to one world top
- * (`world-roots.json`, docs/FORMAT.md, World super-roots; #23, #1237). This module turns that world
+ * (`world-roots.dag`, docs/FORMAT.md, World super-roots; #23, #1237). This module turns that world
  * DAG into the engine's own shape — one `DagRoot` with a single `ClusterStructureIndex` and one
  * culling hierarchy — so the existing cut (`page/cut/rule.ts`, the selection shader `gpu/dag/shader/shader.ts`) draws a
  * far cell's super-roots in place of its per-instance roots when those are not resident, and draws
@@ -42,15 +42,15 @@ export type WorldRootsDagTable = {
  * to its own stream (the cut reads its residency through the structure, its page through the
  * placement). The world top — the clusters nothing replaces — are the structure's roots, as a
  * primitive's root cover is, so the pinned top is the cut's fallback and the cell super-roots are
- * its middle levels.
+ * its middle levels. `origins` names, per rank, the placed object an object root mirrors.
  */
 export function worldRootDag(
   table: WorldRootsDagTable,
   pagesOf: typeof worldRootPages,
-): DagRoot | undefined {
+): (DagRoot & { origins: Int32Array }) | undefined {
   const { clusters, groups } = table;
   if (!clusters?.length || !groups?.length) return undefined;
-  const { roots, pages } = pagesOf(clusters, table.payload?.url || WORLD_ROOTS_BIN);
+  const { roots, pages, origins } = pagesOf(clusters, table.payload?.url || WORLD_ROOTS_BIN);
   const structure = structureIndex({ version: 1, roots, groups }, pages.length);
   return {
     world: IDENTITY_WORLD,
@@ -58,5 +58,7 @@ export function worldRootDag(
     structure,
     // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
     culling: flatHierarchy(pages),
+    // Each object root's placed object, which its residency mirrors (`gpu/dag/worldMirror.ts`).
+    origins,
   };
 }

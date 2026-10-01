@@ -1004,7 +1004,7 @@
       "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
-      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
+      "FAMILY_LOAD_FAILED": "Sebuah keluarga opsional mesin (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) tidak termuat, setelah impornya dicoba ulang lebih dulu (`T3D-E090`): `details.family` menamainya, pada `world.diagnostic.error`. Bingkai yang menggambar dengannya menunggunya, dan ia diminta lagi pada penggunaan berikutnya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
@@ -3383,7 +3383,7 @@
       "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
       "receive": "Sebuah laporan permintaan kembali: daftar halaman GPU langsung dihitung (`gpu.hear`), sisanya dibaca rencana berikutnya.",
       "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar.",
-      "resize": "Pool dengan ukuran lain, halamannya dipertahankan, lariknya dibuat baru: mengembalikan ke mana setiap halaman pindah.",
+      "size": "Pool dengan ukuran yang diberikan perangkat (`webgpu/shadow/poolSize.ts`), sekali, sebelum halaman mana pun dipetakan: ukurannya tidak pernah diubah sesudahnya, jadi tidak ada halaman yang berpindah tempat (#831).",
       "sunWindow": "Halaman per sisi clipmap matahari yang dijalankan sebuah sesi (`referenceMode.ts`).",
       "gpu": "Alokasi GPU (`mirror.ts`): apakah GPU memetakan halaman, dan apa yang diminta host darinya."
     }
@@ -8024,7 +8024,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu.",
+    "summary": "`world-roots.table`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu —, halaman dan selnya dibaca dari rekamannya.",
     "members": {
       "version": "Versi format.",
       "budgetBytes": "Byte terbanyak yang diizinkan proses masak untuk puncak yang disematkan.",
@@ -8032,8 +8032,8 @@
       "pinnedTopBytes": "Byte puncak yang disematkan.",
       "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
       "bundles": "Bundel, menurut urutan biner.",
-      "pages": "Setiap halaman: bundelnya, offset di dalamnya, levelnya, dan galatnya.",
-      "cells": "Setiap sel dunia: primitif tertempatkan yang dipegangnya."
+      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, levelnya, dan galatnya, dibaca dari rekamannya.",
+      "cells": "Sel dunia: berapa banyak, primitif terpasang yang dimuat satu sel, dibaca pada rekamannya, dan sel yang memuat objek `object` — `origin` sebuah akar objek (#1332)."
     }
   },
   "WorldRootsBundle": {
@@ -8294,7 +8294,7 @@
   },
   "planImpostors": {
     "summary": "Merencanakan tingkat impostor untuk satu tampilan: setiap root yang mesh-nya punya entri dipanggang dan sakelarnya bertahan menghasilkan sebuah kartu dan ditandai ditindas.",
-    "description": "`view` memetakan dunia ke ruang tampilan (kolom-mayor) dan `focalPixels` adalah satu panjang fokus mesin dalam piksel di viewport gambar."
+    "description": "`view` memetakan dunia ke ruang tampilan (kolom-mayor) dan `focalPixels` adalah satu panjang fokus mesin dalam piksel di viewport gambar. `into`, rencana yang dikembalikan tampilan sebelumnya, direncanakan ulang di tempat: `switched` dan kartunya dipakai ulang, sehingga runtime yang merencanakan setiap gambar tidak mengalokasikan apa pun setelah jumlah kartunya stabil."
   },
   "validateImpostorSection": {
     "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",

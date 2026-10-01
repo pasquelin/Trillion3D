@@ -12,6 +12,7 @@ import { createDagDispatch } from './dispatch.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
 import { MASK_SECTION, flagLocation } from './split.ts';
 import type { createDagResources } from './resources.ts';
+import { createWorldResidencyMirror } from './worldMirror.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
@@ -52,6 +53,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
+  // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
+  // before #1333, and the rows' flags go up as they are.
+  const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world });
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -64,11 +68,16 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
-      return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
+      return (
+        (uploadResidency?.hostBytes ?? 0) +
+        (poolList?.entries.byteLength ?? 0) +
+        (mirror?.hostBytes ?? 0)
+      );
     },
     maskBuffer: resources.flagParts[mask.part],
     maskOffset: mask.word,
     pageCount,
+    packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision;
     },
@@ -107,13 +116,15 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       // The mark travels behind the record shift (`primitiveFrameWords`).
       writeFrameWord(w, 3, mark);
     },
-    updateResidency(next, changes) {
+    updateResidency(next, changes, moved) {
       if (state.disposed || state.dead || !uploadResidency) return false;
+      if (mirror) ({ flags: next, changes } = mirror.update(next, changes));
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (!uploadResidency(next, changes)) return false;
+      if (!uploadResidency(next, changes, moved)) return false;
       voidCuts();
       return true;
     },
+    isFinest: (page) => !uploadResidency || uploadResidency.isFinest(page),
     notePool(page, held) {
       if (state.disposed || state.dead || !poolList?.note(page, held)) return;
       recut();

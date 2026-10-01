@@ -1,16 +1,17 @@
 /**
- * `world-roots.json` and its binary (docs/FORMAT.md, World super-roots; #23, #1237): the table of
- * the world DAG the compiler continues above every object's roots, read and checked here, and the
- * pages of one of its bundles viewed on their bytes. A table that breaks its own contract is
- * refused whole, `INVALID_CACHE`: the runtime pins its first `pinned` bundles for good.
+ * The world roots and their binary (docs/FORMAT.md, World super-roots; #23, #1237): the table of
+ * the world DAG the compiler continues above every object's roots — its records read and checked
+ * in `worldRootsTable.ts` (#1232) —, and the pages of one of its bundles viewed on their bytes. A
+ * table that breaks its own contract is refused whole, `INVALID_CACHE`: the runtime pins its first
+ * `pinned` bundles for good.
  */
 import { EngineError } from '../contracts/cache.ts';
 
-/** The product's version this reader knows: another is refused. */
-const WORLD_ROOTS_VERSION = 1;
-/** The table beside the manifest; its binary is the one its `payload` names. */
-export const WORLD_ROOTS_FILE = 'world-roots.json';
-/** The binary the cook writes beside it, the one its `payload` names; a reader follows `payload`. */
+/** The table beside the manifest, fixed-size records (#1232): what a load reads. */
+export const WORLD_ROOTS_FILE = 'world-roots.table';
+/** The world clusters and groups beside it, records too: what the world stream reads on first use. */
+export const WORLD_ROOTS_DAG = 'world-roots.dag';
+/** The binary the cook writes beside it, the one its `payload` names. */
 export const WORLD_ROOTS_BIN = 'world-roots.bin';
 
 /** One bundle of `world-roots.bin`: its range in the binary, its digest, its page count and the
@@ -38,8 +39,8 @@ export type WorldRootsObject = {
   /** Every world bundle those roots need, ascending, up to the top. */
   dependencies: number[];
 };
-/** `world-roots.json`: the world DAG the compiler continues above every object's roots — its
- *  bundles, pages and cells, the pinned top first. */
+/** `world-roots.table`: the world DAG the compiler continues above every object's roots — its
+ *  bundles, pages and cells, the pinned top first —, its pages and cells read at their records. */
 export type WorldRoots = {
   /** Format version. */
   version: number;
@@ -53,10 +54,18 @@ export type WorldRoots = {
   payload: { url: string; sha256: string; bytes: number };
   /** The bundles, in the binary's order. */
   bundles: WorldRootsBundle[];
-  /** Each page: its bundle, its offset in it, its level and its error. */
-  pages: { bundle: number; offset: number; level: number; lodError: number }[];
-  /** Each world cell: the placed primitives it holds. */
-  cells: { objects: WorldRootsObject[] }[];
+  /** The pages: how many, and one's bundle, offset in it, level and error, read at its record. */
+  pages: {
+    count: number;
+    at(page: number): { bundle: number; offset: number; level: number; lodError: number };
+  };
+  /** The world cells: how many, the placed primitives one holds, read at their records, and the
+   *  cell holding object `object` — an object root's `origin` (#1332). */
+  cells: {
+    count: number;
+    objects(cell: number): WorldRootsObject[];
+    cellOf(object: number): number;
+  };
 };
 /** One super-root page viewed on its bundle's bytes: its own vertices in world space, and its
  *  triangles as local indices. */
@@ -67,49 +76,16 @@ export type WorldRootsPage = {
   indices: Uint16Array;
 };
 
-const refuse = (message: string): never => {
+export const refuseWorldRoots = (message: string): never => {
   throw new EngineError('INVALID_CACHE', `world roots: ${message}`);
 };
-const natural = (value: unknown) => Number.isSafeInteger(value) && (value as number) >= 0;
-const inRange = (list: unknown, end: number) =>
-  Array.isArray(list) && list.every((index) => natural(index) && index < end);
-
-/**
- * `value` as a world-roots table, or `INVALID_CACHE`: its version, bundles laid end to end
- * from the binary's start, the pinned top's bytes the sum of its first `pinned` bundles, and every
- * dependency naming a bundle of the table.
- */
-export function assertWorldRoots(value: unknown): WorldRoots {
-  const table = value as WorldRoots;
-  if (table?.version !== WORLD_ROOTS_VERSION) refuse(`version ${String(table?.version)}`);
-  const { bundles, cells, pinned, payload } = table;
-  if (!Array.isArray(bundles) || !Array.isArray(cells) || !Array.isArray(table.pages))
-    refuse('bundles, pages and cells are lists');
-  if (!natural(pinned) || pinned < 1 || pinned > bundles.length) refuse(`pinned ${pinned}`);
-  let end = 0;
-  for (const [at, bundle] of bundles.entries()) {
-    if (bundle?.offset !== end || !natural(bundle.bytes) || typeof bundle.sha256 !== 'string')
-      refuse(`bundle ${at} is not the next range of the binary`);
-    if (!inRange(bundle.dependencies, bundles.length)) refuse(`bundle ${at} dependencies`);
-    end += bundle.bytes;
-  }
-  if (typeof payload?.url !== 'string' || payload.bytes !== end) refuse('payload');
-  if (table.pinnedTopBytes !== topBytes(table)) refuse('pinnedTopBytes');
-  for (const [at, cell] of cells.entries())
-    if (!cell?.objects?.every((object) => inRange(object?.dependencies, bundles.length)))
-      refuse(`cell ${at} dependencies`);
-  return table;
-}
-
-/** Bytes of the pinned top: its bundles, the first of the binary. */
-const topBytes = ({ bundles, pinned }: Pick<WorldRoots, 'bundles' | 'pinned'>) =>
-  bundles.slice(0, pinned).reduce((sum, bundle) => sum + bundle.bytes, 0);
+const refuse = refuseWorldRoots;
 
 /** The bundles past the pinned top the roots of `cell`'s objects need, ascending: what the cell
  *  holds while it is placed. */
 export function cellDependencies(table: WorldRoots, cell: number): number[] {
   const needed = new Set<number>();
-  for (const { dependencies } of table.cells[cell]?.objects ?? [])
+  for (const { dependencies } of cell < table.cells.count ? table.cells.objects(cell) : [])
     for (const bundle of dependencies) if (bundle >= table.pinned) needed.add(bundle);
   return [...needed].sort((a, b) => a - b);
 }
@@ -146,7 +122,8 @@ export function worldBundlePages(bytes: Uint8Array, count: number, bundle: numbe
 /** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots; #1238),
  *  in rank order (`cluster` is its index, which the groups name): the fields the runtime cut
  *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
- *  object root its `origin` (the placed instance). Kept out of the exported `WorldRoots`, whose
+ *  object root its `origin`, the rank among the table's objects of the placed object drawing it
+ *  (`cells.cellOf` finds its cell, #1332). Kept out of the exported `WorldRoots`, whose
  *  shape the API reference translates. */
 export type WorldRootsCluster = {
   cluster: number;

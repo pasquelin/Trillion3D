@@ -8,6 +8,7 @@ import { standardSurface } from '../../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../page/surface.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
+import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
 
 const native = (width: number, height: number) => ({
   width,
@@ -34,7 +35,7 @@ test('rough opaque receivers allocate their own history, while a resize releases
   // The rough trace walks the depth bounds alone: 32×16 to 1×1 of rg32float, six extents.
   const bounds = (512 + 128 + 32 + 8 + 2 + 1) * 8 + 6 * 256;
   const expected = frameTargetBytes(64, 32, true) + 64 * 32 * 48 + REFLECTION_SOURCE_VIEW_BYTES;
-  assert.equal(bytes, expected + bounds + 80 + 160);
+  assert.equal(bytes, expected + bounds + 80 + REFLECTION_RESOLVE_VIEW_BYTES);
   makeTargets(rt, rt.gpu.device!, size, bytes);
   const old = rt.gpu.reflection!.history!;
   assert.equal(old.bytes, 64 * 32 * 24);
