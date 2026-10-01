@@ -9,8 +9,6 @@ import {
 import { shadowTableHostBytes } from '../../../sdk-core/src/scene/light-shadow/table.ts';
 import { shadowPoolHostBytes } from '../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { shadowAdmissionHostBytes } from '../../../sdk-core/src/scene/light-shadow/admit.ts';
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
-import { bounceProbeBytes } from '../bounce/limits.ts';
 
 /** The pool the shadows are counted at, 3840 × 2160 under one sun (`shadowPoolSize`): its atlas
  *  bytes are the most the grant allots a pool (`webgpu/shadow/poolSize.ts`). */
@@ -40,11 +38,3 @@ export const SHADOW_HOST_BYTES =
   shadowPoolHostBytes(SHADOW_POOL_PAGES) +
   shadowAdmissionHostBytes(SHADOW_POOL_PAGES) +
   SHADOW_BATCH_HOST_BYTES;
-
-/**
- * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,
- * the nine RGB coefficients, visibility and state of each, in both copies the pass binds (the
- * probes and the snapshot frozen before each update). Fixed whatever the scene.
- */
-export const BOUNCE_PROBE_BYTES =
-  2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3);
