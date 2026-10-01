@@ -24,9 +24,14 @@ test('a residency change over the view is filled at the static fill a frame, rea
   const frame = (at: number) => {
     plan.plan(store, VIEW, MIN, MAX, at, at * 16);
     const done = forEachShadowBatch(rt, (from, to) => {
-      for (const page of plan.admission.list.subarray(from, to))
-        drawn.set(page, (drawn.get(page) ?? 0) + 1);
-      plan.commit(undefined, from, to);
+      const pages = plan.admission.list.subarray(from, to),
+        layer = !!lights.staticLayer;
+      for (const page of pages) drawn.set(page, (drawn.get(page) ?? 0) + 1);
+      // Each page in the mode its batch draws it (`writeShadowPages`).
+      const modes = pages.map((page) =>
+        plan.pool.drawMode(page, layer, plan.records.rangeOf(page)),
+      );
+      plan.commit(modes, from, to);
       lights.runs.reset();
       return true;
     });
@@ -40,6 +45,8 @@ test('a residency change over the view is filled at the static fill a frame, rea
   assert.ok(cached.length > 4 * budget, `${cached.length} cached pages, four fills and more`);
   assert.equal(plan.counts.pendingPages, 0, 'all drawn');
   drawn.clear();
+  // A static layer now: each page drawn into it is current there once committed.
+  lights.staticLayer = {} as never;
   plan.residencyChanged(MIN, MAX);
   let at = 40;
   const first = frame(at);
@@ -49,5 +56,8 @@ test('a residency change over the view is filled at the static fill a frame, rea
   const bound = at + Math.ceil(cached.length / budget) + 1;
   while (plan.counts.pendingPages && at < bound) frame(++at);
   assert.equal(plan.counts.pendingPages, 0, `all filled again by frame ${at}`);
-  assert.ok([...drawn.values()].every((n) => n === 1), 'each page drawn once');
+  assert.ok(
+    [...drawn.values()].every((n) => n === 1),
+    'each page drawn once',
+  );
 });
