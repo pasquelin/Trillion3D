@@ -74,12 +74,17 @@ test('each family module is a chunk of its own: one the core holds fails the gat
   }
 });
 
-test('the gate lists the core by source folder, and fails on measurement, diagnostics, a renderer or its shadows', () => {
+test('the gate lists the core by source folder, and fails on measurement, diagnostics, a renderer or its shadow passes', () => {
   const held = (sources: Record<string, number>) =>
     bundle({
       ...files,
       [BUNDLE_SOURCES]: JSON.stringify({
-        'trillion3d.module.js': { 'sdk-browser/src/world/core/world.js': 900, ...sources },
+        'trillion3d.module.js': {
+          'sdk-browser/src/world/core/world.js': 900,
+          'sdk-browser/src/gpu/shadow/sizes.js': 200,
+          'sdk-browser/src/webgpu/shadow/allocLayout.js': 100,
+          ...sources,
+        },
         'trillion3d-chunk-A.js': { 'sdk-core/src/math/vec.js': 400 },
         [familyChunks[0]]: { 'sdk-browser/src/measurement/comparison.js': 700 },
       }),
@@ -91,8 +96,10 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     assert.deepEqual(folders.slice(1), [
       '      0.9 kB  sdk-browser/src/world',
       '      0.4 kB  sdk-core/src/math',
+      '      0.2 kB  sdk-browser/src/gpu',
+      '      0.1 kB  sdk-browser/src/webgpu',
     ]);
-    assert.deepEqual(forbidden, []);
+    assert.deepEqual(forbidden, [], "the shadows' size modules are the core's");
   } finally {
     rmSync(clean, { recursive: true, force: true });
   }
@@ -103,7 +110,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     'sdk-browser/src/backend/autonomous/pages.js',
     'sdk-browser/src/gpu/shadow/atlas.js',
     'sdk-browser/src/webgpu/shadow/pageRequests.js',
-    'sdk-browser/src/residency/shadowBudgetBytes.js',
+    'sdk-browser/src/webgpu/shadow/allocWgsl.js',
   ]) {
     const dist = held({ [source]: 10 });
     try {
