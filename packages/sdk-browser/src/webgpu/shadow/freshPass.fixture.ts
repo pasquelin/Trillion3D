@@ -3,6 +3,7 @@
 // `freshStaticLayer.test.ts`.
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { FRESH_LAYER_PASS } from '../../stage/passLabels.ts';
 import { encodeFreshPages } from './freshPass.ts';
 
 export const LAYERS = 2;
@@ -116,3 +117,20 @@ export function frame(calls: unknown[][]) {
   const encode = () => encodeFreshPages(rt, device, encoder);
   return { lights, encode, written };
 }
+
+/** The pool's static layer, a group per pool layer: the bind groups it hands the fresh draws. */
+export const STATIC_GROUPS = Array.from({ length: LAYERS }, (_, layer) => `static group ${layer}`);
+
+/** Gives `lights` a static layer of `LAYERS` layers, each fresh pass labelled as the engine's. */
+export function withStaticLayer(lights: ReturnType<typeof frame>['lights']) {
+  const freshPasses = STATIC_GROUPS.map(() => ({ label: FRESH_LAYER_PASS }));
+  lights.staticLayer = {
+    passes: STATIC_GROUPS.map(() => ({})),
+    freshPasses,
+    groups: STATIC_GROUPS,
+  };
+}
+
+/** The labels of the render passes `calls` recorded, in order. */
+export const passLabels = (calls: unknown[][]) =>
+  calls.filter((call) => call[0] === 'pass').map((call) => call[1]);
