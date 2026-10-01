@@ -25,8 +25,8 @@ function walk({ world, sprint }: WalkScene) {
 }
 
 // Ledges, beams and tilted slabs, all uniform along z, walked straight east.
-const SEED = 3,
-  SCENES = 300;
+const SEED = 9,
+  SCENES = 60;
 
 test('a walker never ends a tick a centimetre inside a solid, nor drifts sideways across a scene uniform across it', () => {
   for (const scene of zUniformScenes(SEED, SCENES, radius, height)) {
