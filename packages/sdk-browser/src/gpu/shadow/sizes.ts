@@ -25,9 +25,10 @@ export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
 
 /** Words of one view's uniform block: the uniform array's stride (`../dag/shader/shader.ts`,
  *  `Uniforms`). It is the field table's own size (`../dag/viewLayout.ts`) — the table that also
- *  generates the struct — so a field added to the block moves every stride and every byte count
- *  here with it, rather than leaving this literal to be one word short of the shader. */
-export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
+ *  generates the struct — so a field added to the block moves this byte count with it, rather than
+ *  leaving a literal here to be one word short of the shader. Not exported: the DAG reads the
+ *  stride from the table itself (`../dag/shader/viewsWgsl.ts`), and only this count is shadow's. */
+const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs — one
  *  view per page a batch draws at most (`DAG_MAX_VIEWS`, `../dag/shader/viewsWgsl.ts`). */
 export const DAG_UNIFORM_BYTES = MAX_SHADOW_PAGES * DAG_VIEW_WORDS * 4;
