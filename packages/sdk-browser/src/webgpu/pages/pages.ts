@@ -78,6 +78,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
     renderScale: () => rt.scale.drawn,
     updatePlacements: (rows, from, to) => void updateWebgpuPlacements(rt, rows, from, to),
+    worldCut: () => (run.gpuSelection?.packsWorld ? run.selectionUniforms : undefined),
     ...webgpuVertexApi(rt),
     growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
     growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),

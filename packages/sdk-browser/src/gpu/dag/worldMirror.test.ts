@@ -38,19 +38,26 @@ function scene() {
   return { world, packed, mirror, rows, pageBase, worldResidency, cover };
 }
 
-test('the rows alone are refused by the cut past the world DAG; the mirror is not', async () => {
+test('the cut that packs the world DAG mirrors the rows itself; one without it reads them', async () => {
   const { packed, mirror, rows } = scene();
-  const resources = (await createDagResources(
-    fakeDevice({ limits: SHADOW_LIMITS }).device,
-    packed,
-    true,
-  ))!;
-  const selection = createDagRuntime(resources);
-  assert.throws(() => selection.updateResidency(rows), /GPU_SELECTION_RESIDENCY_COUNT_CHANGED/);
-  const { flags, changes } = mirror.update(rows);
-  assert.equal(flags.length, packed.pageCount);
-  assert.doesNotThrow(() => selection.updateResidency(flags, changes));
-  assert.throws(() => mirror.update(rows.subarray(1)), /GPU_SELECTION_RESIDENCY_COUNT_CHANGED/);
+  const cutOf = async (dag: typeof packed) =>
+    createDagRuntime(
+      (await createDagResources(fakeDevice({ limits: SHADOW_LIMITS }).device, dag, true))!,
+    );
+  // The rows name the scene's pages alone, fewer than the packing holds: its mirror fills them.
+  const selection = await cutOf(packed);
+  assert.deepEqual([packed.world!.root, selection.packsWorld], [OBJECTS, true]);
+  assert.equal(mirror.update(rows).flags.length, packed.pageCount);
+  assert.doesNotThrow(() => selection.updateResidency(rows));
+  assert.throws(
+    () => selection.updateResidency(rows.subarray(1)),
+    /GPU_SELECTION_RESIDENCY_COUNT_CHANGED/,
+  );
+  // Until #1333 packs it, no cut holds the world DAG: the rows go up as they are.
+  const scenePacked = packDagSelection(Array.from({ length: OBJECTS }, () => ruleDag(8)));
+  const plain = await cutOf(scenePacked);
+  assert.deepEqual([scenePacked.world, plain.packsWorld], [undefined, false]);
+  assert.doesNotThrow(() => plain.updateResidency(rows));
 });
 
 test('an object root is resident only while its object is placed and its root cover resident', () => {
