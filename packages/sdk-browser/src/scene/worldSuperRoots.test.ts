@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { worldRootDag } from './worldSuperRoots.ts';
+import { worldRootPages } from './worldPageServe.ts';
 import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { oracleBackend, wgslBackend } from '../page/cut/cutRuleBackends.fixture.ts';
 import { ruleChecks } from '../page/cut/cutRuleChecks.fixture.ts';
@@ -22,7 +23,10 @@ function worldDag(): RuleDag {
   const { clusters, groups, leaves } = worldRootsDag();
   const owner = new Array<number | null>(clusters.length).fill(null);
   for (const [at, group] of groups.entries()) for (const child of group.children) owner[child] = at;
-  const root = worldRootDag({ clusters, groups, payload: { url: 'world-roots.bin' } })!;
+  const root = worldRootDag(
+    { clusters, groups, payload: { url: 'world-roots.bin' } },
+    worldRootPages,
+  )!;
   // The cut's `RulePage` reads a world page as the cook names it: a cluster carries no manifest
   // `source`, and its `material` is a manifest index, not the surface `DagCluster` holds.
   const pages = root.pages.map((page, at) => ({
@@ -113,7 +117,10 @@ test('the engine packing holds a manifest root and the world DAG in one cut (#12
 
 test('the world DAG is read in the cook’s rank order, never re-sorted (#1238)', () => {
   const { clusters, groups } = worldRootsDag();
-  const root = worldRootDag({ clusters, groups, payload: { url: 'world-roots.bin' } })!;
+  const root = worldRootDag(
+    { clusters, groups, payload: { url: 'world-roots.bin' } },
+    worldRootPages,
+  )!;
   // Rank r is cluster r: a super-root names its page at its bundle, an object root none.
   assert.deepEqual(
     root.pages.map((page) => page.url),
@@ -125,6 +132,13 @@ test('the world DAG is read in the cook’s rank order, never re-sorted (#1238)'
   // Two clusters out of their rank: the groups would name the wrong ones, so the table is refused.
   const swapped = [...clusters];
   [swapped[3], swapped[12]] = [swapped[12], swapped[3]];
-  assert.throws(() => worldRootDag({ clusters: swapped, groups }), /WORLD_CLUSTER_RANK: 12 at 3/);
-  assert.equal(worldRootDag({}), undefined, 'a table cooked without its DAG has none');
+  assert.throws(
+    () => worldRootDag({ clusters: swapped, groups }, worldRootPages),
+    /WORLD_CLUSTER_RANK: 12 at 3/,
+  );
+  assert.equal(
+    worldRootDag({}, worldRootPages),
+    undefined,
+    'a table cooked without its DAG has none',
+  );
 });

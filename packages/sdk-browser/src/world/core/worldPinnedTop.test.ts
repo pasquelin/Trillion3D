@@ -24,8 +24,10 @@ test('a loaded model pins the world top its cook published, and its cell holds t
     [cooked.pinnedBundles, cooked.pinnedTopBytes],
     'the pinned set is the world top alone',
   );
-  // The scene hands out only the count; the table is the cook's own file, read as the cache has it.
-  const table = assertWorldRoots(await (await fetch(new URL(WORLD_ROOTS_FILE, MODEL))).json());
+  // The scene hands out only the count; the table is the cook's own file, read where the engine
+  // reads it: against the folder the manifest's pointer names (`openWorldRoots`), not the pointer's.
+  const tableUrl = new URL(WORLD_ROOTS_FILE, model.record.base);
+  const table = assertWorldRoots(await (await fetch(tableUrl)).json());
   const held = cellDependencies(table, 0);
   const heldBytes = held.reduce((sum, bundle) => sum + table.bundles[bundle].bytes, 0);
   assert.equal(roots.bytes(), cooked.pinnedTopBytes + heldBytes, 'every byte is counted');

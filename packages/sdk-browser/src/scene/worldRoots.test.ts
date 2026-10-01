@@ -91,11 +91,13 @@ test('the world DAG names its pages through the one source, from what is held (#
   const { clusters, groups } = worldRootsDag();
   const { manifest, ranges } = served(t, undefined, false, { clusters, groups });
   const roots = (await openWorldRoots(manifest, 'http://world/'))!;
-  assert.equal(roots.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank');
+  const stream = await roots.stream();
+  assert.equal(stream, await roots.stream(), 'opened once');
+  assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank');
   await roots.hold(0); // cell 0 holds bundles 1 and 3, the top is pinned
   const asked = ranges.length;
-  const addressed = roots.dag!.pages.filter((page) => page.url);
-  const pages = await Promise.all(addressed.map((page) => roots.source.page(page.url)));
+  const addressed = stream.dag!.pages.filter((page) => page.url);
+  const pages = await Promise.all(addressed.map((page) => stream.source.page(page.url)));
   assert.deepEqual(
     pages.map((page) => page.positions[0]),
     [1, 2, 3, 0],
@@ -106,18 +108,19 @@ test('the world DAG names its pages through the one source, from what is held (#
   // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
   const before = roots.bytes(),
     far = addressed[1].url; // bundle 2's super-root
-  await roots.source.read(far);
+  await stream.source.read(far);
   assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the kept bundle is counted');
-  await roots.source.attributes(far);
+  await stream.source.attributes(far);
   assert.equal(roots.bytes(), before, 'both views served, it is let go');
 });
 
-test('a world DAG out of the cook\u2019s rank is refused when the world opens (#1238)', async (t) => {
+test('a world DAG out of the cook\u2019s rank is refused when its stream opens (#1238)', async (t) => {
   const { clusters, groups } = worldRootsDag();
   const swapped = [...clusters];
   [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
   const { manifest } = served(t, undefined, false, { clusters: swapped, groups });
-  await assert.rejects(openWorldRoots(manifest, 'http://world/'), /WORLD_CLUSTER_RANK: 1 at 0/);
+  const roots = (await openWorldRoots(manifest, 'http://world/'))!;
+  await assert.rejects(roots.stream(), /WORLD_CLUSTER_RANK: 1 at 0/);
 });
 
 test('a cache that publishes no world roots pins nothing', async () => {
