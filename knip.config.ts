@@ -58,6 +58,7 @@ const config: KnipConfig = {
         'bench/runner/threeLodPage.ts',
         'bench/runner/measurePage.ts',
         'bench/runner/fluidsPage.ts',
+        'bench/fluids/s3/page.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
         'bench/runner/deformationEnvelope.ts',
         'bench/runner/deformationWitness.ts',
