@@ -3149,7 +3149,8 @@
       "groupOffsets": "Son nöbetçi değer dahil, her grubun sahip kayıtlarının ofsetleri.",
       "owners": "Sahip kayıtları: kaynak düğüm indeksi ve RGBA8 biçiminde paketlenmiş doğrusal albedo.",
       "bindWorlds": "Kaynak düğümlerin özgün dünya matrisleri; düğüm başına on altı çift duyarlıklı değer.",
-      "sourceParents": "Konağın şu anda örneğini oluşturmadığı bölüm düğümleri dahil kaynak hiyerarşisi."
+      "sourceParents": "Konağın şu anda örneğini oluşturmadığı bölüm düğümleri dahil kaynak hiyerarşisi.",
+      "sourceMeshes": "Her kaynak düğümün yerleştirdiği belge ağı, hiçbiri yoksa `-1`: bir bölümün hücre düğümünün çizdiği."
     }
   },
   "SceneProxyDescriptor": {

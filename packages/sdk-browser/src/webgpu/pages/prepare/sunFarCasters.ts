@@ -1,4 +1,4 @@
-import { preparedNodeRank } from '../../../host/prepared/sourceRanks.ts';
+import { placedMeshRank, preparedNodeRank } from '../../../host/prepared/sourceRanks.ts';
 import { isDrawnNode } from '../../../host/graph/kinds.ts';
 import type { GpuBounceProxy } from '../../../bounce/proxy.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -40,28 +40,53 @@ function drawnMeshes(rt: WebgpuPagesRuntime) {
   return drawn;
 }
 
-/** Each proxy's last read: the scene revision, and the source nodes that cast none then. */
-const casts = new WeakMap<GpuBounceProxy, { epoch: number; none: ReadonlySet<number> }>();
+/** The host meshes each mesh rank a partition's cells place is drawn by (`placed.ts`). */
+const placedOf = new WeakMap<WebgpuPagesRuntime, Map<number, Object3D[]>>();
+
+function placedParts(rt: WebgpuPagesRuntime) {
+  let placed = placedOf.get(rt);
+  if (placed) return placed;
+  placed = new Map<number, Object3D[]>();
+  rt.setup.source.traverse((part) => {
+    const rank = placedMeshRank(part);
+    if (rank !== undefined) placed.set(rank, [...(placed.get(rank) ?? []), part]);
+  });
+  placedOf.set(rt, placed);
+  return placed;
+}
+
+/** The keys whose every mesh says `castShadow = false`. */
+const castingNone = (meshes: Map<number, Object3D[]>) =>
+  new Set(
+    [...meshes].filter(([, parts]) => parts.every((part) => !part.castShadow)).map(([k]) => k),
+  );
+const sameSet = (a: ReadonlySet<number>, b: ReadonlySet<number> = new Set()) =>
+  a.size === b.size && [...a].every((key) => b.has(key));
+
+/** Each proxy's last read: the scene revision, the source nodes and the placed meshes that cast
+ *  none then. */
+const casts = new WeakMap<
+  GpuBounceProxy,
+  { epoch: number; none: ReadonlySet<number>; meshes: ReadonlySet<number> }
+>();
 
 /**
  * The far sun's proxy lets through the triangles whose every owner casts no shadow (#966): a
  * source node casts none when each mesh it draws says `castShadow = false`; one the host does not
- * hold casts. The flags are read once per scene revision, as the shadow cut reads each mesh's
- * (`placement/hidden.ts`), and the proxy is marked again only when one changed.
+ * hold — a partition's cell node, loaded or not — when each host mesh its placed mesh is drawn by
+ * says so, as its rows do (`scene/partition/follow.ts`). The flags are read once per scene
+ * revision, as the shadow cut reads each mesh's (`placement/hidden.ts`), and the proxy is marked
+ * again only when one changed.
  */
 export function syncSunFarCasters(rt: WebgpuPagesRuntime) {
   const proxy = rt.sunFar.gpu?.proxy,
     epoch = rt.run.gate.revisions.scene;
   const last = proxy && casts.get(proxy);
   if (!proxy || last?.epoch === epoch) return;
-  const none = new Set<number>();
-  let same = true;
-  for (const [rank, parts] of drawnMeshes(rt))
-    if (parts.every((part) => !part.castShadow)) {
-      none.add(rank);
-      same &&= !!last?.none.has(rank);
-    }
-  casts.set(proxy, { epoch, none });
-  if (same && none.size === (last?.none.size ?? 0)) return;
-  proxy.castless((source) => none.has(source));
+  const none = castingNone(drawnMeshes(rt)),
+    meshes = castingNone(placedParts(rt));
+  casts.set(proxy, { epoch, none, meshes });
+  if (sameSet(none, last?.none) && sameSet(meshes, last?.meshes)) return;
+  const held = sourceNodes(rt);
+  proxy.castless((source, mesh) => none.has(source) || (!held.has(source) && meshes.has(mesh)));
 }

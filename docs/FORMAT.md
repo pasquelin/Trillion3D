@@ -834,7 +834,7 @@ smallest overflowing instance is kept.
 
 ## Resident lighting proxy
 
-`proxy.bin` version 4 losslessly shares world-space simplified triangle runs; simplification,
+`proxy.bin` version 5 losslessly shares world-space simplified triangle runs; simplification,
 triangle order, albedo, wide BVH and provenance are unchanged, and the reader expands sharing once
 at load to the canonical flat columns, shaders untouched. Little-endian; eleven `u32` header words:
 `WGPX`, version, triangle count, node count, owner-group count, owner-record count, source-node
@@ -851,14 +851,17 @@ eight keep version 3's ownership header. Payload columns, in order:
 - Six `f32` bounds and twelve `u32` child words per wide BVH node.
 - One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
 - Owner records: source-node rank and linear RGBA8 colour, both `u32`.
-- One `i32` parent rank per source node (`-1` for roots), then sixteen `f64` bind-world values per
+- One `i32` parent rank per source node (`-1` for roots), then one `i32` document mesh rank per
+  source node (`-1` when it places none; version 5, #966), then sixteen `f64` bind-world values per
   node.
 
 The manifest publishes `groups`, `owners` and `instances` beside the sizes and counts. Identical
 owner lists are interned; subdivision shares a group and BVH permutation moves its rank with the
 canonical triangle. Group offsets are monotonic, groups nonempty, ranks in range, the source
 hierarchy acyclic; unknown proxy versions are rejected. These modules are in the compiler's
-implementation hash, so version-four products never reuse version-three keys.
+implementation hash, so a version's products never reuse an older version's keys. The mesh column
+names what a partition's cell node draws, which no core node carries: the far sun's ray lets its
+triangles through when every host mesh of that placed mesh says `castShadow = false`.
 
 Sharing is computed after world simplification, beside provenance, from its bind-world matrices. A
 placement shares only when every transformed coordinate, signed zero included, round-trips to
@@ -869,7 +872,7 @@ count are tried, and a run is stored shared only when its tables save serialized
 disk and transfer bytes, not GPU geometry. The browser caches decoded columns with their verified
 buffer across device sessions, charging expansion and matrix bytes to the CPU cache. `cargo run
 --manifest-path packages/asset-compiler-rust/Cargo.toml --example proxy_sharing` regenerates the
-paired Rust/TS fixtures and reports exact v3/v4 serialized bytes for the 1,000-instance case;
+paired Rust/TS fixtures and reports exact v3/v5 serialized bytes for the 1,000-instance case;
 runtime memory and image acceptance are the post-merge measurement session's evidence.
 
 The node table's optional `sourceNode` carries the original unsigned 32-bit document rank through

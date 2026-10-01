@@ -33,6 +33,7 @@ const sceneProxy = () =>
       groupOffsets: new Uint32Array([0]),
       owners: new Uint32Array(0),
       sourceParents: new Int32Array(0),
+      sourceMeshes: new Int32Array(0),
       bindWorlds: new Float64Array(0),
     },
   }) as unknown as SceneProxy;

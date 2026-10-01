@@ -147,16 +147,19 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       return change;
     },
     /**
-     * Marks the groups whose every owner casts no shadow (`castsNone` of each owner's source node,
-     * #966), which the far sun's shadow ray passes; true when a mark changed, then uploaded.
+     * Marks the groups whose every owner casts no shadow (`castsNone` of each owner's source node
+     * and of the mesh it places, `-1` for none, #966), which the far sun's shadow ray passes; true
+     * when a mark changed, then uploaded.
      */
-    castless(castsNone: (source: number) => boolean) {
-      const { groupOffsets, owners } = data,
+    castless(castsNone: (source: number, mesh: number) => boolean) {
+      const { groupOffsets, owners, sourceMeshes } = data,
         marks = new Uint32Array(columns[CASTLESS].length);
       for (let group = 0; group < proxy.groups; group++) {
         let none = true;
-        for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++)
-          none = castsNone(owners[owner * 2]);
+        for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++) {
+          const source = owners[owner * 2];
+          none = castsNone(source, sourceMeshes[source] ?? -1);
+        }
         if (none) marks[group >> 5] |= 1 << (group & 31);
       }
       if (marks.every((word, at) => word === columns[CASTLESS][at])) return false;

@@ -3233,7 +3233,8 @@
       "groupOffsets": "Offset rekaman pemilik setiap kelompok, termasuk penanda akhir.",
       "owners": "Rekaman pemilik: indeks simpul sumber dan albedo linear yang dikemas dalam RGBA8.",
       "bindWorlds": "Matriks dunia asli dari simpul sumber, enam belas nilai presisi ganda per simpul.",
-      "sourceParents": "Hierarki sumber, termasuk simpul partisi yang saat ini belum diinstansiasi oleh host."
+      "sourceParents": "Hierarki sumber, termasuk simpul partisi yang saat ini belum diinstansiasi oleh host.",
+      "sourceMeshes": "Mesh dokumen yang ditempatkan setiap simpul sumber, `-1` jika tidak ada: yang digambar simpul sel sebuah partisi."
     }
   },
   "SceneProxyDescriptor": {

@@ -32,6 +32,7 @@ export function ownedProxy(): SceneProxy {
       owners: new Uint32Array([0, 0xffffffff, 1, 0xff00ff00]),
       bindWorlds: new Float64Array([...proxyIdentity(), ...proxyIdentity(), ...proxyIdentity()]),
       sourceParents: new Int32Array([-1, -1, -1]),
+      sourceMeshes: new Int32Array([0, 0, -1]),
     },
   };
 }
@@ -81,6 +82,7 @@ export function floorProxy(side: number, leaf: number): SceneProxy {
     owners,
     bindWorlds: new Float64Array(count * 16),
     sourceParents: new Int32Array(count).fill(-1),
+    sourceMeshes: new Int32Array(count).fill(-1),
   };
   const transforms = new Float32Array(count * 16);
   for (let t = 0; t < count; t++) {
@@ -116,6 +118,7 @@ export function mixedProxy(): SceneProxy {
     owners: new Uint32Array([0, 0xffffffff, 1, 0xffffffff, 2, 0xff00ff00]),
     bindWorlds: new Float64Array([...proxyIdentity(), ...proxyIdentity(), ...proxyIdentity()]),
     sourceParents: new Int32Array([-1, -1, -1]),
+    sourceMeshes: new Int32Array([-1, -1, -1]),
   };
   const transforms = new Float32Array([...proxyIdentity(), ...proxyIdentity(), ...proxyIdentity()]);
   const bounds = [0, 0, 0, 0, 0, 0];

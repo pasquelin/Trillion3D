@@ -14,7 +14,7 @@
  */
 
 /** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 4;
+export const SCENE_PROXY_VERSION = 5;
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
 /** Header integers: v3 ownership header, then shape, stored-triangle and placement counts. */
@@ -50,6 +50,8 @@ export interface SceneProxyColumns {
   bindWorlds: Float64Array;
   /** Source hierarchy, including partition nodes not currently instantiated by the host. */
   sourceParents: Int32Array;
+  /** The document mesh each source node places, `-1` for none: what a partition's cell node draws. */
+  sourceMeshes: Int32Array;
 }
 
 /**
