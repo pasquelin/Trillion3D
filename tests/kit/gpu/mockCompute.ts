@@ -27,7 +27,8 @@ import {
   type DrawItem,
 } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts';
-import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/viewFlagsWord.ts';
+import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts';
+const VIEW_FLAGS_WORD = viewWord('viewFlags');
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
 const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
