@@ -31,17 +31,18 @@ export async function servedScene(
     owners = groups,
     instances = groups;
   const prefix = SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1);
-  const suffix = triangles + groups + 1 + owners * 2 + instances;
+  const suffix = triangles + groups + 1 + owners * 2 + instances * 2;
   const words = new Uint32Array(prefix + suffix + instances * 32);
   words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0, groups, owners, instances, 0]);
   if (instances) {
     const range = prefix + triangles;
     words[range + 1] = 1;
     const parent = range + 2 + owners * 2;
-    words[parent] = 0xffffffff;
+    // No parent, no mesh (#966), then the bind world.
+    words[parent] = words[parent + 1] = 0xffffffff;
     const view = new DataView(words.buffer),
       identity = proxyIdentity();
-    for (let i = 0; i < 16; i++) view.setFloat64((parent + 1) * 4 + i * 8, identity[i], true);
+    for (let i = 0; i < 16; i++) view.setFloat64((parent + 2) * 4 + i * 8, identity[i], true);
   }
   const pageSha = await sha256Hex(page.buffer);
   const urls = Array.from({ length: pages }, (_, i) => `p${i}.bin`);

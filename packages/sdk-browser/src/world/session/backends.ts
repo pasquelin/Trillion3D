@@ -111,6 +111,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       diagnosticChannel.detail,
     ),
     shadowPageInvalidation: options.shadowPageInvalidation,
+    shadowLocalToClip: options.shadowLocalToClip,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,

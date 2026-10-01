@@ -26,7 +26,7 @@ impl SceneProxy {
         })
     }
 
-    /// Little-endian v4: ownership header, sharing tables, loose triangles, unchanged BVH
+    /// Little-endian v5: ownership header, sharing tables, loose triangles, unchanged BVH
     /// and provenance. The reader expands shared placements before exposing any columns.
     pub fn encode(&self) -> Vec<u8> {
         let sharing = &self.sharing;
@@ -84,6 +84,7 @@ impl SceneProxy {
             words.extend_from_slice(column);
         }
         words.extend(self.provenance.source_parents.iter().map(|v| *v as u32));
+        words.extend(self.provenance.source_meshes.iter().map(|v| *v as u32));
         let mut bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
         for value in &self.provenance.bind_worlds {
             bytes.extend_from_slice(&value.to_le_bytes());
