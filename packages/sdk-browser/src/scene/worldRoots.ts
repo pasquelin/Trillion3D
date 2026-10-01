@@ -134,6 +134,7 @@ export async function openWorldRoots(
   // Only an opened stream is kept: a family refusal is asked again on the next use (`onDemand`),
   // and a table out of rank is refused again, before any page is served.
   const openStream = async () => {
+    if (stream) return stream;
     const { worldPageServer, worldRootPages } = await families.worldStream.load();
     // The world DAG's file, read once the stream opens: a load never holds it (#1232).
     const dag = files[WORLD_ROOTS_DAG];

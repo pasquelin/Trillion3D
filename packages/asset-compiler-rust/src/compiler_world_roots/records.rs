@@ -74,16 +74,16 @@ impl Records {
 fn digest(hex: &Value) -> Result<Vec<u8>> {
     let text = hex
         .as_str()
-        .filter(|t| t.len() == 64)
+        .filter(|t| crate::manifest_binary::is_digest(t))
         .ok_or_else(|| invalid("sha256"))?;
     (0..32)
         .map(|at| u8::from_str_radix(&text[at * 2..at * 2 + 2], 16).map_err(|_| invalid("sha256")))
         .collect()
 }
 
-/// `world-roots.table` of `table`, the cook's table with its `payload` named: a 48-byte header
+/// `world-roots.table` of `table`, the cook's table with its `payload` named: an 80-byte header
 /// (magic, version, budget, pinned bundles, pinned bytes, the five counts, the binary's length as
-/// two words), the binary's digest, then 56-byte bundles, 24-byte pages, 8-byte cells, 24-byte
+/// two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages, 8-byte cells, 24-byte
 /// objects and the pool.
 pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
     let (bundles, pages, cells) = (

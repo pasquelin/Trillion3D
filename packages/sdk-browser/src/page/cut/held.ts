@@ -121,10 +121,14 @@ export function createHeldResidency<T extends PageRecord>(
     /** Routes the moves of `roots`' records from now on: the placements that left let go. */
     track(roots: readonly Root[]) {
       routes = roots.slice();
-      rankOfRoot = new Map(routes.map((root, rank) => [root, rank]));
+      rankOfRoot = new Map();
+      const kept = new Set<Primitive>();
+      routes.forEach((root, rank) => {
+        rankOfRoot.set(root, rank);
+        if (baseOf(rankOfRoot, root, placement) >= 0) kept.add(root.pages);
+      });
       // The pending moves are ranks within their primitive: they survive a new layout. A state no
-      // move reached, read whole at each visit so far, or no placement of it left, lets go.
-      const kept = new Set(routes.map((root) => root.pages));
+      // move reached, read whole at each visit so far, or no routed placement of it left, lets go.
       for (const [pages, held] of states)
         if (!held.routed || !kept.has(pages)) release(pages, held);
     },

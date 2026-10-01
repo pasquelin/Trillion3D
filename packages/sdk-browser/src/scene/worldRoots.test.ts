@@ -107,6 +107,7 @@ test('the world DAG names its pages through the one source, from what is held (#
   const stream = await roots.stream();
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once its stream opens');
   assert.equal(stream, await roots.stream(), 'opened once');
+  assert.deepEqual(whole, ['table', 'dag'], 'an opened stream reads its DAG no more');
   assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank');
   await roots.hold(0); // cell 0 holds bundles 1 and 3, the top is pinned
   const asked = ranges.length;

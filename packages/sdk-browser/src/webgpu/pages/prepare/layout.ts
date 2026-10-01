@@ -6,7 +6,7 @@ import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts';
 import { createCornerUploadHold } from '../../visibility/corners.ts';
 import { createDrawItemWordsHold } from '../../visibility/itemWords.ts';
 import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
-import { boundTableRows, CUT_ROWS, VIEW_ROWS } from '../../row/tableRows.ts';
+import { boundTableRows, CUT_ROWS, cutsOnCpu, VIEW_ROWS } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
 import { postPackedBases } from '../../../page/selection/placements.ts';
@@ -55,16 +55,15 @@ export function countRootCopies(
  * rows behind them, which only the shadow pass reads: as many as the pool can hold resident at
  * once, and none in a scene that blends nothing. Neither side passes the rows the view holds,
  * `viewRows` (`VIEW_ROWS`, `CUT_ROWS` on the CPU cut, until a cut selected more): a thousand
- * placements of a page ask no more
- * than the view draws (#1232).
+ * placements of a page ask no more than the view draws (#1232).
  */
 export function askedTableRows(
   opaque: number,
   blended: number,
   slots: number,
   maxCopies: number,
-  limits?: GPUSupportedLimits,
-  viewRows = VIEW_ROWS,
+  limits: GPUSupportedLimits | undefined,
+  viewRows: number,
 ) {
   const resident = slots * maxCopies;
   const draw = Math.max(1, Math.min(VIS_MAX_PAGES, opaque || 1, resident, viewRows));
@@ -100,7 +99,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   const gpuWanted: PageRec[] = bootstrap;
   const copies = countRootCopies({ byAddress: new Map(), max: 1 }, selectionRoots);
   // A scene the GPU cut cannot hold opens with the rows of a view, and its cut grows them.
-  const viewRows = packedPages.length > VIEW_ROWS ? CUT_ROWS : VIEW_ROWS;
+  const viewRows = cutsOnCpu(packedPages.length) ? CUT_ROWS : VIEW_ROWS;
   const { drawSlots, blendSlots, bounded } = askedTableRows(
     opaquePageCount,
     packedPages.length - opaquePageCount,

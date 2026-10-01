@@ -32,3 +32,18 @@ test('the placements of one primitive share one readiness, moved through any of 
   held.endImage();
   assert.deepEqual([held.primitives, held.bytes], [0, 0], 'out of view, let go');
 });
+
+test('a primitive none of whose placements the layout can route lets its state go', () => {
+  const dag = ruleDag(8),
+    roots = placements(dag, 4);
+  for (const root of roots) root.pages = roots[0].pages;
+  const placement = postPackedBases(roots);
+  const held = createHeldResidency({ isResident: () => false }, placement);
+  held.track(roots);
+  held.readiness(roots[0]);
+  assert.equal(held.primitives, 1);
+  // A new layout names the same placements past the ranks the placement table holds: no move of
+  // theirs can be routed, so the state, which would read only routed moves, is let go.
+  held.track([...placements(dag, 4), ...roots]);
+  assert.equal(held.primitives, 0);
+});
