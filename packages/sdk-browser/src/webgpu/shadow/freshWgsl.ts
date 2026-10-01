@@ -10,7 +10,7 @@ import { FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLa
 import { FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 import { FRESH_LANES } from './freshLanes.ts';
-import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/rankSpan.ts';
+import { FRESH_PICK_WGSL } from './freshPickWgsl.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -59,59 +59,13 @@ const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
 const MAX_REGIONS:u32=${MAX_FRESH_REGIONS}u;
 var<workgroup> layerCount:array<u32,${MAX_POOL_LAYERS}>;
 var<workgroup> regionCount:u32;
-var<workgroup> rankCount:array<u32,${RANK_SPAN}>;
-const RANK_SPAN:u32=${RANK_SPAN}u;
 fn shadowPoolPages()->u32{return params.pages;}
 fn poolLayer(p:u32)->u32{return u32(shadowPoolPlace(f32(p),f32(params.side)).z);}
 fn faceF(i:u32,v:f32){faces[i]=bitcast<u32>(v);}
 fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
-/** Whether listed page \`p\` still waits for a draw: mapped, not readable, its word its own, drawn
- *  by none. */
-fn freshWaiting(p:u32)->bool{
- let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
- if(e<0){return false;}
- let word=shadows.table[u32(e)];
- return (word&(PAGE_MAPPED|PAGE_VALID))==PAGE_MAPPED&&(word&PAGE_INDEX_MASK)==p&&shadowPool.pages[poolAt(POOL_DRAWNBY,p)]==DRAWN_NONE;
-}
-/** Page \`p\`'s coarseness, within the ranks a key spans: the order its fill is served in. */
-fn freshRank(p:u32)->u32{return u32(clamp(shadowPool.pages[poolAt(POOL_RANK,p)],0,i32(RANK_SPAN)-1));}
-/** Lane 0: the listed pages still waiting for a draw, up to the frame's static fill
- *  (\`params.budget\`, \`shadowPagesPerFrame\` less the host's fills, #831) — the coarsest first,
- *  a finer page falling back to them —, each claimed once, then laid out as regions layer after
- *  layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`). A page past the budget stays listed and
- *  unclaimed: it reads the coarser page and is drawn the next frames. */
-fn pickPages(){
- for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
- for(var r=0u;r<RANK_SPAN;r++){rankCount[r]=0u;}
- let listed=min(countRead(COUNT_DRAWN),params.pages);
- for(var i=0u;i<listed;i++){let p=drawList[i];if(freshWaiting(p)){rankCount[freshRank(p)]+=1u;}}
- // The finest rank the budget reaches (\`cut\`), and the pages of it it holds (\`room\`).
- var room=min(params.budget,MAX_REGIONS);var cut=0u;var whole=true;
- for(var r=i32(RANK_SPAN)-1;r>=0;r--){
-  let n=rankCount[u32(r)];
-  if(n>=room){cut=u32(r);whole=false;break;}
-  room-=n;
- }
- var picked=0u;var atCut=0u;
- for(var i=0u;i<listed;i++){
-  let p=drawList[i];
-  if(!freshWaiting(p)){continue;}
-  let rank=freshRank(p);
-  if(!whole&&rank<cut){continue;}
-  if(!whole&&rank==cut){if(atCut>=room){continue;}atCut++;}
-  shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_GPU;drawList[picked]=p;picked++;
-  layerCount[poolLayer(p)]+=1u;
- }
- var start=0u;
- for(var l=0u;l<params.layers;l++){args[FRESH_LAYER_STARTS+l]=start;start+=layerCount[l];layerCount[l]=0u;}
- for(var i=0u;i<picked;i++){
-  let p=drawList[i];let l=poolLayer(p);
-  args[FRESH_REGION_PAGES+args[FRESH_LAYER_STARTS+l]+layerCount[l]]=p;layerCount[l]+=1u;
- }
- regionCount=picked;
-}
+${FRESH_PICK_WGSL}
 /** Clip column \`c\` of a view cropped on x and y (\`shadowCropped\`), its depth by \`zs, zo\`. */
 fn cropped(c:vec4f,a:f32,b:f32,cy:f32,d:f32,zs:f32,zo:f32)->vec4f{
  return vec4f(shadowCropped(c.x,c.w,a,b),shadowCropped(c.y,c.w,cy,d),shadowCropped(c.z,c.w,zs,zo),c.w);
