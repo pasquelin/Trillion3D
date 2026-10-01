@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import { EAST } from './character.fixture.ts';
-import { deepest, zUniformScenes, type WalkScene } from './characterScenes.fixture.ts';
+import { deepestAt, zUniformScenes, type WalkScene } from './characterScenes.fixture.ts';
 
 const { capsuleRadius: radius, capsuleHeight: height } = HUMAN_BODY;
 
@@ -18,7 +18,7 @@ function walk({ world, sprint }: WalkScene) {
   for (let tick = 0; tick < 240; tick++) {
     body.advance(1 / 120, { ...EAST, sprint });
     assert.ok(body.feet.every(Number.isFinite), `feet ${[...body.feet]}`);
-    inside = Math.max(inside, deepest(world, body.feet, radius, height));
+    inside = Math.max(inside, deepestAt(world, body.feet, radius, height));
     aside = Math.max(aside, Math.abs(body.feet[2]));
   }
   return { inside, aside };
@@ -28,16 +28,10 @@ function walk({ world, sprint }: WalkScene) {
 const SEED = 3,
   SCENES = 300;
 
-test('a walker never ends a tick a centimetre inside a solid, whatever it walks into', () => {
+test('a walker never ends a tick a centimetre inside a solid, nor drifts sideways across a scene uniform across it', () => {
   for (const scene of zUniformScenes(SEED, SCENES, radius, height)) {
-    const { inside } = walk(scene);
+    const { inside, aside } = walk(scene);
     assert.ok(inside < 0.01, `scene ${scene.index}: ${inside} m inside`);
-  }
-});
-
-test('a walker heading straight along a scene uniform across it never drifts sideways', () => {
-  for (const scene of zUniformScenes(SEED, SCENES, radius, height)) {
-    const { aside } = walk(scene);
     assert.ok(aside < 0.01, `scene ${scene.index}: ${aside} m aside`);
   }
 });

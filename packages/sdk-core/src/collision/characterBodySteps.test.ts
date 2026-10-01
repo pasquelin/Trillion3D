@@ -4,6 +4,7 @@ import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { block, EAST } from './character.fixture.ts';
+import { deepestAt } from './characterScenes.fixture.ts';
 
 test('a fast grounded walker cannot climb a sub-radius ledge when steps are disabled', () => {
   const body = createCharacterBody({ ...HUMAN_BODY, capsuleRadius: 0.3, stepHeight: 0 });
@@ -144,14 +145,8 @@ test('a walker up a ramp under a low ceiling stops where its head meets it, neve
   let inside = 0;
   for (let tick = 0; tick < 240; tick++) {
     body.advance(1 / 120, EAST);
-    world.resolveCapsule(
-      {
-        feet: Float64Array.from(body.feet),
-        radius: HUMAN_BODY.capsuleRadius,
-        height: HUMAN_BODY.capsuleHeight,
-      },
-      (touch) => (inside = Math.max(inside, touch.depth)),
-    );
+    const depth = deepestAt(world, body.feet, HUMAN_BODY.capsuleRadius, HUMAN_BODY.capsuleHeight);
+    inside = Math.max(inside, depth);
   }
   assert.ok(inside < 1e-3, `${inside} m inside`);
   assert.ok(body.feet[1] <= 1.85 - HUMAN_BODY.capsuleHeight + 1e-3, `feet at ${body.feet[1]}`);

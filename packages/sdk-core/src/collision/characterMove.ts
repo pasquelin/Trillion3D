@@ -44,8 +44,7 @@ export interface MovingBody {
 
 const part = new Float64Array(3),
   away = new Float64Array(3),
-  before = new Float64Array(3),
-  after = new Float64Array(3);
+  before = new Float64Array(3);
 let body: MovingBody,
   report: MoveReport,
   rules: MoveRules,
@@ -141,9 +140,7 @@ export function slide(
     // Squeezed — a ramp under a low ceiling, a gap narrower than the body: the part is not
     // taken, and the body stops against what holds it, as a blocked sweep stops a capsule.
     capsule.feet.set(before);
-    for (let k = 0; k < 3; k++) away[k] = -part[k];
-    const length = hypot3(away[0], away[1], away[2]);
-    if (length > 0) for (let k = 0; k < 3; k++) away[k] /= length;
+    for (let k = 0; k < 3; k++) away[k] = -delta[k] / length;
     clip(body.velocity, away);
     report.wall = true;
     break;
@@ -151,12 +148,15 @@ export function slide(
   return into;
 }
 
+let depth = 0;
+const measure: CapsulePush = (contact) => {
+  depth = Math.max(depth, contact.depth);
+};
+
 /** The deepest overlap of `capsule` where it stands, the capsule left in place. */
-function deepest(world: CharacterCollision, capsule: Capsule) {
-  let depth = 0;
-  world.resolveCapsule(capsule, (contact) => {
-    depth = Math.max(depth, contact.depth);
-  });
+export function deepest(world: CharacterCollision, capsule: Capsule) {
+  depth = 0;
+  world.resolveCapsule(capsule, measure);
   return depth;
 }
 
@@ -165,11 +165,8 @@ function deepest(world: CharacterCollision, capsule: Capsule) {
 function blocked(world: CharacterCollision, capsule: Capsule) {
   const inside = deepest(world, capsule);
   if (inside <= SLACK) return false;
-  after.set(capsule.feet);
-  capsule.feet.set(before);
-  const was = deepest(world, capsule);
-  capsule.feet.set(after);
-  return inside > was + SLACK;
+  const { radius, height } = capsule;
+  return inside > deepest(world, { feet: before, radius, height }) + SLACK;
 }
 
 /** The height gained over `h` seconds from the vertical speed `vy`, and the speed after:

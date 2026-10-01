@@ -146,8 +146,9 @@ export const SLACK = 1e-6;
 
 /**
  * Passes of a move after each of its parts (`characterMove.ts`). Not derived, declared: each
- * pass already resolves every triangle it meets, measured from the moved capsule, so a second pass is only needed where a push re-enters
- * a surface already answered — a corner — and each further pass one more such re-entry. What
+ * pass already resolves every triangle it meets, measured from the moved capsule, so a second
+ * pass is only needed where a push re-enters a surface already answered — a corner — and each
+ * further pass one more such re-entry. What
  * the passes leave is resolved by the next part or the next move. Sensitivity: the value trades
  * the overlap tests a crowded corner costs against how many re-entries one part settles; one
  * pass would leave a two-wall corner to the next part.

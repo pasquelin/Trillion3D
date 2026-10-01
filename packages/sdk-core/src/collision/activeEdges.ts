@@ -18,7 +18,7 @@ import type { TriangleTree } from './triangleTree.ts';
  */
 
 /** Two triangles whose planes are closer than this cosine are one flat surface: 5°. */
-export const SEAM_COS = Math.cos((5 * Math.PI) / 180);
+const SEAM_COS = Math.cos((5 * Math.PI) / 180);
 
 const low = new Float64Array(3),
   high = new Float64Array(3),
@@ -39,8 +39,11 @@ function seam(tree: TriangleTree, at: number, e: number) {
   const v = tree.triangles,
     p = at + 3 * e,
     q = at + 3 * ((e + 1) % 3);
-  for (let k = 0; k < 3; k++)
-    [low[k], high[k]] = [Math.min(v[p + k], v[q + k]), Math.max(v[p + k], v[q + k])];
+  for (let k = 0; k < 3; k++) {
+    low[k] = Math.min(v[p + k], v[q + k]);
+    high[k] = Math.max(v[p + k], v[q + k]);
+  }
+  const own = triangleNormal(mine, v, at);
   let shared = 0,
     flat = -1;
   forEachTriangleInBox(tree, low, high, (other) => {
@@ -50,7 +53,7 @@ function seam(tree: TriangleTree, at: number, e: number) {
     shared++;
     // Wound as this one, the other runs the edge the other way; the same way, it faces back.
     const turn = (a + 1) % 3 === b ? -1 : 1;
-    const lengths = Math.sqrt(triangleNormal(mine, v, at) * triangleNormal(theirs, v, other));
+    const lengths = Math.sqrt(own * triangleNormal(theirs, v, other));
     const dot = mine[0] * theirs[0] + mine[1] * theirs[1] + mine[2] * theirs[2];
     flat = lengths > 0 && turn * dot >= SEAM_COS * lengths ? other : -1;
   });

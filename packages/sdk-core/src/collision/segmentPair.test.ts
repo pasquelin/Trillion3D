@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { closestBetweenSegments, pairParameters } from './segmentPair.ts';
+import { closestBetweenSegments, pairParameter } from './segmentPair.ts';
 import { onSegment as within } from './segment.fixture.ts';
 
 // The closed form against a dense sampling of both segments: the true distance is never above the
@@ -46,10 +46,9 @@ test('two segments: the distance and the pair of their nearest points, degenerat
     assert.ok(onSegment(out.subarray(3, 6), second), `${label}: second point off its segment`);
     const gap = Math.hypot(out[0] - out[3], out[1] - out[4], out[2] - out[5]);
     assert.ok(Math.abs(gap - distance) < 1e-12, `${label}: the pair is at the distance`);
-    // The parameters reported are where the pair lies on each segment.
-    const { s, t } = pairParameters;
-    assert.ok(s >= 0 && s <= 1 && t >= 0 && t <= 1, `${label}: ${s}, ${t}`);
-    assert.ok(within(out.subarray(0, 3), [...at(first, s), ...at(first, s)], 1e-12, 1e-24), label);
+    // The parameter reported is where the pair lies on the second segment.
+    const { t } = pairParameter;
+    assert.ok(t >= 0 && t <= 1, `${label}: ${t}`);
     assert.ok(
       within(out.subarray(3, 6), [...at(second, t), ...at(second, t)], 1e-12, 1e-24),
       label,

@@ -2,18 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
-import type { CharacterCollision } from './characterCollision.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { block, EAST } from './character.fixture.ts';
-
-/** The deepest overlap of a capsule standing on `feet` with `world`, metres. */
-function deepest(world: CharacterCollision, feet: Float64Array, radius: number, height: number) {
-  let depth = 0;
-  world.resolveCapsule({ feet: Float64Array.from(feet), radius, height }, (touch) => {
-    depth = Math.max(depth, touch.depth);
-  });
-  return depth;
-}
+import { deepestAt } from './characterScenes.fixture.ts';
 
 for (const { radius, ledge, step, x, y, speed } of [
   { radius: 1, ledge: 0.7, step: 0.3, x: 0.5, y: -0.1, speed: 0 },
@@ -35,7 +26,7 @@ for (const { radius, ledge, step, x, y, speed } of [
     assert.equal(body.onGround, true);
     assert.ok(Math.abs(body.feet[1]) < 1e-10, `feet at ${body.feet[1]}`);
     assert.ok(body.feet[0] < 1, 'the ledge is not climbed');
-    assert.ok(deepest(world, body.feet, radius, 2) < 1e-3, 'no millimetre left inside');
+    assert.ok(deepestAt(world, body.feet, radius, 2) < 1e-3, 'no millimetre left inside');
   });
 
 test('a fast body pushed into a block, steps disabled, escapes without taking its stride', () => {
@@ -55,7 +46,7 @@ test('a fast body pushed into a block, steps disabled, escapes without taking it
   body.advance(1 / 120, EAST);
   // At 90 m/s a tick's stride is 0.75 m: an overlap is an escape, never a retry of the stride.
   assert.ok(body.feet[0] - 2 < 90 / 120 / 2, `carried to ${body.feet[0]}`);
-  assert.ok(deepest(world, body.feet, 1, 2) < 1e-3, 'the escape ends outside the solids');
+  assert.ok(deepestAt(world, body.feet, 1, 2) < 1e-3, 'the escape ends outside the solids');
 });
 
 test('a body pushed into a tilted crate comes out on the side it came from', () => {
@@ -70,7 +61,7 @@ test('a body pushed into a tilted crate comes out on the side it came from', () 
   body.feet.set([1 - HUMAN_BODY.capsuleRadius + 0.058, -0.014, 0]);
   body.advance(1 / 120, EAST);
   assert.ok(body.feet[0] < 1, `pushed to ${body.feet[0]}`);
-  assert.ok(deepest(world, body.feet, HUMAN_BODY.capsuleRadius, HUMAN_BODY.capsuleHeight) < 1e-3);
+  assert.ok(deepestAt(world, body.feet, HUMAN_BODY.capsuleRadius, HUMAN_BODY.capsuleHeight) < 1e-3);
 });
 
 // Walks into corners of a ledge, a wall and a roof, each a few centimetres from the next.
@@ -148,6 +139,6 @@ for (const route of [
       assert.ok(Math.hypot(...body.velocity) <= route.speed + 1e-9, 'a corner adds no speed');
     }
     assert.equal(body.onGround, true);
-    const depth = deepest(world, body.feet, settings.capsuleRadius, settings.capsuleHeight);
+    const depth = deepestAt(world, body.feet, settings.capsuleRadius, settings.capsuleHeight);
     assert.ok(depth < 1e-3, `ends ${depth} m inside`);
   });
