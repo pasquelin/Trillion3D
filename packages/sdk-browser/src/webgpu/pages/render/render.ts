@@ -125,6 +125,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
+  // The impostor plan: the cards, and the card bit of the roots they replace, read by both cuts.
+  rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam);
   // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
   if (
     rt.views.active === rt.views.main &&

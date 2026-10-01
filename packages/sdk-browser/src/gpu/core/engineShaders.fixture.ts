@@ -68,13 +68,14 @@ import {
   SHADOW_DEMAND_WGSL,
   MIP_SHADER,
 } from './shaderTexts.fixture.ts';
+import '../../impostor/lent.fixture.ts';
+import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts';
 
 /**
- * Every WGSL text the engine hands to `createShaderModule`, by the name of its module, each
- * variant a pass can compile under its own name: the diagnostic and water additions, the DAG's
- * external-reference screen error, each composition input. A pass that sizes its text
- * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
- * changes a constant, never a name.
+ * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
+ * pass can compile under its own name: the diagnostic and water additions, the DAG's external-
+ * reference screen error, each composition input. A pass that sizes its text (`rasterSource`,
+ * `drawShader`, `transparentOcclusionShader`) is taken at one size: its size is no name.
  */
 
 const compositions = (label: string, sources: Record<string, string>) =>
@@ -195,4 +196,5 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
+  CARD_PASS_WGSL: cardPassWgsl(),
 };

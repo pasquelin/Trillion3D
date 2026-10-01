@@ -17,6 +17,7 @@ import type { PageDraws } from './pageDraws.ts';
 import type { WebglDeformation } from '../../deformation/webglFrame.ts';
 import { stillFrame } from './stillFrame.ts';
 import { type WebglViewState } from './viewKeys.ts';
+import type { webglImpostorTier } from '../../webgl/impostor/code.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -76,6 +77,8 @@ export function createAutonomousRender(options: {
     ReturnType<typeof createGeometryBudget>,
     'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
   >;
+  /** The impostor tier (#1336), absent without a baked section: planned before each cut. */
+  impostors?: Pick<NonNullable<ReturnType<typeof webglImpostorTier>>, 'plan'>;
 }) {
   const {
     state,
@@ -140,6 +143,8 @@ export function createAutonomousRender(options: {
     deformation.update(gate.cam, view.viewport, gate.pixelError);
     if (cut.readmit()) follow();
     pool.trim();
+    // The impostor plan marks the roots its cards replace, which the cut then leaves (`CARD_ROOT`).
+    options.impostors?.plan(gate.cam, view.viewport);
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
     const { triangles } = state;
