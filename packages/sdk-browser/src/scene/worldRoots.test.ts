@@ -103,6 +103,13 @@ test('the world DAG names its pages through the one source, from what is held (#
   );
   assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read');
   assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold');
+  // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
+  const before = roots.bytes(),
+    far = addressed[1].url; // bundle 2's super-root
+  await roots.source.read(far);
+  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the kept bundle is counted');
+  await roots.source.attributes(far);
+  assert.equal(roots.bytes(), before, 'both views served, it is let go');
 });
 
 test('a world DAG out of the cook\u2019s rank is refused when the world opens (#1238)', async (t) => {
