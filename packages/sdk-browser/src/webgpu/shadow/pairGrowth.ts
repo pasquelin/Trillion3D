@@ -1,4 +1,3 @@
-import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../gpu/core/tableGrowth.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
@@ -11,7 +10,7 @@ import {
 } from './memoryGrant.ts';
 import { transmittanceSettled } from './transmittanceGrant.ts';
 import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
-import { keptRows, pairRows, poolPairs } from './pairRows.ts';
+import { keptListBytes, keptRows, pairRows, poolPairs } from './pairRows.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The rows each region cull asked and the device has not answered yet: asked once, not each
@@ -19,14 +18,10 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 const asking = new WeakMap<object, number>();
 const PAST_GRANT = 'The shadow pair list is past the grant';
 
-/** Bytes of `rows` rows of the kept lists: the cull's, the occlusion test's that follows it — made
- *  with the static layer, held in the grant from the layer's reservation with the pool on
- *  (`staticReserve.ts`, #831) —, and the raster bins' — a row and, stored, its matrix
- *  (`../../gpu/shadow/bins.ts`). */
+/** Bytes of `rows` rows of the kept lists (`keptListBytes`): the occlusion test's held from the
+ *  static layer's reservation with the pool on (`staticReserve.ts`, #831). */
 const listBytes = (rows: number, lights: WebgpuPagesRuntime['lights']) =>
-  rows *
-  ROW_BYTES *
-  (1 + (lights.occlusion || lights.staticLayerTexture ? 1 : 0) + (lights.bins?.stride ?? 0));
+  keptListBytes(rows, lights.bins?.stride ?? 0, !!(lights.occlusion || lights.staticLayerTexture));
 
 /** The bytes of the pairs' share of the kept lists — the cull's, the occlusion test's, the bins'
  *  alike —, which the shadows' setting holds (`shadowPoolHeld`, `poolSetting.ts`): the rows the

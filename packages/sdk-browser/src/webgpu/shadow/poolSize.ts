@@ -3,6 +3,8 @@ import {
   shadowPoolShape,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_POOL_SETTING_BYTES, shadowPoolWithin } from './poolSetting.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { BIN_STORED_STRIDE } from '../../gpu/shadow/binShader.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
@@ -24,7 +26,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
-type PoolContext = Pick<BackendContext, 'shadowPoolPages' | 'sunWindow'>;
+type PoolContext = Pick<BackendContext, 'shadowPoolPages' | 'sunWindow' | 'shadowLocalToClip'>;
 
 /** Pages a side of one layer as wide as a device of `limits` draws: a pool that fits it is one
  *  pass a batch; the portable side when the device names none. */
@@ -40,7 +42,9 @@ export function shadowPoolShapeOf(
   limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
 ) {
   const layerSide = limits && layerSideOf(limits),
-    within = shadowPoolWithin(SHADOW_POOL_SETTING_BYTES, layerSide, context.sunWindow),
+    // The `shadowLocalToClip` option's bins store a matrix a row: their bytes come off the pages.
+    binStride = explorerSwitch(context, 'shadowLocalToClip') ? BIN_STORED_STRIDE : 1,
+    within = shadowPoolWithin(SHADOW_POOL_SETTING_BYTES, layerSide, context.sunWindow, binStride),
     asked = context.shadowPoolPages;
   return asked && asked < within.side ** 2 * within.layers
     ? shadowPoolShape(asked, layerSide)
