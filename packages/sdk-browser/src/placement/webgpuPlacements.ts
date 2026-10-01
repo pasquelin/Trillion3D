@@ -5,7 +5,6 @@ import {
   noteOwnMove,
   ownsMove,
 } from '../webgpu/pages/render/movedClusters.ts';
-import { sameElements } from '../math/matrixElements.ts';
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows } from './update.ts';
@@ -47,9 +46,10 @@ export function updateWebgpuPlacements(
     to,
     flipWorld(rt),
     (rank, world, forced) => {
-      const pose = mobility.poseOf(rank);
-      if (!forced && pose && !sameElements(pose, world)) noteOwnMove(rt, rank);
-      return mobility.move(rank, world, forced);
+      const box = layout.selectionRoots[rank]?.localBox;
+      if (!forced && mobility.poseOf(rank) && !mobility.holds(rank, world, box))
+        noteOwnMove(rt, rank);
+      return mobility.move(rank, world, forced, box);
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
     (min, max, movingOnly, rank, moveOnly) => {

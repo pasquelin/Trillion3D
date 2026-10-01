@@ -1,4 +1,4 @@
-import { sameElements } from '../../math/matrixElements.ts';
+import { poseHoldsBox, sameElements } from '../../math/matrixElements.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import {
   MOBILITY_COARSER,
@@ -34,6 +34,10 @@ export function createShadowMobility() {
     wholeRows = true;
   /** Rows of each raster bin's class (OMB-26). */
   const classes = new Uint32Array(SHADOW_BIN_CLASSES);
+  /** Whether `world` leaves placement `rank` where it was last seen: the same pose, or, given its
+   *  local `box`, one that moves it by less than a float32 step (`move`). */
+  const holds = (rank: number, world: ArrayLike<number>, box?: ArrayLike<number>) =>
+    box ? poseHoldsBox(poses, world, box, rank * 16) : sameElements(poses, world, rank * 16);
   return {
     /** True while a row's caster falls in class `c` (`../../gpu/shadow/binShader.ts`): without
      *  one, no region's bin of that class holds a caster. */
@@ -60,6 +64,7 @@ export function createShadowMobility() {
     get rowWords() {
       return rows;
     },
+    holds,
     /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
      *  the poses `worldOf` gives. Placements that joined in place
      *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state,
@@ -83,13 +88,15 @@ export function createShadowMobility() {
     },
     /**
      * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
-     * at, or whatever its pose when `forced` — a row taken or parked, a node moved. Returns
+     * at — or, given its local `box`, a pose that leaves that box where it stood within a float32
+     * step (`poseHoldsBox`) —, or whatever its pose when `forced` — a row taken or parked, a node
+     * moved. A pose below the step is not kept: the next one is weighed against the last move. Returns
      * `MOVE_NONE`, `MOVE_MOVING` — it was moving already, its static casters stay — or
      * `MOVE_PROMOTED`, its first move.
      */
-    move(rank: number, world: ArrayLike<number>, forced = false) {
+    move(rank: number, world: ArrayLike<number>, forced = false, box?: ArrayLike<number>) {
       if (rank < 0 || rank >= moving.length) return MOVE_PROMOTED;
-      if (!forced && sameElements(poses, world, rank * 16)) return MOVE_NONE;
+      if (!forced && holds(rank, world, box)) return MOVE_NONE;
       poses.set(world, rank * 16);
       if (moving[rank]) return MOVE_MOVING;
       moving[rank] = 1;
