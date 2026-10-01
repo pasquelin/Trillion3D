@@ -96,3 +96,49 @@ test('unit-vector rotations handle opposite axes and composition matches matrix 
     expected.toArray(),
   );
 });
+
+test('a write of any one number is a write, heard; a turn from angles is heard too', () => {
+  for (let k = 0; k < 4; k++) {
+    const value = new Quaternion(1, 2, 3, 4);
+    let heard = 0;
+    listen(value, () => heard++);
+    const next = [1, 2, 3, 4];
+    next[k] = 9;
+    value.set(next[0], next[1], next[2], next[3]);
+    assert.deepEqual(value.toArray(), next);
+    assert.equal(heard, 1);
+  }
+  const turned = new Quaternion();
+  let heard = 0;
+  listen(turned, () => heard++);
+  turned.setFromEuler({ x: 0.1, y: 0.2, z: 0.3, order: 'XYZ' });
+  assert.equal(heard, 1);
+});
+
+test('a rotation read from a matrix is that matrix, whatever was computed before it', () => {
+  new Quaternion(0.1, 0.2, 0.3, 0.9).normalize();
+  const m = new Matrix4().makeRotationAxis({ x: 0, y: 0, z: 1 }, 1);
+  close(
+    new Quaternion().setFromRotationMatrix(m).toArray(),
+    new Quaternion().setFromAxisAngle({ x: 0, y: 0, z: 1 }, 1).toArray(),
+  );
+});
+
+test('the shortest turn between oblique unit vectors, and a half-turn onto their opposites', () => {
+  const a = new Vector3(0.6, 0.8, 0),
+    b = new Vector3(0, 0.6, 0.8);
+  // Unit vectors with no zero coordinate, so every term of the turn counts.
+  const p = new Vector3(0.48, 0.6, 0.64),
+    q = new Vector3(0.6, 0.64, 0.48);
+  close(
+    p.clone().applyQuaternion(new Quaternion().setFromUnitVectors(p, q)).toArray(),
+    q.toArray(),
+  );
+  for (const from of [a, b, new Vector3(0, 0.8, 0.6)]) {
+    const to = from.clone().negate();
+    close(
+      from.clone().applyQuaternion(new Quaternion().setFromUnitVectors(from, to)).toArray(),
+      to.toArray(),
+    );
+  }
+});
