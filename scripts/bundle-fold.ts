@@ -11,8 +11,8 @@ export const CHUNK_PREFIX = 'trillion3d-';
  *  share code with the core in as many more chunks. Physics, whose session starts its worker and
  *  its WebAssembly; particles; WebGPU transmission, glass and water; WebGPU
  *  deformation; the effect chain; the guides; the diagnostic views; the measurement's build
- *  provenance and comparison compositor; the world pages' server; the WebGPU impostor draw. A scene that uses none of them
- *  fetches none. */
+ *  provenance and comparison compositor; the world pages' server; the WebGPU impostor draw. A
+ *  scene that uses none of them fetches none. */
 export const FAMILY_MODULES = {
   physics: ['sdk-browser/src/physics/session.js'],
   particles: ['sdk-browser/src/particles/particleCode.js'],

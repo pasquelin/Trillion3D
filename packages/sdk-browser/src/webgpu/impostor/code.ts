@@ -1,24 +1,14 @@
 import { families } from '../../host/families.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** The sessions waiting for the impostor draw's arrival, each told once per round. */
-const waiting = new WeakSet<WebgpuPagesRuntime>();
-
 /**
- * The impostor draw's code (`impostorCode.ts`), loaded on first use: asked by the first image of a
- * cache with baked impostors, never by another. `undefined` until it lands: the image then plans no
- * card and switches no root, so every root keeps its clusters, as one whose atlas is still
- * streaming does; the round over — arrived, or refused and told —, the session is asked a new
- * image (`resourcesChanged`), which draws the cards or asks again.
+ * The impostor draw's code (`impostorCode.ts`), a family on demand (#1335): imported by a session
+ * whose cache has baked impostors, and awaited where it prepares, as deformation's and
+ * transmission's are, so its first image already draws the cards; never by another. A refused
+ * import (`FAMILY_LOAD_FAILED`, told by the loader) is no refused scene: without its code the
+ * session plans no card, and every root keeps its clusters, as one whose atlas still streams.
  */
-export function impostorCode(rt: WebgpuPagesRuntime) {
-  if (!rt.context.metadata.impostors?.baked) return undefined;
-  const code = families.impostors.get();
-  if (code || waiting.has(rt)) return code;
-  waiting.add(rt);
-  void families.impostors.settled().then(() => {
-    waiting.delete(rt);
-    rt.run.gate.resourcesChanged();
-  });
-  return undefined;
-}
+export const loadImpostorCode = (rt: WebgpuPagesRuntime) =>
+  rt.context.metadata.impostors?.baked
+    ? families.impostors.load().catch(() => undefined)
+    : Promise.resolve(undefined);
