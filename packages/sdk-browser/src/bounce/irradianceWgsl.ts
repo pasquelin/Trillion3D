@@ -3,8 +3,9 @@ export const SURFACE_IRRADIANCE_WGSL = `
 /**
  * Irradiance of the declared lights at a texel point. Shadows are traced against the proxy,
  * which keeps a closed door closed for bounce as for the direct term. Every shadow-casting light
- * that reaches the point is tested: a light left untested would shine through the wall. The
- * cost is held by the bounce budget, which updates fewer cells, never by skipping a light.
+ * that adds light at the point is tested: one left untested would shine through the wall (#29).
+ * In the surface cache and probe passes the bounce budget holds the cost by updating fewer cells;
+ * a mirror ray landing on an owned leaf (\`rayRadiance\`) pays one ray per such light per pixel.
  */
 fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  var total=vec3f(0.0);
@@ -18,11 +19,13 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
   if(incidence.w<=0.0){continue;}
   let cosine=dot(N,incidence.xyz);
   if(cosine<=0.0){continue;}
+  let lit=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
+  if(all(lit==vec3f(0.0))){continue;}
   if(light.params.z>0.5){
    let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
    if(proxyBlocked(offset,incidence.xyz,span,false)){continue;}
   }
-  total+=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
+  total+=lit;
  }
  return total;
 }
