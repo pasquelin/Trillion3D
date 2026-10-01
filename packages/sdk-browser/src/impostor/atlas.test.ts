@@ -37,7 +37,7 @@ function fakeReader() {
   const asked: TextureLevelRequest[] = [];
   const read = (async (request: TextureLevelRequest) => {
     asked.push(request);
-    if (request.url.endsWith('d.png')) throw new Error('404');
+    if (request.url?.endsWith('d.png')) throw new Error('404');
     return bitmap();
   }) as TextureLevelReader;
   return { reader: Object.assign(read, { store, key: 'k1' }) as TextureLevelReader, asked, store };

@@ -87,7 +87,7 @@ function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
 }
 
 /** The pivot's view-space point, reused: the plan runs every image. */
-const point = new Float64Array(3);
+const point = /* @__PURE__ */ new Float64Array(3);
 
 /**
  * Plans the impostor tier for one view: every root whose mesh has a baked entry and whose switch

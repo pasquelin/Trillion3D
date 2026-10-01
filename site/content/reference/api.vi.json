@@ -8294,7 +8294,7 @@
   },
   "planImpostors": {
     "summary": "Lập kế hoạch tầng impostor cho một khung nhìn: mọi gốc có mesh mang mục đã nướng và chuyển đổi của nó còn hiệu lực sẽ tạo một thẻ và được đánh dấu là bị loại bỏ.",
-    "description": "`view` ánh xạ thế giới sang không gian khung nhìn (theo cột) và `focalPixels` là tiêu cự duy nhất của bộ máy tính bằng pixel tại khung nhìn của hình ảnh."
+    "description": "`view` ánh xạ thế giới sang không gian khung nhìn (theo cột) và `focalPixels` là tiêu cự duy nhất của bộ máy tính bằng pixel tại khung nhìn của hình ảnh. `into`, một kế hoạch mà một khung nhìn trước trả về, được lập lại tại chỗ: `switched` và các thẻ của nó được tái sử dụng, nên một runtime lập kế hoạch mỗi ảnh không cấp phát gì nữa khi số thẻ đã ổn định."
   },
   "validateImpostorSection": {
     "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
