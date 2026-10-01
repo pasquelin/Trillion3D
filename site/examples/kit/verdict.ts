@@ -2,7 +2,8 @@ import { resultRow, type Measurement, type ResultRow } from './measureTypes.ts';
 import { failures } from './failure.ts';
 import { spread } from './profile.ts';
 import { statsCard } from './stats.ts';
-import { ms, rate } from './statsLines.ts';
+import { rate } from './statsLines.ts';
+import { ms } from './statUnit.ts';
 import { exampleId, kitWord } from './words.ts';
 
 /**
