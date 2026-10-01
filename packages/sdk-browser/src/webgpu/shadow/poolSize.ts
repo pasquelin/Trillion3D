@@ -12,7 +12,7 @@ import { shadowPoolFor } from './poolFor.ts';
 import { reserveStaticLayer } from './staticReserve.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { grantsShadowLayer, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
+import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
 import {
   grantShadowTransmittance,
   sceneCastsBlended,
@@ -63,10 +63,13 @@ export const shadowPoolShapeOf = (
  *  pages' pairs grew the cull's by (`pairBytes`, `pairGrowth.ts`) are asked for it too. */
 export function staticLayerGranted(
   lights: WebgpuLightState,
-  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  diagnose?: WebgpuPagesRuntime['diag']['engineDiagnostic'],
   grantBytes = SHADOW_GRANT_BYTES,
 ) {
-  const { bytes, transmittance } = staticLayerAsk(lights);
+  // Silent without `diagnose`: the reservation with the pool; the first move asks and says it.
+  const { side, layers } = lights.plan.pool,
+    transmittance = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers),
+    bytes = shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes);
   return grantsShadowLayer(
     lights,
     diagnose,
@@ -77,23 +80,6 @@ export function staticLayerGranted(
     transmittance,
   );
 }
-
-/** The static layer's bytes and the transmittance layer's still to come (`staticLayerGranted`). */
-function staticLayerAsk(lights: WebgpuLightState) {
-  const { side, layers } = lights.plan.pool;
-  return {
-    bytes: shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes),
-    transmittance: transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers),
-  };
-}
-
-/** Whether the grant would hold the static layer, asked silently: the reservation made with the
- *  pool (`staticReserve.ts`) records no pressure for a scene where nothing may ever move — the
- *  first move asks `staticLayerGranted`, which says it. */
-const staticLayerFits = (lights: WebgpuLightState, grantBytes = SHADOW_GRANT_BYTES) => {
-  const { bytes, transmittance } = staticLayerAsk(lights);
-  return shadowPoolHeld(lights) + bytes + transmittance <= grantBytes;
-};
 
 /** What the shadow pool asks of the device for `wanted` pages — the plan's —, granted at most
  *  the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`); nothing without a caster, or during a
@@ -203,7 +189,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       adoptShadowPool(rt, atlas, device, granted, ask.wanted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
-      await reserveStaticLayer(rt, staticLayerFits(lights));
+      await reserveStaticLayer(rt, staticLayerGranted(lights));
       run.gate.resourcesChanged();
     },
     (error: unknown) => {

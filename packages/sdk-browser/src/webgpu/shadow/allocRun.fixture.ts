@@ -1,7 +1,6 @@
-// The GPU allocation of shadow pages and the host's table words (#1275), run from their shipped
-// WGSL through `shaderRun`, over the bytes of the buffers they bind: phase by phase, every lane of
-// a phase before the next, as the barriers of `allocateShadowPages` order them. What the mock GPU
-// dispatches (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
+// The GPU page allocation and the host's table words (#1275), run from their WGSL by `shaderRun`
+// over their buffers' bytes, every lane of a phase before the next (`allocateShadowPages`'s
+// barriers): what the mock GPU (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import {
   MAX_SHADOW_SLICES,
   POINT_FACES,
@@ -163,8 +162,7 @@ export function runShadowAllocation(...bound: Uint8Array[]) {
   each('assignPages', needs, candidates);
 }
 
-/** Runs `withdrawGpuPages` then `applyShadowWords`, as the frame dispatches them, over the shadow
- *  buffer, the GPU pool, the host's words, the draw list. */
+/** Runs `withdrawGpuPages`, then `applyShadowWords`, over the shadow data, pool, words, draw list. */
 export function runShadowWords(
   data: Uint8Array,
   state: Uint8Array,
