@@ -3,7 +3,7 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { PoolEncoding } from '../../texture/blockFormats.ts';
 import { writeTileFromBlocks } from './writeBlocks.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
-import { createWebgpuTileLevels, readHeldLevel, type LevelKey } from './levels.ts';
+import { createHeldLevels, readHeldLevel, type LevelKey } from '../../texture/heldLevels.ts';
 import type { TileScratch } from './scratch.ts';
 import { buildHostScratch, createScratchBuilds } from './scratchBuilds.ts';
 import { copyLiveTexture, pictureFits } from './live.ts';
@@ -32,7 +32,7 @@ export function createTileSources(options: {
 }) {
   const { device, counters, encoding } = options;
   const levels = options.readLevel
-    ? createWebgpuTileLevels({
+    ? createHeldLevels({
         read: options.readLevel,
         onFailure: (key: LevelKey, error) =>
           options.onFailure(

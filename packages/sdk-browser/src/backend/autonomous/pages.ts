@@ -27,6 +27,7 @@ import { engineRenderer } from '../engines.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import { createWebglDeformation } from '../../deformation/webglFrame.ts';
+import { webglImpostorTier } from '../../webgl/impostor/code.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
@@ -55,7 +56,10 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
-    hosts = { ...context, deformation: deformation.source },
+    impostors = webglImpostorTier(context, roots, gate, () => hostDraw.textureRoom()),
+    // The cards' atlases are paid from the one texture pool, beside the maps (`textureQueue.ts`).
+    cards = impostors?.cards,
+    hosts = { ...context, deformation: deformation.source, cards, cardBytes: impostors?.bytes },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
@@ -72,12 +76,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
-    ...tables,
-    baseRoots,
-    basePages,
-    baseBootstrap,
-    geometryStore,
-    hostCeiling,
+    ...{ ...tables, baseRoots, basePages, baseBootstrap, geometryStore, hostCeiling },
     overCeiling: heldFloor.overCeiling,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.placed,
@@ -105,6 +104,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
   });
   const frame = createAutonomousRender({
     ...{ state, context, gate, lighting, roots, draws, blendCopies, worlds, deformation, ceiling },
+    impostors,
     view: views.live,
     revision: () => heldFloor.placements,
     geometry: geometryStore,
@@ -128,8 +128,12 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // The draw's own preparation, before any frame (`sceneDraw.ts`).
-      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
+      // The draw's own preparation and the impostor tier's code, before any frame (`sceneDraw.ts`).
+      const [pages] = await Promise.all([
+        readPages(context, urls, sourced),
+        hostDraw.prepare(),
+        impostors?.prepare(),
+      ]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
@@ -146,15 +150,8 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     ...hostDraw.materials,
     ...instances,
     ...autonomousPlacements({
-      ...tables,
-      context,
-      descriptors,
-      bootstrapUrls,
-      blendCopies,
-      scene,
-      gate,
-      geometryStore,
-      coverChanged: heldFloor.placed,
+      ...{ ...tables, context, descriptors, bootstrapUrls, blendCopies },
+      ...{ scene, gate, geometryStore, coverChanged: heldFloor.placed },
     }),
     ...lightingApi,
     ...autonomousRenderScale(context),
@@ -190,6 +187,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     dispose() {
       ready = false;
       hostDraw.dispose();
+      impostors?.dispose();
       geometryStore.dispose();
       disposeOwnedMaterials();
       for (const material of colorMaterials.values()) releaseHostSurface(material);
