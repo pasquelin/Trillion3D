@@ -18,6 +18,18 @@ import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
  * drawn the next frame.
  */
 
+/**
+ * THE PAGES ONE FRAME DRAWS AT MOST: eight full batches. A frame that marks more — a scene's first
+ * frames, a camera cut, a sun moved — draws this many, the coarsest and the oldest first
+ * (`admit.ts`), and the rest the next frames; meanwhile a page not drawn reads the coarser level
+ * under it, as the reference engine's virtual shadow maps read a page their frame did not render. Without it,
+ * a burst of 2 423 pages in one frame took 286 ms of GPU on a-field-of-pebbles, and 563 pages
+ * 66 ms on drive-a-car (#831). The GPU's own mapping holds to it too (`allocWgsl.ts`). It is
+ * above what a moving body re-renders a frame — 80 to 140 pages for the car —, so a body's
+ * pages are never left a frame behind it.
+ */
+export const SHADOW_PAGES_PER_FRAME = 8 * MAX_SHADOW_PAGES;
+
 /** Batches the memory grant holds: one pool layer, `LAYER_PAGES` pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at

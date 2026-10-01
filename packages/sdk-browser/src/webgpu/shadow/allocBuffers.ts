@@ -8,6 +8,7 @@ import {
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
+import { SHADOW_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
@@ -128,6 +129,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       params[3] = count;
       params[4] = needSpan;
       params[5] = keepFrom;
+      params[6] = SHADOW_PAGES_PER_FRAME;
       params.set(generation, 8);
       params.set(asks.entries.subarray(0, count), ALLOC_PARAM_WORDS);
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
