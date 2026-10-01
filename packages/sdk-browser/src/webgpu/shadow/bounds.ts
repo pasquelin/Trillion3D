@@ -75,9 +75,11 @@ export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
  * precision where it is, so the shadow maps of lights whose range touches this box
- * no longer describe it exactly and become candidates again — once the camera rests, since
- * the change is one of representation, not of the world. Without that, a settled map would
- * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
+ * no longer describe it exactly and become candidates again. Without that, a settled map would
+ * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). A
+ * residency change the cut reads (`atOnce`) stales its pages at the next plan, the camera moving
+ * or not (#831): a page kept with a superseded form of a surface shades the form the camera now
+ * draws in patches. Another change of the representation waits for the camera to rest. The
  * declared box is that of the cluster's world sphere; a moving placement's, or a blended
  * caster's (`moving`), leaves the static layer as it is.
  */
@@ -88,6 +90,7 @@ export function noteResidenceChange(
   packed: number,
   rec: PageRec,
   moving?: boolean,
+  atOnce = false,
 ) {
   const { store, plan } = lights;
   if (!store.count) return;
@@ -96,5 +99,6 @@ export function noteResidenceChange(
   const { box, min, max } = changeBoxes[+onlyMoving];
   boxEmpty(box, 0);
   growClusterBox(rec, roots, box, rank);
-  plan.representationChanged(min, max, onlyMoving);
+  if (atOnce) plan.residencyChanged(min, max, onlyMoving);
+  else plan.representationChanged(min, max, onlyMoving);
 }
