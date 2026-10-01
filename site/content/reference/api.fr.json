@@ -367,7 +367,6 @@
       "cascadeShares": "Part du budget par niveau, du plus fin au plus grossier. Le niveau le plus fin entoure la caméra et reçoit la plus grande part des rayons.",
       "raysPerProbe": "Rayons tracés par sonde à chaque mise à jour. Budget fixe réglable.",
       "raysPerFrame": "Rayons de sondes maximum par image : plafond fixe qui borne la taille du calcul lancé.",
-      "lightsPerRay": "Lumières testées par case du cache de surface.",
       "surfaceTexelsPerFrame": "Plafond de cases du cache de surface mises à jour par image.",
       "budgetMs": "Durée visée de la passe de rebond sur le GPU par image, en millisecondes.",
       "budgetSmoothing": "Part de la correction d’erreur gardée à chaque mesure, pour éviter les oscillations.",

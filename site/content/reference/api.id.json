@@ -69,7 +69,6 @@
       "cascadeShares": "Porsi anggaran per tingkat, dari terhalus ke terkasar. Tingkat terhalus mengelilingi kamera dan menerima proporsi alokasi sinar terbesar.",
       "raysPerProbe": "Sinar yang dilacak per probe per pembaruan. Anggaran tetap yang bisa diatur.",
       "raysPerFrame": "Jumlah maksimum sinar probe per bingkai: batas atas statis yang membatasi ukuran dispatch compute.",
-      "lightsPerRay": "Cahaya yang diuji per sel cache permukaan.",
       "surfaceTexelsPerFrame": "Batas atas sel cache permukaan yang diperbarui per bingkai.",
       "budgetMs": "Durasi target tahap pantulan di GPU per bingkai, dalam milidetik.",
       "budgetSmoothing": "Porsi koreksi galat yang disimpan per sampel untuk mencegah osilasi.",
