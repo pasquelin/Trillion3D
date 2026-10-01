@@ -12,7 +12,7 @@ import {
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
 import { shadowPoolShapeOf } from './poolSize.ts';
-import { shadowPoolHeld } from './memoryGrant.ts';
+import { shadowPoolHeld, shadowPoolShown } from './memoryGrant.ts';
 import { takeStaticLayerTexture } from './staticReserve.ts';
 
 /** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
@@ -90,6 +90,9 @@ test('the static layer is made with the pool: its bytes held before anything mov
   const s = await session();
   const layer = shadowAtlasBytes(51);
   assert.equal(shadowPoolHeld(s.lights) - (s.lights.pageRequests?.bytes ?? 0), layer);
+  assert.equal(shadowPoolShown(s.lights), shadowPoolHeld(s.lights), 'shown once granted');
+  s.lights.shadowGrant = { settled: false, done: Promise.resolve() };
+  assert.equal(shadowPoolShown(s.lights), null, 'never the atlas alone while the grant holds');
   assert.ok(takeStaticLayerTexture(s.lights), 'its texture made');
   assert.equal(takeStaticLayerTexture(s.lights), undefined, 'handed once, to the first move');
 });
