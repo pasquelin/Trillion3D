@@ -37,6 +37,7 @@ export function mirrorProxy(offsetX = 0, albedo = 0xffffffff): SceneProxy {
       owners: new Uint32Array([0, albedo]),
       bindWorlds: proxyIdentity(),
       sourceParents: new Int32Array([-1]),
+      sourceMeshes: new Int32Array([-1]),
       nodeBounds: new Float32Array(bounds),
       nodeChildren: new Uint32Array([0xff000000, 0x0101ffff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     },

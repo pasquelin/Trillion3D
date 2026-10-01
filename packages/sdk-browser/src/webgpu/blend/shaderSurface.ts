@@ -1,6 +1,33 @@
-import { FLAG_SAMPLED } from '../../visibility/types.ts';
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { FACING_SHIFT } from './facing.ts';
+
+/** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
+ *  (\`shadowFootprint\`), and the level its marks ask for (\`marksWgsl.ts\`). */
+export const BLEND_SHADOW_FOOTPRINT_WGSL = `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`;
+
+export const BLEND_SURFACE_NORMAL_WGSL = `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
+ *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point. What the blend
+ *  stage bends by its map (\`blendSurface\`) and the shadow marks read as is (\`marksWgsl.ts\`). */
+fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
+ // uniteOuZero yields normalize wherever the vector is not null: same bits as before on an
+ // ordinary surface, a null vector — and not NaN — on a collapsed face, whose a NaN would win
+ // neighbouring pixels through screen derivatives. A rank-2 pose does not arrive there null:
+ // xformNormal already gave it the flattened face's normal.
+ // The geometric normal comes from screen derivatives: it already looks at the observer, whatever
+ // the rasterised face. Only a vertex normal, which points toward the declared outside, flips on
+ // the back of a two-sided material — flipping it too would send the geometric one opposite the
+ // light, and the surface would render exactly zero. Same rule as the opaque resolve, which only
+ // flips the interpolated normal.
+ let flags=in.ids.y;
+ var N=uniteOuZero(-cross(q0,q1));
+ if((flags&${FLAG_HAS_NORMAL}u)!=0u){
+  N=uniteOuZero(in.normal.xyz);
+  let face=select(-1.0,1.0,front);
+  if((flags&${FLAG_DOUBLE}u)!=0u){N*=face;}
+ }
+ return N;
+}`;
 
 /**
  * What a transparent fragment reads on its material, before any lighting: base colour and
@@ -17,6 +44,7 @@ import { FACING_SHIFT } from './facing.ts';
  */
 export const BLEND_SURFACE_WGSL = `
 ${COTANGENT_FRAME_WGSL}
+${BLEND_SURFACE_NORMAL_WGSL}
 struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,}
 fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  let flags=in.ids.y;
@@ -24,21 +52,8 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let request=blendRequest(in,gradX,gradY);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
- // uniteOuZero yields normalize wherever the vector is not null: same bits as before on an
- // ordinary surface, a null vector — and not NaN — on a collapsed face, whose a NaN would win
- // neighbouring pixels through screen derivatives. A rank-2 pose does not arrive there null:
- // xformNormal already gave it the flattened face's normal.
- // The geometric normal comes from screen derivatives: it already looks at the observer, whatever
- // the rasterised face. Only a vertex normal, which points toward the declared outside, flips on
- // the back of a two-sided material — flipping it too would send the geometric one opposite the
- // light, and the surface would render exactly zero. Same rule as the opaque resolve, which only
- // flips the interpolated normal.
- var N=uniteOuZero(-cross(q0,q1));
+ var N=blendGeometricNormal(in,front,q0,q1);
  let face=select(-1.0,1.0,front);
- if((flags&16u)!=0u){
-  N=uniteOuZero(in.normal.xyz);
-  if((flags&2u)!=0u){N*=face;}
- }
  let sample=colorSample(in.ids.x,in.uv,gradX,gradY,sampled);
  let alpha=sample.w*in.color.w;
  let rgb=in.color.xyz*sample.xyz;
@@ -63,4 +78,4 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
  return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);
 }
-`;
+${BLEND_SHADOW_FOOTPRINT_WGSL}`;

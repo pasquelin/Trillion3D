@@ -6,6 +6,8 @@ const EXPLORER_SWITCHES = {
   lodAdaptive: false,
   /** Shadow-map pages invalidated one by one, not the whole face. */
   shadowPageInvalidation: true,
+  /** Shadow corners from a LocalToClip stored per caster and view (OMB-25): off, class 2. */
+  shadowLocalToClip: false,
   bounce: false,
   importedLights: true,
   /** Static WebGL2 pages without the source geometry buffers. */

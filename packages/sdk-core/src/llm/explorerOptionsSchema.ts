@@ -80,6 +80,12 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       description:
         'Invalidation of shadow map pages per 128x128 page. false stales every page of each light a moving object touches.',
     },
+    shadowLocalToClip: {
+      type: 'boolean',
+      default: /* @__PURE__ */ explorerSwitchDefault('shadowLocalToClip'),
+      description:
+        'Shadow casters placed by a LocalToClip matrix stored once per caster and light view, one matrix-vector product per vertex. Off by default: depths may differ by one ulp from the default path.',
+    },
     bounce: {
       type: 'boolean',
       default: /* @__PURE__ */ explorerSwitchDefault('bounce'),

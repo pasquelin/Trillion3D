@@ -20,16 +20,23 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 export { encodeSurfaceLighting } from './surfaceLighting.ts';
 
-export function encodeBlend(
+/** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
+const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam.eye : undefined);
+
+/**
+ * The transparents of an image, selected, ordered and expanded ahead of anything that draws them:
+ * `undefined` without the pass's resources, else whether the blend runs draw them (`true`) or the
+ * fallback pass does — the runs mark the shadow pages they read before any page is mapped
+ * (`../../blend/marks.ts`, #1411). The compaction reads the mask this very frame's cluster cut
+ * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from.
+ */
+export function prepareBlend(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  uniformBase: number,
   composes: boolean,
-) {
-  const { gpu, vis, run, timing, blendState, diag } = rt;
-  // Every image path reaches this stage: the particles step here, beside the water.
-  encodeParticles(rt, device, encoder);
+): boolean | undefined {
+  const { gpu, vis, run, timing, blendState } = rt;
   if (
     !gpu.pipelineBlend ||
     !blendState.blendGpu.length ||
@@ -37,7 +44,7 @@ export function encodeBlend(
     !gpu.depthView ||
     !gpu.uniformBuffer
   )
-    return;
+    return undefined;
   const textured = !!(
     vis.blendBindGroupLayout &&
     vis.blendPipelines &&
@@ -52,13 +59,37 @@ export function encodeBlend(
     blendState.argsBuffer &&
     blendState.expandedBuffer
   );
-  if (!textured && !gpu.bindGroupLayout) return;
+  if (!textured && !gpu.bindGroupLayout) return undefined;
   const cpuStart = performance.now();
-  // World-space eye of the image, the view uniform's: with no camera the lists keep their order.
-  const eye = run.lastCamera ? run.gate.cam.eye : undefined;
-  // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
-  // same buffer, and writes the instance list the pass below draws from.
   encodeTransparentInstances(rt, encoder);
+  if (textured) {
+    // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
+    // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
+    boundWaterPass(rt, composes, viewProj);
+    run.blendFrustumRejected = orderBlendPasses(blendState, blendEye(rt));
+    // The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU.
+    encodeBlendExpansion(rt, device, encoder);
+  }
+  const elapsed = performance.now() - cpuStart;
+  timing.transparentPrepareMs += elapsed;
+  timing.transparentEncodeMs += elapsed;
+  return textured;
+}
+
+/** Draws the transparents of an image, as `prepareBlend` prepared them (`textured`). */
+export function encodeBlend(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  uniformBase: number,
+  composes: boolean,
+  textured: boolean | undefined,
+) {
+  const { run, timing, blendState, diag } = rt;
+  // Every image path reaches this stage: the particles step here, beside the water.
+  encodeParticles(rt, device, encoder);
+  if (textured === undefined) return;
+  const cpuStart = performance.now();
   if (!textured) {
     run.blendFrustumRejected = selectWebgpuBlend(
       blendState,
@@ -71,7 +102,7 @@ export function encodeBlend(
             rootOfPacked: rt.layout.placement.rootOfPacked,
           },
     );
-    orderVisibleBlend(blendState, eye);
+    orderVisibleBlend(blendState, blendEye(rt));
     const draws = listFallbackBlendDraws(blendState, run.gpuFrameActive);
     ensureUniform(rt, device, uniformBase + draws.length / DRAW_WORDS);
     writeFallbackBlendUniforms(rt, device, uniformBase, draws);
@@ -82,15 +113,9 @@ export function encodeBlend(
     timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
   }
-  // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
-  // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
-  boundWaterPass(rt, composes, viewProj);
-  run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
   // Resolve lighting resources once; a real resource voids a placeholder's bind group.
   voidStaleBlendGroups(rt, blendLightResources(rt));
-  // The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU.
-  encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
