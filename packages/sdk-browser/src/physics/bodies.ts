@@ -14,7 +14,6 @@ import {
   type PhysicsBudget,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
-import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts';
 // What a body IS lives in `bodied.ts`: `hasBody` reads a node and creates nothing, and held
