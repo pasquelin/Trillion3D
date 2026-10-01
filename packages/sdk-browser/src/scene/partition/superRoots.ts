@@ -20,10 +20,12 @@ import type { SelectionUniforms } from '../../gpu/core/selection.ts';
 import { projectedErrorAt } from '../../page/selection/projection.ts';
 import { growSphere } from '../../page/cut/bounds.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import type { PartitionOptics } from './plan.ts';
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the
  *  super-roots replacing them, `x, y, z, radius`, world space. */
-export const SUPER_ROOT_FLOATS = 5;
+const SUPER_ROOT_FLOATS = 5;
 
 /**
  * Each of `cells` cells' super-root bound, from the world DAG's `clusters` (`world-roots.dag`), an
@@ -55,11 +57,18 @@ export function cellSuperRoots(
   return bounds;
 }
 
-/** What the cut projects with: its uniforms, and the frustum's diagonal slope (`cellReach`). */
-type SuperRootLens = Pick<
+/** What the cut projects with: its uniforms, and the frustum's diagonal slope (`lensSlope`). */
+export type SuperRootLens = Pick<
   SelectionUniforms,
   'pixelScale' | 'pixelError' | 'near' | 'perspective'
 > & { slope: number };
+
+/** The slope of the frustum's diagonal `optics` sees, as `cellReach` reads it; 0 for an
+ *  orthographic camera, which projects no depth. */
+export function lensSlope(optics: PartitionOptics) {
+  if (optics.orthographic) return 0;
+  return perspectiveSlope(optics.fov, optics.zoom || 1) * Math.sqrt(1 + optics.aspect ** 2);
+}
 
 /**
  * The largest error, in pixels, `cell`'s super-roots move a point the frustum shows, seen from

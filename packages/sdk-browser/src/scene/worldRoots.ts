@@ -37,13 +37,15 @@ import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 import { families } from '../host/families.ts';
 import { worldRootsPageSource } from './worldRootsPage.ts';
 import { worldRootDag } from './worldSuperRoots.ts';
+import { cellSuperRoots } from './partition/superRoots.ts';
 
-/** The world pages' detached source and their DAG (#1238): nothing draws from them yet (#1332,
- *  #1333), so a scene opens without them, and their page server and DAG file are read on first
- *  use. */
+/** The world pages' detached source, their DAG (#1238) and each cell's super-root bound, which a
+ *  partition's plan reads (`partition/superRoots.ts`, #1332): nothing draws from them yet (#1333),
+ *  so a scene opens without them, and their page server and DAG file are read on first use. */
 type WorldStream = {
   source: ReturnType<typeof worldRootsPageSource>;
   dag: ReturnType<typeof worldRootDag>;
+  superRoots: Float64Array | undefined;
 };
 
 type Announced = { bytes: number; sha256: string };
@@ -142,6 +144,10 @@ export async function openWorldRoots(
       dag && readWorldRootsDag(new Uint8Array(await fetchVerified(urls.dag, dag, signal)));
     return (stream ??= {
       dag: worldRootDag({ ...records, payload: table.payload }, worldRootPages),
+      // An object root's cell is its object's (`origin`, the table's rank, #1332).
+      superRoots:
+        records &&
+        cellSuperRoots(records.clusters, (origin) => table.cells.cellOf(origin), table.cells.count),
       source: worldRootsPageSource(worldPageServer(table, bundlePages)),
     });
   };

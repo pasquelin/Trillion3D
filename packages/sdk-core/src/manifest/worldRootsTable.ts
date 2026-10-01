@@ -132,6 +132,16 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
           objectAt(first + i),
         );
       },
+      cellOf(object) {
+        // The last cell starting at or before `object`: an empty cell starts where the next does.
+        let [low, high] = [0, cellCount - 1];
+        while (low < high) {
+          const mid = (low + high + 1) >> 1;
+          if (word(cellsAt + mid * CELL) <= object) low = mid;
+          else high = mid - 1;
+        }
+        return low;
+      },
     },
   };
 }
