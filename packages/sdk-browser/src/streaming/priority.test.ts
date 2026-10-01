@@ -33,7 +33,6 @@ function record(
     streamUrl,
     min: [centre[0] - radius, centre[1] - radius, centre[2] - radius],
     max: [centre[0] + radius, centre[1] + radius, centre[2] + radius],
-    placementIndex: 0,
     lodError: 0,
     sphere: [...centre, radius],
     parentError,
@@ -84,12 +83,11 @@ test('a cluster already resident is not asked for again', () => {
 });
 
 test('a cache with no cluster error falls back on the screen footprint of the bounds', () => {
-  const big: PriorityRecord = { url: 'big', min: [-4, -4, -1], max: [4, 4, 1], placementIndex: 0 };
+  const big: PriorityRecord = { url: 'big', min: [-4, -4, -1], max: [4, 4, 1] };
   const small: PriorityRecord = {
     url: 'small',
     min: [-0.1, -0.1, -1],
     max: [0.1, 0.1, 1],
-    placementIndex: 0,
   };
   assert.deepEqual(order([small, big]), ['big', 'small']);
 });
@@ -121,10 +119,9 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
   ];
   for (const records of cas) {
     const cam = camera();
-    // Each record ranks the root that carries its world.
-    const placed = records.map((record, placementIndex) => ({ ...record, placementIndex })),
-      roots = records.map(({ matrix }) => ({ world: matrix }));
-    const recu = orderPendingUrls(placed, locatedBy(roots), cameraMoteur(cam), pixelScale, []);
+    // The i-th record is placed by the i-th root, which carries its world (`locatedBy`).
+    const roots = records.map(({ matrix }) => ({ world: matrix }));
+    const recu = orderPendingUrls(records, locatedBy(roots), cameraMoteur(cam), pixelScale, []);
     const attendu = referenceOrder(records, cam, pixelScale);
     assert.deepEqual(recu, attendu, `records ${records.map((r) => r.url)}`);
   }

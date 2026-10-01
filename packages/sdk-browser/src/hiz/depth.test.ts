@@ -96,7 +96,6 @@ test('a page whose index reaches past its triangle stays background, not a throw
   const page = {
     array: new Uint32Array([0, 1]), // Truncated triangle: base + 2 >= index.length.
     attributes: new G.Geometry().attributes,
-    placementIndex: 0,
     matrix: new G.Matrix4(),
     material: surfaceOf(G.basicSurface()),
   };

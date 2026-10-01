@@ -41,15 +41,13 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
   const worlds = hostWorldPlacements(source);
   if (whole) Object.assign(worlds, { refreshFrom: () => worlds.refresh() });
   const meshes = nodes.filter((node) => node instanceof G.Mesh);
-  const roots = meshes.map((mesh, i) => {
+  const roots = meshes.map((mesh) => {
     const low = [draw() - 1, draw() - 1, draw() - 1];
     const root = selectionRoot(
       mesh,
       [...low, low[0] + 2 * draw(), low[1] + draw(), low[2] + 3],
       worlds,
     );
-    // The page ranks its root, as a collected page does: its row is that root's world.
-    Object.assign(root.pages[0], { packedIndex: i, placementIndex: i });
     return root;
   });
   const { rt, layout, run, motions } = runtime(source, roots, worlds);
