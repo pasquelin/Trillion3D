@@ -1,5 +1,5 @@
 import { pagePlan, planPagePasses } from '../../shadow/pagePasses.ts';
-import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
+import { drawnBins, shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 import { drawRegionCasters, encodeBins, encodeOcclusion } from './encodeRegionDraws.ts';
@@ -53,7 +53,7 @@ export function encodeShadowAtlas(
   planPagePasses(regions, count);
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
-  const depthDraws = shadows.depthDraws(!!lights.bins?.stored);
+  const depthDraws = shadows.depthDraws(!!drawnBins(lights)?.stored);
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport, or by group (`grouped`).
   const draw = (
