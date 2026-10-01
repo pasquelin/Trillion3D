@@ -3150,7 +3150,7 @@
       "owners": "Registros de proprietários: índice do nó de origem e albedo linear compactado em RGBA8.",
       "bindWorlds": "Matrizes de mundo originais dos nós de origem, dezesseis valores de precisão dupla por nó.",
       "sourceParents": "Hierarquia de origem, incluindo os nós de partição que o host não mantém instanciados atualmente.",
-      "sourceMeshes": "A malha do documento que cada nó de origem coloca, `-1` se nenhuma: o que um nó de célula de uma partição desenha."
+      "sourceMeshes": "A malha compilada que cada nó de origem coloca, `-1` se nenhuma: o que um nó de célula de uma partição desenha."
     }
   },
   "SceneProxyDescriptor": {
