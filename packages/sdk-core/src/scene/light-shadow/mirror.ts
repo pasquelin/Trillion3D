@@ -34,9 +34,9 @@ export interface ShadowPoolSnapshot {
  * (`pool.drew`), and a word the host sends is kept only for the page the GPU says it names.
  *
  * A snapshot the pool can no longer follow is left: one of another pool size, or taken before the
- * last drop of a slice's pages (`records.generation`), a resize or a seed of the GPU's pool
- * (`set`). The next one follows. Allocates nothing past construction. A mirror made anew for a
- * resized pool carries on the one before's allocation and drawn count (`previous`).
+ * last drop of a slice's pages (`records.generation`) or a seed of the GPU's pool (`set`). The next
+ * one follows. Allocates nothing past construction. A mirror made anew for the granted pool
+ * (`plan.size`) carries on the one before's allocation and drawn count (`previous`).
  */
 export function createShadowMirror(
   table: ShadowTable,

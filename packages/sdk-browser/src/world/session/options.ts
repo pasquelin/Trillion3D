@@ -171,6 +171,10 @@ export interface MeasuredWorldOptions {
   /** Shadow casters placed by a LocalToClip stored once per caster and light view (OMB-25), one
    *  matrix-vector product per vertex. Off by default: its depths may differ by one ulp. */
   shadowLocalToClip?: boolean;
+  /** Physical pages of the shadow pool, allocated once at the first frame a light casts and never
+   *  resized, as the reference engine's `a reference setting`: 4 096 by default
+   *  (`LIGHT_SETTINGS.shadowPoolPages`), 64 KiB each, bounded by the memory budget's pool. */
+  shadowPoolPages?: number;
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean;

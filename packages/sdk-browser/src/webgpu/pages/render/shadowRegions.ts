@@ -10,7 +10,6 @@ import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { releaseStaticLayer, shadowPoolSized } from '../../shadow/poolResize.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
 
@@ -75,8 +74,8 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     device = rt.gpu.device;
   if (!lights.mobility.layered || lights.staticLayer || lights.staticLayerPending || !device)
     return;
-  // The budget's pool before its first report: the layer waits for the size the report gives.
-  if (!shadowPoolSized(lights)) return;
+  // The layer is the pool's size: it waits for the pool, which keeps its size from then on.
+  if (!lights.shadows?.texture) return;
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;
@@ -107,9 +106,6 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
       lights.staticLayer = layer;
       // A session disposed meanwhile tore its layer down already: what landed after is freed.
       if (rt.signal.aborted) disposeStaticLayer(lights);
-      // Made for a pool resized since: freed, and asked again at the new size (`poolResize.ts`).
-      else if (side !== lights.plan.pool.side || layers !== lights.plan.pool.layers)
-        releaseStaticLayer(lights);
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
 }
