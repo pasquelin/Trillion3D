@@ -22,13 +22,16 @@ export function encodeEmptySurfaces(
   const [width, height] = gpu.targetSize;
   if (!gpu.surfaces) throw new Error('SURFACE_UNAVAILABLE');
   const encoder = createRenderEncoder(rt, device);
+  // Every root of the image may stand behind its impostor card: the cards still draw, their depth
+  // kept by the surfaces' clear.
+  const carded = !!rt.gpu.impostorCode?.encodeImpostorVisibilityPass(rt, device, encoder);
   const pass = encoder.beginRenderPass({
     label: 'Trillion3D empty surfaces',
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
     depthStencilAttachment: {
       view: depthTarget,
       depthClearValue: DEPTH_CLEAR,
-      depthLoadOp: 'clear',
+      depthLoadOp: carded ? 'load' : 'clear',
       depthStoreOp: 'store',
     },
   });
