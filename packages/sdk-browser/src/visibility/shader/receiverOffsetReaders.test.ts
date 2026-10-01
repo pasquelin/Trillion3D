@@ -28,8 +28,8 @@ test('the lighting and the shadow demand call one shared offset function and bin
     // The shared text, from the reader's first receiver binding: the visibility buffer's.
     const first = Number(/@binding\((\d+)\) var vis:/.exec(text)?.[1]);
     assert.equal(text.split(receiverOffsetWgsl(first)).length, 2, `${name}: the shared text, once`);
-    assert.equal(text.match(/\bfn receiverOffset\(/g)?.length, 1, `${name}: one offset function`);
-    assert.equal(text.match(/\breceiverOffset\(pixel/g)?.length, 2, `${name}: and its one call`);
+    assert.equal(text.match(/\bfn shadowReceiver\(/g)?.length, 1, `${name}: one offset function`);
+    assert.equal(text.match(/\bshadowReceiver\(pixel/g)?.length, 2, `${name}: and its one call`);
     assert.doesNotMatch(text, /shadingOffset/, `${name}: no offset target read`);
   }
   assert.doesNotMatch(SHADE_SHADER, /shadingOffset|shadingPointOffset/, 'the resolve stores none');

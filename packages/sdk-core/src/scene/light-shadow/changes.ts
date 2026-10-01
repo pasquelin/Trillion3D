@@ -110,9 +110,18 @@ export function createShadowChanges(capacity: number) {
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       boxUnion(held[+movingOnly].box, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
     },
-    /** A caster's residency changed: its box enters the list at once, stale for detail alone. */
-    residencyChanged: (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
-      add(lo, hi, movingOnly, true),
+    /** A caster's residency changed: its box enters the list at once, stale for detail alone,
+     *  merged into the last one when that is a change of detail of the same kind it overlaps — the
+     *  clusters a stream brings in together —, never joined to a far one (#831). */
+    residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
+      const last = changes.count - 1,
+        base = last * 3;
+      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly;
+      for (let axis = 0; overlaps && axis < 3; axis++)
+        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis];
+      if (overlaps) write(base, lo, hi, true);
+      else add(lo, hi, movingOnly, true);
+    },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
      * changed representation meanwhile enters the list as one box; while it moves, the union
