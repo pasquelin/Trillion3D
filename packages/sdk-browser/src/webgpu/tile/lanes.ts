@@ -14,13 +14,14 @@ export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victim
 
 /**
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
- * lane, the two-channel one. A lane with no layer has no pool and a 1×1 stand-in view at its
- * binding — the shader never reads it, since no texture names that lane. Each pool is sized by
+ * lane, the two-channel one. A lane with no layer has no pool and an opaque-white stand-in view at
+ * its binding — only the white fill of an atlas with no map reads it (`atlas.ts`), where every tap
+ * of the fill's one texel read white. Each pool is sized by
  * the layers the budget gave its lane, never below the tails of its textures (`texturePoolFor`),
  * and resized on its own.
  */
 export function createTileLanes(
-  device: Pick<GPUDevice, 'createTexture'>,
+  device: Pick<GPUDevice, 'createTexture' | 'queue'>,
   options: {
     kind: 'color' | 'data';
     encoding: PoolEncoding;
@@ -51,8 +52,10 @@ export function createTileLanes(
     label: `Trillion3D texture pool ${kind} stand-in`,
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
     format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
   });
+  const white = new Uint8Array(4 * 4 * 4).fill(255);
+  device.queue.writeTexture({ texture: standInTexture }, white, { bytesPerRow: 16 }, [4, 4]);
   const standIn = standInTexture.createView({ dimension: '2d-array' });
   const views = () => POOL_LANES.map((lane) => lanes.get(lane)?.pool.view ?? standIn);
   const pools = () => [...lanes.values()].map((lane) => lane.pool);

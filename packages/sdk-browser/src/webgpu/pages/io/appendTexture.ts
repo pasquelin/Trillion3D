@@ -54,8 +54,7 @@ async function appendNow(
   // What each lane takes, by the open's own rule, the new texture counted.
   const tails = laneTails(taken),
     demand = laneDemand(taken),
-    peer = atlas.textures.findIndex((each) => !each.retired && each.lane === lane);
-  const resident = peer < 0 ? 0 : atlas.poolOf(peer).resident;
+    resident = atlas.residentIn(lane);
   const previousPool = pools.pool,
     previousBudget = setup.texturePoolBudget;
   const pool = poolTaking(
