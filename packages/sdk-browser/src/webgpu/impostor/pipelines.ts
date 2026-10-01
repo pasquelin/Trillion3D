@@ -11,7 +11,7 @@ export const IMPOSTOR_PASS = 'Trillion3D impostor cards';
  * and depth (`visTargets`, `VIS_DEPTH`); the surface stage (`pipeline`) writes the four opaque
  * surfaces where its depth is the one the visibility stage kept, writing no depth.
  */
-function makeCardPipelines(device: GPUDevice) {
+async function makeCardPipelines(device: GPUDevice) {
   const FRAGMENT = GPUShaderStage.FRAGMENT,
     VERTEX = GPUShaderStage.VERTEX;
   const imageLayout = device.createBindGroupLayout({
@@ -40,7 +40,7 @@ function makeCardPipelines(device: GPUDevice) {
     targets: GPUColorTargetState[],
     depthStencil: GPUDepthStencilState,
   ) =>
-    device.createRenderPipeline({
+    core.buildRenderPipeline(device, {
       label,
       layout,
       vertex: { module, entryPoint: 'card_vs' },
@@ -55,11 +55,9 @@ function makeCardPipelines(device: GPUDevice) {
       core.visTargets(hiz),
       core.VIS_DEPTH,
     );
-  const vis = { hiz: visibility(true), ids: visibility(false) };
-  return {
-    imageLayout,
-    atlasLayout,
-    pipeline: make(
+  // Compiled together, off the thread (#1362).
+  const [pipeline, ids, hiz] = await Promise.all([
+    make(
       IMPOSTOR_PASS,
       'card_fs',
       core.SURFACE_FORMATS.map((format) => ({ format })),
@@ -69,22 +67,25 @@ function makeCardPipelines(device: GPUDevice) {
         depthWriteEnabled: false,
       },
     ),
+    visibility(false),
+    visibility(true),
+  ]);
+  return {
+    imageLayout,
+    atlasLayout,
+    pipeline,
     /** The visibility stage's pipeline, with the pyramid's level 0 when `hiz`. */
-    visPipeline: (hiz: boolean) => (hiz ? vis.hiz : vis.ids),
+    visPipeline: (withHiz: boolean) => (withHiz ? hiz : ids),
   };
 }
 
-const made = new WeakMap<GPUDevice, ReturnType<typeof makeCardPipelines>>();
+const checked = new WeakMap<GPUDevice, Awaited<ReturnType<typeof makeCardPipelines>>>();
 
-/** The device's card pipelines: those its prepare checked, made at once otherwise. */
-export function cardPipelines(device: GPUDevice) {
-  let pipelines = made.get(device);
-  if (!pipelines) made.set(device, (pipelines = makeCardPipelines(device)));
-  return pipelines;
-}
+/** The device's card pipelines, those its prepare checked (`prepareImpostorPipelines`). */
+export const cardPipelines = (device: GPUDevice) => checked.get(device)!;
 
 /**
- * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE (#1336): made under the device's validation
+ * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE (#1336): compiled under the device's validation
  * scope where the session prepares. Refused — a card shader that does not compile, a pipeline that
  * does not link —, the failure is told once (`onFailure`) and the answer is false: the session then
  * keeps no impostor code, as a refused import, so it plans no card and every root keeps its
@@ -94,15 +95,11 @@ export async function prepareImpostorPipelines(
   device: GPUDevice,
   onFailure: (phase: string, error: unknown) => void,
 ) {
-  let failure: unknown;
   try {
-    const { value, error } = await core.validationScope(device, () => makeCardPipelines(device));
-    if (!error) return (made.set(device, value), true);
-    failure = new Error(error.message);
+    checked.set(device, await core.scoped(device, () => makeCardPipelines(device)));
+    return true;
   } catch (error) {
-    failure = error;
+    onFailure('impostor-card-program-failed', error);
+    return false;
   }
-  made.delete(device);
-  onFailure('impostor-card-program-failed', failure);
-  return false;
 }
