@@ -1,4 +1,6 @@
-import type { ProfiledWorld } from './profile.ts';
+import type { Engine } from './engineTypes.ts';
+import { spread, type ProfiledWorld } from './profile.ts';
+import { ms, unitLines } from './statUnit.ts';
 import { kitWord, labelOf, language } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
@@ -10,6 +12,10 @@ interface FrameCounters {
   geometryPoolBytes?: number | null;
   lightsActive?: number | null;
   gpuFrameMs?: number | null;
+  /** The frame's GPU passes, each with its own share where the device has timestamps. */
+  gpuPassMs?: { passes: NonNullable<Engine.FrameMetrics['gpuPassMs']>['passes'] } | null;
+  /** The frame's CPU time on the main thread. */
+  cpuFrameMs?: number | null;
 }
 
 /** A node of the scene as far as counting its triangles goes. */
@@ -34,12 +40,11 @@ export interface StatsSample extends FrameCounters {
    *  `timestamp-query`, or on WebGL2: `gpuFrameMs` is the last one measured. */
   gpuFrameLast?: boolean;
   sceneTriangles: number | null;
+  /** The CPU side of the half second: the frame's median and each stage (`statUnit.ts`). */
+  cpu?: { frameMs: number | null; stages: [name: string, ms: number][] };
 }
 
 const count = (value: number) => Math.round(value).toLocaleString(language());
-/** A duration as the kit prints it: milliseconds to two places. */
-export const ms = (value: number) => `${value.toFixed(2)} ms`;
-
 /**
  * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
  * counter measured shows, zero included — zero is what a still scene must read —, and one the
@@ -76,7 +81,7 @@ export function statLines(sample: StatsSample): [string, string][] {
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
   if (sample.gpuFrameMs != null)
     lines.push([sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame', ms(sample.gpuFrameMs)]);
-  return [...lines, ...shadowLines(sample)];
+  return [...lines, ...unitLines(sample), ...shadowLines(sample)];
 }
 
 /** Frames a second from the times frames were drawn, in ms: `null` from fewer than two. */
@@ -106,25 +111,39 @@ export const STATS_CARD =
 export const STATS_TERM = 'opacity-70';
 export const STATS_VALUE = 'text-end tabular-nums';
 
+/** Where the corner reads the CPU: whether it does now (not while the panel is hidden or the
+ *  page profiles), and the frame's CPU stages since the last read, `null` when none is measured. */
+export interface CpuSource {
+  open(): boolean;
+  stages(): [string, number][] | null;
+}
+
 /**
  * Watches `world`: counts the frames it draws and keeps the engine's counters of the last one,
  * and twice a second hands `show` the corner's lines — `extra` added — when they changed, each
- * label in the page's language (a profiled engine step keeps its identifier). Returns what stops
+ * label in the page's language (a profiled engine step keeps its identifier). While `cpu` is
+ * open, it keeps each frame's CPU time for the half second's median, and reads the CPU stages
+ * `cpu` gives (`engineStages`); closed, it keeps and reads nothing of the CPU. Returns what stops
  * it.
  */
 export function watchStats(
   world: StatsWorld,
   show: (lines: [string, string][]) => void,
   extra: () => [string, string][] = () => [],
+  cpu: CpuSource = { open: () => true, stages: () => null },
 ) {
-  const drawn: number[] = [];
+  const drawn: number[] = [],
+    cpuFrameMs: number[] = [];
   let last: FrameCounters = {},
     fps: number | null = null,
     gpuFrameMs: number | null = null,
+    cpuWasOpen = false,
     shown = '';
   const unhook = world.onFrame(({ metrics }) => {
     drawn.push(performance.now());
     last = metrics;
+    // The engine hands the same metrics every frame: the corner keeps the number, not the object.
+    if (metrics.cpuFrameMs != null && cpu.open()) cpuFrameMs.push(metrics.cpuFrameMs);
     // A held image times nothing: the corner keeps the GPU time last measured.
     if (metrics.gpuFrameMs != null) gpuFrameMs = metrics.gpuFrameMs;
   });
@@ -143,6 +162,17 @@ export function watchStats(
       gpuFrameMs,
       gpuFrameLast: last.gpuFrameMs == null,
     };
+    const cpuOpen = cpu.open();
+    if (cpuOpen) {
+      // The engine's window ran on while the corner was closed: its first read after opening
+      // spans that time, so it only opens the window again and is not shown.
+      const stages = cpu.stages();
+      sample.cpu = {
+        frameMs: spread(cpuFrameMs.splice(0))?.p50 ?? null,
+        stages: (cpuWasOpen && stages) || [],
+      };
+    } else cpuFrameMs.length = 0;
+    cpuWasOpen = cpuOpen;
     if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
     const lines = [...statLines(sample), ...extra()].map(([label, value]): [string, string] => [
         kitWord('stats', label, label),
