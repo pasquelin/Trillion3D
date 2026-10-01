@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { DRAW_INDIRECT_WORDS as WORDS } from '../draw/contract.ts';
 import { MOBILITY_CORNER_SHIFT, MOBILITY_CUTOUT } from './cullShader.ts';
+import { SHADOW_BIN_CLASSES, shadowBinOf } from './binShader.ts';
 import {
-  SHADOW_BIN_CLASSES,
   SHADOW_BIN_COMMANDS,
   SHADOW_BIN_CORNERS,
-  shadowBinOf,
-} from './binShader.ts';
-import { binKernel, runBins } from './binReplay.fixture.ts';
+  binKernel,
+  runBins,
+} from './binReplay.fixture.ts';
 import { createShadowMobility } from '../../webgpu/shadow/mobility.ts';
 
 const UNTOUCHED = 0xdeadbeef;
