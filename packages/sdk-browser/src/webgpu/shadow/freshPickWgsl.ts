@@ -27,8 +27,12 @@ fn freshRank(p:u32)->u32{return u32(clamp(shadowPool.pages[poolAt(POOL_RANK,p)],
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
  for(var r=0u;r<RANK_SPAN;r++){rankCount[r]=0u;}
- let listed=min(countRead(COUNT_DRAWN),params.pages);
- for(var i=0u;i<listed;i++){let p=drawList[i];if(freshWaiting(p)){rankCount[freshRank(p)]+=1u;}}
+ // The waiting pages, compacted at the list's head as they are counted: the pick walks them alone.
+ let listed=min(countRead(COUNT_DRAWN),params.pages);var waiting=0u;
+ for(var i=0u;i<listed;i++){
+  let p=drawList[i];
+  if(freshWaiting(p)){rankCount[freshRank(p)]+=1u;drawList[waiting]=p;waiting++;}
+ }
  // The finest rank the budget reaches (\`cut\`), and the pages of it it holds (\`room\`).
  var room=min(params.budget,MAX_REGIONS);var cut=0u;var whole=true;
  for(var r=i32(RANK_SPAN)-1;r>=0;r--){
@@ -37,9 +41,8 @@ fn pickPages(){
   room-=n;
  }
  var picked=0u;var atCut=0u;
- for(var i=0u;i<listed;i++){
+ for(var i=0u;i<waiting;i++){
   let p=drawList[i];
-  if(!freshWaiting(p)){continue;}
   let rank=freshRank(p);
   if(!whole&&rank<cut){continue;}
   if(!whole&&rank==cut){if(atCut>=room){continue;}atCut++;}

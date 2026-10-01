@@ -60,7 +60,7 @@ export async function session(shadowPoolPages?: number, viewport = SCREEN) {
   installGpuGlobals();
   const limit = { bytes: Infinity },
     gpu = device(limit),
-    context = { shadowPoolPages, viewport, pixelRatio: () => 2 },
+    context = { shadowPoolPages, viewport },
     shape = shadowPoolShapeOf(context, gpu.device.limits),
     lights = createWebgpuLightState(shape.side, undefined, undefined, shape.layers),
     said: Array<[string, Record<string, unknown>]> = [],
