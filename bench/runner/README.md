@@ -130,7 +130,9 @@ point or spot, irradiance for a directional), `distance` = range, `decay` = 2 (t
 engine shader's windowed inverse square), spot edge matched by penumbra; the surface model differs
 (same irradiance, other BRDF). Each side's `witnessLights` records what it received, `null` if not
 drawn by Three. The contract takes over once the host used it (one light declared, one view
-requested); the source graph's lights are then off.
+requested), or when the source graph declares no light either: `auto` with no light anywhere is
+the unlit view on WebGL2 as on WebGPU, never a black frame (#1016); the source graph's lights are
+then off.
 
 Witnesses cast **no shadows** (one map per light, six faces for a point light, is past any frame
 budget) and `'bounce'` renders the lit view: run fidelity campaigns `--shadows off` on both sides.
