@@ -99,3 +99,36 @@ test('a placed cell the cut no longer needs is demoted, its world bundles held b
   // then read again.
   assert.equal(holdsBeforeLeave, 1);
 });
+
+test('the world bundles held go to the cut that packs the world DAG, once per change (#1333)', () => {
+  const told: [number, readonly number[]][] = [];
+  let revision = 0,
+    taken = false;
+  const world = {
+    hold: async () => {},
+    release: () => {},
+    pinned: { bundles: 2 },
+    held: () => [5],
+    get revision() {
+      return revision;
+    },
+  };
+  const { index } = partition();
+  const far = createFarCells(world as never, new Map());
+  const cut = {
+    lens,
+    holdWorldBundles: (pinned: number, held: readonly number[]) => (
+      told.push([pinned, held]),
+      taken
+    ),
+  };
+  far.plan(index, local, eye, cut, leave);
+  taken = true;
+  far.plan(index, local, eye, cut, leave);
+  far.plan(index, local, eye, cut, leave);
+  assert.equal(told.length, 2, 'asked again until taken, then not while nothing moved');
+  revision++;
+  far.plan(index, local, eye, cut, leave);
+  far.plan(index, local, eye, {}, leave);
+  assert.deepEqual(told, Array(3).fill([2, [5]]), 'a change is told; no lens, nothing');
+});

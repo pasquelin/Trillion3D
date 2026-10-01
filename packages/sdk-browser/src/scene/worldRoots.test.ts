@@ -56,8 +56,10 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)]);
   assert.deepEqual(roots.held(), [1, 2, 3], 'each bundle the placed cells need, read once');
   assert.equal(ranges.length, 4);
+  const revision = roots.revision;
   roots.release(0);
   assert.deepEqual(roots.held(), [2, 3], 'a bundle another placed cell needs stays');
+  assert.equal(roots.revision, revision + 1, 'one bundle let go, one change the cut is told');
   roots.release(1);
   roots.release(2);
   assert.deepEqual([roots.held(), roots.bytes()], [[], top], 'the pinned top alone is left');
