@@ -8299,5 +8299,37 @@
   "validateImpostorSection": {
     "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
     "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ, như trước. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
+  },
+  "LabelOptions": {
+    "summary": "Văn bản và vị trí của nhãn hướng về máy ảnh, có kiểm tra độ sâu.",
+    "members": {
+      "text": "Văn bản hỗ trợ xuống dòng; trình duyệt định hình Unicode và chữ ghép.",
+      "position": "Vị trí giữa cạnh dưới trong tọa độ đối tượng cha.",
+      "height": "Chiều cao toàn bộ theo đơn vị thế giới trước tỷ lệ của đối tượng cha.",
+      "font": "Phông CSS của canvas, tải xong trước khi gắn nhãn.",
+      "color": "Màu ký tự trên nền trong suốt."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Đối tượng cảnh và tài nguyên riêng của một nhãn.",
+    "members": {
+      "object": "Sprite thông thường: vị trí, tỷ lệ và độ hiển thị dùng API cảnh hiện có.",
+      "setText": "Vẽ lại chữ đã thay đổi; lời gọi mới hơn hoặc việc xóa ngăn kết quả cũ được áp dụng.",
+      "remove": "Gỡ sprite và giải phóng kết cấu, vật liệu, hình học riêng; có thể lặp lại an toàn."
+    }
+  },
+  "addLabel": {
+    "summary": "Thêm chữ vào nút cảnh bằng vật liệu sprite hiện có trên WebGL2 và WebGPU.",
+    "description": "Nhãn hướng về máy ảnh, kiểm tra độ sâu, không đổ bóng và bị loại khỏi thao tác chọn và lưu cảnh. Giới hạn: 2048 điểm ảnh mỗi cạnh (16 MiB), một ảnh thay thế khi cập nhật và 16384 đơn vị UTF-16. Văn bản vượt giới hạn bị từ chối, không cắt bớt. Chữ rỗng vẫn trong suốt.",
+    "returns": "Nhãn được gắn sau khi phông và ảnh đã sẵn sàng.",
+    "parameters": {
+      "parent": "Cảnh hoặc đối tượng được theo trong tọa độ cục bộ.",
+      "options": "Văn bản, phông, màu và vị trí.",
+      "options.text": "Văn bản hỗ trợ xuống dòng; trình duyệt định hình Unicode và chữ ghép.",
+      "options.position": "Vị trí giữa cạnh dưới trong tọa độ đối tượng cha.",
+      "options.height": "Chiều cao toàn bộ theo đơn vị thế giới trước tỷ lệ của đối tượng cha.",
+      "options.font": "Phông CSS của canvas, tải xong trước khi gắn nhãn.",
+      "options.color": "Màu ký tự trên nền trong suốt."
+    }
   }
 }

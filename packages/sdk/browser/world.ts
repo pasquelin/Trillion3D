@@ -6,6 +6,8 @@ export type {
   TrackBinding,
   TrackKind,
 } from '../../sdk-core/src/world/animation/index.ts';
+export { addLabel } from '../../sdk-browser/src/world/label/index.ts';
+export type { LabelHandle, LabelOptions } from '../../sdk-browser/src/world/label/index.ts';
 export { animation } from '../../sdk-core/src/world/animation/family.ts';
 export { batch } from '../../sdk-browser/src/world/batch/index.ts';
 export type { FloatBatch } from '../../sdk-browser/src/world/batch/index.ts';

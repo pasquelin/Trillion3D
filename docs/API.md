@@ -6,6 +6,7 @@ portal's [API reference](https://www.trillion3d.com/#/en/api).
 
 | Surface | Where |
 | --- | --- |
+| Scene text: `addLabel`, `LabelOptions`, `LabelHandle` | [Text labels](SDK.md#text-labels-in-the-scene) |
 | Entry points, TypeScript setup, bundling | [Entry points](SDK.md#entry-points), [Installation](SDK.md#installation-and-environment-api) |
 | `createWorld`, `scene.load`, `onProgress`, `awaitPages`, cache probes | [Create a world](SDK.md#create-a-world) |
 | Families and their members | [Families](SDK.md#families) |

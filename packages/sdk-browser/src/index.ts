@@ -1,4 +1,3 @@
-// The world and its families: what a page writes (issue #319). One barrel per family folder.
 export * from './world/core/index.ts';
 export * from '../../sdk-core/src/world/math/index.ts';
 export * from '../../sdk-core/src/world/geometry/index.ts';
@@ -11,6 +10,7 @@ export * from '../../sdk-core/src/world/camera/index.ts';
 export * from '../../sdk-core/src/world/animation/index.ts';
 export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
+export * from './world/label/index.ts';
 export * from './world/loader/index.ts';
 export * from './world/helper/index.ts';
 export * from './guides/index.ts';

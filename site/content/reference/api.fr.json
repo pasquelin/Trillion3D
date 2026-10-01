@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Une raison courte pour laquelle la section ne peut pas servir, ou `null`.",
     "description": "Une section absente n’est pas une erreur : un cache antérieur à elle dessine chaque maillage en entier, comme avant. Une présente est refusée en bloc quand sa version est inconnue ou qu’une entrée `baked` manque des nombres dont sa bascule et sa carte ont besoin."
+  },
+  "LabelOptions": {
+    "summary": "Texte et position d’une étiquette tournée vers la caméra, avec test de profondeur.",
+    "members": {
+      "text": "Texte avec sauts de ligne ; le navigateur compose Unicode et les ligatures.",
+      "position": "Position du centre inférieur dans les coordonnées du parent.",
+      "height": "Hauteur totale en unités du monde, avant l’échelle du parent.",
+      "font": "Police CSS du canevas, chargée avant l’ajout de l’étiquette.",
+      "color": "Couleur des glyphes sur fond transparent."
+    }
+  },
+  "LabelHandle": {
+    "summary": "L’objet de scène et les ressources propres d’une étiquette.",
+    "members": {
+      "object": "Sprite ordinaire : position, échelle et visibilité utilisent l’API de scène.",
+      "setText": "Redessine le texte modifié ; un nouvel appel ou la suppression empêche la publication d’un ancien résultat.",
+      "remove": "Retire le sprite et libère sa texture, son matériau et sa géométrie ; peut être répété."
+    }
+  },
+  "addLabel": {
+    "summary": "Ajoute du texte à un nœud de scène avec le matériau sprite existant, sur WebGL2 et WebGPU.",
+    "description": "L’étiquette fait face à la caméra, teste la profondeur, ne projette aucune ombre et est exclue de la sélection et de la sauvegarde. Limites : 2048 pixels par côté (16 Mio), une image de remplacement pendant la mise à jour et 16384 unités UTF-16. Un dépassement est refusé, jamais rogné. Un texte vide reste transparent.",
+    "returns": "L’étiquette attachée lorsque sa police et son image sont prêtes.",
+    "parameters": {
+      "parent": "La scène ou l’objet suivi dans ses coordonnées locales.",
+      "options": "Le texte, la police, la couleur et la position.",
+      "options.text": "Texte avec sauts de ligne ; le navigateur compose Unicode et les ligatures.",
+      "options.position": "Position du centre inférieur dans les coordonnées du parent.",
+      "options.height": "Hauteur totale en unités du monde, avant l’échelle du parent.",
+      "options.font": "Police CSS du canevas, chargée avant l’ajout de l’étiquette.",
+      "options.color": "Couleur des glyphes sur fond transparent."
+    }
   }
 }
