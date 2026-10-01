@@ -9,17 +9,17 @@ import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
 import { shadowEntryMask } from './entryMask.ts';
 
 /** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
- *  it maps (−1 free) and the frame it was last asked in first, the words a snapshot reads back;
- *  last, which draw its entry's depth came from (`DRAWN_*`). */
+ *  it maps (−1 free), the frame it was last asked in and which draw its entry's depth came from
+ *  (`DRAWN_*`) first, the words a snapshot reads back (#831). */
 export const POOL_FIELDS = [
   'owner',
   'requested',
+  'drawnBy',
   'rank',
   'view',
   'x',
   'y',
   'generation',
-  'drawnBy',
 ] as const;
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
