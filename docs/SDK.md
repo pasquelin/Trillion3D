@@ -799,8 +799,9 @@ overcast sky) only `direction`, the propagation direction, refused with a `posit
 No bound on the count: a 16×16 screen tile lists up to 64 lights reaching it, past that exactly
 those reaching it from a pool sized from the view (#849); WebGL2 lights each fragment by the lights
 reaching its light-grid cell (#835). 64 shadow slices, past which a caster lights without a shadow
-(`shadowCastersUnsliced`); every stale page the image reads is drawn in its frame, with no
-page cap ([SHADOWS.md](SHADOWS.md#when-a-page-is-stale-withdrawn-and-drawn)). The shadow pool is allocated
+(`shadowCastersUnsliced`); the stale pages the image reads are drawn at most a static fill a frame
+(`shadowPagesPerFrame`, a view's pages over sixteen frames, the coarsest first), a page past it
+reading the coarser level meanwhile ([SHADOWS.md](SHADOWS.md#when-a-page-is-stale-withdrawn-and-drawn)). The shadow pool is allocated
 once, at the first casting frame, at the most pages its byte setting holds — 360 MB with its static layer, request
 buffers and pair lists, 2 601 pages of 128² texels whatever the display (`SHADOW_POOL_SETTING_BYTES`), or the fewer the
 session's `shadowPoolPages` option asks —, in layers as wide as the device draws — and never resized (#831): a wider
