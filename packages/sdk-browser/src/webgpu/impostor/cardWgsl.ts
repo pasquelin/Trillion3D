@@ -1,19 +1,11 @@
 import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts';
 import { EMISSIVE_AO_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts';
 
-/** Floats of one card record (`Card` below): four corners, world, inverse world, shape, pivot. */
-export const CARD_FLOATS = 56;
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
 export const CARD_VIEW_FLOATS = 20;
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2;
-/**
- * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
- * masked material without its own declares (`MASK_CUTOFF`, the world API's: not imported into the
- * shader layer). The bake stores coverage, never a cut, so the cut is the runtime's; a mesh whose
- * material declares another keeps it on its own clusters.
- */
-const CARD_COVERAGE_CUT = 0.5;
 
 /** The card's depth nudged toward the eye by one part in 2^20 when its surface is drawn: the
  *  visibility stage wrote the same depth, and the nudge keeps it the nearest even where two

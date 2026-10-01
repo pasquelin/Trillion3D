@@ -904,7 +904,8 @@ grows.
 
 `clusters.json` carries `impostors` (version 1, #817): the compiler's verdict on every drawn mesh
 and, for each eligible one, an octahedral atlas standing in for it far away. The runtime switch and
-card are #1239, their WebGPU draw #1335 (a switched root keeps its mesh's shadow), the crossfade and
+card are #1239, their WebGPU draw #1335 (a switched root keeps its mesh's shadow) and their WebGL2
+draw #1336 (the same plan, card and atlas reads, lit by that path's one formula), the crossfade and
 shadow casting #1240; this section fixes what the cache holds.
 
 **Capture.** In object space, pivot at the bounding-sphere centre (`centre`, `objectRadius` R, the

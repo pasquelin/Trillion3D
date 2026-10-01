@@ -6,7 +6,7 @@ import { evictOldest } from '../streaming/evictOldest.ts';
 export const textureLevelShare = (pageCacheBytes: number) => Math.floor((pageCacheBytes * 3) / 4);
 
 /**
- * The decoded baked levels tiles are cut from (`webgpu/tile/levels.ts`), by id, the least recently
+ * The decoded baked levels tiles are cut from (`heldLevels.ts`), by id, the least recently
  * read first, within `budgetBytes` and within what the pages kept leave them (`roomBeside`). A
  * world's page cache holds one across its sessions (`PageCache.levels`): a level belongs to no GPU
  * device, so a session reopened after a device loss cuts its tiles again from the levels held and

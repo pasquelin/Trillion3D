@@ -2,13 +2,13 @@
  * THE IMPOSTOR ATLAS, streamed like any texture (#1239, fact 3; #1335). Each level of an atlas map
  * carries its own direct address (`maps.<name>.levels[k].url`, `docs/FORMAT.md` "Impostor
  * atlases"); the card reads those levels through the engine's ONE held-level read
- * (`readHeldLevel`, `webgpu/tile/levels.ts`), the one tiles are cut through: the level reader's own
+ * (`readHeldLevel`, `texture/heldLevels.ts`), the one tiles are cut through: the level reader's own
  * store holds them within its room, under the same key, a read in flight is never doubled and a
  * failure is reported, never swallowed. There is no second loader and no second budget.
  */
 import { PREVIEW_LOSSLESS_FORMAT, type ImpostorMaps } from '../../../sdk-core/src/index.ts';
 import type { TextureLevel, TextureLevelRequest } from '../texture/levelReader.ts';
-import { readHeldLevel, type WebgpuTileLevels } from '../webgpu/tile/levels.ts';
+import { readHeldLevel, type HeldLevels } from '../texture/heldLevels.ts';
 
 /** The three maps of one card, each its levels, level 0 first. */
 export type ImpostorAtlasLevels = Record<keyof ImpostorMaps, TextureLevel[]>;
@@ -23,7 +23,7 @@ const MAP_NAMES = ['colourCoverage', 'normalDepth', 'orm'] as const;
  */
 export function loadImpostorAtlas(
   maps: ImpostorMaps,
-  levels: WebgpuTileLevels,
+  levels: HeldLevels,
   frame: number,
 ): ImpostorAtlasLevels | 'waiting' | 'refused' {
   let verdict: 'waiting' | 'refused' | undefined;

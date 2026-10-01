@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTextureLevelReader, type TextureLevelRequest } from './levelReader.ts';
-import { createWebgpuTileLevels } from '../webgpu/tile/levels.ts';
+import { createHeldLevels } from './heldLevels.ts';
 import { tiledLevelBytes } from './tileRecords.ts';
 import { createPageCache, type PageCache } from '../streaming/pageCache.ts';
 import { manifestTableBytes } from '../streaming/manifestTables.ts';
@@ -34,7 +34,7 @@ function session(cache: PageCache, key = 'k1', side = 1024) {
     return new Response(new Uint8Array(fileBytes(side)));
   }) as typeof fetch;
   const read = createTextureLevelReader({ textures, key }, BASE, cache.levels)!;
-  const levels = createWebgpuTileLevels({ read, onFailure: assert.fail });
+  const levels = createHeldLevels({ read, onFailure: assert.fail });
   /** Asks for `level` at `frame`, and waits for what it read. */
   const ask = async (level: number, frame = 0) => {
     levels.request(request(level), frame, [side, side], 0, 0);
