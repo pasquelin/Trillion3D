@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLightingScene, type Scene } from './experimentScene.ts';
-import {
-  createDefaultLightingSceneLights,
-  MAX_LIGHTING_PANELS,
-  validateLightingSceneControls,
-} from './controls.ts';
+import { createDefaultLightingSceneLights, validateLightingSceneControls } from './controls.ts';
 import { close } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 test('lighting scene rejects nonfinite parameters and an excessive patch allocation', () => {
@@ -136,11 +132,20 @@ test('each panel needs a unique lower-case name, an RGB colour in range, a posit
   assert.doesNotThrow(() => validate([{ ...panel(), id: 'a', color: [0, 1, 1], intensity: 2 }]));
 });
 
-test('a scene holds up to its panel limit and refuses one more', () => {
+test('a scene holds as many panels as the limit its refusal names, and not one more', () => {
   const lights = (count: number) =>
     Array.from({ length: count }, (_, i) => ({ ...panel(), id: `panel_${i}` }));
-  assert.equal(validate(lights(MAX_LIGHTING_PANELS)).length, MAX_LIGHTING_PANELS);
-  assert.throws(() => validate(lights(MAX_LIGHTING_PANELS + 1)), /at most/);
+  let limit = NaN;
+  assert.throws(
+    () => validate(lights(1000)),
+    (error: Error) => (
+      (limit = Number(/at most (\d+) area panels/.exec(error.message)?.[1])),
+      limit > 0
+    ),
+  );
+  assert.ok(limit >= createDefaultLightingSceneLights().length);
+  assert.equal(validate(lights(limit)).length, limit);
+  assert.throws(() => validate(lights(limit + 1)), /at most/);
 });
 
 test('default lights are fresh copies each call', () => {
