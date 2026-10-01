@@ -6,13 +6,17 @@ import type { TriangleTree } from './triangleTree.ts';
  * the nearest triangle a ray crosses. Both walk the tree on one fixed stack and allocate nothing.
  */
 
-/** Depth bound of a balanced tree over 2^32 triangles: the traversal stack never grows. */
+/** Room for two queries at once — one asked from inside the other's visit — on a balanced tree
+ *  over 2^32 triangles (30 levels of leaves of four): the traversal stack never grows. */
 const STACK_DEPTH = 64;
 const stack = new Int32Array(STACK_DEPTH);
+/** The first slot of the stack a new query may use: above the slots of a query still visiting. */
+let free = 0;
 
 /**
  * Calls `visit(at)` — `at` the triangle's first number in `tree.triangles` — for every triangle
- * whose box meets `[min, max]`. The tree is only read; a visit may do anything but query again.
+ * whose box meets `[min, max]`. The tree is only read; a visit may ask one more query, which
+ * runs on the stack above this one's.
  */
 export function forEachTriangleInBox(
   tree: TriangleTree,
@@ -22,21 +26,29 @@ export function forEachTriangleInBox(
 ) {
   if (tree.triangleCount === 0) return;
   const { bounds, links, counts, triangles } = tree;
-  let top = 0;
+  const base = free;
+  let top = base;
   stack[top++] = 0;
-  while (top > 0) {
-    const node = stack[--top],
-      at = node * 6;
-    if (!overlaps(bounds, at, min, max)) continue;
-    if (counts[node] === 0) {
-      stack[top++] = links[node];
-      stack[top++] = node + 1;
-      continue;
+  try {
+    while (top > base) {
+      const node = stack[--top],
+        at = node * 6;
+      if (!overlaps(bounds, at, min, max)) continue;
+      if (counts[node] === 0) {
+        stack[top++] = links[node];
+        stack[top++] = node + 1;
+        continue;
+      }
+      for (let t = links[node], end = t + counts[node]; t < end; t++) {
+        const first = 9 * t;
+        if (!overlaps(triangles, first, min, max, 3)) continue;
+        free = top;
+        visit(first);
+      }
     }
-    for (let t = links[node], end = t + counts[node]; t < end; t++) {
-      const first = 9 * t;
-      if (overlaps(triangles, first, min, max, 3)) visit(first);
-    }
+  } finally {
+    // A visit that throws leaves the stack as it found it.
+    free = base;
   }
 }
 
@@ -128,9 +140,10 @@ export function nearestTriangleOnRay(
   const { bounds, links, counts, triangles } = tree;
   let best = Infinity,
     found = -1,
-    top = 0;
+    top = free;
+  const base = top;
   stack[top++] = 0;
-  while (top > 0) {
+  while (top > base) {
     const node = stack[--top];
     if (enterBox(bounds, node * 6, o, d, best) === Infinity) continue;
     if (counts[node] === 0) {

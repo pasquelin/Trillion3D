@@ -164,3 +164,33 @@ test('perching on a floor edge raises the sphere vertically to exactly one radiu
   assert.deepEqual([...velocity], [2, 0, 4]);
   assert.deepEqual(report, { ground: true, wall: false, impact: 3 });
 });
+
+test("a floor's edge touched at the sphere's widest raises the body by nothing, never by NaN", () => {
+  // Met in a walked scene: the edge of a level face, its way out level but for a rounding.
+  const radius = 0.226625;
+  const capsule = { feet: new Float64Array([2, 0.9, 0.7]), radius, height: 1.75 };
+  let seen = false;
+  const world = {
+    groundBelow: () => null,
+    resolveCapsule: (_: unknown, push: (value: CapsuleContact) => void) => {
+      if (seen) return false;
+      seen = true;
+      push({
+        normal: new Float64Array([-0.5337517882602961, 9.797886593492832e-16, 0.8456411937275384]),
+        surface: new Float64Array([0, 1, 0]),
+        point: new Float64Array([2.125, 1.13, 0.524]),
+        depth: 2.7755575615628914e-17,
+      });
+      return true;
+    },
+  };
+  const velocity = new Float64Array([1, 0, 1]);
+  slide(
+    world,
+    { capsule, velocity },
+    { ...rules, onGround: true, stepTop: 1.4 },
+    [0, 0, 0],
+    freshReport({ ground: false, wall: false, impact: 0 }),
+  );
+  near(capsule.feet, [2, 0.9, 0.7], 'feet', 1e-12);
+});

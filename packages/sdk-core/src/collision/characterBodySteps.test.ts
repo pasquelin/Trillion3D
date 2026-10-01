@@ -108,3 +108,52 @@ test('an unsuccessful climb beneath a ceiling cannot move a walker backwards', (
     assert.ok(body.feet[0] >= 0.5 - 1e-8, 'a discarded raised probe cannot push the body back');
   }
 });
+
+test('a lip under stepHeight is not climbed when the slope above it is met higher than a step', () => {
+  // A block tilted 57°: its upper corner overhangs the floor 0.48 m up, under stepHeight, and a
+  // 33° face rises from it. Set down from a step's height, the foot meets that face 0.53 m up,
+  // above the step: the first surface met refuses the step, as the reference engine's StepUp and Jolt's stair
+  // walk refuse theirs.
+  const rock = block(1.808, 0.037, -3, 2.594, 0.52, 3);
+  rock.rotation.z = -1;
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), rock]));
+  body.place(0, 0, 0);
+  for (let tick = 0; tick < 240; tick++) body.advance(1 / 120, EAST);
+  assert.ok(Math.abs(body.feet[1]) < 1e-9, `feet at ${body.feet[1]}`);
+  assert.ok(body.feet[0] < 1.8, `walked to ${body.feet[0]}`);
+});
+
+test('a walker up a ramp under a low ceiling stops where its head meets it, never inside', () => {
+  // A 15° ramp from x = 1 under a ceiling 1.85 m up: the body fits on the ramp's first 0.1 m.
+  const ramp = block(1, -1, -3, 9, 0, 3);
+  ramp.rotation.z = Math.PI / 12;
+  ramp.position.set(
+    1 + 4 * Math.cos(Math.PI / 12) + 0.5 * Math.sin(Math.PI / 12),
+    4 * Math.sin(Math.PI / 12) - 0.5 * Math.cos(Math.PI / 12),
+    0,
+  );
+  const world = meshCollision([
+    block(-20, -1, -20, 20, 0, 20),
+    ramp,
+    block(-2, 1.85, -3, 9, 2.5, 3),
+  ]);
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(world);
+  body.place(0, 0, 0);
+  let inside = 0;
+  for (let tick = 0; tick < 240; tick++) {
+    body.advance(1 / 120, EAST);
+    world.resolveCapsule(
+      {
+        feet: Float64Array.from(body.feet),
+        radius: HUMAN_BODY.capsuleRadius,
+        height: HUMAN_BODY.capsuleHeight,
+      },
+      (touch) => (inside = Math.max(inside, touch.depth)),
+    );
+  }
+  assert.ok(inside < 1e-3, `${inside} m inside`);
+  assert.ok(body.feet[1] <= 1.85 - HUMAN_BODY.capsuleHeight + 1e-3, `feet at ${body.feet[1]}`);
+  assert.ok(Math.abs(body.velocity[0]) < 0.5, `still pushing at ${body.velocity[0]} m/s`);
+});

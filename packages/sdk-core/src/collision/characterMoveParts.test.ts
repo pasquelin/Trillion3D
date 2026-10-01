@@ -28,7 +28,7 @@ test('a long movement cannot tunnel across a thin triangle wall and keeps tangen
   assert.equal(report.wall, true);
 });
 
-test('an overlap no push resolves is asked MOVE_PASSES times a part, then the move goes on', () => {
+test('an overlap no push resolves is asked MOVE_PASSES times a part and looked at once, then the move goes on', () => {
   const capsule = { feet: new Float64Array(3), radius: 1, height: 2 };
   let asked = 0;
   const stuck = { groundBelow: () => null, resolveCapsule: () => (asked++, true) };
@@ -40,6 +40,7 @@ test('an overlap no push resolves is asked MOVE_PASSES times a part, then the mo
     [1.2, 0, 0],
     freshReport({ ground: false, wall: false, impact: 0 }),
   );
-  assert.equal(asked, 3 * MOVE_PASSES);
+  // MOVE_PASSES passes, then one look at what they left: no overlap deeper than before.
+  assert.equal(asked, 3 * (MOVE_PASSES + 1));
   near(capsule.feet, [1.2, 0, 0], 'feet', 1e-12);
 });

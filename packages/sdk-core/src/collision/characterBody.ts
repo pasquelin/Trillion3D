@@ -1,6 +1,11 @@
 import { arc, freshReport, isFloor, slide, type MoveReport } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
-import type { CharacterEvents, CharacterInput, CharacterSettings } from './characterSettings.ts';
+import {
+  SLACK,
+  type CharacterEvents,
+  type CharacterInput,
+  type CharacterSettings,
+} from './characterSettings.ts';
 import type { CharacterCollision } from './characterCollision.ts';
 import { createDrive, driveTick, type DriveStep } from './characterDrive.ts';
 import { hypot2 } from '../math/primitives/hypot.ts';
@@ -93,7 +98,7 @@ export function createCharacterBody(settings: CharacterSettings) {
 
   /** Whether the move `(dx, dz)`, raised by a step, comes down on a floor above `start`; a
    *  micrometre of rise is the arithmetic's, not a step. */
-  const climbs = (dx: number, dz: number) => stepOver(dx, dz) && capsule.feet[1] > start[1] + 1e-6;
+  const climbs = (dx: number, dz: number) => stepOver(dx, dz) && capsule.feet[1] > start[1] + SLACK;
 
   /**
    * A walker blocked by a wall looks for a step: a foot put a radius ahead, raised by
