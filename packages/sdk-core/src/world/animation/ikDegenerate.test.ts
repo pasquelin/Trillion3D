@@ -134,3 +134,9 @@ test('IK keeps an unreachable chain slightly bent so its next solve remains well
   solveTwoBoneIK(root, mid, end, new Vector3(2, 1, 1));
   assert.ok(end.getWorldPosition().distanceTo(new Vector3(2, 1, 1)) < 1e-6);
 });
+
+test('a chain with no second bone turns right round to a target straight behind it', () => {
+  const { root, mid, end } = ikChain(1, 0);
+  solveTwoBoneIK(root, mid, end, new Vector3(0, -1, 0));
+  assert.ok(end.getWorldPosition().distanceTo(new Vector3(0, -1, 0)) < 1e-6);
+});

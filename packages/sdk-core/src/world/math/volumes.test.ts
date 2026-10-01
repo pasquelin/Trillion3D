@@ -4,6 +4,8 @@ import { Box3 } from './box3.ts';
 import { Sphere, Plane, Ray, Triangle, Frustum } from './volumes.ts';
 import { Vector3 } from './vector3.ts';
 import { Matrix4 } from './matrix4.ts';
+import { camera } from '../camera/index.ts';
+import { near } from '../../math/near.fixture.ts';
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
 
@@ -69,4 +71,51 @@ test('frustum containment covers each plane and inclusive box intersection', () 
     assert.equal(value.intersectsBox(new Box3(point, point.clone())), false);
   }
   assert.equal(value.intersectsBox(new Box3(v(-0.5, -0.5, -0.5), v(0.5, 0.5, 0.5))), true);
+});
+
+test('a ball of radius zero is a point, not empty; set moves the centre too', () => {
+  assert.equal(new Sphere(v(1, 2, 3), 0).isEmpty(), false);
+  assert.equal(new Sphere(v(1, 2, 3), 2).isEmpty(), false);
+  assert.equal(new Sphere().isEmpty(), true);
+  assert.deepEqual(new Sphere().set(v(4, 5, 6), 1).center.toArray(), [4, 5, 6]);
+  const t = new Triangle().set(v(1, 1, 0), v(3, 1, 0), v(1, 4, 0));
+  assert.deepEqual(t.a.toArray(), [1, 1, 0]);
+  assert.equal(t.getArea(), 3);
+});
+
+test('a ray measures in its own direction units, from on the plane, and grazes or starts on a box', () => {
+  const plane = new Plane(v(0, 1, 0), -2);
+  assert.equal(
+    new Ray(v(0, 0, 0), v(0, 2, 0)).distanceToPlane(plane),
+    1,
+    'twice as fast, half as far',
+  );
+  assert.ok(new Ray(v(0, 2, 0), v(0, 1, 1)).distanceToPlane(plane) === 0, 'starting on it');
+  const box = new Box3(v(-1, -1, -1), v(1, 1, 1));
+  assert.deepEqual(
+    new Ray(v(0, 2, 0), v(1, -1, 0)).intersectBox(box)?.toArray(),
+    [1, 1, 0],
+    'grazing an edge',
+  );
+  assert.deepEqual(
+    new Ray(v(-1, 0, 0), v(1, 0, 0)).intersectBox(box)?.toArray(),
+    [-1, 0, 0],
+    'starting on a face',
+  );
+});
+
+test('a default ray looks where an unturned camera looks', () => {
+  const ahead = camera.perspective().rayThrough(0, 0, 1).direction;
+  near(new Ray().direction.toArray(), ahead.toArray(), 'ahead', 1e-12);
+});
+
+// Clip space keeps x and y in [-1, 1] and depth in [0, 1]: moved by (½, ½, ¼), the box is
+// [-1.5, 0.5] across, [-0.25, 0.75] deep — off centre on every axis.
+test('an off-centre frustum holds what its planes enclose, on every axis', () => {
+  const frustum = new Frustum().setFromProjectionMatrix(
+    new Matrix4().makeTranslation(0.5, 0.5, 0.25),
+  );
+  assert.equal(frustum.containsPoint(v(-1.2, -1.2, 0.6)), true);
+  for (const outside of [v(-1.2, 1.2, 0.6), v(-1.2, -1.2, -0.6), v(1.2, -1.2, 0.6)])
+    assert.equal(frustum.containsPoint(outside), false);
 });
