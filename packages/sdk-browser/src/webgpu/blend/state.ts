@@ -1,4 +1,5 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts';
+import type { BlendShadowMarks } from './marks.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
@@ -114,6 +115,8 @@ export function createWebgpuBlendState() {
     /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
      *  the blend pipelines; absent, the transmission slice draws as a blend (`../water/pass.ts`). */
     water: undefined as WaterPass | undefined,
+    /** The marks of the shadow pages the blends read, before they are mapped (`marks.ts`). */
+    shadowMarks: undefined as BlendShadowMarks | undefined,
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,

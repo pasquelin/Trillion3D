@@ -8,6 +8,8 @@ import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
 import { shadowKeptFrom } from './poolResize.ts';
+import { encodeBlendShadowMarks } from '../blend/marks.ts';
+import type { BlendFrame } from '../pages/render/encodeBlend.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
@@ -18,10 +20,13 @@ const SHADOW_FRESH_COUNT_PASS = 'Trillion3D shadow GPU page count v1';
 const SHADOW_FRESH_ADMIT_PASS = 'Trillion3D shadow GPU page admission v1';
 const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
 const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
+/** The transparents' marks of the pages they read (`../blend/marks.ts`). */
+export const BLEND_SHADOW_MARKS_PASS = 'Trillion3D shadow blend marks v1';
 /** The GPU's page passes, the floors first: timed under the Shadows stage (`stage/mapping.ts`). */
 export const SHADOW_PAGE_PASSES = [
   SHADOW_FLOORS_PASS,
   SHADOW_DEMAND_PASS,
+  BLEND_SHADOW_MARKS_PASS,
   SHADOW_ALLOC_PASS,
   SHADOW_WORDS_PASS,
   SHADOW_FRESH_PASS,
@@ -117,18 +122,24 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
 }
 
 /**
- * Maps, on the GPU, every page this image asks for: the plan's floors (`encodeShadowFloors`), then
- * its pixels' demand when its light lists were encoded (`demandPass.ts`), right before any page is
- * drawn. The pages it maps, and those it mapped before and saw no draw of since, it lists: the GPU
- * draws them in this frame once the host's pages and words are in (`freshPass.ts`).
+ * Maps, on the GPU, every page this image asks for: the plan's floors (`encodeShadowFloors`), then,
+ * when its light lists were encoded, its pixels' demand (`demandPass.ts`) and the marks of the
+ * transparents `blend` prepared (`../blend/marks.ts`), right before any page is drawn. The pages it
+ * maps, and those it mapped before and saw no draw of since, it lists: the GPU draws them in this
+ * frame once the host's pages and words are in (`freshPass.ts`).
  */
 export function encodeShadowAsks(
   rt: WebgpuPagesRuntime,
+  device: GPUDevice,
   encoder: GPUCommandEncoder,
   listed: boolean,
+  blend?: BlendFrame,
 ) {
   const bound = encodeShadowFloors(rt, encoder);
-  if (listed) encodeShadowDemand(rt, encoder);
+  if (listed) {
+    encodeShadowDemand(rt, encoder);
+    if (blend?.textured) encodeBlendShadowMarks(rt, device, encoder, blend);
+  }
   if (bound) rt.lights.allocation!.allocate(encoder, bound, 1);
 }
 

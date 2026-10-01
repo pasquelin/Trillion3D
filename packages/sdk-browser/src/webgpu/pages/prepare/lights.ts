@@ -14,6 +14,7 @@ import { sceneCastsBlended } from '../../shadow/transmittanceGrant.ts';
 import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 import { createShadowDemand } from '../../shadow/demandPass.ts';
 import { createShadowAllocation } from '../../shadow/allocPass.ts';
+import { prepareBlendShadowMarks } from '../../blend/marks.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -21,7 +22,7 @@ const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 const SHADOW_APPROXIMATIONS = [
   'a blended cluster casts from a shadow-only row into the transmittance layer, at half the pool resolution and filtered by the same PCF: one 8-bit product of (1 − coverage) and one nearest 32-bit depth per texel, so a receiver between two stacked panes takes both; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
-  'shadow pages are asked for by the opaque surfaces alone, per pixel before any page is drawn and again by the resolve: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
+  'shadow pages are asked for before any page is drawn by the opaque surfaces, per pixel and again by the resolve, and by the blend surfaces, per fragment: a water surface reads the pages the others asked for, and falls back to a coarser level where none did',
   'a shadow page asked for is mapped and drawn on the GPU in the frame that asks for it, with every resident caster row its own light-space volume touches, blended casters into the transmittance layer too; the host draws it again with its light cut and static layer once its request report comes back, a frame or two later; a page whose casters the pair list of its frame cannot all hold waits for the next frame, the pixel reading the next coarser level meanwhile',
 ];
 
@@ -82,6 +83,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
       diag.diagnosticFailure('shadow-demand-unavailable', error);
       return undefined;
     });
+  // The blends mark the pages they read beside the pixels (#1411).
+  await prepareBlendShadowMarks(rt, device);
   // The GPU maps what the demand marks; without either, the reports map the pages on the host.
   if (lights.demand)
     lights.allocation = await createShadowAllocation(device, lights.plan.sunWindow).catch(
