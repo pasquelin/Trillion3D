@@ -142,13 +142,12 @@ export function worldPageServer(
     }
   };
   return {
-    /** The bundles this server keeps right now: in flight, or owing a page's other GPU view. */
-    bundles: () => streamed.keys(),
-    /** The bytes of the bundles it keeps past the pinned top that `held` does not hold. */
-    keptBytes(held: (bundle: number) => boolean) {
+    /** The bytes of the bundles it keeps (in flight, or owing a page's other GPU view) past the
+     *  pinned top that `held` does not hold. */
+    keptBytes(held: { has(bundle: number): boolean }) {
       let kept = 0;
       for (const bundle of streamed.keys())
-        if (bundle >= table.pinned && !held(bundle)) kept += table.bundles[bundle].bytes;
+        if (bundle >= table.pinned && !held.has(bundle)) kept += table.bundles[bundle].bytes;
       return kept;
     },
     /** The page at `address`: world-space vertices, `u16` triangles. */
