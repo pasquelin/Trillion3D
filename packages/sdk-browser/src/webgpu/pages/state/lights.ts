@@ -24,6 +24,7 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import type { ShadowRowLods } from '../../shadow/rowLods.ts';
 import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
@@ -46,10 +47,11 @@ export interface WebgpuLightState {
   residence: ReturnType<typeof createShadowResidence>;
   /** Which placements move, and the static layer their first move opens. */
   mobility: ShadowMobility;
-  /** One word per row, 1 for a moving placement's: what the page cull splits its lists by. */
-  mobilityRows: GPUBuffer | undefined;
+  mobilityRows: GPUBuffer | undefined; // a word per row, what the page cull splits its lists by
+  rowLods: ShadowRowLods | undefined; // each caster row's detail, its level chosen per page (#831)
   staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
   staticLayerPending: boolean;
+  staticLayerTexture: GPUTexture | undefined; // made with the pool until the layer owns it (#831)
   /** The static layer's page pyramids and the test of the moving casters against them. */
   pageHiz: ShadowPageHiz | undefined;
   occlusion: ShadowOcclusion | undefined;
@@ -60,14 +62,12 @@ export interface WebgpuLightState {
   bins?: ShadowBins; // the pool's raster bins (OMB-26)
   /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
   movingGroups: ShadowMovingGroups | undefined;
-  /** Each pass's clears and restores, two instanced draws; made with the atlas. */
-  pageQuads: ShadowPageQuads | undefined;
+  pageQuads: ShadowPageQuads | undefined; // each pass's clears and restores, made with the atlas
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
   shadowGroupsKey: unknown[];
-  /** Store revision already pushed to the GPU: an image with no change writes nothing. */
-  uploadedEpoch: number;
+  uploadedEpoch: number; // store revision already pushed: an image with no change writes nothing
   /** Matrices of the batch's drawn pages, one per region. */
   faceMatrices: Float32Array;
   /** The batch's drawn light views, one light cut each (`../../shadow/runs.ts`). */
@@ -76,10 +76,8 @@ export interface WebgpuLightState {
   regions: ShadowRegionList;
   /** The light store slot of each shadow slice, as the image's records were written. */
   shadowSlots: Int32Array;
-  /** The threshold the image's light cuts select casters at. */
-  shadowPixelError: number;
-  /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
-  plannedFrame: number;
+  shadowPixelError: number; // the threshold the image's light cuts select casters at
+  plannedFrame: number; // the image whose shadow pages are planned, once (`planImageShadows`)
   /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
    *  they no longer do (`../../shadow/pages.ts`). */
   packedBatch: { frame: number; from: number; to: number };
@@ -98,7 +96,7 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages the light cut sent back to be drawn again, withdrawn or coarser (`redrawShortPages`). */
+  /** Pages the light cut sends back (`redrawShortPages`): withdrawn in all, coarser this frame. */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
   /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
@@ -107,13 +105,12 @@ export interface WebgpuLightState {
   shadowDrawCalls: number;
   /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
   shadowRenderPasses: number;
-  /** Why the shadow atlas does not exist, when it does not. */ shadowReason: string | null;
+  shadowReason: string | null; // why the shadow atlas does not exist, when it does not
   /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
   memory: ShadowMemory;
   /** The transmittance layer is past the grant or refused: never asked again (`transmittanceGrant.ts`). */
   transmittanceDenied: boolean;
-  /** The first contract-lit image's configuration is logged once. */
-  firstFrameLogged: boolean;
+  firstFrameLogged: boolean; // the first contract-lit image's configuration is logged once
 }
 
 export function createWebgpuLightState(
@@ -136,8 +133,10 @@ export function createWebgpuLightState(
     residence: createShadowResidence(),
     mobility: createShadowMobility(),
     mobilityRows: undefined,
+    rowLods: undefined,
     staticLayer: undefined,
     staticLayerPending: false,
+    staticLayerTexture: undefined,
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
@@ -177,9 +176,10 @@ export function createWebgpuLightState(
 /** Frees the static layer, its page pyramids and occlusion test: at dispose, or landed after it. */
 export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.staticLayer?.dispose();
+  lights.staticLayerTexture?.destroy();
   lights.pageHiz?.dispose();
   lights.occlusion?.dispose();
-  lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
+  lights.staticLayer = lights.pageHiz = lights.occlusion = lights.staticLayerTexture = undefined;
 }
 
 /**

@@ -13,7 +13,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
-import { MOBILITY_COARSER, MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
+import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
 import { keptPairs, keptRows } from './pairRows.ts';
 import {
@@ -28,23 +28,22 @@ import {
 import { POOL_COUNTS, POOL_FIELDS } from './allocLayout.ts';
 import { DRAWN_GPU, DRAWN_NONE } from './poolDrawn.ts';
 
-const PAGES = 4;
-/** Two regions: a box of two metres around the origin, and a cone down from five metres up. */
+const PAGES = 4,
+  /** The float of a region's volume its texels per metre take (`Face.texel`). */
+  TEXEL = 18;
+/** Two regions: a box of two metres around the origin, and a cone down from five metres up; a
+ *  texel a metre each (`Face.texel`), every row of one level. */
 function volumes() {
   const floats = new Float32Array(2 * SHADOW_CULL_FLOATS);
   floats.set([0, 0, 0, 1, 0, 0, 1, -1, 1, 0, 0, 1, 0, 1, 0, 1]);
   floats.set([0, 5, 0, 10, 0, -1, 0, 0.1], SHADOW_CULL_FLOATS);
+  floats[TEXEL] = floats[SHADOW_CULL_FLOATS + TEXEL] = 1;
   return new Uint8Array(floats.buffer);
 }
-/** The cull's inputs over `rows` spheres, the table's first `tableRows` then blended ones; a row of
- *  `coarser` has a finer resident form standing for it. */
-function cull(rows: number[][], tableRows: number, capacity: number, coarser: number[] = []) {
+/** The cull's inputs over `rows` spheres, the table's first `tableRows` then blended ones. */
+function cull(rows: number[][], tableRows: number, capacity: number) {
   const spheres = new Float32Array(rows.flat()),
-    mobility = Uint32Array.from(
-      rows,
-      (_, row) =>
-        ((row + 1) << MOBILITY_CORNER_SHIFT) | (coarser.includes(row) ? MOBILITY_COARSER : 0),
-    ),
+    mobility = Uint32Array.from(rows, (_, row) => (row + 1) << MOBILITY_CORNER_SHIFT),
     params = new Uint32Array(FRESH_PARAMS),
     args = new Uint32Array(freshArgWords(PAGES)),
     pairs = new Uint32Array(2 * rows.length * 2);
@@ -67,17 +66,6 @@ function cull(rows: number[][], tableRows: number, capacity: number, coarser: nu
   ]);
   return { kept, args, params };
 }
-
-test('a coarser level a finer resident form stands for is never drawn over it (#831)', () => {
-  // Row 1 is row 0's surface one level up, both resident: the finer alone is drawn, so the coarse
-  // triangles, lying above the surface, never shade it.
-  const rows = [
-    [0.9, 0.9, 0, 0.1],
-    [0.9, 0.9, 0, 0.3],
-  ];
-  const { kept } = cull(rows, 2, 64, [1]);
-  assert.deepEqual(kept, [[0, 0]]);
-});
 
 test('a region keeps every caster row its volume touches, the blended ones too', () => {
   // Rows 0 and 1 of the table, then, past two rows no draw holds, a blended caster (row 4).
@@ -136,11 +124,13 @@ function frame(capacity: number, holds: (k: number) => number[]) {
     picked = [...args.subarray(FRESH_REGION_PAGES, FRESH_REGION_PAGES + regions)];
   // Every region a box that holds every row; one holding row 0 alone is two metres wide on its
   // right axis, where the other rows lie fifty metres out.
-  for (let k = 0; k < regions; k++)
+  for (let k = 0; k < regions; k++) {
     volumeFloats.set(
       [0, 0, 0, 1e6, 0, 0, 1, -1, 1, 0, 0, 1e6, 0, 1, 0, 1e6],
       k * SHADOW_CULL_FLOATS,
     );
+    volumeFloats[k * SHADOW_CULL_FLOATS + TEXEL] = 1;
+  }
   const spheres = new Float32Array(rows * 4),
     pairs = new Uint32Array(2 * capacity);
   for (let k = 0; k < regions; k++)

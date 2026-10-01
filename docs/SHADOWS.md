@@ -93,6 +93,20 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   home page, never reading a neighbour page of another range.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, down to one page. Six faces for a
   point, one for a spot.
+- **The bias follows the receiver's own triangle** (#831): the normal offset and the slope-scaled
+  depth margin, in texels of the level read, are taken along the plane of the triangle the pixel
+  shows (`shadowBiasNormal`, the plane `shadowReceiver` reads from the visibility buffer, handed to
+  the read with the receiver's offset), turned to the side
+  its shading normal lights, never along that smooth normal — over a coarse terrain it leans off
+  each triangle and under-biased one side of every edge, teeth along the triangles as the sun
+  grazed. The shading point is still moved off the triangle by its vertex normals (Phong
+  projection), and both stay bounded by the filter's reach: a caster a few texels away keeps its
+  contact shadow. The demand reads the same point, so it asks the pages the shading reads.
+- **A page a light cut drew from a coarse ancestor** — the fine cluster not resident yet — is drawn
+  again as soon as residency moves, the camera moving or not (#831, `redrawShortPages`), as Unreal
+  redraws a cached page once Nanite streams its finer clusters in: a drive no longer shows the
+  coarse triangles in its shadows until it stops. A camera that only moves, residency still,
+  redraws nothing.
 - **The level is chosen per pixel, from its footprint** (the world distance between two adjacent
   pixels at the depth its centre holds without the TAA jitter, `pixelLevel`,
   `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
@@ -161,37 +175,65 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
   every resident page of every caster, whatever the camera or a light cut selected, so a caster the
   camera does not see still shades a receiver it sees. Of a surface the residency holds at several
-  levels, only the finest is kept — the cut rule at a threshold of 0 (`isFinest`,
-  `page/cut/readiness.ts`), written in each row's mobility word (`MOBILITY_COARSER`) and again when
-  the row's readiness moves (`gpuCutStream.ts`) —: a coarser level drawn over it lifted the depth
-  above the surface and shaded a compiled terrain in triangles (#831). Each kept row is one
-  `(region, row)` pair. It
+  levels, each page keeps the one its own texels want, as the host's light cut picks a coarser
+  cluster for a coarser page (#831): the cut rule (`page/cut/rule.ts`) on each row's world errors —
+  its own and its parent's, at their spheres' centres, the residency folded in (`rowLods.ts`,
+  written on the rows the table rewrites and those whose readiness moves) — projected in the page's
+  texels (a sun page's per metre, a lamp page's focal over the distance), at the light cuts'
+  threshold. Every surface is drawn once, by one level: never a coarser one over the finer (that
+  lifted the depth above a compiled terrain and shaded it in triangles), and never a far page's
+  whole field at its finest (192 such pages took 150 to 180 ms on a-field-of-pebbles). Each kept
+  row is one `(region, row)` pair. It
   counts each region's pairs first; one workgroup then scans the counts over its lanes (the shared
   lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
   list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
-  region's pairs are laid in its place: no pair past the list, none drawn for a page left unread.
-  The list is the region cull's kept list, free once the host's batches are encoded, grown to the
-  need: the seal hands the pairs every region counted to the host in the pool's snapshot, and the
-  kept list grows by the tables' own path (`growKeptList`, the occlusion test's list with it) —
-  asked of the shadow grant, then of the device under an out-of-memory scope, never past one storage
-  binding (`pairGrowth.ts`) —, so it overflows only at the grant or the device's ceiling, each a
-  pressure by name (`pairs-over-grant`, `pairs-refused`). The seal makes each admitted page
+  region's pairs are laid, the still rows' from the list's start and the moving rows' from its end
+  down: no pair past the list, none drawn for a page left unread.
+  The list is the region cull's kept list, free once the host's batches are encoded, at a size
+  fixed by the pool and never grown after (#831), as Unreal's culling buffers are
+  (`r.Nanite.MaxCandidateClusters`): `poolPairs` = the pages the GPU draws a frame at most
+  (`shadowPagesPerFrame`, the granted batches' pages, the pool's own when fewer) × `PAIRS_PER_PAGE` (a page's
+  128² texels over the 32 a kept cluster covers at least, 512), grown once to it by the tables' own
+  path (`growKeptList`, the occlusion test's list with it) — asked of the shadow grant, then of the
+  device under an out-of-memory scope, never past one storage binding (`pairGrowth.ts`) —, each
+  refusal a pressure by name (`pairs-over-grant`, `pairs-refused`). The pool's bytes a frame shows
+  (`shadowPoolBytes`) are thus the ones it was set to, whatever the frames count. The seal makes each admitted page
   readable; each pool layer's pass clears its pages and draws every pair in two indirect draws,
   casters placed on their page in the vertex stage and kept to it by the fragment, no viewport set
   (`freshPass.ts`, `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for
-  blended casters. The host redraws a page with its light cut and static layer once a report names
-  it, the GPU's draw readable meanwhile (`DRAWN_GPU`) — unless what it holds moves in the world: the
-  host then sends its word marked withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw
-  loses its depth as a host one does; the mark never enters the table. So a page read first in a
+  blended casters. With a static layer, as Unreal renders a new page's static casters into its
+  static cache and merges them under the dynamic ones (#831): the layer's pass clears the pages
+  and draws the still casters alone (`shadow_fresh_static_vs`, the list's start), then the pool's
+  pass restores each page from it and draws the moving casters alone over it, the list's end — each
+  draw walks its own pairs, never the other's (`freshPairAt`) — (`restore_fs`, `depthRestoreWgsl`, and `shadow_fresh_moving_vs`): the still
+  geometry is drawn once. A page is drawn once, as Unreal draws it: the snapshot says which pages
+  the GPU's own draw holds (`drawnBy`), and the host adopts those current (`pool.keepDraw`), with
+  their static layer when every GPU draw since the snapshot before wrote it (`layeredFrom`) — never
+  drawn again until what they hold changes; a mover crossing one restores it from the layer
+  (`DRAW_DYNAMIC`): driving, a page's static geometry is not rasterized again
+  (`freshStaticLayer.test.ts`). What a page holds moving in the world, the host sends its word marked
+  withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw loses its depth as a host one
+  does; the mark never enters the table. A mover also withdraws, while the GPU maps, the entries
+  it covers that the host does not map yet (`invalidate.ts`): a page the GPU drew frames before the
+  host's snapshot came back is drawn again in this frame (`withdrawGpuDraw`, `wordsWgsl.ts`), so no
+  old silhouette of a moving car trails it, a page row each — once until a GPU page draw runs
+  again (`table.withdrawUnmapped`). A burst the changed list cannot hold uploads the table whole
+  with those marks (`eachWithdrawn`); past what the words hold, every page the GPU drew itself is
+  withdrawn (`every`). So a page read first in a
   frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
   world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
   none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`).
 
 ## When a page is stale, withdrawn and drawn
 
-**Every stale page the image reads is drawn in the frame that marks it** (#489): no per-frame page
-cap, no millisecond budget. The list goes coarsest first, each light's floor leading (#525), an
-order that matters only to a frame its memory guard stops. Cost is held by caching — a page is
+**Every stale page the image reads is drawn, at most a page budget a frame** (#489, #831): the host's
+batches and the GPU's own page draws each draw at most `shadowPagesPerFrame` pages a frame — the
+pages the granted batches hold (one pool layer), the pool's own when fewer —, derived from the grant
+and the pool, never from a scene. It is a safety net: each page draws its casters at the level its
+texels want, so a burst costs its pages' texels; one past it — a pool larger than a layer, all
+stale at once — is drawn over the next frames, the pixels reading the coarser level meanwhile, as
+Unreal's virtual shadow maps read a page their frame did not render. The list goes coarsest first, each light's floor leading (#525),
+the oldest first once pages wait. Otherwise cost is held by caching — a page is
 redrawn only when what it holds changed —, never by showing a coarse or stale page as current. A
 page is drawn with its own projection into its physical page (viewport and scissor), touching no
 other.
@@ -201,16 +243,16 @@ The table word's valid bit says whether a page is read. A page whose depth is wr
 drawn is not read. A page holds two validities: its static depth, in the static layer, and its
 moving depth, the moving casters drawn over it.
 
-| Cause                                                                                                                                                        | Pages staled                                                                                                                                                                                                           | Read until redrawn?                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices                                                                                                            | no: their depth is the old projection's                           |
-| Intensity, colour or penumbra                                                                                                                                | none                                                                                                                                                                                                                   | —                                                                 |
-| A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes                                               | the mapped pages its projected boxes, where it was and where it lands — each apart, never the pages between —, cover, at the levels where the box holds a texel's sample; redrawn whole, static casters into the layer | no: their static layer is wrong                                   |
-| An object already moving moves                                                                                                                               | the same boxes' pages; restored from the layer, moving casters drawn over                                                                                                                                              | yes: a static shadow never vanishes while something near it moves |
-| A mover at rest; a camera move (the clipmap scrolls, only entering pages drawn)                                                                              | none                                                                                                                                                                                                                   | —                                                                 |
-| A representation change: hidden or shown, casting toggled, alpha mode, cutout texture or pages' residency, a blended caster's coverage                       | its pages once the camera rests — a still object's redrawn whole, a moving object's moving casters alone (the layer never held them), the two in separate unions                                                       | yes                                                               |
-| A cut-threshold change                                                                                                                                       | once the camera rests, the pages drawn at another threshold                                                                                                                                                            | yes                                                               |
-| A stale page no report names                                                                                                                                 | —                                                                                                                                                                                                                      | no, since blend and water read without asking                     |
+| Cause                                                                                                                                                        | Pages staled                                                                                                                                                                                                                                                                                                                               | Read until redrawn?                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices                                                                                                                                                                                                                                | no: their depth is the old projection's                           |
+| Intensity, colour or penumbra                                                                                                                                | none                                                                                                                                                                                                                                                                                                                                       | —                                                                 |
+| A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes                                               | the mapped pages its projected boxes, where it was and where it lands — each apart, never the pages between —, cover, at the levels where the box holds a texel's sample; redrawn whole, static casters into the layer                                                                                                                     | no: their static layer is wrong                                   |
+| An object already moving moves                                                                                                                               | the same boxes' pages; restored from the layer, moving casters drawn over                                                                                                                                                                                                                                                                  | yes: a static shadow never vanishes while something near it moves |
+| A mover at rest; a camera move (the clipmap scrolls, only entering pages drawn)                                                                              | none                                                                                                                                                                                                                                                                                                                                       | —                                                                 |
+| A representation change: hidden or shown, casting toggled, alpha mode, cutout texture or pages' residency, a blended caster's coverage                       | its pages once the camera rests — a residency change the cut reads at once (#831): a page kept with a superseded form of its caster shades the form the camera draws in dark patches cut along page edges — a still object's redrawn whole, a moving object's moving casters alone (the layer never held them), the two in separate unions | yes                                                               |
+| A cut-threshold change                                                                                                                                       | once the camera rests, the pages drawn at another threshold                                                                                                                                                                                                                                                                                | yes                                                               |
+| A stale page no report names                                                                                                                                 | —                                                                                                                                                                                                                                                                                                                                          | no, since blend and water read without asking                     |
 
 So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts`,
 `moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
@@ -263,8 +305,10 @@ A placement turns moving the first time its pose or its row's flag actually chan
 a pose that moves no corner of the caster's box by one float32 step at its reach (`poseHoldsBox`:
 a resting body's pose rounded again, which the GPU's float32 world cannot show, #831) is no move —
 and stays so. From then on the pool keeps a static layer, a second depth texture the
-pool's size, allocated at that first move: a scene where nothing moves pays neither its bytes nor
-its pass. A page drawn in full writes its static casters into the layer, restores itself from it and
+pool's size. Its texture is made with the pool, in the same held frame, as Unreal allocates its
+static page pool beside the dynamic one (`webgpu/shadow/staticReserve.ts`, #831): the pool's bytes
+are its setting's from the first frame, whatever moves; the layer itself, its pyramids and
+occlusion test, is built on it at that first move, so a scene where nothing moves pays no pass. A page drawn in full writes its static casters into the layer, restores itself from it and
 draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
 alone, split by one word per row in the page cull. Each page keeps, of the moving casters, only
 the clusters whose sphere meets its own light-space box (`keepCaster`, `gpu/shadow/cullShader.ts`):
