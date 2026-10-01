@@ -153,15 +153,19 @@ test('a walker up a ramp under a low ceiling stops where its head meets it, neve
   assert.ok(Math.abs(body.velocity[0]) < 0.5, `still pushing at ${body.velocity[0]} m/s`);
 });
 
-test('a walker stopped by a shelf at knee height stands on the floor under it', () => {
-  // The shelf's underside, 0.46 m up, is under a step; its top, 1 m up, is not: the walker stays
-  // on its floor against the shelf's front, never perched in the air beside it.
-  const body = createCharacterBody({ ...HUMAN_BODY });
-  body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), block(0.52, 0.46, -3, 1.97, 1, 3)]));
-  body.place(0, 0, 0);
-  for (let tick = 0; tick < 240; tick++) body.advance(1 / 120, EAST);
-  assert.ok(Math.abs(body.feet[1]) < 1e-9, `feet at ${body.feet[1]}`);
-  assert.ok(body.feet[0] < 0.52, `walked to ${body.feet[0]}`);
+test('a walker stopped by a shelf lower than a step stands on the floor under it, never above', () => {
+  // Shelves whose underside is 0.2 m to 0.6 m up: under a step or not, their underside's front
+  // edge, met at the sphere's widest, holds nothing up. The walker stays on its floor.
+  for (let low = 0.2; low < 0.6; low += 0.04)
+    for (let front = 0.3; front < 0.9; front += 0.1)
+      for (const sprint of [false, true]) {
+        const body = createCharacterBody({ ...HUMAN_BODY });
+        const shelf = block(front, low, -3, front + 1.45, low + 0.55, 3);
+        body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), shelf]));
+        body.place(0, 0, 0);
+        for (let tick = 0; tick < 240; tick++) body.advance(1 / 120, { ...EAST, sprint });
+        assert.ok(Math.abs(body.feet[1]) < 1e-9, `feet at ${body.feet[1]} under ${low}, ${front}`);
+      }
 });
 
 test("a wedge's raised end, an overhang lower than a step, is not stood on", () => {

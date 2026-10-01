@@ -1,6 +1,7 @@
 import { capsulePass, type Capsule, type CapsuleContact, type CapsulePush } from './capsule.ts';
 import { dropSphere } from './drop.ts';
 import { forEachTriangleInBox } from './triangleQuery.ts';
+import { SLACK } from './characterSettings.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
 /**
@@ -76,7 +77,8 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
         // than from `feet + radius`, which rounds, the sphere goes one radius further, and feet
         // put on a floor at any height are at distance 0, not a rounding above it.
         const distance = dropSphere(feet, radius, tree.triangles, at, touch) + radius;
-        if (!(distance <= depth && distance < best && touch.normal[1] > 0)) return;
+        // Support is under the sphere: a touch at its widest, a rounding off level, holds nothing.
+        if (!(distance <= depth && distance < best && touch.normal[1] * radius > SLACK)) return;
         if (accepts(touch)) best = Math.min(best, distance);
         else if (distance >= 0) blocked = Math.min(blocked, distance);
       });

@@ -78,3 +78,38 @@ test('a part that carries a body no deeper into an overlap is taken; one carryin
   const deeper = move((feet) => 0.1 + feet[0]);
   assert.deepEqual(deeper, { x: 0, vx: 0, wall: true });
 });
+
+test('only a wall under the centre waits for the second pass; a level one is left at once', () => {
+  // A world that answers each contact once, on its first pass: what the first pass does not
+  // push is never pushed. A level wall is pushed; a steep slope under the centre waits.
+  const once = (normal: number[]) => {
+    let asked = 0;
+    return {
+      groundBelow: () => null,
+      resolveCapsule: (capsule: { feet: Float64Array }, push: (touch: CapsuleContact) => void) => {
+        if (asked++ > 0) return false;
+        push({
+          normal: new Float64Array(normal),
+          surface: new Float64Array(normal),
+          point: Float64Array.from(capsule.feet),
+          depth: 0.1,
+        });
+        return true;
+      },
+    };
+  };
+  const leave = (normal: number[]) => {
+    const capsule = { feet: new Float64Array(3), radius: 1, height: 2 };
+    const report = freshReport({ ground: false, wall: false, impact: 0 });
+    slide(
+      once(normal),
+      { capsule, velocity: new Float64Array(3) },
+      { ...rules, onGround: true },
+      [0, 0, 0],
+      report,
+    );
+    return [...capsule.feet];
+  };
+  near(leave([-1, 0, 0]), [-0.1, 0, 0], 'level wall', 1e-12);
+  near(leave([-0.8, 0.6, 0]), [0, 0, 0], 'steep slope under the centre', 1e-12);
+});
