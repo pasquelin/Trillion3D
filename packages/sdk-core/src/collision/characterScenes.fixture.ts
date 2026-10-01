@@ -1,7 +1,6 @@
 import { block } from './character.fixture.ts';
 import { meshCollision } from './meshTriangles.ts';
 import type { CharacterCollision } from './characterCollision.ts';
-import { deepest } from './characterMove.ts';
 
 /** One scene of `zUniformScenes`: its world and whether the walker sprints. */
 export interface WalkScene {
@@ -39,9 +38,15 @@ export function* zUniformScenes(seed: number, count: number, radius: number, hei
 }
 
 /** The deepest overlap of a capsule standing on `feet` in `world`, metres. */
-export const deepestAt = (
+export function deepestAt(
   world: CharacterCollision,
   feet: Float64Array,
   radius: number,
   height: number,
-) => deepest(world, { feet: Float64Array.from(feet), radius, height });
+) {
+  let depth = 0;
+  world.resolveCapsule({ feet: Float64Array.from(feet), radius, height }, (touch) => {
+    depth = Math.max(depth, touch.depth);
+  });
+  return depth;
+}

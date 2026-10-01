@@ -154,7 +154,7 @@ const measure: CapsulePush = (contact) => {
 };
 
 /** The deepest overlap of `capsule` where it stands, the capsule left in place. */
-export function deepest(world: CharacterCollision, capsule: Capsule) {
+function deepest(world: CharacterCollision, capsule: Capsule) {
   depth = 0;
   world.resolveCapsule(capsule, measure);
   return depth;

@@ -66,7 +66,7 @@ function seam(tree: TriangleTree, at: number, e: number) {
 
 /** The triangles of one flat surface around the point `closestSegmentTriangle` last found on
  *  triangle `at` (`touched`): `at`, then those across the seams the point lies on. */
-export const around = new Int32Array(3);
+const around = new Int32Array(3);
 
 /** Whether that point lies on a seam — on an edge inside a flat surface, or on a corner both of
  *  whose edges are — writing the surface's triangles around it to `around`; returns their count,
