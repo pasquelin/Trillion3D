@@ -38,8 +38,9 @@ function recordingGl() {
 
 test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit indexed (#1238)', async () => {
   const { table, source } = worldRootsPageFixtureSource();
-  assert.equal(table.pages.length, 4);
-  for (const { bundle, offset } of table.pages) {
+  assert.equal(table.pages.count, 4);
+  for (let at = 0; at < table.pages.count; at++) {
+    const { bundle, offset } = table.pages.at(at);
     const address = worldRootsPageAddress(table.payload.url, bundle, offset),
       page = await source.page(address),
       x = bundle; // the fixture's page `bundle` is the triangle at x = bundle
@@ -82,12 +83,13 @@ test('a bundle of several pages resolves the one its offset names (#1238)', asyn
   // the source picks the page whose `offset` the table lists, in binary order.
   const low = worldPage(0),
     bin = new Uint8Array([...low, ...worldPage(2)]);
+  const pages = [
+    { bundle: 0, offset: low.byteLength, level: 0, lodError: 0 },
+    { bundle: 0, offset: 0, level: 1, lodError: 1 },
+  ];
   const table = {
       bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
-      pages: [
-        { bundle: 0, offset: low.byteLength, level: 0, lodError: 0 },
-        { bundle: 0, offset: 0, level: 1, lodError: 1 },
-      ],
+      pages: { count: pages.length, at: (page: number) => pages[page] },
     } as unknown as WorldRoots,
     { source, reads } = worldRootsBinSource(table, bin);
   const [atLow, atHigh] = await Promise.all([
