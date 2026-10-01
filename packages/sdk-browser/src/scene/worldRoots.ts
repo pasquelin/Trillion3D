@@ -29,6 +29,8 @@ import { rangedReader } from '../cluster/ranged.ts';
 import { corruptObject, fetchVerified } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
+import { worldRootsPageSource } from './worldRootsPage.ts';
+import { worldRootDag, type WorldRootsDagTable } from './worldSuperRoots.ts';
 
 type Announced = { bytes: number; sha256: string };
 /** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
@@ -93,7 +95,7 @@ export async function openWorldRoots(
   const url = new URL(table.payload.url, base).href;
   // The load's meter counts the top, read while it loads; a cell's bundles are read after it.
   const read = rangedReader(url, signal);
-  const top = (await readBundles(read, url, table, [0, table.pinned], meter)).flat();
+  const topBundles = await readBundles(read, url, table, [0, table.pinned], meter);
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
   const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
   let heldBytes = 0;
@@ -105,10 +107,22 @@ export async function openWorldRoots(
       heldBytes -= table.bundles[bundle].bytes;
     }
   };
+  /** A bundle's pages: the pinned top's and a placed cell's from what is held, any other read and
+   *  verified for the one request (the GPU page pool keeps what it uploads, as cluster's does). */
+  const bundlePages = (bundle: number) =>
+    bundle < table.pinned
+      ? Promise.resolve(topBundles[bundle])
+      : (held.get(bundle)?.pages ??
+        readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
   return {
     table,
+    /** The detached page source of the world pages, both engines' shape (`worldRootsPage.ts`). */
+    source: worldRootsPageSource(table, bundlePages),
+    /** The world DAG in the engine's own `DagRoot` shape, from the cook's rank order, or
+     *  `undefined` for a table cooked without its `clusters` and `groups`. */
+    dag: worldRootDag(table as WorldRoots & WorldRootsDagTable),
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
-    pinned: { bundles: table.pinned, pages: top, bytes: table.pinnedTopBytes },
+    pinned: { bundles: table.pinned, pages: topBundles.flat(), bytes: table.pinnedTopBytes },
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,
      *  each once whatever the cells sharing it. A read that fails holds nothing of the cell. */
     async hold(cell: number) {
