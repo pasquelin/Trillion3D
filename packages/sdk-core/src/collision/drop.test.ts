@@ -129,3 +129,16 @@ test('a vertical edge is met at its top end, whatever its length', () => {
   assert.deepEqual([...touch.point], [0, 0.7, 0]);
   near(touch.normal, [0, below / 0.1, 0.5], 'normal', 1e-10);
 });
+
+test('an edge leaning a micrometre is met where the sphere reaches it, not at its foot', () => {
+  // A wall edge 1 m tall leaning 0.5 µm, and a body's sphere pushed out to exactly its radius
+  // from the edge at a quarter of its height: below that height the edge is within reach, so the
+  // sphere meets it there, 3 - 0.25 m down, not at its foot almost 3 m down.
+  const lean = 5e-7,
+    radius = 0.3;
+  const triangle = [0, 0, 0, lean, 1, 0, 1, 0, -1];
+  const touch = contact();
+  const distance = dropSphere([lean / 4 - radius, 3, 0], radius, triangle, 0, touch);
+  assert.ok(Math.abs(distance - 2.75) < 1e-6, `met after ${distance}`);
+  assert.ok(Math.abs(touch.point[1] - 0.25) < 1e-3, `touched at ${touch.point[1]}`);
+});
