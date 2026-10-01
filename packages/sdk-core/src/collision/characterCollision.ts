@@ -61,8 +61,8 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
       const { feet, radius, height } = capsule;
       centre.set(feet);
       centre[1] += radius;
-      // Preserve the exact feet + radius sum: rounding the centre must not turn a
-      // sphere resting on a translated floor into a positive-distance miss.
+      // `feet + radius` rounds: its error (an exact two-sum), added back to each distance, keeps
+      // feet put on a floor at any height at distance 0, not a rounding above it.
       const added = centre[1] - feet[1],
         centreError = feet[1] - (centre[1] - added) + (radius - added);
       // The column the sphere sweeps, up to the top of the body: a support higher than the
