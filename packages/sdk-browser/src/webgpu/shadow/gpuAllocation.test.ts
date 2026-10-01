@@ -48,6 +48,8 @@ async function schedule(withheld: boolean) {
     inbox: ShadowRequestReport[] = [],
     identity: number[][] = [],
     readable: boolean[][] = [];
+  // A static fill the pool: every page a frame reads is mapped in it (`gpuPageBudget.test.ts`).
+  run.allocation.pagesPerFrame = plan.pool.pages;
   let read: number[] = [];
   for (let frame = 1; frame <= MOVING + STILL; frame++) {
     if (!withheld || frame > MOVING) for (const report of inbox.splice(0)) plan.receive(report);
