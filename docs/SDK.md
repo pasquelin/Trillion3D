@@ -153,12 +153,14 @@ with its reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its m
 read the same way; unreadable, the JavaScript decoder decodes the pages.
 
 The engine's optional families — physics, particles, transmission, deformation, effects, guides,
-diagnostics, measurement, world stream — are chunks of the bundle imported on first use, all
-through one on-demand loader with the same policy: an import that fails is tried once more at
-once. What still fails is `FAMILY_LOAD_FAILED` ([T3D-E090](messages/T3D-E090.md)), the family in
-`details.family`, on `world.diagnostic.error` (and `world.physics.error` for physics). The frames
-that draw with the family wait for it rather than draw without it, and it is not refused for good:
-the next use asks it again, ten seconds after the refusal at the soonest.
+diagnostics, measurement, world stream, impostors — are chunks of the bundle imported on first
+use, all through one on-demand loader with the same policy: an import that fails is tried once
+more at once. What still fails is `FAMILY_LOAD_FAILED` ([T3D-E090](messages/T3D-E090.md)), the
+family in `details.family`, on `world.diagnostic.error` (and `world.physics.error` for physics).
+The frames that draw with the family wait for it rather than draw without it — the impostors
+excepted: until their draw lands, each object draws its mesh, as one whose atlas still streams —,
+and it is not refused for good: the next use asks it again, ten seconds after the refusal at the
+soonest.
 
 ## API rule
 
