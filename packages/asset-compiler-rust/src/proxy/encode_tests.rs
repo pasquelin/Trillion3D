@@ -51,7 +51,7 @@ fn no_instance_writes_the_header_and_empty_group_sentinel() {
     );
 }
 
-/// #966: a source node names the document mesh it places, `-1` for none, right after its parent
+/// #966: a source node names the compiled mesh it places (`mesh_map`), `-1` for none, right after its parent
 /// rank: the runtime reads a partition's cell node, which no core node carries, by its mesh.
 #[test]
 fn each_source_node_names_the_mesh_it_places() {
@@ -59,11 +59,11 @@ fn each_source_node_names_the_mesh_it_places() {
     use serde_json::json;
     use std::collections::{BTreeMap, BTreeSet};
     let g = json!({"nodes": [{"children": [1]}, {"mesh": 2}, {"mesh": 0}]});
-    let primitives = [json!({"mesh": 0}), json!({"mesh": 2})];
+    let primitives = [json!({"mesh": 0}), json!({"mesh": 1})];
     let inputs = ProxyInputs {
         g: &g,
         shown: &BTreeSet::from([1, 2]),
-        mesh_map: &BTreeMap::from([(0, 0), (2, 2)]),
+        mesh_map: &BTreeMap::from([(0, 0), (2, 1)]),
         primitives: &primitives,
         cuts: &[plate(), plate()],
         thresholds: &[0.05, 0.05],
@@ -71,7 +71,7 @@ fn each_source_node_names_the_mesh_it_places() {
     };
     let proxy = stage_proxy(&inputs).expect("proxy");
     assert_eq!(proxy.provenance.source_parents, [-1, 0, -1]);
-    assert_eq!(proxy.provenance.source_meshes, [-1, 2, 0]);
+    assert_eq!(proxy.provenance.source_meshes, [-1, 1, 0]);
     let bytes = proxy.encode();
     let worlds = 3 * 16 * 8;
     let meshes = &bytes[bytes.len() - worlds - 12..bytes.len() - worlds];
@@ -81,7 +81,7 @@ fn each_source_node_names_the_mesh_it_places() {
         .collect();
     assert_eq!(
         words,
-        [-1, 2, 0],
+        [-1, 1, 0],
         "the mesh column, between parents and bind worlds"
     );
 }

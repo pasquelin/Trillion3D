@@ -851,7 +851,7 @@ eight keep version 3's ownership header. Payload columns, in order:
 - Six `f32` bounds and twelve `u32` child words per wide BVH node.
 - One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
 - Owner records: source-node rank and linear RGBA8 colour, both `u32`.
-- One `i32` parent rank per source node (`-1` for roots), then one `i32` document mesh rank per
+- One `i32` parent rank per source node (`-1` for roots), then one `i32` compiled mesh rank per
   source node (`-1` when it places none; version 5, #966), then sixteen `f64` bind-world values per
   node.
 
