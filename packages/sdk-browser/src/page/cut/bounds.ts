@@ -30,7 +30,12 @@ export const OWN_FLOOR = 0,
  *  Negative radius: accumulator still empty. */
 /** TypeScript mirror of the incremental sphere merge in `dag/bounds.rs` (Rust compiler): the
  *  same recurrence, two languages, nothing to share between the two code stores. */
-function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, from: number) {
+export function growSphere(
+  into: Float64Array,
+  at: number,
+  sphere: ArrayLike<number>,
+  from: number,
+) {
   const radius = sphere[from + 3];
   if (!(radius >= 0)) return;
   const cx = sphere[from],

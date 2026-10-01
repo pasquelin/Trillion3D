@@ -8032,7 +8032,7 @@
       "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
       "bundles": "Paketler, ikili dosyadaki sırayla.",
       "pages": "Sayfalar: kaç tane olduğu ve birinin paketi, içindeki konumu, düzeyi ve hatası, kaydından okunur.",
-      "cells": "Dünya hücreleri: kaç tane olduğu ve birinin tuttuğu yerleştirilmiş ilkel öğeler, kayıtlarından okunur."
+      "cells": "Dünya hücreleri: kaç tane oldukları, bir hücrenin tuttuğu yerleştirilmiş ilkeller (kayıtlarından okunur) ve `object` nesnesini tutan hücre — bir nesne kökünün `origin` değeri (#1332)."
     }
   },
   "WorldRootsBundle": {
