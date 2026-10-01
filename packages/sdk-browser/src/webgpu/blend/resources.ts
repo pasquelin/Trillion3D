@@ -2,7 +2,7 @@ import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { createBlendExpand } from './expand.ts';
-import { EXPAND_PASSES, planWords, scratchWords } from './runs.ts';
+import { EXPAND_PASSES, planWords, scratchWords } from './planLayout.ts';
 import { writeBlendExpansionCpu } from './expandCpu.ts';
 import { writeVolumeRecords } from '../transparent/transmission.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
