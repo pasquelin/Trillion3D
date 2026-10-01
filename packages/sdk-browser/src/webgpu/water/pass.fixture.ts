@@ -42,6 +42,7 @@ export function mountDevice() {
         return new Map(entries.map(({ binding, resource }) => [binding, resource]));
       },
     },
+    renderPipelines,
     device,
   };
 }

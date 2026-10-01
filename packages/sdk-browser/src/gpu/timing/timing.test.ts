@@ -37,8 +37,8 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   assert.equal(samples[0].submission, 7);
   assert.equal(samples[0].truncated, false);
   assert.deepEqual(samples[0].passes, [
-    { name: 'selection', gpuMs: 2 },
-    { name: 'lighting', gpuMs: 3 },
+    { name: 'selection', gpuMs: 2, ownMs: 2 },
+    { name: 'lighting', gpuMs: 3, ownMs: 3 },
   ]);
   assert.equal(samples[0].totalMs, 5);
   // The enclosing duration is the first beginning to the last end — 1 ms to 7 ms — of which 2 ms and

@@ -100,7 +100,9 @@ function blendLayout(device: GPUDevice) {
 }
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
- *  that transmits; both read the shadows of the session's sun window (`sunWindow`). */
+ *  that transmits; both read the shadows of the session's sun window (`sunWindow`), and a reference
+ *  session's water walks its mirror ray whole (`unboundedReflections`, #1279): the session's
+ *  `context`. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
   items: BlendGpuItem[],
@@ -108,7 +110,7 @@ export async function createWebgpuBlendPipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
   share = false,
-  sunWindow?: number,
+  { sunWindow, unboundedReflections }: { sunWindow?: number; unboundedReflections?: boolean } = {},
 ) {
   // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant);
@@ -173,7 +175,14 @@ export async function createWebgpuBlendPipelines(
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
   const water: WaterPass | undefined = await waterCode
-    ?.createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow)
+    ?.createWaterPass(
+      device,
+      blendModule,
+      blendBindGroupLayout,
+      feedback,
+      sunWindow,
+      unboundedReflections === true,
+    )
     .catch((error: unknown) => {
       waterRefused = error instanceof Error ? error : new Error(String(error));
       return undefined;
