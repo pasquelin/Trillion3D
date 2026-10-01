@@ -180,7 +180,7 @@ export interface ShadowViewpoint {
 /** The eleven numbers of a view, in order: position, axis, half-field, aspect, near, far, and
  *  the pixel's footprint at the near plane. */
 export const VIEW_NUMBERS = 11;
-export function writeView(view: ShadowViewpoint, out: Float64Array) {
+export function writeView<T extends Float32Array | Float64Array>(view: ShadowViewpoint, out: T) {
   out.set(view.position);
   out.set(view.forward, 3);
   out[6] = view.halfFovY;

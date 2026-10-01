@@ -1,11 +1,11 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
-import { reflectionLayout } from './layout.ts';
+import { reflectionLayout, reflectionResolveLayout } from './layout.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { withReflectionSourceOutput } from './sourceOutputWgsl.ts';
 import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts';
 import { stochasticReflectionShader } from './sampleWgsl.ts';
-import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';
+import { REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts';
 
 /** The source reprojects the last image's unfogged colour, which the final pass writes as its
  * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
