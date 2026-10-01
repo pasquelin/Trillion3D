@@ -136,8 +136,9 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
     },
     /** Sends the table words frame `frame`'s plan changed that map a page (`wordsWgsl.ts`): its
-     *  table's flush, run through `flush`. Returns the invocations they take: one a word, or one a
-     *  page when the list could not hold every withdrawn entry — every GPU-only draw then lost. */
+     *  table's flush, run through `flush`. Returns the invocations they take: one a word
+     *  (`words`), and one a page (`withdraw`) when the list could not hold every withdrawn entry —
+     *  every GPU-only draw then lost, before the words. */
     writeWords(
       plan: ShadowPlan,
       frame: number,
@@ -174,7 +175,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       words[3] = every;
       if (count || every)
         device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
-      return every ? Math.max(count, pages) : count;
+      return { words: count, withdraw: every ? pages : 0 };
     },
     /** Reads a snapshot's words into `into`. */
     read(from: Uint32Array, into: ShadowPoolSnapshot) {

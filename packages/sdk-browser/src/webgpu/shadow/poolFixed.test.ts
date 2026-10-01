@@ -91,8 +91,15 @@ test('the static layer is made with the pool: its bytes held before anything mov
   const layer = shadowAtlasBytes(51);
   assert.equal(shadowPoolHeld(s.lights) - (s.lights.pageRequests?.bytes ?? 0), layer);
   assert.equal(shadowPoolShown(s.lights), shadowPoolHeld(s.lights), 'shown once granted');
-  s.lights.shadowGrant = { settled: false, done: Promise.resolve() };
+  const pool = { sizesPool: true, settled: false, done: Promise.resolve() };
+  s.lights.shadowGrant = pool;
   assert.equal(shadowPoolShown(s.lights), null, 'never the atlas alone while the grant holds');
+  s.lights.shadowGrant = { settled: false, done: Promise.resolve() };
+  assert.equal(
+    shadowPoolShown(s.lights),
+    shadowPoolHeld(s.lights),
+    'a later grant, the transmittance layer, hides no pool bytes',
+  );
   s.lights.shadowGrant = undefined;
   assert.ok(s.lights.staticLayerTexture, 'its texture made, held by the light state');
   // Freed with the layer, its bytes no longer counted: no texture nobody holds is shown.

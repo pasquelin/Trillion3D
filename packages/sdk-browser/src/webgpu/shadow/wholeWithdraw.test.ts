@@ -18,7 +18,7 @@ import { createShadowAllocationBuffers } from './allocBuffers.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
-import { WORDS_HEADER } from './wordsWgsl.ts';
+import { WORDS_HEADER, shadowWordsWgsl } from './wordsWgsl.ts';
 
 const PAGES = 2;
 
@@ -31,13 +31,13 @@ function wholeUpload(unmapped: number[]) {
   table.write(40, 0 | PAGE_MAPPED | PAGE_VALID);
   for (const entry of unmapped) table.withdrawUnmapped(entry);
   const plan = { pool: { pages: PAGES, owner: Int32Array.of(40, -1) }, table } as never;
-  const invocations = allocation.writeWords(plan, 5, (sink) => table.flush(sink));
+  const sent = allocation.writeWords(plan, 5, (sink) => table.flush(sink));
   const words = fake.writes.find((write) => write.buffer === allocation.words)!.data;
   const pairs = Array.from({ length: words[0] }, (_, i) => [
     words[WORDS_HEADER + 2 * i],
     words[WORDS_HEADER + 2 * i + 1],
   ]);
-  return { invocations, pairs, every: words[3] };
+  return { sent, pairs, every: words[3] };
 }
 
 test('a whole upload keeps the withdraw marks of the entries only the GPU may have drawn', () => {
@@ -51,12 +51,10 @@ test('a whole upload keeps the withdraw marks of the entries only the GPU may ha
 
 test('past what the words hold, every page the GPU drew itself is withdrawn', () => {
   // Five words a pool page: the host's mapped page, then more marks than the rest holds.
-  const { invocations, pairs, every } = wholeUpload(
-    Array.from({ length: 5 * PAGES }, (_, i) => 100 + i),
-  );
+  const { sent, pairs, every } = wholeUpload(Array.from({ length: 5 * PAGES }, (_, i) => 100 + i));
   assert.equal(pairs.length, 5 * PAGES);
   assert.equal(every, 1, 'the marks past the list: every GPU-only draw');
-  assert.equal(invocations, Math.max(pairs.length, PAGES));
+  assert.deepEqual(sent, { words: pairs.length, withdraw: PAGES }, 'the sweep, then the words');
   // Page 0 the GPU drew, page 1 the host: only the first loses its depth.
   const data = new Uint8Array(SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4),
     state = new Uint8Array((POOL_COUNTS.length + POOL_FIELDS.length * PAGES) * 4),
@@ -91,4 +89,14 @@ test('an unmapped entry goes out withdrawn once until a GPU page draw runs again
   table.gpuDrew();
   table.withdrawUnmapped(41);
   assert.deepEqual(sent(), [41], 'a GPU draw ran: withdrawn again');
+});
+
+// #831 review: the sweep and the words in one dispatch raced: a word landing a host draw on a page
+// the GPU drew could be undone by another invocation's sweep. The sweep is its own entry point,
+// dispatched before the words (`flushShadowTable`); the words' entry never sweeps.
+test('the withdraw sweep is its own dispatch: the words entry never sweeps a page', () => {
+  const wgsl = shadowWordsWgsl(),
+    entry = (name: string) => wgsl.slice(wgsl.indexOf(`fn ${name}(`)).split('\n}')[0];
+  assert.doesNotMatch(entry('applyShadowWords'), /withdrawGpuPage\(/);
+  assert.match(entry('withdrawGpuPages'), /shadowWords\.every!=0u&&id\.x<shadowWords\.pages/);
 });
