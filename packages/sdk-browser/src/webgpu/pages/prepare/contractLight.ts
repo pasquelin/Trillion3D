@@ -2,6 +2,8 @@ import type { DirectLightResources } from '../../../lighting/deferred/program.ts
 import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { receiverResources } from '../../visibility/receiver.ts';
+import { shadowCasterLights } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
+import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/scene/light/contracts.ts';
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -22,13 +24,25 @@ export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || run.diagnostic !== 'beauty';
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
- *  with bounce too when the session wants it; a failed one is said, then or later. */
+ *  with bounce too when the session wants it; a failed one is said, then or later. The one it
+ *  starts is the one the first frame asks for (`contractKey`), read off the declared lights. */
 export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   precompile: wantsContractLighting(rt),
   bounce: rt.bounce.wanted,
+  ...contractKey(rt, rt.lights.store.count > LIGHT_SETTINGS.tileLights, true),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   unboundedReflections: rt.context.unboundedReflections === true,
 });
+
+/**
+ * The contract program a frame lights with, keyed on stable state alone (#1362): narrow while the
+ * scene's lights fit a tile list (#849), with shadow code while a light declares a shadow and the
+ * atlas exists (#1249). Never on a slot held this frame: a lamp that moves, a page that comes and
+ * goes, asks no other program. `atlas` is whether the shadow atlas exists, or will at prepare.
+ */
+function contractKey(rt: WebgpuPagesRuntime, wide: boolean, atlas: boolean) {
+  return { narrow: !wide, unshadowed: !atlas || shadowCasterLights(rt.lights.store) === 0 };
+}
 
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
@@ -42,12 +56,6 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 
 const contractResources: DirectLightResources = {};
 
-/** Whether a light of the store holds a shadow slot, as the shaders read it (`params.y > -1`). */
-function sliced(store: WebgpuPagesRuntime['lights']['store']) {
-  for (let slot = 0; slot < store.count; slot++) if (store.sliceOf(slot) > -1) return true;
-  return false;
-}
-
 /**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
  * it is held elsewhere, never copied or rebuilt: the pass compares what it is given to what it has
@@ -59,10 +67,11 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
-  contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
-  // No light holds a shadow slot this frame: the resolve with no shadow code (#1249).
-  contractResources.unshadowed = active && !sliced(lights.store);
+  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849); no
+  // light declares a shadow, or no atlas holds one: the resolve with no shadow code (#1249).
+  const key = contractKey(rt, !lights.tiles || lights.tiles.wide, !!lights.shadows);
+  contractResources.narrow = active && key.narrow;
+  contractResources.unshadowed = active && key.unshadowed;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;

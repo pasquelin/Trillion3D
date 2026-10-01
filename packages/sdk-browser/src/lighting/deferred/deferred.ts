@@ -17,12 +17,14 @@ export { FULLSCREEN_VERTEX } from './shaders.ts';
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
-/** The lit programs: when `precompile`, those a first frame asks for compile from the start beside
- *  the unlit one (#1362), without bounce always, with it too when `bounce`; `onFailure` hears any
- *  contract compile that fails, precompiled or asked later. */
+/** The lit programs: when `precompile`, the one a first frame asks for — `narrow`, `unshadowed` —
+ *  compiles from the start beside the unlit one (#1362), without bounce always, with it too when
+ *  `bounce`; `onFailure` hears any contract compile that fails, precompiled or asked later. */
 export type LitPrograms = ContractVariantOptions & {
   precompile: boolean;
   bounce: boolean;
+  narrow: boolean;
+  unshadowed: boolean;
 };
 
 /** The contract program these resources light with: with bounce, narrow, unshadowed. */
@@ -42,10 +44,12 @@ export async function createDeferredLighting(
   const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
   const variants = createContractVariants(device, bindings, pages, onReady, lit);
-  // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
-  // for the one without bounce, which lights any first frame; the bounce pair lands meanwhile.
-  const litReady = lit?.precompile ? variants.precompile(false) : Promise.resolve();
-  if (lit?.precompile && lit.bounce) void variants.precompile(true);
+  // The program the first frame asks for, and its wide twin with shadow code. Prepare waits for the
+  // one without bounce, which lights any first frame; the bounce pair lands meanwhile.
+  const litReady = lit?.precompile
+    ? variants.precompile(false, lit.narrow, lit.unshadowed)
+    : Promise.resolve();
+  if (lit?.precompile && lit.bounce) void variants.precompile(true, lit.narrow, lit.unshadowed);
   try {
     const unlit = await createDeferredProgram(
       device,
