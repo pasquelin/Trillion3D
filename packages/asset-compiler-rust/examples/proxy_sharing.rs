@@ -8,7 +8,7 @@ fn main() {
         .join("../sdk-core/src/scene/core/fixtures");
     let proxy = fixture::binary_fixture();
     for (name, bytes) in [
-        ("proxy-v4.bin", proxy.encode()),
+        ("proxy-v5.bin", proxy.encode()),
         ("proxy-flat.bin", fixture::flat_file(&proxy)),
     ] {
         std::fs::create_dir_all(&root).expect("fixture directory");
@@ -16,7 +16,7 @@ fn main() {
     }
     let proxy = fixture::lattice(1000, fixture::plate());
     println!(
-        "proxy.bin serialized bytes (not runtime RSS): v3={}, v4={}, shared={}/1000",
+        "proxy.bin serialized bytes (not runtime RSS): v3={}, v5={}, shared={}/1000",
         fixture::flat_file(&proxy).len(),
         proxy.encode().len(),
         proxy.sharing.instances.len()
