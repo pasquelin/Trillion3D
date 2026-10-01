@@ -115,12 +115,15 @@ export function createContractVariants(
       ask(bounce, narrow, unshadowed, onFailure);
       return lending(bounce, narrow, unshadowed);
     },
-    /** Starts the narrow program and its wide twin, both with shadow code, before any frame asks
-     *  for them, settled once both landed or failed: prepare compiles the lit program beside the
-     *  others, and a shadowed program lights any first frame. */
-    precompile(bounce: boolean) {
-      compile(bounce, true, false);
-      const started = [variants[at(true, false)][+bounce].pending, variants[0][+bounce].pending];
+    /** Starts the program a first frame asks for and its wide twin with shadow code, before any
+     *  frame does, settled once both landed or failed: prepare compiles the lit program beside the
+     *  others, and no first frame starts a compile (#1362). */
+    precompile(bounce: boolean, narrow: boolean, unshadowed: boolean) {
+      compile(bounce, narrow, unshadowed);
+      const started = [
+        variants[at(narrow, unshadowed)][+bounce].pending,
+        variants[0][+bounce].pending,
+      ];
       return Promise.all(started).then(() => {});
     },
     /** The compile a frame asking for this program must wait for: none while a ready program

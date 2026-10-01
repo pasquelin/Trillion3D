@@ -79,15 +79,20 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
   assert.equal(at(false, 'wireframe'), true, 'a diagnostic view writes the flag');
 });
 
-test('a frame with no shadow slot asks for the resolve with no shadow code (#1249)', () => {
+test('the resolve with no shadow code is asked by the declared lights, never a slot (#1249, #1362)', () => {
   const b = banc();
   // No visibility buffer yet: no receiver offset to recompute (#1410).
   const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
   b.store.add({ ...LAMP });
   b.store.add({ ...LAMP, id: 'l1' });
-  assert.equal(directLightResources(rt).unshadowed, true, 'no light holds a slot');
-  b.store.assignSlice(1, 0);
-  assert.equal(directLightResources(rt).unshadowed, false, 'a slot: the program with shadows');
-  b.store.assignSlice(1, -1);
-  assert.equal(directLightResources(rt).unshadowed, true);
+  assert.equal(directLightResources(rt).unshadowed, true, 'no light declares a shadow');
+  b.store.set('l1', { castsShadow: true });
+  assert.equal(directLightResources(rt).unshadowed, true, 'a shadow, but no atlas to hold it');
+  Object.assign(rt.lights, { shadows: {} });
+  assert.equal(directLightResources(rt).unshadowed, false, 'a declared shadow: shadow code');
+  // A lamp that moves takes and leaves its slot: the program stays.
+  for (const slice of [0, -1, 0]) {
+    b.store.assignSlice(1, slice);
+    assert.equal(directLightResources(rt).unshadowed, false);
+  }
 });
