@@ -1,7 +1,8 @@
-// #831: a page the GPU draws itself keeps its still casters in the static layer too, as Unreal
-// renders a new page's static casters into its static cache. While a car drives and the camera
-// follows, the pages it crosses are then restored from that layer: their static geometry is drawn
-// once, when the page is first seen, never again for the mover (`mirrorKeepsGpuDraw.test.ts`).
+// #831: a page the GPU draws itself keeps its still casters in the static layer, as Unreal renders
+// a new page's static casters into its static cache and merges them under the dynamic ones: the
+// still casters into the layer, then the pool's page restored from it, the moving casters alone
+// over it. While a car drives and the camera follows, the pages it crosses are restored from that
+// layer too: their still geometry is drawn once, when first seen (`mirrorKeepsGpuDraw.test.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
