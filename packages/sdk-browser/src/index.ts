@@ -147,7 +147,7 @@ export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts';
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';
-export { detectCapabilities } from './measurement/capabilities.ts';
+export { detectCapabilities } from './world/capability/capabilities.ts';
 export {
   HIERARCHY_ROOT,
   MATRIX_VALUES,

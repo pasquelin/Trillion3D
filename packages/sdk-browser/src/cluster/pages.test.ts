@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from '../streaming/sha256Hex.ts';
 import { loadClusterPages } from './pages.ts';
 import { untilAborted } from './answers.fixture.ts';
 test('a corrupt page aborts sibling fetches before they allocate remaining indices', async () => {
