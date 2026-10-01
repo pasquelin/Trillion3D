@@ -6,7 +6,8 @@ import { voidStaleBlendGroups } from './identity.ts';
 import { blendLightResources } from './lighting.ts';
 import { BLEND_MARKS_BINDINGS, BLEND_MARKS_GROUP, blendShadowMarksWgsl } from './marksWgsl.ts';
 import { blendStagePipelines, stageDescriptors, type RankedPipelines } from './stagePipelines.ts';
-import { composesWater } from '../water/pass.ts';
+import { drawsWater } from '../water/pass.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 
 /** The three cull modes picked by plan rank, as the blend and water passes pick theirs. */
 const ranked = (culls: readonly GPURenderPipeline[]): RankedPipelines => ({
@@ -15,8 +16,9 @@ const ranked = (culls: readonly GPURenderPipeline[]): RankedPipelines => ({
 
 /**
  * The marks pass of the transparent runs (`marksWgsl.ts`): its three cull modes on the blend
- * pass's layout per fragment stage — the blends' and, `water`, the water surfaces', else compiled
- * on the first image that marks water — and the group of the request buffer it marks, the opaque
+ * pass's layout per fragment stage — the blends' and the water surfaces', these prepared off the
+ * frame when the scene has a water pass (`water`), else compiled on the first image that marks
+ * water (`preparedPipeline`) — and the group of the request buffer it marks, the opaque
  * depth it tests against and the deferred view, kept while they stay the same.
  */
 async function createBlendShadowMarks(
@@ -41,26 +43,26 @@ async function createBlendShadowMarks(
   // No colour target, no depth write: the request buffer is all the pass writes. Its group goes
   // third (`BLEND_MARKS_GROUP`), after the blend pass's material and reflection groups.
   const stage = (entryPoint: string): GPUFragmentState => ({ module, entryPoint, targets: [] });
-  const [blends, waterCulls] = await Promise.all([
+  const waterCulls = stageDescriptors(
+    device,
+    module,
+    layout,
+    stage('markWaterShadows'),
+    false,
+    marksLayout,
+  ).map((descriptor) => preparedPipeline(device, descriptor));
+  const [blends] = await Promise.all([
     blendStagePipelines(device, module, layout, stage('markShadows'), false, marksLayout),
-    water
-      ? blendStagePipelines(device, module, layout, stage('markWaterShadows'), false, marksLayout)
-      : undefined,
+    water && Promise.all(waterCulls.map((cull) => cull.prepare())),
   ]);
-  let waterMarks = waterCulls && ranked(waterCulls);
+  const waterMarks: RankedPipelines = { at: (rank) => waterCulls[rank % 3].get() };
   let bound:
     | { requests: GPUBuffer; depth: GPUTextureView; view: GPUBuffer; group: GPUBindGroup }
     | undefined;
   return {
     pipelines: ranked(blends),
     /** The water surfaces' (`markWaterShadows`). */
-    water() {
-      return (waterMarks ??= ranked(
-        stageDescriptors(device, module, layout, stage('markWaterShadows'), false, marksLayout).map(
-          (descriptor) => device.createRenderPipeline(descriptor),
-        ),
-      ));
-    },
+    water: waterMarks,
     group(requests: GPUBuffer, depth: GPUTextureView, view: GPUBuffer) {
       if (bound?.requests === requests && bound.depth === depth && bound.view === view)
         return bound.group;
@@ -130,8 +132,7 @@ export function encodeBlendShadowMarks(
   pass.setBindGroup(BLEND_MARKS_GROUP, marks.group(requests, gpu.depthView, view));
   if (blends) rt.run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, marks.pipelines);
   if (transmissive) {
-    const water = composesWater(rt, true) && blendState.transmissiveInView > 0;
-    const pipelines = water ? marks.water() : marks.pipelines;
+    const pipelines = drawsWater(rt, true) ? marks.water : marks.pipelines;
     rt.run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 1, pipelines);
   }
   pass.end();
