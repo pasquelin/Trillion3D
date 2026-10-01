@@ -1,8 +1,7 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
 import type { BackendFactory } from './types.ts';
-import { autonomousPagesBackend } from './autonomous/pages.ts';
-import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
+import { engineBackends } from './engines.ts';
 import { autonomousCacheReady } from './autonomousCacheReady.ts';
 
 /** What renders when the host named nothing, and why that path and not another. */
@@ -46,7 +45,7 @@ export function chooseBackends(
         'Autonomous geometry requires a prepared static scene and the autonomous backend',
       );
     return choice({
-      factories: [autonomousPagesBackend],
+      factories: [engineBackends.webgl2],
       autonomous: true,
       origin: 'host',
       reason: 'the host asked for the autonomous WebGL2 path',
@@ -69,7 +68,7 @@ export function chooseBackends(
     );
   if (gpuDevice && options.renderer !== 'webgl2')
     return choice({
-      factories: [webgpuPagesBackend],
+      factories: [engineBackends.webgpu],
       origin: 'default',
       reason: 'a WebGPU device was granted',
       renderer: 'webgpu-page-raster',
@@ -85,7 +84,7 @@ export function chooseBackends(
   // cache — only the file it reads its materials and placements from changes.
   const prepared = autonomousCacheReady(metadata);
   return choice({
-    factories: [autonomousPagesBackend],
+    factories: [engineBackends.webgl2],
     autonomous: prepared,
     origin: 'default',
     reason: prepared
@@ -109,7 +108,7 @@ export function resolveTextureSource(
   factories: readonly BackendFactory[],
 ): 'host' | 'cache' {
   const readsBakedLevels =
-    factories.length > 0 && factories.every((factory) => factory === webgpuPagesBackend);
+    factories.length > 0 && factories.every((factory) => factory.renderer === 'webgpu');
   if (!readsBakedLevels || typeof createImageBitmap !== 'function') return 'host';
   return asked ?? 'cache';
 }
@@ -118,6 +117,4 @@ export function resolveTextureSource(
  *  the engine's own two (#876). A witness named by the host reads the whole host graph, so its
  *  session loads every vertex before building it. */
 export const loadsOwnVertices = (factories: readonly BackendFactory[]) =>
-  factories.every(
-    (factory) => factory === webgpuPagesBackend || factory === autonomousPagesBackend,
-  );
+  factories.every((factory) => !!factory.renderer);

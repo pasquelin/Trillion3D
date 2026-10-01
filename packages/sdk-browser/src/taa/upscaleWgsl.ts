@@ -1,13 +1,8 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
 import { shareText, taaHistoryBlend } from './historyWgsl.ts';
 import { BLACKMAN_HARRIS_WGSL } from './filterWeights.ts';
 import { layerWgsl, taaOut } from './layers.ts';
 import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
-
-/** The same kernel in GLSL, for WebGL2's spatial resample (`../webgl/core/resampleGlsl.ts`):
- *  `LANCZOS2_WGSL`'s own text through the shared translator (`shaderLanguage`). */
-export const LANCZOS2_GLSL = shaderLanguage(LANCZOS2_WGSL, 'glsl');
 
 /**
  * Temporal resolve of a frame drawn below the display (FSR 2's reconstruction, folded into the one
