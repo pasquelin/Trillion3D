@@ -24,6 +24,7 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayoutWgsl.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from '../../webgpu/shadow/freshDrawsWgsl.ts';
 import { SHADOW_GROUP_DRAWS_WGSL } from './groupWgsl.ts';
+import { SHADOW_STORED_WGSL } from './storedWgsl.ts';
 
 /** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
 const SHADOW_SUBTEXELS = 256;
@@ -195,4 +196,4 @@ fn shadowBlendRay(view:ShadowView,in:ShadowOut)->vec3f{
  if(m[0].w==0.0&&m[1].w==0.0&&m[2].w==0.0){return vec3f(m[0].z,m[1].z,m[2].z);}
  return in.fromEmitter;
 }
-${SHADOW_FRESH_DRAWS_WGSL}${SHADOW_GROUP_DRAWS_WGSL}`;
+${SHADOW_FRESH_DRAWS_WGSL}${SHADOW_GROUP_DRAWS_WGSL}${SHADOW_STORED_WGSL}`;

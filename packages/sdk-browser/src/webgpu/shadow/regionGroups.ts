@@ -4,10 +4,17 @@ import { visBindEntries } from '../core/bindEntries.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
+ * The raster bins the pool draws by this frame (OMB-26), none while every caster falls in the first
+ * class and no LocalToClip is stored: the region lists then draw the very same corners.
+ */
+export const drawnBins = ({ bins, mobility }: WebgpuPagesRuntime['lights']) =>
+  bins && (bins.stored || mobility.binsSplit()) ? bins : undefined;
+
+/**
  * Bind group of a region: the visibility-buffer raster's, three bindings aside — the instance list
  * is the one culling kept for this region, or the one the occlusion test left visible (`visible`),
- * the slot table places it in that list, and the uniform names the slot. Groups survive images and
- * are rebuilt only if one of the resources they hold has changed identity.
+ * or their raster bins', the slot table places it in that list, and the uniform names the slot.
+ * Groups survive images and are rebuilt only if one of the resources they hold changed identity.
  */
 export function shadowRegionGroup(
   rt: WebgpuPagesRuntime,
@@ -18,7 +25,8 @@ export function shadowRegionGroup(
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
     { visBindGroupLayout, concatPos, concatUv, pageTable, textures, mapsSampler } = vis;
-  const { cull, occlusion } = lights;
+  const { cull, occlusion } = lights,
+    bins = drawnBins(lights);
   if (
     !visBindGroupLayout ||
     !cacheBuffer ||
@@ -41,7 +49,7 @@ export function shadowRegionGroup(
     key[2] !== concatUv ||
     key[3] !== pageTable ||
     key[4] !== pool ||
-    key[5] !== cull.kept ||
+    key[5] !== (bins?.list ?? cull.kept) ||
     key[6] !== occlusion?.visible ||
     key[7] !== vis.zeroFlags
   ) {
@@ -50,13 +58,14 @@ export function shadowRegionGroup(
     key[2] = concatUv;
     key[3] = pageTable;
     key[4] = pool;
-    key[5] = cull.kept;
+    key[5] = bins?.list ?? cull.kept;
     key[6] = occlusion?.visible;
     key[7] = vis.zeroFlags;
     lights.shadowGroups.fill(undefined);
   }
-  const instances = visible && occlusion ? occlusion.visible : cull.kept,
-    slot = region + (instances === cull.kept ? 0 : MAX_SHADOW_REGIONS);
+  // With the raster bins, every region draws from their list (OMB-26).
+  const instances = bins?.list ?? (visible && occlusion ? occlusion.visible : cull.kept),
+    slot = region + (!bins && visible && occlusion ? MAX_SHADOW_REGIONS : 0);
   let group = lights.shadowGroups[slot];
   if (!group) {
     group = device.createBindGroup({

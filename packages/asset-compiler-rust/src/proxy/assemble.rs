@@ -36,6 +36,7 @@ pub(crate) fn assemble_owned(
         provenance.group_offsets.push(0);
     }
     provenance.source_parents = vec![-1; worlds.len()];
+    provenance.source_meshes = vec![-1; worlds.len()];
     provenance.bind_worlds = worlds.iter().flatten().copied().collect();
     let sharing = if nodes.is_empty() {
         super::share::Sharing::default()

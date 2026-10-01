@@ -3,6 +3,7 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
+import { createShadowBins } from '../../../gpu/shadow/bins.ts';
 import { createShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { grantCapability } from '../io/drops.ts';
@@ -68,6 +69,18 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
+  // The raster bins by size class (OMB-26), and with them the stored LocalToClip the
+  // `shadowLocalToClip` option asks (OMB-25): a device without first instances draws the lists.
+  if (lights.cull && device.features.has('indirect-first-instance'))
+    lights.bins = await createShadowBins(
+      device,
+      casterSlots,
+      explorerSwitch(rt.context, 'shadowLocalToClip'),
+    ).catch((error) => {
+      if (isCancelled(rt.signal)) throw error;
+      diag.diagnosticFailure('shadow-bins-unavailable', error);
+      return undefined;
+    });
   // Without the moving groups, every restored page draws its moving casters alone.
   if (lights.cull)
     lights.movingGroups = await createShadowMovingGroups(device).catch((error) => {
@@ -100,6 +113,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     shadowAtlas: !!lights.shadows,
     shadowCullRows: lights.cull ? casterSlots : null,
     shadowPageInvalidation: lights.plan.pageInvalidation,
+    shadowRasterBins: !!lights.bins,
+    shadowLocalToClip: !!lights.bins?.stored,
     unavailable: lights.shadowReason,
     approximations: SHADOW_APPROXIMATIONS,
   });
@@ -119,7 +134,10 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   // The Hi-Z kernels alone first: their validation scope stays open across an await, and a
   // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
   await createHizPipelines(device).catch(() => undefined);
-  const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
+  const work: Array<() => unknown> = [
+    () => shadows.prepareDepth(!!rt.lights.bins?.stored),
+    () => shadowOcclusionPipeline(device),
+  ];
   if (rt.lights.movingGroups) work.push(shadows.groupDraws.prepare);
   // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
   if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
