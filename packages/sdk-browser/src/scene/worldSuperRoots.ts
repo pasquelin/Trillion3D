@@ -2,7 +2,7 @@
  * THE WORLD SUPER-ROOTS AS THE ONE CUT READS THEM (#1238).
  *
  * The cook continues the DAG above every object's roots, per cell and material, up to one world top
- * (`world-roots.json`, docs/FORMAT.md, World super-roots; #23, #1237). This module turns that world
+ * (`world-roots.dag`, docs/FORMAT.md, World super-roots; #23, #1237). This module turns that world
  * DAG into the engine's own shape — one `DagRoot` with a single `ClusterStructureIndex` and one
  * culling hierarchy — so the existing cut (`page/cut/rule.ts`, the selection shader `gpu/dag/shader/shader.ts`) draws a
  * far cell's super-roots in place of its per-instance roots when those are not resident, and draws

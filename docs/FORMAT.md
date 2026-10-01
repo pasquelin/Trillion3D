@@ -97,7 +97,7 @@ Required fields of the merged manifest, read by the browser adapter:
 
 For the compiler alone: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of
 the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`,
-`scene.gltf`, `scene.bin`, `world-roots.json`, `world-roots.bin`; [world
+`scene.gltf`, `scene.bin`, `world-roots.table`, `world-roots.dag`, `world-roots.bin`; [world
 partition](#world-partition) pages and cells and the manifest's pages are proven through their
 roots, so the record does not grow with the world), checked by a later job of the same key before
 keeping the folder ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
@@ -696,24 +696,40 @@ Object roots are packed last, only for their lists — their pages are the objec
 The primitive's list check refuses the world's too (`INVALID_PAGE_DEPENDENCIES`): every page, object
 roots included, reaches the world top.
 
-Two products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a page
-is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
-triangles as `u16` local indices, padded to four bytes. `world-roots.json` is `{ version: 1,
-budgetBytes, pinned, pinnedTopBytes, payload, bundles, pages, cells, clusters, groups }`: `payload`
-the bin's `{ url, sha256, bytes }`; a bundle `{ offset, bytes, sha256, count, dependencies }`, its
-range in the bin; a page `{ bundle, offset, level, material, lodError, parentError, sphere,
-parentSphere }`, offset inside its bundle, `parentError` `null` on a root; `cells[n]`, the cell of
-`scene-cell-<n>.json` (an unpartitioned scene has one cell, no file), `{ objects }`, one `{ node,
-primitive, roots, dependencies }` per placement primitive — its published node, manifest primitive,
-the `streams` bundles holding its roots, and every world bundle those roots need, ascending, up to
-the top: the **cross-primitive dependencies** of its root bundles. `clusters` names every world
-cluster, object roots included, by its world rank — the rank the group list uses — with the fields
-the runtime cut projects (`level`, `lodError`, `sphere`, `parentError`, `parentSphere`, `min`,
-`max`, `triangles`, `material`); a super-root adds `bundle` and `offset`, its page's place in the
-binary, and an object root adds `origin`, the placed instance whose own stream holds its page.
-`groups` is the group list, each `{ level, error, sphere, children, outputs }`, `children` and
-`outputs` naming clusters by world rank: the relation the runtime flattens into its cluster
-structure (#1238). Both files are in the manifest's `files`.
+Three products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a
+page is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
+triangles as `u16` local indices, padded to four bytes. `world-roots.table` and `world-roots.dag`
+(version 2, #1232) are **fixed-size little-endian records**, read at their rank straight from their
+bytes (`packages/sdk-core/src/manifest/worldRootsTable.ts`), never one string of the whole world:
+the open world's table weighed 866 MiB as JSON, past the 512 MiB a JavaScript string holds. Each
+record names a variable list — a bundle's or an object's dependencies, an object's roots, a group's
+children and outputs — by its first word and its length in a `u32` **pool** after the records.
+
+- `world-roots.table`, what a load reads: an 80-byte header — `WRTB`, version, `budgetBytes`,
+  `pinned`, `pinnedTopBytes`, the counts of bundles, pages, cells and objects, the pool's length in
+  words, the bin's length as two words (low first), then the bin's SHA-256 as 32 bytes —; a 56-byte
+  **bundle** — its offset in the bin as two words, its length, its page count, its dependencies,
+  then its SHA-256 —; a 24-byte **page** of a super-root — its bundle, its offset inside it, its
+  level, zero, its error as `f64` —; an 8-byte **cell**, the cell of `scene-cell-<n>.json` (an
+  unpartitioned scene has one cell, no file) — its first object and its object count —; a 24-byte
+  **object**, one per placement primitive — its published node, its manifest primitive, the
+  `streams` bundles holding its roots, and every world bundle those roots need, ascending, up to the
+  top: the **cross-primitive dependencies** of its root bundles —; then the pool.
+- `world-roots.dag`, what the world stream reads on its first use (#1238): a 24-byte header —
+  `WRTD`, version, the counts of clusters and groups, the pool's length, zero —; a 152-byte
+  **cluster** for every world cluster, object roots included, at its world rank — the rank the
+  groups use —: its level, its triangles, its material, its page's `bundle` and `offset` in the bin
+  (a super-root) and its `origin`, the placed instance whose own stream holds its page (an object
+  root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
+  its sphere, its parent's sphere (NaN for a root), its minimum and its maximum —; a 64-byte
+  **group** — its level, its children and outputs, zero, then as `f64` its error and sphere —, the
+  relation the runtime flattens into its cluster structure; then the pool.
+
+All three are in the manifest's `files`; a reader refuses a file whose records do not fill it
+exactly, whose bundles are not the bin's ranges end to end or whose lists leave its pool or name
+a bundle or cluster it does not hold (`INVALID_CACHE`). A cache cooked before #1232 publishes
+`world-roots.json` instead, which the runtime no longer reads: its image is unchanged, the
+super-roots being drawn by nothing yet.
 
 The first `pinned` bundles are the **pinned top**, their bytes `pinnedTopBytes` in the cook report
 (`clusters.json`, `worldRoots`: `{ version, file, cells, superRoots, topPages, pinnedBundles,
@@ -724,7 +740,8 @@ cook, `WORLD_TOP_OVER_BUDGET`, naming the cell pinning most of it.
 
 The runtime reads the table as a model loads and pins the top alone (#1237,
 `packages/sdk-browser/src/scene/worldRoots.ts`): its bundles, the binary's first, in one ranged
-read, each checked against its `sha256`. Object roots are no longer pinned: held with the placements
+read, each checked against its `sha256`. The DAG file is read once the world stream opens, never by
+a load. Object roots are no longer pinned: held with the placements
 the view holds, a placed cell holding the bundles past the top its objects' `dependencies` name,
 each once, until the last cell needing it leaves ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool),
 Pinned bytes). The super-roots are not drawn yet (#1238): the image is unchanged.
