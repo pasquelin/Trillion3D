@@ -83,7 +83,7 @@ fn zstandard(raw: &[u8], ceiling: usize, out: &mut Vec<u8>) -> Result<()> {
     const SKIPPABLE: u32 = 0x184D_2A50;
     let word = |bytes: &[u8]| u32::from_le_bytes(bytes.try_into().unwrap_or_default());
     let mut rest = raw;
-    while let Some(magic) = rest.get(..4).map(&word) {
+    while let Some(magic) = rest.get(..4).map(word) {
         if magic & 0xFFFF_FFF0 == SKIPPABLE {
             let length = word(rest.get(4..8).ok_or_else(truncated)?) as usize;
             rest = rest.get(8 + length..).ok_or_else(truncated)?;
