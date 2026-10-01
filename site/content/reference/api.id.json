@@ -8299,5 +8299,37 @@
   "validateImpostorSection": {
     "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",
     "description": "Bagian yang tidak ada bukanlah kesalahan: cache yang mendahuluinya menggambar setiap mesh secara utuh, seperti sebelumnya. Bagian yang ada ditolak seluruhnya ketika versinya tidak diketahui atau entri `baked` kehilangan angka yang dibutuhkan sakelar dan kartunya."
+  },
+  "LabelOptions": {
+    "summary": "Teks dan posisi label yang menghadap kamera dengan uji kedalaman.",
+    "members": {
+      "text": "Teks dengan baris baru; peramban membentuk Unicode dan ligatur.",
+      "position": "Posisi tengah bawah dalam koordinat induk.",
+      "height": "Tinggi keseluruhan dalam satuan dunia sebelum skala induk.",
+      "font": "Font CSS kanvas, dimuat sebelum label dipasang.",
+      "color": "Warna glif dengan latar transparan."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Objek adegan dan sumber daya milik satu label.",
+    "members": {
+      "object": "Sprite biasa: posisi, skala, dan visibilitas memakai API adegan yang ada.",
+      "setText": "Menggambar ulang teks yang berubah; panggilan baru atau penghapusan mencegah hasil lama diterapkan.",
+      "remove": "Menghapus sprite dan melepaskan tekstur, material, serta geometrinya; aman diulang."
+    }
+  },
+  "addLabel": {
+    "summary": "Menambahkan teks ke simpul adegan melalui material sprite yang ada pada WebGL2 dan WebGPU.",
+    "description": "Label menghadap kamera, menguji kedalaman, tidak memberi bayangan, serta dikecualikan dari pemilihan dan penyimpanan. Batas: 2048 piksel per sisi (16 MiB), satu gambar pengganti saat pembaruan, dan 16384 unit UTF-16. Teks berlebih ditolak, bukan dipotong. Teks kosong transparan.",
+    "returns": "Label terpasang setelah font dan gambarnya siap.",
+    "parameters": {
+      "parent": "Adegan atau objek yang diikuti dalam koordinat lokal.",
+      "options": "Teks, font, warna, dan posisi.",
+      "options.text": "Teks dengan baris baru; peramban membentuk Unicode dan ligatur.",
+      "options.position": "Posisi tengah bawah dalam koordinat induk.",
+      "options.height": "Tinggi keseluruhan dalam satuan dunia sebelum skala induk.",
+      "options.font": "Font CSS kanvas, dimuat sebelum label dipasang.",
+      "options.color": "Warna glif dengan latar transparan."
+    }
   }
 }

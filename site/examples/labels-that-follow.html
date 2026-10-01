@@ -17,50 +17,12 @@
         width: 100%;
         height: 100%;
       }
-      #labels {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        font: 600 13px/1.2 system-ui, sans-serif;
-      }
-      .label {
-        position: absolute;
-        left: 0;
-        top: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        white-space: nowrap;
-        color: #f4f1ea;
-        will-change: transform;
-      }
-      .label b {
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(12, 16, 30, 0.72);
-        border: 1px solid var(--tint);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-      }
-      .label small {
-        margin-top: 2px;
-        font-weight: 400;
-        font-size: 11px;
-        color: #c9d2e8;
-        text-shadow: 0 1px 4px #000;
-      }
-      .label i {
-        width: 1px;
-        height: 12px;
-        background: var(--tint);
-      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="labels"></div>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { createWorld, addLabel, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls, words, language, opening, ease } from '../runtime/kit.js';
       const say = words();
 
@@ -109,18 +71,14 @@
       moon.mesh = object.mesh(geometry.sphere(moon.radius, 24, 12), material.meshStandard({ color: moon.colour, roughness: 0.9 }));
       world.scene.add(rings, moon.mesh);
 
-      // One HTML label per body, made once; each frame moves it only when its place has changed.
-      const layer = document.getElementById('labels');
+      // Labels are scene sprites: their parents carry them and both renderers test scene depth.
       const tagged = [{ name: 'Sun', colour: '#ffc45a', mesh: sun, height: sunRadius, au: 0, days: null, moons: 0 }, ...bodies, moon];
-      for (const body of tagged) {
-        const tag = document.createElement('div'), name = document.createElement('b'), fact = document.createElement('small');
-        tag.className = 'label';
-        tag.style.setProperty('--tint', body.colour);
-        name.textContent = say(body.name);
-        tag.append(name, fact, document.createElement('i'));
-        layer.append(tag);
-        body.tag = { element: tag, fact, shown: null, place: '', depth: '', text: null };
-      }
+      await Promise.all(tagged.map(async (body) => {
+        body.label = await addLabel(body.mesh, {
+          text: say(body.name), color: body.colour, height: 0.7,
+          position: [0, body.height + 0.15, 0],
+        });
+      }));
       const FACTS = {
         'distance to the Sun': (body) => (body.au === null ? say('fromEarth') : body.au === 0 ? say('ourStar') : say('au', { au: body.au })),
         year: (body) => (body.days === null ? '' : body.name === 'Moon' ? say('month') : say('year', { days: body.days.toLocaleString(language()) })),
@@ -128,42 +86,16 @@
         'names only': () => '',
       };
 
-      // Where a world point lands on the page: the camera's own frame, then its field of view.
-      const eye = math.vector3(), turn = math.quaternion();
-      let width = innerWidth, height = innerHeight;
-      addEventListener('resize', () => ((width = innerWidth), (height = innerHeight)));
-      function onScreen(point, radius) {
-        eye.copy(point).sub(world.camera.position).applyQuaternion(turn.copy(world.camera.quaternion).invert());
-        const depth = -eye.z, slope = Math.tan((world.camera.fov * Math.PI) / 360) * depth;
-        if (depth <= world.camera.near) return null;
-        return { x: (0.5 + eye.x / (2 * slope * (width / height))) * width, y: (0.5 - eye.y / (2 * slope)) * height, size: (radius / slope) * (height / 2), depth };
-      }
-      // A label is hidden while its body is behind the Sun: the sight line from the eye to the
-      // body passes through the Sun's ball before it reaches it.
-      function behindSun(point) {
-        const to = eye.copy(point).sub(world.camera.position), reach = to.length();
-        to.multiplyScalar(1 / reach);
-        const along = -world.camera.position.dot(to), closest = world.camera.position.lengthSq() - along * along;
-        return along > 0 && along < reach - sunRadius && closest < sunRadius * sunRadius;
-      }
       function placeLabels(fact) {
         for (const body of tagged) {
-          const at = body.mesh.position, seen = body === tagged[0] || !behindSun(at) ? onScreen(at, body.height) : null;
-          const tag = body.tag, show = seen !== null && seen.x > -80 && seen.x < width + 80 && seen.y > -40 && seen.y < height + 80;
-          if (tag.shown !== show) tag.element.style.display = (tag.shown = show) ? '' : 'none';
-          if (!show) continue;
-          // The foot of the label stands on the top of the body's disc, the nearest labels on top.
-          const place = `translate(${seen.x.toFixed(1)}px, ${(seen.y - seen.size - 4).toFixed(1)}px) translate(-50%, -100%)`;
-          if (tag.place !== place) tag.element.style.transform = tag.place = place;
-          const depth = String(1000 - Math.round(seen.depth * 10));
-          if (tag.depth !== depth) tag.element.style.zIndex = tag.depth = depth;
           const text = FACTS[fact](body);
-          if (tag.text !== text) {
-            tag.fact.textContent = tag.text = text;
-            tag.fact.style.display = text ? '' : 'none';
-          }
+          void body.label.setText(text ? `${say(body.name)}\n${text}` : say(body.name));
         }
       }
+      addEventListener('pagehide', () => {
+        for (const body of tagged) body.label.remove();
+        world.dispose();
+      }, { once: true });
 
       // The opening: the view falls from high above the plane of the orbits to a low three-quarter
       // view; a press or a wheel on the canvas hands the camera to the viewer at once.
@@ -184,7 +116,7 @@
         show: Object.keys(FACTS),
         speed: [0, 4, 1],
         lineThemUp: () => ((aligning = 0), world.invalidate()),
-      }, () => world.invalidate(), world);
+      }, (next) => { placeLabels(next.show); world.invalidate(); }, world);
 
       let starts = [], placed = false;
       world.onFrame(({ delta }) => {
@@ -203,15 +135,13 @@
           if (aligning === 1) aligning = -1;
         } else for (const body of bodies) body.angle += step * ui.speed * 0.9 * (5 / body.orbit) ** 1.5;
         moon.angle += step * ui.speed * 3.2;
-        // Still planets are not moved again, and ask for no new frame; the labels still follow
-        // the camera's own moves.
+        // Still planets ask for no new frame; each label follows its parent in the engine.
         if (moving) {
           for (const body of bodies) body.mesh.position.set(body.orbit * Math.cos(body.angle), 0, -body.orbit * Math.sin(body.angle));
           rings.position.copy(saturn.mesh.position);
           moon.mesh.position.set(earth.mesh.position.x + moon.orbit * Math.cos(moon.angle), 0.25 * Math.sin(moon.angle), earth.mesh.position.z - moon.orbit * Math.sin(moon.angle));
           world.invalidate();
         }
-        placeLabels(ui.show);
       });
     </script>
   </body>

@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Bölümün kullanılamamasının kısa nedeni ya da `null`.",
     "description": "Olmayan bölüm hata değildir: ondan önceki bir önbellek her mesh'i eskisi gibi tam çizer. Var olan bölüm, sürümü bilinmediğinde ya da bir `baked` girdisi geçişinin ve kartının ihtiyaç duyduğu sayıları kaçırdığında bir bütün olarak reddedilir."
+  },
+  "LabelOptions": {
+    "summary": "Kameraya bakan ve derinliği sınayan etiketin metni ve konumu.",
+    "members": {
+      "text": "Satır sonlarını destekleyen metin; Unicode ve birleşik harfleri tarayıcı şekillendirir.",
+      "position": "Üst nesnenin koordinatlarında alt orta noktanın konumu.",
+      "height": "Üst nesnenin ölçeğinden önce dünya birimleriyle toplam yükseklik.",
+      "font": "Etiket bağlanmadan önce yüklenen tuval CSS yazı tipi.",
+      "color": "Saydam arka plan üzerindeki gliflerin rengi."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Bir etiketin sahne nesnesi ve kendi kaynakları.",
+    "members": {
+      "object": "Normal sprite: konum, ölçek ve görünürlük mevcut sahne API’sini kullanır.",
+      "setText": "Değişen metni yeniden çizer; daha yeni çağrı veya kaldırma eski sonucun yayımlanmasını önler.",
+      "remove": "Sprite’ı kaldırır ve dokusunu, malzemesini, geometrisini serbest bırakır; tekrar güvenlidir."
+    }
+  },
+  "addLabel": {
+    "summary": "WebGL2 ve WebGPU üzerinde mevcut sprite malzemesiyle sahne düğümüne metin ekler.",
+    "description": "Etiket kameraya bakar, derinliği sınar, gölge oluşturmaz ve seçim ile kaydetme dışında tutulur. Sınırlar: kenar başına 2048 piksel (16 MiB), güncellemede bir yedek görüntü ve 16384 UTF-16 birimi. Aşan metin kesilmez, reddedilir. Boş metin saydam kalır.",
+    "returns": "Yazı tipi ve görüntüsü hazır olduğunda bağlanan etiket.",
+    "parameters": {
+      "parent": "Yerel koordinatlarda izlenen sahne veya nesne.",
+      "options": "Metin, yazı tipi, renk ve konum.",
+      "options.text": "Satır sonlarını destekleyen metin; Unicode ve birleşik harfleri tarayıcı şekillendirir.",
+      "options.position": "Üst nesnenin koordinatlarında alt orta noktanın konumu.",
+      "options.height": "Üst nesnenin ölçeğinden önce dünya birimleriyle toplam yükseklik.",
+      "options.font": "Etiket bağlanmadan önce yüklenen tuval CSS yazı tipi.",
+      "options.color": "Saydam arka plan üzerindeki gliflerin rengi."
+    }
   }
 }

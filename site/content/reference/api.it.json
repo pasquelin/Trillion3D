@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",
     "description": "Una sezione assente non è un errore: una cache precedente disegna ogni mesh per intero, come prima. Una presente è rifiutata in blocco quando la sua versione è ignota o una voce `baked` manca dei numeri che servono alla sua commutazione e alla sua scheda."
+  },
+  "LabelOptions": {
+    "summary": "Testo e posizione di un’etichetta rivolta alla camera con verifica della profondità.",
+    "members": {
+      "text": "Testo con interruzioni di riga; il browser compone Unicode e legature.",
+      "position": "Posizione del centro inferiore nelle coordinate del genitore.",
+      "height": "Altezza totale in unità del mondo prima della scala del genitore.",
+      "font": "Carattere CSS del canvas, caricato prima di collegare l’etichetta.",
+      "color": "Colore dei glifi su sfondo trasparente."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Oggetto di scena e risorse proprie di un’etichetta.",
+    "members": {
+      "object": "Sprite ordinario: posizione, scala e visibilità usano l’API della scena.",
+      "setText": "Ridisegna il testo modificato; una chiamata successiva o rimozione impedisce risultati obsoleti.",
+      "remove": "Rimuove lo sprite e libera texture, materiale e geometria propri; ripetibile."
+    }
+  },
+  "addLabel": {
+    "summary": "Aggiunge testo a un nodo della scena tramite il materiale sprite esistente, su WebGL2 e WebGPU.",
+    "description": "L’etichetta guarda la camera, verifica la profondità, non proietta ombre ed è esclusa da selezione e salvataggio. Limiti: 2048 pixel per lato (16 MiB), un’immagine sostitutiva durante l’aggiornamento e 16384 unità UTF-16. Il testo eccessivo viene rifiutato, mai ritagliato. Il testo vuoto resta trasparente.",
+    "returns": "L’etichetta collegata quando carattere e immagine sono pronti.",
+    "parameters": {
+      "parent": "La scena o l’oggetto seguito nelle coordinate locali.",
+      "options": "Testo, carattere, colore e posizione.",
+      "options.text": "Testo con interruzioni di riga; il browser compone Unicode e legature.",
+      "options.position": "Posizione del centro inferiore nelle coordinate del genitore.",
+      "options.height": "Altezza totale in unità del mondo prima della scala del genitore.",
+      "options.font": "Carattere CSS del canvas, caricato prima di collegare l’etichetta.",
+      "options.color": "Colore dei glifi su sfondo trasparente."
+    }
   }
 }

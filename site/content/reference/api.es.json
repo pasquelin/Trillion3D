@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Un motivo breve por el que la sección no se puede usar, o `null`.",
     "description": "Una sección ausente no es un error: una caché anterior a ella dibuja cada malla completa, como antes. Una presente se rechaza en conjunto cuando su versión es desconocida o una entrada `baked` carece de los números que necesitan su conmutación y su tarjeta."
+  },
+  "LabelOptions": {
+    "summary": "Texto y posición de una etiqueta orientada a la cámara con prueba de profundidad.",
+    "members": {
+      "text": "Texto con saltos de línea; el navegador compone Unicode y ligaduras.",
+      "position": "Posición del centro inferior en coordenadas del padre.",
+      "height": "Altura total en unidades del mundo antes de la escala del padre.",
+      "font": "Fuente CSS del lienzo, cargada antes de adjuntar la etiqueta.",
+      "color": "Color de los glifos sobre fondo transparente."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Objeto de escena y recursos propios de una etiqueta.",
+    "members": {
+      "object": "Sprite normal: posición, escala y visibilidad usan la API de escena.",
+      "setText": "Repinta el texto modificado; una llamada posterior o la eliminación impide publicar resultados antiguos.",
+      "remove": "Elimina el sprite y libera su textura, material y geometría; puede repetirse."
+    }
+  },
+  "addLabel": {
+    "summary": "Añade texto a un nodo de escena mediante el material sprite existente, en WebGL2 y WebGPU.",
+    "description": "La etiqueta mira a la cámara, comprueba la profundidad, no proyecta sombras y se excluye de la selección y del guardado. Límites: 2048 píxeles por lado (16 MiB), una imagen de reemplazo al actualizar y 16384 unidades UTF-16. El exceso se rechaza, nunca se recorta. El texto vacío queda transparente.",
+    "returns": "La etiqueta adjunta cuando su fuente e imagen están listas.",
+    "parameters": {
+      "parent": "La escena u objeto seguido en coordenadas locales.",
+      "options": "Texto, fuente, color y posición.",
+      "options.text": "Texto con saltos de línea; el navegador compone Unicode y ligaduras.",
+      "options.position": "Posición del centro inferior en coordenadas del padre.",
+      "options.height": "Altura total en unidades del mundo antes de la escala del padre.",
+      "options.font": "Fuente CSS del lienzo, cargada antes de adjuntar la etiqueta.",
+      "options.color": "Color de los glifos sobre fondo transparente."
+    }
   }
 }

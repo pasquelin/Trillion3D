@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
     "description": "Ein fehlender Abschnitt ist kein Fehler: Ein Cache, der ihn voraussetzt, zeichnet jedes Mesh vollständig, wie zuvor. Ein vorhandener wird als Ganzes abgelehnt, wenn seine Version unbekannt ist oder einem `baked`-Eintrag die Zahlen fehlen, die seine Umschaltung und seine Karte brauchen."
+  },
+  "LabelOptions": {
+    "summary": "Text und Position eines zur Kamera gerichteten Etiketts mit Tiefentest.",
+    "members": {
+      "text": "Text mit Zeilenumbrüchen; der Browser formt Unicode und Ligaturen.",
+      "position": "Position der unteren Mitte in den Koordinaten des Elternknotens.",
+      "height": "Gesamthöhe in Welteinheiten vor der Skalierung des Elternknotens.",
+      "font": "CSS-Canvas-Schrift, die vor dem Anhängen geladen wird.",
+      "color": "Farbe der Glyphen vor transparentem Hintergrund."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Szenenobjekt und eigene Ressourcen eines Etiketts.",
+    "members": {
+      "object": "Gewöhnliches Sprite: Position, Skalierung und Sichtbarkeit verwenden die Szenen-API.",
+      "setText": "Zeichnet geänderten Text neu; neuere Aufrufe oder Entfernen verhindern veraltete Ergebnisse.",
+      "remove": "Entfernt das Sprite und gibt seine Textur, sein Material und seine Geometrie frei; wiederholbar."
+    }
+  },
+  "addLabel": {
+    "summary": "Fügt einem Szenenknoten Text über das vorhandene Sprite-Material hinzu, unter WebGL2 und WebGPU.",
+    "description": "Das Etikett zeigt zur Kamera, prüft die Tiefe, wirft keinen Schatten und wird beim Auswählen und Speichern ausgelassen. Grenzen: 2048 Pixel je Seite (16 MiB), ein Ersatzbild beim Aktualisieren und 16384 UTF-16-Einheiten. Größerer Text wird abgelehnt, nicht abgeschnitten. Leerer Text bleibt transparent.",
+    "returns": "Das angehängte Etikett, sobald Schrift und Bild bereit sind.",
+    "parameters": {
+      "parent": "Die Szene oder das Objekt, dem es in lokalen Koordinaten folgt.",
+      "options": "Text, Schrift, Farbe und Position.",
+      "options.text": "Text mit Zeilenumbrüchen; der Browser formt Unicode und Ligaturen.",
+      "options.position": "Position der unteren Mitte in den Koordinaten des Elternknotens.",
+      "options.height": "Gesamthöhe in Welteinheiten vor der Skalierung des Elternknotens.",
+      "options.font": "CSS-Canvas-Schrift, die vor dem Anhängen geladen wird.",
+      "options.color": "Farbe der Glyphen vor transparentem Hintergrund."
+    }
   }
 }

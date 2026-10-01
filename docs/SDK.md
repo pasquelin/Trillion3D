@@ -545,7 +545,39 @@ marks.remove();
   jitter times the surface's depth slope): a grid on a floor or a box's edges stay whole on a still
   view. Positions are packed relative to the first guide, in double precision, so a guide far from
   the origin keeps its detail.
-- Text labels are not guides and are not drawn; a public `addLabel` is #1200.
+- Text labels use scene sprites through `addLabel`, described below.
+
+### Text labels in the scene
+
+`addLabel` attaches camera-facing, depth-tested text to any scene node on WebGL2 and WebGPU.
+The existing sprite material draws a transparent Canvas2D glyph image; no DOM overlay, manual
+projection or separate renderer is needed. The browser shapes Unicode and ligatures and loads
+any declared web font before the label appears. Newlines start another line.
+
+```ts
+import { addLabel } from 'trillion3d';
+const label = await addLabel(world.scene, {
+  text: 'Entrance', position: [0, 2, 0], height: 0.25,
+  font: '32px sans-serif', color: '#ffffff',
+});
+await label.setText('Entrance\nOpen');
+label.object.visible = false;
+label.remove();
+```
+
+The position anchors the image's bottom centre in the parent's coordinates. `height` is the
+whole image's height before the parent's scale, 0.25 world units by default; its width follows
+the image's aspect. The default font is `32px sans-serif`, the glyph colour white. A label
+shrinks with distance and follows its parent. It casts no shadow and, as a helper, is excluded
+from picking and scene saving. It uses the ordinary scene rendering and temporal history;
+it is not an after-TAA guide. Both backends depth-test it against scene geometry.
+
+Each label admits at most 16384 UTF-16 units and a 2048 × 2048 RGBA image (16 MiB), with one
+replacement image while updating. Oversized text throws instead of clipping or reducing its
+resolution. Unchanged text does no rasterisation or upload. Superseded font waits cannot publish
+old text; a rejected update retains the previous image. `remove()` releases the label's owned
+resources and is safe to repeat. Empty text produces a transparent image. Release labels before
+disposing their world, as the `labels-that-follow` example does.
 
 ## Installation and environment API
 

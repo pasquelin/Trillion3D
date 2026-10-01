@@ -8298,5 +8298,37 @@
   "validateImpostorSection": {
     "summary": "Um motivo breve pelo qual a seção não pode ser usada, ou `null`.",
     "description": "Uma seção ausente não é um erro: uma cache anterior a ela desenha cada malha por inteiro, como antes. Uma presente é recusada por completo quando sua versão é desconhecida ou uma entrada `baked` carece dos números que sua comutação e seu cartão precisam."
+  },
+  "LabelOptions": {
+    "summary": "Texto e posição de um rótulo voltado para a câmera com teste de profundidade.",
+    "members": {
+      "text": "Texto com quebras de linha; o navegador compõe Unicode e ligaduras.",
+      "position": "Posição do centro inferior nas coordenadas do pai.",
+      "height": "Altura total em unidades do mundo antes da escala do pai.",
+      "font": "Fonte CSS do canvas, carregada antes de anexar o rótulo.",
+      "color": "Cor dos glifos sobre fundo transparente."
+    }
+  },
+  "LabelHandle": {
+    "summary": "Objeto de cena e recursos próprios de um rótulo.",
+    "members": {
+      "object": "Sprite comum: posição, escala e visibilidade usam a API da cena.",
+      "setText": "Redesenha texto alterado; uma chamada posterior ou remoção impede resultados antigos.",
+      "remove": "Remove o sprite e libera sua textura, material e geometria; pode ser repetido."
+    }
+  },
+  "addLabel": {
+    "summary": "Adiciona texto a um nó da cena com o material sprite existente, em WebGL2 e WebGPU.",
+    "description": "O rótulo fica voltado para a câmera, testa a profundidade, não projeta sombras e é excluído da seleção e do salvamento. Limites: 2048 pixels por lado (16 MiB), uma imagem substituta durante a atualização e 16384 unidades UTF-16. Excedentes são recusados, nunca cortados. Texto vazio fica transparente.",
+    "returns": "O rótulo anexado quando a fonte e a imagem estiverem prontas.",
+    "parameters": {
+      "parent": "A cena ou o objeto acompanhado em coordenadas locais.",
+      "options": "Texto, fonte, cor e posição.",
+      "options.text": "Texto com quebras de linha; o navegador compõe Unicode e ligaduras.",
+      "options.position": "Posição do centro inferior nas coordenadas do pai.",
+      "options.height": "Altura total em unidades do mundo antes da escala do pai.",
+      "options.font": "Fonte CSS do canvas, carregada antes de anexar o rótulo.",
+      "options.color": "Cor dos glifos sobre fundo transparente."
+    }
   }
 }
