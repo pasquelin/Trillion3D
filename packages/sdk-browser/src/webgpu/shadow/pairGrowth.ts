@@ -11,7 +11,7 @@ import {
 } from './memoryGrant.ts';
 import { transmittanceSettled } from './transmittanceGrant.ts';
 import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
-import { keptRows, poolPairs } from './pairRows.ts';
+import { keptRows, pairRows, poolPairs } from './pairRows.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The rows each region cull asked and the device has not answered yet: asked once, not each
@@ -28,11 +28,13 @@ const listBytes = (rows: number, lights: WebgpuPagesRuntime['lights']) =>
   ROW_BYTES *
   (1 + (lights.occlusion || lights.staticLayerTexture ? 1 : 0) + (lights.bins?.stride ?? 0));
 
-/** The bytes the kept lists — the cull's, the occlusion test's, the bins' alike — hold past the table's caster
- *  rows, the pairs' share the shadow grant holds (`shadowPoolHeld`): recounted after each growth. */
+/** The bytes of the pairs' share of the kept lists — the cull's, the occlusion test's, the bins'
+ *  alike —, which the shadows' setting holds (`shadowPoolHeld`, `poolSetting.ts`): the rows the
+ *  pool's pairs take (`pairRows`), grown for them or shared with the table's caster rows, the same
+ *  bytes whatever the scene's casters (#831). Recounted after each growth. */
 export function followPairBytes(rt: WebgpuPagesRuntime) {
-  const { cull } = rt.lights,
-    rows = cull ? Math.max(0, cull.capacity - rt.layout.rows.casterSlots) : 0;
+  const { cull, plan } = rt.lights,
+    rows = cull ? Math.min(cull.capacity, pairRows(plan.pool.pages)) : 0;
   rt.lights.memory.pairBytes = listBytes(rows, rt.lights);
 }
 
