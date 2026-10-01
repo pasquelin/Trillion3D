@@ -699,7 +699,7 @@ roots included, reaches the world top.
 Three products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a
 page is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
 triangles as `u16` local indices, padded to four bytes. `world-roots.table` and `world-roots.dag`
-(version 2, #1232) are **fixed-size little-endian records**, read at their rank straight from their
+(version 3, #1332: version 2 named an object root by its instance) are **fixed-size little-endian records**, read at their rank straight from their
 bytes (`packages/sdk-core/src/manifest/worldRootsTable.ts`), never one string of the whole world:
 the open world's table weighed 866 MiB as JSON, past the 512 MiB a JavaScript string holds. Each
 record names a variable list — a bundle's or an object's dependencies, an object's roots, a group's

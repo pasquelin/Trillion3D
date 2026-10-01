@@ -146,7 +146,7 @@ export function planCells(
     demoted: number[] = [];
   for (const cell of held.keys())
     if (index.distance(cell, eye) > keep) leave.push(cell);
-    else if (superRoots?.placed.has(cell) && need(cell) * (1 + KEEP) <= 1) demoted.push(cell);
+    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1) demoted.push(cell);
   /** The items of `list` within the reach, or past it when `past`, nearest first. */
   const nearest = <T>(list: Found<T>[], past: boolean) =>
     list

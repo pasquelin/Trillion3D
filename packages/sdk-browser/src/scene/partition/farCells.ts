@@ -30,7 +30,10 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
   /** Placed or held far: every cell the plan holds. */
   const held = {
     has: (cell: number) => placed.has(cell) || far.has(cell),
-    keys: () => [...placed.keys(), ...far],
+    *keys() {
+      yield* placed.keys();
+      yield* far;
+    },
   };
   /** `cell`'s far hold is let go, once placed or past the keep sphere; whether it had one. */
   const release = (cell: number) => {
@@ -73,13 +76,19 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
       // no super-root: neither stays held far.
       for (const cell of far) if (!reading || placed.has(cell)) release(cell);
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading);
-      for (const cell of plan.demoted) leave(cell);
-      for (const cell of [...plan.far, ...plan.demoted]) {
+      for (const cell of plan.far) {
         far.add(cell);
         holds.hold(cell);
       }
+      // A demoted cell's far hold is taken before its placed hold goes: the world bundles both
+      // need stay held, never read again.
+      for (const cell of plan.demoted) {
+        holds.hold(cell);
+        leave(cell);
+        far.add(cell);
+      }
       // A hold that failed is asked again here, its cell still held far.
-      void holds.reads();
+      if (reading) void holds.reads();
       return plan;
     },
     release,
