@@ -171,6 +171,8 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
       // The pair list, then the static layer and its occlusion share: all held from frame one (#831).
+      // The pairs' share counted first: a list already wide enough grows nothing, yet is held.
+      followPairBytes(rt);
       await growPairList(rt);
       await reserveStaticLayer(rt, staticLayerGranted(lights));
       followPairBytes(rt);

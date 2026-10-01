@@ -33,7 +33,7 @@ const SETTING_SCREEN = [3456, 2234] as const;
  * THE SHADOW POOL'S SETTING, in bytes: the hard cap of everything the shadows hold
  * (`shadowHeldBytes`), as the reference engine fixes its physical page pool (`a reference setting`)
  * whatever the screen: the bytes of the pool one sun reads over the maintainer's screen
- * (`screenPoolPages`), 2 601 pages, 359 MB. The pages follow from it (`shadowPoolWithin`), never
+ * (`screenPoolPages`), 2 601 pages, 360 088 288 bytes. The pages follow from it (`shadowPoolWithin`), never
  * from the display: a wider screen reads the pages past them at the coarser level, as the reference engine's
  * pages over budget do, and never grows the pool past its setting (#831).
  */
