@@ -95,7 +95,8 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   point, one for a spot.
 - **The bias follows the receiver's own triangle** (#831): the normal offset and the slope-scaled
   depth margin, in texels of the level read, are taken along the plane of the triangle the pixel
-  shows (`shadowBiasNormal`, set by `receiverOffset` from the visibility buffer), turned to the side
+  shows (`shadowBiasNormal`, the plane `shadowReceiver` reads from the visibility buffer, handed to
+  the read with the receiver's offset), turned to the side
   its shading normal lights, never along that smooth normal — over a coarse terrain it leans off
   each triangle and under-biased one side of every edge, teeth along the triangles as the sun
   grazed. The shading point is still moved off the triangle by its vertex normals (Phong
@@ -174,19 +175,24 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
   every resident page of every caster, whatever the camera or a light cut selected, so a caster the
   camera does not see still shades a receiver it sees. Of a surface the residency holds at several
-  levels, only the finest is kept — the cut rule at a threshold of 0 (`isFinest`,
-  `page/cut/readiness.ts`), written in each row's mobility word (`MOBILITY_COARSER`) and again when
-  the row's readiness moves (`gpuCutStream.ts`) —: a coarser level drawn over it lifted the depth
-  above the surface and shaded a compiled terrain in triangles (#831). Each kept row is one
-  `(region, row)` pair. It
+  levels, each page keeps the one its own texels want, as the host's light cut picks a coarser
+  cluster for a coarser page (#831): the cut rule (`page/cut/rule.ts`) on each row's world errors —
+  its own and its parent's, at their spheres' centres, the residency folded in (`rowLods.ts`,
+  written on the rows the table rewrites and those whose readiness moves) — projected in the page's
+  texels (a sun page's per metre, a lamp page's focal over the distance), at the light cuts'
+  threshold. Every surface is drawn once, by one level: never a coarser one over the finer (that
+  lifted the depth above a compiled terrain and shaded it in triangles), and never a far page's
+  whole field at its finest (192 such pages took 150 to 180 ms on a-field-of-pebbles). Each kept
+  row is one `(region, row)` pair. It
   counts each region's pairs first; one workgroup then scans the counts over its lanes (the shared
   lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
   list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
-  region's pairs are laid in its place: no pair past the list, none drawn for a page left unread.
+  region's pairs are laid, the still rows' from the list's start and the moving rows' from its end
+  down: no pair past the list, none drawn for a page left unread.
   The list is the region cull's kept list, free once the host's batches are encoded, at a size
   fixed by the pool and never grown after (#831), as Unreal's culling buffers are
   (`r.Nanite.MaxCandidateClusters`): `poolPairs` = the pages the GPU draws a frame at most
-  (`SHADOW_GPU_PAGES_PER_FRAME`, the pool's own when smaller) × `PAIRS_PER_PAGE` (a page's
+  (`shadowPagesPerFrame`, the granted batches' pages, the pool's own when fewer) × `PAIRS_PER_PAGE` (a page's
   128² texels over the 32 a kept cluster covers at least, 512), grown once to it by the tables' own
   path (`growKeptList`, the occlusion test's list with it) — asked of the shadow grant, then of the
   device under an out-of-memory scope, never past one storage binding (`pairGrowth.ts`) —, each
@@ -197,9 +203,9 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   (`freshPass.ts`, `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for
   blended casters. With a static layer, as Unreal renders a new page's static casters into its
   static cache and merges them under the dynamic ones (#831): the layer's pass clears the pages
-  and draws the still casters alone (`shadow_fresh_static_vs`, a moving row's pair tagged
-  `FRESH_MOVING_PAIR` by the cull), then the pool's pass restores each page from it and draws the
-  moving casters alone over it (`restore_fs`, `depthRestoreWgsl`, and `shadow_fresh_moving_vs`): the still
+  and draws the still casters alone (`shadow_fresh_static_vs`, the list's start), then the pool's
+  pass restores each page from it and draws the moving casters alone over it, the list's end — each
+  draw walks its own pairs, never the other's (`freshPairAt`) — (`restore_fs`, `depthRestoreWgsl`, and `shadow_fresh_moving_vs`): the still
   geometry is drawn once. A page is drawn once, as Unreal draws it: the snapshot says which pages
   the GPU's own draw holds (`drawnBy`), and the host adopts those current (`pool.keepDraw`), with
   their static layer when every GPU draw since the snapshot before wrote it (`layeredFrom`) — never
@@ -210,19 +216,23 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   does; the mark never enters the table. A mover also withdraws, while the GPU maps, the entries
   it covers that the host does not map yet (`invalidate.ts`): a page the GPU drew frames before the
   host's snapshot came back is drawn again in this frame (`withdrawGpuDraw`, `wordsWgsl.ts`), so no
-  old silhouette of a moving car trails it, a page row each. So a page read first in a
+  old silhouette of a moving car trails it, a page row each — once until a GPU page draw runs
+  again (`table.withdrawUnmapped`). A burst the changed list cannot hold uploads the table whole
+  with those marks (`eachWithdrawn`); past what the words hold, every page the GPU drew itself is
+  withdrawn (`every`). So a page read first in a
   frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
   world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
   none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`).
 
 ## When a page is stale, withdrawn and drawn
 
-**Every stale page the image reads is drawn, at most a page budget a frame** (#489, #831): the host
-draws `SHADOW_PAGES_PER_FRAME` (192) pages a frame at most, the GPU maps and draws
-`SHADOW_GPU_PAGES_PER_FRAME` (96) of its own; a burst past them — a scene's first frames, a camera
-cut — is drawn over the next frames, the pixels reading the coarser level meanwhile, as Unreal's
-virtual shadow maps read a page their frame did not render. Without it one frame drew 2 423 pages
-in 286 ms on a-field-of-pebbles. The list goes coarsest first, each light's floor leading (#525),
+**Every stale page the image reads is drawn, at most a page budget a frame** (#489, #831): the host's
+batches and the GPU's own page draws each draw at most `shadowPagesPerFrame` pages a frame — the
+pages the granted batches hold (one pool layer), the pool's own when fewer —, derived from the grant
+and the pool, never from a scene. It is a safety net: each page draws its casters at the level its
+texels want, so a burst costs its pages' texels; one past it — a pool larger than a layer, all
+stale at once — is drawn over the next frames, the pixels reading the coarser level meanwhile, as
+Unreal's virtual shadow maps read a page their frame did not render. The list goes coarsest first, each light's floor leading (#525),
 the oldest first once pages wait. Otherwise cost is held by caching — a page is
 redrawn only when what it holds changed —, never by showing a coarse or stale page as current. A
 page is drawn with its own projection into its physical page (viewport and scissor), touching no

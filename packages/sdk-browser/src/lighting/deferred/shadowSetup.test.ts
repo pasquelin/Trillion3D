@@ -24,14 +24,14 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     assert.ok(surface.includes('let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);'));
     assert.ok(surface.includes('if(shadowed){shadowSetup(coord,pixel,z,P);}'));
     assert.ok(surface.includes(',pixel.xy,cell,shadowed);'), 'the lighting takes the cell read');
-    assert.doesNotMatch(surface, /pixelLevel\(|receiverOffset\(|shadowFootprint=/);
+    assert.doesNotMatch(surface, /pixelLevel\(|shadowReceiver\(|shadowFootprint=/);
     // The lighting finds no cell again, nor reads the flag again.
     assert.doesNotMatch(
       functionText(shader, 'contractLighting'),
       /gridCell|pixelCell|TILE_SHADOWED/,
     );
     const setup = functionText(shader, 'shadowSetup');
-    for (const read of ['pixelLevel(', 'receiverOffset(pixel'])
+    for (const read of ['pixelLevel(', 'shadowReceiver(pixel'])
       assert.ok(setup.includes(read), read);
     const flag = shader.slice(shader.indexOf('fn cellShadowed(')).split('\n')[0];
     assert.equal(flag.includes('TILE_SHADOWED'), shadowed, 'the flag, read with shadow code');

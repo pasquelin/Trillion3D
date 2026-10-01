@@ -69,3 +69,17 @@ test('a residency change stales its pages at once under a moving camera, still r
   assert.equal(plan.pool.valid[page], 1, 'a change of detail is read until its redraw');
   assert.equal(plan.deferredChanges, false, 'nothing waits for the camera to rest');
 });
+
+// #831: the clusters a stream brings in together overlap: one box, projected once, never a far
+// one joined to them, which would stale every page between.
+test('overlapping residency changes merge into one box, a far one stays apart', () => {
+  const { plan } = settled(),
+    room = plan.changeRoom();
+  plan.residencyChanged([0, 0, 0], [2, 1, 2]);
+  plan.residencyChanged([1, 0, 1], [3, 1, 3]);
+  assert.equal(plan.changeRoom(), room - 1, 'two overlapping clusters: one box');
+  plan.residencyChanged([40, 0, 40], [41, 1, 41]);
+  assert.equal(plan.changeRoom(), room - 2, 'a far one apart');
+  plan.residencyChanged([40, 0, 40], [41, 1, 41], true);
+  assert.equal(plan.changeRoom(), room - 3, 'a moving one, of another kind, apart');
+});
