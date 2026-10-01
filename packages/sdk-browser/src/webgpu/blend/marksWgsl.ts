@@ -47,7 +47,8 @@ export const BLEND_MARKS_BINDINGS = { requests: 8, depth: 9, view: 10 };
  * The water surfaces mark through the same module (#1412), by `markWaterShadows`: the composite
  * lights the nearest of them per pixel, at the point and footprint it rebuilds from the depth
  * through the deferred view, its normal turned to the eye (`WATER_SHADOW_READ_WGSL`); the marks
- * take those, at each water fragment in front of the opaque — the nearest among them.
+ * take those, at each water fragment in front of the opaque: the nearest among them, and any
+ * water behind it, whose few pages the composite does not read.
  */
 export function blendShadowMarksWgsl(pages = SUN_WINDOW) {
   return `${BLEND_VERTEX_WGSL}
@@ -106,14 +107,15 @@ fn marksKept(in:VSOut,front:bool,gradX:vec2f,gradY:vec2f)->bool{
  return maskAlpha(in.ids.x,in.uv,gradX,gradY,(in.ids.y&${FLAG_SAMPLED}u)!=0u)*in.color.w>=in.alphaAo.x;
 }
 /** A blend fragment the pass lights marks its pages: lit, outside the debug views, kept
- *  (\`marksKept\`). The derivatives come first, in uniform control flow. A thin surface whose factor
- *  a map scales marks its pages on both sides: the map, which may zero it, is not fetched. */
+ *  (\`marksKept\`). The derivatives come first, in uniform control flow, the normal past the
+ *  rejects. A thin surface whose factor a map scales marks its pages on both sides: the map, which
+ *  may zero it, is not fetched. */
 @fragment fn markShadows(in:VSOut,@builtin(front_facing) front:bool){
- let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
- let N=blendGeometricNormal(in,front,dpdx(in.view),dpdy(in.view));
+ let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);let viewX=dpdx(in.view);let viewY=dpdy(in.view);
  let flags=in.ids.y;
  if((flags&${FLAG_LIT}u)==0u||(flags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)!=0u){return;}
  if(!marksKept(in,front,gradX,gradY)){return;}
+ let N=blendGeometricNormal(in,front,viewX,viewY);
  let thin=any(vec3f(in.normal.w,in.tangent.w,in.bitangent.w)>vec3f(0.0));
  markBlendShadows(in.position.xy,in.position.z,in.view,N,thin,thin&&in.emissive.w!=0.0,blendShadowFootprint(in.view));
 }
@@ -121,9 +123,8 @@ fn marksKept(in:VSOut,front:bool,gradX:vec2f,gradY:vec2f)->bool{
  *  pages the composite reads there (\`markWaterAt\`); the composite lights any water outside the
  *  unlit view, which encodes no marks. */
 @fragment fn markWaterShadows(in:VSOut,@builtin(front_facing) front:bool){
- let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
- let N=blendGeometricNormal(in,front,dpdx(in.view),dpdy(in.view));
+ let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);let viewX=dpdx(in.view);let viewY=dpdy(in.view);
  if(!marksKept(in,front,gradX,gradY)){return;}
- markWaterAt(in.position.xy,in.position.z,N);
+ markWaterAt(in.position.xy,in.position.z,blendGeometricNormal(in,front,viewX,viewY));
 }`;
 }
