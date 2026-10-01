@@ -1,6 +1,6 @@
 import { closestSegmentTriangle, insideTriangle, triangleNormal } from './closest.ts';
 import { forEachTriangleInBox } from './triangleQuery.ts';
-import { answeredAcross, onSeam, onSurface } from './activeEdges.ts';
+import { onSeam, onSurface } from './activeEdges.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
 /**
@@ -85,7 +85,7 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
     const depth =
       squared === 0
         ? pierced(tree, at, radius)
-        : (acrossSeam(tree, at, radius, squared) ?? separate(Math.sqrt(squared), radius));
+        : (acrossSeam(tree, at, radius) ?? separate(Math.sqrt(squared), radius));
     if (!(depth > 0)) return;
     faceOf(tree, at);
     touched = true;
@@ -104,13 +104,13 @@ function separate(distance: number, radius: number) {
 
 /**
  * The segment passes near a seam of a flat surface (`activeEdges.ts`), which is never an edge of
- * it. Over this triangle — its foot on the plane inside it — it leaves along the face's normal, on
- * its own side, by what is missing to the radius from the plane. Over a triangle across the seam,
- * this one is not touched: that one, holding every point of the seam, answers. A segment through
- * the surface (inside a solid), or over neither, reads the seam as the edge it is drawn as.
- * `undefined` when the seam is read as drawn, 0 when this triangle is not touched.
+ * it. Over the surface — its foot on the plane falling on the surface — it leaves along the face's
+ * normal, on its own side, by what is missing to the radius from the plane. Beside the surface,
+ * this triangle is not touched (0): the surface's border is nearer than the seam, and the
+ * triangle that holds it answers. A segment through the surface is inside a solid, where the seam
+ * is read as the edge it is drawn as (`undefined`).
  */
-function acrossSeam(tree: TriangleTree, at: number, radius: number, squared: number) {
+function acrossSeam(tree: TriangleTree, at: number, radius: number) {
   const count = onSeam(tree, at);
   if (count === 0) return undefined;
   const v = tree.triangles,
@@ -128,13 +128,10 @@ function acrossSeam(tree: TriangleTree, at: number, radius: number, squared: num
     for (let k = 0; k < 3; k++) foot[k] = segment[k] + t * (segment[3 + k] - segment[k]);
     if (onSurface(tree, count, foot)) return undefined;
   }
+  for (let k = 0; k < 3; k++) foot[k] = closest[k] - (height * face[k]) / (length * length);
+  if (!onSurface(tree, count, foot)) return 0;
   const side = height < 0 ? -1 : 1;
-  for (let k = 0; k < 3; k++) {
-    normal[k] = (side * face[k]) / length;
-    foot[k] = closest[k] - (height * face[k]) / (length * length);
-  }
-  if (!insideTriangle(foot[0], foot[1], foot[2], v, at, face))
-    return answeredAcross(tree, count, closest, segment, squared) ? 0 : undefined;
+  for (let k = 0; k < 3; k++) normal[k] = (side * face[k]) / length;
   closest.set(foot, 3);
   return radius - (side * height) / length;
 }
