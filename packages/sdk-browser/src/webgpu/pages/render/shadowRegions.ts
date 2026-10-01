@@ -35,10 +35,10 @@ export function planShadowRegions(
   // Residency this frame's light cuts see changed since the last plan: those pages alone restale,
   // at once, the camera moving or not (#831).
   let residencyMoved = false;
-  const { residentFlags, residentOffsetWords } = rows,
-    { rootOfPacked } = rt.layout.placement;
+  const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
+    const { rootOfPacked } = rt.layout.placement;
     noteResidenceChange(lights, roots, rootOfPacked, page, recordOf(page)!, undefined, true);
   });
   lights.shadowPages = 0;
