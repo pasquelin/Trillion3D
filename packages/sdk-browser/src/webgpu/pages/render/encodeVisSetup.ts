@@ -10,7 +10,6 @@ import { encodeSurfaceLighting } from './encodeBlend.ts';
 import type { GpuRasterInput } from '../../../gpu/raster/types.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts';
-import { impostorCode } from '../../impostor/code.ts';
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -25,7 +24,7 @@ export function encodeEmptySurfaces(
   const encoder = createRenderEncoder(rt, device);
   // Every root of the image may stand behind its impostor card: the cards still draw, their depth
   // kept by the surfaces' clear.
-  const carded = !!impostorCode(rt)?.encodeImpostorVisibilityPass(rt, device, encoder);
+  const carded = !!rt.gpu.impostorCode?.encodeImpostorVisibilityPass(rt, device, encoder);
   const pass = encoder.beginRenderPass({
     label: 'Trillion3D empty surfaces',
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
