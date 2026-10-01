@@ -29,7 +29,7 @@ const fixture = (name: string) =>
 test('the compiler’s shared file expands to its flat file, word for word', () => {
   // Both written by `proxy::encode::tests` in the compiler: 60 copies of one triangle, some
   // turned, mirrored or off the grid, and the eighth turns that stay flat.
-  const { data } = decode(fixture('proxy-v4.bin'));
+  const { data } = decode(fixture('proxy-v5.bin'));
   const flat = new Uint32Array(fixture('proxy-flat.bin'));
   const columns = [
     data.triangles,
@@ -40,6 +40,7 @@ test('the compiler’s shared file expands to its flat file, word for word', () 
     data.groupOffsets,
     data.owners,
     data.sourceParents,
+    data.sourceMeshes,
     data.bindWorlds,
   ];
   const actual = columns.flatMap((column) =>
@@ -56,7 +57,7 @@ function file(positions: number[], shapeOf = [0, 0]) {
     ...[SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 3, 0, 1, 1, 1, 0, 1, 1, shapeOf.length, 1],
     ...[...f([0, 0, 0, 1, 0, 0, 0, 1, 0]), 1, ...shapeOf, ...map, ...map, ...positions],
     ...[...f([7, 7, 7, 8, 7, 7, 7, 8, 7]), 2],
-    ...[0, 0, 0, 0, 1, 0, 1, 0xffffffff],
+    ...[0, 0, 0, 0, 1, 0, 1, 0xffffffff, 0xffffffff],
     ...new Uint32Array(new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]).buffer),
   ];
   return () => decode(new Uint32Array(words).buffer);
@@ -71,7 +72,7 @@ test('a file that places a triangle twice, or names a shape it lacks, is refused
 
 test('shared headers, empty shapes and nonfinite maps are refused before expansion', () => {
   const reject = (corrupt: (words: Uint32Array) => void, reason: RegExp) => {
-    const buffer = fixture('proxy-v4.bin');
+    const buffer = fixture('proxy-v5.bin');
     corrupt(new Uint32Array(buffer));
     assert.throws(() => decode(buffer), reason);
   };

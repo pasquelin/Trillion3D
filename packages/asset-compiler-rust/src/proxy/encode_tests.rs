@@ -30,7 +30,7 @@ fn the_shared_file_the_reader_expands_is_the_committed_one() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../sdk-core/src/scene/core/fixtures");
     for (name, bytes) in [
-        ("proxy-v4.bin", proxy.encode()),
+        ("proxy-v5.bin", proxy.encode()),
         ("proxy-flat.bin", flat_file(&proxy)),
     ] {
         assert_eq!(
@@ -48,5 +48,40 @@ fn no_instance_writes_the_header_and_empty_group_sentinel() {
     assert!(
         bytes[8..].iter().all(|byte| *byte == 0),
         "no triangle, node, shape or instance"
+    );
+}
+
+/// #966: a source node names the compiled mesh it places (`mesh_map`), `-1` for none, right after its parent
+/// rank: the runtime reads a partition's cell node, which no core node carries, by its mesh.
+#[test]
+fn each_source_node_names_the_mesh_it_places() {
+    use crate::proxy::{stage_proxy, ProxyInputs};
+    use serde_json::json;
+    use std::collections::{BTreeMap, BTreeSet};
+    let g = json!({"nodes": [{"children": [1]}, {"mesh": 2}, {"mesh": 0}]});
+    let primitives = [json!({"mesh": 0}), json!({"mesh": 1})];
+    let inputs = ProxyInputs {
+        g: &g,
+        shown: &BTreeSet::from([1, 2]),
+        mesh_map: &BTreeMap::from([(0, 0), (2, 1)]),
+        primitives: &primitives,
+        cuts: &[plate(), plate()],
+        thresholds: &[0.05, 0.05],
+        previews: &[],
+    };
+    let proxy = stage_proxy(&inputs).expect("proxy");
+    assert_eq!(proxy.provenance.source_parents, [-1, 0, -1]);
+    assert_eq!(proxy.provenance.source_meshes, [-1, 1, 0]);
+    let bytes = proxy.encode();
+    let worlds = 3 * 16 * 8;
+    let meshes = &bytes[bytes.len() - worlds - 12..bytes.len() - worlds];
+    let words: Vec<i32> = meshes
+        .chunks(4)
+        .map(|w| i32::from_le_bytes([w[0], w[1], w[2], w[3]]))
+        .collect();
+    assert_eq!(
+        words,
+        [-1, 1, 0],
+        "the mesh column, between parents and bind worlds"
     );
 }

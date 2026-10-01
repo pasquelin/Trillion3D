@@ -9,7 +9,7 @@ import type { SceneProxyDescriptor } from '../../../sdk-core/src/index.ts';
 test('shared expansion is decoded once across concurrent readers and sessions, and charged to CPU memory', async (t) => {
   const bytes = new Uint8Array(
     readFileSync(
-      new URL('../../../sdk-core/src/scene/core/fixtures/proxy-v4.bin', import.meta.url),
+      new URL('../../../sdk-core/src/scene/core/fixtures/proxy-v5.bin', import.meta.url),
     ),
   );
   const [, version, triangles, nodes, groups, owners, instances] = new Uint32Array(bytes.buffer);

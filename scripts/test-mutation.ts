@@ -29,7 +29,7 @@ const testFiles = (repositoryFiles() ?? []).filter(
 );
 if (!testFiles.length) throw new Error(`No unit test under ${PACKAGE}.`);
 mkdirSync(out, { recursive: true });
-// The sandbox is a copy without `.git`: a test reading the index (the Jolt pin of `physics.test.ts`)
+// The sandbox is a copy without `.git`: a test reading the index (the Jolt pin of `joltCommit.test.ts`)
 // reads this checkout's.
 process.env.GIT_DIR = resolve(
   root,

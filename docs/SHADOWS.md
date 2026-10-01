@@ -155,8 +155,12 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   left them, and writes the table words, decoded by the shaders' shared page model
   (`pageModel.ts`). The host keeps the buffers and the grant; its pool follows the GPU's snapshot in
   each readback (`scene/light-shadow/mirror.ts`), and a word it sends is kept only for the page the
-  GPU says its entry owns (`wordsWgsl.ts`). Blend and water surfaces read what the opaque pixels
-  asked for and keep their early depth reject. Without the demand or allocation pipeline, the
+  GPU says its entry owns (`wordsWgsl.ts`). Blend surfaces mark their own pages between the
+  pixels' demand and the mapping (#1411): their runs, expanded early, are drawn once more by a
+  depth-read-only stage with no colour target that calls the demand's own `demandLight`
+  (`webgpu/blend/marks.ts`), and reads of the material only the base colour's alpha its opacity
+  test needs — no lighting, no other map (`marksWgsl.ts`) —, so the blend pass reads its own level and keeps its early depth
+  reject. Water surfaces read what the others asked for. Without the demand or allocation pipeline, the
   readback's report maps the pages on the host, frames later.
 - **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps and
   those mapped before that no draw has filled; the host's words list every page whose depth they

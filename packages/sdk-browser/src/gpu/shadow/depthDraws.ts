@@ -33,19 +33,27 @@ export function shadowDepthDraws(
         depthCompare: DEPTH_COMPARE,
       },
     });
-  const draws = {
-    opaque: pipeline('Trillion3D shadow depth only v1', 'shadow_depth_vs', false),
-    envelope: pipeline('Trillion3D shadow depth v1', 'shadow_vs', true),
-    cutout: pipeline('Trillion3D shadow depth cutout v1', 'shadow_cutout_vs', true),
+  // OMB-25 (#966): the same three draws from the stored LocalToClip (`storedWgsl.ts`), for the
+  // `shadowLocalToClip` option alone; the default draws keep their entries.
+  const set = (stored: boolean) => {
+    const at = (entry: string) => (stored ? entry.replace(/_vs$/, '_stored_vs') : entry),
+      name = stored ? ' stored' : '';
+    return {
+      opaque: pipeline(`Trillion3D shadow depth only${name} v1`, at('shadow_depth_vs'), false),
+      envelope: pipeline(`Trillion3D shadow depth${name} v1`, at('shadow_vs'), true),
+      cutout: pipeline(`Trillion3D shadow depth cutout${name} v1`, at('shadow_cutout_vs'), true),
+    };
   };
-  let made: ShadowDepthDraws | undefined;
+  const sets = [set(false), set(true)];
+  const made: Array<ShadowDepthDraws | undefined> = [];
   return {
-    prepare: () => Promise.all(Object.values(draws).map((draw) => draw.prepare())),
-    made: (): ShadowDepthDraws =>
-      (made ??= {
-        opaque: draws.opaque.get(),
-        envelope: draws.envelope.get(),
-        cutout: draws.cutout.get(),
+    prepare: (stored = false) =>
+      Promise.all(Object.values(sets[+stored]).map((draw) => draw.prepare())),
+    made: (stored = false): ShadowDepthDraws =>
+      (made[+stored] ??= {
+        opaque: sets[+stored].opaque.get(),
+        envelope: sets[+stored].envelope.get(),
+        cutout: sets[+stored].cutout.get(),
       }),
   };
 }

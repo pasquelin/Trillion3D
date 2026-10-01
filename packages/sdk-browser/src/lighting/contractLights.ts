@@ -29,10 +29,12 @@ const UNLIT_IRRADIANCE = Math.PI;
 /**
  * Ties the contract light store to the lights of the display graph a WebGL2 engine draws.
  *
- * The contract takes over only when the host has used it — a declared light, or a requested
- * view. Until it has, the source-graph lights stay the only ones lighting and the image is
- * the one from before this batch, pixel for pixel. As soon as it has, the source graph
- * disappears: two stacked light sets would be nobody's lighting.
+ * The contract takes over when the host has used it — a declared light, or a requested view —,
+ * or when the source graph declares no light either: `auto` with no light anywhere is the unlit
+ * view, raw albedo, as on WebGPU (`SceneLightingView`), never a black frame (#1016). Until then
+ * the source-graph lights stay the only ones lighting and the image is the one from before this
+ * batch, pixel for pixel. As soon as it has, the source graph disappears: two stacked light sets
+ * would be nobody's lighting.
  */
 function createContractLights(scene: Scene, store: SceneLightStore | undefined) {
   const group = new Group();
@@ -88,18 +90,20 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
   return {
     /**
      * Returns true when the contract now governs lighting — the caller must then stop
-     * refreshing the source-graph lights. Does nothing as long as the store has not changed.
+     * refreshing the source-graph lights. Does nothing while the store and `sourceLights` hold.
+     * `sourceLights`: the source graph declares a light, which `auto` then leaves lighting.
      */
-    refresh() {
+    refresh(sourceLights: boolean) {
       if (!store) return false;
-      const wanted = store.count > 0 || store.lightingView !== 'auto';
+      const wanted = store.count > 0 || store.lightingView !== 'auto' || !sourceLights;
       if (!wanted) {
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
         setFog(undefined);
         group.visible = false;
-        epoch = store.epoch;
+        // Taken back later on an unchanged store (the source's last light gone): rebuilt then.
+        epoch = -1;
         return false;
       }
       governs = true;
@@ -152,6 +156,7 @@ export function attachContractLights(
   source: {
     setEnabled(enabled: boolean): void;
     readonly lit: boolean;
+    readonly declared: boolean;
     readonly casting: readonly string[];
     castingChanged?: () => void;
   },
@@ -162,13 +167,16 @@ export function attachContractLights(
   // The casting lights of the set that lights now: the contract's once it governs, else the
   // source graph's. Heard at each change of either, never per frame.
   const refused = () => shadowsRefused?.(contract.governs ? contract.casting : source.casting);
-  // A source lamp shown, hidden or copied again is named if the source graph lights.
-  source.castingChanged = refused;
+  let declared = source.declared;
   const apply = () => {
-    source.setEnabled(!contract.refresh());
+    declared = source.declared;
+    source.setEnabled(!contract.refresh(declared));
     refused();
     sceneChanged();
   };
+  // A source lamp shown, hidden or copied again is named if the source graph lights; a copy that
+  // gains its first light or loses its last hands the view over (`refresh`'s `sourceLights`).
+  source.castingChanged = () => (source.declared === declared ? refused() : apply());
   apply();
   return {
     apply,

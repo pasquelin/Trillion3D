@@ -29,8 +29,7 @@ export type HostLight = {
   decay?: number;
   angle?: number;
   penumbra?: number;
-  /** Aim of a directional or a spot: its own node, which the placement poses and adds to the
-   *  display graph beside it. */
+  /** Aim of a directional or a spot: its own node, posed and added beside it by the placement. */
   target?: AimNode;
 };
 
@@ -40,8 +39,7 @@ type AimNode = { position: CopyVector };
 /** The two writes this boundary makes on the display graph it lights. */
 export type HostLightScene = { add(node: unknown): void; remove(node: unknown): void };
 
-/** What a copied light aims at: `from` is the target the source declared, read every update;
- *  `to` is the node of the display graph the copy points at in its place. */
+/** What a copied light aims at: `from`, the source's target read each update; `to`, the copy's. */
 type Aim = { from: Object3D; to: AimNode };
 
 function sceneLights(source: Object3D): Light[] {
@@ -68,18 +66,16 @@ function placeAt(into: AimNode, from: Object3D) {
 export function installSceneLighting(
   scene: HostLightScene,
   source: Object3D,
-  /** The copy of a source light the display graph holds, made by the host that draws it: a
-   *  light of the engine's graph copies itself, numbered as the engine numbers what it builds. A
-   *  copy that aims holds its own target, which the engine poses — the source's own target
-   *  belongs to the source graph and stays there. */
+  /** The copy of a source light the display graph holds, made by the host that draws it,
+   *  numbered as the engine numbers what it builds. A copy that aims holds its own target, which
+   *  the engine poses; the source's own target stays in the source graph. */
   copyOf: (light: Light) => HostLight = (light) => numbered(light.clone()),
 ) {
   /** One entry per copied light; `aim` only where the source's light aims. `casts` when the last
    *  placement found it shown and asking to cast (`lampCastsShadow`), named by `name`. */
   let pairs: Array<{ original: Light; copy: HostLight; aim?: Aim; name: string; casts?: boolean }> =
     [];
-  // Source-graph lights are cleared when another lighting contract takes over: two
-  // stacked light sets would be nobody's lighting.
+  // Off while another lighting contract governs: two stacked light sets light nobody's way.
   let enabled = true;
   // The shown lamps asking to cast (`ContractShadows`), a new list at each copy and each time one
   // starts or stops: shown or hidden, its `castShadow` set or cleared.
@@ -169,6 +165,10 @@ export function installSceneLighting(
     /** True as soon as a source-graph light is installed: the only signal of a lit view. */
     get lit() {
       return enabled && pairs.length > 0;
+    },
+    /** Whether the source graph declares a light at all, switched off by the contract or not. */
+    get declared() {
+      return pairs.length > 0;
     },
   };
   refresh();

@@ -5499,7 +5499,8 @@
       "groupOffsets": "Offset dei record dei proprietari di ogni gruppo, inclusa la sentinella finale.",
       "owners": "Record dei proprietari: indice del nodo di origine e albedo lineare compattato in RGBA8.",
       "bindWorlds": "Matrici mondo originali dei nodi di origine, sedici valori a doppia precisione per nodo.",
-      "sourceParents": "Gerarchia di origine, inclusi i nodi di partizione non attualmente istanziati dall’host."
+      "sourceParents": "Gerarchia di origine, inclusi i nodi di partizione non attualmente istanziati dall’host.",
+      "sourceMeshes": "La mesh compilata che ogni nodo di origine colloca, `-1` se nessuna: ciò che disegna un nodo di cella di una partizione."
     }
   },
   "SceneProxyDescriptor": {
