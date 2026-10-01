@@ -1,7 +1,12 @@
 // The shipped raster-bin kernel (`binShader.ts`, OMB-25/OMB-26, #966) run under node: its functions
 // as JavaScript, a workgroup's lanes taken in a given order at each barrier.
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { SHADOW_BIN_COMMANDS, shadowBinShader } from './binShader.ts';
+import { SHADOW_REGION_COMMANDS } from './batchBudget.ts';
+import { SHADOW_BIN_CLASSES, shadowBinShader } from './binShader.ts';
+
+/** A region's bin commands, as the kernel counts them, and a class's corners: 32 triangles. */
+export const SHADOW_BIN_COMMANDS = SHADOW_REGION_COMMANDS * SHADOW_BIN_CLASSES,
+  SHADOW_BIN_CORNERS = 32 * 3;
 
 /** The product the stored LocalToClip is, as the kernel spells it (`localToClip`). */
 const PRODUCT = 'views[region].viewProjection*pages[row].world';
