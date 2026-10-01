@@ -48,8 +48,7 @@ export interface WebgpuLightState {
   mobility: ShadowMobility;
   /** One word per row, 1 for a moving placement's: what the page cull splits its lists by. */
   mobilityRows: GPUBuffer | undefined;
-  /** The static layer of the pool, once an object has moved and its pipeline is built. */
-  staticLayer: ShadowStaticLayer | undefined;
+  staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
   staticLayerPending: boolean;
   /** The static layer's page pyramids and the test of the moving casters against them. */
   pageHiz: ShadowPageHiz | undefined;
@@ -121,10 +120,11 @@ export function createWebgpuLightState(
   poolSide: number,
   store?: SceneLightStore,
   sunWindow = SUN_WINDOW,
+  poolLayers = 1,
 ): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(poolSide, 1, sunWindow),
+    plan: createShadowPlan(poolSide, poolLayers, sunWindow),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,

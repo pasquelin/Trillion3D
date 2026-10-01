@@ -3299,7 +3299,7 @@
       "settled": "Verdadeiro quando um relatório prova que o estado atual não pede nada: a imagem pode ser mantida.",
       "receive": "Voltou um relatório de pedidos: a lista de páginas da GPU conta de imediato (`gpu.hear`), o resto é lido pelo plano seguinte.",
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista.",
-      "resize": "O pool com outro tamanho, as suas páginas mantidas, os seus arrays refeitos: devolve para onde foi cada página.",
+      "size": "O pool no tamanho que o dispositivo concedeu (`webgpu/shadow/poolSize.ts`), uma vez, antes de qualquer página ser mapeada: nunca é redimensionado depois, então nenhuma página muda de lugar (#831).",
       "sunWindow": "Páginas por lado do clipmap de um sol com que corre uma sessão (`referenceMode.ts`).",
       "gpu": "A alocação da GPU (`mirror.ts`): se ela mapeia as páginas e o que o anfitrião lhe pede."
     }

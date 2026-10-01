@@ -1,4 +1,5 @@
 import {
+  MOBILITY_COARSER,
   MOBILITY_CORNER_SHIFT,
   SHADOW_CULL_GROUP,
   SHADOW_VOLUME_WGSL,
@@ -12,7 +13,10 @@ import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
  * the frame is tested — the page table's, every resident page of every caster, whatever the camera
  * or a light cut selected, then the blended casters' —, against the region's own volume in light
  * space by the regions' one test (`sphereTouches`): a caster the camera does not see keeps its
- * shadow on a receiver it sees. Each row a region keeps is one pair, `(region, row)`, in one list
+ * shadow on a receiver it sees. Of a surface the residency holds at several levels, the finest
+ * alone is drawn (`MOBILITY_COARSER`, the cut rule at a threshold of 0): a coarser level drawn
+ * over it would lift its depth above the surface and shade it in triangles (#831). Each row a
+ * region keeps is one pair, `(region, row)`, in one list
  * every layer's draw reads (`shader.ts`, `shadow_fresh_vs`); the draws' corners are the most any
  * kept row draws.
  *
@@ -41,10 +45,12 @@ fn freshRow(i:u32)->i32{
  let row=params.blendFirst+(i-params.rows);
  return select(-1,i32(row),row<params.blendEnd);
 }
-/** Whether region \`k\` keeps the row of invocation \`i\`. */
+/** Whether region \`k\` keeps the row of invocation \`i\`: one its volume touches, of the finest
+ *  form the residency holds of its surface, never a coarser one under it (\`MOBILITY_COARSER\`). */
 fn freshKeeps(k:u32,i:u32)->bool{
  let row=freshRow(i);
- return row>=0&&k<atomicLoad(&args[FRESH_REGIONS])&&sphereTouches(volumes[k],spheres[u32(row)]);
+ if(row<0||k>=atomicLoad(&args[FRESH_REGIONS])||(mobility[u32(row)]&${MOBILITY_COARSER}u)!=0u){return false;}
+ return sphereTouches(volumes[k],spheres[u32(row)]);
 }
 @compute @workgroup_size(${SHADOW_CULL_GROUP}) fn shadowCountPairs(@builtin(global_invocation_id) id:vec3u){
  if(freshKeeps(id.y,id.x)){atomicAdd(&args[freshRegionPairs(params.pages,id.y)],1u);}

@@ -138,7 +138,9 @@ Jolt's vehicle constraint — engine, automatic gearbox, differentials, suspensi
   wheel, steered by slowing one track, pivoting on the spot at a standstill.
 - **Driving.** A vehicle is a `VehicleDriver`: `world.controls.vehicle = v` drives it with the keys
   ([Camera controllers](SDK.md#camera-controllers)), `v.drive(input)` from code. The brake stops it,
-  then backs it up; the throttle first stops one rolling back. `v.speed` (m/s forward), `v.gear` (−1
+  then backs it up; the throttle first stops one rolling back. Parked — not driven since it was
+  made or last stood still — it holds its brakes, so it rests on a slope and sleeps (#831).
+  `v.speed` (m/s forward), `v.gear` (−1
   reverse, 0 neutral) and `v.rpm` read the last step.
 - **Specs.** Each kind is a real machine (`VEHICLE_SPECS`: a Corvette C5, a Yamaha XJ900, an M1
   Abrams), every number sourced in `vehicleSpec.ts`, each an option: torque per body kilogram

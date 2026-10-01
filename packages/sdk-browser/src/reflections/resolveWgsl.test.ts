@@ -5,7 +5,6 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_KEPT,
-  REFLECTION_MOVING_KEPT,
   REFLECTION_RESOLVE_WGSL,
   REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
@@ -84,7 +83,7 @@ test('#1346: the texels around a pixel are filtered by a tent of distance, on it
   assert.equal(f.resolve()[0], 2);
 });
 
-test('a moved receiver keeps its history through the placement motion, its weight held while moving', () => {
+test('a moved receiver keeps its history through the placement motion, held short where no neighbourhood clips it', () => {
   const f = fixture();
   f.samples.normalRough = [1, 0, 0, 0.5];
   f.samples.previousNormal = [0, 1, 0, 0.5];
@@ -94,9 +93,38 @@ test('a moved receiver keeps its history through the placement motion, its weigh
   f.view.params[2] = 1;
   assert.deepEqual(f.resolve(), [8, 16, 24, 4]);
   f.samples.historyColor = [10, 20, 30, REFLECTION_STILL_FRAMES];
-  f.view.params[1] = REFLECTION_MOVING_KEPT;
+  // Moving, one traced texel is too few to clip by: the history is held short there alone.
+  const { REFLECTION_MOVING_KEPT } = wgslConstants(REFLECTION_RESOLVE_WGSL);
+  f.view.clip[0] = 1;
   const moving = f.resolve();
   assert.equal(moving[3], REFLECTION_MOVING_KEPT + 1, 'the kept weight is the moving cap');
+});
+
+test('#831: moving, an unchanged reflection keeps its whole window; a changed one is clipped at once', () => {
+  const f = fixture();
+  // A glossy floor, every texel round the pixel traced on its receiver, lobe and plane: a noisy
+  // reflection of 1, half the texels at 0.5 and half at 1.5 — a mean of 1, a deviation of 0.5.
+  f.traced.length = 0;
+  for (let k = 0; k < 16; k++) f.traced.push([k & 3, k >> 2]);
+  f.samples.normalRough = f.samples.previousNormal = [0, 0, 1, 0.06];
+  f.samples.sampleColor = (at: number[]) => {
+    const value = (at[0] + at[1]) & 1 ? 1.5 : 0.5;
+    return [value, value, value, 1];
+  };
+  const frame = (history: number, clip: number) => {
+    f.samples.historyColor = [history, history, history, REFLECTION_STILL_FRAMES];
+    f.view.clip[0] = clip;
+    return f.resolve();
+  };
+  const still = frame(1, 0),
+    moving = frame(1, 1);
+  assert.deepEqual(moving, still, 'a converged history inside the box: the still result');
+  assert.ok(moving[3] > REFLECTION_STILL_FRAMES, `its whole window kept: ${moving[3]}`);
+  // The reflected source moved: a history of 5 lies past the box, 1 ± 2 × 0.5, and is clipped.
+  const changed = frame(5, 1);
+  assert.ok(changed[0] <= 2, `clipped to the neighbourhood: ${changed[0]}`);
+  assert.equal(changed[3], moving[3], 'its weight kept: no frame of noise added');
+  assert.ok(frame(5, 0)[0] > 4, 'still, nothing is clipped: the image converged before stays');
 });
 
 test('a changed source keeps its history at the change cap, never restarts from one sample', () => {
@@ -122,7 +150,7 @@ test('#1346: a source moved without motion leaves under 1/255 of its old reflect
     let rank = 0;
     const frame = (value: number, sinceChange: number) => {
       f.samples.sampleColor = [value, value, value, 1];
-      f.view.params[1] = historyConfidence(false, sinceChange, false);
+      f.view.params[1] = historyConfidence(false, sinceChange);
       f.view.params[3] = rank++ & 3;
       f.samples.historyColor = f.resolve();
     };
