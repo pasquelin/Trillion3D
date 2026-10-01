@@ -3,6 +3,10 @@ import { fail } from './validation.ts';
 import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
 export const EPSILON = 1e-7;
 export const SURFACE_STRIDE = 15;
+/** The smallest Gram determinant `|u|²|v|² − (u·v)²` of a rectangle; below it, it has no area. */
+export const DEGENERATE_GRAM = 1e-15;
+/** The smallest `|(u × v) · direction|` of a ray meeting a surface; below it, the ray runs along it. */
+export const GRAZING = 1e-12;
 
 /** Return surface geometry in a fixed buffer, including the inverse Gram matrix for skew rectangles. */
 export function packSurface(surface: Surface, output: Float64Array, offset: number): boolean {
@@ -12,7 +16,7 @@ export function packSurface(surface: Surface, output: Float64Array, offset: numb
   const uv = dotVector3(u, v);
   const vv = dotVector3(v, v);
   const determinant = uu * vv - uv * uv;
-  if (!(determinant > 1e-15)) fail('INVALID_SCENE', 'Surface rectangle is degenerate');
+  if (!(determinant > DEGENERATE_GRAM)) fail('INVALID_SCENE', 'Surface rectangle is degenerate');
   const values = [
     ...surface.origin,
     ...u,
@@ -49,7 +53,7 @@ export function intersectSurface(
     ny = packed[offset + 10],
     nz = packed[offset + 11];
   const denominator = nx * dx + ny * dy + nz * dz;
-  if (Math.abs(denominator) < 1e-12) return false;
+  if (Math.abs(denominator) < GRAZING) return false;
   const t =
     (nx * (packed[offset] - ox) + ny * (packed[offset + 1] - oy) + nz * (packed[offset + 2] - oz)) /
     denominator;
