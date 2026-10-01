@@ -10,6 +10,7 @@ import type { ActiveGpuMemory } from '../../../residency/activeMemory.ts';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { hostSide } from '../../../scene/materialSide.ts';
 import { DEFAULT_GPU_BUDGET } from '../../../residency/budget.fixture.ts';
+import { sessionPools, worldPools } from '../../../world/core/worldBudget.ts';
 
 const recordAdmission = (admissions: ActiveGpuMemory[]) => (active: ActiveGpuMemory) => {
   admissions.push(active);
@@ -108,6 +109,24 @@ test('later live allocations refresh the same budget, while unchanged resources 
     assert.equal(admissions.length, count, 'no new allocation means no rebudget loop');
   } finally {
     extra?.destroy();
+    disposeQuadRun(backend, fixture);
+  }
+});
+
+test('a geometry pool asked under its share opens the session at that pool (memory-on-a-budget)', async () => {
+  // The example's slider asks 768 KiB: the admission is a ceiling over what the world asked, never
+  // a pool grown past the tables prepare builds (`TARGET_ADMISSION_REQUIRES_TABLE_GROWTH`).
+  installGpuGlobals();
+  const gpu = mockGpu();
+  const asked = 768 * 1024;
+  const pools = Object.assign(worldPools(), { geometryPool: asked });
+  const { geometryPoolBytes, admitGpuMemory } = sessionPools(pools);
+  const { fixture, backend } = quadBackend(gpu.device, { geometryPoolBytes, admitGpuMemory });
+  try {
+    await backend.prepare();
+    assert.ok(gpu.textures.some((texture) => texture.label === 'Trillion3D HDR lighting'));
+    assert.equal(backend.metrics().geometryPoolBytes, asked);
+  } finally {
     disposeQuadRun(backend, fixture);
   }
 });
