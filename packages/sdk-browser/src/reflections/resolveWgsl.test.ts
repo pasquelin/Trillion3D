@@ -5,7 +5,6 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_KEPT,
-  REFLECTION_MOVING_KEPT,
   REFLECTION_RESOLVE_WGSL,
   REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
@@ -95,6 +94,7 @@ test('a moved receiver keeps its history through the placement motion, held shor
   assert.deepEqual(f.resolve(), [8, 16, 24, 4]);
   f.samples.historyColor = [10, 20, 30, REFLECTION_STILL_FRAMES];
   // Moving, one traced texel is too few to clip by: the history is held short there alone.
+  const { REFLECTION_MOVING_KEPT } = wgslConstants(REFLECTION_RESOLVE_WGSL);
   f.view.clip[0] = 1;
   const moving = f.resolve();
   assert.equal(moving[3], REFLECTION_MOVING_KEPT + 1, 'the kept weight is the moving cap');

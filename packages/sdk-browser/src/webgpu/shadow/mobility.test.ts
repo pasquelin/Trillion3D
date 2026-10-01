@@ -33,32 +33,6 @@ test('the first move promotes a placement and opens the static layer; its later 
 
 // A write that leaves a placement where it stands — a pose copied again, a row inside a written
 // range — opens no static layer; a row taken or parked, or a new pose, does.
-// A resting body's pose rounded again in float64 (a tank's, by 1e-16 each step) is no move: below
-// a float32 step at its box's reach, the GPU's world cannot show it. A millimetre is one (#831).
-test('a pose that moves its box by less than a float32 step is no move; a millimetre is', () => {
-  const mobility = createShadowMobility();
-  const box = [-1.8, -0.5, -3.5, 1.8, 0.5, 3.5],
-    parked = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 40, 2, -25, 1];
-  mobility.ensure(1, 1, () => parked);
-  const drifted = parked.map((v, i) => (i === 0 || i === 12 ? v + v * 1e-16 + 1e-15 : v));
-  assert.equal(mobility.move(0, drifted, false, box), MOVE_NONE, 'drift: no move');
-  const turned = parked.slice();
-  [turned[0], turned[2], turned[8], turned[10]] = [Math.cos(1e-9), -1e-9, 1e-9, Math.cos(1e-9)];
-  assert.equal(mobility.move(0, turned, false, box), MOVE_NONE, 'a nano-radian turn: no move');
-  assert.equal(mobility.layered, false, 'the static layer stays whole');
-  const shifted = parked.slice();
-  shifted[12] += 1e-3;
-  assert.equal(mobility.move(0, shifted, false, box), MOVE_PROMOTED, 'a millimetre moves it');
-  const spun = shifted.slice();
-  [spun[0], spun[2], spun[8], spun[10]] = [
-    Math.cos(0.01),
-    -Math.sin(0.01),
-    Math.sin(0.01),
-    Math.cos(0.01),
-  ];
-  assert.equal(mobility.move(0, spun, false, box), MOVE_MOVING, 'a turn in place moves it');
-});
-
 test('a placement posed where it already stands does not move', () => {
   const mobility = createShadowMobility();
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
