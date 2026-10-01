@@ -25,6 +25,19 @@ export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
   return attachments;
 }
 
+let loadedFor: GPUTextureView[] | undefined, loaded: GPURenderPassColorAttachment[] | undefined;
+
+/** The same surfaces, kept rather than cleared: a pass drawing over what the material passes wrote
+ *  (the impostor cards, `../../impostor/encode.ts`). Rebuilt only with the view set. */
+export function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
+  const views = surfaces.views();
+  if (loadedFor !== views || !loaded) {
+    loaded = views.map((view) => ({ view, loadOp: 'load' as const, storeOp: 'store' as const }));
+    loadedFor = views;
+  }
+  return loaded;
+}
+
 const feedback: GPURenderPassColorAttachment = {
   view: undefined as unknown as GPUTextureView,
   loadOp: 'clear',

@@ -42,7 +42,7 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   SESSION_OPEN_FAILED:
     "The world's session could not open, for a reason with no code of its own (`world.diagnostic.error`): the error thrown is in `details.cause`.",
   FAMILY_LOAD_FAILED:
-    'An optional family of the engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) did not load, its import tried again first (`T3D-E090`): `details.family` names it, on `world.diagnostic.error`. The frames that draw with it wait, and it is asked again on the next use.',
+    'An optional family of the engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) did not load, its import tried again first (`T3D-E090`): `details.family` names it, on `world.diagnostic.error`. The frames that draw with it wait, and it is asked again on the next use.',
   UNSUPPORTED_SCENE_FORMAT:
     'A saved scene is of another format or version, or holds what a saved scene cannot store.',
   PHYSICS_BUDGET:

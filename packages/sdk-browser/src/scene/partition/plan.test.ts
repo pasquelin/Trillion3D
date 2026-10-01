@@ -4,7 +4,14 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { openAll, paged } from './paged.fixture.ts';
 import { createCellIndex } from './cellIndex.ts';
-import { boxDistance, cellReach, inCellFrame, KEEP, planCells as planIndexed } from './plan.ts';
+import {
+  boxDistance,
+  cellReach,
+  inCellFrame,
+  KEEP,
+  planCells as planIndexed,
+  type SuperRootPlan,
+} from './plan.ts';
 import { AHEAD } from './aheadShare.ts';
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
@@ -15,6 +22,7 @@ function planCells(
   eye: number[],
   reach: number,
   held: ReadonlySet<number>,
+  superRoots?: SuperRootPlan,
 ) {
   const boxes = createCellBoxes([], new Object3D(), []);
   boxes.refresh();
@@ -25,7 +33,7 @@ function planCells(
   const { partition, files } = paged(records, 1);
   const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
   openAll(index, files);
-  return planIndexed(index, eye, reach, held);
+  return planIndexed(index, eye, reach, held, superRoots);
 }
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6);
@@ -85,11 +93,43 @@ test('cells are read nearest first within their reach, ahead past it, and leave 
     reach,
     new Set([0, 1]),
   );
-  assert.deepEqual(near, { visible: [], ahead: [], leave: [1], pages: { visible: [], ahead: [] } });
+  const none = { far: [], demoted: [], pages: { visible: [], ahead: [] } };
+  assert.deepEqual(near, { visible: [], ahead: [], leave: [1], ...none });
   const wanted = planCells([cell(reach * (1 + AHEAD) - 1)], [0, 0.5, 0.5], reach, new Set());
   assert.deepEqual([wanted.visible, wanted.ahead], [[], [0]], 'read ahead of the reach');
   // A cell far wider than the reach is kept only while its box meets the keep sphere.
   const wide = { ...cell(0), bounds: [0, 0, 0, 1000, 1, 1] };
   const past = reach * (1 + KEEP) + 1;
   assert.deepEqual(planCells([wide], [1000 + past, 0.5, 0.5], reach, new Set([0])).leave, [0]);
+});
+
+test('a cell is drawn by its super-roots until the cut needs its objects (#1332)', () => {
+  const reach = 100,
+    eye = [0, 0.5, 0.5],
+    target = 1;
+  // Cells at 10, 30, 45 and 70; the super-roots' error projected as `40 / distance` pixels.
+  const cells = [10, 30, 45, 70].map(cell);
+  const projected = (at: number) => 40 / (cells[at].bounds[0] + 1);
+  const plan = (held: number[], placed: number[]) =>
+    planCells(cells, eye, reach, new Set(held), {
+      placed: new Set(placed),
+      target,
+      projected,
+    });
+  const fresh = plan([], []);
+  // Cell 0 (4 px) and cell 1 (1.3 px) need their objects; cell 2 (0.87 px) is read ahead, within
+  // `target / (1 + AHEAD)`; cell 3 (0.6 px) is drawn by its super-roots, its objects unread.
+  assert.deepEqual([fresh.visible, fresh.ahead], [[0, 1], [2]]);
+  assert.deepEqual(fresh.far, [0, 1, 2, 3], 'every cell found is held by its super-roots first');
+  // Held by its super-roots, a far cell is neither read nor held again; its objects are read once
+  // the camera comes near enough, its super-root still held.
+  const held = plan([3], []);
+  assert.ok(!held.far.includes(3) && !held.visible.includes(3) && !held.ahead.includes(3));
+  // Placed, a cell keeps its objects until its error is within `target / (1 + KEEP)`.
+  const placed = plan([0, 1, 2, 3], [0, 1, 2, 3]);
+  assert.deepEqual(placed.demoted, [3], 'only the cell past the keep margin leaves its objects');
+  assert.deepEqual([placed.visible, placed.ahead, placed.far, placed.leave], [[], [], [], []]);
+  // Without super-roots the plan reads every cell's objects, as before.
+  const plain = planCells(cells, eye, reach, new Set());
+  assert.deepEqual([plain.visible, plain.far, plain.demoted], [[0, 1, 2, 3], [], []]);
 });

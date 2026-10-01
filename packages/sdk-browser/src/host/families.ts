@@ -36,6 +36,8 @@ export const families = {
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
   /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
+  /** The impostor draw of both renderers: card plan, pipelines or program, atlas feed. */
+  impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
 };
 export type FamilyName = keyof typeof families;
 

@@ -3,12 +3,11 @@ import {
   type TextureLevel,
   type TextureLevelReader,
   type TextureLevelRequest,
-} from '../../texture/levelReader.ts';
-import { createTextureLevelStore, textureLevelShare } from '../../texture/levelStore.ts';
-import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
-import { LevelBytesError } from './writeBlocks.ts';
-import { tileRecord } from '../../texture/tileRecords.ts';
-import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
+} from './levelReader.ts';
+import { createTextureLevelStore, textureLevelShare } from './levelStore.ts';
+import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts';
+import { tileRecord } from './tileRecords.ts';
+import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts';
 
 /**
  * Cooked levels and block tile records, held long enough to cut tiles from them.
@@ -30,9 +29,16 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
  * the read resolves — reported once, never held, never read again: the file is what it is.
  */
 export type LevelKey = TextureLevelRequest;
+
+/** A short or foreign level file: its bytes are not the whole blocks its dimensions imply. */
+export class LevelBytesError extends Error {
+  constructor([width, height]: readonly [number, number], bytes: number) {
+    super(`TEXTURE_LEVEL_BYTES ${width}x${height}: ${bytes}`);
+  }
+}
 type Size = readonly [width: number, height: number];
 
-export type WebgpuTileLevels = {
+export type HeldLevels = {
   /** What the tile is cut from if it is there, marking it read — a lossless level, or a block
    *  tile's record —; otherwise `undefined`, launching nothing. */
   get(key: LevelKey, size: Size, tx: number, ty: number): TextureLevel | undefined;
@@ -55,10 +61,10 @@ const keyOf = ({ sha256, atlas, level, format }: LevelKey) =>
 /** A block tile's record, under its level's key. */
 const recordKey = (whole: string, tx: number, ty: number) => `${whole}/${tx},${ty}`;
 
-export function createWebgpuTileLevels(options: {
+export function createHeldLevels(options: {
   read: TextureLevelReader;
   onFailure: (key: LevelKey, error: unknown) => void;
-}): WebgpuTileLevels {
+}): HeldLevels {
   const { read } = options,
     store = read.store ?? createTextureLevelStore(textureLevelShare(DEFAULT_CACHED_BYTES)),
     pending = new Map<string, Promise<void>>(),
@@ -145,4 +151,30 @@ export function createWebgpuTileLevels(options: {
       if (!read.store) store.close();
     },
   };
+}
+
+/** Cooked-level reads in flight at most: beyond that, a level waits for the next image. */
+const MAX_LEVEL_READS = 6;
+
+/**
+ * THE ONE READ OF A HELD LEVEL, tiles' and impostor atlases' alike: what `levels` holds of `key`
+ * (the tile `tx`, `ty`'s record for a block level), marked read; otherwise its read asked —
+ * never doubled, within the store's room, a failure reported by `levels` — and `waiting` until it
+ * lands. `refused` when `roomFor` says the caller has no place for it, or the level cannot fit
+ * beside what the store keeps: nothing will come until room comes back, and nothing was read.
+ */
+export function readHeldLevel(
+  levels: HeldLevels,
+  key: LevelKey,
+  frame: number,
+  size: Size,
+  tx = 0,
+  ty = 0,
+  roomFor: () => boolean = () => true,
+): TextureLevel | 'waiting' | 'refused' {
+  const held = levels.get(key, size, tx, ty);
+  if (held) return held;
+  if (!roomFor()) return 'refused';
+  if (levels.inFlight >= MAX_LEVEL_READS) return 'waiting';
+  return levels.request(key, frame, size, tx, ty) ? 'waiting' : 'refused';
 }

@@ -128,3 +128,18 @@ test('the baked lookup reads a section once and reuses it for subsequent views',
   assert.deepEqual(first, second);
   assert.equal(reads, 1);
 });
+
+test('a plan planned again in place reuses its switched array and its cards', () => {
+  const roots = [{ mesh: 1, world: world(0, 0, -1000) }];
+  const plan = planImpostors(roots, section, IDENTITY_VIEW, FOCAL);
+  const [card] = plan.cards,
+    { switched } = plan;
+  const again = planImpostors(roots, section, IDENTITY_VIEW, FOCAL, plan);
+  assert.equal(again, plan);
+  assert.equal(again.switched, switched, 'no new switched array');
+  assert.equal(again.cards[0], card, 'no new card');
+  // A near view drops the card and clears the switch, in place.
+  planImpostors([{ mesh: 1, world: world(0, 0, -1) }], section, IDENTITY_VIEW, FOCAL, plan);
+  assert.equal(plan.cards.length, 0);
+  assert.deepEqual([...plan.switched], [0]);
+});
