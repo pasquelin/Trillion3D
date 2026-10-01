@@ -1,7 +1,7 @@
 import type { Capsule, CapsuleContact, CapsulePush } from './capsule.ts';
 import type { CharacterCollision } from './characterCollision.ts';
 import { hypot2, hypot3 } from '../math/primitives/hypot.ts';
-import { MOVE_PASSES } from './characterSettings.ts';
+import { MOVE_PASSES, SLACK } from './characterSettings.ts';
 
 /**
  * HOW A BODY MOVES THROUGH TRIANGLES: in parts no longer than half its radius, each followed by
@@ -19,6 +19,13 @@ import { MOVE_PASSES } from './characterSettings.ts';
  * overhang, a ceiling is left along its own way out, so a jump against a steep slope slides
  * down it. The velocity and the rest of the move lose the part that points into the surface,
  * which is what makes a body slide along a wall.
+ *
+ * A PART NEVER CARRIES A BODY DEEPER IN. Where the passes leave it more inside than it was before
+ * the part — a ramp under a low ceiling, a gap narrower than the body, where the floor's push and
+ * the ceiling's undo each other — the part is not taken: the body stops against what holds it and
+ * loses the speed that drove it in, as a character's sweep stops at its first blocking hit
+ * (Unreal's `SafeMoveUpdatedComponent`, Jolt's `CharacterVirtual`). A part may still carry a
+ * body out of an overlap it was already in.
  */
 export interface MoveReport {
   /** A floor was met. */
@@ -36,7 +43,9 @@ export interface MovingBody {
 }
 
 const part = new Float64Array(3),
-  away = new Float64Array(3);
+  away = new Float64Array(3),
+  before = new Float64Array(3),
+  after = new Float64Array(3);
 let body: MovingBody,
   report: MoveReport,
   rules: MoveRules,
@@ -75,7 +84,9 @@ const push: CapsulePush = (contact) => {
     const radius = body.capsule.radius,
       gap = radius - depth;
     [away[0], away[1], away[2]] = [0, 1, 0];
-    amount = Math.sqrt(radius * radius - (gap * across) ** 2) - gap * normal[1];
+    // A level way out touches at the sphere's widest, where the root is 0: rounding must not
+    // take it below 0 and make the feet not a number.
+    amount = Math.sqrt(Math.max(0, radius * radius - (gap * across) ** 2)) - gap * normal[1];
     if (!report.ground) report.impact = -body.velocity[1];
     report.ground = true;
   } else if (rules.onGround && normal[1] >= 0 && across > 0) {
@@ -119,13 +130,46 @@ export function slide(
   const parts = capsule.radius > 0 ? Math.max(1, Math.ceil(length / (0.5 * capsule.radius))) : 1;
   for (let k = 0; k < 3; k++) part[k] = delta[k] / parts;
   for (let i = 0; i < parts; i++) {
+    before.set(capsule.feet);
     for (let k = 0; k < 3; k++) capsule.feet[k] += part[k];
-    for (let pass = 0; pass < MOVE_PASSES; pass++) {
+    let open = false;
+    for (let pass = 0; pass < MOVE_PASSES && !open; pass++) {
       firstPass = pass === 0;
-      if (!world.resolveCapsule(capsule, push)) break;
+      open = !world.resolveCapsule(capsule, push);
     }
+    if (open || !blocked(world, capsule)) continue;
+    // Squeezed — a ramp under a low ceiling, a gap narrower than the body: the part is not
+    // taken, and the body stops against what holds it, as a blocked sweep stops a capsule.
+    capsule.feet.set(before);
+    for (let k = 0; k < 3; k++) away[k] = -part[k];
+    const length = hypot3(away[0], away[1], away[2]);
+    if (length > 0) for (let k = 0; k < 3; k++) away[k] /= length;
+    clip(body.velocity, away);
+    report.wall = true;
+    break;
   }
   return into;
+}
+
+/** The deepest overlap of `capsule` where it stands, the capsule left in place. */
+function deepest(world: CharacterCollision, capsule: Capsule) {
+  let depth = 0;
+  world.resolveCapsule(capsule, (contact) => {
+    depth = Math.max(depth, contact.depth);
+  });
+  return depth;
+}
+
+/** Whether the passes left the capsule deeper inside than it was before the part, by more than
+ *  the arithmetic's `SLACK`: a part may carry a body out of an overlap, never further into one. */
+function blocked(world: CharacterCollision, capsule: Capsule) {
+  const inside = deepest(world, capsule);
+  if (inside <= SLACK) return false;
+  after.set(capsule.feet);
+  capsule.feet.set(before);
+  const was = deepest(world, capsule);
+  capsule.feet.set(after);
+  return inside > was + SLACK;
 }
 
 /** The height gained over `h` seconds from the vertical speed `vy`, and the speed after:

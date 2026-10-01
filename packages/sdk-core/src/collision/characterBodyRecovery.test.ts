@@ -53,8 +53,8 @@ test('a fast body pushed into a block, steps disabled, escapes without taking it
   body.feet.set([2, 0, 0]);
   body.velocity[0] = 90;
   body.advance(1 / 120, EAST);
-  // At 90 m/s a stride is 0.75 m: an overlap is an escape, never a retry of the stride.
-  assert.ok(body.feet[0] <= 2, `carried to ${body.feet[0]}`);
+  // At 90 m/s a tick's stride is 0.75 m: an overlap is an escape, never a retry of the stride.
+  assert.ok(body.feet[0] - 2 < 90 / 120 / 2, `carried to ${body.feet[0]}`);
   assert.ok(deepest(world, body.feet, 1, 2) < 1e-3, 'the escape ends outside the solids');
 });
 

@@ -26,7 +26,8 @@ export interface CharacterCollision {
    * Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far
    * it goes before it first rests on a surface `accepts` takes — the highest such support;
    * negative when the capsule already sinks into it and must rise. `null` when there is none.
-   * `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact:
+   * The sphere stops at the first surface on its way down: one `accepts` refuses, met first,
+   * hides every support below it. `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact:
    * `point`, `normal` from the point to the sphere's centre, `surface` the face turned up.
    */
   groundBelow(
@@ -62,16 +63,23 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
       // body is a ceiling, not a floor.
       for (let k = 0; k < 3; k += 2) [min[k], max[k]] = [feet[k] - radius, feet[k] + radius];
       [min[1], max[1]] = [feet[1] - depth, feet[1] + Math.max(height, 2 * radius)];
-      let best = Infinity;
+      // The sphere stops at the first surface it meets on its way down, as the floor sweep of
+      // Unreal's CharacterMovement (`FindFloor`, `StepUp`) and the stair walk of Jolt's
+      // CharacterVirtual stop at their first hit: a surface `accepts` refuses — too steep, or
+      // above a step — met on the way hides every support below it. One the sphere already
+      // sinks into (a negative distance) is behind it, not on its way.
+      let best = Infinity,
+        blocked = Infinity;
       forEachTriangleInBox(tree, min, max, (at) => {
         // A sweep is the same from any point of its vertical line: lowered from the feet rather
         // than from `feet + radius`, which rounds, the sphere goes one radius further, and feet
         // put on a floor at any height are at distance 0, not a rounding above it.
         const distance = dropSphere(feet, radius, tree.triangles, at, touch) + radius;
-        if (distance < best && distance <= depth && touch.normal[1] > 0 && accepts(touch))
-          best = distance;
+        if (!(distance <= depth && touch.normal[1] > 0)) return;
+        if (accepts(touch)) best = Math.min(best, distance);
+        else if (distance >= 0) blocked = Math.min(blocked, distance);
       });
-      return best === Infinity ? null : best;
+      return best < Infinity && best <= blocked ? best : null;
     },
   };
 }

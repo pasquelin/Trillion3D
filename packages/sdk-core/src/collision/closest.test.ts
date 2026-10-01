@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { closestSegmentTriangle } from './closest.ts';
+import { closestSegmentTriangle, touched } from './closest.ts';
 import { onSegment } from './segment.fixture.ts';
 
 // The closed forms against a dense sampling of the segment and the triangle: the true distance is
@@ -54,6 +54,13 @@ function check(segment: number[], v: number[], label: string) {
   if (distance > 0) assert.ok(onTriangle(out.subarray(3, 6), v), `${label}: point off triangle`);
   const gap = [0, 1, 2].reduce((sum, k) => sum + (out[k] - out[3 + k]) ** 2, 0);
   assert.ok(Math.abs(gap - squared) <= 1e-9 * Math.max(1, squared), `${label}: pair and distance`);
+  // The feature reported holds the point: an edge at `along` from its start, or the face.
+  const { edge, along } = touched;
+  if (edge < 0) return;
+  assert.ok(along >= 0 && along <= 1, `${label}: along ${along}`);
+  const [p, q] = [edge, (edge + 1) % 3].map((c) => v.slice(3 * c, 3 * c + 3));
+  const on = [0, 1, 2].map((k) => p[k] + along * (q[k] - p[k]));
+  assert.ok(Math.hypot(...on.map((x, k) => x - out[3 + k])) <= 1e-9 * size, `${label}: off edge`);
 }
 
 const TRIANGLE = [0, 0, 0, 2, 0, 0, 0, 2, 0];
@@ -99,4 +106,22 @@ test('a triangle read at an offset of a flat list', () => {
   const list = [9, 9, 9, ...TRIANGLE];
   assert.equal(closestSegmentTriangle(out, [0.5, 0.5, 2, 0.5, 0.5, 3], list, 3), 4);
   assert.deepEqual([...out], [0.5, 0.5, 2, 0.5, 0.5, 0]);
+});
+
+test('the point found is reported as the face, an edge, or a corner of it', () => {
+  const out = new Float64Array(6);
+  closestSegmentTriangle(out, [0.3, 0.4, 1, 0.6, 0.2, 2], TRIANGLE, 0);
+  assert.equal(touched.edge, -1);
+  // Beside the edge from corner 0 to corner 1, halfway along it.
+  closestSegmentTriangle(out, [1, -1, 0.5, 1, -1, 1], TRIANGLE, 0);
+  assert.deepEqual([touched.edge, touched.along], [0, 0.5]);
+  // Off corner 2, the end of the edge from corner 1 and the start of the edge to corner 0.
+  closestSegmentTriangle(out, [-1, 3, 1, -1, 3, 2], TRIANGLE, 0);
+  assert.ok(
+    (touched.edge === 1 && touched.along === 1) || (touched.edge === 2 && touched.along === 0),
+    `${touched.edge} at ${touched.along}`,
+  );
+  // A piercing segment touches the face.
+  closestSegmentTriangle(out, [0.5, 0.25, -1, 0.5, 0.25, 3], TRIANGLE, 0);
+  assert.equal(touched.edge, -1);
 });

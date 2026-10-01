@@ -14,6 +14,10 @@ export function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
   return dx * dx + dy * dy + dz * dz;
 }
 
+/** The parameters, in `[0, 1]`, of the last closest pair found: `s` on the first segment, `t` on
+ *  the second. */
+export const pairParameters = { s: 0, t: 0 };
+
 /**
  * The closest points of segments `(p, q)` and `(r, s)` — six numbers each, start then end —
  * written to `out[0..3]` (on the first) and `out[3..6]` (on the second); returns the squared
@@ -50,6 +54,7 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
     else if (t > 1) [t, s] = [1, unit((b - c) / a)];
     // Stryker restore EqualityOperator
   }
+  [pairParameters.s, pairParameters.t] = [s, t];
   for (let k = 0; k < 3; k++) {
     out[k] = first[k] + s * (first[3 + k] - first[k]);
     out[3 + k] = second[k] + t * (second[3 + k] - second[k]);

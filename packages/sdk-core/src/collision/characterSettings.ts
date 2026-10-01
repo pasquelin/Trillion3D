@@ -141,9 +141,12 @@ export const RESPONSE_LEFT = 0.05;
 /** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
 export const REST_GLIDE = 1e-4;
 
+/** A micrometre: a rise or an overlap this small is the arithmetic's, not a step or a contact. */
+export const SLACK = 1e-6;
+
 /**
- * Passes of a move after each of its parts (`characterMove.ts`). Not derived, declared: each pass already resolves every triangle it
- * meets, measured from the moved capsule, so a second pass is only needed where a push re-enters
+ * Passes of a move after each of its parts (`characterMove.ts`). Not derived, declared: each
+ * pass already resolves every triangle it meets, measured from the moved capsule, so a second pass is only needed where a push re-enters
  * a surface already answered — a corner — and each further pass one more such re-entry. What
  * the passes leave is resolved by the next part or the next move. Sensitivity: the value trades
  * the overlap tests a crowded corner costs against how many re-entries one part settles; one

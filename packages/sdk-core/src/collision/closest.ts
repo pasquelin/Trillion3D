@@ -10,9 +10,19 @@
  * written into caller-owned arrays, so a query allocates nothing.
  */
 
-import { closestBetweenSegments, squaredGap, unit } from './segmentPair.ts';
+import { closestBetweenSegments, pairParameters, squaredGap, unit } from './segmentPair.ts';
 
 type Numbers = ArrayLike<number>;
+
+/**
+ * Where on the triangle the last `closestSegmentTriangle` pair lies: `edge` -1 inside its face,
+ * else the edge `e` from corner `e` to corner `e + 1`, at `along` in `[0, 1]` from its start — 0 or
+ * 1 being a corner. A contact on an edge two coplanar triangles share is read as the face's
+ * (`capsule.ts`).
+ */
+export const touched = { edge: -1, along: 0 };
+let edgeOf = -1,
+  alongOf = 0;
 
 const edge = new Float64Array(6),
   onEdge = new Float64Array(3),
@@ -46,7 +56,10 @@ function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number
     const h = planeSide(p, 0, v, at) / area;
     // Stryker disable next-line EqualityOperator: `out` holds three numbers, a 4th write is dropped
     for (let k = 0; k < 3; k++) out[k] = p[k] - h * normal[k];
-    if (insideTriangle(out[0], out[1], out[2], v, at, normal)) return h * h * area;
+    if (insideTriangle(out[0], out[1], out[2], v, at, normal)) {
+      edgeOf = -1;
+      return h * h * area;
+    }
   }
   // Stryker disable all: the edge distances `closestSegmentTriangle`'s edge pairs find (above)
   let best = Infinity;
@@ -59,6 +72,7 @@ function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number
     if (distance < best) {
       best = distance;
       out.set(candidate.subarray(0, 3));
+      [edgeOf, alongOf] = [e, t];
     }
   }
   return best;
@@ -118,6 +132,7 @@ export function closestSegmentTriangle(
   at: number,
 ) {
   const area = triangleNormal(normal, v, at);
+  touched.edge = -1;
   if (pierces(out, segment, v, at, area)) return 0;
   // A read past the segment or the triangle is NaN, never kept; in a tie either closest pair is
   // right, and the first is kept.
@@ -129,6 +144,7 @@ export function closestSegmentTriangle(
     if (distance < best) {
       best = distance;
       for (let k = 0; k < 3; k++) [out[k], out[3 + k]] = [tail[k], onEdge[k]];
+      [touched.edge, touched.along] = [edgeOf, alongOf];
     }
   }
   for (let e = 0; e < 3; e++) {
@@ -139,6 +155,7 @@ export function closestSegmentTriangle(
     if (distance < best) {
       best = distance;
       out.set(candidate);
+      [touched.edge, touched.along] = [e, pairParameters.t];
     }
   }
   // Stryker restore EqualityOperator
