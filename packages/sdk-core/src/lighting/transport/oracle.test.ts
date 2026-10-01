@@ -1,12 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { solveTransportOracle } from './oracle.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './limits.ts';
 import { ones, system } from './oracle.fixture.ts';
-import {
-  LIGHTING_TRANSPORT_FORMAT_VERSION,
-  LIGHTING_TRANSPORT_LIMITS,
-  type TransportSnapshot,
-} from './contracts.ts';
+import { LIGHTING_TRANSPORT_FORMAT_VERSION, type TransportSnapshot } from './contracts.ts';
 
 const SINGULAR_PIVOT = LIGHTING_TRANSPORT_LIMITS.singularPivot;
 

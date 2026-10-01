@@ -1,10 +1,10 @@
 import {
   LIGHTING_TRANSPORT_ALGORITHM_VERSION,
   LIGHTING_TRANSPORT_FORMAT_VERSION,
-  LIGHTING_TRANSPORT_LIMITS,
   type TransportSnapshot,
   type TransportOptions,
 } from './contracts.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './limits.ts';
 import { fail, checkpoint, progress } from './validation.ts';
 import { maximumResidual } from './step.ts';
 

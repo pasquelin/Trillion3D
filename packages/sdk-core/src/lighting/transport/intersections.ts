@@ -1,10 +1,9 @@
 import type { Scene, Surface } from '../scene/experimentScene.ts';
 import { fail } from './validation.ts';
-import { LIGHTING_TRANSPORT_LIMITS } from './contracts.ts';
+import { LIGHTING_TRANSPORT_LIMITS } from './limits.ts';
 import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
 export const EPSILON = 1e-7;
 export const SURFACE_STRIDE = 15;
-const { degenerateGram, grazing } = LIGHTING_TRANSPORT_LIMITS;
 
 /** Return surface geometry in a fixed buffer, including the inverse Gram matrix for skew rectangles. */
 export function packSurface(surface: Surface, output: Float64Array, offset: number): boolean {
@@ -14,7 +13,8 @@ export function packSurface(surface: Surface, output: Float64Array, offset: numb
   const uv = dotVector3(u, v);
   const vv = dotVector3(v, v);
   const determinant = uu * vv - uv * uv;
-  if (!(determinant > degenerateGram)) fail('INVALID_SCENE', 'Surface rectangle is degenerate');
+  if (!(determinant > LIGHTING_TRANSPORT_LIMITS.degenerateGram))
+    fail('INVALID_SCENE', 'Surface rectangle is degenerate');
   const values = [
     ...surface.origin,
     ...u,
@@ -51,7 +51,7 @@ export function intersectSurface(
     ny = packed[offset + 10],
     nz = packed[offset + 11];
   const denominator = nx * dx + ny * dy + nz * dz;
-  if (Math.abs(denominator) < grazing) return false;
+  if (Math.abs(denominator) < LIGHTING_TRANSPORT_LIMITS.grazing) return false;
   const t =
     (nx * (packed[offset] - ox) + ny * (packed[offset + 1] - oy) + nz * (packed[offset + 2] - oz)) /
     denominator;
