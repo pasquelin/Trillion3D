@@ -61,9 +61,10 @@ export function createShadowChanges(capacity: number) {
     boxEmpty(box, 0);
     return { box, min: box.subarray(0, 3), max: box.subarray(3, 6), movingOnly };
   });
-  /** The view of the last frame and this frame's, to compare them. */
+  /** The view of the last frame and this frame's, to compare them: this frame's in float32, the
+   *  precision a move must cross to count (`observeView`). */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
-    viewNow = new Float64Array(VIEW_NUMBERS);
+    viewNow = new Float32Array(VIEW_NUMBERS);
   const write = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
     for (let axis = 0; axis < 3; axis++) {
       min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis];
@@ -125,14 +126,13 @@ export function createShadowChanges(capacity: number) {
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
      * changed representation meanwhile enters the list as one box; while it moves, the union
-     * only grows. Returns true when the camera rests: the GPU draws the view in float32, and a view
-     * that moved by less than a float32 step — a chase camera easing toward a car at rest, by
-     * 1e-11 m a frame, for ever — is a move no float32 draw resolves: it asks nothing new (#831).
+     * only grows. Returns true when the camera rests: its numbers are weighed in float32, so a view
+     * that moved by less than a float32 step of them — a chase camera easing toward a car at rest,
+     * by 1e-11 m a frame — rests. Such a move is far below any page's texel (`pixelNear`): it asks
+     * nothing new, and the camera that crawls past a float32 step moves again (#831).
      */
     observeView(view: ShadowViewpoint) {
-      writeView(view, viewNow);
-      for (let i = 0; i < VIEW_NUMBERS; i++) viewNow[i] = Math.fround(viewNow[i]);
-      const still = keepNumbers(lastView, viewNow);
+      const still = keepNumbers(lastView, writeView(view, viewNow));
       if (still) release();
       return still;
     },
