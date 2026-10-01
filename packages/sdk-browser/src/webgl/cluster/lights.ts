@@ -54,8 +54,8 @@ export class WebglClusterLights {
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
   private lights: Light[] = [];
   private ltc: WebGLTexture;
-  private probe: WebglClusterProbe;
-  private fog: WebglClusterFog;
+  readonly probe: WebglClusterProbe;
+  readonly fog: WebglClusterFog;
   /** The scene's fog last read, and the lighting's form of it: read again when it is replaced. */
   private heldFog: Fog | null | undefined = null;
   private readFog: SceneFog | undefined;

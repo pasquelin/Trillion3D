@@ -4,8 +4,9 @@
 // is not there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lent.fixture.ts';
 import { loadImpostorAtlas } from './atlas.ts';
-import { createWebgpuTileLevels } from '../webgpu/tile/levels.ts';
+import { createHeldLevels } from '../texture/heldLevels.ts';
 import { createTextureLevelStore } from '../texture/levelStore.ts';
 import type { TextureLevelRequest, TextureLevelReader } from '../texture/levelReader.ts';
 import type { ImpostorMap, ImpostorMaps } from '../../../sdk-core/src/index.ts';
@@ -48,7 +49,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 test('the atlas reads each level once at its own url, held by the one store, a failure reported', async () => {
   const { reader, asked, store } = fakeReader();
   const failed: string[] = [];
-  const levels = createWebgpuTileLevels({
+  const levels = createHeldLevels({
     read: reader,
     onFailure: (key) => failed.push(key.sha256),
   });
