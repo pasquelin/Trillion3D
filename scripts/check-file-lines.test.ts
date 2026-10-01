@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lineCount, lineLimitViolations, nulSeparated } from './check-file-lines.ts';
+import { unitOf } from './check-cohesion-measure.ts';
+import {
+  keepsLineBound,
+  lineCount,
+  lineLimitViolations,
+  nulSeparated,
+} from './check-file-lines.ts';
 
 test('the null separator is an option, never a path behind the `--`', () => {
   // The fixed defect: `-z` placed at the end of arguments became the only filtered path, and the list
@@ -47,4 +53,48 @@ test('checks only selected files during a targeted run', () => {
     new Set(['changed.ts']),
   );
   assert.deepEqual(errors, []);
+});
+
+test('a runtime module is read by the cohesion gate instead, and is not reported here', () => {
+  // The whole point of the change: a 400-line runtime module is not a line-limit failure, it is a
+  // `check:cohesion` question about the functions inside it.
+  const runtime = 'packages/sdk-browser/src/webgpu/tile/wgsl.ts';
+  assert.equal(keepsLineBound(runtime), false);
+  assert.deepEqual(lineLimitViolations(new Map([[runtime, 400]])), []);
+});
+
+test('a test, a fixture and an index keep the bound: they are read whole', () => {
+  for (const file of [
+    'packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
+    'packages/sdk-browser/src/gpu/dag/uniforms.fixture.ts',
+    'packages/sdk-browser/src/gpu/dag/index.ts',
+  ]) {
+    assert.equal(keepsLineBound(file), true, file);
+    assert.equal(lineLimitViolations(new Map([[file, 400]])).length, 1, file);
+  }
+});
+
+test('`page-codec` keeps no `src/`, and its modules are read by the cohesion gate', () => {
+  // The two lists must agree: a path `check-file-lines` exempts and `check:cohesion` never reads
+  // would leave a file with no gate at all.
+  assert.equal(keepsLineBound('packages/page-codec/geometryPage.ts'), false);
+  assert.equal(unitOf('packages/page-codec/geometryPage.ts') !== null, true);
+  assert.equal(keepsLineBound('packages/sdk-node/src/cli/cli.mts'), false);
+  // A barrel keeps the bound and is read by the cohesion gate too: the overlap is harmless, and
+  // what matters is that no file is read by neither.
+  assert.equal(keepsLineBound('packages/sdk-node/src/index.mts'), true);
+  assert.equal(unitOf('packages/sdk-node/src/index.mts') !== null, true);
+});
+
+test('a Rust crate, a script, the site and the bench all keep the bound', () => {
+  for (const file of [
+    'packages/asset-compiler-rust/src/dag/layout.rs',
+    'scripts/check-file-lines.ts',
+    'site/app/main.tsx',
+    'bench/core/index.ts',
+    'tests/integration/engine-structure.test.ts',
+  ]) {
+    assert.equal(keepsLineBound(file), true, file);
+    assert.equal(lineLimitViolations(new Map([[file, 400]])).length, 1, file);
+  }
 });
