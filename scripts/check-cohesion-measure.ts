@@ -12,7 +12,7 @@
 import ts from 'typescript';
 
 /** Each package is its own namespace. */
-export const UNITS = [
+const UNITS = [
   'packages/sdk-core/src',
   'packages/sdk-browser/src',
   'packages/sdk-node/src',

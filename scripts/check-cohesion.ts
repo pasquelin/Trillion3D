@@ -14,10 +14,9 @@
 // and it falls as the tree is brought under it. What it does not measure is the number of
 // declarations a module holds: the tree decomposes by responsibility at a fine grain on purpose, and
 // a gate on that would condemn the style rather than a defect.
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { repositoryFiles } from './repository-files.ts';
+import { sourceFilesOf } from './repository-files.ts';
 import { gitPathsSync } from './git-paths.ts';
 import { functionsOf, isTestModule, unitOf, type Fn } from './check-cohesion-measure.ts';
 
@@ -69,13 +68,7 @@ export function changedFiles(root: string): Set<string> {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = resolve(import.meta.dirname, '..');
-  const tracked = repositoryFiles(root);
-  if (!tracked) throw new Error('Not a Git repository.');
-  const files = new Map(
-    tracked
-      .filter((file) => EXTS.test(file) && unitOf(file))
-      .map((file): [string, string] => [file, readFileSync(join(root, file), 'utf8')]),
-  );
+  const files = sourceFilesOf(EXTS, root, (file) => !!unitOf(file));
 
   const touched = process.argv.includes('--changed') ? changedFiles(root) : new Set<string>();
   const scoped = new Map([...files].filter(([file]) => !touched.size || touched.has(file)));
