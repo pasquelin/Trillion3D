@@ -94,3 +94,19 @@ test('a ray the pyramid keeps descending stops at the step cap, a miss', () => {
   assert.equal(hit, null);
   assert.equal(calls, REFLECTION_TRACE_STEPS);
 });
+
+// #831: the dark grain of a glossy car roof. A ray leaving its receiver's plane at a grazing angle
+// spans, over the next pixel, a depth range that holds that pixel's own depth on the plane: it
+// reads the receiver back. Lifted along the normal by a pixel's footprint (`boundedReflectionRay`),
+// its depth starts a pixel's plane slope ahead, and the plane stays behind it.
+test("a grazing ray from its receiver's plane hits that plane unless lifted off it", () => {
+  const slope = 0.001,
+    start = { x: 10.5, y: 1.5 },
+    plane = (x: number) => 0.5 + slope * (x + 0.5 - start.x);
+  const { bounds } = pyramid(64, 4, (x) => plane(x));
+  const delta = { x: 40, y: 0 },
+    rise = 0.8 * slope * delta.x;
+  assert.deepEqual(walk(start, delta, 0.5, 0.5 + rise, { x: 64, y: 4 }, 6, bounds), [11, 1]);
+  const lifted = 0.5 - slope;
+  assert.equal(walk(start, delta, lifted, lifted + rise, { x: 64, y: 4 }, 6, bounds), null);
+});
