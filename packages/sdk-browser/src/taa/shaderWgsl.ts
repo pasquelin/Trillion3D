@@ -24,19 +24,17 @@ export const TAA_PASS = 'Trillion3D temporal antialiasing';
  * keeps the silhouette stable when the camera turns. When a placement has moved, a geometry
  * pixel first goes through its own motion matrix — `previous·current⁻¹`, identity
  * for those that have not moved; otherwise nothing is read, neither identifier, nor record, nor matrix.
- * `coord` is the display pixel, `at` the render texel its depth and identifier were read at.
+ * `coord` is the display pixel, `id` the identifier of the render texel its depth was read at,
+ * read once by the resolve for its tag, its motion and its deformation.
  */
 export const taaReprojectWgsl = (deformation = true) => `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
-fn previousUv(coord:vec2i,depthValue:f32,at:vec2i)->vec3f{
+fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
  let ndc=vec2f((f32(coord.x)+0.5)*view.viewport.z*2.0-1.0,1.0-(f32(coord.y)+0.5)*view.viewport.w*2.0);
  var position=view.invViewProj*vec4f(ndc,depthValue,1.0);
  // A deformed surface was elsewhere in the last frame: its point moves back first (#357).
-${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(textureLoad(ids,at,0).r,position);}' : ''}
- if(view.params.z!=0.0){
-  let id=textureLoad(ids,at,0).r;
-  if(id!=0u){position=motion[placementOf(id)]*position;}
- }
+${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(id,position);}' : ''}
+ if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
  let previous=view.prevViewProj*position;
  if(previous.w<=0.0){return vec3f(0.0,0.0,0.0);}
  let uv=vec2f(previous.x/previous.w*0.5+0.5,0.5-previous.y/previous.w*0.5);
@@ -79,10 +77,10 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerWgsl(f
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
 ${taaShareTap(asIs, blended)}${layer.layerWgsl(filtered, 'tap')} }}
- let centre=coord;let reach=1.0;let tag=f32(placementTag(centre))/255.0;
+ let centre=coord;let reach=1.0;let id=textureLoad(ids,centre,0).r;let tag=f32(tagOf(id))/255.0;
  if(view.params.y==0.0){return ${layer.taaOut(asIs, filtered)};}
- let previous=previousUv(coord,textureLoad(depth,coord,0),coord);
-${taaHistoryBlend(asIs, filtered)}
+ let previous=previousUv(coord,textureLoad(depth,coord,0),id);
+${taaHistoryBlend(asIs, filtered, false, 'id')}
 }`;
 };
 

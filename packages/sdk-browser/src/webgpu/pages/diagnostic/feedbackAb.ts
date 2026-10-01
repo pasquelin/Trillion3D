@@ -2,7 +2,7 @@ import { makeFeedbackTarget } from '../prepare/targets.ts';
 import { sha256Hex } from '../../../measurement/sha256Hex.ts';
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
-import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
+import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts';
 import { blendWritesShare } from '../prepare/asIsShareTarget.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
