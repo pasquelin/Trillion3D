@@ -7,7 +7,6 @@ import { createShadowAdmission } from './admit.ts';
 import { planLights } from './planLights.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
-import { resizeShadowPool } from './poolResize.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
@@ -175,15 +174,15 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
       restFrame = -1;
       settledStamp = -1;
     },
-    /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */
-    resize(side: number, poolLayers: number) {
-      const moved = resizeShadowPool(pool, table, side, poolLayers),
-        counted = requests.counts;
-      thresholds.follow(moved);
+    /** The pool at the size the device granted (`webgpu/shadow/poolSize.ts`), once, before any
+     *  page is mapped: it is never resized after, so no page ever changes place (#831). */
+    size(side: number, poolLayers: number) {
+      const counted = requests.counts;
+      pool.resize(side, poolLayers);
+      thresholds.sized();
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
       shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun, gpu);
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
-      return moved;
     },
   };
   return shadowPlan;

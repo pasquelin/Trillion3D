@@ -7,50 +7,36 @@ options a page sets (`castShadow`, `transparentShadow`) are [SDK.md](SDK.md#ligh
 ## Pages and the pool
 
 Every shadow light has a virtual map cut into pages of 128 texels, one page-table word per virtual
-page. Pages are drawn in a pool sized from what the scene reads (`poolDemand.ts`), allocated only
-once a light casts: a world without one pays neither its bytes nor its per-frame work.
+page. Pages are drawn in a pool of physical pages allocated once, at the first frame a light casts
+(`webgpu/shadow/poolSize.ts`): a world without one pays neither its bytes nor its per-frame work.
 
 A pixel reads the level whose texel is at most its footprint and more than half of it, so a
 `64 × 64`-pixel tile on one surface reads at most the 2 × 2 pages it straddles, plus a third while
 coarser levels stand in for pages not drawn yet: a frame asks for at most
 `⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`shadowPoolSize`): a bound the memory budget reserves at
 3840 × 2160, never what the pool holds. A real frame reads far less — a one-cube scene a few
-hundred pages at 3456 × 2234 —, so the pool holds what the latest report asked, twice — the report
-being read and the next — and a quarter more (`demandPoolPages`), in the fewest square layers the
-device's texture side holds (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`). Before any report,
-the first frame that casts is granted the budget's whole pool, as the reference engine allocates its physical
-pages up front from a setting (`a reference setting`): no first frame reads a coarser
-level for want of pages. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
+hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
+finest mip is 32 × 32 pages (`lampFaceSize`).
 
-| Case                                                                            | Pages                               | Pool                                                                                                                                                        |
-| ------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| first frame, before any report                                                  | the budget's (`SHADOW_ATLAS_BYTES`) | two layers of 53², 5 618 pages, 351 MiB, until the first report; no static layer yet                                                                        |
-| a frame that asks 300 pages                                                     | 750 held                            | 28 × 28 = 784 pages, 49 MiB; as much again for the static layer once something moves; half as much for the transmittance layer once a blended surface casts |
-| a frame that asks 2 000 pages                                                   | 5 000 held                          | two layers of 51² (5 202 pages, 325 MiB) on a device 8 192 texels wide                                                                                      |
-| the cap, the grant's atlas share (`SHADOW_ATLAS_BYTES`, one sun at 3840 × 2160) | —                                   | two layers of 53², 5 618 pages, 351 MiB                                                                                                                     |
-
-The first frame a light casts grants the budget's pool, and its first report sizes it to what it
-asked; the static layer waits for that size (`shadowPoolSized`), the pages drawn whole meanwhile.
-After each report the pool follows the demand (`webgpu/shadow/poolResize.ts`, #1208, #1345): a
-report that asks more than half the pool — the two reports it holds would not fit — grows it; one
-that asks for a pool at most half as large shrinks it to the most they asked, sixty reports in a
-row (`SHRINK_REPORTS`) while anything moves, at once in a scene at rest — a still view whose report
-asks as many pages as the one before: it asks what it keeps asking, and sends no report once its
-image holds. A resize is by the
-same rule and grant, the frame held while the device answers: every page that
-fits keeps its entry, state and depth, copied texel for texel with its transmittance
-(`gpu/shadow/pageMoves.ts`), since reads are texel-exact (#831), so nothing is drawn again; a
-smaller pool keeps the pages it would evict last, every floor first. The batch capacity and request
-list follow the pool; the static layer is rebuilt at the new size by the next move. A refused
-resize keeps the pool, said under `gpu-out-of-memory`, and is not asked again until the demand asks
-another size. A demand past the cap is held there, said `ceiling` in the `shadow-pool` diagnostic,
-and once as a warning when the next report still asks past it, as the reference engine warns of a physical page
-pool overflow (`sayShadowCeiling`). What the pool cannot hold is refused at
-allocation, published as memory (`shadowPagesOverflow`, #542) and read at the coarser level; pages
-are evicted least recently read first. Held at the ceiling under a still view, the GPU evicts none
-the view asked since it rested (`shadowKeptFrom`, the host's still cycle of #26): the jitter phases
-no longer map each other's pages out every frame, what they ask past the pool is refused, and the
-image rests (`ceilingHold.test.ts`).
+**The pool is fixed, as the reference engine's** (#831). It holds what the display's whole screen reads, or the canvas as it opens if wider (`shadowPoolScreen`), so a window put full screen later keeps its pages —
+one shadowed light's smooth read and a third more while pages wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉`
+pages (`screenPoolPages`): 2 601 at 3456 × 2234, 163 MiB of depth, above falling-boxes' 2 000 —,
+chosen once as the reference engine sets `a reference setting`, or what the session's
+`shadowPoolPages` option sets; lights past the first share it. It lies in the fewest square layers the device's texture side holds
+(`shadowPoolShape`), within the memory budget's pool (`SHADOW_ATLAS_BYTES`). It is granted at the
+first frame that casts, before any report, so no first frame reads a coarser level for want of
+pages, and never resized after: a page keeps its place, its depth, its static layer and its table
+word for as long as it is mapped, and pages are evicted least recently read first. A pool that
+followed the demand (#1208, #1345) shrank and grew again under a moving view — every page copied,
+the static layer let go and every page then drawn whole, and the pages the GPU had mapped since the
+last report left with table words naming pages that held other entries after the copy: the dark
+page-shaped shards and the grain of drive-a-car (`poolFixed.test.ts`). A frame that asks more than
+the pool holds reads the coarser level past it, published as memory (`shadowPagesOverflow`, #542),
+and said once in the `shadow-pool` diagnostic (`ceiling`), as the reference engine warns of a physical page pool
+overflow (`webgpu/shadow/poolCeiling.ts`). While the pool holds less than two reports and the view
+rests, the GPU evicts none the view asked since it rested (`shadowKeptFrom`, the host's still cycle
+of #26): the jitter phases no longer map each other's pages out every frame, what they ask past the
+pool is refused, and the image rests (`ceilingHold.test.ts`).
 
 ## Memory
 
@@ -174,7 +160,12 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   sun page its view cropped by the orthography), its cull volume a lamp page's cone or a sun page's
   box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
   every resident page of every caster, whatever the camera or a light cut selected, so a caster the
-  camera does not see still shades a receiver it sees; each kept row is one `(region, row)` pair. It
+  camera does not see still shades a receiver it sees. Of a surface the residency holds at several
+  levels, only the finest is kept — the cut rule at a threshold of 0 (`isFinest`,
+  `page/cut/readiness.ts`), written in each row's mobility word (`MOBILITY_COARSER`) and again when
+  the row's readiness moves (`gpuCutStream.ts`) —: a coarser level drawn over it lifted the depth
+  above the surface and shaded a compiled terrain in triangles (#831). Each kept row is one
+  `(region, row)` pair. It
   counts each region's pairs first; one workgroup then scans the counts over its lanes (the shared
   lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
   list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
@@ -268,12 +259,17 @@ report proves it reads only drawn pages.
 ## The static layer: moving objects redraw their own casters
 
 A placement turns moving the first time its pose or its row's flag actually changes
-(`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, or a row inside a written range,
-is no move — and stays so. From then on the pool keeps a static layer, a second depth texture the
+(`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, a row inside a written range, or
+a pose that moves no corner of the caster's box by one float32 step at its reach (`poseHoldsBox`:
+a resting body's pose rounded again, which the GPU's float32 world cannot show, #831) is no move —
+and stays so. From then on the pool keeps a static layer, a second depth texture the
 pool's size, allocated at that first move: a scene where nothing moves pays neither its bytes nor
 its pass. A page drawn in full writes its static casters into the layer, restores itself from it and
 draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
-alone, split by one word per row in the page cull. A mover never goes back into the layer (#993):
+alone, split by one word per row in the page cull. Each page keeps, of the moving casters, only
+the clusters whose sphere meets its own light-space box (`keepCaster`, `gpu/shadow/cullShader.ts`):
+a car moved half a metre stales two pages a level, each drawing only its parts over it, never a
+parked car's (`movingCar.test.ts`). A mover never goes back into the layer (#993):
 staying moving costs its casters only in the pages another mover makes the frame redraw, while
 rejoining would cost two layer redraws per pause, static casters included, and a rest timer would be
 a scene-tuned constant; revisit only if falling boxes and a walker or car at 1728×1117 CSS, DPR 2,
@@ -334,8 +330,10 @@ pause/resume not run. The astrolabe is the counterexample: every caster of its p
 layer restores almost nothing; a cache percentage is no measure of it. Physical pages are memory,
 not frame time: the pool past one layer (#818) left the falling boxes' GPU envelope unchanged and
 raised their peak memory by 118 MB (1 410 against 1 292 MB, #850's baseline; the walker 1 465, the
-car 1 417), its layer doubling with it until the runtime resize repays it. Later batches post their
-numbers on the issues they measure.
+car 1 417), its layer doubling with it. Since #831 the pool is fixed once at what the session's
+screen reads, its static layer as many, whatever the scene: 2 601 pages at 3456 × 2234, two
+170 MB textures, where the 4 096 pages declared before held drive-a-car's shadows at 555 MB. Later batches post their numbers on the issues they
+measure.
 
 ## Casters: the light cut
 

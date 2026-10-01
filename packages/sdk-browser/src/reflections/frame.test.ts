@@ -75,8 +75,8 @@ test('pages the GPU draws itself change the reflected source epoch, a lost snaps
   plan.gpu.hear(snapshot(4, 0, 5));
   const lost = epochOf(rt);
   assert.notDeepEqual(lost, landed, 'the next snapshot shows the draw its lost one listed');
-  plan.resize(plan.pool.side, plan.pool.layers);
-  assert.deepEqual(epochOf(rt), lost, 'a resized pool keeps the count');
+  plan.size(plan.pool.side, plan.pool.layers);
+  assert.deepEqual(epochOf(rt), lost, 'the granted pool keeps the count');
 });
 
 test('#1346: while page draws run every frame, a snapshot read frames later still counts them', () => {

@@ -7,7 +7,7 @@ import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
-import { shadowKeptFrom } from './poolResize.ts';
+import { shadowKeptFrom } from './poolCeiling.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';

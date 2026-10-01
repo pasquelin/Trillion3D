@@ -8,11 +8,7 @@ import {
   REFLECTION_PLACEMENT_VERSIONS,
   type ReflectionHistoryFrame,
 } from './historyFrame.ts';
-import {
-  REFLECTION_CHANGE_KEPT,
-  REFLECTION_MOVING_KEPT,
-  REFLECTION_STILL_FRAMES,
-} from './resolveWgsl.ts';
+import { REFLECTION_CHANGE_KEPT, REFLECTION_STILL_FRAMES } from './resolveWgsl.ts';
 
 // The last depth and identifiers are the reflection source's (`source.ts`).
 const kept = { depth: {} as GPUTextureView, ids: {} as GPUTextureView };
@@ -43,7 +39,8 @@ test('with live motion a camera move and a moved source keep the history, reproj
       end() {},
     }),
   } as unknown as GPUCommandEncoder;
-  const params = () => Array.from(gpu.writes.at(-1)!.data.slice(36, 39));
+  const params = () => Array.from(gpu.writes.at(-1)!.data.slice(36, 39)),
+    clipped = () => gpu.writes.at(-1)!.data[40];
   const step = (change: () => void) => {
     frame.frame++;
     change();
@@ -58,10 +55,13 @@ test('with live motion a camera move and a moved source keep the history, reproj
   step(() => {});
   step(() => {});
   assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'still: whole window, motion read');
+  assert.equal(clipped(), 0, 'still: nothing clipped');
   step(() => (frame.camera = [...IDENTITY_MATRIX4.slice(0, 12), 0.5, 0, 0, 1]));
-  assert.deepEqual(params(), [1, REFLECTION_MOVING_KEPT, 1], 'a camera move keeps it');
+  assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a camera move keeps it whole');
+  assert.equal(clipped(), 1, 'clipped to the neighbourhood (#831)');
   step(() => frame.epoch[0]++);
-  assert.deepEqual(params(), [1, REFLECTION_MOVING_KEPT, 1], 'a moved source keeps it');
+  assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a moved source keeps it whole');
+  assert.equal(clipped(), 1);
   assert.equal(history.reuse, false);
   // #1342: a relit source kept its old reflections; no motion brings old lighting to the new one.
   step(() => frame.lighting[0]++);
