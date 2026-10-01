@@ -46,10 +46,7 @@ export type PlacementIndex = {
  * root into `into` — the engine's one index, a new one if none —, which it returns. What an engine
  * does once its roots were laid out, grown, mounted or removed, before any reader looks one up.
  */
-export function postPackedBases(
-  roots: readonly Ranked[],
-  into: Partial<PlacementIndex> = {},
-): PlacementIndex {
+export function postPackedBases(roots: readonly Ranked[], into?: PlacementIndex): PlacementIndex {
   let packed = 0;
   for (let rank = 0; rank < roots.length; rank++) {
     roots[rank].packedBase = packed;
@@ -63,7 +60,5 @@ export function postPackedBases(
     baseOfRoot[rank] = base;
     for (let at = base; at < end; at++) rootOfPacked[at] = rank;
   }
-  into.baseOfRoot = baseOfRoot;
-  into.rootOfPacked = rootOfPacked;
-  return into as PlacementIndex;
+  return Object.assign(into ?? {}, { baseOfRoot, rootOfPacked });
 }
