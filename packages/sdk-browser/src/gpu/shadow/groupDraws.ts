@@ -16,7 +16,7 @@ const BINDINGS = [4, 5, 6, 7];
  * (`shadowTransmittanceDraws`) from the group's entries, against the pool's depth (binding 0 of
  * `blendLayout`). Group 0 is the page rows the GPU pages' draws bind (`pageLayout`,
  * `freshDraws.ts`), group 1 the faces', group 2 its own (`layout`, `blendLayout`). A lamp group's
- * draws are the sun's, or, where the device clips by distances (`lamps`), their clipped vertex
+ * draws are the sun's, or, where the device clips by distances (`clipsLampGroups`), their clipped vertex
  * entries (`SHADOW_GROUP_LAMP_WGSL`), which spare the overdraw past the page the fragment discards.
  * Compiled off the frame by `prepare` and `prepareBlend`, or at their first use
  * (`preparedPipeline`).
@@ -26,7 +26,6 @@ export function shadowGroupDraws(
   module: GPUShaderModule,
   pageLayout: GPUBindGroupLayout,
   faceLayout: GPUBindGroupLayout,
-  lamps = clipsLampGroups(device),
 ) {
   const entries = BINDINGS.map((binding) => ({
     binding,
@@ -63,20 +62,22 @@ export function shadowGroupDraws(
     blended: undefined as readonly [GPURenderPipeline, GPURenderPipeline] | undefined,
   });
   // A sun group's draws; a lamp group's own where the device clips each caster to its page.
-  const kinds = [kind('group'), ...(lamps ? [kind('group_lamp')] : [])];
+  const sun = kind('group'),
+    lamp = clipsLampGroups(device) ? kind('group_lamp') : sun,
+    kinds = [...new Set([sun, lamp])];
   return {
     layout,
     blendLayout,
     prepare: () => Promise.all(kinds.flatMap((k) => [k.opaque.prepare(), k.cutout.prepare()])),
     prepareBlend: () => Promise.all(kinds.map((k) => k.blend.prepare())),
     /** The opaque and cutout draws of a sun's group, or a lamp's (`lamp`). */
-    made: (lamp = false) => {
-      const k = kinds[+lamp] ?? kinds[0];
+    made: (lamps = false) => {
+      const k = lamps ? lamp : sun;
       return (k.made ??= { opaque: k.opaque.get(), cutout: k.cutout.get() });
     },
     /** The transmittance layer's two draws of a sun's group or a lamp's, depth then colour. */
-    blended: (lamp = false) => {
-      const k = kinds[+lamp] ?? kinds[0];
+    blended: (lamps = false) => {
+      const k = lamps ? lamp : sun;
       return (k.blended ??= k.blend.made().draws);
     },
   };
