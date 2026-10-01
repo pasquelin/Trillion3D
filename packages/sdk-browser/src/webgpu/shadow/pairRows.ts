@@ -11,7 +11,7 @@ const ROW_STEP = 64;
 /** Pairs the kept list holds per page of the pool, sized once with it and never grown (#831), as
  *  the reference engine's culling buffers are fixed (`a reference setting`): a page's texels over the
  *  32 a kept cluster covers at least. A page past them waits, whole, for the host. */
-export const PAIRS_PER_PAGE = (SHADOW_PAGE * SHADOW_PAGE) / 32;
+const PAIRS_PER_PAGE = (SHADOW_PAGE * SHADOW_PAGE) / 32;
 
 /** The pairs the GPU draws at most a frame, for a pool of `pages` pages: its pair list's fixed
  *  size. A frame maps at most `SHADOW_GPU_PAGES_PER_FRAME` pages: a list of the whole pool's pairs
