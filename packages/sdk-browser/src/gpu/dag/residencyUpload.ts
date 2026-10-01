@@ -141,5 +141,11 @@ export function createDagResidencyUpload(resources: {
     },
     /** Whether a packed page is the finest representation its residency holds. */
     isFinest: { value: readiness.isFinest },
-  }) as typeof apply & { readonly hostBytes: number; readonly isFinest: (page: number) => boolean };
+    /** The rule's `resident(c)` of a packed page, as the last apply settled it. */
+    isReady: { value: readiness.isReady },
+  }) as typeof apply & {
+    readonly hostBytes: number;
+    readonly isFinest: (page: number) => boolean;
+    readonly isReady: (page: number) => boolean;
+  };
 }

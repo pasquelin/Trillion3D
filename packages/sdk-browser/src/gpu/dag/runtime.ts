@@ -12,7 +12,7 @@ import { createDagDispatch } from './dispatch.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
 import { MASK_SECTION, flagLocation } from './split.ts';
 import type { createDagResources } from './resources.ts';
-import { createWorldResidencyMirror } from './worldMirror.ts';
+import { createWorldResidency } from './worldResidency.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
@@ -55,14 +55,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
   // A packed world DAG reads the scene's residency through its mirror (#1332), fed by the rows
   // taken and parked and the world bundles held (#1333); without it the rows' flags go up as they
-  // are.
-  const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world });
-  /** What the world DAG's mirror moved outside the rows' residency goes up now: a cut in hand
-   *  drew under the residency before. */
-  const handWorld = () => {
-    const { flags, changes } = mirror!.flush();
-    if (changes.count && uploadResidency?.(flags, changes)) voidCuts();
-  };
+  // are. What it moves outside the rows' residency goes up at once: a cut in hand drew before.
+  const world = createWorldResidency(resources, uploadResidency);
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -78,13 +72,13 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       return (
         (uploadResidency?.hostBytes ?? 0) +
         (poolList?.entries.byteLength ?? 0) +
-        (mirror?.hostBytes ?? 0)
+        (world?.hostBytes ?? 0)
       );
     },
     maskBuffer: resources.flagParts[mask.part],
     maskOffset: mask.word,
     pageCount,
-    packsWorld: !!mirror,
+    packsWorld: !!world,
     get worldRevision() {
       return state.worldRevision;
     },
@@ -123,22 +117,22 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       // The mark travels behind the record shift (`primitiveFrameWords`).
       writeFrameWord(w, 3, mark);
     },
-    placeWorld(w, object) {
-      if (state.disposed || state.dead || !mirror) return;
-      mirror.seat(w, object);
-      handWorld();
+    placeWorld(w, object, pose) {
+      if (!state.disposed && !state.dead && world?.seat(w, object, pose)) voidCuts();
     },
     holdWorldBundles(pinned, held) {
-      if (state.disposed || state.dead || !mirror) return false;
-      mirror.holdBundles(pinned, held);
-      handWorld();
+      if (state.disposed || state.dead || !world) return false;
+      if (world.hold(pinned, held)) voidCuts();
       return true;
     },
     updateResidency(next, changes, moved) {
       if (state.disposed || state.dead || !uploadResidency) return false;
-      if (mirror) ({ flags: next, changes } = mirror.update(next, changes));
-      if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (!uploadResidency(next, changes, moved)) return false;
+      if (!world && next.length !== pageCount)
+        throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
+      const uploaded = world
+        ? world.update(next, changes, moved)
+        : uploadResidency(next, changes, moved);
+      if (!uploaded) return false;
       voidCuts();
       return true;
     },

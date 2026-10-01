@@ -49,7 +49,7 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  let bmin=boxMin(r);let bmax=boxMax(r);
  if(outsideAhead(w,bmin,bmax)){return;}
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
- let pixels=clusterPixels(cluster,e,stretch,focal);
+ let pixels=pagePixels(w,r,cluster,e,stretch,focal);
  if(!selects(pixels,views[vi].pixelError)){return;}
  emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }

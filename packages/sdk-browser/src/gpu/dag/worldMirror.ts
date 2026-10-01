@@ -22,26 +22,16 @@ import type { ResidencyChanges } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts';
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts';
-
-/** The ranks of a world DAG grouped by `keys` (one per rank, -1 for none): each key's ranks are
- *  `ranks[first[k]]` to `ranks[first[k + 1]]`, built once in two passes. */
-function rankIndex(keys: ArrayLike<number>) {
-  let count = 0;
-  for (let rank = 0; rank < keys.length; rank++) count = Math.max(count, keys[rank] + 1);
-  const first = new Uint32Array(count + 1),
-    ranks = new Uint32Array(keys.length);
-  for (let rank = 0; rank < keys.length; rank++) if (keys[rank] >= 0) first[keys[rank] + 1]++;
-  for (let k = 0; k < count; k++) first[k + 1] += first[k];
-  const filled = first.slice(0, count);
-  for (let rank = 0; rank < keys.length; rank++)
-    if (keys[rank] >= 0) ranks[filled[keys[rank]]++] = rank;
-  return { count, first, ranks };
-}
+import { createWorldSeats, rankIndex } from './worldSeats.ts';
 
 /** The mirror of `packed`, whose `world` root (`packed.cutLinks`), packed last, is the world DAG
  *  with `origins` per rank (`worldRootDag`): the placed object of an object root, -1 otherwise;
- *  and `bundles`, the world bundle holding a super-root's page, -1 for an object root. */
-export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<PackedDag, 'world'>>) {
+ *  and `bundles`, the world bundle holding a super-root's page, -1 for an object root. `ready`, the
+ *  cut rule's readiness of a packed page, which the objects' seats read (`worldSeats.ts`). */
+export function createWorldResidencyMirror(
+  packed: PackedDag & Required<Pick<PackedDag, 'world'>>,
+  ready: (page: number) => boolean = () => false,
+) {
   const { root, origins, bundles } = packed.world;
   const { pageBase, pageCount } = packed.cutLinks[root];
   if (pageBase + pageCount !== packed.pageCount) throw new Error('GPU_WORLD_DAG_NOT_LAST');
@@ -50,7 +40,8 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
   // Each object's world ranks by origin, each bundle's super-roots by bundle.
   const { count: objects, first, ranks } = rankIndex(origins),
     byBundle = rankIndex(bundles);
-  const flags = new Uint32Array(packed.pageCount);
+  const flags = new Uint32Array(packed.pageCount),
+    seats = createWorldSeats(packed, pageBase, ready);
   const pageWorlds = new Uint32Array(
     packed.pageCones.buffer,
     packed.pageCones.byteOffset,
@@ -83,29 +74,21 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
     changed.add(page);
     return true;
   };
-  /** Whether every root of placement `w`'s cover is resident: a primitive without its group
-   *  structure is all roots. */
-  const covers = new Map<number, boolean>();
-  const coverResident = (w: number) => {
-    const known = covers.get(w);
-    if (known !== undefined) return known;
-    const resident = readCover(w);
-    covers.set(w, resident);
-    return resident;
-  };
-  const readCover = (w: number) => {
-    const { structure, pageBase: base, pageCount: count } = packed.cutLinks[w];
-    if (structure) return structure.roots.every((root) => flags[base + root] !== 0);
-    for (let page = base; page < base + count; page++) if (!flags[page]) return false;
-    return true;
-  };
   const mirror = (object: number) => {
     const w = placementOf[object],
-      value = w >= 0 && coverResident(w) ? 1 : 0;
+      value = w >= 0 && seats.coverResident(w) ? 1 : 0;
     for (let at = first[object]; at < first[object + 1]; at++) write(pageBase + ranks[at], value);
   };
+  /** Each of `pages` written as it reads now (`worldSeats.ts`). */
+  const reread = (pages: Iterable<number>) => {
+    for (const page of pages) write(page, seats.value(page));
+  };
   const scenePage = (scene: ArrayLike<number>, page: number) => {
-    if (!write(page, scene[page] ? 1 : 0)) return;
+    const value = scene[page] ? 1 : 0,
+      before = seats.raw[page];
+    seats.raw[page] = value;
+    write(page, seats.value(page));
+    if (before === value) return;
     const own = objectsOf.get(pageWorlds[page]);
     if (own) for (const object of own) dirty.add(object);
   };
@@ -122,6 +105,7 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
     const w = object < objects ? placementOf[object] : -1;
     if (w < 0) return;
     placementOf[object] = -1;
+    reread(seats.unseat(w));
     const own = objectsOf.get(w)!;
     own.delete(object);
     if (!own.size) objectsOf.delete(w);
@@ -139,14 +123,17 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
         byBundle.first.byteLength +
         byBundle.ranks.byteLength +
         placementOf.byteLength +
-        changed.byteLength
+        changed.byteLength +
+        seats.hostBytes
       );
     },
-    /** Object `object` (an `origin`) is drawn by scene placement `w` (`packed.cutLinks`). */
-    place(object: number, w: number) {
+    /** Object `object` (an `origin`) is drawn by scene placement `w` (`packed.cutLinks`), posed by
+     *  `world`, on which its roots link to their world ranks (`worldSeats.ts`). */
+    place(object: number, w: number, world?: ArrayLike<number>) {
       if (object >= objects || placementOf[object] === w) return;
       unplace(object);
       placementOf[object] = w;
+      if (world) reread(seats.seat(w, ranks.subarray(first[object], first[object + 1]), world));
       const own = objectsOf.get(w);
       if (own) own.add(object);
       else objectsOf.set(w, new Set([object]));
@@ -154,10 +141,10 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
     },
     unplace,
     /** Scene placement `w` draws object `object` from now on, or none (-1): a row taken or parked. */
-    seat(w: number, object: number) {
+    seat(w: number, object: number, world?: ArrayLike<number>) {
       const own = objectsOf.get(w);
       if (own) for (const left of own) if (left !== object) unplace(left);
-      if (object >= 0) this.place(object, w);
+      if (object >= 0) this.place(object, w, world);
     },
     /** The world bundles held now: the `pinned` top and `held`, ascending (`WorldRootsHold`). A
      *  super-root is resident while its bundle is; only the bundles that moved are written. */
@@ -165,6 +152,7 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
       const next = new Set(held);
       for (let b = heldPinned; b < Math.min(pinned, byBundle.count); b++) holdBundle(b, true);
       heldPinned = Math.max(heldPinned, pinned);
+      reread(seats.present(heldPinned > 0));
       for (const b of heldNow) if (!next.has(b)) holdBundle(b, false);
       for (const b of next) if (!heldNow.has(b)) holdBundle(b, true);
       heldNow = next;
@@ -178,11 +166,22 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
       }
       for (const object of dirty) mirror(object);
       dirty.clear();
-      covers.clear();
+      seats.covers.clear();
       sortPages(changed.list, changed.count);
       handed = true;
-      return { flags, changes: moved };
+      return { flags, changes: moved, links: seats.takeMoved() };
     },
+    /** The world pages whose readiness the cut's residency moved: the roots linked to them read
+     *  again (`worldSeats.ts`), handed over as `flush` does. */
+    reread(pages: readonly number[]) {
+      for (const page of pages) {
+        const own = page >= pageBase ? seats.pageOf(page - pageBase) : undefined;
+        if (own !== undefined) write(own, seats.value(own));
+      }
+      return this.flush();
+    },
+    /** Placement `w`'s link words: the first, and how many (`worldLinks.ts`). */
+    linkWords: (w: number) => [seats.links.base(w), seats.links.words(w)],
     /**
      * The scene's residency `scene` — the rows' flags, one per scene page — at the pages `changes`
      * names (every page without), mirrored onto the world DAG (`flush`).

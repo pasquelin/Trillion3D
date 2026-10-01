@@ -48,7 +48,7 @@ test('resident cut: cache and recompute draw the same ancestors of missing pages
 
 test('degenerate cone: hasBox is zero for every page, coneRejects always false', () => {
   const { dag, roots } = packed(dagFixture());
-  const at = coldBase(dag.pageCount);
+  const at = coldBase(dag.pageCount, dag.worldCount);
   for (let r = 0; r < dag.recordCount; r++) dag.pageCones[at + r * PAGE_CONE_FLOATS + 7] = 0;
   const cam = wideCamera();
   const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);

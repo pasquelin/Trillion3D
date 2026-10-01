@@ -26,8 +26,7 @@ import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clust
 import { stagedRequestsWord } from './readoutWords.ts';
 export { SELECTION_HEADER_WORDS, evictionWord, EVICTION_BURST } from './readoutWords.ts';
 
-/** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
- *  stride to sixteen bytes — the twelfth word is that padding. */
+/** Words of the hot record: `struct Cluster` of the shader, twelve, a sixteen-byte stride. */
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
 export const COLD_WORDS = 13;
@@ -102,15 +101,22 @@ export const childBase = (pageCount: number) => residentBase(pageCount) + reside
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
 /** First word of the key column, one per page: its content key (`evict.ts`). */
 export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount);
-/** First cold record, behind the bit sets, the pool's list and the key column. */
-export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
+/** First word of the link column, one per placement: where its world links start (`worldLinks.ts`,
+ *  #1333), `SELECTION_NONE` for a placement linked to no world rank. */
+export const linkBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
+/** First cold record, behind the bit sets, the pool's list, the key and link columns. */
+export const coldBase = (pageCount: number, worldCount: number) =>
+  linkBase(pageCount) + Math.max(1, worldCount);
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,
   HOT_PARENT_SPHERE = 4,
   HOT_LOD_ERROR = 8,
   HOT_PARENT_ERROR = 9,
-  HOT_FLAGS = 10;
+  HOT_FLAGS = 10,
+  /** A root cluster's rank among its primitive's roots (`structure.roots`), `SELECTION_NONE` for
+   *  any other: which of its placement's world links it reads (`worldLinks.ts`, #1333). */
+  HOT_ROOT = 11;
 /** Cold field ranks, in the order `shader/recordWgsl.ts` reads them by word. */
 export const COLD_CONE = 0,
   COLD_MIN = 4,

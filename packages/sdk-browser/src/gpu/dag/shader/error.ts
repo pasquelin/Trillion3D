@@ -12,6 +12,8 @@
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
 import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts';
+import { LINK_ERROR, LINK_PAGE, LINK_WORDS } from '../worldLinks.ts';
+import { SELECTION_NONE } from '../../core/selection.ts';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
@@ -46,6 +48,23 @@ fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
  let parent=select(cluster.parentError,cluster.parentError+2.0*deformReach,cluster.parentError>=0.0);
  return vec2f(projected(parent,cluster.parentSphere,e,stretch,focal),projected(own,cluster.sphere,e,stretch,focal));
 }
+/** \`clusterPixels\` of record \`r\` on placement \`w\`: a root linked to its world rank whose parent
+ *  stands (\`linkHolds\`) projects that parent, in the placement's frame (\`../worldLinks.ts\`). */
+fn pagePixels(w:u32,r:u32,cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
+ let pixels=clusterPixels(cluster,e,stretch,focal);let at=linkOf(w,r);
+ if(!linkHolds(at)){return pixels;}
+ let sphere=vec4f(linkWord(at,0u),linkWord(at,1u),linkWord(at,2u),linkWord(at,3u));
+ return vec2f(projected(linkWord(at,${LINK_ERROR}u)+2.0*deformReach,sphere,e,stretch,focal),pixels.y);
+}
+/** The link of record \`r\`'s root on placement \`w\`, \`LINK_NONE\` unless both name one. */
+fn linkOf(w:u32,r:u32)->u32{return linkAt(linkBaseOf(w),clusterAt(r).root);}
+fn linkAt(base:u32,root:u32)->u32{return select(base+root*${LINK_WORDS}u,LINK_NONE,base==LINK_NONE||root==LINK_NONE);}
+/** Whether link \`at\` names a world rank whose parent stands: ready, its group's members held. A
+ *  world rank not ready stands for no parent, and its root reads none, as an unlinked root. */
+fn linkHolds(at:u32)->bool{return at!=LINK_NONE&&linkedReady(coldAt(at+${LINK_PAGE}u));}
+fn linkedReady(page:u32)->bool{return page!=LINK_NONE&&(views[0u].residentCut==0u||isResident(page));}
+fn linkWord(at:u32,k:u32)->f32{return bitcast<f32>(coldAt(at+k));}
+const LINK_NONE:u32=${SELECTION_NONE}u;
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}

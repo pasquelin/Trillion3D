@@ -48,7 +48,7 @@ test('twelve placements of one primitive store its records once', () => {
   assert.equal(alone.recordCount, PLACEMENTS * pages.length);
   // Hot records shrink by the placement count; the cold buffer keeps one working word per page.
   assert.equal(alone.clusters.byteLength / packed.clusters.byteLength, PLACEMENTS);
-  const words = coldBase(packed.pageCount) + pages.length * PAGE_CONE_FLOATS;
+  const words = coldBase(packed.pageCount, packed.worldCount) + pages.length * PAGE_CONE_FLOATS;
   assert.equal(packed.pageCones.length, words);
 });
 

@@ -8,7 +8,7 @@ import {
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows, MOVE_NONE } from './update.ts';
-import { placedBy, type PlacementOf, type PlacementRows } from './rows.ts';
+import { placedBy, placementWorld, type PlacementOf, type PlacementRows } from './rows.ts';
 
 type Flipped = { parked?: boolean; mark?: number; placement?: PlacementOf };
 
@@ -21,7 +21,11 @@ export const flipWorld = (rt: WebgpuPagesRuntime) => (rank: number, root: Flippe
   cut?.parkWorld(rank, !!root.parked);
   cut?.markWorld(rank, root.mark ?? 0);
   const origins = at?.rows.live[at.index] ? at.rows.origins : undefined;
-  cut?.placeWorld?.(rank, origins && at ? origins[at.index] : -1);
+  cut?.placeWorld?.(
+    rank,
+    origins && at ? origins[at.index] : -1,
+    at && placementWorld(at.rows, at.index).elements,
+  );
 };
 
 /**

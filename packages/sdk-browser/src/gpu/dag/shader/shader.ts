@@ -22,7 +22,7 @@ import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
 import { FRAME_VEC4 } from '../types.ts';
 
-export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
+export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,root:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
@@ -128,7 +128,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
-    let pixels=clusterPixels(clusterAt(r),viewWorld(w),stretchOf(w),focalPixels());
+    let pixels=pagePixels(w,r,clusterAt(r),viewWorld(w),stretchOf(w),focalPixels());
     draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same

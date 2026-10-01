@@ -10,9 +10,13 @@ import {
   type DagRecords,
   flagsOf,
   hasBoxOf,
+  linkOf,
+  linkedPage,
   ownerOf,
+  recordOf,
   worldOf,
 } from '../records.fixture.ts';
+import { LINK_ERROR } from '../worldLinks.ts';
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 import {
   boxMissesLightPages,
@@ -51,6 +55,16 @@ type PredicateContext = {
   /** The cut rule applied: `drawsCluster`, or the kernel's WGSL call site run in Node by the
    *  rule's tests, which reads the page's residency itself. */
   rule?: CutRuleAt;
+  /** The world link of a root, as `pagePixels` reads it (`../worldLinks.ts`): the kernel's text in
+   *  the rule's tests; else `linkOf`, and the readiness given (every page ready without one). */
+  links?: DagLinkAt;
+  ready?: ArrayLike<number>;
+};
+
+/** `linkOf(w, r)` and `linkHolds(at)` of the kernel (`../shader/error.ts`). */
+export type DagLinkAt = {
+  linkOf(w: number, record: number): number;
+  linkHolds(at: number): boolean;
 };
 
 /** The scratch world under the host-matrix shape the cone test reads. */
@@ -83,16 +97,25 @@ export function createDagOraclePredicates(context: PredicateContext) {
     if (frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])) return false;
     return !light || !boxMissesLightPages(light, min, max, views[w], perspective);
   };
+  const { ready } = context;
+  const links: DagLinkAt = context.links ?? {
+    linkOf: (w, record) => linkOf(records, w, record),
+    linkHolds: (at) => at !== NONE && (!ready || !!ready[linkedPage(records, at)]),
+  };
+  /** The band `at` of page `index`: its parent's (1) read on its world link while that holds
+   *  (`pagePixels`, `../worldLinks.ts`). */
   const bandPixels = (index: number, at: number) => {
     const w = worldOf(records, index),
-      sphere = bandSphere(records, index, at),
-      { hot } = records;
+      link = at === 1 ? links.linkOf(w, recordOf(records, index)) : NONE,
+      linked = link !== NONE && links.linkHolds(link),
+      words = linked ? records.cold : records.hot,
+      sphere = linked ? link : bandSphere(records, index, at);
     return projectedError(
-      bandError(records, index, at),
-      hot[sphere],
-      hot[sphere + 1],
-      hot[sphere + 2],
-      hot[sphere + 3],
+      linked ? records.cold[link + LINK_ERROR] : bandError(records, index, at),
+      words[sphere],
+      words[sphere + 1],
+      words[sphere + 2],
+      words[sphere + 3],
       views[w],
       stretches[w],
       focal,
