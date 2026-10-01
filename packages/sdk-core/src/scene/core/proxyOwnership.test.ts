@@ -8,9 +8,16 @@ import {
   SCENE_PROXY_VERSION,
 } from '../../contracts/proxy.ts';
 
-function encoded() {
+/** The owned proxy's file; a second triangle of its group shifts the doubles off eight bytes. */
+function encoded(unaligned = false) {
   const proxy = ownedProxy();
   const data = proxy.data;
+  if (unaligned) {
+    proxy.triangles = 2;
+    data.triangles = new Float32Array([...data.triangles, ...data.triangles]);
+    data.albedo = new Uint32Array([...data.albedo, ...data.albedo]);
+    data.triangleGroups = new Uint32Array([0, 0]);
+  }
   const columns = [
     data.triangles,
     data.albedo,
@@ -20,6 +27,7 @@ function encoded() {
     data.groupOffsets,
     data.owners,
     data.sourceParents,
+    data.sourceMeshes,
   ];
   const header = SCENE_PROXY_HEADER_WORDS * 4;
   const prefix = header + columns.reduce((sum, c) => sum + c.byteLength, 0);
@@ -27,7 +35,7 @@ function encoded() {
   new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS).set([
     SCENE_PROXY_MAGIC,
     SCENE_PROXY_VERSION,
-    1,
+    proxy.triangles,
     1,
     1,
     2,
@@ -49,16 +57,17 @@ function encoded() {
 }
 
 test('versioned proxy ownership decodes unaligned doubles without changing canonical geometry', () => {
-  const { proxy, buffer, prefix } = encoded();
+  const { proxy, buffer, prefix } = encoded(true);
   assert.equal(prefix % 8, 4);
   const result = decodeSceneProxy(proxy, buffer);
   assert.deepEqual(result.data.bindWorlds, proxy.data.bindWorlds);
   assert.deepEqual(result.data.owners, proxy.data.owners);
   assert.deepEqual(result.data.triangles, proxy.data.triangles);
+  assert.deepEqual(result.data.sourceMeshes, proxy.data.sourceMeshes);
   assert.equal(result.data.triangles.buffer, buffer, 'immutable geometry remains a cache view');
 });
 
-test('invalid provenance groups, source ranks, cycles and nonfinite bind matrices are refused', () => {
+test('invalid provenance groups, source ranks, cycles, source meshes and nonfinite bind matrices are refused', () => {
   const check = (modify: (view: DataView, prefix: number) => void) => {
     const { proxy, buffer, prefix } = encoded();
     modify(new DataView(buffer), prefix);
@@ -68,6 +77,7 @@ test('invalid provenance groups, source ranks, cycles and nonfinite bind matrice
   check((view) => view.setUint32(164, 0, true)); // empty group instead of two owners
   check((view) => view.setUint32(168, 3, true)); // only source nodes zero to two exist
   check((view) => view.setInt32(184, 0, true)); // node zero parents itself
+  check((view) => view.setInt32(196, -2, true)); // a mesh rank is -1 (none) or more (#966)
   check((view, prefix) => view.setFloat64(prefix, NaN, true));
 });
 

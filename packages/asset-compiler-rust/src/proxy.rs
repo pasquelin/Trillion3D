@@ -17,7 +17,7 @@ pub(crate) mod tracer;
 pub mod wide;
 
 /// Product contract. Moving cut, sections or node order requires incrementing.
-pub const SCENE_PROXY_VERSION: u32 = 4;
+pub const SCENE_PROXY_VERSION: u32 = 5;
 /// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
 /// Header: v3 ownership header, then shape, stored-triangle and placement counts.
@@ -173,6 +173,15 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             proxy.provenance.source_parents[child] = id as i32;
         }
     }
+    // The mesh each node places: a cell node casts as its placed mesh says (#966).
+    proxy.provenance.source_meshes = nodes
+        .iter()
+        .map(|node| {
+            node.get("mesh")
+                .and_then(Value::as_u64)
+                .map_or(-1, |m| m as i32)
+        })
+        .collect();
     Ok(proxy)
 }
 
