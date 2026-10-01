@@ -93,6 +93,7 @@ test('a resize while the pools are funded again waits for that funding: one move
     backend.render(camera());
     await backend.flush?.();
     backend.render(camera());
+    // A lamp's buffer moves the ledger: its funding starts.
     lamp.buffer = gpu.device.createBuffer({ label: 'lamp', size: 1 << 20, usage: 0x80 });
     backend.render(camera());
     const funding = budget.asked;
