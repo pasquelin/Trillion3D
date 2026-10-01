@@ -227,7 +227,9 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   withdrawn (`every`). So a page read first in a
   frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
   world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
-  none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`).
+  none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`). A
+  view is weighed in float32, as the GPU draws it: a camera easing by less than a float32 step
+  rests, and its frames run no GPU page pass, the static layer's none (#831).
 
 ## When a page is stale, withdrawn and drawn
 

@@ -125,10 +125,14 @@ export function createShadowChanges(capacity: number) {
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
      * changed representation meanwhile enters the list as one box; while it moves, the union
-     * only grows. Returns true when the camera rests.
+     * only grows. Returns true when the camera rests: the GPU draws the view in float32, and a view
+     * that moved by less than a float32 step — a chase camera easing toward a car at rest, by
+     * 1e-11 m a frame, for ever — reaches it unchanged and asks nothing new (#831).
      */
     observeView(view: ShadowViewpoint) {
-      const still = keepNumbers(lastView, writeView(view, viewNow));
+      writeView(view, viewNow);
+      for (let i = 0; i < VIEW_NUMBERS; i++) viewNow[i] = Math.fround(viewNow[i]);
+      const still = keepNumbers(lastView, viewNow);
       if (still) release();
       return still;
     },
