@@ -367,7 +367,6 @@
       "cascadeShares": "Budgetanteil pro Stufe, von der feinsten zur gröbsten. Die feinste Stufe umgibt die Kamera und erhält den größten Anteil der Strahlen.",
       "raysPerProbe": "Bei jeder Aktualisierung pro Sonde verfolgte Strahlen. Fest einstellbares Budget.",
       "raysPerFrame": "Höchstens Sondenstrahlen pro Bild: feste Obergrenze, die die Größe der gestarteten Berechnung begrenzt.",
-      "lightsPerRay": "Pro Zelle des Oberflächen-Caches getestete Lichter.",
       "surfaceTexelsPerFrame": "Obergrenze der pro Bild aktualisierten Zellen des Oberflächen-Caches.",
       "budgetMs": "Angestrebte Dauer der Rebound-Passage auf der GPU pro Bild, in Millisekunden.",
       "budgetSmoothing": "Bei jeder Messung behaltener Anteil der Fehlerkorrektur, um Schwingungen zu vermeiden.",

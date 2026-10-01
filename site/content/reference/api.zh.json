@@ -69,7 +69,6 @@
       "cascadeShares": "从最精细到最粗糙,各层所占的预算比例。最精细的一层围绕摄像机,获得最大比例的光线分配。",
       "raysPerProbe": "每次更新时每个探针追踪的光线数。固定且可配置的预算。",
       "raysPerFrame": "每帧探针光线数的上限:限制计算调度规模的静态上限。",
-      "lightsPerRay": "每个表面缓存单元测试的光源数。",
       "surfaceTexelsPerFrame": "每帧更新的表面缓存单元数上限。",
       "budgetMs": "GPU 上每帧间接光照通道的目标时长(毫秒)。",
       "budgetSmoothing": "为防止震荡而在每个样本中保留的误差修正比例。",
