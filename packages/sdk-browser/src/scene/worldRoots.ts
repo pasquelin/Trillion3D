@@ -29,6 +29,16 @@ import { rangedReader } from '../cluster/ranged.ts';
 import { corruptObject, fetchVerified } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
+import { families } from '../host/families.ts';
+import { worldRootsPageSource } from './worldRootsPage.ts';
+import { worldRootDag } from './worldSuperRoots.ts';
+
+/** The world pages' detached source and their DAG (#1238): nothing draws from them yet (#1332,
+ *  #1333), so a scene opens without them, and their page server is a family read on first use. */
+type WorldStream = {
+  source: ReturnType<typeof worldRootsPageSource>;
+  dag: ReturnType<typeof worldRootDag>;
+};
 
 type Announced = { bytes: number; sha256: string };
 /** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
@@ -93,7 +103,7 @@ export async function openWorldRoots(
   const url = new URL(table.payload.url, base).href;
   // The load's meter counts the top, read while it loads; a cell's bundles are read after it.
   const read = rangedReader(url, signal);
-  const top = (await readBundles(read, url, table, [0, table.pinned], meter)).flat();
+  const topBundles = await readBundles(read, url, table, [0, table.pinned], meter);
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
   const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
   let heldBytes = 0;
@@ -105,10 +115,32 @@ export async function openWorldRoots(
       heldBytes -= table.bundles[bundle].bytes;
     }
   };
+  /** A bundle's pages: the pinned top's and a placed cell's from what is held, any other read and
+   *  verified for the one request (the GPU page pool keeps what it uploads, as cluster's does). */
+  const bundlePages = (bundle: number) =>
+    bundle < table.pinned
+      ? Promise.resolve(topBundles[bundle])
+      : (held.get(bundle)?.pages ??
+        readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
+  let stream: WorldStream | undefined;
+  // Only an opened stream is kept: a family refusal is asked again on the next use (`onDemand`),
+  // and a table out of rank is refused again, before any page is served.
+  const openStream = async () => {
+    const { worldPageServer, worldRootPages } = await families.worldStream.load();
+    return (stream ??= {
+      dag: worldRootDag(table, worldRootPages),
+      source: worldRootsPageSource(worldPageServer(table, bundlePages)),
+    });
+  };
   return {
     table,
+    /** The world pages' detached source, both engines' shape (`worldRootsPage.ts`), and their DAG
+     *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a table
+     *  cooked without its `clusters` and `groups`), opened once, on first use. A table out of its
+     *  rank is refused here (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */
+    stream: openStream,
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
-    pinned: { bundles: table.pinned, pages: top, bytes: table.pinnedTopBytes },
+    pinned: { bundles: table.pinned, pages: topBundles.flat(), bytes: table.pinnedTopBytes },
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,
      *  each once whatever the cells sharing it. A read that fails holds nothing of the cell. */
     async hold(cell: number) {
@@ -133,7 +165,12 @@ export async function openWorldRoots(
     held: () => [...held.keys()].sort((a, b) => a - b),
     /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
      *  server that ignores the Range answered (`rangedReader`). */
-    bytes: () => table.pinnedTopBytes + heldBytes + read.held(),
+    bytes: () =>
+      table.pinnedTopBytes +
+      heldBytes +
+      read.held() +
+      // The source's own bundles past the top and the held ones: kept for a page's other view.
+      (stream?.source.keptBytes(held) ?? 0),
   };
 }
 
