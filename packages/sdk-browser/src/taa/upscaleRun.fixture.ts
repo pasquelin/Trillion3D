@@ -53,6 +53,8 @@ interface Resolved {
   held: number;
   layers: number[][];
   reads: number[][];
+  /** Texels and filtered samples read, gathers included: the pixel's fetches. */
+  fetches: number;
 }
 
 /** The resolve of `frame`, per display pixel; `asIs` and `filtered` pick the variant, `native` the
@@ -60,7 +62,11 @@ interface Resolved {
 export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, native = false) {
   const [w, h] = frame.render,
     [W, H] = frame.display,
-    reads: number[][] = [];
+    reads: number[][] = [],
+    count =
+      (read: (...args: never[]) => unknown) =>
+      (...args: never[]) => (fetches++, read(...args));
+  let fetches = 0;
   const texel =
     <T>(read: (x: number, y: number) => T) =>
     (at: Vec) => {
@@ -97,8 +103,9 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     reactive: texel((x, y) => [0, frame.reactive?.(x, y) ?? 0, 0, 0]),
     textureDimensions: () => [w, h],
     tagHistory: (uv: number[]) => frame.tags?.(uv) ?? [0, 1, 0, 1].map((tag) => tag / 255),
-    textureGather: (_: number, texture: (uv: number[]) => number[], __: null, uv: number[]) =>
+    textureGather: count((_: number, texture: (uv: number[]) => number[], __: null, uv: number[]) =>
       texture(uv),
+    ),
     filterNow: texel(frame.layer ?? frame.color),
     addNow: texel(frame.layer ?? frame.color),
     pages: [{ placement: 0, deformOutput: 0, flags: frame.pageFlags ?? 0 }],
@@ -108,8 +115,10 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     filterHistory: layerHistory,
     addHistory: layerHistory,
     historySampler: null,
-    textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
-    textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
+    textureLoad: count((texture: (at: Vec) => unknown, at: Vec) => texture(at)),
+    textureSampleLevel: count((texture: (uv: number[]) => number[], _: null, uv: number[]) =>
+      texture(uv),
+    ),
     TaaOut: (color: number[], [share, tag, held]: number[], ...layers: number[][]) => ({
       color,
       share,
@@ -128,6 +137,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
       'fromYcocg',
       'historyCatmullRom',
       'placementOf',
+      'tagOf',
       'placementTag',
       'dynamicPixel',
       'uncovered',
@@ -136,63 +146,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     scope,
   );
   return (x: number, y: number): Resolved => {
-    reads.length = 0;
-    return { ...resolve([x + 0.5, y + 0.5, 0, 1]), reads: reads.slice() };
+    reads.length = fetches = 0;
+    return { ...resolve([x + 0.5, y + 0.5, 0, 1]), reads: reads.slice(), fetches };
   };
-}
-
-const sinc = (x: number) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
-/** Lanczos-2 from its definition, `sinc(x)·sinc(x/2)` on `|x| < 2`. */
-export const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
-
-/**
- * What a display pixel is owed, from the definition: its place `r` in the render grid (texel
- * centres at integers), each of the 3×3 texels around it weighed by Lanczos-2 of the distance from
- * where this frame sampled it — its centre moved by `(−jx, +jy)`, `weights.ts`'s convention — to
- * `r`, then clamped to the `bounds` of the 2×2 texels around `r` (`ring`), of the 3×3 (`box`), or
- * left ringing (`none`).
- */
-export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'ring') {
-  const [w, h] = frame.render,
-    [jx, jy] = frame.jitter ?? [0, 0];
-  const r = [((px + 0.5) * w) / frame.display[0] - 0.5, ((py + 0.5) * h) / frame.display[1] - 0.5];
-  const inGrid = (x: number, y: number) => [
-    Math.min(Math.max(x, 0), w - 1),
-    Math.min(Math.max(y, 0), h - 1),
-  ];
-  const sum = [0, 0, 0, 0],
-    lo = [1e9, 1e9, 1e9, 1e9],
-    hi = [-1e9, -1e9, -1e9, -1e9];
-  const bound = (x: number, y: number) =>
-    frame
-      .color(x, y)
-      .forEach((c, i) => ((lo[i] = Math.min(lo[i], c)), (hi[i] = Math.max(hi[i], c))));
-  let total = 0;
-  for (let dy = -1; dy <= 1; dy++)
-    for (let dx = -1; dx <= 1; dx++) {
-      const [x, y] = inGrid(Math.floor(r[0] + 0.5) + dx, Math.floor(r[1] + 0.5) + dy);
-      const weight = kernel(Math.hypot(x - jx - r[0], y + jy - r[1]));
-      frame.color(x, y).forEach((c, i) => (sum[i] += c * weight));
-      total += weight;
-      if (bounds === 'box') bound(x, y);
-    }
-  if (bounds === 'ring')
-    for (const [dx, dy] of [
-      [0, 0],
-      [1, 0],
-      [0, 1],
-      [1, 1],
-    ])
-      bound(...(inGrid(Math.floor(r[0]) + dx, Math.floor(r[1]) + dy) as [number, number]));
-  return sum.map((s, i) =>
-    bounds === 'none' ? s / total : Math.min(Math.max(s / total, lo[i]), hi[i]),
-  );
-}
-
-const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
-/** The resolve's inverse-luminance blend of `now` and `then` at a current share `alpha`. */
-export function blend(now: number[], then: number[], alpha: number) {
-  const wc = alpha / (1 + luma(now)),
-    wh = (1 - alpha) / (1 + luma(then));
-  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
 }

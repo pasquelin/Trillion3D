@@ -8,7 +8,7 @@ import {
   frameTargetBytes,
   createSurfaceBuffer,
 } from './surfaceBuffer.ts';
-import { SURFACE_MODEL } from './surfaceModel.ts';
+import { EMISSIVE_AO_SURFACE_FLAG, SURFACE_MODEL } from './surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 
 test('a surface rejects an invalid or off-device size, and nothing else: no byte ceiling', () => {
@@ -84,13 +84,25 @@ test('every flag the resolve writes fits the r8uint flags target unchanged', () 
       'select',
       'model',
       'page',
+      'flag',
+      'emissiveAoFlag',
+      'emissive',
+      'ao',
       `return ${expression.replace(/(\d)u\b/g, '$1')};`,
     );
     for (const model of Object.values(SURFACE_MODEL))
-      for (const flags of [0, 1]) written.add(run(select, model, { flags }) as number);
+      for (const flags of [0, 1])
+        for (const flag of [1, 2, 4, 5])
+          for (const mark of [0, EMISSIVE_AO_SURFACE_FLAG])
+            written.add(run(select, model, { flags }, flag, () => mark) as number);
   }
-  // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set.
-  assert.deepEqual([...written].sort(), [0, 1, 2, 3, 4, 5]);
+  // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set; a surface
+  // shown unlit or lit with its emission-and-occlusion mark (#1369).
+  const marked = [1, 2, 4, 5].map((flag) => flag | EMISSIVE_AO_SURFACE_FLAG);
+  assert.deepEqual(
+    [...written].sort((a, b) => a - b),
+    [0, 1, 2, 3, 4, 5, ...marked],
+  );
   for (const value of written) {
     assert.equal(Uint32Array.of(value)[0], value, `${value} as the r32uint target held it`);
     assert.equal(Uint8Array.of(value)[0], value, `${value} as the r8uint target holds it`);

@@ -66,9 +66,9 @@ ${taaShareTap(asIs, blended)}${layerWgsl(filtered, 'tap')} }}
  var count=stillTotal;
 ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerWgsl(filtered, 'scaled')} let centre=clamp(base,vec2i(0),last);
  let reach=saturate(lanczos2(closest*toDisplay));
- let tag=f32(placementTag(near))/255.0;
+ let nearId=textureLoad(ids,near,0).r;let tag=f32(tagOf(nearId))/255.0;
  if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
- let previous=previousUv(coord,nearDepth,near);
+ let previous=previousUv(coord,nearDepth,nearId);
 ${taaHistoryBlend(asIs, filtered, true)}
 }`;
 };

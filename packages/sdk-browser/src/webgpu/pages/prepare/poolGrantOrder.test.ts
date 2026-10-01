@@ -104,7 +104,8 @@ test('a texture budget set while the prepare grant is answered is the one the po
   });
   await backend.prepare();
   const { texturePool } = (await set)!;
-  assert.deepEqual([texturePool?.budgetBytes, texturePool?.clamp], [1, 'minimum']);
+  // The deep quad has no map: no layer at any budget, nothing raised to a floor (#1345).
+  assert.deepEqual([texturePool?.budgetBytes, texturePool?.clamp], [1, null]);
 });
 
 test('a report made during the prepare grants names the pools the device grants', async (t) => {

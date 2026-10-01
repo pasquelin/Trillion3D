@@ -1,6 +1,7 @@
 // #847: a live session's colour atlas takes a texture after open by the open's own path: a slot
 // in its catalogue, its page table regrown by copy, the feedback counting its ranks, its
-// tail pinned, every group naming the atlas rebuilt once, and its counters published.
+// tail pinned, every group naming the atlas rebuilt once, and its counters published. The first
+// map of a scene that had none opens its lane's pool, its first layer allocated then.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
@@ -65,9 +66,11 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     backend.render(camera());
     assert.equal(groups.length, 0, 'once');
     const after = backend.metrics();
-    assert.equal(after.textureTilesResident, before.textureTilesResident! + 1, 'its tail pinned');
-    assert.equal(after.texturePoolBytes, pool.bytes, 'a free place: the pool as it was');
-    assert.equal(after.texturePoolBytes, before.texturePoolBytes);
+    // A scene with no map opens with no layer (#1345): the map opens its lane, the fill with it.
+    assert.deepEqual([before.textureTilesResident, before.texturePoolBytes], [0, 0]);
+    assert.equal(after.textureTilesResident, 2, 'its tail pinned, and the white fill beside it');
+    assert.equal(after.texturePoolBytes, pool.bytes, 'the lane opened: its first layer');
+    assert.ok(pool.bytes > 0);
     const failed = diagnostics.filter(({ phase }) => /fail|refused|refusal/.test(phase));
     assert.deepEqual(failed, []);
   } finally {
