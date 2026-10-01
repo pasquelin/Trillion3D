@@ -4,16 +4,19 @@ import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import {
+  worldRootsDag,
+  worldRootsFixture,
+} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { openWorldRoots } from './worldRoots.ts';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
-/** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it; returns
- *  the manifest that declares its table, and the ranges asked. */
-function served(t: TestContext, bin?: Uint8Array, ignoresRange = false) {
+/** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it, `dag` the
+ *  keys its table adds; returns the manifest that declares its table, and the ranges asked. */
+function served(t: TestContext, bin?: Uint8Array, ignoresRange = false, dag = {}) {
   const world = worldRootsFixture(sha);
-  const json = new TextEncoder().encode(JSON.stringify(world.table));
+  const json = new TextEncoder().encode(JSON.stringify({ ...world.table, ...dag }));
   const held = bin ?? world.bin,
     ranges: string[] = [];
   t.mock.method(globalThis, 'fetch', async (input: string, init?: RequestInit) => {
@@ -82,6 +85,42 @@ test('a server that ignores the Range is read once, whole, and every byte counte
     roots.pinned.bytes + bundles + bin.byteLength,
     'the whole binary kept is counted in the bytes held',
   );
+});
+
+test('the world DAG names its pages through the one source, from what is held (#1238)', async (t) => {
+  const { clusters, groups } = worldRootsDag();
+  const { manifest, ranges } = served(t, undefined, false, { clusters, groups });
+  const roots = (await openWorldRoots(manifest, 'http://world/'))!;
+  const stream = await roots.stream();
+  assert.equal(stream, await roots.stream(), 'opened once');
+  assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank');
+  await roots.hold(0); // cell 0 holds bundles 1 and 3, the top is pinned
+  const asked = ranges.length;
+  const addressed = stream.dag!.pages.filter((page) => page.url);
+  const pages = await Promise.all(addressed.map((page) => stream.source.page(page.url)));
+  assert.deepEqual(
+    pages.map((page) => page.positions[0]),
+    [1, 2, 3, 0],
+    'each super-root reads the page at its bundle, the world top last',
+  );
+  assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read');
+  assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold');
+  // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
+  const before = roots.bytes(),
+    far = addressed[1].url; // bundle 2's super-root
+  await stream.source.read(far);
+  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the kept bundle is counted');
+  await stream.source.attributes(far);
+  assert.equal(roots.bytes(), before, 'both views served, it is let go');
+});
+
+test('a world DAG out of the cook\u2019s rank is refused when its stream opens (#1238)', async (t) => {
+  const { clusters, groups } = worldRootsDag();
+  const swapped = [...clusters];
+  [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+  const { manifest } = served(t, undefined, false, { clusters: swapped, groups });
+  const roots = (await openWorldRoots(manifest, 'http://world/'))!;
+  await assert.rejects(roots.stream(), /WORLD_CLUSTER_RANK: 1 at 0/);
 });
 
 test('a cache that publishes no world roots pins nothing', async () => {

@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "読み込んだモデルの頂点が `await geometry.loadVertices()` より前に読まれました。セッションは頂点を最初に必要になったときに読み、事前には読みません。",
       "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした。専用のコードを持たない理由によるものです（`world.diagnostic.error`）。スローされたエラーは `details.cause` にあります。",
       "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
-      "FAMILY_LOAD_FAILED": "エンジンの任意ファミリー（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement）が、インポートを再試行したうえで読み込めませんでした（`T3D-E090`）。`world.diagnostic.error` 上で `details.family` がそのファミリーを示します。それを使って描くフレームはその到着を待ち、次に使われるときに再び要求されます。",
+      "FAMILY_LOAD_FAILED": "エンジンの任意ファミリー（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream）が、インポートを再試行したうえで読み込めませんでした（`T3D-E090`）。`world.diagnostic.error` 上で `details.family` がそのファミリーを示します。それを使って描くフレームはその到着を待ち、次に使われるときに再び要求されます。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）、または物体の姿勢や頂点が有限でなくなりシミュレーションから外れた（`PHYSICS_DIVERGED`）：`world.physics.error` に出る。",
