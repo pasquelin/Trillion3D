@@ -7,15 +7,19 @@
 // stand for GPU memory, which the renderer does not hold: they are not counted.
 //
 //   node --max-old-space-size=<mb> tests/integration/view-rows-load.fixture.ts <manifest> <cap mb>
-import { open, readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { open } from 'node:fs/promises';
+import type { TestContext } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { installGpuGlobals } from '../kit/gpu/globals.ts';
 import { mockGpu } from '../kit/gpu/mockGpu.ts';
+import { byteRange } from '../../scripts/static-server.ts';
 import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts';
 
 /** The exit code of a process that ran out of memory, as a killed renderer's. */
-export const OUT_OF_MEMORY = 137;
+const OUT_OF_MEMORY = 137;
 
 /** An Apple M2's WebGPU limits, the ones the page asks for. */
 const M2_LIMITS = {
@@ -72,7 +76,7 @@ function canvasOf(device: GPUDevice) {
 
 /** Opens `manifest` and draws until its first image is drawn, the renderer's memory under `capMb`:
  *  what it held at its peak, and how the image was cut. */
-export async function openUnderCap(manifest: string, capMb: number) {
+async function openUnderCap(manifest: string, capMb: number) {
   installGpuGlobals();
   const gpu = mockGpu({ compute: true, limits: M2_LIMITS });
   const deviceBytes = () =>
@@ -87,28 +91,35 @@ export async function openUnderCap(manifest: string, capMb: number) {
     process.exit(OUT_OF_MEMORY);
   };
   const watch = setInterval(poll, 5);
-  // A server as the page's: it answers a Range with that range alone (206), as a static server does.
+  // A server as the page's: one byte range answered alone (`byteRange`, 206), read at its offset,
+  // never the whole file.
   Object.assign(globalThis, {
     fetch: async (input: string | URL | Request, init?: RequestInit) => {
       const href = input instanceof Request ? input.url : String(input);
       const type = /\.(json|gltf)$/.test(href) ? 'application/json' : 'application/octet-stream';
-      const range = new Headers(input instanceof Request ? input.headers : init?.headers).get(
+      const header = new Headers(input instanceof Request ? input.headers : init?.headers).get(
         'range',
       );
-      const [from, to] = (/^bytes=(\d+)-(\d+)$/.exec(range ?? '') ?? []).slice(1).map(Number);
-      if (range === null || to === undefined)
-        return new Response(await readFile(fileURLToPath(href)), {
-          headers: { 'content-type': type },
-        });
       const file = await open(fileURLToPath(href));
-      const { buffer, bytesRead } = await file.read(
-        Buffer.alloc(to - from + 1),
-        0,
-        to - from + 1,
-        from,
-      );
-      await file.close();
-      return new Response(buffer.subarray(0, bytesRead), { status: 206 });
+      try {
+        const { size } = await file.stat();
+        const range = byteRange(header ?? undefined, size);
+        if (!range)
+          return new Response(await file.readFile(), { headers: { 'content-type': type } });
+        const { start, end } = range;
+        const { buffer } = await file.read(
+          Buffer.alloc(end - start + 1),
+          0,
+          end - start + 1,
+          start,
+        );
+        return new Response(buffer, {
+          status: 206,
+          headers: { 'content-type': type, 'content-range': `bytes ${start}-${end}/${size}` },
+        });
+      } finally {
+        await file.close();
+      }
     },
   });
   const canvas = canvasOf(gpu.device);
@@ -140,6 +151,35 @@ export async function openUnderCap(manifest: string, capMb: number) {
   clearInterval(watch);
   world.dispose();
   return { drawn: !!seen.drawn, cut: seen.cut ?? 'gpu', peakMb: Math.round(peak) };
+}
+
+/** Opens `manifest` in a child process, its JS heap capped at `heapMb` and the renderer's memory at
+ *  `capMb` (`openUnderCap`): it must draw its first image on the CPU cut, under the cap. */
+export function assertOpensUnderCap(
+  t: TestContext,
+  manifest: string,
+  heapMb: number,
+  capMb: number,
+) {
+  const run = spawnSync(
+    process.execPath,
+    [
+      `--max-old-space-size=${heapMb}`,
+      '--experimental-strip-types',
+      fileURLToPath(import.meta.url),
+      manifest,
+      `${capMb}`,
+    ],
+    { encoding: 'utf8', maxBuffer: 1 << 26 },
+  );
+  const last = run.stdout.trim().split('\n').at(-1) ?? '';
+  t.diagnostic(last);
+  assert.notEqual(run.status, OUT_OF_MEMORY, `ran out of memory: ${last}`);
+  assert.equal(run.status, 0, run.stderr.slice(-2000));
+  const opened = JSON.parse(last) as { drawn: boolean; cut: string; peakMb: number };
+  assert.ok(opened.drawn, 'its first image is drawn');
+  assert.equal(opened.cut, 'view rows', 'cut on the CPU, a row per cluster it selects');
+  assert.ok(opened.peakMb <= capMb);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -14,20 +14,16 @@
 //
 //   T3D_OPEN_WORLD=<cache>/native/full/manifest.json node --test tests/integration/open-world-load.test.ts
 import test from 'node:test';
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { compiler } from './world-partition.fixture.ts';
-import { OUT_OF_MEMORY } from './view-rows-load.fixture.ts';
+import { assertOpensUnderCap } from './view-rows-load.fixture.ts';
 
 /** The renderer's memory cap, in MB: the JS heap and its array buffers, the mock device's own
  *  buffers out. */
 const CAP_MB = 5120;
 /** The JS heap's own, in MB: half of the 4 GiB a Chrome renderer's V8 heap holds. */
 const HEAP_MB = 2048;
-const child = fileURLToPath(new URL('./view-rows-load.fixture.ts', import.meta.url));
 
 /** The open world's cook `T3D_OPEN_WORLD` names, when it holds the world roots as records. */
 function openWorld() {
@@ -45,24 +41,6 @@ test(
   'the open world opens and draws its first image at the boss’s case under its memory cap',
   { skip: !existsSync(compiler) || !manifest, timeout: 300_000 },
   (t) => {
-    const run = spawnSync(
-      process.execPath,
-      [
-        `--max-old-space-size=${HEAP_MB}`,
-        '--experimental-strip-types',
-        child,
-        manifest!,
-        `${CAP_MB}`,
-      ],
-      { encoding: 'utf8', maxBuffer: 1 << 26 },
-    );
-    const last = run.stdout.trim().split('\n').at(-1) ?? '';
-    t.diagnostic(last);
-    assert.notEqual(run.status, OUT_OF_MEMORY, `ran out of memory: ${last}`);
-    assert.equal(run.status, 0, run.stderr.slice(-2000));
-    const opened = JSON.parse(last) as { drawn: boolean; cut: string; peakMb: number };
-    assert.ok(opened.drawn, 'its first image is drawn');
-    assert.equal(opened.cut, 'view rows', 'cut on the CPU, a row per cluster it selects');
-    assert.ok(opened.peakMb <= CAP_MB);
+    assertOpensUnderCap(t, manifest!, HEAP_MB, CAP_MB);
   },
 );

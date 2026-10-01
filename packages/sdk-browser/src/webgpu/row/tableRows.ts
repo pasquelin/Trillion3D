@@ -13,6 +13,9 @@ import { pageTableRows } from './pageTableRows.ts';
 export const VIEW_ROWS = 1 << 18,
   CUT_ROWS = 1 << 16;
 
+/** Whether a scene of `instances` packed pages is cut on the CPU: past the rows a view holds. */
+export const cutsOnCpu = (instances: number) => instances > VIEW_ROWS;
+
 /** The rows a view holds once its cut selected `asked`: a quarter more, in steps of `CUT_ROWS`, so a
  *  growing view grows the table a few times, never once per image, and ahead of the rows it draws;
  *  within what a visibility ID names. */
