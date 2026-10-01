@@ -6,17 +6,15 @@
 // kept by the shipped WGSL (`freshPlace`, `pageHolds`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
-import { sunScene } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
+import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import {
+  sunPageVolume,
+  sunScene,
+} from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
-import { SHADOW_FACE_READ_WORDS } from './faceReadWords.ts';
-import { createShadowRecordPack } from './recordPack.ts';
-import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { keeps } from './cullBox.fixture.ts';
-import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { freshPage } from './freshPage.fixture.ts';
 
 const SIDE = 16,
   PHYSICAL = 37,
@@ -30,8 +28,7 @@ function draw(cx: number, cy: number) {
   const level = plan.sun.finest[slice] + 4,
     texel = sunPageMetres(level) / SHADOW_PAGE;
   const matrix = new Float32Array(16),
-    volume = new Float32Array(SHADOW_CULL_FLOATS);
-  writeSunSquare(matrix, 0, volume, 0, plan.sun, slice, level, 3, 2);
+    volume = sunPageVolume(plan, slice, level, 3, 2, matrix);
   const frame = plan.sun.frame.subarray(slice * 9, slice * 9 + 6);
   // The world point of texel `(x, y)` of the virtual page, on the plane of its box's centre.
   const at = (x: number, y: number) => {
@@ -39,28 +36,16 @@ function draw(cx: number, cy: number) {
       v = (SHADOW_PAGE / 2 - y) * texel;
     return [0, 1, 2].map((a) => volume[a] + frame[a] * u + frame[3 + a] * v);
   };
-  const pack = createShadowRecordPack(SHADOW_FACE_STRIDE, SIDE);
-  pack.writePage(0, matrix, 0, PHYSICAL, undefined, 0);
-  const words = pack.facePacked,
-    page = {
-      view: { params: [...words.subarray(16, 20)] },
-      rect: [...words.subarray(SHADOW_FACE_READ_WORDS, SHADOW_FACE_READ_WORDS + 4)],
-    };
-  const { freshPlace, freshInPage } = shaderRun<{
-    freshPlace: (view: object, p: number[]) => number[];
-    freshInPage: (view: object, at: number[]) => boolean;
-  }>(SHADOW_DEPTH_SHADER, ['freshPlace', 'freshInPage', 'pageHolds', 'pageFirst'], {});
-  const size = SIDE * SHADOW_PAGE,
-    origin = pageOrigin(PHYSICAL, SIDE);
+  const fresh = freshPage(SIDE, PHYSICAL, matrix),
+    origin = pageOrigin(PHYSICAL, SIDE),
+    clip = [0, 0, 0, 0];
   const kept = keeps(volume, at(cx, cy), Math.SQRT2 * HALF * texel);
   const written: number[][] = [];
   for (let y = cy - HALF + 0.5; y < cy + HALF; y++)
     for (let x = cx - HALF + 0.5; x < cx + HALF; x++) {
-      const p = [...at(x, y), 1];
-      const clip = [0, 1, 2, 3].map((r) => p.reduce((sum, c, k) => sum + matrix[k * 4 + r] * c, 0));
-      const [px, py, , w] = freshPlace(page, clip);
-      const window = [((px / w + 1) / 2) * size, ((1 - py / w) / 2) * size];
-      if (freshInPage(page, window))
+      const [wx, wy, wz] = at(x, y);
+      const window = fresh.window(transformHomogeneousPoint(clip, matrix, wx, wy, wz));
+      if (fresh.holds(window))
         written.push([
           Math.round(window[0] - origin.x - 0.5),
           Math.round(window[1] - origin.y - 0.5),

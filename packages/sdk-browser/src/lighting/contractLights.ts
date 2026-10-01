@@ -90,7 +90,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
   return {
     /**
      * Returns true when the contract now governs lighting — the caller must then stop
-     * refreshing the source-graph lights. Does nothing as long as the store has not changed.
+     * refreshing the source-graph lights. Does nothing while the store and `sourceLights` hold.
      * `sourceLights`: the source graph declares a light, which `auto` then leaves lighting.
      */
     refresh(sourceLights: boolean) {
@@ -167,13 +167,16 @@ export function attachContractLights(
   // The casting lights of the set that lights now: the contract's once it governs, else the
   // source graph's. Heard at each change of either, never per frame.
   const refused = () => shadowsRefused?.(contract.governs ? contract.casting : source.casting);
-  // A source lamp shown, hidden or copied again is named if the source graph lights.
-  source.castingChanged = refused;
+  let declared = source.declared;
   const apply = () => {
-    source.setEnabled(!contract.refresh(source.declared));
+    declared = source.declared;
+    source.setEnabled(!contract.refresh(declared));
     refused();
     sceneChanged();
   };
+  // A source lamp shown, hidden or copied again is named if the source graph lights; a copy that
+  // gains its first light or loses its last hands the view over (`refresh`'s `sourceLights`).
+  source.castingChanged = () => (source.declared === declared ? refused() : apply());
   apply();
   return {
     apply,
