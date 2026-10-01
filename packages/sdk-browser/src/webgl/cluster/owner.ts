@@ -12,12 +12,16 @@ import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
 import { WebglTextureQueue } from './textureQueue.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
 import type { FramePass } from '../core/frameTimer.ts';
+import type { WebglCards } from '../impostor/draw.ts';
 
 /** What the session grants the maps: the texture pool and a frame's upload budget. */
 export type TextureHosts = Pick<
   BackendContext,
   'texturePoolBytes' | 'maxTextureTransferBytesPerFrame' | 'maxTextureUploadMsPerFrame'
->;
+> & {
+  /** The session's impostor cards (#1336), drawn beside the clusters. */
+  cards?: WebglCards;
+};
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -47,6 +51,7 @@ export class WebglClusterOwner {
     this.display.textures.physicalMaps?.cache.census(declared);
     for (const material of declared) this.display.textures.file(material);
     this.ahead.order(declared, hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET);
+    this.cards = hosts.cards;
     this.ahead.budget.declare(
       hosts.maxTextureTransferBytesPerFrame,
       hosts.maxTextureUploadMsPerFrame,
@@ -92,6 +97,12 @@ export class WebglClusterOwner {
   mipBias = 0;
   /** The session's deformation records (#357), sent with the frames to come. */
   deformation: DeformationSource | undefined;
+  /** The impostor cards the census was given, drawn beside the clusters. */
+  cards: WebglCards | undefined;
+  /** What the one texture budget leaves the impostor atlases beside the maps (`textureQueue.ts`). */
+  get textureRoom() {
+    return this.ahead.room;
+  }
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
@@ -125,6 +136,7 @@ export class WebglClusterOwner {
     renderer.pass.pixelRatio = this.pixelRatio;
     renderer.pass.mipBias = this.mipBias;
     renderer.deformationSource = this.deformation;
+    renderer.cards = this.cards;
     // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
     this.ahead.drain(this.context, this.display.textures);
     const submitted = renderer.draw(
