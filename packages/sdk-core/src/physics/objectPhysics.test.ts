@@ -185,6 +185,6 @@ test('contact handlers hear their own event; the host hears the first and the la
     ['listened', body],
   ]);
   const detached = new ObjectPhysics('dynamic');
-  detached.on('contact', () => seen.push('detached'))();
+  detached.on('contact', () => undefined)();
   assert.equal(detached.listens, false);
 });
