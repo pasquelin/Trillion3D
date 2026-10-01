@@ -5,11 +5,10 @@ import { functionsOf } from './shaderRule.fixture.ts';
 import { builtins } from './shaderRunBuiltins.fixture.ts';
 
 export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts';
-
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
 /** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =
-  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^(){}[\];,.:@])/giy;
+  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^~(){}[\];,.:@])/giy;
 const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with']);
 /** Each binary operator's precedence, the loosest first. */
 const BINARY: Record<string, number> = Object.fromEntries(
@@ -94,6 +93,7 @@ class Translator {
       }
       return text;
     }
+    if (token === 'while') return (this.next(), `while(${this.expression()})${this.block()}`);
     if (token === 'for') {
       this.next();
       this.eat('(');
@@ -140,10 +140,10 @@ class Translator {
     const token = this.peek();
     if (token === '-') return (this.next(), `$b("-",0,${this.unary()})`);
     if (token === '!') return (this.next(), `(!${this.unary()})`);
-    // A pointer, what an atomic takes: read and written through `$ref`.
+    // `~` flips a `u32`'s bits; `&` hands an atomic its pointer, through `$ref`.
+    if (token === '~') return (this.next(), `$b("^",${this.unary()},0xffffffff)`);
     if (token === '&') {
-      this.next();
-      const target = this.postfix(this.primary());
+      const target = (this.next(), this.postfix(this.primary()));
       return `$ref(()=>${target},(v)=>{${target}=v;})`;
     }
     return this.postfix(this.primary());
@@ -186,10 +186,10 @@ class Translator {
 /**
  * The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices as
  * `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in the functions call
- * provided by `shaderRunBuiltins.fixture.ts`, the module's bindings (textures, uniforms, structures) by `scope`.
+ * (`bitcast<T>` as `bitcast_T`) by `shaderRunBuiltins.fixture.ts`, the module's bindings by `scope`.
  */
 export function shaderRun<T>(source: string, names: string[], scope: object): T {
-  const text = functionsOf(source, names);
+  const text = functionsOf(source, names).replace(/bitcast<(\w+)>/g, 'bitcast_$1');
   const js = [...text.matchAll(/(?:@\w+(?:\([^)]*\))?\s*)*fn \w+\(/g)]
     .map((header, i, all) =>
       new Translator(tokens(text.slice(header.index, all[i + 1]?.index))).functionText(),

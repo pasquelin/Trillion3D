@@ -1,7 +1,7 @@
 // Light iterations per covered pixel on the audit's open city (#924, OMB-03), and the cost model
-// the audit priced them with, carried with the coverage. COUNTED on the CPU oracle of the tile
-// pass, never timed on a GPU: the milliseconds are a MODEL (declared assumptions below), not a
-// frame time nor an FPS gain.
+// the audit priced them with, carried with the coverage. COUNTED on the CPU oracle of the light
+// grid (#1369), never timed on a GPU: the milliseconds are a MODEL (declared assumptions below), not
+// a frame time nor an FPS gain.
 //
 //   node bench/runner/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150]
 import assert from 'node:assert/strict';
@@ -11,8 +11,7 @@ import {
   type Vec3,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { buildCity, depthField } from './lightTileCity.ts';
-import { countView } from './lightTileCount.ts';
-import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
+import { countGrid } from './lightGridCount.ts';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 /** The audit's five views (`t03_tiles_sim.py`, `t03b_tiles_views.py`), 60° vertical field. Its
@@ -67,40 +66,29 @@ async function main() {
   console.log(
     `Open city: ${city.blocks.filter(Boolean).length} buildings, ${city.lights.length} lights + the sun`,
   );
-  const past = `past ${LIGHT_SETTINGS.tileLights}`;
   const counts = [],
     model = [];
   for (const name of values.views.split(',')) {
     const pose = CITY_VIEWS[name];
     assert.ok(pose, `unknown view ${name}`);
     const view = camera(pose.eye, pose.yaw, pose.pitch, 60, width, height);
-    const result = countView(view, depthField(city, view), city.lights);
-    const it = result.perCoveredPixel;
+    const s = countGrid(view, depthField(city, view), city.lights);
+    const coverage = s.covered / (width * height);
     counts.push({
       view: name,
-      'covered px': result.covered,
-      coverage: `${(100 * result.coverage).toFixed(1)} %`,
-      tiles: result.tiles,
-      [`tiles ${past} (box)`]: result.overflowingTilesBefore,
-      [`box, all ${past}`]: it.beforeAllPastList.toFixed(2),
-      'box, pool': it.before.toFixed(2),
-      planes: it.after.toFixed(2),
-      reach: it.reach.toFixed(2),
-      missed: result.missed,
+      'covered px': s.covered,
+      coverage: `${(100 * coverage).toFixed(1)} %`,
+      listed: (s.listed / s.covered).toFixed(2),
+      reach: (s.reach / s.covered).toFixed(2),
+      missed: s.missed,
     });
-    for (const [key, gpu] of Object.entries(COST_MODEL.classes)) {
-      const ms = (perCovered: number) => modelMs(gpu, result.coverage, perCovered);
-      const [allPast, pool, after] = [it.beforeAllPastList, it.before, it.after].map(ms);
+    for (const [key, gpu] of Object.entries(COST_MODEL.classes))
       model.push({
         view: name,
         class: key,
-        [`before, all ${past} (ms)`]: allPast.toFixed(3),
-        'before, pool (ms)': pool.toFixed(3),
-        'after (ms)': after.toFixed(3),
-        [`saving vs all ${past} (ms)`]: (allPast - after).toFixed(3),
-        'saving vs pool (ms)': (pool - after).toFixed(3),
+        'listed (ms)': modelMs(gpu, coverage, s.listed / s.covered).toFixed(3),
+        'reach (ms)': modelMs(gpu, coverage, s.reach / s.covered).toFixed(3),
       });
-    }
   }
   console.log(`Light iterations per covered pixel, ${width} × ${height} (counted, CPU oracle):`);
   console.table(counts);

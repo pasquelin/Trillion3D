@@ -1,27 +1,20 @@
-// The deferred resolve's slices run on a real GPU (#849): the shipped `directLightingWgsl` — its
-// narrow program (`NARROW_SLICE_WGSL`, a scene of at most `TILE_LIGHTS` lights) and its wide one —
-// shades the same samples through `contractLighting`, on tile records the tile pass's oracle
-// (`bench/oracles/browser/gpuLightTilesRankOracle.ts`, run against the pass's WGSL by
-// `light-tiles-spill-gpu.ts`) writes. The f32 sums are compared as bits: the narrow list, the wide
-// list, a pool slice past the list and the walk over every light of the scene give the same sum,
-// bit for bit, since a light that misses a point adds an exact zero.
+// The deferred resolve's lists run on a real GPU (#849, #1369): the shipped `directLightingWgsl` —
+// its narrow program (a scene of at most `TILE_LIGHTS` lights) and its wide one — shades the same
+// samples through `contractLighting`, on a cell record of the light grid and its list in the pool
+// (`cellRecord`). The f32 sums are compared as bits: the narrow list, the wide list, a list past
+// `TILE_LIGHTS` and the walk over every light of the scene give the same sum, bit for bit, since a
+// light that misses a point adds an exact zero.
 //
 //   node --experimental-strip-types --test tests/browser/probes/narrow-resolve-gpu.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
-import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import type { ResolveScene } from './narrowResolvePage.ts';
-import { resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
-import {
-  LIGHT_TILES_NARROW_SHADER,
-  LIGHT_TILES_SHADER,
-} from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
+import { cellRecord, resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
 
 if (import.meta.main) {
-  const WIDE = tileLayout(LIGHT_TILES_SHADER);
-  const NARROW = tileLayout(LIGHT_TILES_NARROW_SHADER);
-  const LIST = WIDE.tileLights;
+  const LIST = LIGHT_SETTINGS.tileLights;
   const draw = resolveRandom(849);
   const { r, between, vector, unit } = draw;
   const { points, samples } = resolveSamples(128, draw);
@@ -62,26 +55,15 @@ if (import.meta.main) {
     return { lights, reach };
   }
 
-  /** A record whose opaque slice walks every light of the scene (`TILE_NO_SLICE`). */
-  const everyLight = (() => {
-    const words = new Uint32Array(WIDE.stride);
-    [words[0], words[WIDE.opaqueBase]] = [LIST + 1, WIDE.noSlice];
-    return [...words];
-  })();
-  const record = (narrow: boolean, opaque: number[], count: number, capacity = 0) => ({
+  /** A cell's record in the narrow or wide program; with no `room`, every light of the scene. */
+  const record = (narrow: boolean, list: number[], room = true) => ({
     narrow,
-    words: [
-      ...compactTile(narrow ? NARROW : WIDE, { opaque, blend: [] }, count, undefined, {
-        capacity,
-        head: 0,
-        overflow: 0,
-      }),
-    ],
+    words: cellRecord(list, [], room),
   });
 
   // Within the lists: 60 lights, the narrow resolve and the wide one on the same list.
   const small = scene(60, 0.5);
-  // Past its list: 300 lights, more than a list reach the tile, a pool slice or no room at all.
+  // Past a list: 300 lights, more than `TILE_LIGHTS` reach the cell, its list or no room at all.
   const large = scene(300, 0.9);
   const missing = small.reach.filter((light) => light !== small.reach[1]);
   const SCENES: ResolveScene[] = [
@@ -89,36 +71,41 @@ if (import.meta.main) {
       lights: small.lights,
       samples,
       records: [
-        record(true, small.reach, 60),
-        record(false, small.reach, 60),
-        { narrow: false, words: everyLight },
-        record(false, missing, 60),
+        record(true, small.reach),
+        record(false, small.reach),
+        record(false, small.reach, false),
+        record(false, missing),
         // The same list through the program with no shadow code, the scene holding no shadow slot.
-        { ...record(false, small.reach, 60), unshadowed: true },
+        { ...record(false, small.reach), unshadowed: true },
+        // The same list through the program with no rectangle code: the scene holds none (#1369).
+        { ...record(false, small.reach), rectless: true },
       ],
     },
     {
       lights: large.lights,
       samples,
-      records: [record(false, large.reach, 300, 400), record(false, large.reach, 300)],
+      records: [record(false, large.reach), record(false, large.reach, false)],
     },
   ];
 
   test('the narrow resolve and the wide one give the same sums, bit for bit, on the GPU', async () => {
     assert.ok(small.reach.length > 8 && small.reach.length <= LIST, `${small.reach.length} reach`);
     assert.ok(large.reach.length > LIST, `${large.reach.length} reach the large tile`);
-    const [pooled, full] = SCENES[1].records.map(({ words }) => words);
-    assert.ok(full[WIDE.opaqueBase] === WIDE.noSlice && pooled[WIDE.opaqueBase] === WIDE.stride);
     const runs = await runResolves(SCENES, 'Narrow resolve', []);
     assert.deepEqual(
       runs.map((records) => records.length),
       SCENES.map((s) => s.records.length),
     );
-    const [[narrow, wide, every, dropped, unshadowed], [pool, overflow]] = runs;
+    const [[narrow, wide, every, dropped, unshadowed, rectless], [pool, overflow]] = runs;
     assert.deepEqual(
       unshadowed,
       wide,
       'the program with no shadow code sums the same, bit for bit',
+    );
+    assert.deepEqual(
+      rectless,
+      wide,
+      'the program with no rectangle code sums the same, bit for bit',
     );
     assert.deepEqual(narrow, wide, 'the narrow resolve sums what the wide one does, bit for bit');
     assert.deepEqual(wide, every, 'the list sums what every light does, bit for bit');

@@ -4,7 +4,7 @@ import {
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_DEPTH_SHADER } from './shader.ts';
+import { shadowDepthShader } from './depthModule.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
@@ -37,11 +37,10 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 
 /**
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
- * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
- * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
- * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
- * seed, then the pages the scene reads size it (`poolDemand.ts`) — until then no page exists and
- * the shading reads the placeholder.
+ * buffer of the records then the session's whole page table, up front (`SHADOW_DATA_WGSL`); the
+ * opaque resolve's page records; each drawn page's uniform, read by dynamic offset. The texture
+ * waits for `sizePool`: the first frame that casts grants the budget's pool, then the pages the
+ * scene reads size it (`poolDemand.ts`), the shading reading the placeholder until then.
  */
 export async function createGpuShadowAtlas(
   device: GPUDevice,
@@ -76,8 +75,8 @@ export async function createGpuShadowAtlas(
     dataBuffer.destroy();
   };
   try {
-    const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
-    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
+    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] }),
+      module = await createCheckedShaderModule(device, shadowDepthShader(device), 'SHADOW_DEPTH');
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
     const freshDraws = shadowFreshDraws(device, module, faces.layout);

@@ -1,16 +1,9 @@
-import { shadeLayout } from './shadeLayout.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { validationScope } from '../../gpu/core/errorScope.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
-import {
-  shadeVariantFragment,
-  variesShade,
-  visVariantFragment,
-} from '../../diagnostic/gpuGeometry.ts';
-import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
+import { visVariantFragment } from '../../diagnostic/gpuGeometry.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-import { shadeTargetFormats } from './shadeTargets.ts';
 
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
@@ -24,7 +17,7 @@ const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
 /** `run` under a validation scope; its pipelines compile off the thread, together (#1362). */
-async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
+export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
   const { value, error } = await validationScope(device, run);
   if (error) throw error;
   return value;
@@ -123,69 +116,5 @@ export function createWebgpuCoplanarLayerPipelines(
             }),
           );
     return Promise.all(pipelines);
-  });
-}
-/** Builds the depth export and class-specialized material pipelines during preparation. */
-export function createWebgpuShadePipelines(
-  device: GPUDevice,
-  shadeModule: GPUShaderModule,
-  classes: readonly number[],
-  variant?: DiagnosticGpuVariant,
-  feedback = true,
-  sharedLayout?: GPUBindGroupLayout,
-) {
-  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device);
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
-  const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
-  const classDepth: GPUDepthStencilState = {
-    format: MATERIAL_DEPTH_FORMAT,
-    depthWriteEnabled: false,
-    depthCompare: 'equal',
-  };
-  const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback';
-  /** Class features and depth derive from the key; a single class rejects background itself. */
-  const shadeDescriptor = (key: number, single: boolean): GPURenderPipelineDescriptor => {
-    const constants: Record<string, number> = single
-      ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
-      : { CLASS_KEY: key };
-    return {
-      layout,
-      vertex: { module: shadeModule, entryPoint: 'shade_vs', constants },
-      fragment: {
-        module: shadeModule,
-        entryPoint,
-        constants,
-        // The surfaces, then the tile request the image's feedback target receives.
-        targets: shadeTargetFormats(feedback).map((format) => ({ format })),
-      },
-      primitive,
-      depthStencil: single ? undefined : classDepth,
-    };
-  };
-  // A class a frame meets later compiles at once; those of the scene compile here, together.
-  const shadePipelineFor = (key: number) =>
-    device.createRenderPipeline(shadeDescriptor(key, false));
-  const single = classes.length === 1 && !variesShade(variant);
-  return scoped(device, async () => {
-    const [materialDepthPipeline, singlePipeline, shaded] = await Promise.all([
-      buildRenderPipeline(device, {
-        layout,
-        vertex: { module: shadeModule, entryPoint: 'shade_vs' },
-        fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
-        primitive,
-        depthStencil: { ...classDepth, depthWriteEnabled: true, depthCompare: 'always' },
-      }),
-      single ? buildRenderPipeline(device, shadeDescriptor(classes[0], true)) : undefined,
-      Promise.all(classes.map((key) => buildRenderPipeline(device, shadeDescriptor(key, false)))),
-    ]);
-    const singleShadePipelines = new Map<number, GPURenderPipeline>();
-    if (singlePipeline) singleShadePipelines.set(classes[0], singlePipeline);
-    return {
-      shadeBindGroupLayout,
-      materialDepthPipeline,
-      shadePipelineFor,
-      shadePipelines: new Map(classes.map((key, at) => [key, shaded[at]])),
-      singleShadePipelines,
-    };
   });
 }
