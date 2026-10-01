@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { debugMode, setDebugMode } from './debugMode.ts';
 import { worldDiagnostic } from '../world/core/worldHandles.ts';
+import { EngineProfiler } from '../diagnostic/telemetry.ts';
 
 test('debug mode is off unless the page asks: a world option, its setter, or ?profile', (t) => {
   t.after(() => {
@@ -19,4 +20,14 @@ test('debug mode is off unless the page asks: a world option, its setter, or ?pr
     configurable: true,
   });
   assert.equal(debugMode(), true, '`?profile` in the address turns it on');
+});
+
+test('the auto-log turns debug mode on, as it reads the frame report only debug mode files', (t) => {
+  t.after(() => setDebugMode(false));
+  const stop = new EngineProfiler().startAutoLog(60);
+  try {
+    assert.equal(debugMode(), true);
+  } finally {
+    stop();
+  }
 });
