@@ -23,14 +23,11 @@ import type { PackedDag } from './types.ts';
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts';
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts';
 
-/** The mirror of `packed`, whose root `world` (`packed.cutLinks`), packed last, is the world DAG
+/** The mirror of `packed`, whose `world` root (`packed.cutLinks`), packed last, is the world DAG
  *  with `origins` per rank (`worldRootDag`): the placed object of an object root, -1 otherwise. */
-export function createWorldResidencyMirror(
-  packed: PackedDag,
-  world: number,
-  origins: ArrayLike<number>,
-) {
-  const { pageBase, pageCount } = packed.cutLinks[world];
+export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<PackedDag, 'world'>>) {
+  const { root, origins } = packed.world;
+  const { pageBase, pageCount } = packed.cutLinks[root];
   if (pageBase + pageCount !== packed.pageCount) throw new Error('GPU_WORLD_DAG_NOT_LAST');
   if (origins.length !== pageCount) throw new Error('GPU_WORLD_ORIGINS_COUNT_CHANGED');
   // Each object's world ranks, by origin: offsets, then the ranks (built once, two passes).
@@ -137,7 +134,7 @@ export function createWorldResidencyMirror(
      */
     update(scene: Uint32Array, changes?: ResidencyChanges) {
       if (scene.length !== pageBase) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (handed) changed.clear();
+      if (handed) (changed.clear(), (handed = false));
       if (changes?.sorted)
         for (let i = 0; i < changes.count; i++) scenePage(scene, changes.pages[i]);
       else for (let page = 0; page < pageBase; page++) scenePage(scene, page);

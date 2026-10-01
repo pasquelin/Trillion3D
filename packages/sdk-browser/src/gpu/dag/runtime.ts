@@ -55,8 +55,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
   // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
   // before #1333, and the rows' flags go up as they are.
-  const world = packed.world,
-    mirror = world && createWorldResidencyMirror(packed, world.root, world.origins);
+  const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world });
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages

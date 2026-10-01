@@ -15,7 +15,7 @@ import {
 } from './worldRoots.ts';
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 2;
+const VERSION = 3;
 /** Bytes of each header and record (`records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 8, 24];
 const [DAG_HEADER, CLUSTER, GROUP] = [24, 152, 64];

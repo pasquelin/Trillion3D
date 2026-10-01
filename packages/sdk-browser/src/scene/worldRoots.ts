@@ -147,7 +147,7 @@ export async function openWorldRoots(
       // An object root's cell is its object's (`origin`, the table's rank, #1332).
       superRoots:
         records &&
-        cellSuperRoots(records.clusters, (origin) => table.cells.cellOf(origin), table.cells.count),
+        cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
       source: worldRootsPageSource(worldPageServer(table, bundlePages)),
     });
   };
