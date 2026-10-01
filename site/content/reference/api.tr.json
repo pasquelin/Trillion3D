@@ -8023,7 +8023,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce.",
+    "summary": "`world-roots.table`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce —, sayfaları ve hücreleri kayıtlarından okunur.",
     "members": {
       "version": "Biçim sürümü.",
       "budgetBytes": "Pişirmenin sabitlenmiş tepeye izin verdiği en fazla bayt.",
@@ -8031,8 +8031,8 @@
       "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
       "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
       "bundles": "Paketler, ikili dosyadaki sırayla.",
-      "pages": "Her sayfa: paketi, içindeki konumu, düzeyi ve hatası.",
-      "cells": "Her dünya hücresi: tuttuğu yerleştirilmiş ilkel öğeler."
+      "pages": "Sayfalar: kaç tane olduğu ve birinin paketi, içindeki konumu, düzeyi ve hatası, kaydından okunur.",
+      "cells": "Dünya hücreleri: kaç tane olduğu ve birinin tuttuğu yerleştirilmiş ilkel öğeler, kayıtlarından okunur."
     }
   },
   "WorldRootsBundle": {

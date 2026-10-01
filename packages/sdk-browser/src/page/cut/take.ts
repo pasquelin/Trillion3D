@@ -5,7 +5,7 @@ import { boxMissesLightPages } from '../../../../sdk-core/src/scene/light-shadow
 import { framePixels } from '../selection/frame.ts';
 import { pixelsAtZero } from '../selection/projection.ts';
 import { drawsCluster } from './rule.ts';
-import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
+import { fitPacked, selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 
 /** A page box grown for a light's cut: rewritten per use, no array made. */
 const grownMin = [0, 0, 0],
@@ -49,6 +49,8 @@ function keep<T extends PageRecord>(
   const triangles = rec.triangles,
     packed = s.flatBase < 0 ? -1 : s.flatBase + index;
   if (wanted) {
+    if (s.wantedCount === s.wantedPacked.length)
+      s.wantedPacked = fitPacked(s.wantedPacked, s.wantedCount + 1, s.wantedCount);
     s.wanted[s.wantedCount] = rec;
     s.wantedPacked[s.wantedCount++] = packed;
     s.wantedTriangles += triangles;
@@ -59,6 +61,8 @@ function keep<T extends PageRecord>(
     if (wanted) s.complete = false;
     return;
   }
+  if (s.shownCount === s.shownPacked.length)
+    s.shownPacked = fitPacked(s.shownPacked, s.shownCount + 1, s.shownCount);
   s.shown[s.shownCount] = rec;
   s.shownPacked[s.shownCount++] = packed;
   s.shownTriangles += triangles;
