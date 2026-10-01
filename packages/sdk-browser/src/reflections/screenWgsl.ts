@@ -20,7 +20,7 @@ const BOUNDED_MIRROR = {
   miss: `filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END})`,
 };
 
-const screenReflectionWgsl = (filtered?: string, bounded = false) => `
+const screenReflectionWgsl = (filtered?: string, mirror?: ScreenRadiance['mirror']) => `
 // \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
 // rough trace's seed.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
@@ -34,14 +34,14 @@ fn reflectionClearDepth()->f32{return 0.0;}
 // The reprojected source (source.ts): alpha 0 where the last image did not see the point.
 fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
 ${screenTraceShader('wgsl')}
-${REFLECTION_CONE_WGSL}${bounded ? HIZ_TRACE_WGSL : ''}
-${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, filtered, ...(bounded && { mirror: BOUNDED_MIRROR }) })}`;
+${REFLECTION_CONE_WGSL}${mirror ? HIZ_TRACE_WGSL : ''}
+${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, filtered, mirror })}`;
 
 export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl();
 
 /** The water composite's (`../webgpu/water/compositeWgsl.ts`): its mirror ray bounded, the fluids'
  *  own quality tier (AGENTS.md rule 1), on the depth bounds `reflectionPlan` makes for it. */
-export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl(undefined, true);
+export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl(undefined, BOUNDED_MIRROR);
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
  *  no weight, and leaves its whole lobe to the environment reflection, never black (#1341). */
