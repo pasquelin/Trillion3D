@@ -59,9 +59,16 @@ export function frame(calls: unknown[][]) {
         tintLayout: 'tint',
         made: () =>
           Object.fromEntries(
-            ['clear', 'casters', 'staticCasters', 'tintClear', 'tintDepth', 'tintColour'].map(
-              (k) => [k, k],
-            ),
+            [
+              'clear',
+              'casters',
+              'staticCasters',
+              'restore',
+              'movingCasters',
+              'tintClear',
+              'tintDepth',
+              'tintColour',
+            ].map((k) => [k, k]),
           ),
       },
       faceGroup: 'face group',
