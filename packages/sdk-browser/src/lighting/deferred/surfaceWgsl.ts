@@ -17,14 +17,15 @@ export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)
 /**
  * What a shadow read needs of its pixel: its footprint and point unjittered, whence its shadow level
  * (#1363); whether its lane asks for pages (a lane in the target asks per subgroup); its receiver,
- * moved by its shading-point offset (`receiverOffset`, from the visibility buffer, #1410).
+ * moved by its shading-point offset, and its triangle's plane the bias follows (`shadowReceiver`,
+ * from the visibility buffer, #1410, #831).
  * Set only where the pixel's cell lists a shadowed light (`cellShadowed`, #1369): nothing else reads
  * it, so a pixel of another cell loads none of its eight neighbour depths nor its receiver offset.
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
  let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
  shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
- shadowReceiverOffset=receiverOffset(pixel.xy);
+ let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
 }`;
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}

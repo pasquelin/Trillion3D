@@ -34,7 +34,9 @@ test('a triangle biased along its own plane is clean where its smooth normal lea
   assert.ok(teeth >= 10, `the smooth normal shades the triangle itself: ${teeth} of 12`);
 });
 
-test('the shading and the demand both bias along the receiver plane', () => {
-  assert.ok(declaredLightWgsl(true).includes('shadowBiasNormal(select(N,-N,back))'));
-  assert.ok(shadowDemandWgsl().includes('let N=shadowBiasNormal('));
+test('the shading and the demand both bias along the receiver plane, handed to the read', () => {
+  assert.ok(
+    declaredLightWgsl(true).includes('shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)'),
+  );
+  assert.ok(shadowDemandWgsl().includes(',receiver.plane);'));
 });

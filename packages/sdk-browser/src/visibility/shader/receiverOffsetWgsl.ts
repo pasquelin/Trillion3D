@@ -16,23 +16,26 @@ import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 
 /**
- * THE SHADOW RECEIVER OFFSET OF A PIXEL (#1410), recomputed where it is read — the deferred
- * lighting and the shadow demand — from the visibility buffer, rather than carried from the
- * resolve in a 12 B/px target. It is the resolve's own arithmetic, its shared parts called, not copied
+ * THE SHADOW RECEIVER OF A PIXEL (#1410): its shading-point offset and its triangle's plane, the
+ * one the shadow bias follows (#831), recomputed where they are read — the deferred lighting and
+ * the shadow demand — from the visibility buffer, rather than carried from the resolve in a
+ * 12 B/px target. It is the resolve's own arithmetic, its shared parts called, not copied
  * (`pixelTriangleWgsl.ts`): the pixel's triangle decoded by the page geometry, placed on the resolve's framebuffer by its
  * uniform, its perspective-correct barycentrics, its vertex normals through the world's inverse
  * transpose, turned to the side a two-sided surface is lit from, then the Phong projection
  * (`shadingPointOffset`). Zero where the resolve kept the triangle's point: the background, a
  * triangle past its page, a row without vertex normals, a sprite or a line.
  */
-const RECEIVER_OFFSET_FN_WGSL = `fn receiverOffset(pixel:vec2f)->vec3f{
+const RECEIVER_OFFSET_FN_WGSL = `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
+fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
+ let none=ShadowReceiver(vec3f(0.0),vec3f(0.0));
  let id=textureLoad(vis,vec2i(i32(pixel.x),i32(pixel.y)),0).r;
- if(id==0u){return vec3f(0.0);}
+ if(id==0u){return none;}
  let pageIndex=(id>>8u)-1u;
- if(pageIndex>=uni.pageCount){return vec3f(0.0);}
+ if(pageIndex>=uni.pageCount){return none;}
  let tri=id&0xffu;
  let page=pages[pageIndex];
- if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||page.sprite.y!=0.0||page.lineWidth!=0.0){return vec3f(0.0);}
+ if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||page.sprite.y!=0.0||page.lineWidth!=0.0){return none;}
  let h=pageHeader(page);
  let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
  let w0=page.world*vec4f(pagePosition(page,h,i0),1.0);let w1=page.world*vec4f(pagePosition(page,h,i1),1.0);let w2=page.world*vec4f(pagePosition(page,h,i2),1.0);
@@ -50,8 +53,8 @@ const RECEIVER_OFFSET_FN_WGSL = `fn receiverOffset(pixel:vec2f)->vec3f{
  let lit=select(1.0,face,(page.materialClass&${CLASS_FEATURE.DOUBLE_SIDED}u)!=0u);
  // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`, #831).
  let plane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
- if(dot(plane,plane)>0.0){shadowReceiverNormal=normalize(plane);}
- return shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
+ let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
+ return ShadowReceiver(offset,select(vec3f(0.0),normalize(plane),dot(plane,plane)>0.0));
 }`;
 
 /** What the receiver offset binds, in binding order from the pass's first number: never the
