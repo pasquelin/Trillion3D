@@ -15,7 +15,7 @@ import { core } from '../../impostor/borrowed.ts';
  * through the engine's one held-level read and its level store (`createWebglImpostorFeed`), within
  * the one texture budget's room (`room`): a root whose atlas streams keeps its clusters. `cards`
  * then draws them (`createWebglCardDraw`), with the cluster program's pieces the core lends it
- * (`../../impostor/lent.ts`). A session without a baked section, a level reader or a
+ * (`lent.ts`). A session without a baked section, a level reader or a
  * context makes nothing. A restored context drops every atlas and program: the next images read
  * and make them again, the roots keeping their clusters meanwhile.
  */
