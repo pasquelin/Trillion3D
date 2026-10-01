@@ -2,7 +2,6 @@ import { BOUNCE_SETTINGS, bounceBatchOf } from '../../../sdk-core/src/index.ts';
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
 import { BOUNCE_ATLAS_FORMAT, atlasExtent } from './atlas.ts';
 import {
-  BOUNCE_SURFACE_PASS,
   BOUNCE_SURFACE_SHADER,
   SURFACE_WORKGROUP,
   surfaceCacheBytes,
@@ -11,6 +10,7 @@ import {
 import type { GpuBounceProxy } from './proxy.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { BOUNCE_SURFACE_PASS } from '../stage/passLabels.ts';
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
  *  cache — the two atlases of `atlas.ts`. The proxy is writable because its header carries

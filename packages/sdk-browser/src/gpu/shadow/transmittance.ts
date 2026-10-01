@@ -4,6 +4,10 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
+import {
+  SHADOW_TRANSMITTANCE_CLEAR_PASS,
+  SHADOW_TRANSMITTANCE_PASS,
+} from '../../stage/passLabels.ts';
 
 /**
  * THE TRANSMITTANCE LAYER of the shadow pool: what the translucent casters let through, at half
@@ -27,10 +31,6 @@ import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
  * its bytes nor its pass, and its shading reads no texel of it (one-texel stand-ins are bound
  * instead).
  */
-/** Label of the layer's pass: timed with the Shadows stage. */
-export const SHADOW_TRANSMITTANCE_PASS = 'Trillion3D shadow transmittance pass v1';
-/** Label of the pass that clears the layer: shadow work, timed with the Shadows stage too. */
-export const SHADOW_TRANSMITTANCE_CLEAR_PASS = 'Trillion3D shadow transmittance clear v1';
 export const SHADOW_TRANSMITTANCE_FORMAT: GPUTextureFormat = 'rgba8unorm';
 export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 /** Bytes for a pool of `layers` of `poolSide` pages a side: a quarter of the pool's texels, 4

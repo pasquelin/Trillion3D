@@ -6,7 +6,6 @@ import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fix
 import { shadowPoolSize } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
 import { shadowRequestBytes } from './pageRequests.ts';
 import { admitShadowBytes, createShadowMemory } from './memoryGrant.ts';
 import { staticLayerGranted } from './poolSize.ts';
@@ -15,6 +14,7 @@ import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 import { shadowPoolFor } from './poolFor.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
 
 test('the grant holds the largest pool with its static and transmittance layers, not a byte more', () => {
   const pool = shadowPoolFor(shadowPoolSize(16384, 16384), 64)(SHADOW_ATLAS_BYTES),

@@ -6,33 +6,18 @@ import { shadowFreshWgsl } from './freshWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
+import { encodeShadowDemand } from './demandPass.ts';
 import { shadowKeptFrom } from './poolCeiling.ts';
-
-/** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
-const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
-const SHADOW_FLOORS_PASS = 'Trillion3D shadow floors v1';
-const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
-const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
-const SHADOW_FRESH_COUNT_PASS = 'Trillion3D shadow GPU page count v1';
-const SHADOW_FRESH_ADMIT_PASS = 'Trillion3D shadow GPU page admission v1';
-const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
-const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
-/** The transparents' marks of the pages they read (`../blend/marks.ts`). */
-export const BLEND_SHADOW_MARKS_PASS = 'Trillion3D shadow blend marks v1';
-/** The GPU's page passes, the floors first: timed under the Shadows stage (`stage/mapping.ts`). */
-export const SHADOW_PAGE_PASSES = [
-  SHADOW_FLOORS_PASS,
-  SHADOW_DEMAND_PASS,
-  BLEND_SHADOW_MARKS_PASS,
+import {
   SHADOW_ALLOC_PASS,
-  SHADOW_WORDS_PASS,
-  SHADOW_FRESH_PASS,
-  SHADOW_FRESH_COUNT_PASS,
+  SHADOW_FLOORS_PASS,
   SHADOW_FRESH_ADMIT_PASS,
+  SHADOW_FRESH_COUNT_PASS,
   SHADOW_FRESH_CULL_PASS,
+  SHADOW_FRESH_PASS,
   SHADOW_FRESH_SEAL_PASS,
-] as const;
+  SHADOW_WORDS_PASS,
+} from '../../stage/passLabels.ts';
 
 const READ: GPUBufferBindingType = 'read-only-storage';
 

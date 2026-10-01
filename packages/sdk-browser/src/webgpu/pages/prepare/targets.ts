@@ -10,9 +10,9 @@ import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
-import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
+import { MATERIAL_DEPTH_PASS } from '../../../stage/passLabels.ts';
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {

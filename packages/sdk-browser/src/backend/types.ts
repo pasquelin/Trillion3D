@@ -196,5 +196,5 @@ export interface BackendContext {
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
-export type { BackendFactory, EngineRenderer } from './engines.ts';
+export type { BackendFactory } from './engines.ts';
 export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts';

@@ -8,7 +8,7 @@ export const BUNDLE_SOURCES = 'trillion3d.module.js.sources.json';
 
 /** Each output file of the bundle at `dist`, by name: its sources, under `dist`, and the minified
  *  bytes each one takes in it. */
-export type BundleSources = Record<string, Record<string, number>>;
+type BundleSources = Record<string, Record<string, number>>;
 
 /** The `BundleSources` of an esbuild metafile whose outputs and inputs lie under `dist`. */
 export function bundleSources(metafile: Metafile, dist: string): BundleSources {
@@ -30,7 +30,7 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
  * the measurement's code and the diagnostic views —, and each renderer's own code, fetched only
  * by the page that draws with it — the WebGPU page raster, the WebGL2 page path.
  */
-export const NOT_IN_CORE = {
+const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
   diagnostics: [
     'sdk-browser/src/diagnostic/viewCode.js',
