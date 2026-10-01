@@ -5,7 +5,7 @@ import { fromArrays } from '../world/geometry/builder.ts';
 import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts';
 import { refuses } from '../contracts/cache.fixture.ts';
 import { near } from '../math/near.fixture.ts';
-import { positions } from './geometry.fixture.ts';
+import { one, positions } from './shape.fixture.ts';
 import { GRAVITY_PRESETS } from './options.ts';
 import {
   isSoftType,
@@ -19,7 +19,6 @@ import {
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
 import { softSettings } from './softSettings.ts';
 
-const one = { x: 1, y: 1, z: 1 };
 const masses = (vertices: Float32Array) => vertices.filter((_, i) => i % SOFT_VERTEX_WORDS === 3);
 const sum = (values: Float32Array) => values.reduce((a, b) => a + b, 0);
 const of = (options: SoftBodyOptions, scale = one, geometry = plane(2, 1, 4, 2)) =>
