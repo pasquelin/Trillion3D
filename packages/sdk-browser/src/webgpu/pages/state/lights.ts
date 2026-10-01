@@ -50,9 +50,7 @@ export interface WebgpuLightState {
   mobilityRows: GPUBuffer | undefined;
   staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
   staticLayerPending: boolean;
-  /** The static layer's texture, made with the pool (`../../shadow/staticReserve.ts`, #831), until
-   *  the layer built on it at the first move owns it. */
-  staticLayerTexture: GPUTexture | undefined;
+  staticLayerTexture: GPUTexture | undefined; // made with the pool until the layer owns it (#831)
   /** The static layer's page pyramids and the test of the moving casters against them. */
   pageHiz: ShadowPageHiz | undefined;
   occlusion: ShadowOcclusion | undefined;
@@ -63,8 +61,7 @@ export interface WebgpuLightState {
   bins?: ShadowBins; // the pool's raster bins (OMB-26)
   /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
   movingGroups: ShadowMovingGroups | undefined;
-  /** Each pass's clears and restores, two instanced draws; made with the atlas. */
-  pageQuads: ShadowPageQuads | undefined;
+  pageQuads: ShadowPageQuads | undefined; // each pass's clears and restores, made with the atlas
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
@@ -81,8 +78,7 @@ export interface WebgpuLightState {
   shadowSlots: Int32Array;
   /** The threshold the image's light cuts select casters at. */
   shadowPixelError: number;
-  /** Image whose shadow pages are planned: a plan is made once per image (`planImageShadows`). */
-  plannedFrame: number;
+  plannedFrame: number; // the image whose shadow pages are planned, once (`planImageShadows`)
   /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
    *  they no longer do (`../../shadow/pages.ts`). */
   packedBatch: { frame: number; from: number; to: number };
@@ -115,8 +111,7 @@ export interface WebgpuLightState {
   memory: ShadowMemory;
   /** The transmittance layer is past the grant or refused: never asked again (`transmittanceGrant.ts`). */
   transmittanceDenied: boolean;
-  /** The first contract-lit image's configuration is logged once. */
-  firstFrameLogged: boolean;
+  firstFrameLogged: boolean; // the first contract-lit image's configuration is logged once
 }
 
 export function createWebgpuLightState(
@@ -182,10 +177,9 @@ export function createWebgpuLightState(
 export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.staticLayer?.dispose();
   lights.staticLayerTexture?.destroy();
-  lights.staticLayerTexture = undefined;
   lights.pageHiz?.dispose();
   lights.occlusion?.dispose();
-  lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
+  lights.staticLayer = lights.pageHiz = lights.occlusion = lights.staticLayerTexture = undefined;
 }
 
 /**
