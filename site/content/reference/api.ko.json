@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "로드된 모델의 정점을 `await geometry.loadVertices()` 전에 읽었습니다. 세션은 처음 필요할 때 읽으며 미리 읽지 않습니다.",
       "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
-      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
+      "FAMILY_LOAD_FAILED": "엔진의 선택적 패밀리(physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream)가 가져오기를 다시 시도한 뒤에도 로드되지 않았습니다(`T3D-E090`). `world.diagnostic.error`에서 `details.family`가 그 이름을 알려 줍니다. 이 패밀리로 그리는 프레임은 그것을 기다리며, 다음에 사용할 때 다시 요청됩니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "PHYSICS_BUDGET": "물리에 한계를 넘는 요청이 있었거나(`world.budget.physics`: 물체, 장식 물체, 메모리), 동적 물체가 장면의 직접 자식이 아니었거나(`PHYSICS_NESTED`), 물리 모듈이 실패했거나(`PHYSICS_FAILED`), 물체의 자세나 꼭짓점이 유한하지 않게 되어 시뮬레이션을 떠났습니다(`PHYSICS_DIVERGED`): `world.physics.error`에 있습니다.",
