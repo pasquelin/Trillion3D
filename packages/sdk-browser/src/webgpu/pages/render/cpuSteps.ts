@@ -155,7 +155,7 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;
   if (!timing.rowFilled) return;
   timing.rowFilled = false;
-  if (!(debugMode() || timing.stages || rt.diag.listened || frameCostAuditEnabled())) return;
+  if (!(timing.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return;
   const total = timing.cpuProfile.row[CPU_STEP.totalMs];
   timing.cpuProfile.record(run.frame, total);
   timing.cpuWindow.record(run.frame, total);

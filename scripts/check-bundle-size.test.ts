@@ -98,7 +98,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
   }
   for (const source of [
     'sdk-browser/src/measurement/comparison.js',
-    'sdk-browser/src/diagnostic/viewCode.js',
+    'sdk-browser/src/host/scene/graphDiagnostic.js',
     'sdk-browser/src/webgpu/pages/pages.js',
     'sdk-browser/src/backend/autonomous/pages.js',
     'sdk-browser/src/gpu/shadow/atlas.js',

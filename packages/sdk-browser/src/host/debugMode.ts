@@ -1,18 +1,9 @@
+import { addressFlag } from './addressFlag.ts';
+
 /** Whether a world or the page turned the debug mode on (`setDebugMode`). */
 let asked = false;
-/** The address read last, and whether it asked for `?profile`: parsed once per string. */
-let search: string | undefined,
-  profiled = false;
-
 /** Whether the page's address carries `?profile`, read as the examples' profile reads it. */
-function profileAsked() {
-  const now = typeof location === 'undefined' ? undefined : location.search;
-  if (now !== search) {
-    search = now;
-    profiled = now !== undefined && new URLSearchParams(now).has('profile');
-  }
-  return profiled;
-}
+const profileAsked = addressFlag((params) => params.has('profile'));
 
 /**
  * The engine's debug mode (#1353), a development build's tools against a shipping build: the

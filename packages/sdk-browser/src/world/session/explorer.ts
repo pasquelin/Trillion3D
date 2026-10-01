@@ -12,7 +12,6 @@ import { createExplorerHostRuntime } from '../render/hostRuntime.ts';
 import { createExplorerApi } from '../api/api.ts';
 import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts';
 import { referenceTilesCapture } from '../../frame/referenceTiles.ts';
-import { setDebugMode } from '../../host/debugMode.ts';
 
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
  *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
@@ -81,7 +80,7 @@ export async function openMeasuredWorld(
         profiler,
         getReport: () => profiler.getReport(),
         printReport: () => profiler.printReport(),
-        enableAutoLog: (sec = 2) => (setDebugMode(true), profiler.startAutoLog(sec)),
+        enableAutoLog: (sec = 2) => profiler.startAutoLog(sec),
         disableAutoLog: () => profiler.stopAutoLog(),
       };
     }

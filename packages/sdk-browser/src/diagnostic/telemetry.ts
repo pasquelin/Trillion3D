@@ -3,6 +3,7 @@ export type { TelemetryReport } from './telemetryTypes.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts';
 import { frameStatistics } from '../../../sdk-core/src/index.ts';
 import { STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts';
+import { setDebugMode } from '../host/debugMode.ts';
 
 /** Watches frame after frame and says how smoothly the engine runs, and what slows it. */
 export class EngineProfiler {
@@ -168,8 +169,10 @@ export class EngineProfiler {
     }
   }
 
-  /** Prints it every few seconds; returns a function that stops. */
+  /** Prints it every few seconds; returns a function that stops. The log reads the frame report,
+   *  which only debug mode files (#1353): starting it turns the page's debug mode on. */
   startAutoLog(intervalSeconds = 2): () => void {
+    setDebugMode(true);
     this.stopAutoLog();
     this.autoLogTimer = setInterval(
       () => {
