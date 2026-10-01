@@ -16,22 +16,22 @@ function contacts(triangles: number[], feet: number[], radius = 0.25, height = 1
   return seen;
 }
 
-/** A wall in the plane x = 0, from z = -3 to 3 and y = 1 to 2, split along a diagonal; `turn`
- *  folds its second half by that angle about the diagonal's line, `flip` winds it backwards. */
-function wall(turn = 0, flip = false) {
+/** A wall in the plane x = 0, from z = -3 to 3 and y = 1 to 2, facing -x, split along a
+ *  diagonal; `flip` winds its second half backwards. */
+function wall(flip = false) {
   const a = [0, 1, -3],
     b = [0, 2, 3],
     c = [0, 2, -3],
-    d = [Math.sin(turn) * 6, 1, 3 - 6 + 6 * Math.cos(turn)];
-  const second = flip ? [a, d, b] : [a, b, d];
-  return [...a, ...c, ...b, ...second.flat()];
+    d = [0, 1, 3];
+  const second = flip ? [a, b, d] : [b, a, d];
+  return [...a, ...b, ...c, ...second.flat()];
 }
 
 test("a capsule beside a flat wall leaves it along the wall's normal, wherever its seam runs", () => {
   // The capsule's axis, upright 0.2 from the wall, passes the diagonal seam of the wall's two
   // triangles: the seam's line is not an edge of the wall, nothing pushes the body along it.
   for (const flip of [false, true]) {
-    const seen = contacts(wall(0, flip), [-0.2, 0, 0.4]);
+    const seen = contacts(wall(flip), [-0.2, 0, 0.4]);
     assert.ok(seen.length > 0);
     for (const { normal, depth } of seen) {
       near(normal, [-1, 0, 0], 'normal', 1e-12);

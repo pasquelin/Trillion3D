@@ -157,3 +157,26 @@ test('a walker up a ramp under a low ceiling stops where its head meets it, neve
   assert.ok(body.feet[1] <= 1.85 - HUMAN_BODY.capsuleHeight + 1e-3, `feet at ${body.feet[1]}`);
   assert.ok(Math.abs(body.velocity[0]) < 0.5, `still pushing at ${body.velocity[0]} m/s`);
 });
+
+test('a walker stopped by a shelf at knee height stands on the floor under it', () => {
+  // The shelf's underside, 0.46 m up, is under a step; its top, 1 m up, is not: the walker stays
+  // on its floor against the shelf's front, never perched in the air beside it.
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), block(0.52, 0.46, -3, 1.97, 1, 3)]));
+  body.place(0, 0, 0);
+  for (let tick = 0; tick < 240; tick++) body.advance(1 / 120, EAST);
+  assert.ok(Math.abs(body.feet[1]) < 1e-9, `feet at ${body.feet[1]}`);
+  assert.ok(body.feet[0] < 0.52, `walked to ${body.feet[0]}`);
+});
+
+test("a wedge's raised end, an overhang lower than a step, is not stood on", () => {
+  // A slab tilted 28° about z rests its east end on the floor; its west end overhangs 0.41 m up
+  // and its top edge there is 0.57 m up, above a step: the walker stops on the floor against it.
+  const wedge = block(2.03, 0, -3, 3.727, 0.186, 3);
+  wedge.rotation.z = -0.484;
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), wedge]));
+  body.place(0, 0, 0);
+  for (let tick = 0; tick < 240; tick++) body.advance(1 / 120, EAST);
+  assert.ok(Math.abs(body.feet[1]) < 1e-9, `feet at ${body.feet[1]}`);
+});
