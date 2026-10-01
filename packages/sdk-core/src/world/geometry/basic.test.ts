@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { box, plane, circle, ring, cylinder, cone, sphere } from './basic.ts';
 import type { Geometry } from './geometry.ts';
+import { RECIPES } from './recipes.ts';
 
 function verify(g: Geometry, vertices: number, triangles: number) {
   const p = g.attributes.position,
@@ -33,7 +34,8 @@ function verify(g: Geometry, vertices: number, triangles: number) {
 test('box sheets cover six distinct faces with sharp outward normals and complete UV squares', () => {
   const g = box(6, 4, 2, 3, 2, 1);
   verify(g, 52, 44);
-  assert.deepEqual(g.recipe, { type: 'box', args: [6, 4, 2, 3, 2, 1] });
+  assert.equal(RECIPES[g.recipe!.type], box);
+  assert.deepEqual(g.recipe!.args, [6, 4, 2, 3, 2, 1]);
   const p = g.attributes.position,
     n = g.attributes.normal,
     uv = g.attributes.uv;
@@ -95,7 +97,8 @@ test('plane subdivisions place exact thirds and middle lines with corresponding 
       1,
     ],
   );
-  assert.deepEqual(g.recipe, { type: 'plane', args: [6, 4, 3, 2] });
+  assert.equal(RECIPES[g.recipe!.type], plane);
+  assert.deepEqual(g.recipe!.args, [6, 4, 3, 2]);
   verify(plane(), 4, 2);
   verify(plane(2, 2, -3, 0), 4, 2);
 });
@@ -144,11 +147,13 @@ test('cylinders and cones retain cap orientation, taper normals, rings and saved
   for (let i = 0; i < 15; i++) assert.ok(Math.abs(n.getY(i) - 1 / Math.sqrt(10)) < 1e-9);
   for (let i = 15; i < 21; i++) assert.equal(n.getY(i), 1);
   for (let i = 21; i < 27; i++) assert.equal(n.getY(i), -1);
-  assert.deepEqual(g.recipe, { type: 'cylinder', args: [2, 4, 6, 4, 2, false] });
+  assert.equal(RECIPES[g.recipe!.type], cylinder);
+  assert.deepEqual(g.recipe!.args, [2, 4, 6, 4, 2, false]);
   verify(cylinder(2, 4, 6, 4, 2, true), 15, 16);
   const c = cone(3, 8, 4, 2);
   verify(c, 21, 20);
-  assert.deepEqual(c.recipe, { type: 'cone', args: [3, 8, 4, 2, false] });
+  assert.equal(RECIPES[c.recipe!.type], cone);
+  assert.deepEqual(c.recipe!.args, [3, 8, 4, 2, false]);
   verify(cone(3, 8, 4, 2, true), 15, 16);
 });
 
@@ -171,9 +176,10 @@ test('decimal sheet endpoints stay exact and box texture origins retain face ori
   ] as const;
   for (const [i, expected] of corners)
     assert.deepEqual([positions.getX(i), positions.getY(i), positions.getZ(i)], expected);
-  assert.equal(sphere().recipe!.type, 'sphere');
-  assert.deepEqual(circle(2, 4, 1, 2).recipe, { type: 'circle', args: [2, 4, 1, 2] });
-  assert.equal(ring().recipe!.type, 'ring');
+  assert.equal(RECIPES[sphere().recipe!.type], sphere);
+  assert.equal(RECIPES[circle(2, 4, 1, 2).recipe!.type], circle);
+  assert.deepEqual(circle(2, 4, 1, 2).recipe!.args, [2, 4, 1, 2]);
+  assert.equal(RECIPES[ring().recipe!.type], ring);
 });
 
 test('cylinder cap centers and rims stay on their corresponding end planes', () => {

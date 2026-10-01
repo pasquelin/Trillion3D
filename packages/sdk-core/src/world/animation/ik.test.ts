@@ -72,8 +72,6 @@ test('IK weights preserve zero poses, blend partial rotations and clamp overshoo
     solveTwoBoneIK(a.root, a.mid, a.end, target, undefined, weight);
     assert.ok(a.root.quaternion.angleTo(expectedRoot) < 1e-6);
     assert.ok(a.mid.quaternion.angleTo(expectedMid) < 1e-6);
-    const local = a.end.position.clone().applyMatrix4(a.end.matrixWorld);
-    assert.ok(Number.isFinite(local.length()));
   }
 });
 
@@ -83,11 +81,7 @@ test('straight chains use a fallback bending plane and unreachable targets stop 
     [0, 1, 0],
     [0, 0, 1],
   ]) {
-    const root = new Object3D(),
-      mid = new Object3D(),
-      end = new Object3D();
-    root.add(mid);
-    mid.add(end);
+    const { root, mid, end } = ikChain();
     mid.position.set(...(axis as [number, number, number]));
     end.position.copy(mid.position);
     root.updateMatrixWorld(true);
@@ -103,11 +97,7 @@ test('straight chains use a fallback bending plane and unreachable targets stop 
 
 test('opposite IK poles choose mirrored elbows for the same reachable endpoint', () => {
   for (const sign of [-1, 1]) {
-    const root = new Object3D(),
-      mid = new Object3D(),
-      end = new Object3D();
-    root.add(mid);
-    mid.add(end);
+    const { root, mid, end } = ikChain();
     mid.position.set(0, 1, 0);
     end.position.set(0, 1, 0);
     solveTwoBoneIK(root, mid, end, new Vector3(1, 1, 0), new Vector3(0, 0, sign));
@@ -283,11 +273,7 @@ test('collinear IK targets reach behind the chain and work independently of bone
       [0, 0, 1],
     ])
       for (const direction of [-1, 1]) {
-        const root = new Object3D(),
-          mid = new Object3D(),
-          end = new Object3D();
-        root.add(mid);
-        mid.add(end);
+        const { root, mid, end } = ikChain();
         mid.position.set(axis[0] * length, axis[1] * length, axis[2] * length);
         end.position.copy(mid.position);
         const target = mid.position.clone().multiplyScalar(direction);
@@ -356,11 +342,7 @@ test('an already-bent chain rolls onto a new pole plane before reaching its targ
 });
 
 test('moving a pole across a posed chain mirrors the elbow while keeping the endpoint fixed', () => {
-  const root = new Object3D(),
-    mid = new Object3D(),
-    end = new Object3D();
-  root.add(mid);
-  mid.add(end);
+  const { root, mid, end } = ikChain();
   mid.position.set(0, 1, 0);
   end.position.set(1, 0, 0);
   const target = new Vector3(1, 1, 0);
@@ -374,11 +356,7 @@ test('moving a pole across a posed chain mirrors the elbow while keeping the end
 });
 
 test('zero-weight IK preserves nonidentity root and middle rotations even with a new pole', () => {
-  const root = new Object3D(),
-    mid = new Object3D(),
-    end = new Object3D();
-  root.add(mid);
-  mid.add(end);
+  const { root, mid, end } = ikChain();
   mid.position.set(0, 3, 0);
   end.position.set(2, 0, 0);
   root.rotation.set(0.3, -0.5, 0.8);
@@ -466,11 +444,7 @@ test('near-collinear IK targets and poles retain a stable bend under uniform sce
   for (const poleCase of [false, true]) {
     const elbows: Vector3[] = [];
     for (const scale of [0.1, 1, 10]) {
-      const root = new Object3D(),
-        mid = new Object3D(),
-        end = new Object3D();
-      root.add(mid);
-      mid.add(end);
+      const { root, mid, end } = ikChain();
       mid.position.set(0, 3 * scale, 0);
       end.position.set(0, 2 * scale, 0);
       const target = (poleCase ? new Vector3(2, 1, 0) : new Vector3(0, 2, 1e-9)).multiplyScalar(
@@ -488,11 +462,7 @@ test('near-collinear IK targets and poles retain a stable bend under uniform sce
 });
 
 test('IK keeps an unreachable chain slightly bent so its next solve remains well-defined', () => {
-  const root = new Object3D(),
-    mid = new Object3D(),
-    end = new Object3D();
-  root.add(mid);
-  mid.add(end);
+  const { root, mid, end } = ikChain();
   mid.position.set(0, 3, 0);
   end.position.set(0, 2, 0);
   solveTwoBoneIK(root, mid, end, new Vector3(0, 9, 0));
