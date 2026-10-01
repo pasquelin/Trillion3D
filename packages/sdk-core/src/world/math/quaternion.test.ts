@@ -4,9 +4,9 @@ import { Quaternion } from './quaternion.ts';
 import { Vector3 } from './vector3.ts';
 import { Matrix4 } from './matrix4.ts';
 import { listen } from './observed.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const close = (a: number[], b: number[]) =>
-  a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-7, `${a} != ${b}`));
+const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7);
 
 test('quaternion storage, inverse, normalization and shortest arcs preserve physical rotations', () => {
   const value = new Quaternion();

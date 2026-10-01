@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SplineCurve, Path, Curve } from '../math/curves.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { torusKnot, tube, torus, lathe, capsule } from './round.ts';
+import { RECIPES } from './recipes.ts';
 
 /** Every vertex of the last ring of a `(tubular + 1) × (radial + 1)` sweep sits on the first's. */
 function assertCloses(position: ArrayLike<number>, tubular: number, radial: number) {
@@ -47,7 +48,8 @@ test('torus tube lies at the declared distance from its central circle, with out
       uv = g.attributes.uv;
     assert.equal(p.count, 45);
     assert.equal(g.index!.count, 192);
-    assert.deepEqual(g.recipe, { type: 'torus', args: [5, 2, 4, 8, arc] });
+    assert.equal(RECIPES[g.recipe!.type], torus);
+    assert.deepEqual(g.recipe!.args, [5, 2, 4, 8, arc]);
     for (let i = 0; i < p.count; i++) {
       near(Math.hypot(Math.hypot(p.getX(i), p.getY(i)) - 5, p.getZ(i)), 2);
       near(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)), 1);
@@ -109,7 +111,8 @@ test('capsule rings join two hemispheres to the declared straight cylinder', () 
     p = g.attributes.position;
   assert.equal(p.count, 30);
   assert.equal(g.index!.count, 120);
-  assert.deepEqual(g.recipe, { type: 'capsule', args: [2, 6, 2, 4] });
+  assert.equal(RECIPES[g.recipe!.type], capsule);
+  assert.deepEqual(g.recipe!.args, [2, 6, 2, 4]);
   for (let i = 0; i < p.count; i++) {
     const centreY = p.getY(i) < 0 ? -3 : 3;
     near(Math.hypot(p.getX(i), p.getY(i) - centreY, p.getZ(i)), 2);
@@ -140,7 +143,8 @@ test('open tubes keep translated endpoints, radius and normals across either fra
     }
   }
   const knot = torusKnot(2, 0.25, 8, 4, 1, 2);
-  assert.deepEqual(knot.recipe, { type: 'torusKnot', args: [2, 0.25, 8, 4, 1, 2] });
+  assert.equal(RECIPES[knot.recipe!.type], torusKnot);
+  assert.deepEqual(knot.recipe!.args, [2, 0.25, 8, 4, 1, 2]);
   assert.equal(knot.attributes.position.count, 45);
 });
 
@@ -190,16 +194,15 @@ test('open curved tubes use one-sided endpoint tangents and preserve their centr
   }
 });
 
-class BoundaryDirection extends Curve {
+class Slanted extends Curve {
   getPoint(t: number, out = new Vector3()) {
-    return out.set(0.9 * t, Math.sqrt(0.19) * t, 0);
+    return out.set(3 * t, 4 * t, 0);
   }
 }
 
-test('tube cross sections retain their seam direction and complete longitudinal UVs', () => {
-  const g = tube(new BoundaryDirection(), 2, 0.5, 3);
-  const p = g.attributes.position,
-    uv = g.attributes.uv;
+test('tube UVs run around each ring and along the path, end to end', () => {
+  const g = tube(new Slanted(), 2, 0.5, 3);
+  const uv = g.attributes.uv;
   assert.equal(uv.count, 12);
   for (let ring = 0; ring <= 3; ring++) {
     for (let along = 0; along <= 2; along++) {

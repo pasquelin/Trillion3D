@@ -198,3 +198,18 @@ test('a newly created optional color continues to notify its material after cons
   (material.sheenColor as Color).set(0xff0000);
   assert.equal(writes, 1);
 });
+
+test('a texture a material no longer samples stops repainting it, unless another field still holds it', () => {
+  const texture = new Texture({ width: 2, height: 2 });
+  const material = new Material('meshStandard', { map: texture, emissiveMap: texture });
+  let writes = 0;
+  material._listeners.add(() => writes++);
+  material.map = null;
+  writes = 0;
+  texture.rotation = 0.1;
+  assert.equal(writes, 1, 'still sampled as the emissive map');
+  material.emissiveMap = new Texture(null);
+  writes = 0;
+  texture.rotation = 0.2;
+  assert.equal(writes, 0, 'sampled by no field');
+});
