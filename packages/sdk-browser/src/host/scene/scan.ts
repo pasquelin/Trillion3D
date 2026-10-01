@@ -79,17 +79,24 @@ function scanLight(light: Light, held: Float64Array): boolean {
 /** Compares the node to its state and takes what moved: what the reference's walk writes is
  *  read back as it stands, so a still scene reads the same values frame after frame. */
 export function scan(state: NodeState): WatchVerdict {
-  const node = state.node;
+  const node = state.node,
+    // One read each, into a local: `parent` and `visible` are getters that check the node is
+    // still alive, and this walk runs on every watched node, twice in an image where the GPU cut
+    // walks back into the CPU one.
+    parent = node.parent,
+    visible = node.visible,
+    castShadow = node.castShadow,
+    auto = node.matrixAutoUpdate;
   // A reparented node changes its ancestor chain: the watched set is reshaped.
-  const reparented = node.parent !== state.parent;
-  state.parent = node.parent;
-  let moved = node.visible !== state.visible || node.castShadow !== state.castShadow;
-  state.visible = node.visible;
-  state.castShadow = node.castShadow;
-  if (node.matrixAutoUpdate !== state.auto) {
+  const reparented = parent !== state.parent;
+  state.parent = parent;
+  let moved = visible !== state.visible || castShadow !== state.castShadow;
+  state.visible = visible;
+  state.castShadow = castShadow;
+  if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
-    state.auto = node.matrixAutoUpdate;
-    state.matrix = state.auto ? null : Float64Array.from(node.matrix.elements);
+    state.auto = auto;
+    state.matrix = auto ? null : Float64Array.from(node.matrix.elements);
     moved = true;
   } else if (state.matrix && !sameElements(state.matrix, node.matrix.elements)) {
     copyElements(state.matrix, node.matrix.elements);
