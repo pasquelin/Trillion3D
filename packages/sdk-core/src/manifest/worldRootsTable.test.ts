@@ -26,6 +26,12 @@ test('the table reads every bundle, page, cell and object back at its record', (
     cells.map((_, at) => table.cells.objects(at)),
     cells.map((c) => c.objects),
   );
+  // Each object, by its rank, is found in its cell: an object root's `origin` names it (#1332).
+  const ranks = cells.flatMap((cell, at) => cell.objects.map(() => at));
+  assert.deepEqual(
+    ranks.map((_, object) => table.cells.cellOf(object)),
+    ranks,
+  );
   // An unaligned view of the same bytes is read alike.
   const shifted = new Uint8Array(bytes.byteLength + 1);
   shifted.set(bytes, 1);
@@ -51,7 +57,8 @@ test('a binary past 4 GiB is named whole, its offsets in two words', () => {
 
 test('a table that breaks its contract is refused whole', () => {
   const broken: ((spec: ReturnType<typeof worldRootsFixture>['spec']) => void)[] = [
-    (spec) => (spec.version = 1),
+    // Version 2 named an object root by its instance (#1332): an old cache is refused, cooked again.
+    (spec) => (spec.version = 2),
     (spec) => (spec.pinned = 0),
     (spec) => (spec.pinnedTopBytes += 1),
     (spec) => (spec.bundles[2].offset += 4),

@@ -15,7 +15,7 @@ import {
 } from './worldRoots.ts';
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 2;
+const VERSION = 3;
 /** Bytes of each header and record (`records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 8, 24];
 const [DAG_HEADER, CLUSTER, GROUP] = [24, 152, 64];
@@ -131,6 +131,16 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
         return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) =>
           objectAt(first + i),
         );
+      },
+      cellOf(object) {
+        // The last cell starting at or before `object`: an empty cell starts where the next does.
+        let [low, high] = [0, cellCount - 1];
+        while (low < high) {
+          const mid = (low + high + 1) >> 1;
+          if (word(cellsAt + mid * CELL) <= object) low = mid;
+          else high = mid - 1;
+        }
+        return low;
       },
     },
   };
