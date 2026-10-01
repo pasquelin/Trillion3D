@@ -19,9 +19,7 @@ import {
 import { transformAffinePoint } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 import { impostorCardCorners } from './card.ts';
-import { pixelScaleOf } from '../streaming/priority.ts';
-import { markCard } from '../visibility/shader/spriteWgsl.ts';
-import { grownCapacity } from '../placement/rows.ts';
+import { core } from './borrowed.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 
@@ -89,7 +87,7 @@ function markImpostorRoots(
 ) {
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank];
-    if (markCard(root, switched?.[rank] === 1)) moved?.(rank, root);
+    if (core.markCard(root, switched?.[rank] === 1)) moved?.(rank, root);
   }
 }
 
@@ -123,14 +121,14 @@ export function planImpostorCards<G>(
   atlasOf: (mesh: number, maps: ImpostorMaps) => G | undefined,
   moved?: CardMoved,
 ) {
-  pixelScaleOf(cam.projection, viewport, pixelScale);
+  core.pixelScaleOf(cam.projection, viewport, pixelScale);
   const focal = Math.max(pixelScale[0], pixelScale[1]);
   const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan));
   plan.cards.sort(byMesh);
   state.count = state.runCount = 0;
   const floats = plan.cards.length * CARD_FLOATS;
   if (state.records.length < floats)
-    state.records = new Float32Array(grownCapacity(state.records.length, floats));
+    state.records = new Float32Array(core.grownCapacity(state.records.length, floats));
   let last: ArrayLike<number> | undefined,
     mesh = -1,
     group: G | undefined;

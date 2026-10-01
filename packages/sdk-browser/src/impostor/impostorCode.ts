@@ -11,3 +11,4 @@ export {
   encodeImpostorVisibilityPass,
 } from '../webgpu/impostor/encode.ts';
 export { createWebglImpostors } from '../webgl/impostor/frame.ts';
+export { lend } from './borrowed.ts';

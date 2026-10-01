@@ -19,3 +19,12 @@ test('the impostor draw is fetched by a baked cache only, and awaited before its
   assert.equal(typeof code?.encodeImpostorCards, 'function');
   assert.equal(typeof code?.createWebglImpostors, 'function');
 });
+
+test('the impostor draw arrives lent the core pieces it draws with, never importing them', async () => {
+  // Imported by the family, these core modules would split the CDN core into more chunks.
+  const { core } = await import('./borrowed.ts');
+  const lent = await import('./lent.ts');
+  await loadImpostorCode(session(1));
+  for (const name of Object.keys(lent) as (keyof typeof lent)[])
+    assert.equal(core[name], lent[name], name);
+});

@@ -1,8 +1,5 @@
-import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
-import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
-import { VIS_DEPTH, visTargets } from '../visibility/pipelines.ts';
-import { grownCapacity } from '../../placement/rows.ts';
-import { CARD_PASS_WGSL, CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { core } from '../../impostor/borrowed.ts';
+import { cardPassWgsl, CARD_VIEW_FLOATS } from './cardWgsl.ts';
 import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { createImpostorFeed } from './feed.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
@@ -42,7 +39,7 @@ export function createImpostorPass(
       { binding: 3, visibility: FRAGMENT, sampler: { type: 'filtering' as const } },
     ],
   });
-  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: CARD_PASS_WGSL });
+  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: cardPassWgsl() });
   const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, atlasLayout] });
   const make = (
     label: string,
@@ -61,8 +58,8 @@ export function createImpostorPass(
   const pipeline = make(
     IMPOSTOR_PASS,
     'card_fs',
-    SURFACE_FORMATS.map((format) => ({ format })),
-    { format: 'depth32float', depthCompare: DEPTH_COMPARE_OR_EQUAL, depthWriteEnabled: false },
+    core.SURFACE_FORMATS.map((format) => ({ format })),
+    { format: 'depth32float', depthCompare: core.DEPTH_COMPARE_OR_EQUAL, depthWriteEnabled: false },
   );
   const visPipelines: Partial<Record<'hiz' | 'ids', GPURenderPipeline>> = {};
   const viewBuffer = device.createBuffer({
@@ -78,8 +75,8 @@ export function createImpostorPass(
       return (visPipelines[hiz ? 'hiz' : 'ids'] ??= make(
         `${IMPOSTOR_PASS} visibility`,
         hiz ? 'card_vis_hiz_fs' : 'card_vis_fs',
-        visTargets(hiz),
-        VIS_DEPTH,
+        core.visTargets(hiz),
+        core.VIS_DEPTH,
       ));
     },
     feed: createImpostorFeed(device, atlasLayout, reader, feedOptions),
@@ -88,7 +85,7 @@ export function createImpostorPass(
     imageGroup(cards: number) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4;
       if (!cardBuffer || cardBuffer.size < bytes) {
-        const size = grownCapacity(cardBuffer?.size ?? 0, bytes);
+        const size = core.grownCapacity(cardBuffer?.size ?? 0, bytes);
         cardBuffer?.destroy();
         cardBuffer = device.createBuffer({
           label: 'Trillion3D impostor cards',

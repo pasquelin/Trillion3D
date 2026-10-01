@@ -8,8 +8,7 @@ import {
   type FedAtlas,
 } from '../../impostor/feed.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
-import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
-import { deviceMade } from '../../gpu/core/errorScope.ts';
+import { core } from '../../impostor/borrowed.ts';
 
 /** The three maps' formats: the colour is stored sRGB, the normal, depth and ORM linear. */
 const MAP_FORMATS: Record<keyof ImpostorAtlasLevels, GPUTextureFormat> = {
@@ -35,7 +34,7 @@ const mapTexture = (maps: ImpostorMaps, name: keyof ImpostorAtlasLevels, key: st
 
 /** GPU bytes of a mesh's atlas, its three chains, read from its maps before any level is. */
 const atlasBytes = (maps: ImpostorMaps) =>
-  ATLAS_MAPS.reduce((sum, name) => sum + (textureBytesOf(mapTexture(maps, name, '')) ?? 0), 0);
+  ATLAS_MAPS.reduce((sum, name) => sum + (core.textureBytesOf(mapTexture(maps, name, '')) ?? 0), 0);
 
 /**
  * THE PER-MESH ATLAS FEED on WebGPU (#1335): the shared feed (`impostor/feed.ts`), each atlas
@@ -91,7 +90,7 @@ export function createImpostorFeed(
       if (feed.holds(key, entry)) feed.drop(key);
       if (!feed.closed) onFailure('impostor-atlas-upload-failed', error);
     };
-    void deviceMade(device, copy).then((made) => {
+    void core.deviceMade(device, copy).then((made) => {
       if (!feed.holds(key, entry)) return made?.destroy();
       if (!made) {
         feed.refuse(key);

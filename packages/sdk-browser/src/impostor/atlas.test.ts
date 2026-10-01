@@ -4,6 +4,7 @@
 // is not there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lent.fixture.ts';
 import { loadImpostorAtlas } from './atlas.ts';
 import { createHeldLevels } from '../texture/heldLevels.ts';
 import { createTextureLevelStore } from '../texture/levelStore.ts';

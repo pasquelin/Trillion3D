@@ -5,6 +5,7 @@
 // held-level read; until then the root keeps its clusters. Fails on develop: the file is new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import '../../impostor/lent.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { frontCamera } from '../../page/selection/dag.fixture.ts';
