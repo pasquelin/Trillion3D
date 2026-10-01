@@ -169,6 +169,14 @@ audit, an A/B layout). `createWorld(target, { debug: true })`, `world.diagnostic
 the examples' stats corner and `?profile` in the page's address turn it on; a page that asks
 for none of them pays for none of it.
 
+The profiling tools keep their names and signatures, but the core holds only their facades: the
+code of `EngineProfiler` and of the pass mapping (`gpuPassStageOf`, `gpuPassBlockOf`,
+`gpuPassBlockTotals`) is the measurement's chunk, fetched as debug mode turns on, or on their
+first call. Until it has arrived, a frame `record` is given is not counted, `getReport` answers a
+report with nothing measured and `bottleneckMessage` "Waiting for the debug code", a pass reads as
+unknown (stage `geometry`, block `other`) and a sample's blocks as unmeasured (`null`). A page that
+reads them from its first frame turns debug mode on before it.
+
 ## API rule
 
 | Kind                     | Used for                                                                                                                                                | Examples                                                                                                |

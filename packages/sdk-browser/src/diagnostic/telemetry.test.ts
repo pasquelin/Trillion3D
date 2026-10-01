@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineProfiler } from './telemetry.ts';
+import { FrameProfile } from './frameProfile.ts';
+import { families } from '../host/families.ts';
 import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts';
 
-test('EngineProfiler records frames and produces accurate statistics and bottlenecks', () => {
-  const profiler = new EngineProfiler();
+test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
+  const profiler = new FrameProfile();
   const manifest: ClusterManifest = {
     schema: 1,
     status: 'ready',
@@ -62,8 +64,8 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
   assert.ok(text.includes('32 MB VRAM'));
 });
 
-test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', () => {
-  const profiler = new EngineProfiler();
+test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget', () => {
+  const profiler = new FrameProfile();
   const heavyMetrics: FrameMetrics = {
     rafIntervalMs: 35.0,
     cpuFrameMs: 25.4,
@@ -92,7 +94,7 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
 // `../../../../bench/oracles/browser/telemetry.ts`.
 test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
   const max = 5;
-  const profiler = new EngineProfiler(max);
+  const profiler = new FrameProfile(max);
   // The first call only sets the clock baseline; every later call produces one interval. Includes a
   // negative delta and one past the 1000 ms ceiling, both of which the filter must reject.
   const deltas = [0, 10, -3, 2000, 12, 8, 9, 11, 7, 13];
@@ -104,9 +106,21 @@ test('the circular interval buffer matches push+shift after wraparound and rejec
 });
 
 test('a profiler that never records a valid interval reports an empty, not undefined, list', () => {
-  const profiler = new EngineProfiler(3);
+  const profiler = new FrameProfile(3);
   profiler.record({} as never, 100);
   profiler.record({} as never, 100); // dt === 0: rejected by `dt > 0`.
   assert.deepEqual(profiler.orderedIntervals(), referenceIntervals(3, [0]));
   assert.deepEqual(profiler.orderedIntervals(), []);
+});
+
+test('EngineProfiler, the core facade, reports nothing until the debug code arrives, then its frames', async () => {
+  const profiler = new EngineProfiler(),
+    frame = { cpuFrameMs: 2 } as never;
+  profiler.record(frame, 1000);
+  assert.equal(profiler.getReport().fps, null, 'a frame before the code is not counted');
+  assert.match(profiler.formatReport(), /Waiting for the debug code/);
+  await families.measurement.load();
+  for (let t = 1000; t <= 1100; t += 10) profiler.record(frame, t);
+  assert.equal(profiler.getReport().fps, 100);
+  assert.deepEqual(profiler.orderedIntervals(), Array(10).fill(10));
 });
