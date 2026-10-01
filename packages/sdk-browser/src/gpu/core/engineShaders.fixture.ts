@@ -13,6 +13,7 @@ import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
+import { shadowBinShader } from '../shadow/binShader.ts';
 import { SHADOW_GROUP_PAIRS_WGSL } from '../shadow/groupWgsl.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
@@ -119,6 +120,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_LIGHT_CULL_SHADER,
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
+  SHADOW_BIN: shadowBinShader(false),
+  SHADOW_BIN_STORED: shadowBinShader(true),
   SHADOW_DEPTH_LAMP_GROUPS: shadowDepthShader({ features: new Set(['clip-distances']) } as never),
   PAGE_QUAD_SHADER,
   PAGE_MOVE_SHADER,
@@ -135,13 +138,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
   // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
-  DIRECT_UNSHADOWED_RECTLESS_LIGHTING: contractLightingShader(
-    false,
-    false,
-    undefined,
-    false,
-    false,
-  ),
+  DIRECT_UNSHADOWED_RECTLESS: contractLightingShader(false, false, undefined, false, false),
   BOUNCE_NARROW_RECTLESS_LIGHTING: contractLightingShader(true, true, undefined, true, false),
   REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, true)),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
