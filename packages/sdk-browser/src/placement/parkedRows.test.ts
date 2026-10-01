@@ -31,11 +31,13 @@ test('a parked caster written again within a float32 step stales no page, frame 
   const first = motions.length;
   assert.ok(first > 0 && motions.every((motion) => !motion.movingOnly), 'its first move');
   // Parked: a hundred frames of the same pose, rounded again by less than a float32 step.
-  for (let frame = 0; frame < 100; frame++)
-    write(40.001 + (frame % 2) * 1e-6, (frame % 3) * 1e-9);
+  for (let frame = 0; frame < 100; frame++) write(40.001 + (frame % 2) * 1e-6, (frame % 3) * 1e-9);
   assert.equal(motions.length, first, 'parked: no page staled');
   // Driven on a millimetre: its moving casters' pages alone.
   write(40.002);
   assert.ok(motions.length > first, 'a millimetre stales its pages');
-  assert.ok(motions.slice(first).every((motion) => motion.movingOnly), 'its moving casters');
+  assert.ok(
+    motions.slice(first).every((motion) => motion.movingOnly),
+    'its moving casters',
+  );
 });
