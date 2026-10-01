@@ -4,21 +4,12 @@ import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts';
 import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
-import { MIRROR_TRANSITION_END } from './modelShader.ts';
 
 /** A sample is bounded: one ray per 2 × 2 block (`reflectionPhase`, the reference's
- *  half-resolution trace), walked over the depth pyramid within its step cap (`hizTraceWgsl.ts`),
- *  and a miss reads the program's filtered reflection along the sampled ray at the first roughness
- *  the probes filter — never a proxy ray per pixel (#33). A reference session's program takes the
- *  mirror's whole walk and fallback instead (`reflectionTrace`, `frame/referenceMode.ts`): two
- *  programs, never a branch. */
-const BOUNDED_SAMPLE = `
- let hit=screenReflectionHiZ(P,sample.xyz);
- if(hit.a!=0.0){return vec4f(hit.rgb,sample.w);}
- return vec4f(filteredReflectedRadiance(P,N,sample.xyz,${MIRROR_TRANSITION_END}),sample.w);`;
-const UNBOUNDED_SAMPLE = `
- return vec4f(resolvedReflectionRay(P,N,sample.xyz),sample.w);`;
-
+ *  half-resolution trace), resolved by the bounded ray (`boundedReflectionRay`, `hizTraceWgsl.ts`):
+ *  the depth pyramid within its step cap, a miss on the filtered probes (#33). A reference
+ *  session's program takes the mirror's whole walk and fallback instead (`reflectionTrace`,
+ *  `frame/referenceMode.ts`): two programs, never a branch. */
 const stochasticReflectionWgsl = (unbounded: boolean) => `${GGX_REFLECTION_SAMPLE_WGSL}
 ${REFLECTION_PHASE_WGSL}
 ${unbounded ? '' : HIZ_TRACE_WGSL}
@@ -40,7 +31,7 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  let xi=vec2f(hashUnit(pixelSeed^seed),hashUnit(pixelSeed^seed^0x9e3779b9u));
  let sample=stochasticReflection(reflect(-V,N),nr.a,min(xi,vec2f(0.99999994)));
  if(sample.w<=0.0){return vec4f(0.0);}
- ${unbounded ? UNBOUNDED_SAMPLE : BOUNDED_SAMPLE}
+ return vec4f(${unbounded ? 'resolvedReflectionRay' : 'boundedReflectionRay'}(P,N,sample.xyz),sample.w);
 }`;
 
 /** The trace borrows the same lighting/proxy bindings as the final resolve; `unbounded`, a
