@@ -181,7 +181,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
    let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
    surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    thinSubsurface=s.subsurface;
-   shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
+   shadowFootprint=blendShadowFootprint(in.view);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);

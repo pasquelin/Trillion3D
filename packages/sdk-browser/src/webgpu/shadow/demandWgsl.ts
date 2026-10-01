@@ -22,44 +22,13 @@ export const SHADOW_DEMAND_GROUP = 8;
 const DEMAND_RECEIVER_BINDING = 8;
 
 /**
- * THE PER-PIXEL DEMAND OF SHADOW PAGES (#1275): one invocation per pixel of the visibility buffer,
- * after depth and before any shadow page is drawn or read. A pixel the resolve lights marks, for
- * every shadowed light of its tile's opaque list, the pages that light's read wants at it — the
- * sun level or the lamp mip of its footprint, its home page and the neighbours the PCF reaches
- * across a page edge, and, for a point lamp with a radius, the few pages around its soft shadow's
- * disks at their mips (`demandSoftLamp`), a bounded count per pixel — in the request buffer the resolve records into (`requestShadowPage`).
- *
- * Every step is the shading's own: the view and the world point its resolve reconstructs
- * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
- * (`receiverOffset`, the lighting's, recomputed from the visibility buffer), its normal turned
- * from a light behind a thin subsurface surface (`declaredLight`), its tile slice, its light gate,
- * its footprint and point unjittered (`pixelLevel`), and the page model (`pageModel.ts`) its read
- * takes the level, the map texel, the entry and the PCF's pages from. Unlike the read, the demand
- * never falls back: a page not drawn yet is the one it wants. The layout it marks is the session's
- * window (`referenceMode.ts`), the ordinary constant by default.
+ * What a reader of shadow pages marks of them, light by light (\`demandLight\`): the per-pixel
+ * demand below, and the transparent surfaces' marks (\`../blend/marksWgsl.ts\`, #1411) — one demand
+ * path for every receiver, as Unreal's virtual shadow maps mark the pages every receiver samples.
+ * The host text declares the shadow records, the page model, the reads (\`sunReadAt\`,
+ * \`lampReadAt\`, \`lampSoftDisk\`) and \`requestShadowPage\` before it.
  */
-export const shadowDemandWgsl = (pages = SUN_WINDOW) => `
-${VIEW_WGSL}
-@group(0) @binding(0) var depth:texture_depth_2d;
-@group(0) @binding(1) var normalRough:texture_2d<f32>;
-@group(0) @binding(2) var flags:texture_2d<u32>;
-@group(0) @binding(3) var<uniform> view:View;
-@group(0) @binding(4) var<storage,read> directLights:DirectLights;
-@group(0) @binding(5) var<storage,read> tileLights:array<u32>;
-${SHADOW_DATA_WGSL}
-@group(0) @binding(6) var<storage,read> shadows:ShadowData;
-${shadowRequestWgsl(7, pages)}
-${receiverOffsetWgsl(DEMAND_RECEIVER_BINDING)}
-${DIRECT_LIGHT_WGSL}
-${TILE_SLICE_WGSL}
-${pixelCellWgsl()}
-${shadowPageReadWgsl(pages)}
-${SHADOW_READ_AT_WGSL}
-${PCF_TAPS_WGSL}
-${LAMP_SOFT_DISK_WGSL}
-${WORLD_AT_WGSL}
-${PIXEL_FOOTPRINT_WGSL}
-/** Marks page \`p\` of the map: nothing outside a ring's window. */
+export const SHADOW_DEMAND_LIGHT_WGSL = `/** Marks page \`p\` of the map: nothing outside a ring's window. */
 fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
 /** Marks the home page of map texel \`t\` and the neighbours the PCF reads around it
  *  (\`shadowPcf\`): across the one or two edges it comes near. */
@@ -153,7 +122,47 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  if(shadows.records[index].info.x<0.5){return;}
  let n=select(N,-N,thin&&dot(N,incidence.xyz)<0.0);
  if(isSun(light)){demandSun(index,receiver,n,footprint);}else{demandLamp(index,light,receiver,n,incidence.xyz,footprint);}
-}
+}`;
+
+/**
+ * THE PER-PIXEL DEMAND OF SHADOW PAGES (#1275): one invocation per pixel of the visibility buffer,
+ * after depth and before any shadow page is drawn or read. A pixel the resolve lights marks, for
+ * every shadowed light of its tile's opaque list, the pages that light's read wants at it — the
+ * sun level or the lamp mip of its footprint, its home page and the neighbours the PCF reaches
+ * across a page edge, and, for a point lamp with a radius, the few pages around its soft shadow's
+ * disks at their mips (`demandSoftLamp`), a bounded count per pixel — in the request buffer the resolve records into (`requestShadowPage`).
+ *
+ * Every step is the shading's own: the view and the world point its resolve reconstructs
+ * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
+ * (`receiverOffset`, the lighting's, recomputed from the visibility buffer), its normal turned
+ * from a light behind a thin subsurface surface (`declaredLight`), its tile slice, its light gate,
+ * its footprint and point unjittered (`pixelLevel`), and the page model (`pageModel.ts`) its read
+ * takes the level, the map texel, the entry and the PCF's pages from. Unlike the read, the demand
+ * never falls back: a page not drawn yet is the one it wants. The layout it marks is the session's
+ * window (`referenceMode.ts`), the ordinary constant by default.
+ */
+export const shadowDemandWgsl = (pages = SUN_WINDOW) => `
+${VIEW_WGSL}
+@group(0) @binding(0) var depth:texture_depth_2d;
+@group(0) @binding(1) var normalRough:texture_2d<f32>;
+@group(0) @binding(2) var flags:texture_2d<u32>;
+@group(0) @binding(3) var<uniform> view:View;
+@group(0) @binding(4) var<storage,read> directLights:DirectLights;
+@group(0) @binding(5) var<storage,read> tileLights:array<u32>;
+${SHADOW_DATA_WGSL}
+@group(0) @binding(6) var<storage,read> shadows:ShadowData;
+${shadowRequestWgsl(7, pages)}
+${receiverOffsetWgsl(DEMAND_RECEIVER_BINDING)}
+${DIRECT_LIGHT_WGSL}
+${TILE_SLICE_WGSL}
+${pixelCellWgsl()}
+${shadowPageReadWgsl(pages)}
+${SHADOW_READ_AT_WGSL}
+${PCF_TAPS_WGSL}
+${LAMP_SOFT_DISK_WGSL}
+${WORLD_AT_WGSL}
+${PIXEL_FOOTPRINT_WGSL}
+${SHADOW_DEMAND_LIGHT_WGSL}
 @compute @workgroup_size(${SHADOW_DEMAND_GROUP},${SHADOW_DEMAND_GROUP}) fn markShadowDemand(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)||u32(view.lightParams.x)==0u){return;}
  let coord=vec2i(id.xy);

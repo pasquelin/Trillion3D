@@ -63,4 +63,7 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
  return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);
 }
+/** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
+ *  (\`shadowFootprint\`), and the level its marks ask for (\`marksWgsl.ts\`). */
+fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}
 `;
