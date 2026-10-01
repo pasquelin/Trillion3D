@@ -58,3 +58,14 @@ test('a representation change of objects already moving waits too, then stales t
   planFrame(plan, store, frame + 2, nudged(1));
   assert.equal(plan.pool.dirty[page], STALE_FULL, 'a still object beside raises it to full');
 });
+
+// #831: a page kept with a superseded form of its caster shades the form the camera now draws.
+test('a residency change stales its pages at once under a moving camera, still read until redrawn', () => {
+  const { store, plan, frame, page } = settled();
+  plan.residencyChanged(BOX_MIN, BOX_MAX);
+  planFrame(plan, store, frame, nudged(1));
+  assert.ok(plan.counts.invalidatedPages > 0, 'the moving camera does not hold it back');
+  assert.equal(plan.pool.dirty[page], STALE_FULL);
+  assert.equal(plan.pool.valid[page], 1, 'a change of detail is read until its redraw');
+  assert.equal(plan.deferredChanges, false, 'nothing waits for the camera to rest');
+});

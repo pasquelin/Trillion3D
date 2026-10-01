@@ -33,12 +33,14 @@ export function planShadowRegions(
   runs.reset();
   regions.reset();
   lights.packedBatch.frame = -1;
-  // Residency this frame's light cuts see changed since the last plan: those pages alone restale.
+  // Residency this frame's light cuts see changed since the last plan: those pages alone restale,
+  // at once, the camera moving or not (#831).
   let residencyMoved = false;
   const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    noteResidenceChange(lights, roots, rt.layout.placement.rootOfPacked, page, recordOf(page)!);
+    const { rootOfPacked } = rt.layout.placement;
+    noteResidenceChange(lights, roots, rootOfPacked, page, recordOf(page)!, undefined, true);
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;

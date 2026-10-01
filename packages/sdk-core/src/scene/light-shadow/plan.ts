@@ -72,6 +72,9 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     changeRoom: changes.room,
     /** The same world at another precision: its box waits for the camera to rest. */
     representationChanged: changes.representationChanged,
+    /** A caster entered or left residency: its box stales its pages at the next plan, read until
+     *  redrawn, the camera moving or not (#831). */
+    residencyChanged: changes.residencyChanged,
     /** The threshold the light cuts select casters at, and their render origin (`thresholds.ts`). */
     setThreshold: thresholds.set,
     /** The camera rested at the last plan: its view was the one of the plan before. */

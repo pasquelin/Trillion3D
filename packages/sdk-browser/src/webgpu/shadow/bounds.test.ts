@@ -77,3 +77,17 @@ test('a page of a placement already moving changes residency: its box stales the
   );
   assert.equal(recordMoves(lights, -1), false, 'none known');
 });
+
+// #831: the cut's residency stales at once; another change of representation waits for rest.
+test('a residency change the cut reads is declared at once, any other change of detail held', () => {
+  const lights = createWebgpuLightState(32);
+  lights.store.add(SUN);
+  const declared: string[] = [];
+  lights.plan.residencyChanged = () => void declared.push('at once');
+  lights.plan.representationChanged = () => void declared.push('held');
+  const roots = [{ world: CAS[0].matrix }],
+    rootOfPacked = Int32Array.of(0);
+  noteResidenceChange(lights, roots, rootOfPacked, 0, CAS[0], undefined, true);
+  noteResidenceChange(lights, roots, rootOfPacked, 0, CAS[0]);
+  assert.deepEqual(declared, ['at once', 'held']);
+});

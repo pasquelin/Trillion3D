@@ -34,6 +34,12 @@ const readMin = new Float64Array(3),
  * at rest the union restales exactly what changed, so a settled map is that of the current
  * cut, whatever the history (#159). A representation change of objects already moving is held
  * in a union of its own, released as a moving box: the static layer never held them (#993).
+ *
+ * A **residency** change is the one representation change that enters at once (#831): a page
+ * drawn before a finer form of its caster arrived holds a caster that no longer matches the
+ * receiver the camera now draws, a coarse surface standing above the fine one, read as dark
+ * patches cut straight along page edges while a drive lasts. Unreal invalidates the cached pages
+ * Nanite streaming changes the same way; the pages stay read until redrawn, within the budget.
  */
 /** Boxes the list holds apart at least: each is projected in every light view it may reach at the
  *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and
@@ -104,6 +110,9 @@ export function createShadowChanges(capacity: number) {
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       boxUnion(held[+movingOnly].box, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
     },
+    /** A caster's residency changed: its box enters the list at once, stale for detail alone. */
+    residencyChanged: (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
+      add(lo, hi, movingOnly, true),
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
      * changed representation meanwhile enters the list as one box; while it moves, the union
