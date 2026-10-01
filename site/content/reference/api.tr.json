@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Bir görünüm için impostor katmanını planlar: mesh'i pişirilmiş girdiye sahip ve geçişi tutan her kök bir kart üretir ve bastırılmış olarak işaretlenir.",
-    "description": "`view` dünyayı görünüm uzayına eşler (sütun-büyük) ve `focalPixels` motorun görüntünün viewport'undaki piksel cinsinden tek odak uzaklığıdır."
+    "description": "`view` dünyayı görünüm uzayına eşler (sütun-büyük) ve `focalPixels` motorun görüntünün viewport'undaki piksel cinsinden tek odak uzaklığıdır. `into`, önceki bir görünümün döndürdüğü bir plan, yerinde yeniden planlanır: `switched` dizisi ve kartları yeniden kullanılır; böylece her görüntüyü planlayan bir çalışma zamanı, kart sayısı oturduktan sonra hiçbir şey ayırmaz."
   },
   "validateImpostorSection": {
     "summary": "Bölümün kullanılamamasının kısa nedeni ya da `null`.",

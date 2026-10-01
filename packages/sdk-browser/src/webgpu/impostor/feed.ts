@@ -74,6 +74,8 @@ export function createImpostorFeed(
   // Meshes whose atlas the device refused, each with the feed's bytes then: asked again only once
   // the feed holds less.
   const refused = new Map<string, number>();
+  // Each mesh's atlas bytes, read once from its maps: a streaming mesh asks every image.
+  const sizes = new Map<string, number>();
   let watching = false,
     closed = false;
   const drop = (key: string) => {
@@ -88,7 +90,10 @@ export function createImpostorFeed(
     evictOldest(
       fed.keys(),
       () => feed.bytes + bytes > room(),
-      (other) => other === key || !fed.get(other)!.group || fed.get(other)!.drawn === frame,
+      (other) => {
+        const held = fed.get(other)!;
+        return other === key || !held.group || held.drawn === frame;
+      },
       drop,
     );
     return feed.bytes + bytes <= room();
@@ -99,17 +104,30 @@ export function createImpostorFeed(
     fed.set(key, entry);
     feed.bytes += bytes;
     const make = () => {
-      const textures = NAMES.map((name) => {
-        const texture = device.createTexture(mapTexture(maps, name, key));
-        atlas[name].forEach((level, mipLevel) =>
-          device.queue.copyExternalImageToTexture({ source: level }, { texture, mipLevel }, [
-            level.width,
-            level.height,
-          ]),
-        );
-        return texture;
-      });
-      return { textures, destroy: () => textures.forEach((texture) => texture.destroy()) };
+      const textures: GPUTexture[] = [];
+      const destroy = () => textures.forEach((texture) => texture.destroy());
+      try {
+        for (const name of NAMES) {
+          const texture = device.createTexture(mapTexture(maps, name, key));
+          textures.push(texture);
+          atlas[name].forEach((level, mipLevel) =>
+            device.queue.copyExternalImageToTexture({ source: level }, { texture, mipLevel }, [
+              level.width,
+              level.height,
+            ]),
+          );
+        }
+      } catch (error) {
+        destroy();
+        throw error;
+      }
+      return { textures, destroy };
+    };
+    // A copy that throws (a level the store released) frees the entry: the mesh keeps its
+    // clusters and is asked again, its bytes no longer held.
+    const failed = (error: unknown) => {
+      if (fed.get(key) === entry) drop(key);
+      if (!closed) onFailure('impostor-atlas-upload-failed', error);
     };
     void deviceMade(device, make).then((made) => {
       if (closed || fed.get(key) !== entry) return made?.destroy();
@@ -128,7 +146,7 @@ export function createImpostorFeed(
         ],
       });
       landed();
-    });
+    }, failed);
   };
   const feed = {
     /** GPU bytes of the atlases held, those being made included. */
@@ -146,7 +164,8 @@ export function createImpostorFeed(
         return entry.group;
       }
       // An atlas past the whole room is never read: it would not fit even alone.
-      const bytes = atlasBytes(maps);
+      let bytes = sizes.get(key);
+      if (bytes === undefined) sizes.set(key, (bytes = atlasBytes(maps)));
       if (closed || bytes > room() || feed.bytes >= (refused.get(key) ?? Infinity))
         return undefined;
       refused.delete(key);

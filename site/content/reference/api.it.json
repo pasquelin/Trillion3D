@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Pianifica lo strato di impostori per una vista: ogni radice la cui mesh ha una voce cotta e la cui commutazione tiene produce una scheda ed è contrassegnata come soppressa.",
-    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine."
+    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine. `into`, un piano restituito da una vista precedente, viene ripianificato sul posto: il suo `switched` e le sue card vengono riutilizzati, così un runtime che pianifica ogni immagine non alloca più nulla una volta stabilizzato il numero di card."
   },
   "validateImpostorSection": {
     "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",

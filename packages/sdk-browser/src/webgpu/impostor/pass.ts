@@ -1,5 +1,6 @@
 import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
-import { DEPTH_COMPARE, DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
+import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
+import { VIS_DEPTH, visTargets } from '../visibility/pipelines.ts';
 import { grownCapacity } from '../../placement/rows.ts';
 import { CARD_FLOATS, CARD_PASS_WGSL, CARD_VIEW_FLOATS } from './cardWgsl.ts';
 import { createImpostorFeed } from './feed.ts';
@@ -7,15 +8,12 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts';
 
 /** The pass label the GPU timings and the tests name the card surfaces by. */
 export const IMPOSTOR_PASS = 'Trillion3D impostor cards';
-/** The visibility identifiers, and the pyramid's level 0 when there is one (`visibility/pipelines.ts`). */
-const VIS_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }];
-const VIS_HIZ_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }, { format: 'r32float' }];
 
 /**
  * The card pipelines (#1335) and what they bind: the image's group (view uniform, card records)
  * and the layout of a mesh's atlas group, which the feed fills (`feed.ts`). The visibility stage
- * (`visPipeline`) writes identifier 0, the depth and the pyramid's level 0, depth-tested as every
- * opaque raster (`DEPTH_COMPARE`); the surface stage (`pipeline`) writes the four opaque surfaces
+ * (`visPipeline`) writes identifier 0, the depth and the pyramid's level 0, with the clusters'
+ * targets and depth (`visTargets`, `VIS_DEPTH`); the surface stage (`pipeline`) writes the four opaque surfaces
  * where its depth is the one the visibility stage kept, writing no depth.
  */
 export function createImpostorPass(
@@ -65,11 +63,6 @@ export function createImpostorPass(
     SURFACE_FORMATS.map((format) => ({ format })),
     { format: 'depth32float', depthCompare: DEPTH_COMPARE_OR_EQUAL, depthWriteEnabled: false },
   );
-  const visDepth: GPUDepthStencilState = {
-    format: 'depth32float',
-    depthCompare: DEPTH_COMPARE,
-    depthWriteEnabled: true,
-  };
   const visPipelines: Partial<Record<'hiz' | 'ids', GPURenderPipeline>> = {};
   const viewBuffer = device.createBuffer({
     label: 'Trillion3D impostor view',
@@ -81,9 +74,12 @@ export function createImpostorPass(
     pipeline,
     /** The visibility stage's pipeline, with the pyramid's level 0 when `hiz`, made once asked. */
     visPipeline(hiz: boolean) {
-      return (visPipelines[hiz ? 'hiz' : 'ids'] ??= hiz
-        ? make(`${IMPOSTOR_PASS} visibility`, 'card_vis_hiz_fs', VIS_HIZ_TARGETS, visDepth)
-        : make(`${IMPOSTOR_PASS} visibility`, 'card_vis_fs', VIS_TARGETS, visDepth));
+      return (visPipelines[hiz ? 'hiz' : 'ids'] ??= make(
+        `${IMPOSTOR_PASS} visibility`,
+        hiz ? 'card_vis_hiz_fs' : 'card_vis_fs',
+        visTargets(hiz),
+        VIS_DEPTH,
+      ));
     },
     feed: createImpostorFeed(device, atlasLayout, reader, feedOptions),
     viewBuffer,
