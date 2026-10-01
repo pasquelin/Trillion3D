@@ -3,14 +3,22 @@ import type { TransportOptions } from './contracts.ts';
 import { validateScene, fail } from './validation.ts';
 import { SURFACE_STRIDE } from './intersections.ts';
 
+/** The budgets of a transport whose options leave them out. */
+export const TRANSPORT_DEFAULTS = {
+  raysPerPatch: 64,
+  maxIterations: 256,
+  tolerance: 1e-7,
+  maxBytes: 256 * 1024 * 1024,
+} as const;
+
 export function createTransportState(initialScene: Scene, options: TransportOptions) {
   validateScene(initialScene);
   const size = initialScene.patches.length;
   const surfaceCount = initialScene.surfaces.length;
-  const raysPerPatch = options.raysPerPatch ?? 64;
-  const maxIterations = options.maxIterations ?? 256;
-  const tolerance = options.tolerance ?? 1e-7;
-  const maxBytes = options.maxBytes ?? 256 * 1024 * 1024;
+  const raysPerPatch = options.raysPerPatch ?? TRANSPORT_DEFAULTS.raysPerPatch;
+  const maxIterations = options.maxIterations ?? TRANSPORT_DEFAULTS.maxIterations;
+  const tolerance = options.tolerance ?? TRANSPORT_DEFAULTS.tolerance;
+  const maxBytes = options.maxBytes ?? TRANSPORT_DEFAULTS.maxBytes;
   const now = options.now ?? (() => performance.now());
   if (
     !Number.isSafeInteger(raysPerPatch) ||

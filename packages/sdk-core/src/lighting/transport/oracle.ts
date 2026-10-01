@@ -7,6 +7,9 @@ import {
 import { fail, checkpoint, progress } from './validation.ts';
 import { maximumResidual } from './step.ts';
 
+/** The smallest pivot magnitude of a system the oracle solves: below it, the system is singular. */
+export const SINGULAR_PIVOT = 1e-14;
+
 /** Independent direct linear solve; never calls the iterative solver. Work is outside measured runs. */
 export function solveTransportOracle(
   snapshot: TransportSnapshot,
@@ -46,7 +49,7 @@ export function solveTransportOracle(
       for (let row = pivot + 1; row < size; row++)
         if (Math.abs(matrix[row * size + pivot]) > Math.abs(matrix[winner * size + pivot]))
           winner = row;
-      if (Math.abs(matrix[winner * size + pivot]) < 1e-14)
+      if (Math.abs(matrix[winner * size + pivot]) < SINGULAR_PIVOT)
         fail('SINGULAR_TRANSPORT', 'Transport oracle encountered a singular system');
       if (winner !== pivot) {
         for (let col = pivot; col < size; col++) {

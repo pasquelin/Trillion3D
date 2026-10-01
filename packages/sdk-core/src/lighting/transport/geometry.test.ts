@@ -12,10 +12,19 @@ test('geometry tracks moving, static and sphere edits independently and refreshe
   const state = createTransportState(scene, { raysPerPatch: 4 });
   const update = () => updateTransportGeometry(state, scene, {});
   assert.deepEqual(update(), { geometryChanged: true, staticChanged: true });
-  assert.deepEqual([...state.cellPatch], [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.deepEqual([...state.cellOffsets], [0, 4, 8]);
-  assert.deepEqual([...state.source.slice(12, 15)], [4, 1, 0.5]);
-  assert.deepEqual([...state.albedo.slice(0, 3)], [0.6, 0.25, 0.2]);
+  // Patches are built row by row, surface by surface: each sits in the cell of its own number.
+  assert.deepEqual(
+    [...state.cellPatch],
+    scene.patches.map((patch) => patch.id),
+  );
+  let cells = 0;
+  scene.surfaces.forEach((surface, i) => {
+    assert.equal(state.cellOffsets[i], cells);
+    cells += surface.columns * surface.rows;
+  });
+  const material = (key: 'emission' | 'albedo') => scene.patches.flatMap((patch) => patch[key]);
+  assert.deepEqual([...state.source], material('emission'));
+  assert.deepEqual([...state.albedo], material('albedo'));
   state.initialized = true;
   const rays = state.rays.slice();
   assert.deepEqual(update(), { geometryChanged: false, staticChanged: false });
@@ -24,7 +33,7 @@ test('geometry tracks moving, static and sphere edits independently and refreshe
   scene = sceneWithBlocker(true, 2);
   assert.deepEqual(update(), { geometryChanged: true, staticChanged: false });
   assert.deepEqual([...state.patchChanged], [0, 0, 0, 0, 0, 0, 0, 0, 1]);
-  assert.deepEqual([...state.source.slice(12, 15)], [8, 2, 1]);
+  assert.deepEqual([...state.source], material('emission'));
   scene.surfaces[0].origin[0] = -1;
   scene = sceneFromSurfaces(scene.surfaces);
   assert.deepEqual(update(), { geometryChanged: true, staticChanged: true });
@@ -114,4 +123,22 @@ test('skew surfaces translated on every axis map shuffled patches into their phy
     geometryChanged: false,
     staticChanged: false,
   });
+});
+
+test('surface geometry changes invalidate visibility even when contained patch samples stay unchanged', () => {
+  const scene = sceneWithBlocker(true, 1);
+  const state = createTransportState(scene, { raysPerPatch: 4 });
+  updateTransportGeometry(state, scene, {});
+  state.initialized = true;
+  scene.surfaces[0].u[1] = 4.5;
+  const events: unknown[] = [];
+  assert.deepEqual(
+    updateTransportGeometry(state, scene, { onProgress: (event) => events.push(event) }),
+    { geometryChanged: true, staticChanged: true },
+  );
+  assert.ok(state.patchChanged.every((value) => value === 0));
+  assert.deepEqual(
+    events,
+    [0, 3].map((completed) => ({ eventVersion: 1, stage: 'geometry', completed, total: 3 })),
+  );
 });
