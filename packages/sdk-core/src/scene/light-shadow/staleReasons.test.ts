@@ -1,5 +1,6 @@
 // #991: a frame counts why each page it staled turned stale — its light, a still caster, moving
-// casters alone, a change of detail —, and the reasons add up to the pages it staled.
+// casters alone, a change of detail, moving casters' too —, and the reasons add up to the pages it
+// staled.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
@@ -17,6 +18,8 @@ test('each page a frame stales counts under its reason, and the reasons add up',
     ['caster', (plan) => plan.worldChanged(BOX_MIN, BOX_MAX)],
     ['moving', (plan) => plan.worldChanged(BOX_MIN, BOX_MAX, true)],
     ['detail', (plan) => plan.representationChanged(BOX_MIN, BOX_MAX)],
+    // #831: moving casters' change of detail is detail, never taken for a move of theirs.
+    ['detail', (plan) => plan.residencyChanged(BOX_MIN, BOX_MAX, true)],
     ['light', (_, store) => store.set('sun', { direction: [Math.sin(0.1), -Math.cos(0.1), 0] })],
   ];
   for (const [reason, act] of cases) {

@@ -15,6 +15,12 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts';
 
+/** The caster's pose at `x` along the floor's axis, 32 times as wide: the 32 × 32 view reads the
+ *  sun's pages of 64 m texels, and a caster under a texel of the pages it would fall in is drawn in
+ *  none of them once it moves (`underTexel`, #831). */
+export const castAt = (x: number) =>
+  Float32Array.of(32, 0, 0, 0, 0, 32, 0, 0, 0, 0, 1, 0, x, 0, 0, 1);
+
 /** The backend over the floor and the caster, lit by `light`, with whatever `options` add, the
  *  caster placed by the rows of `placements` when given; prepared. */
 export async function floorCasterBackend(
