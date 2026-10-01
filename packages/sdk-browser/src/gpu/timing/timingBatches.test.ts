@@ -5,12 +5,14 @@ import { createGpuTiming } from './timing.ts';
 import { QUERY_COUNT, TIMED_PASSES } from './queries.ts';
 import { MAX_SHADOW_BATCHES } from '../shadow/batchBudget.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
-import { LIGHT_CUT_PASS } from '../dag/encode.ts';
-import { SHADOW_PASS } from '../shadow/atlas.ts';
-import { SHADOW_LAYER_PASS } from '../shadow/staticLayer.ts';
-import { SHADOW_TRANSMITTANCE_PASS } from '../shadow/transmittance.ts';
 import { directLightTimings } from '../../stage/mapping.ts';
 import { SHADOW_BATCH_PASSES } from './shadowBatchPasses.ts';
+import {
+  LIGHT_CUT_PASS,
+  SHADOW_LAYER_PASS,
+  SHADOW_PASS,
+  SHADOW_TRANSMITTANCE_PASS,
+} from '../../stage/passLabels.ts';
 
 // A frame draws every shadow page it marks, in as many batches as that takes (#489): the frame that
 // redraws the largest pool is timed whole — every batch's passes, the CPU cut's cull per face

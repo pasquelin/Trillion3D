@@ -16,11 +16,10 @@ import { shadowFreshDraws } from '../../webgpu/shadow/freshDraws.ts';
 import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
+import { SHADOW_PASS } from '../../stage/passLabels.ts';
 
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
-/** Label of the measured pass; `gpuShadowsMs` is read under this name. */
-export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Bytes of the records, before the page table in the same buffer: where the table starts. */
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
