@@ -74,8 +74,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     associations: associations,
     textureIndices,
     signal,
-    // The page ceiling is the host's, or nothing: the WebGPU engine holds its pool in bytes;
-    // host-memory engines keep by default what the streamer computed for them.
+    // The page ceiling is the host's, or nothing: host-memory engines keep the streamer's.
     maxResidentPages: options.maxResidentPages,
     residentPagesDefault: attachCap,
     maxCachedPages: cacheCap,
@@ -112,6 +111,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     ),
     shadowPageInvalidation: options.shadowPageInvalidation,
     shadowLocalToClip: options.shadowLocalToClip,
+    shadowPoolPages: options.shadowPoolPages,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,
