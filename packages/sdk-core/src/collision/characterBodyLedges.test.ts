@@ -4,7 +4,7 @@ import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { near } from '../math/near.fixture.ts';
-import { block, EAST, STILL } from './character.fixture.ts';
+import { block, EAST } from './character.fixture.ts';
 
 const floor = () => block(-50, -1, -50, 50, 0, 50);
 
