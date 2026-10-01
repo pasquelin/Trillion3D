@@ -104,23 +104,18 @@ export function createShadowTransmittance(
   poolSide: number,
 ) {
   const size = (poolSide * SHADOW_PAGE) / 2;
-  const texture = (label: string, format: GPUTextureFormat, copies = 0) =>
+  const texture = (label: string, format: GPUTextureFormat) =>
     device.createTexture({
       label,
       size: [size, size, poolLayers.length],
       format,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | copies,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     });
-  // A resize copies its pages into the next layer (`pageMoves.ts`); depth goes through a draw.
-  const copies = GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
-    colour = texture('Trillion3D shadow transmittance v1', SHADOW_TRANSMITTANCE_FORMAT, copies),
+  const colour = texture('Trillion3D shadow transmittance v1', SHADOW_TRANSMITTANCE_FORMAT),
     nearest = texture('Trillion3D shadow translucent depth v1', SHADOW_TRANSLUCENT_DEPTH_FORMAT);
   const targets = layerViews(colour),
     depthTargets = layerViews(nearest);
   return {
-    /** The transmittance and the nearest translucent depth: what a resize moves pages of. */
-    colour,
-    nearest,
     view: arrayView(colour),
     depthView: arrayView(nearest),
     /** Each layer's two views, drawn into by its pages. */
