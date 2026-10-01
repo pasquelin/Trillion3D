@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLightingScene, type Vec3 } from './experimentScene.ts';
-import { LIGHTING_CAMERA_POSES } from './controls.ts';
+import { LIGHTING_EYE } from './controls.ts';
 import {
   sub,
   dot,
@@ -61,8 +61,8 @@ test('both mirrors reflect the right-room camera into the red room when the door
     const center = surface.origin.map(
       (value, i) => value + 0.5 * (surface.u[i] + surface.v[i]),
     ) as Vec3;
-    const incoming = unit(sub(center, LIGHTING_CAMERA_POSES.right_room.position));
-    assert.equal(firstHit(open, LIGHTING_CAMERA_POSES.right_room.position, incoming), surface.id);
+    const incoming = unit(sub(center, LIGHTING_EYE));
+    assert.equal(firstHit(open, LIGHTING_EYE, incoming), surface.id);
     const normal = unit(cross(surface.u, surface.v));
     const reflected = incoming.map(
       (value, i) => value - 2 * dot(incoming, normal) * normal[i],
