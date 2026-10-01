@@ -5,7 +5,8 @@ export const EPSILON = 1e-7;
 export const SURFACE_STRIDE = 15;
 /** The smallest Gram determinant `|u|²|v|² − (u·v)²` of a rectangle; below it, it has no area. */
 export const DEGENERATE_GRAM = 1e-15;
-/** The smallest `|(u × v) · direction|` of a ray meeting a surface; below it, the ray runs along it. */
+/** The smallest `|(u × v) · direction|` of a ray meeting a surface (a cosine scaled by its area);
+ *  below it, the ray runs along the surface. */
 export const GRAZING = 1e-12;
 
 /** Return surface geometry in a fixed buffer, including the inverse Gram matrix for skew rectangles. */

@@ -10,7 +10,7 @@ import {
   intersectSurface,
   packSurface,
 } from './intersections.ts';
-import { cross, unit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
+import { centre, cross, unit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 const panel = (origin: Vec3, u: Vec3, v: Vec3) => ({ origin, u, v }) as Surface;
 /** A packed `surface` and its hit test: `[distance, u, v, front]`, or null on a miss. */
@@ -199,11 +199,11 @@ test('a panel spanning all three axes is hit through its centre along its normal
     ],
   ] as Vec3[][]) {
     const normal = unit(cross(u, v));
-    const centre = origin.map((value, axis) => value + (u[axis] + v[axis]) / 2) as Vec3;
+    const middle = centre({ origin, u, v });
     const hit = packed(panel(origin, u, v));
-    const front = centre.map((value, axis) => value + 2 * normal[axis]) as Vec3;
+    const front = middle.map((value, axis) => value + 2 * normal[axis]) as Vec3;
     near(hit(front, normal.map((value) => -value) as Vec3), [2, 0.5, 0.5, 1]);
-    const back = centre.map((value, axis) => value - 3 * normal[axis]) as Vec3;
+    const back = middle.map((value, axis) => value - 3 * normal[axis]) as Vec3;
     near(hit(back, normal), [3, 0.5, 0.5, 0]);
   }
 });

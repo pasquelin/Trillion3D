@@ -12,6 +12,12 @@ export const unit = (v: Vec3): Vec3 => {
   const size = Math.hypot(...v);
   return [v[0] / size, v[1] / size, v[2] / size];
 };
+/** The middle of a rectangle spanned by `u` and `v` from `origin`. */
+export const centre = ({ origin, u, v }: { origin: Vec3; u: Vec3; v: Vec3 }): Vec3 => [
+  origin[0] + (u[0] + v[0]) / 2,
+  origin[1] + (u[1] + v[1]) / 2,
+  origin[2] + (u[2] + v[2]) / 2,
+];
 export const close = (actual: number, expected: number): void =>
   assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
 

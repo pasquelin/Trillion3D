@@ -2,7 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLightingScene, type Scene, type Vec3 } from './experimentScene.ts';
 import { createDefaultLightingSceneLights, LIGHTING_EYE } from './controls.ts';
-import { cross, dot, firstHit } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
+import {
+  centre,
+  cross,
+  dot,
+  firstHit,
+  sub,
+  unit,
+} from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 /** The floor under a point: which room it is in. */
 const roomOf = (scene: Scene, point: Vec3) => firstHit(scene, point, [0, -1, 0]);
@@ -36,12 +43,8 @@ test('default panels hang under the ceiling of both rooms, the warm one in the r
   const redRooms = scene.surfaces
     .filter((surface) => redness(surface.albedo) === reddest)
     .map((surface) => {
-      const normal = cross(surface.u, surface.v);
-      const front = surface.origin.map(
-        (value, axis) =>
-          value + (surface.u[axis] + surface.v[axis]) / 2 + normal[axis] / Math.hypot(...normal),
-      ) as Vec3;
-      return roomOf(scene, front);
+      const normal = unit(cross(surface.u, surface.v));
+      return roomOf(scene, centre(surface).map((value, axis) => value + normal[axis]) as Vec3);
     })
     .filter((room) => room?.startsWith('floor_'));
   assert.equal(new Set(redRooms).size, 1);
@@ -53,19 +56,12 @@ test('the eye sees a left-room panel through the open door, and only right-room 
     const scene = createLightingScene({ doorAngle, lightIntensity: 1 });
     return scene.surfaces
       .filter((surface) => surface.id.startsWith('ceiling_emitter'))
-      .filter((panel) => {
-        const centre = panel.origin.map(
-          (value, axis) => value + (panel.u[axis] + panel.v[axis]) / 2,
-        ) as Vec3;
-        const toward = centre.map((value, axis) => value - LIGHTING_EYE[axis]) as Vec3;
-        return firstHit(scene, LIGHTING_EYE, toward) === panel.id;
-      })
-      .map((panel) => {
-        const centre = panel.origin.map(
-          (value, axis) => value + (panel.u[axis] + panel.v[axis]) / 2,
-        ) as Vec3;
-        return roomOf(scene, centre);
-      });
+      .map((panel) => ({ panel, middle: centre(panel) }))
+      .filter(
+        ({ panel, middle }) =>
+          firstHit(scene, LIGHTING_EYE, sub(middle, LIGHTING_EYE)) === panel.id,
+      )
+      .map(({ middle }) => roomOf(scene, middle));
   };
   assert.ok(visible(Math.PI / 2).includes('floor_left_py'));
   const shut = visible(0);

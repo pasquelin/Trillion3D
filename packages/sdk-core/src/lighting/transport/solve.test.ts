@@ -81,16 +81,10 @@ test('the radiance lies within its error bound of the direct solution, whatever 
       assert.ok(Math.abs(value - exact[i]) <= result.errorBound + 1e-15, `${maxIterations} ${i}`),
     );
     assert.equal(result.converged, result.errorBound <= 1e-9);
+    if (maxIterations === 2) assert.equal(result.converged, false);
+    if (maxIterations === 256) assert.equal(result.converged, true);
     assert.ok(result.residual >= 0 && result.errorBound >= result.residual);
   }
-  const long = solveTransport(traced([0.8, 0.5, 0.3], { tolerance: 1e-9 }), 'rebuild', {});
-  assert.equal(long.converged, true);
-  const short = solveTransport(
-    traced([0.8, 0.5, 0.3], { maxIterations: 2, tolerance: 1e-9 }),
-    'rebuild',
-    {},
-  );
-  assert.equal(short.converged, false);
 });
 
 test('irradiance gathers all light, indirect irradiance all but the emitted part', () => {
