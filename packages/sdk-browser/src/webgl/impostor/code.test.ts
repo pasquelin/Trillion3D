@@ -1,7 +1,6 @@
-// #1336: the WebGL2 impostor tier loads its code on first use, from the impostor family both
-// renderers share, so the CDN core stays within its budget. A cache without baked impostors makes
-// no tier; one with them plans no card until the code lands — every root keeps its clusters — and
-// is asked a new image once it has, whose plan then asks the atlas.
+// #1336: the WebGL2 impostor tier loads its code from the impostor family both renderers share, so
+// the CDN core stays within its budget. A cache without baked impostors makes no tier; one with
+// them makes it where the backend prepares, so its first plan already asks the atlas.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { families } from '../../host/families.ts';
@@ -15,10 +14,9 @@ import {
 } from '../../impostor/section.fixture.ts';
 import { webglImpostorTier } from './code.ts';
 
-test('the WebGL2 tier is made by a baked cache only, and plans once its code has landed', async () => {
+test('the WebGL2 tier is made by a baked cache only, at its prepare, and plans its first image', async () => {
   const { fixture, roots, reader, asked } = impostorScene();
-  let changed = 0;
-  const gate = { resourcesChanged: () => void changed++ };
+  const gate = { resourcesChanged: () => {} };
   const session = (impostors: unknown) =>
     ({
       metadata: { impostors },
@@ -31,18 +29,13 @@ test('the WebGL2 tier is made by a baked cache only, and plans once its code has
   );
   assert.equal(families.impostors.arrived, false, 'a cache without cards fetches nothing');
   const tier = webglImpostorTier(session(impostorSection), roots, gate, () => 1 << 20)!;
-  tier.plan(engineAt(200), VIEWPORT);
-  tier.plan(engineAt(200), VIEWPORT);
-  assert.equal(asked.length, 0, 'no card and no atlas before the code lands');
-  assert.equal(tier.cards(...([] as unknown as Parameters<typeof tier.cards>)), false);
-  await families.impostors.settled();
-  await Promise.resolve();
-  assert.equal(changed, 1, 'one new image per round, however many images asked');
+  await tier.prepare();
+  assert.equal(families.impostors.arrived, true, 'the prepare awaits the code');
   tier.plan(engineAt(200), VIEWPORT);
   assert.deepEqual(
     asked.map((request) => request.url),
     ATLAS_URLS,
-    'the landed tier plans and asks the atlas',
+    'the first image plans and asks the atlas',
   );
   tier.dispose();
   fixture.geometry.dispose();

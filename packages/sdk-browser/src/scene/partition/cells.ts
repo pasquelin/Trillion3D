@@ -33,6 +33,7 @@ import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts';
 import { heldSide, rowsAt, rungOf } from './sizing.ts';
 import { createCellPlacements } from './placements.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
+import { createFarCells } from './farCells.ts';
 
 type Inputs = {
   partition: TablePartition;
@@ -41,7 +42,7 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
-  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createCellPages>[2];
+  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createFarCells>[0];
 };
 const rootWorld = new Float64Array(MATRIX_VALUES);
 
@@ -54,8 +55,8 @@ export function createPartitionCells(inputs: Inputs) {
   const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages, world);
   const rows = createCellPlacements(root, parents, meshes);
   const { held, touched } = rows;
-  /** Cells a mesh short of rows keeps waiting; the rung the rows are sized for (`RUNGS`: every
-   *  node); the widest a frame asked. */
+  const far = createFarCells(world, held);
+  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
   let waiting = 0,
     sized = -1,
     wanted = -1;
@@ -78,15 +79,10 @@ export function createPartitionCells(inputs: Inputs) {
     return true;
   };
   const cellUrl = (cell: number) => index.cell(cell).url;
-  const place = (cell: number, decoded: CellRows) => {
-    if (!rows.place(cell, decoded, cellUrl(cell))) return false;
-    manifest.hold(cell);
-    return true;
-  };
-  const leave = (cell: number) => {
-    rows.leave(cell);
-    manifest.release(cell);
-  };
+  const place = (cell: number, decoded: CellRows) =>
+    rows.place(cell, decoded, cellUrl(cell)) && (manifest.hold(cell), true);
+  /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
+  const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell));
   const partitionCells = {
     /** The root's pages, the files the streamer's catalogue holds at open. */
     pages: index.slots,
@@ -118,6 +114,14 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void;
         grow?: PlacementGrowth;
         outgrown?: () => void;
+        /** The cut's lens while it packs the world DAG (#1332), structurally a `SuperRootLens`. */
+        lens?: {
+          pixelScale: [number, number];
+          pixelError: number;
+          near: number;
+          perspective?: number;
+          slope: number;
+        };
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
@@ -129,17 +133,14 @@ export function createPartitionCells(inputs: Inputs) {
         const rung = Math.min(RUNGS, Math.max(local.rung, sized + 2));
         if (!io.grow || !resize(rung, io.grow)) io.outgrown?.();
       }
-      const plan = planCells(index, local.eye, local.reach, held);
+      const plan = far.plan(index, local, eye, io.lens, leave);
       plan.leave.forEach(leave);
       io.forget(index.forgotten());
       waiting = 0;
       let later = false;
       const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true);
-      const placed = (cell: number, decoded: CellRows) => {
-        if (place(cell, decoded)) return true;
-        waiting++;
-        return false;
-      };
+      const placed = (cell: number, decoded: CellRows) =>
+        place(cell, decoded) || (waiting++, false);
       const pageUrl = (page: IndexPage) => page.slot.url;
       for (const ahead of [false, true]) {
         const pages = ahead ? plan.pages.ahead : plan.pages.visible;
@@ -190,8 +191,7 @@ export function createPartitionCells(inputs: Inputs) {
       touched.clear();
       return bytes;
     },
-    /** The decodes the frames asked since the last call: a still camera is drawn again once one
-     *  lands, so the page it brings is opened or the cell placed. */
+    /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   };
   return withHoldings({ meshes, manifest }, partitionCells);

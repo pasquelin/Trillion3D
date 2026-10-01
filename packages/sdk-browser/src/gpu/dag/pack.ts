@@ -123,6 +123,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   new Uint32Array(pageCones.buffer).set(pageWorlds);
   writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
   records.finish(clusters, pageCones, coldAt);
+  const world = roots.findIndex((root) => root.origins);
   return {
     kind: 'dag',
     clusters,
@@ -142,6 +143,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     rootCount: rootClusters,
     pageUrlOf: pageUrlReader(roots, cutLinks, pageCones, clusterCount),
     cutLinks,
+    ...(world >= 0 && { world: { root: world, origins: roots[world].origins! } }),
   };
 }
 
