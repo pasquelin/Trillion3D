@@ -15,7 +15,7 @@ function profileAsked() {
 }
 
 /**
- * The engine's debug mode (#1353), as the reference engine's Development build against its Shipping one: the
+ * The engine's debug mode (#1353), a development build's tools against a shipping build: the
  * frames are filed into the CPU step profile (`world.cpuSteps`) and the frame report
  * (`getReport`) only in it, and the measurement's code (`families.measurement`) is fetched only
  * by what reads it — a listened diagnostic channel, the frame audit, an A/B layout. A page that

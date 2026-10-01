@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
-      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
+      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors、WebGPU renderer、WebGL2 renderer）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
@@ -4226,7 +4226,8 @@
       "mode": "视图模式:正常画面用 `'beauty'`,或者用来展示引擎工作方式的某种模式。",
       "sessions": "世界到目前为止打开过的会话：重新打开会话的修改会显示在这里。",
       "error": "最后一个会话为何无法打开，以具名的引擎错误表示：其 `code` 是 `EngineError` 上记录的代码之一（WebGPU 丢失设备时为 `WEBGPU_LOST`；可选家族未加载时为 `FAMILY_LOAD_FAILED`，此时也会设置），或对于没有自身代码的原因为 `SESSION_OPEN_FAILED`。带有已记录代码的 `EngineError` 就是抛出的那个错误；其他任何错误都会被转换，此时抛出的错误位于 `details.cause`。从每次打开开始时起，以及没有尝试任何打开时，为 `null`。",
-      "modes": "当前渲染器提供的所有视图模式。"
+      "modes": "当前渲染器提供的所有视图模式。",
+      "debug": "页面的调试模式（`WorldOptions.debug`）：只有在此模式下，帧才会记录到 CPU 步骤概况和帧报告中，从下一帧起生效。"
     }
   },
   "world.materials": {
@@ -4448,7 +4449,8 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。"
     }
   },
   "RenderScale": {
@@ -5093,7 +5095,8 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "options.debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。"
     }
   },
   "crossVector3": {

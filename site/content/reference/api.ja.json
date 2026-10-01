@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "読み込んだモデルの頂点が `await geometry.loadVertices()` より前に読まれました。セッションは頂点を最初に必要になったときに読み、事前には読みません。",
       "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした。専用のコードを持たない理由によるものです（`world.diagnostic.error`）。スローされたエラーは `details.cause` にあります。",
       "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
-      "FAMILY_LOAD_FAILED": "エンジンの任意ファミリー（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors）が、インポートを再試行したうえで読み込めませんでした（`T3D-E090`）。`world.diagnostic.error` 上で `details.family` がそのファミリーを示します。それを使って描くフレームはその到着を待ち、次に使われるときに再び要求されます。",
+      "FAMILY_LOAD_FAILED": "エンジンの任意ファミリー（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors、WebGPU renderer、WebGL2 renderer）が、インポートを再試行したうえで読み込めませんでした（`T3D-E090`）。`world.diagnostic.error` 上で `details.family` がそのファミリーを示します。それを使って描くフレームはその到着を待ち、次に使われるときに再び要求されます。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "PHYSICS_BUDGET": "物理がいずれかの上限を超えて求められた（`world.budget.physics`：物体、装飾物体、メモリ）、動的な物体がシーンの直接の子でなかった（`PHYSICS_NESTED`）、または物理モジュールが失敗した（`PHYSICS_FAILED`）、または物体の姿勢や頂点が有限でなくなりシミュレーションから外れた（`PHYSICS_DIVERGED`）：`world.physics.error` に出る。",
@@ -4226,7 +4226,8 @@
       "mode": "ビューモード: 通常の画像なら`'beauty'`、あるいはエンジンの動作を示すモード。",
       "sessions": "ワールドがこれまでに開いたセッション: セッションを開き直す変更はここに表れます。",
       "error": "最後のセッションを開けなかった理由を、名前付きのエンジンエラーとして示します。その `code` は `EngineError` に記載されたコードのいずれか（WebGPU がデバイスを失ったときは `WEBGPU_LOST`、任意ファミリーが読み込めなかったときの `FAMILY_LOAD_FAILED`（そのときも））、または固有のコードを持たない理由なら `SESSION_OPEN_FAILED` です。記載されたコードの `EngineError` は投げられたものそのものです。それ以外のエラーは変換され、そのとき投げられたエラーは `details.cause` にあります。各オープンの開始時点から、また何も試されないときは `null` です。",
-      "modes": "現在のレンダラーが提供するすべてのビューモード。"
+      "modes": "現在のレンダラーが提供するすべてのビューモード。",
+      "debug": "ページのデバッグモード（`WorldOptions.debug`）。フレームはこのモードでのみ CPU ステッププロファイルとフレームレポートに記録されます。次のフレームから反映されます。"
     }
   },
   "world.materials": {
@@ -4448,7 +4449,8 @@
       "signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
       "temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
-      "renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。WebGPU では静止した画像もそのスケールで描かれ、ジッターの位相から再構成されます。WebGL2 では最大値で描かれます。あとから `world.renderScale` で変更できます。"
+      "renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。WebGPU では静止した画像もそのスケールで描かれ、ジッターの位相から再構成されます。WebGL2 では最大値で描かれます。あとから `world.renderScale` で変更できます。",
+      "debug": "デバッグモード。リリースビルドに対する開発ビルドのツールです。フレームはこのモードでのみ CPU ステッププロファイル（`world.cpuSteps`）とフレームレポートに記録されます。ページ単位で、アドレスの `?profile` でも有効になります。`world.diagnostic.debug` で後から切り替えます。"
     }
   },
   "RenderScale": {
@@ -5093,7 +5095,8 @@
       "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
       "options.temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
-      "options.renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。WebGPU では静止した画像もそのスケールで描かれ、ジッターの位相から再構成されます。WebGL2 では最大値で描かれます。あとから `world.renderScale` で変更できます。"
+      "options.renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。WebGPU では静止した画像もそのスケールで描かれ、ジッターの位相から再構成されます。WebGL2 では最大値で描かれます。あとから `world.renderScale` で変更できます。",
+      "options.debug": "デバッグモード。リリースビルドに対する開発ビルドのツールです。フレームはこのモードでのみ CPU ステッププロファイル（`world.cpuSteps`）とフレームレポートに記録されます。ページ単位で、アドレスの `?profile` でも有効になります。`world.diagnostic.debug` で後から切り替えます。"
     }
   },
   "crossVector3": {
