@@ -10,6 +10,7 @@ import { FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING, FRESH_STILL } from './freshLa
 import { FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 import { FRESH_LANES } from './freshLanes.ts';
+import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/rankSpan.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -25,8 +26,9 @@ const MAX_FRESH_REGIONS = 65535;
  * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes it
  * (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
  * page is its view cropped by the orthography, its box the square by the range's depth. Every
- * listed page is picked (`pickPages`), as Unreal's virtual shadow maps draw every page a frame
- * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
+ * listed page is picked (`pickPages`) up to the frame's static fill, the coarsest first (#831): a
+ * burst — a view's first frames, a camera cut — is drawn over frames, a page past the fill reading
+ * the coarser one meanwhile, and every page the view still reads is drawn within them. The
  * pair list holds the pool's fixed pairs (`pairGrowth.ts`, #831); a region past the longest prefix
  * it holds whole is left short (`FRESH_SHORT`, `admitShadowPairs`) and the seal makes readable the
  * others alone — never a page short of a caster —; a short one waits, listed again, for the next
@@ -57,25 +59,49 @@ const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
 const MAX_REGIONS:u32=${MAX_FRESH_REGIONS}u;
 var<workgroup> layerCount:array<u32,${MAX_POOL_LAYERS}>;
 var<workgroup> regionCount:u32;
+var<workgroup> rankCount:array<u32,${RANK_SPAN}>;
+const RANK_SPAN:u32=${RANK_SPAN}u;
 fn shadowPoolPages()->u32{return params.pages;}
 fn poolLayer(p:u32)->u32{return u32(shadowPoolPlace(f32(p),f32(params.side)).z);}
 fn faceF(i:u32,v:f32){faces[i]=bitcast<u32>(v);}
 fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
-/** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
- *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`): every one of them, as many as
- *  the cull's dispatch holds. */
+/** Whether listed page \`p\` still waits for a draw: mapped, not readable, its word its own, drawn
+ *  by none. */
+fn freshWaiting(p:u32)->bool{
+ let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
+ if(e<0){return false;}
+ let word=shadows.table[u32(e)];
+ return (word&(PAGE_MAPPED|PAGE_VALID))==PAGE_MAPPED&&(word&PAGE_INDEX_MASK)==p&&shadowPool.pages[poolAt(POOL_DRAWNBY,p)]==DRAWN_NONE;
+}
+/** Page \`p\`'s coarseness, within the ranks a key spans: the order its fill is served in. */
+fn freshRank(p:u32)->u32{return u32(clamp(shadowPool.pages[poolAt(POOL_RANK,p)],0,i32(RANK_SPAN)-1));}
+/** Lane 0: the listed pages still waiting for a draw, up to the frame's static fill
+ *  (\`params.budget\`, \`shadowPagesPerFrame\` less the host's fills, #831) — the coarsest first,
+ *  a finer page falling back to them —, each claimed once, then laid out as regions layer after
+ *  layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`). A page past the budget stays listed and
+ *  unclaimed: it reads the coarser page and is drawn the next frames. */
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
+ for(var r=0u;r<RANK_SPAN;r++){rankCount[r]=0u;}
  let listed=min(countRead(COUNT_DRAWN),params.pages);
- var picked=0u;
- for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
-  let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
-  if(e<0){continue;}
-  let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
-  if((word&(PAGE_MAPPED|PAGE_VALID))!=PAGE_MAPPED||(word&PAGE_INDEX_MASK)!=p||shadowPool.pages[by]!=DRAWN_NONE){continue;}
-  shadowPool.pages[by]=DRAWN_GPU;drawList[picked]=p;picked++;
+ for(var i=0u;i<listed;i++){let p=drawList[i];if(freshWaiting(p)){rankCount[freshRank(p)]+=1u;}}
+ // The finest rank the budget reaches (\`cut\`), and the pages of it it holds (\`room\`).
+ var room=min(params.budget,MAX_REGIONS);var cut=0u;var whole=true;
+ for(var r=i32(RANK_SPAN)-1;r>=0;r--){
+  let n=rankCount[u32(r)];
+  if(n>=room){cut=u32(r);whole=false;break;}
+  room-=n;
+ }
+ var picked=0u;var atCut=0u;
+ for(var i=0u;i<listed;i++){
+  let p=drawList[i];
+  if(!freshWaiting(p)){continue;}
+  let rank=freshRank(p);
+  if(!whole&&rank<cut){continue;}
+  if(!whole&&rank==cut){if(atCut>=room){continue;}atCut++;}
+  shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_GPU;drawList[picked]=p;picked++;
   layerCount[poolLayer(p)]+=1u;
  }
  var start=0u;

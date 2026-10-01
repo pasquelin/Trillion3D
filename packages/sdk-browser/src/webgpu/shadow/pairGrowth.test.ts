@@ -11,7 +11,7 @@ import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { growPairList } from './pairGrowth.ts';
 import { keptPairs, poolPairs } from './pairRows.ts';
-import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 const ROW_BYTES = 4 * MAX_SHADOW_REGIONS;
@@ -120,8 +120,9 @@ test('the kept list never grows past what one storage binding holds', async () =
   assert.equal(fake.buffers.length, asked, 'the ceiling reached, nothing more is asked');
 });
 
-test("the pair list holds a frame's pairs: the grant's pages, the pool's when fewer (#831)", () => {
-  // The GPU maps a frame's page budget at most, the grant's batches' pages (`shadowPagesPerFrame`).
-  assert.equal(poolPairs(4 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS * poolPairs(1));
-  assert.equal(poolPairs(2601), 2601 * poolPairs(1), 'a pool smaller than the budget, its own');
+test("the pair list holds a frame's static fill's pairs, never the whole pool's (#831)", () => {
+  // The GPU fills a frame's static fill at most (`shadowPagesPerFrame`), never past the grant's.
+  assert.equal(poolPairs(32 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS * poolPairs(1));
+  assert.equal(poolPairs(2601), shadowPagesPerFrame(2601) * poolPairs(1));
+  assert.ok(poolPairs(2601) < 2601 * poolPairs(1) / 8, 'an eighth of the pool at most');
 });
