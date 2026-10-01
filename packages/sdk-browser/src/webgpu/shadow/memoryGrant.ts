@@ -84,10 +84,10 @@ export function admitShadowBytes(
 }
 
 /** `admitShadowBytes` for a late layer or the grown pair list: past the grant, its pressure is recorded and said under
- *  `shadow-memory` with the bytes asked, held and granted. */
+ *  `shadow-memory` with the bytes asked, held and granted — silently refused without `diagnose`. */
 export function grantsShadowLayer(
   lights: WebgpuLightState,
-  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'] | undefined,
   pressure: 'static-layer-over-grant' | 'transmittance-over-grant' | 'pairs-over-grant',
   message: string,
   bytes: number,
@@ -96,6 +96,7 @@ export function grantsShadowLayer(
 ) {
   const heldBytes = shadowPoolHeld(lights);
   if (admitShadowBytes(lights.memory, heldBytes, bytes, grantBytes, reserveBytes)) return true;
+  if (!diagnose) return false;
   noteShadowPressure(lights.memory, pressure);
   diagnose('shadow-memory', message, {
     kind: 'warning',
