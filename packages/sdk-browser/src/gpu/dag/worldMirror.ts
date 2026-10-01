@@ -112,6 +112,16 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
   return {
     /** The residency the cut reads, every packed page: the scene's, then the world DAG's. */
     flags,
+    /** Bytes of its host tables, which the cut's `hostBytes` counts. */
+    get hostBytes() {
+      return (
+        flags.byteLength +
+        first.byteLength +
+        ranks.byteLength +
+        placementOf.byteLength +
+        changed.byteLength
+      );
+    },
     /** Object `object` (an `origin`) is drawn by scene placement `w` (`packed.cutLinks`). */
     place(object: number, w: number) {
       if (object >= objects || placementOf[object] === w) return;
@@ -134,7 +144,10 @@ export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<Pac
      */
     update(scene: Uint32Array, changes?: ResidencyChanges) {
       if (scene.length !== pageBase) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (handed) (changed.clear(), (handed = false));
+      if (handed) {
+        changed.clear();
+        handed = false;
+      }
       if (changes?.sorted)
         for (let i = 0; i < changes.count; i++) scenePage(scene, changes.pages[i]);
       else for (let page = 0; page < pageBase; page++) scenePage(scene, page);
