@@ -122,12 +122,15 @@ export async function openWorldRoots(
       ? Promise.resolve(topBundles[bundle])
       : (held.get(bundle)?.pages ??
         readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
-  let stream: WorldStream | undefined, streaming: Promise<WorldStream> | undefined;
+  let stream: WorldStream | undefined;
+  // Only an opened stream is kept: a family refusal is asked again on the next use (`onDemand`),
+  // and a table out of rank is refused again, before any page is served.
   const openStream = async () => {
     const { worldPageServer, worldRootPages } = await families.worldStream.load();
-    // Refused out of rank before any page is served.
-    const dag = worldRootDag(table, worldRootPages);
-    return (stream = { source: worldRootsPageSource(worldPageServer(table, bundlePages)), dag });
+    return (stream ??= {
+      dag: worldRootDag(table, worldRootPages),
+      source: worldRootsPageSource(worldPageServer(table, bundlePages)),
+    });
   };
   return {
     table,
@@ -135,7 +138,7 @@ export async function openWorldRoots(
      *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a table
      *  cooked without its `clusters` and `groups`), opened once, on first use. A table out of its
      *  rank is refused here (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */
-    stream: () => (streaming ??= openStream()),
+    stream: openStream,
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
     pinned: { bundles: table.pinned, pages: topBundles.flat(), bytes: table.pinnedTopBytes },
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,
@@ -167,7 +170,7 @@ export async function openWorldRoots(
       heldBytes +
       read.held() +
       // The source's own bundles past the top and the held ones: kept for a page's other view.
-      (stream?.source.keptBytes((bundle) => held.has(bundle)) ?? 0),
+      (stream?.source.keptBytes(held) ?? 0),
   };
 }
 

@@ -38,7 +38,6 @@ import type { WorldPageServer } from './worldPageServe.ts';
  */
 export function worldRootsPageSource(server: WorldPageServer) {
   const source = {
-    bundles: server.bundles,
     keptBytes: server.keptBytes,
     page: server.page,
     read: server.read,
