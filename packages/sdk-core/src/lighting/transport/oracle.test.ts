@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SINGULAR_PIVOT, solveTransportOracle } from './oracle.ts';
+import { solveTransportOracle } from './oracle.ts';
 import { ones, system } from './oracle.fixture.ts';
-import { LIGHTING_TRANSPORT_FORMAT_VERSION, type TransportSnapshot } from './contracts.ts';
+import {
+  LIGHTING_TRANSPORT_FORMAT_VERSION,
+  LIGHTING_TRANSPORT_LIMITS,
+  type TransportSnapshot,
+} from './contracts.ts';
+
+const SINGULAR_PIVOT = LIGHTING_TRANSPORT_LIMITS.singularPivot;
 
 function solves(snapshot: TransportSnapshot, solution: number[], tolerance = 1e-12) {
   const result = solveTransportOracle(snapshot);

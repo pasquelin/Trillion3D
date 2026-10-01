@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Vec3 } from './types.ts';
-import {
-  createLightingSceneGeometry,
-  createLightingScenePatches,
-  MAX_LIGHTING_PATCHES,
-} from './geometry.ts';
+import { createLightingSceneGeometry, createLightingScenePatches } from './geometry.ts';
 import { close, cross, dot, sub } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 test('a detailed rectangle is cut into cells no larger than the patch size, centred in its cells', () => {
@@ -77,9 +73,24 @@ test('patches own their vectors: editing one changes neither its surface nor ano
   assert.deepEqual(geometry.surfaces[0].emission, [0, 0, 0]);
 });
 
-test('a scene holds patches up to its budget and refuses one more', () => {
+test('a scene holds as many patches as the budget its refusal names, and not one more', () => {
+  let budget = NaN;
+  assert.throws(
+    () =>
+      createLightingSceneGeometry(1).rectangle(
+        'huge',
+        [0, 0, 0],
+        [1e7, 0, 0],
+        [0, 1, 0],
+        [1, 1, 1],
+      ),
+    (error: Error) => (
+      (budget = Number(/exceeds (\d+) transport patches/.exec(error.message)?.[1])),
+      budget > 0
+    ),
+  );
   const full = createLightingSceneGeometry(1);
-  full.rectangle('large', [0, 0, 0], [MAX_LIGHTING_PATCHES - 1, 0, 0], [0, 1, 0], [1, 1, 1]);
+  full.rectangle('large', [0, 0, 0], [budget - 1, 0, 0], [0, 1, 0], [1, 1, 1]);
   assert.doesNotThrow(() => full.rectangle('last', [0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 1]));
   assert.throws(
     () => full.rectangle('extra', [0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 1]),
