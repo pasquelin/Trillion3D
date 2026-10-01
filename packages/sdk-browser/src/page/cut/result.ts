@@ -5,7 +5,7 @@ export interface SelectionResult<T> {
   /** The instances as packed catalogue ranks, parallel to `shown` and `wanted` rank by rank: the
    *  identity the engines' consumers route by (a packed rank is the engine's per-placement page),
    *  resolved back to a record through the catalogue (`recordOf(packed)`). Reused `Int32Array`s,
-   *  preallocated to the cut's capacity (`fitPacked`); their live ranks are those of `shown` and
+   *  widened as the cut emits (`fitPacked`, #1232); their live ranks are those of `shown` and
    *  `wanted`, rank by rank, so no stale tail is read. */
   shownPacked: Int32Array;
   wantedPacked: Int32Array;

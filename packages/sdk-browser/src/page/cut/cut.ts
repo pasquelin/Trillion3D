@@ -5,7 +5,6 @@ import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
-  fitPacked,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -57,13 +56,9 @@ export function selectVisiblePages<T extends PageRecord>(
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
   // The packed lists are the result's own, parallel to the records, written by the same `keep`
-  // (rank by rank). The cut cannot name more instances than the roots hold pages: their two
-  // `Int32Array`s are widened once to that capacity and their end is the two record counts, so a
-  // reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
-  let capacity = 0;
-  for (const root of roots) capacity += root.pages.length;
-  result.shownPacked = fitPacked(result.shownPacked, capacity);
-  result.wantedPacked = fitPacked(result.wantedPacked, capacity);
+  // (rank by rank), which widens them as the cut emits (`./take.ts`): they follow what the view
+  // selects, never the instances the roots could name (#1232). Their end is the two record
+  // counts, so a reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
   const shownPacked = result.shownPacked,
     wantedPacked = result.wantedPacked;
   // Cut state is set on the reused object: a render image allocates nothing here.
@@ -129,6 +124,8 @@ export function selectVisiblePages<T extends PageRecord>(
   // the next.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
+  result.shownPacked = state.shownPacked;
+  result.wantedPacked = state.wantedPacked;
   // Both sums are held as a running total: no more sweep of the records after the cut.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;
