@@ -5,7 +5,6 @@ import { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
 import { BACKEND_METRIC_KEYS } from '../../diagnostic/metricKeys.ts';
-import { setDebugMode } from '../../host/debugMode.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 
 type State = () => {
@@ -127,10 +126,7 @@ export function createExplorerMetrics(
   };
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
-  if (options.logInterval && options.logInterval > 0) {
-    setDebugMode(true); // the log reads the frame report, which only debug mode files
-    profiler.startAutoLog(options.logInterval);
-  }
+  if (options.logInterval && options.logInterval > 0) profiler.startAutoLog(options.logInterval);
   const fillMetrics = (backend: RenderBackend) => {
     const { loaded, pageBytesRead, streamingError, effectBytes, gpu } = state();
     const backendMetrics = backend.metrics() as FrameMetrics;

@@ -1,6 +1,5 @@
 import { disabledStageProfile, type StageProfile } from '../../../../sdk-core/src/index.ts';
 import type { RenderBackend } from '../../backend/types.ts';
-import { setDebugMode } from '../../host/debugMode.ts';
 import type { EngineProfiler, TelemetryReport } from '../../diagnostic/telemetry.ts';
 
 export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () => RenderBackend) {
@@ -60,7 +59,6 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
       profiler.printReport();
     },
     enableAutoLog(intervalSeconds = 2) {
-      setDebugMode(true); // the log reads the frame report, which only debug mode files
       return profiler.startAutoLog(intervalSeconds);
     },
     disableAutoLog() {

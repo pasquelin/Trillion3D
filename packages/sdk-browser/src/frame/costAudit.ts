@@ -1,23 +1,13 @@
 import { frustumExcludesBox, type FrameMetrics } from '../../../sdk-core/src/index.ts';
 import { enginePose, type EngineCamera } from '../camera/world.ts';
 import { families } from '../host/families.ts';
+import { addressFlag } from '../host/addressFlag.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
-/** The question asked of the URL, and the answer it gave: the string is reread on every call —
- *  the audit is queried per frame — but it is parsed only once per string. */
-let auditSearch: string | undefined,
-  auditEnabled = false;
-
 /** Opt-in audit, no per-frame trace: add `trillion3dFrameAudit=1` to the host URL. */
-export function frameCostAuditEnabled() {
-  const search = typeof location === 'undefined' ? undefined : location.search;
-  if (search !== auditSearch) {
-    auditSearch = search;
-    auditEnabled =
-      search !== undefined && new URLSearchParams(search).get('trillion3dFrameAudit') === '1';
-  }
-  return auditEnabled;
-}
+export const frameCostAuditEnabled = addressFlag(
+  (params) => params.get('trillion3dFrameAudit') === '1',
+);
 
 /** Serialisation and the console stay outside the measured render call. */
 export function logFrameCostAudit(backend: string, context: Record<string, unknown>) {

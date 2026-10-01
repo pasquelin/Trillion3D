@@ -10,11 +10,11 @@ import {
 } from '../../../sdk-core/src/index.ts';
 import {
   PROXY_CASTLESS_WORD,
-  PROXY_HEADER_WORDS,
   PROXY_LAYOUT_WORD,
   PROXY_REVISION_WORD,
   PROXY_STEPS_WORD,
 } from './nodeWgsl.ts';
+import { PROXY_HEADER_WORDS } from './sizes.ts';
 
 /** Ranks of the columns a sync rewrites. */
 const TRIANGLES = 0,

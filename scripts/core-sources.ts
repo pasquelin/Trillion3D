@@ -29,12 +29,12 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
  * What the core must never hold, by source (#1353): the debug tools, fetched only in debug mode —
  * the measurement's code and the diagnostic views —, and each renderer's own code, fetched only
  * by the page that draws with it — the WebGPU page raster and its shadows, sized by their own
- * formulas (`residency/shadowShares.ts`), the WebGL2 page path.
+ * formulas (`residency/shadowShares.ts`), the WebGL2 page path. A family's own module the core
+ * holds already fails the gate by name (`familiesInCore`); these are the sources around them.
  */
 const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
   diagnostics: [
-    'sdk-browser/src/diagnostic/viewCode.js',
     'sdk-browser/src/host/scene/graphDiagnostic.js',
     'sdk-browser/src/webgpu/pages/diagnostic/',
   ],
