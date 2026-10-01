@@ -10,8 +10,7 @@
 import type { ImpostorMaps } from '../../../sdk-core/src/index.ts';
 import { loadImpostorAtlas, type ImpostorAtlasLevels } from './atlas.ts';
 import type { TextureLevelReader } from '../texture/levelReader.ts';
-import { evictOldest } from '../streaming/evictOldest.ts';
-import { createHeldLevels } from '../texture/heldLevels.ts';
+import { core } from './borrowed.ts';
 
 /** The three maps in binding order: colour and coverage, normal and depth, packed ORM. */
 export const ATLAS_MAPS = ['colourCoverage', 'normalDepth', 'orm'] as const;
@@ -38,7 +37,7 @@ export function createAtlasFeed<G>(
   },
 ) {
   const { room, landed, onFailure, bytesOf, make } = options;
-  const levels = createHeldLevels({
+  const levels = core.createHeldLevels({
     read: reader,
     onFailure: (key, error) => onFailure(`impostor-level-read-failed ${key.sha256}`, error),
   });
@@ -52,7 +51,7 @@ export function createAtlasFeed<G>(
   let watching = false;
   /** Frees the room `bytes` needs, the atlases drawn least recently first; false if it cannot. */
   const fits = (key: string, bytes: number, frame: number) => {
-    evictOldest(
+    core.evictOldest(
       fed.keys(),
       () => feed.bytes + bytes > room(),
       (other) => {
