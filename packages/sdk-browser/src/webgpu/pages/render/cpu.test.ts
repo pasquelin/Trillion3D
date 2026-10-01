@@ -183,3 +183,13 @@ test("the cache's changes reach the cut's residency before the cut reads it", ()
   assert.ok(synced >= 0, 'the mirror is synced');
   assert.ok(synced < b.journal.indexOf('lecture'), 'before the first residency the cut reads');
 });
+
+test('the drawn packed ranks are written into the array the GPU adopter and the rows hold', () => {
+  // Rebinding `run.drawnPacked` would leave them reading a list no image writes any more (#1235).
+  const b = banc({ ready: true, resident: true }),
+    held = b.run.drawnPacked;
+  assert.throws(() => image(b), /BANC_ARRET/);
+  assert.equal(b.run.drawnPacked, held, 'the same array');
+  assert.deepEqual(held, b.run.shownPacked, 'holding what the image draws');
+  assert.ok(held.length > 0);
+});
