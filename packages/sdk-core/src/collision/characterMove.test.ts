@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { arc, freshReport, isFloor, slide } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
+import { triangleCollision } from './characterCollision.ts';
+import { buildTriangleTree } from './triangleTree.ts';
 
 const rules = { maxSlope: Math.PI / 4, onGround: false, stepTop: 1 };
 const contact = (normal: number[], surface = normal, y = 0): CapsuleContact => ({
@@ -134,4 +136,58 @@ test('a vertical overlap above the step limit has a finite upward escape when no
   );
   close(capsule.feet, [0, 3.2, 0]);
   close(velocity, [0, 0, 0]);
+});
+
+test('perching on a floor edge raises the sphere vertically to exactly one radius from the contact', () => {
+  const capsule = { feet: new Float64Array(3), radius: 1, height: 2 };
+  const velocity = new Float64Array([2, -3, 4]);
+  let seen = false;
+  const point = new Float64Array([-0.48, 0.36, 0]);
+  const world = {
+    groundBelow: () => null,
+    resolveCapsule: (_: unknown, push: (v: CapsuleContact) => void) => {
+      if (seen) return false;
+      seen = true;
+      push({
+        normal: new Float64Array([0.6, 0.8, 0]),
+        surface: new Float64Array([0, 1, 0]),
+        point,
+        depth: 0.2,
+      });
+      return true;
+    },
+  };
+  const report = freshReport({ ground: false, wall: false, impact: 0 });
+  slide(
+    world,
+    { capsule, velocity },
+    { onGround: true, maxSlope: Math.PI / 4, stepTop: 1 },
+    [0, 0, 0],
+    report,
+  );
+  assert.equal(capsule.feet[0], 0);
+  assert.equal(capsule.feet[2], 0);
+  assert.ok(Math.abs(Math.hypot(0.48, capsule.feet[1] + 1 - 0.36) - 1) < 1e-12);
+  assert.deepEqual([...velocity], [2, 0, 4]);
+  assert.deepEqual(report, { ground: true, wall: false, impact: 3 });
+});
+
+test('a long movement cannot tunnel across a thin triangle wall and keeps tangential travel', () => {
+  const tree = buildTriangleTree([
+    1, -20, -20, 1, 20, -20, 1, -20, 20, 1, 20, -20, 1, 20, 20, 1, -20, 20,
+  ]);
+  const capsule = { feet: new Float64Array([0, 0, -2]), radius: 0.5, height: 2 };
+  const velocity = new Float64Array([100, 0, 10]);
+  const report = freshReport({ ground: false, wall: false, impact: 0 });
+  slide(
+    triangleCollision(tree),
+    { capsule, velocity },
+    { onGround: false, maxSlope: Math.PI / 4, stepTop: Infinity },
+    [10, 0, 1],
+    report,
+  );
+  assert.ok(Math.abs(capsule.feet[0] - 0.5) < 1e-10);
+  assert.ok(Math.abs(capsule.feet[2] + 1) < 1e-10);
+  assert.deepEqual([...velocity], [0, 0, 10]);
+  assert.equal(report.wall, true);
 });

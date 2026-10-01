@@ -171,6 +171,7 @@ test('a slope under maxSlope holds a standing body; a steeper one slides it down
   assert.equal(steep.onGround, false);
   assert.ok(steep.feet[0] < -1, `held at ${steep.feet[0]}`);
 });
+
 test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a landing', () => {
   // Off the edge of a block, then a press within the coyote time: the body still jumps.
   const late = body([block(-20, -1, -5, 0, 0, 5)], -1);
@@ -188,6 +189,7 @@ test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a l
   live(early, 0.3, STILL);
   assert.ok(early.feet[1] > 0.2, `no buffered jump: ${early.feet[1]}`);
 });
+
 test('a body with no thickness still walks, in one part a tick', () => {
   const [x] = live(body([FLOOR()], 0, 0, 0, { capsuleRadius: 0 }), 1, EAST);
   assert.ok(x > 0 && Number.isFinite(x));

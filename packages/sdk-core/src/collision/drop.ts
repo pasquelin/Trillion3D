@@ -101,7 +101,7 @@ function dropOnEdge(
     dy = rise * ey - 1,
     dz = rise * ez;
   const a = dx * dx + dy * dy + dz * dz;
-  if ((ex === 0 && ez === 0) || a === 0) return; // Vertical, or its sweep coefficient underflowed.
+  if (a < 1e-12) return; // A vertical edge: the sphere slides along it, never onto it.
   const b = -(ox * dx + oy * dy + oz * dz),
     c = ox * ox + oy * oy + oz * oz - radius * radius,
     discriminant = b * b - a * c;
