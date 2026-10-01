@@ -1,11 +1,7 @@
 import { BOUNCE_SETTINGS, bounceBatchOf } from '../../../sdk-core/src/index.ts';
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
 import { BOUNCE_ATLAS_FORMAT, atlasExtent } from './atlas.ts';
-import {
-  BOUNCE_SURFACE_SHADER,
-  SURFACE_WORKGROUP,
-  surfaceCacheBytes,
-} from './surfaceWgsl.ts';
+import { BOUNCE_SURFACE_SHADER, SURFACE_WORKGROUP, surfaceCacheBytes } from './surfaceWgsl.ts';
 import { surfaceCacheTexels } from './sizes.ts';
 import type { GpuBounceProxy } from './proxy.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
