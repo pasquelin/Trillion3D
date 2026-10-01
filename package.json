@@ -54,6 +54,7 @@
     "build:physics": "node scripts/build-physics-wasm.ts",
     "bench:physics": "node scripts/bench-physics.ts",
     "bench:fluids": "node scripts/bench-fluids.ts",
+    "bench:fluid-s3": "node scripts/bench-fluid-s3.ts",
     "test": "node scripts/test-unit.ts",
     "test:docs": "node scripts/docs-tests.ts",
     "test:mutation": "node scripts/test-mutation.ts",
