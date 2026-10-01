@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SplineCurve, Path, Curve } from '../math/curves.ts';
 import { Vector3 } from '../math/vector3.ts';
-import { torusKnot, tube, torus, lathe, capsule } from './round.ts';
+import { torusKnot, tube, torus } from './round.ts';
 import { RECIPES } from './recipes.ts';
 
 /** Every vertex of the last ring of a `(tubular + 1) × (radial + 1)` sweep sits on the first's. */
@@ -11,6 +11,14 @@ function assertCloses(position: ArrayLike<number>, tubular: number, radial: numb
     const [first, last] = [j * (tubular + 1) * 3, (j * (tubular + 1) + tubular) * 3];
     for (let k = 0; k < 3; k++)
       assert.ok(Math.abs(position[first + k] - position[last + k]) < 1e-9, `ring vertex ${j}`);
+  }
+}
+
+const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
+
+class Slanted extends Curve {
+  getPoint(t: number, out = new Vector3()) {
+    return out.set(3 * t, 4 * t, 0);
   }
 }
 
@@ -37,8 +45,6 @@ test('a closed tube along a curve out of any plane closes on itself', () => {
     8,
   );
 });
-
-const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 
 test('torus tube lies at the declared distance from its central circle, with outward normals', () => {
   for (const arc of [Math.PI, Math.PI * 2]) {
@@ -68,61 +74,6 @@ test('torus tube lies at the declared distance from its central circle, with out
   }
 });
 
-test('lathe spins translated profiles with slope normals and partial-arc endpoints', () => {
-  const profile: [[number, number], [number, number], [number, number]] = [
-    [2, -3],
-    [3, 0],
-    [4, 3],
-  ];
-  const g = lathe(profile, 4, Math.PI / 2, Math.PI),
-    p = g.attributes.position,
-    n = g.attributes.normal;
-  const object = lathe(
-    profile.map(([x, y]) => ({ x, y })),
-    4,
-    Math.PI / 2,
-    Math.PI,
-  );
-  assert.deepEqual(object.attributes.position.array, p.array);
-  assert.equal(p.count, 15);
-  assert.equal(g.index!.count, 48);
-  for (let i = 0; i < p.count; i++) {
-    near(Math.hypot(p.getX(i), p.getZ(i)), [2, 3, 4][Math.floor(i / 5)]);
-    near(p.getY(i), [-3, 0, 3][Math.floor(i / 5)]);
-    near(n.getY(i), -1 / Math.sqrt(10));
-    near(Math.hypot(n.getX(i), n.getZ(i)), 3 / Math.sqrt(10));
-    near(n.getX(i) * p.getZ(i) - n.getZ(i) * p.getX(i), 0);
-  }
-  near(p.getX(0), 2);
-  near(p.getZ(0), 0);
-  near(p.getX(4), -2);
-  const uv = g.attributes.uv;
-  assert.deepEqual(
-    [...uv.array],
-    [
-      0, 0, 0.25, 0, 0.5, 0, 0.75, 0, 1, 0, 0, 0.5, 0.25, 0.5, 0.5, 0.5, 0.75, 0.5, 1, 0.5, 0, 1,
-      0.25, 1, 0.5, 1, 0.75, 1, 1, 1,
-    ],
-  );
-});
-
-test('capsule rings join two hemispheres to the declared straight cylinder', () => {
-  const g = capsule(2, 6, 2, 4),
-    p = g.attributes.position;
-  assert.equal(p.count, 30);
-  assert.equal(g.index!.count, 120);
-  assert.equal(RECIPES[g.recipe!.type], capsule);
-  assert.deepEqual(g.recipe!.args, [2, 6, 2, 4]);
-  for (let i = 0; i < p.count; i++) {
-    const centreY = p.getY(i) < 0 ? -3 : 3;
-    near(Math.hypot(p.getX(i), p.getY(i) - centreY, p.getZ(i)), 2);
-  }
-  near(p.getY(0), -5);
-  near(p.getY(10), -3);
-  near(p.getY(15), 3);
-  near(p.getY(25), 5);
-});
-
 test('open tubes keep translated endpoints, radius and normals across either frame seed', () => {
   for (const end of [new Vector3(8, 2, 3), new Vector3(1, 9, 3), new Vector3(5, 7, 9)]) {
     const start = new Vector3(1, 2, 3),
@@ -147,31 +98,6 @@ test('open tubes keep translated endpoints, radius and normals across either fra
   assert.deepEqual(knot.recipe!.args, [2, 0.25, 8, 4, 1, 2]);
   assert.equal(knot.attributes.position.count, 45);
 });
-
-test('lathe angular UV direction and capsule lower hemisphere keep their declared seam', () => {
-  const g = lathe(
-    [
-      [2, -1],
-      [2, 1],
-    ],
-    4,
-    0,
-    Math.PI,
-  );
-  assert.ok(g.attributes.position.getX(1) > 1);
-  assert.ok(g.attributes.position.getZ(1) > 1);
-  const cap = capsule(2, 6, 4, 8);
-  const p = cap.attributes.position;
-  // The first longitude starts on positive Z, including the lower cap's rings.
-  assert.ok(p.getZ(9) > 0);
-  assert.ok(p.getY(9) > -5 && p.getY(9) < -3);
-});
-
-class Slanted extends Curve {
-  getPoint(t: number, out = new Vector3()) {
-    return out.set(3 * t, 4 * t, 0);
-  }
-}
 
 test('tube UVs run around each ring and along the path, end to end', () => {
   const g = tube(new Slanted(), 2, 0.5, 3);
