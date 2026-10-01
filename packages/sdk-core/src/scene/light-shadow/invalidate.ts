@@ -43,8 +43,9 @@ const reasonOf = (level: number, wrong: boolean) =>
  *   A light examines at most its virtual pages (`tableEntriesOf`) — past that its boxes cover its
  *   entries again —: the boxes beyond join one union per kind, each covered the same way. A
  *   static caster that moved withdraws those pages until redrawn; one already moving stales only
- *   their moving casters, and the static layer under them stays read. With per-page
- *   invalidation off, every page of each light the box touches.
+ *   their moving casters, and the static layer under them stays read; an entry the host does not
+ *   map while the GPU maps (`mirror.ts`) goes out withdrawn, its GPU draw redone this frame
+ *   (`wordsWgsl.ts`). With per-page invalidation off, every page of each light the box touches.
  * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
  *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
  *
@@ -56,6 +57,7 @@ export function createPageInvalidation(
   sun: SunLevels,
   changes: Changes,
   counts: Counts,
+  gpuMaps: () => boolean = () => false,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
   /** The unions of a light's boxes past its budget, covered once each: those whose static layer
@@ -66,12 +68,13 @@ export function createPageInvalidation(
     wrongMax = restWrong.subarray(3, 6),
     keptMin = restKept.subarray(0, 3),
     keptMax = restKept.subarray(3, 6);
-  /** The light being invalidated — its slice, its kind, its views — and the frame's stamp. */
+  /** The light invalidated — slice, kind, views —, the frame's stamp, whether the GPU maps. */
   let slice = 0,
     sunLight = false,
     views = 0,
     nowMs = 0,
-    frame = 0;
+    frame = 0,
+    gpuDraws = false;
   /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`, the
    *  GPU's own draw too (#1345). */
   const mark = (page: number, level: number, wrong: boolean, reason: number) => {
@@ -122,8 +125,10 @@ export function createPageInvalidation(
             : lampEntry(Math.floor(view / LAMP_MIPS), view % LAMP_MIPS, 0, y));
         for (let x = rects[r]; x <= rects[r + 1]; x++) {
           counts.visitedPages++;
-          const word = table.words[row + (sunLight ? ringOf(x, sun.windowPages) : x)];
+          const entry = row + (sunLight ? ringOf(x, sun.windowPages) : x),
+            word = table.words[entry];
           if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
+          else if (gpuDraws && reason !== STALE_BY.detail) table.withdraw(entry);
         }
       }
     }
@@ -145,6 +150,7 @@ export function createPageInvalidation(
     views = sunLight ? SUN_LEVELS : lampFacesOf(rank) * LAMP_MIPS;
     nowMs = now;
     frame = at;
+    gpuDraws = gpuMaps();
     if (whole) {
       scan(false, STALE_FULL, true, -1, STALE_BY.light);
       return;

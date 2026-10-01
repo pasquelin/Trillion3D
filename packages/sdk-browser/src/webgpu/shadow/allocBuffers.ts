@@ -4,6 +4,7 @@ import type { ShadowAsks } from '../../../../sdk-core/src/scene/light-shadow/req
 import {
   PAGE_MAPPED,
   PAGE_VALID,
+  PAGE_WITHDRAWN,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
@@ -143,7 +144,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       allocation.lost = 0;
       const send = (entry: number) => {
         const word = sentShadowWord(table, entry);
-        if (!(word & PAGE_MAPPED)) return;
+        // An entry the host does not map goes out only withdrawn: a GPU draw of it is redone.
+        if (!(word & (PAGE_MAPPED | PAGE_WITHDRAWN))) return;
         if (!(word & PAGE_VALID)) allocation.lost++;
         words[WORDS_HEADER + 2 * count] = entry;
         words[WORDS_HEADER + 2 * count++ + 1] = word;
