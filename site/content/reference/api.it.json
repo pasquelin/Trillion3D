@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` ripristina la nostra: nessuna sessione la eredita."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Float di un volume di culling: centro e piano lontano, asse della faccia e semiangolo, poi — per un box, segnalato da un semiangolo negativo — gli altri due assi con le loro semiestensioni, poi la parola che dice quali proiettori disegna la regione, la vista del taglio di luce che li ha scelti, e due di riempimento."
+    "summary": "Float di un volume di culling: centro e piano lontano, asse della faccia e semiangolo, poi — per un box, segnalato da un semiangolo negativo — gli altri due assi con le loro semiestensioni, poi la parola che dice quali proiettori disegna la regione, la vista del taglio di luce che li ha scelti, i texel per metro di una pagina del sole (`underTexel`, `cullShader.ts`), e uno di riempimento."
   },
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."

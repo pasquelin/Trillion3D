@@ -2925,7 +2925,7 @@
     "summary": "A versão do pacote deste motor."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Floats de um volume de descarte: centro e plano distante, eixo da face e meio ângulo, depois — para uma caixa, marcada por um meio ângulo negativo — os outros dois eixos com as suas meias extensões, depois a palavra que diz que projetores a região desenha, a vista do corte de luz que os escolheu, e duas de preenchimento."
+    "summary": "Floats de um volume de descarte: centro e plano distante, eixo da face e meio ângulo, depois — para uma caixa, marcada por um meio ângulo negativo — os outros dois eixos com as suas meias extensões, depois a palavra que diz que projetores a região desenha, a vista do corte de luz que os escolheu, os texels por metro de uma página do sol (`underTexel`, `cullShader.ts`), e uma de preenchimento."
   },
   "SHADOW_PAGE": {
     "summary": "Lado de uma página de sombra, em texels: a unidade do pool, dos mapas virtuais e da invalidação."
