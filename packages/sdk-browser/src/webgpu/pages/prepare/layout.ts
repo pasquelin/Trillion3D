@@ -19,8 +19,7 @@ export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 export type PoolCopies = { byAddress: Map<string, number>; max: number };
 
 /** Counts `pages` into `copies`, `by` more placements each. */
-export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 1) {
-  if (by <= 0) return copies;
+function countCopies(copies: PoolCopies, pages: readonly PageRec[], by: number) {
   for (const page of pages) {
     const address = pageAddress(page),
       n = (copies.byAddress.get(address) ?? 0) + by;
@@ -39,7 +38,7 @@ export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 
  * once, and none in a scene that blends nothing.
  */
 /** The placements of each primitive among `roots`, a primitive being its shared `pages` array. */
-export function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRec[] }[]) {
+function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRec[] }[]) {
   const counts = new Map<readonly PageRec[], number>();
   for (const { pages } of roots) counts.set(pages, (counts.get(pages) ?? 0) + 1);
   return counts;
