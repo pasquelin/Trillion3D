@@ -46,13 +46,20 @@ export function resolvedDisplay({
   entry = 'resolvedRadiance',
   fallback = 'reflectedRadiance',
   globals = {} as Record<string, unknown>,
+  functions = [] as string[],
 } = {}) {
   const calls = { traced: 0, fallback: 0 };
   const program = shaderRun<
     Record<string, (P: number[], N: number[], R: number[], rough: number) => number[]>
   >(
     shader,
-    ['resolvedReflectionRay', 'filteredResolvedReflection', 'screenReflectionFade', entry],
+    [
+      'resolvedReflectionRay',
+      'filteredResolvedReflection',
+      'screenReflectionFade',
+      entry,
+      ...functions,
+    ],
     {
       reflectionView: { enabled: [enabled, 0, 0, 0] },
       mirrorWeight: weight,
