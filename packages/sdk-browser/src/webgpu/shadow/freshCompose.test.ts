@@ -38,6 +38,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
+import { freshPage } from '../../gpu/shadow/freshPage.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 import { DRAWN_GPU } from './poolDrawn.ts';
 import { SHADOW_FACE_READ_WORDS } from '../../gpu/shadow/faceReadWords.ts';
@@ -87,29 +88,19 @@ test('the GPU composes each page it draws as the host composes it, and makes it 
 });
 
 test("a GPU-drawn page's casters land on its square of the layer, its fragments on it alone", () => {
-  const pack = createShadowRecordPack(SHADOW_FACE_STRIDE, SIDE),
-    size = SIDE * SHADOW_PAGE;
-  const { freshPlace, freshInPage } = shaderRun<{
-    freshPlace: (view: object, p: number[]) => number[];
-    freshInPage: (view: object, at: number[]) => boolean;
-  }>(SHADOW_DEPTH_SHADER, ['freshPlace', 'freshInPage', 'pageHolds', 'pageFirst'], {});
   for (const page of [0, 5, 17, SIDE * SIDE - 1]) {
-    pack.writePage(0, new Float32Array(16), 0, page, undefined, 0);
-    const words = pack.facePacked,
-      params = [...words.subarray(16, 20)],
-      rect = [...words.subarray(SHADOW_FACE_READ_WORDS, SHADOW_FACE_READ_WORDS + 4)],
-      view = { view: { params }, rect };
+    const fresh = freshPage(SIDE, page);
     const { x, y } = pageOrigin(page, SIDE);
     // The page's clip square, at a perspective w: its corners land on its first and last texels.
     for (const [cx, cy] of [
       [-1, -1],
       [1, 1],
     ]) {
-      const [px, py, , w] = freshPlace(view, [cx * 2, cy * 2, 0.5, 2]);
-      close(((px / w + 1) / 2) * size, x + ((cx + 1) / 2) * SHADOW_PAGE, `page ${page} x`);
-      close(((1 - py / w) / 2) * size, y + ((1 - cy) / 2) * SHADOW_PAGE, `page ${page} y`);
+      const [wx, wy] = fresh.window([cx * 2, cy * 2, 0.5, 2]);
+      close(wx, x + ((cx + 1) / 2) * SHADOW_PAGE, `page ${page} x`);
+      close(wy, y + ((1 - cy) / 2) * SHADOW_PAGE, `page ${page} y`);
     }
-    const inside = (dx: number, dy: number) => freshInPage(view, [x + dx, y + dy]);
+    const inside = (dx: number, dy: number) => fresh.holds([x + dx, y + dy]);
     assert.ok(inside(0.5, 0.5) && inside(SHADOW_PAGE - 0.5, SHADOW_PAGE - 0.5), `page ${page}`);
     assert.ok(!inside(-0.5, 0.5) && !inside(0.5, SHADOW_PAGE + 0.5), `page ${page}: beside it`);
   }
