@@ -1,7 +1,8 @@
 // Issue #25: 8 lights + sun, two identical runs. The pose barrier drains the shadow pages until a
 // report proves the image reads only drawn pages; a tile that invalidates every page, like
 // `shadowsFollowTextures`, once left pages pending and made the A/A witness diverge (0 / 1,392 /
-// 6,278 px). Every frame now draws every page it marks (#489): nothing is left pending.
+// 6,278 px). Every frame now draws the pages it marks, up to its page budget (#489, #831): a burst
+// past it waits the next frames, and the drain waits with it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
