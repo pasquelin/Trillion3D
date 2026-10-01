@@ -34,8 +34,8 @@ function cornerAt(v: Float32Array, at: number, p: number) {
 }
 
 /** The triangle across edge `e` of triangle `at` — from its corner `e` to corner `e + 1` — when
- *  the edge is a seam, -1 when it is a crease. */
-function across(tree: TriangleTree, at: number, e: number) {
+ *  the edge is a seam, else -1. */
+function seam(tree: TriangleTree, at: number, e: number) {
   const v = tree.triangles,
     p = at + 3 * e,
     q = at + 3 * ((e + 1) % 3);
@@ -57,20 +57,20 @@ function across(tree: TriangleTree, at: number, e: number) {
   return shared === 1 ? flat : -1;
 }
 
-/** The triangles that make one flat surface with triangle `at` around the point
- *  `closestSegmentTriangle` last found on it (`touched`), written to `around` from 1 after `at`
- *  itself; returns their count, 0 when the point is not on a seam — inside the face, or on a
- *  crease or a corner one of whose edges is. */
-export function seamAround(tree: TriangleTree, at: number) {
+/** The triangles of one flat surface around the point `closestSegmentTriangle` last found on
+ *  triangle `at` (`touched`): `at`, then those across the seams the point lies on. */
+export const around = new Int32Array(3);
+
+/** Whether that point lies on a seam — on an edge inside a flat surface, or on a corner both of
+ *  whose edges are — writing the surface's triangles around it to `around`; returns their count,
+ *  0 when it does not. */
+export function onSeam(tree: TriangleTree, at: number) {
   const { edge, along } = touched;
   if (edge < 0) return 0;
   around[0] = at;
-  around[1] = across(tree, at, edge);
+  around[1] = seam(tree, at, edge);
   if (around[1] < 0) return 0;
   if (along !== 0 && along !== 1) return 2;
-  around[2] = across(tree, at, (edge + (along === 0 ? 2 : 1)) % 3);
+  around[2] = seam(tree, at, (edge + (along === 0 ? 2 : 1)) % 3);
   return around[2] < 0 ? 0 : 3;
 }
-
-/** The triangles `seamAround` found, `at` first. */
-export const around = new Int32Array(3);

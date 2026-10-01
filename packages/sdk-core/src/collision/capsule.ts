@@ -1,6 +1,6 @@
 import { closestSegmentTriangle, insideTriangle, triangleNormal } from './closest.ts';
 import { forEachTriangleInBox } from './triangleQuery.ts';
-import { around, seamAround } from './activeEdges.ts';
+import { around, onSeam } from './activeEdges.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
 /**
@@ -54,7 +54,7 @@ const segment = new Float64Array(6),
   min = new Float64Array(3),
   max = new Float64Array(3),
   face = new Float64Array(3),
-  unitFace = new Float64Array(3),
+  other = new Float64Array(3),
   foot = new Float64Array(3);
 
 function placeSegment(capsule: Capsule) {
@@ -104,38 +104,49 @@ function separate(distance: number, radius: number) {
 }
 
 /**
- * The segment passes near a seam of a flat surface (`activeEdges.ts`), never an edge of it: over
- * the surface it leaves along the face's normal, on its own side, by what is missing to the radius
- * from the plane; past the surface's border it does not touch this triangle at all — the
- * triangle across the seam holds every point of the seam, so its own pair, at most as far,
- * answers for both. `undefined` when the point is on no seam, 0 when this triangle is not touched.
+ * The segment passes near a seam of a flat surface (`activeEdges.ts`), which is never an edge of
+ * it. Over this triangle — its foot on the plane inside it — it leaves along the face's normal, on
+ * its own side, by what is missing to the radius from the plane. Anywhere else beside the surface
+ * this triangle is not touched: the triangle across the seam holds every point of the seam, so
+ * its own pair, at most as far, answers for both. A segment through the surface is inside a solid,
+ * and the seam is then read as the edge it is drawn as. `undefined` when the seam is not the
+ * face's, 0 when this triangle is not touched.
  */
 function acrossSeam(tree: TriangleTree, at: number, radius: number) {
-  const count = seamAround(tree, at);
+  const count = onSeam(tree, at);
   if (count === 0) return undefined;
   const v = tree.triangles,
     length = Math.sqrt(triangleNormal(face, v, at));
-  let height = 0,
-    side = 0;
+  let start = 0,
+    end = 0,
+    height = 0;
   for (let k = 0; k < 3; k++) {
+    start += (segment[k] - v[at + k]) * face[k];
+    end += (segment[3 + k] - v[at + k]) * face[k];
     height += (closest[k] - v[at + k]) * face[k];
-    side += (closest[k] - closest[3 + k]) * face[k];
   }
-  const sign = side < 0 ? -1 : 1;
-  height *= sign / length;
+  if (start * end < 0) {
+    const t = start / (start - end);
+    for (let k = 0; k < 3; k++) foot[k] = segment[k] + t * (segment[3 + k] - segment[k]);
+    if (onSurface(v, count)) return undefined;
+  }
+  const side = height < 0 ? -1 : 1;
   for (let k = 0; k < 3; k++) {
-    unitFace[k] = (face[k] * sign) / length;
-    foot[k] = closest[k] - height * unitFace[k];
+    normal[k] = (side * face[k]) / length;
+    foot[k] = closest[k] - (height * face[k]) / (length * length);
   }
-  let over = false;
-  for (let i = 0; i < count && !over; i++) {
-    triangleNormal(face, v, around[i]);
-    over = insideTriangle(foot[0], foot[1], foot[2], v, around[i], face);
-  }
-  if (!over) return 0;
-  normal.set(unitFace);
+  if (!insideTriangle(foot[0], foot[1], foot[2], v, at, face)) return 0;
   closest.set(foot, 3);
-  return radius - height;
+  return radius - (side * height) / length;
+}
+
+/** Whether `foot`, on the plane of the surface `around`, lies on one of its `count` triangles. */
+function onSurface(v: Float32Array, count: number) {
+  for (let i = 0; i < count; i++) {
+    triangleNormal(other, v, around[i]);
+    if (insideTriangle(foot[0], foot[1], foot[2], v, around[i], other)) return true;
+  }
+  return false;
 }
 
 /** The triangle's unit normal into `contact.surface`, turned to the capsule's side. */

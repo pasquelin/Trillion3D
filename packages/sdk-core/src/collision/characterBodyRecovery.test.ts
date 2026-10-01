@@ -58,6 +58,21 @@ test('a fast body pushed into a block, steps disabled, escapes without taking it
   assert.ok(deepest(world, body.feet, 1, 2) < 1e-3, 'the escape ends outside the solids');
 });
 
+test('a body pushed into a tilted crate comes out on the side it came from', () => {
+  // A crate turned 41° about z, its side face leaning over the body pushed 6 cm into it: the way
+  // out is back west, never through the crate.
+  const crate = block(1, 0, -3, 1.82, 0.864, 3);
+  crate.rotation.z = 0.72;
+  const world = meshCollision([block(-20, -1, -20, 20, 0, 20), crate]);
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(world);
+  body.place(0, 0, 0);
+  body.feet.set([1 - HUMAN_BODY.capsuleRadius + 0.058, -0.014, 0]);
+  body.advance(1 / 120, EAST);
+  assert.ok(body.feet[0] < 1, `pushed to ${body.feet[0]}`);
+  assert.ok(deepest(world, body.feet, HUMAN_BODY.capsuleRadius, HUMAN_BODY.capsuleHeight) < 1e-3);
+});
+
 // Walks into corners of a ledge, a wall and a roof, each a few centimetres from the next.
 for (const route of [
   {
