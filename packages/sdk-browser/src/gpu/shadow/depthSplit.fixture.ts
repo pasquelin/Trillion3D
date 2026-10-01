@@ -92,7 +92,7 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   let source = `${SHADOW_DEPTH_SHADER}\n${DEVELOP_VERTEX}\n${KEPT_LISTS_WGSL}`
     .replace(/@\w+(?:\([^)]*\))? ?/g, '')
     .replace(/var (\w+):\w+;/g, 'let $1={};')
-    .replace(/\bin\b(?=[.:])/g, 'frag');
+    .replace(/\bin\b(?=[.:)])/g, 'frag');
   // The products are respelled by their shape in `shadowVertex` (and its frozen copy): a reshaped
   // expression must fail here, not as NaN depths further down.
   const products: Array<[RegExp, string]> = [
@@ -106,7 +106,14 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   }
   const names = [
     ...['drawPage', 'cutoutPage', 'shadowVertex', 'shadowVertexIn', 'developVertex', 'shadow_vs'],
-    ...['shadow_depth_vs', 'shadowKeepAt', 'shadow_cutout_vs', 'shadowKeep', 'maskKeep'],
+    ...[
+      'shadow_depth_vs',
+      'onEmitter',
+      'shadowKeepAt',
+      'shadow_cutout_vs',
+      'shadowKeep',
+      'maskKeep',
+    ],
     ...['lineDash', 'pageHeader', 'pageCorner', 'pageRestPosition', 'pagePosition', 'pageUv'],
     ...['vertPos', 'vertUv', 'keptAt', 'snapGrid', 'sunSnap'],
   ];
