@@ -121,7 +121,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     geometryFailure = { error };
   }
   if (geometryFailure && vis.deformation?.any) throw geometryFailure.error;
-  gpu.impostorCode = await impostorCode;
+  // Card pipelines the device refuses are told once: no code then, every root keeps its clusters.
+  const cards = await impostorCode;
+  gpu.impostorCode = (await cards?.prepareImpostorPipelines(gpuDevice, diag.diagnosticFailure))
+    ? cards
+    : undefined;
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);

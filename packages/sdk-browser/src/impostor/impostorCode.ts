@@ -10,5 +10,6 @@ export {
   encodeImpostorCards,
   encodeImpostorVisibilityPass,
 } from '../webgpu/impostor/encode.ts';
+export { prepareImpostorPipelines } from '../webgpu/impostor/pipelines.ts';
 export { createWebglImpostors } from '../webgl/impostor/frame.ts';
 export { lend } from './borrowed.ts';

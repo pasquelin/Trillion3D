@@ -16,7 +16,8 @@ import { core } from '../../impostor/borrowed.ts';
  * the one texture budget's room (`room`): a root whose atlas streams keeps its clusters. `cards`
  * then draws them (`createWebglCardDraw`), with the cluster program's pieces the core lends it
  * (`lent.ts`). A session without a baked section, a level reader or a
- * context makes nothing. A restored context drops every atlas and program: the next images read
+ * context makes nothing, nor does a card program that does not compile or link (told once): every
+ * root then keeps its clusters, as without the impostor code. A restored context drops every atlas and program: the next images read
  * and make them again, the roots keeping their clusters meanwhile.
  */
 export function createWebglImpostors(
@@ -32,22 +33,31 @@ export function createWebglImpostors(
   const state = createImpostorCards<WebglAtlas>(section);
   const onFailure = (phase: string, error: unknown) =>
     core.sendEngineDiagnostic(context.onDiagnostic, phase, String(error), { kind: 'error' });
+  // A card program that does not compile or link is told once and switches no root to a card.
+  const makeDraw = () => {
+    try {
+      return createWebglCardDraw(gl);
+    } catch (error) {
+      onFailure('impostor-card-program-failed', error);
+    }
+  };
+  let draw = makeDraw();
+  if (!draw) return undefined;
   // A landed level or a made atlas breaks a held image.
   const feedOptions = { room, landed: gate.resourcesChanged, onFailure },
     makeFeed = () => createWebglImpostorFeed(gl, reader, feedOptions);
   let feed = makeFeed(),
-    draw = createWebglCardDraw(gl),
     image = 0;
   const atlasOf = (mesh: number, maps: ImpostorMaps) => feed.group(mesh, maps, image);
   const restored = () => {
     feed.dispose();
-    draw.dispose();
-    [feed, draw] = [makeFeed(), createWebglCardDraw(gl)];
+    draw?.dispose();
+    [feed, draw] = [makeFeed(), makeDraw()];
     dropImpostorCards(state, roots);
   };
   gl.canvas.addEventListener('webglcontextrestored', restored);
   const cards: WebglCards = (camera, lights, pass, linear) =>
-    draw.draw(state, image, camera, lights, pass, linear);
+    draw?.draw(state, image, camera, lights, pass, linear) ?? false;
   return {
     state,
     cards,
@@ -57,6 +67,7 @@ export function createWebglImpostors(
     },
     /** The image's plan at `cam` for `viewport`, before its cut. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
+      if (!draw) return;
       image++;
       planImpostorCards(state, roots, cam, viewport, atlasOf);
     },
@@ -64,7 +75,7 @@ export function createWebglImpostors(
       gl.canvas.removeEventListener('webglcontextrestored', restored);
       dropImpostorCards(state, roots);
       feed.dispose();
-      draw.dispose();
+      draw?.dispose();
     },
   };
 }
