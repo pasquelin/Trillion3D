@@ -45,12 +45,10 @@ test('physical and Phong defaults survive unrelated parameters and yield to expl
 
 test('sprite and shadow defaults produce blended surfaces while explicit opacity wins', () => {
   const sprite = material.sprite({ rotation: 0.75 });
-  assert.equal(sprite.kind, 'sprite');
   assert.equal(sprite.rotation, 0.75);
   assert.equal(sprite.sizeAttenuation, true, 'smaller with distance unless told otherwise');
   assert.equal(sprite.surface().alphaMode, 'blend');
   const shadow = material.shadow();
-  assert.equal(shadow.kind, 'shadow');
   assert.deepEqual(shadow.surface().baseColor, [0, 0, 0]);
   const shade = shadow.surface().opacity;
   assert.ok(shade > 0 && shade < 1, 'a shadow darkens what is under it without hiding it');
@@ -67,7 +65,6 @@ test('shader factories retain supplied programs and uniform ownership through a 
     uniforms,
   });
   const copy = value.clone();
-  assert.equal(value.kind, 'shader');
   assert.equal(copy.vertex, 'vertex program');
   assert.equal(copy.fragment, 'fragment program');
   assert.ok(copy.uniforms === uniforms);

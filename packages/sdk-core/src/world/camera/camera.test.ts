@@ -4,11 +4,10 @@ import { camera, Camera } from './index.ts';
 import { Object3D } from '../object/object3d.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const near = (actual: ArrayLike<number>, expected: readonly number[]) => {
-  assert.equal(actual.length, expected.length);
-  Array.from(actual).forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-10));
-};
+const near = (actual: ArrayLike<number>, expected: readonly number[]) =>
+  within(actual, expected, 'camera', 1e-10);
 
 test('perspective rays use the parent pose, zoom and picture aspect with normalized directions', () => {
   const parent = new Object3D();

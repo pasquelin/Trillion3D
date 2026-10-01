@@ -2,12 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Quaternion } from './quaternion.ts';
 import { Euler } from './euler.ts';
-import { Vector3 } from './vector3.ts';
 import { Matrix4 } from './matrix4.ts';
 import { listen } from './observed.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const close = (a: number[], b: number[]) =>
-  a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-7, `${a} != ${b}`));
+const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7);
 
 test('Euler conversion retains rotations for every order, including positive and negative poles', () => {
   for (const order of ['XYZ', 'YXZ', 'ZXY', 'ZYX', 'YZX', 'XZY']) {

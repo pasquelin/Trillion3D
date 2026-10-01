@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { Matrix3, Matrix4 } from './matrix4.ts';
 import { Vector3 } from './vector3.ts';
 import { Quaternion } from './quaternion.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
-const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) => {
-  assert.equal(actual.length, expected.length);
-  Array.from(actual).forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-10));
-};
+const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
+  within(actual, Array.from(expected), 'matrix', 1e-10);
 
 test('matrix storage, transpose and copying preserve all sixteen independent entries', () => {
   const row = new Matrix4().set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
