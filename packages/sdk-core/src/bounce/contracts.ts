@@ -58,8 +58,6 @@ export const BOUNCE_SETTINGS = {
   raysPerProbe: 64,
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
   raysPerFrame: 49152,
-  /** Lights tested per surface cache cell. */
-  lightsPerRay: 4,
   /** Surface cache cells updated per frame ceiling. */
   surfaceTexelsPerFrame: 16384,
   /** Target duration of bounce pass on GPU per frame, in milliseconds. */

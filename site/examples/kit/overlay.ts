@@ -41,6 +41,9 @@ globalThis.addEventListener?.('message', (event) => {
 /** Whether a game's menu owns the frame: its panels then start folded, one click away. */
 let folded = false;
 
+/** Whether the hosting page shows the panels now. */
+export const panelsShown = () => visible;
+
 /** Puts `panel` under the page's show/hide message, in its current state. */
 export function hideable(panel: HTMLElement) {
   panels.add(panel);
