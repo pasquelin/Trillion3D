@@ -10,10 +10,6 @@ import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
 import { ALLOC_LANES } from './allocLanes.ts';
-/** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
- *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
- *  generation. */
-export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
 
 /**
  * THE GPU ALLOCATION OF SHADOW PAGES (#1275): one workgroup, right after the per-pixel demand
