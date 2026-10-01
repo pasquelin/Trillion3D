@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import { SHADOW_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
+import { SHADOW_GPU_PAGES_PER_FRAME } from '../../gpu/shadow/batchBudget.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
@@ -28,9 +28,9 @@ test('the GPU maps at most the page budget a frame, the rest the next frames, no
     };
   };
   const first = await frame(1);
-  assert.ok(first.read > SHADOW_PAGES_PER_FRAME, `${first.read} pages read, past the budget`);
+  assert.ok(first.read > SHADOW_GPU_PAGES_PER_FRAME, `${first.read} pages read, past the budget`);
   assert.ok(
-    first.allocated === SHADOW_PAGES_PER_FRAME,
+    first.allocated === SHADOW_GPU_PAGES_PER_FRAME,
     `${first.allocated} pages mapped in one frame`,
   );
   assert.equal(run.refused(), 0, 'a need past the budget is no memory refusal');
