@@ -59,6 +59,7 @@ export type { CreatedMaterial } from '../../sdk-browser/src/world/api/createdMat
 export { createWorld } from '../../sdk-browser/src/world/core/world.ts';
 export type { World } from '../../sdk-browser/src/world/core/world.ts';
 export { Curve, Path, Shape, SplineCurve } from '../../sdk-core/src/world/math/curves.ts';
+export { detectCapabilities } from '../../sdk-browser/src/world/capability/capabilities.ts';
 export { diagnostic } from '../../sdk-browser/src/world/diagnostic/index.ts';
 export { effect } from '../../sdk-core/src/world/effect/index.ts';
 export { EffectChain, EffectPass } from '../../sdk-core/src/world/effect/chain.ts';

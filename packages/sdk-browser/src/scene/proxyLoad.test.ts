@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createSceneProxyReader } from './proxyLoad.ts';
 import { createPageCache } from '../streaming/pageCache.ts';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from '../streaming/sha256Hex.ts';
 import type { SceneProxyDescriptor } from '../../../sdk-core/src/index.ts';
 
 test('shared expansion is decoded once across concurrent readers and sessions, and charged to CPU memory', async (t) => {

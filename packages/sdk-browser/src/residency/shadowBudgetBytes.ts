@@ -1,6 +1,9 @@
-import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
-import { shadowRequestBytes } from '../webgpu/shadow/pageRequests.ts';
-import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
+import {
+  SHADOW_BUFFER_BYTES,
+  shadowAtlasBytes,
+  shadowTransmittanceBytes,
+} from '../gpu/shadow/sizes.ts';
+import { shadowRequestBytes } from '../webgpu/shadow/allocLayout.ts';
 import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../gpu/shadow/batchBudget.ts';
 import {
   shadowPoolSize,

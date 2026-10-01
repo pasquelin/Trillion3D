@@ -8,7 +8,7 @@ import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
 import type { StreamPage } from './types.ts';
 import { servedPages } from './servedPages.fixture.ts';
 import { dagPageUrls } from '../gpu/dag/pack.fixture.ts';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 
 const TRANSFER = 64;
 

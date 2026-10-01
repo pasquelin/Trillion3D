@@ -2,7 +2,7 @@ import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture
 import { probeBackendContext } from './backends.fixture.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts';
-import { sha256Hex } from '../../measurement/sha256Hex.ts';
+import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import type { PageCache } from '../../streaming/pageCache.ts';
 import {
   PROXY_TRIANGLE_FLOATS,

@@ -17,6 +17,8 @@ export interface ProfiledWorld<Frame = unknown> {
   cpuSteps?(): CpuSteps | null;
   resetCpuSteps?(): void;
   physics?: { enabled: boolean; stats: { stepMaxMs: number } };
+  /** The engine's debug mode (`world.diagnostic.debug`): its CPU steps are filed only in it. */
+  diagnostic?: { debug: boolean };
 }
 
 /** One second of profile, as `window.__profile` holds it; `null` where nothing was measured. */

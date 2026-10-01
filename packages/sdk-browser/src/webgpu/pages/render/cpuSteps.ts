@@ -7,6 +7,7 @@ import {
   logFrameCostAudit,
 } from '../../../frame/costAudit.ts';
 import type { HostCpuStep } from '../../../host/cpuProfile.ts';
+import { debugMode } from '../../../host/debugMode.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -146,12 +147,15 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
 /**
  * Closes the image on the host side: bounds the host samples after the render belong to the image
  * that just drew, so the row is filed only here. An image that has not filled a row — CPU cut, image
- * waiting for coverage — deposits nothing rather than a row of zeros.
+ * waiting for coverage — deposits nothing rather than a row of zeros. Nor does an image no one
+ * profiles (#1353): the windows are filed in debug mode, for the stage profile, or for a listened
+ * channel or the frame audit, which publish them.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;
   if (!timing.rowFilled) return;
   timing.rowFilled = false;
+  if (!(timing.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return;
   const total = timing.cpuProfile.row[CPU_STEP.totalMs];
   timing.cpuProfile.record(run.frame, total);
   timing.cpuWindow.record(run.frame, total);

@@ -13,13 +13,10 @@ import {
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
-import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
-import { WORDS_HEADER } from './wordsWgsl.ts';
+import { ALLOC_PARAM_WORDS, POOL_COUNTS, WORDS_HEADER, shadowEntryBits } from './allocLayout.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { ALLOC_LANES } from './allocLanes.ts';
 import { ALLOCATION_WGSL, SHADOW_WORDS_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
@@ -56,7 +53,7 @@ export function shadowsOf(data: Uint8Array) {
  *  listed by whoever set it. */
 export function claimShadowRequest(requests: Uint8Array, e: number) {
   const list = u32(requests),
-    cap = list.length - 1 - shadowRequestBits(),
+    cap = list.length - 1 - shadowEntryBits(),
     word = 1 + cap + (e >>> 5),
     bit = 1 << (e & 31);
   if (list[word] & bit) return;
