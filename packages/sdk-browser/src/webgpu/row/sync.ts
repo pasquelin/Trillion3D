@@ -33,6 +33,7 @@ export function createWebgpuRowSync(
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange);
+  let asked = 0;
   /**
    * Rows for the drawable set. What the image owes the table now depends only on the pages whose
    * cache slot just changed, and on what the previous image's time budget left to write: the whole
@@ -77,11 +78,15 @@ export function createWebgpuRowSync(
     let count = 0,
       lastSource = -1,
       monotone = true;
+    asked = 0;
     const place = (rec: PageRec, pageIndex: number) => {
-      if (rec.transparent || count >= drawSlots || pageIndex < 0) return;
+      if (rec.transparent || pageIndex < 0) return;
       const offsetWords = rows.residentOffsetWords[pageIndex],
         position = rows.pagePositions[pageIndex];
       if (offsetWords < 0 || awaitsPageBytes(rec) || !rowHasGeometry(rec, position)) return;
+      // Every row the cut selects is counted, even past the table: it is what the table grows to.
+      asked++;
+      if (count >= drawSlots) return;
       const row = count++;
       const source = sourceRowOf(pageIndex, offsetWords);
       if (source >= 0) {
@@ -95,14 +100,15 @@ export function createWebgpuRowSync(
       rows.packedPageIndex[row] = pageIndex;
     };
     const { drawn, drawnPacked } = cut;
-    for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i], drawnPacked[i]);
+    for (let i = 0; i < drawn.length; i++) place(drawn[i], drawnPacked[i]);
     const cameraRows = count;
-    for (let i = 0; i < casters.length && count < drawSlots; i++)
-      place(casters[i], castersPacked[i]);
+    for (let i = 0; i < casters.length; i++) place(casters[i], castersPacked[i]);
     commitRows(count, monotone);
     return cameraRows;
   };
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending;
-  return { syncRows, syncRowsFromCut, rowsOwed, blendCasters };
+  /** Rows the last CPU cut selected, the table holding them or not (#1232). */
+  const rowsAsked = () => asked;
+  return { syncRows, syncRowsFromCut, rowsOwed, rowsAsked, blendCasters };
 }

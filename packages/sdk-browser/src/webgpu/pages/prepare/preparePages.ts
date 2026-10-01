@@ -14,6 +14,7 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
 import { prepareCones } from './cones.ts';
+import { VIEW_ROWS } from '../../row/tableRows.ts';
 import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, fallbackToCpuCut, grantCapability } from '../io/drops.ts';
@@ -148,7 +149,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice));
   prepareCones(rt);
   // One thread per cluster, each with its own error band; a device that cannot hold it is said.
-  if (vis.gpuDraw && selectionRoots.length) {
+  // The GPU cut packs a node per placement and claims a row per resident instance: a scene whose
+  // instances pass the rows a view holds is cut on the CPU, which claims a row per cluster it
+  // selects, so neither its DAG nor its rows grow with the placements (#1232).
+  if (vis.gpuDraw && selectionRoots.length && packedPages.length > VIEW_ROWS)
+    fallbackToCpuCut(rt, 'view rows', { instances: packedPages.length, viewRows: VIEW_ROWS });
+  else if (vis.gpuDraw && selectionRoots.length) {
     run.gpuSelection = await step('GPU cut', () =>
       createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
         residentCut: true,

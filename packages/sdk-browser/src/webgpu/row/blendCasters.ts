@@ -51,7 +51,9 @@ export function createBlendCasterRows(
   const { recordOf } = createPageCatalogue(packedPages);
   let first = -1,
     free = new Int32Array(0),
-    freeCount = 0;
+    freeCount = 0,
+    /** Casters that found no row since the rows were last seated: what the table grows by. */
+    short = 0;
   /** Pages whose row changed since the light cut's map last heard of them, each once. */
   const changed: number[] = [],
     marked = new Uint8Array(packedPages.length);
@@ -70,6 +72,7 @@ export function createBlendCasterRows(
     first = rows.blendFirst;
     free = new Int32Array(rows.casterSlots - first);
     freeCount = 0;
+    short = 0;
     // Popped from the end: the lowest row first.
     for (let row = rows.casterSlots - 1; row >= first; row--) free[freeCount++] = row;
     if (held)
@@ -127,8 +130,8 @@ export function createBlendCasterRows(
       return;
     }
     if (row >= 0) return write(page, row, restale);
-    // Never empty: every resident placement holds a pool slot, and `blendSlots` counts them all.
-    if (!freeCount) return;
+    // Empty only past the rows the view holds (#1232): the table grows by the casters left out.
+    if (!freeCount) return void short++;
     const taken = free[--freeCount];
     rows.blendRowOf[page] = taken;
     note(page);
@@ -163,6 +166,10 @@ export function createBlendCasterRows(
     /** Caster rows in use: what a list of casters can hold beyond the visibility rows. */
     get used() {
       return free.length - freeCount;
+    },
+    /** Caster rows asked: those in use and those that found none (`followCutRows`). */
+    get asked() {
+      return free.length - freeCount + short;
     },
   };
 }
