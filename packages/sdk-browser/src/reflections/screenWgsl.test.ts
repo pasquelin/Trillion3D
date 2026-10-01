@@ -48,6 +48,7 @@ test('the water mirror walks the depth bounds; a miss reads the filtered probes,
       shader: BOUNDED_SCREEN_REFLECTION_WGSL,
       functions: ['boundedReflectionRay'],
       globals: {
+        shadowFootprint: 0,
         screenReflectionHiZ: () => (walks++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
         filteredReflectedRadiance: (...args: number[]) => ((filteredAt = args[3]), FILTERED),
       },
