@@ -23,8 +23,10 @@ import {
   type Usage,
 } from './allocLayout.ts';
 
-/** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
-const snapshotWords = (pages: number) => POOL_COUNTS.length + 3 * pages;
+/** Words a snapshot reads back from the GPU pool: its counts, then its fields up to `drawnBy` (its
+ *  owners, last requests and draws, `POOL_FIELDS`). */
+const snapshotWords = (pages: number) =>
+  POOL_COUNTS.length + (POOL_FIELDS.indexOf('drawnBy') + 1) * pages;
 
 /**
  * THE BUFFERS OF THE GPU ALLOCATION of one pool (`allocWgsl.ts`), made with its request buffer
@@ -165,13 +167,17 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.refused = from[POOL_COUNTS.indexOf('refused')];
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.listings = from[POOL_COUNTS.indexOf('listings')];
-      const field = (k: number) =>
-        signed.subarray(POOL_COUNTS.length + k * pages, POOL_COUNTS.length + (k + 1) * pages);
-      into.owner.set(field(0));
-      into.requested.set(field(1));
-      const drawnBy = field(2);
-      for (let p = 0; p < pages && into.gpuDrawn; p++)
-        into.gpuDrawn[p] = +(drawnBy[p] === DRAWN_GPU);
+      const field = (name: (typeof POOL_FIELDS)[number]) => {
+        const start = POOL_COUNTS.length + POOL_FIELDS.indexOf(name) * pages;
+        return signed.subarray(start, start + pages);
+      };
+      into.owner.set(field('owner'));
+      into.requested.set(field('requested'));
+      const { gpuDrawn } = into;
+      if (gpuDrawn) {
+        const drawnBy = field('drawnBy');
+        for (let p = 0; p < pages; p++) gpuDrawn[p] = +(drawnBy[p] === DRAWN_GPU);
+      }
     },
     dispose() {
       for (const buffer of Object.values(buffers)) buffer.destroy();
