@@ -1,4 +1,4 @@
-import type { Color, Light, Material, Object3D } from '../../../packages/sdk-browser/src/index.ts';
+import type { Color, Light, Material, Object3D } from '../../../packages/sdk/browser.ts';
 import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
 import { ColorField } from '../ui/ColorField.tsx';

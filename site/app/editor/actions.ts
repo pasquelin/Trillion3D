@@ -1,4 +1,4 @@
-import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
+import type { Object3D } from '../../../packages/sdk/browser.ts';
 import { addCommand, isWithin, removeCommand, reparentCommand, valueCommand } from './commands.ts';
 import { build, type AddKind } from './objects.ts';
 import type { Session } from './session.ts';

@@ -8,11 +8,11 @@ import { listen, staticServer, type StaticOptions } from './static-server.ts';
  *  `extra` adds the development server's answer and transform (`docs-dev.ts`). */
 export function createDocsServer(
   root = SITE_OUTPUT,
-  extra: Pick<StaticOptions, 'answer' | 'transform'> = {},
+  extra: Pick<StaticOptions, 'answer' | 'transform' | 'mounts'> = {},
 ) {
   return staticServer({
     ...extra,
-    mounts: [{ prefix: '/', dir: root }],
+    mounts: [...(extra.mounts ?? []), { prefix: '/', dir: root }],
     compress: isCacheObject,
     headers: {
       'Cache-Control': 'no-store',

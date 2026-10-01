@@ -1,24 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import {
-  Camera,
-  Scene,
-  geometry,
-  light,
-  material,
-  math,
-  object,
-  type World,
-} from '../packages/sdk-browser/src/index.ts';
-import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
+import { material, math, object, type Intersection, type World } from '../packages/sdk/browser.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
-import type { Intersection } from '../packages/sdk-core/src/world/object/raycast.ts';
+import { catchPagehide } from './docs/examples/capture.ts';
+import { fakeWorld } from './docs/examples/world.ts';
+import { runControlledExample } from './docs/examples/controlled.ts';
 
 type Values = { highlightEnabled: boolean };
 
-test('hover highlights one filtered part and restores it on transitions and cleanup', async () => {
+test('hover highlights one filtered part and restores it on transitions and cleanup', async (t) => {
   const html = await readFile(
     new URL('../site/examples/hover-to-highlight.html', import.meta.url),
     'utf8',
@@ -31,63 +22,24 @@ test('hover highlights one filtered part and restores it on transitions and clea
       listeners.set(type, listener);
     },
   } as HTMLCanvasElement;
-  const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  const camera = new Camera('perspective');
+  const { world: baseWorld, state } = fakeWorld();
+  const { scene } = baseWorld;
   let hit: Intersection | null = null;
   let filter: readonly object[] | undefined;
-  let values = {} as Values;
-  let change = (_next: Values, _key?: keyof Values) => {};
-  let invalidations = 0;
-  let disposed = 0;
-  let pagehide: EventListener | undefined;
+  const pagehide = catchPagehide(t);
   const raycast = ((_: unknown, options?: { objects?: readonly object[] }) => {
     filter = options?.objects;
     return hit;
   }) as World['raycast'];
-  const world = {
-    scene,
-    camera,
-    canvas,
-    controls: { target: math.vector3() },
-    raycast,
-    invalidate() {
-      invalidations++;
-    },
-    dispose() {
-      disposed++;
-    },
-  } satisfies Pick<World, 'scene' | 'camera' | 'canvas' | 'raycast' | 'invalidate' | 'dispose'> & {
-    controls: Pick<World['controls'], 'target'>;
-  };
-  const previous = globalThis.addEventListener,
-    previousFrame = globalThis.requestAnimationFrame;
-  globalThis.addEventListener = ((type: string, listener: EventListener) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof globalThis.addEventListener;
+  const world = { ...baseWorld, canvas, raycast };
+  const previousFrame = globalThis.requestAnimationFrame;
   // The page rays once a frame: frames run when the test flushes them.
   const frames: FrameRequestCallback[] = [];
   const flush = () => frames.splice(0).forEach((callback) => callback(0));
   globalThis.requestAnimationFrame = (callback) => frames.push(callback);
   try {
-    await runExampleModule(html, {
-      engine: {
-        createWorld: () => world,
-        geometry,
-        material,
-        object,
-        light,
-        math,
-      },
-      kit: {
-        perFrame,
-        controls(specs: Record<string, ControlSpec>, callback: typeof change, watched: unknown) {
-          assert.equal(watched, world);
-          values = describe(specs).values as Values;
-          change = callback;
-          callback(values);
-          return values;
-        },
-      },
+    const { values, change } = await runControlledExample<Values>(html, world, {
+      kit: { perFrame },
     });
 
     type Part = ReturnType<typeof object.mesh>;
@@ -145,13 +97,11 @@ test('hover highlights one filtered part and restores it on transitions and clea
     assert.deepEqual(paint(second), original[1]);
     over(first);
     assert.deepEqual(paint(first), original[0], 'switched off, hovering highlights nothing');
-    assert.ok(invalidations >= 6);
+    assert.ok(state.invalidations >= 6);
 
-    assert.ok(pagehide);
-    pagehide(new Event('pagehide'));
-    assert.equal(disposed, 1);
+    pagehide();
+    assert.equal(state.disposals, 1);
   } finally {
-    globalThis.addEventListener = previous;
     globalThis.requestAnimationFrame = previousFrame;
   }
 });

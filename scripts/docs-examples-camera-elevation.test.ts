@@ -1,18 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import {
-  camera,
-  geometry,
-  light,
-  material,
-  math,
-  object,
-  type World,
-} from '../packages/sdk-browser/src/index.ts';
-import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
-import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
-import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
+import { fakeWorld } from './docs/examples/world.ts';
+import { runControlledExample } from './docs/examples/controlled.ts';
+import { catchPagehide } from './docs/examples/capture.ts';
 
 type Values = { elevation: string; distance: number; zoom: number };
 
@@ -21,35 +12,9 @@ test('the house elevations use parallel rays and keep their scale across camera 
     new URL('../site/examples/an-elevation-of-the-house.html', import.meta.url),
     'utf8',
   );
-  const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  let values = {} as Values;
-  let change = (_next: Values, _key?: keyof Values) => {};
-  let disposed = 0;
-  const world = {
-    scene,
-    camera: camera.perspective(),
-    invalidate() {},
-    dispose() {
-      disposed++;
-    },
-  } satisfies Pick<World, 'scene' | 'camera' | 'invalidate' | 'dispose'>;
+  const { world, state } = fakeWorld();
   const hide = catchPagehide(t);
-  await runExampleModule(html, {
-    engine: { createWorld: () => world, camera, geometry, material, object, light, math },
-    kit: {
-      controls: (
-        specs: Record<string, ControlSpec>,
-        callback: typeof change,
-        statsWorld: unknown,
-      ) => {
-        values = describe(specs).values as Values;
-        change = callback;
-        assert.equal(statsWorld, world);
-        callback(values);
-        return values;
-      },
-    },
-  });
+  const { values, change } = await runControlledExample<Values>(html, world);
 
   const active = world.camera;
   assert.equal(active.projection, 'orthographic');
@@ -72,5 +37,5 @@ test('the house elevations use parallel rays and keep their scale across camera 
   change(values, 'zoom');
   assert.ok(span() < nearSpan, 'zoom changes the drawing scale deliberately');
   hide();
-  assert.equal(disposed, 1);
+  assert.equal(state.disposals, 1);
 });

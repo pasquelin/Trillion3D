@@ -2,26 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { runControlledExample } from './docs/examples/controlled.ts';
-import { Mesh, Vector3 } from '../packages/sdk-browser/src/index.ts';
-import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
-import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
+import { Mesh, Vector3 } from '../packages/sdk/browser.ts';
+import { fakeWorld } from './docs/examples/world.ts';
 
 type Values = Record<string, boolean | number | string>;
-type Frame = (frame: { delta: number }) => void;
 
 async function materialExample(id: string) {
   const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
-  const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  let frame: Frame = () => {};
-  let invalidations = 0;
-  const { values, change } = await runControlledExample<Values>(html, {
-    scene,
-    camera: new Camera('perspective'),
-    controls: { target: { set() {} } },
-    onFrame: (hook: Frame) => void (frame = hook),
-    invalidate: () => invalidations++,
-  });
-  return { scene, frame, change, values, invalidations: () => invalidations };
+  const { world, state, frame } = fakeWorld();
+  const { values, change } = await runControlledExample<Values>(html, world);
+  return { scene: world.scene, frame, change, values, invalidations: () => state.invalidations };
 }
 
 test('physical-material examples are published on the backend that renders their lobes', async () => {

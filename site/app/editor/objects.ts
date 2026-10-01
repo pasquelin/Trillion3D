@@ -1,10 +1,4 @@
-import type {
-  Geometry,
-  Light,
-  Material,
-  Mesh,
-  Object3D,
-} from '../../../packages/sdk-browser/src/index.ts';
+import type { Geometry, Light, Material, Mesh, Object3D } from '../../../packages/sdk/browser.ts';
 import type { Engine } from './session.ts';
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */

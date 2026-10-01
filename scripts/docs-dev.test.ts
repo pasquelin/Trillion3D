@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { followSite, RELOAD_EVENTS, stepsReading } from './docs-dev.ts';
 import { STYLE_SOURCES } from './docs/build-styles.ts';
-import { copyStatics, STATIC_ENTRIES } from './docs/site.ts';
+import { copyStatics, SITE_STEPS, STATIC_ENTRIES } from './docs/site.ts';
 
 const LOGS = resolve(import.meta.dirname, '../.worktrees/logs');
 const named = (...paths: string[]) => stepsReading(paths).map(({ name }) => name);
@@ -103,4 +103,65 @@ test('a built page or script that names the reload stream is found', async (t) =
   await writeFile(resolve(out, 'leaked.js'), `new EventSource('${RELOAD_EVENTS}')`);
   await writeFile(resolve(out, 'clean.html'), '<!doctype html>');
   assert.deepEqual(reloadIn(out), ['leaked.js']);
+});
+
+test('docs:dev reads recompiled caches in place and never falls back to a deleted stale copy', async (t) => {
+  const root = await scratch(t);
+  const cache = 'assets/examples/hall/cache/native/full';
+  const source = resolve(root, 'site', cache);
+  const out = resolve(root, 'out');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  await writeFile(resolve(root, '.gitignore'), '*\n');
+  await mkdir(resolve(root, 'packages'));
+  await mkdir(source, { recursive: true });
+  await mkdir(resolve(out, cache), { recursive: true });
+  await writeFile(resolve(out, cache, 'manifest.json'), 'stale copied manifest');
+  await writeFile(resolve(source, 'manifest.json'), 'current manifest');
+  const { port, close } = await followSite(root, out);
+  try {
+    const url = `http://127.0.0.1:${port}/${cache}/manifest.json`;
+    assert.equal(await (await fetch(url)).text(), 'current manifest');
+    await writeFile(resolve(source, 'manifest.json'), 'recompiled manifest');
+    assert.equal(await (await fetch(url)).text(), 'recompiled manifest');
+    const partial = await fetch(url, { headers: { Range: 'bytes=0-9' } });
+    assert.equal(partial.status, 206);
+    assert.equal(await partial.text(), 'recompiled');
+    await rm(resolve(source, 'manifest.json'));
+    assert.equal((await fetch(url)).status, 404);
+  } finally {
+    await close();
+  }
+});
+
+test('a failed live cache rebuild names compile:caches', { timeout: 5000 }, async (t) => {
+  const root = await scratch(t);
+  const source = resolve(root, 'site/assets/examples/hall/source');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  await mkdir(resolve(root, 'packages'));
+  await mkdir(source, { recursive: true });
+  const failure = new Error('compiler refused source');
+  t.mock.method(
+    SITE_STEPS.find(({ name }) => name === 'caches')!,
+    'run',
+    async () => {
+      throw failure;
+    },
+  );
+  const reported = new Promise<void>((done) => {
+    t.mock.method(console, 'error', (message: string, cause: unknown) => {
+      assert.match(message, /pnpm compile:caches/);
+      assert.equal(cause, failure);
+      done();
+    });
+  });
+  const { close } = await followSite(root, resolve(root, 'out'));
+  const save = () => writeFile(resolve(source, 'geometry.gltf'), '{}');
+  const saving = setInterval(() => void save(), 100);
+  try {
+    await save();
+    await reported;
+  } finally {
+    clearInterval(saving);
+    await close();
+  }
 });

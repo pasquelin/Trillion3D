@@ -62,6 +62,8 @@ jobs:
       - if: steps.plan.outputs.deploy == 'true'
         uses: Swatinem/rust-cache@v2
         with:
+          # Deployment artifacts do not certify the Quality native gates.
+          prefix-key: deployment-rust
           workspaces: packages/asset-compiler-rust
       - if: steps.plan.outputs.deploy == 'true'
         run: pnpm run build:native && pnpm run compile:caches

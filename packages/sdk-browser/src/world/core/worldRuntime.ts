@@ -16,11 +16,9 @@ import { namedMove } from './worldSceneMethods.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
+import { holdOpeningFrame } from './worldOpeningFrame.ts';
 
-/** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
- *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
- *  (`placement/growth.ts`), resources mounted (`worldMounts.ts`), poses, background —, and opened
- *  again once per burst for what it lacks: a model, or what its engine cannot take in place. */
+/** The world's session, updated before each frame; reopened only for changes it cannot take. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -69,25 +67,27 @@ export function createWorldRuntime(inputs: Inputs) {
       return track.none();
     }
     mirror = built;
+    const firstFrame = holdOpeningFrame();
     try {
       const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
       const given = inputs.options();
       // The session's own loop hands its frames on as `render()` does: bytes told (#573).
       const onFrame: typeof given.onFrame = (m) => (cuts.dynamic.drew(m), given.onFrame?.(m));
-      const options = track.options({ ...given, scope, onFrame });
-      // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
+      const options = track.options({ ...given, scope, onFrame: firstFrame.hold(onFrame) });
       explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
+      if (disposed) return explorer.dispose();
+      explorer.setLightingView('lit');
+      invalidate();
+      inputs.opened(explorer);
+      firstFrame.release();
     } catch (error) {
+      explorer?.dispose();
+      explorer = null;
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
       return track.none();
     }
-    if (disposed) return explorer.dispose();
-    // Lit and a frame asked before the page's own settings: the first image had no lights.
-    explorer.setLightingView('lit');
-    invalidate();
-    inputs.opened(explorer);
   };
   const reopens = createRequestLoop(reopen);
   // Changes before the grant or during a resolution fold into the next; a throw ends the burst.

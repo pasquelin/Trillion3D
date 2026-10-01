@@ -1,6 +1,6 @@
 /** The engine's types as the kit's pieces name them: types only, so the kit bundle folds in
  *  nothing of the engine; the page hands each piece the families it builds with. */
-import type * as Engine from '../../../packages/sdk-browser/src/index.ts';
+import type * as Engine from '../../../packages/sdk/browser.ts';
 
 export type { Engine };
 /** The engine families `K` a piece builds with, as the page imports them. */

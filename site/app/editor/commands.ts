@@ -1,4 +1,4 @@
-import type { Object3D, Quaternion, Vector3 } from '../../../packages/sdk-browser/src/index.ts';
+import type { Object3D, Quaternion, Vector3 } from '../../../packages/sdk/browser.ts';
 import type { Command } from './history.ts';
 
 /** An object's local pose, copied: what a move, a turn or a stretch changes. */

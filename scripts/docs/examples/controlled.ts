@@ -1,25 +1,45 @@
+import assert from 'node:assert/strict';
 import {
   animation,
+  camera,
   geometry,
   light,
   material,
   math,
   object,
-} from '../../../packages/sdk-browser/src/index.ts';
+} from '../../../packages/sdk/browser.ts';
 import { describe, type ControlSpec } from '../../../site/examples/kit/controls.ts';
 import { runExampleModule } from './capture.ts';
 
-/**
- * Runs an example page that builds its scene from the engine's own branches, `world` standing
- * for the one `createWorld` returns and the kit's `controls` caught: resolves to the panel's
- * values, which a test edits, and the page's callback, which it calls with them.
- */
-export async function runControlledExample<Values>(html: string, world: object) {
-  let values!: Values, change!: (next: Values) => void;
+/** Runs the real page with one shared control panel and optional test-specific engine or kit IO. */
+export async function runControlledExample<Values>(
+  html: string,
+  world: object,
+  overrides: { engine?: object; kit?: object } = {},
+) {
+  let values!: Values, change!: (next: Values, key?: keyof Values) => void;
+  let specs!: Record<string, ControlSpec>;
   await runExampleModule(html, {
-    engine: { animation, createWorld: () => world, geometry, light, material, math, object },
+    engine: {
+      animation,
+      camera,
+      createWorld: () => world,
+      geometry,
+      light,
+      material,
+      math,
+      object,
+      ...overrides.engine,
+    },
     kit: {
-      controls: (specs: Record<string, ControlSpec>, callback: (next: Values) => void) => {
+      ...overrides.kit,
+      controls: (
+        nextSpecs: Record<string, ControlSpec>,
+        callback: typeof change,
+        watched?: object,
+      ) => {
+        assert.equal(watched, world);
+        specs = nextSpecs;
         values = describe(specs).values as Values;
         change = callback;
         callback(values);
@@ -27,5 +47,5 @@ export async function runControlledExample<Values>(html: string, world: object) 
       },
     },
   });
-  return { values, change };
+  return { values, change, specs };
 }

@@ -54,7 +54,7 @@ export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
   }));
 }
 
-/** Logs the configuration of the first CPU-cut image once, on the host console too. */
+/** Reports the first CPU-cut image configuration once through engine diagnostics. */
 export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
   const { run, vis, gpu, diag } = rt;
   if (run.renderPathLogged) return;
@@ -68,8 +68,6 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
     drawnPages: run.drawn.length,
   };
   diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', details);
-  if (typeof window !== 'undefined')
-    console.info('[trillion3d] WebGPU first render configuration', details);
 }
 
 /** The CPU sample of an image, with `null` for the steps an image that did not draw never ran. */

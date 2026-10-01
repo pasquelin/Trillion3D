@@ -1,4 +1,4 @@
-import type { PhysicsStats } from '../../../packages/sdk-browser/src/index.ts';
+import type { PhysicsStats } from '../../../packages/sdk/browser.ts';
 import { readout } from './readout.ts';
 import { ms } from './statsLines.ts';
 
