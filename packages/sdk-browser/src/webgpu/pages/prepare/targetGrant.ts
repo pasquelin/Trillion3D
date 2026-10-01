@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
 import { onView } from '../state/viewSwitch.ts';
 import { frameSizeOf, sameFrameSize, type FrameSize } from '../state/renderScale.ts';
-import { fundFrameTargets, refreshTargetGrant } from './targetFunding.ts';
+import { fundFrameTargets, poolFundingPending, refreshTargetGrant } from './targetFunding.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
@@ -55,10 +55,14 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const pending = gpu.targetGrant;
   if (pending && (!pending.settled || sameFrameSize(pending, size))) return pending.done;
   const view = rt.views.active,
-    granted = () => void (viewGpu(rt, view).targetGrant = undefined);
+    granted = () => void (viewGpu(rt, view).targetGrant = undefined),
+    // A pools' funding in flight lands first: one funding moves the pools at a time.
+    funding = poolFundingPending(rt) ?? Promise.resolve();
   // The view's targets are in place, its pyramid is not: it alone is asked.
   if (fit) {
-    const done = grantHiz(rt, device, renderWidth, renderHeight, view).then(granted);
+    const done = funding
+      .then(() => grantHiz(rt, device, renderWidth, renderHeight, view))
+      .then(granted);
     gpu.targetGrant = startGrant(done, { ...size });
     return gpu.targetGrant.done;
   }
@@ -79,13 +83,15 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
     asked = { ...size, requestedBytes: frameTargetAllocation(rt, size, extra) };
   // Granted, the record goes; refused, it stays, settled, and holds the frames at this size. A
   // creation that throws refuses them by name too, unless the session stopped.
-  const done = grantTargets(rt, device, asked, view).then(
-    (made) => void (made && granted()),
-    (error: unknown) => {
-      onView(rt, view, () => releaseTargets(rt));
-      if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-error', error);
-    },
-  );
+  const done = funding
+    .then(() => grantTargets(rt, device, asked, view))
+    .then(
+      (made) => void (made && granted()),
+      (error: unknown) => {
+        onView(rt, view, () => releaseTargets(rt));
+        if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-error', error);
+      },
+    );
   gpu.targetGrant = startGrant(done, asked);
   return gpu.targetGrant.done;
 }
@@ -93,6 +99,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Await or retry the current target grant before preparation or capture. */
 export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   await grantPending(rt.gpu.targetGrant);
+  await poolFundingPending(rt);
   rt.gpu.targetGrant = undefined;
   await requestFrameTargets(rt, device);
   if (!frameTargetsAwaited(rt)) return;
