@@ -51,3 +51,30 @@ test('headBob and landingDip at 0 keep the eye level', () => {
   eye.land(8);
   assert.ok(offsets(eye, 1, JOG).every((y) => y === 0));
 });
+
+test('stride follows horizontal pace, freezes in flight, and a zero walking speed disables bob', () => {
+  const full = createCharacterEye(HUMAN_BODY),
+    half = createCharacterEye(HUMAN_BODY);
+  full.offset(0.1, [0, 0, HUMAN_BODY.walkSpeed], true);
+  half.offset(0.1, [0, 0, HUMAN_BODY.walkSpeed / 2], true);
+  assert.ok(full.stride > 0);
+  assert.ok(Math.abs(full.stride - 2 * half.stride) < 1e-12);
+  const phase = full.stride;
+  full.offset(0.2, [3, 0, 4], false);
+  assert.equal(full.stride, phase);
+  const stopped = createCharacterEye({ ...HUMAN_BODY, walkSpeed: 0 });
+  assert.ok(stopped.offset(0.1, [3, 0, 4], true) === 0);
+  assert.equal(stopped.stride, 0);
+});
+
+test('landing recoil survives a zero-time frame and a live disabled setting clears it', () => {
+  const settings = { ...HUMAN_BODY };
+  const eye = createCharacterEye(settings);
+  eye.land(3);
+  assert.ok(eye.offset(0, [0, 0, 0], true) === 0);
+  assert.ok(eye.offset(0.03, [0, 0, 0], true) < 0);
+  settings.landingDip = 0;
+  assert.ok(eye.offset(0, [0, 0, 0], true) === 0);
+  settings.landingDip = 0.06;
+  assert.ok(eye.offset(0.03, [0, 0, 0], true) === 0);
+});

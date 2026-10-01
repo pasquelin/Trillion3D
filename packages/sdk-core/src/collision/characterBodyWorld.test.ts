@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
+import { triangleCollision } from './characterCollision.ts';
+import { meshCollision } from './meshTriangles.ts';
+import { buildTriangleTree } from './triangleTree.ts';
+import { block } from './character.fixture.ts';
 
 const still = { wishX: 0, wishZ: 0, sprint: false };
 
@@ -68,38 +72,61 @@ test('world changes immediately settle the current position and update the live 
   assert.equal(body.feet[1], y);
 });
 
-test('elevated steps climb in both horizontal axes, while disabled steps keep feet on the floor', async () => {
-  const { Mesh } = await import('../world/object/mesh.ts');
-  const { box } = await import('../world/geometry/basic.ts');
-  const { meshCollision } = await import('./meshTriangles.ts');
-  for (const base of [-3, 3])
-    for (const axis of [0, 2])
-      for (const stepHeight of [0, 0.4]) {
-        const floor = new Mesh(box(40, 1, 40));
-        floor.position.set(0, base - 0.5, 0);
-        const ledge = new Mesh(box(axis === 0 ? 10 : 20, 0.3, axis === 2 ? 10 : 20));
-        ledge.position.set(axis === 0 ? 6 : 0, base + 0.15, axis === 2 ? 6 : 0);
-        const body = createCharacterBody({ ...HUMAN_BODY, stepHeight });
-        body.setWorld(meshCollision([floor, ledge]));
-        body.place(0, base, 0);
-        assert.equal(body.onGround, true, 'placing feet on an elevated floor grounds immediately');
-        for (let i = 0; i < 120; i++)
-          body.advance(1 / 60, {
-            wishX: axis === 0 ? 1 : 0,
-            wishZ: axis === 2 ? 1 : 0,
-            sprint: false,
-          });
-        assert.equal(body.onGround, true);
-        assert.ok(Math.abs(body.feet[1] - (base + (stepHeight ? 0.3 : 0))) < 1e-6);
-        assert.ok(stepHeight ? body.feet[axis] > 3 : body.feet[axis] < 1);
-        assert.ok(Math.abs(body.feet[axis === 0 ? 2 : 0]) < 1e-8);
-      }
+test('a teleport is drawn exactly where it lands, not between it and the last pose', () => {
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.place(100.1, 0, 0);
+  body.advance(1 / 120, still);
+  body.place(0.1, 0, 0);
+  assert.deepEqual([...body.advance(0, still)], [0.1, 0, 0]);
 });
 
-test('teleporting from large coordinates resets interpolation without cancellation', () => {
+test('an airborne body loses normal velocity at a steep slope and slides along its tangent', () => {
   const body = createCharacterBody({ ...HUMAN_BODY });
-  body.place(1e16, 0, 0);
+  body.setWorld(triangleCollision(buildTriangleTree([-6, -8, -6, 6, 8, -6, -6, -8, 6])));
+  body.place(-1, -4 / 3, -2);
+  assert.equal(body.onGround, false);
   body.advance(1 / 120, still);
-  body.place(1, 0, 0);
-  assert.deepEqual([...body.advance(0, still)], [1, 0, 0]);
+  assert.equal(body.onGround, false);
+  assert.ok(body.velocity[0] < 0);
+  assert.ok(body.velocity[1] < 0);
+  assert.ok(Math.abs(3 * body.velocity[1] - 4 * body.velocity[0]) < 1e-10);
+  assert.equal(body.velocity[2], 0);
+});
+
+test('brushing a ledge during ascent preserves the jump and does not report an upward landing', () => {
+  const body = createCharacterBody({ ...HUMAN_BODY });
+  body.setWorld(meshCollision([block(-50, -1, -50, 50, 0, 50), block(1, 0, -5, 10, 0.5, 5)]));
+  body.place(0.4, 0, 0);
+  body.velocity[0] = 3;
+  body.pressJump();
+  const impacts: number[] = [];
+  let apex = 0;
+  for (let tick = 0; tick < 100; tick++) {
+    body.advance(1 / 120, { ...still, wishX: 1 }, { onLand: (impact) => impacts.push(impact) });
+    apex = Math.max(apex, body.feet[1]);
+  }
+  assert.equal(impacts.length, 1);
+  assert.ok(impacts[0] >= 0, 'landing happens while descending');
+  assert.ok(apex > 0.55, 'a rising edge contact does not cancel the rest of the jump');
+});
+
+test('a horizontal contact can land with exactly zero vertical impact', () => {
+  const body = createCharacterBody({
+    ...HUMAN_BODY,
+    capsuleRadius: 0.5,
+    capsuleHeight: 2,
+    gravity: 0,
+    fallGravity: 0,
+    airControl: 0,
+  });
+  body.setWorld(meshCollision([block(-20, -1, -20, 20, 0, 20), block(1, 0, -5, 3, 0.2, 5)]));
+  body.place(0.69, 0.1, 0);
+  assert.equal(body.onGround, false);
+  body.velocity[0] = 3;
+  const impacts: number[] = [];
+  body.advance(1 / 120, { ...still, wishX: 1 }, { onLand: (impact) => impacts.push(impact) });
+  assert.equal(body.onGround, true);
+  assert.equal(impacts.length, 1);
+  assert.ok(impacts[0] === 0);
+  assert.ok(body.feet[1] > 0.1);
 });

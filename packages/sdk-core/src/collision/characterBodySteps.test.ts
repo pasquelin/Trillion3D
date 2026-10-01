@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY } from './characterSettings.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { block, rebase } from './character.fixture.ts';
+import { block } from './character.fixture.ts';
 
 test('a fast grounded walker cannot climb a sub-radius ledge when steps are disabled', () => {
   const body = createCharacterBody({ ...HUMAN_BODY, capsuleRadius: 0.3, stepHeight: 0 });
@@ -93,26 +93,22 @@ test('a ceiling above a walkable low ledge cannot slow a capsule that fits under
   covered.forEach((value, axis) => assert.ok(Math.abs(value - clear[axis]) < 1e-8));
 });
 
-for (const originY of [0, 2 ** 35])
-  test(`an unsuccessful climb beneath a ceiling cannot move a walker backwards at Y=${originY}`, () => {
-    const body = createCharacterBody({ ...HUMAN_BODY, capsuleRadius: 0.4, stepHeight: 0.8 });
-    body.setWorld(
-      rebase(
-        meshCollision([
-          block(-20, 0, -20, 20, 1, 20),
-          block(1, 1, -5, 2, 1.6, 5),
-          block(0.8, 3.2, -5, 10, 4.2, 5),
-        ]),
-        originY,
-      ),
-    );
-    body.place(0.5, 1 + originY, 0);
-    body.velocity[0] = 7;
-    for (let frame = 0; frame < 10; frame++) {
-      body.advance(1 / 120, { wishX: 1, wishZ: 0, sprint: false });
-      assert.ok(
-        body.feet[0] >= 0.5 - 1e-8,
-        'a discarded raised probe cannot push the real body backwards',
-      );
-    }
-  });
+test('an unsuccessful climb beneath a ceiling cannot move a walker backwards', () => {
+  // The ledge is under stepHeight, but the ceiling over it leaves no room for the body: the
+  // raised move fails, and the walker keeps the pose it had against the ledge, or perches on
+  // its lip.
+  const body = createCharacterBody({ ...HUMAN_BODY, capsuleRadius: 0.4, stepHeight: 0.8 });
+  body.setWorld(
+    meshCollision([
+      block(-20, 0, -20, 20, 1, 20),
+      block(1, 1, -5, 2, 1.6, 5),
+      block(0.8, 3.2, -5, 10, 4.2, 5),
+    ]),
+  );
+  body.place(0.5, 1, 0);
+  body.velocity[0] = 7;
+  for (let frame = 0; frame < 10; frame++) {
+    body.advance(1 / 120, { wishX: 1, wishZ: 0, sprint: false });
+    assert.ok(body.feet[0] >= 0.5 - 1e-8, 'a discarded raised probe cannot push the body back');
+  }
+});

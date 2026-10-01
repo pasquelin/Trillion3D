@@ -62,7 +62,7 @@ export const driveAtRest = (drive: CharacterDrive, input: CharacterInput) =>
   drive.velocity[2] === 0;
 
 /** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
-const REST = 1e-4;
+export const REST_GLIDE = 1e-4;
 
 /**
  * Lives one tick of `h` seconds: jumps when the key was pressed within `jumpBuffer` of a floor
@@ -110,7 +110,7 @@ export function driveTick(
       : 0;
   const push = drive.grounded ? gripOf(drive.floor) * settings.gravity : Infinity;
   approach(velocity, tx, tz, rate, push, h, step);
-  if (drive.grounded && !wishing && hypot2(velocity[0], velocity[2]) < REST * rate)
+  if (drive.grounded && !wishing && hypot2(velocity[0], velocity[2]) < REST_GLIDE * rate)
     velocity[0] = velocity[2] = 0;
   return true;
 }
