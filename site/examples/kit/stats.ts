@@ -8,6 +8,7 @@ import {
   watchStats,
   type StatsWorld,
 } from './statsLines.ts';
+import { engineSteps } from './statUnit.ts';
 
 /**
  * A card of label and value lines in a corner of the example, at the bottom left unless `corner`
@@ -35,8 +36,8 @@ export function statsCard(corner: keyof typeof statsCorners = 'bottom-left') {
 
 /**
  * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
- * the world drew per second, and the engine's counters of the last frame, refreshed twice a
- * second. With `?profile` in the page's address, it adds each second's CPU profile (`profile.ts`),
+ * the world drew per second, the engine's counters of the last frame and where its time went, CPU
+ * and GPU, as the reference engine's `stat unit` (`unitLines`), refreshed twice a second. With `?profile` in the page's address, it adds each second's CPU profile (`profile.ts`),
  * also kept as `window.__profile`. What it returns stops the corner's timers.
  */
 export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {
@@ -48,7 +49,16 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
         profiled = profileLines(latest);
       })
     : () => {};
-  const stopStats = watchStats(world, show, () => profiled);
+  // `?profile` times the page's own frame and the engine's step window: its CPU lines replace the
+  // corner's.
+  const unit = !profiling();
+  const stopStats = watchStats(
+    world,
+    show,
+    () => profiled,
+    unit,
+    unit ? () => engineSteps(world) : undefined,
+  );
   return () => {
     stopStats();
     stopProfile();
