@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateScene, progress, checkpoint } from './validation.ts';
+import { checkpoint, progress, validateScene } from './validation.ts';
 import { LightingTransportError } from './contracts.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 
@@ -9,12 +9,21 @@ const invalid = (scene: unknown, words: string) =>
     () => validateScene(scene as any),
     (error: any) =>
       error instanceof LightingTransportError &&
+      error.name === 'LightingTransportError' &&
       error.code === 'INVALID_SCENE' &&
       error.message.includes(words),
   );
 
-test('transport scene validation independently checks counts, geometry and material bounds', () => {
-  assert.doesNotThrow(() => validateScene(sceneWithBlocker(false, 1)));
+test('a scene is valid with reflectance and emission at their bounds and a normal within rounding', () => {
+  const scene = sceneWithBlocker(false, 1);
+  scene.patches[0].albedo = [0, 1, 0.5];
+  scene.patches[1].emission = [0, 0, 0];
+  scene.patches[2].normal = [0, 0, 1 + 1e-9];
+  scene.sphere = { center: [1, 2, 3], radius: 1e-9, roughness: 0 };
+  assert.doesNotThrow(() => validateScene(scene));
+});
+
+test('transport scene validation names the first count, geometry or material that is wrong', () => {
   for (const field of ['surfaces', 'patches']) {
     const scene = sceneWithBlocker(false, 1);
     (scene as any)[field] = [];
@@ -49,22 +58,20 @@ test('transport scene validation independently checks counts, geometry and mater
     (scene.patches[0] as any)[field] = [1, Infinity, 3];
     invalid(scene, `patch.${field}`);
   }
-  for (const patch of [
-    { area: 0 },
-    { area: -1 },
-    { area: Infinity },
-    { area: NaN },
-    { albedo: [-0.1, 0, 1] },
-    { albedo: [0, 1.1, 1] },
-    { emission: [0, 0, -0.1] },
-    { normal: [0, 0, 2] },
-  ]) {
+  for (const [patch, words] of [
+    [{ area: 0 }, 'Patch area'],
+    [{ area: -1 }, 'Patch area'],
+    [{ area: Infinity }, 'Patch area'],
+    [{ area: NaN }, 'Patch area'],
+    [{ albedo: [-0.1, 0, 1] }, 'Albedo'],
+    [{ albedo: [0, 1.1, 1] }, 'Albedo'],
+    [{ emission: [0, 0, -0.1] }, 'emission'],
+    [{ normal: [0, 0, 2] }, 'normalized'],
+    [{ normal: [0, 0, 0.5] }, 'normalized'],
+  ] as const) {
     const scene = sceneWithBlocker(false, 1);
     Object.assign(scene.patches[0], patch);
-    assert.throws(
-      () => validateScene(scene),
-      (error: any) => error.code === 'INVALID_SCENE',
-    );
+    invalid(scene, words);
   }
   for (const radius of [0, -1, NaN, Infinity]) {
     const scene = sceneWithBlocker(false, 1);
@@ -140,4 +147,24 @@ test('progress reports stable values, isolates observer failures and honors canc
       2,
     ),
   );
+});
+
+test('already cancelled progress does not publish an event', () => {
+  let published = false;
+  assert.throws(
+    () =>
+      progress(
+        {
+          cancelled: () => true,
+          onProgress: () => {
+            published = true;
+          },
+        },
+        'geometry',
+        0,
+        1,
+      ),
+    (error: any) => error.code === 'CANCELLED',
+  );
+  assert.equal(published, false);
 });

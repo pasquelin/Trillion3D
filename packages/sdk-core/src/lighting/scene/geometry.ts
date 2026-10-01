@@ -2,6 +2,8 @@ import type { Patch, Surface, Vec3 } from './types.ts';
 import { add, scale, cross, length, normalized, BLACK } from './math.ts';
 
 type Face = 'nx' | 'px' | 'ny' | 'py' | 'nz' | 'pz';
+/** Most transport patches a lighting scene holds. */
+export const MAX_LIGHTING_PATCHES = 16_384;
 
 export function createLightingSceneGeometry(patchSize: number) {
   const surfaces: Surface[] = [];
@@ -20,7 +22,8 @@ export function createLightingSceneGeometry(patchSize: number) {
     const columns = detailed ? Math.max(1, Math.ceil(length(u) / patchSize - 1e-10)) : 1;
     const rows = detailed ? Math.max(1, Math.ceil(length(v) / patchSize - 1e-10)) : 1;
     patchCount += columns * rows;
-    if (patchCount > 16_384) throw new RangeError('Lighting scene exceeds 16384 transport patches');
+    if (patchCount > MAX_LIGHTING_PATCHES)
+      throw new RangeError(`Lighting scene exceeds ${MAX_LIGHTING_PATCHES} transport patches`);
     surfaces.push({
       id,
       origin,
