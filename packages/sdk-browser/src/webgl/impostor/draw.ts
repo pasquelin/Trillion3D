@@ -9,7 +9,7 @@ import { core } from '../../impostor/borrowed.ts';
 /** One card program — the display's or the effect chain's linear variant. */
 function createCardProgram(gl: WebGL2RenderingContext, linear: boolean) {
   const { CARD_RECORD_UNIT, ATLAS_UNITS } = core,
-    program = core.createWebglProgram(gl, cardVertex(core), cardFragment(core, linear)),
+    program = core.createWebglProgram(gl, cardVertex(), cardFragment(linear)),
     at = core.uniformLocations(gl, program);
   gl.useProgram(program);
   core.setClusterSamplers(gl, at);
@@ -28,7 +28,7 @@ const view = new Float32Array(16);
  * program (`cardGlsl.ts`) into the pass the cluster program draws, one instanced draw per mesh
  * atlas, as on WebGPU. The records go up once an image, into a float texture as the light records
  * do (`WebglLightTexture`, lent by the core with the cluster program's pieces,
- * `../../impostor/lent.ts`); the program's lights are those the cluster program uploaded for the
+ * `lent.ts`); the program's lights are those the cluster program uploaded for the
  * pass, their uniforms sent again. A card is opaque: depth-tested and written, never blended or
  * culled. The caller binds its own program again and forgets its cached state after
  * (`../cluster/renderer.ts`).

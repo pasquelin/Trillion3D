@@ -15,17 +15,15 @@ import {
   IMPOSTOR_TAP_GLSL,
   IMPOSTOR_VIEW_CARD_GLSL,
 } from '../../visibility/shader/impostorGlsl.ts';
-import type * as Lent from '../../impostor/lent.ts';
+import { core } from '../../impostor/borrowed.ts';
 
 /** Texels of one card record: four floats each. */
 export const CARD_TEXELS = CARD_FLOATS / 4;
 
 /** The card records, `LIGHT_ROW_TEXELS` a row as every float texture of the path, and the image's
  *  view: read by both stages. */
-const cardRecordGlsl = ({
-  LIGHT_ROW_TEXELS,
-}: typeof Lent) => `uniform highp sampler2D impostorCards;uniform mat4 cardView;
-vec4 cardRecord(int card,int k){int t=card*${CARD_TEXELS}+k;return texelFetch(impostorCards,ivec2(t%${LIGHT_ROW_TEXELS},t/${LIGHT_ROW_TEXELS}),0);}
+const cardRecordGlsl = () => `uniform highp sampler2D impostorCards;uniform mat4 cardView;
+vec4 cardRecord(int card,int k){int t=card*${CARD_TEXELS}+k;return texelFetch(impostorCards,ivec2(t%${core.LIGHT_ROW_TEXELS},t/${core.LIGHT_ROW_TEXELS}),0);}
 mat4 cardMatrix(int card,int k){return mat4(cardRecord(card,k),cardRecord(card,k+1),cardRecord(card,k+2),cardRecord(card,k+3));}`;
 
 /** What the vertex stage hands each pixel: the corner in object space, pivot-relative, then the
@@ -36,10 +34,10 @@ flat VARY vec3 cardX0,cardX1,cardX2,cardN0,cardN1,cardN2;`;
 const varyings = (way: 'in' | 'out') => `${way} ${CARD_VARYINGS.replaceAll('VARY', way)}`;
 
 /** The card's vertex stage: card `firstCard + gl_InstanceID`, corner by `gl_VertexID`. */
-export const cardVertex = (lent: typeof Lent) => `#version 300 es
+export const cardVertex = () => `#version 300 es
 precision highp float;precision highp int;
 uniform mat4 projectionMatrix;uniform vec3 cardEye;uniform int firstCard;
-${cardRecordGlsl(lent)}
+${cardRecordGlsl()}
 ${varyings('out')}
 ${IMPOSTOR_VIEW_CARD_GLSL}
 void main(){
@@ -62,18 +60,17 @@ const CLUSTER_INPUTS =
   'in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;';
 /** The three atlas maps' samplers, in `ATLAS_MAPS` order, as `impostorGlsl.ts` reads them. */
 export const ATLAS_SAMPLERS = ['impostorColour', 'impostorNormalDepth', 'impostorOrm'] as const;
-const cardInputs = (
-  lent: typeof Lent,
-) => `vec3 toEye;vec3 viewNormal;vec3 viewPosition;vec2 texcoord0;vec2 texcoord1;vec4 vertexColor;
+const cardInputs =
+  () => `vec3 toEye;vec3 viewNormal;vec3 viewPosition;vec2 texcoord0;vec2 texcoord1;vec4 vertexColor;
 uniform sampler2D ${ATLAS_SAMPLERS.join(',')};
-${cardRecordGlsl(lent)}
+${cardRecordGlsl()}
 ${varyings('in')}
 ${IMPOSTOR_TAP_GLSL}`;
 
 /** The card's surface at this pixel, then what the cluster program's shading reads of it: the view
  *  position and depth of the blended surface point, its colour, metal, roughness (floored and
  *  widened by the normal's curvature as every surface of the path), view normal and occlusion. */
-const cardSurface = ({ ROUGHNESS_FLOOR }: typeof Lent) => `void main(){
+const cardSurface = () => `void main(){
  vec3 eye=cardEyeRadius.xyz;float radius=cardEyeRadius.w;float lod=cardWeightsLod.w;float cell=cardCell.z;
  vec3 ray=normalize(cardPoint-eye);
  ImpBlend b=impBlend(impTap(cardAb.xy,cardX0,cardN0,eye,ray,radius,cell,lod),impTap(cardAb.zw,cardX1,cardN1,eye,ray,radius,cell,lod),
@@ -84,21 +81,21 @@ const cardSurface = ({ ROUGHNESS_FLOOR }: typeof Lent) => `void main(){
  viewPosition=viewPoint.xyz;toEye=-viewPosition;texcoord0=texcoord1=vec2(0.0);vertexColor=vec4(1.0);
  vec4 base=vec4(b.colour.rgb,1.0);float metal=clamp(b.orm.z,0.0,1.0);
  vec3 N=normalize(mat3(cardView)*(transpose(mat3(cardMatrix(cardIndex,8)))*b.normal));viewNormal=N;
- float rough=min(max(b.orm.y,${ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
+ float rough=min(max(b.orm.y,${core.ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
  coatNormal=N;physicalFrame(N);thinSubsurface=vec3(0.0);
  float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=b.orm.x;
 `;
 
 /** The card's fragment stage of the cluster fragment program, `linear` its effect-chain variant:
  *  its inputs and surface read replaced, the rest — lighting, reflections, fog, output — its own. */
-export const cardFragment = (lent: typeof Lent, linear: boolean) =>
-  lent.variant(
-    lent.variant(
-      linear ? lent.CLUSTER_LINEAR_FRAGMENT : lent.CLUSTER_FRAGMENT,
+export const cardFragment = (linear: boolean) =>
+  core.variant(
+    core.variant(
+      linear ? core.CLUSTER_LINEAR_FRAGMENT : core.CLUSTER_FRAGMENT,
       CLUSTER_INPUTS,
-      cardInputs(lent),
+      cardInputs(),
     ),
     'void main(){',
-    cardSurface(lent),
+    cardSurface(),
     'vec3 rgb=lit?shade(',
   );
