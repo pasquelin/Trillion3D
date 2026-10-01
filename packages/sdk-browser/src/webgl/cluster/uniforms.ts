@@ -30,6 +30,17 @@ export class Matrix3UniformCache {
   }
 }
 
+/** A program's uniform locations by name, each asked of the context once. */
+export function uniformLocations(gl: WebGL2RenderingContext, program: WebGLProgram) {
+  const locations = new Map<string, WebGLUniformLocation | null>();
+  return (name: string) => {
+    let location = locations.get(name);
+    if (location === undefined)
+      locations.set(name, (location = gl.getUniformLocation(program, name)));
+    return location;
+  };
+}
+
 export const setClusterSamplers = (
   gl: WebGL2RenderingContext,
   location: (name: string) => WebGLUniformLocation | null,
