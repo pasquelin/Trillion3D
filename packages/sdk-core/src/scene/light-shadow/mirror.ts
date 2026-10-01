@@ -12,6 +12,8 @@ export interface ShadowPoolSnapshot {
   owner: Int32Array;
   /** The frame each page was last asked for in. */
   requested: Int32Array;
+  /** 1 where the GPU's own draw holds the page's depth (#831); absent, none is known. */
+  gpuDrawn?: Uint8Array;
   /** Pages that frame mapped, and entries it had no page for. */
   allocated: number;
   /** Entries that frame had no page for. */
@@ -43,12 +45,24 @@ export function createShadowMirror(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
-  previous?: { on: boolean; drawn: number; drewAt: number; drewLast: number },
+  previous?: {
+    on: boolean;
+    drawn: number;
+    drewAt: number;
+    drewLast: number;
+    layeredFrom?: number;
+    firstDrew?: number;
+  },
+  /** Per slice, the last frame an invalidation missed the pages the host has not adopted
+   *  (`invalidate.ts`, `lightWideAt`): a GPU draw before it is not kept. */
+  lightWideAt?: ArrayLike<number>,
 ) {
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
   let from = 0,
-    drops = records.drops;
+    drops = records.drops,
+    /** The frame of the last snapshot followed: a page it did not map was drawn after it. */
+    followed = -Infinity;
   const apply = (
     snapshot: ShadowPoolSnapshot,
     reportFrame: number,
@@ -56,6 +70,12 @@ export function createShadowMirror(
     frame: number,
   ) => {
     const { owner, requested } = snapshot;
+    // Every GPU draw since the last snapshot wrote the static layer too (`freshPass.ts`): a page
+    // this one maps for the first time was drawn since, its still casters in the layer.
+    const layered = followed >= mirror.layeredFrom,
+      /** The earliest frame a page this snapshot maps anew was drawn in. */
+      drawnFrom = Math.max(followed + 1, mirror.firstDrew);
+    followed = reportFrame;
     let moved = false;
     for (let page = 0; page < pool.pages; page++) {
       if (owner[page] === pool.owner[page]) continue;
@@ -78,6 +98,11 @@ export function createShadowMirror(
       pool.x[page] = at[1];
       pool.y[page] = at[2];
       pool.rank[page] = entries.rankOf(slice, at);
+      // Drawn once, as the reference engine draws a page: the GPU's draw is kept, never drawn again by the host
+      // until what it holds changes, restored from its static layer when it holds one (#831).
+      // Not when a light-wide invalidation since its draw reached the host's pages alone.
+      if (snapshot.gpuDrawn?.[page] && !((lightWideAt?.[slice] ?? -Infinity) > drawnFrom))
+        pool.keepDraw(page, entries.isSun(slice) ? sun.ranges.current[slice] : 0, layered);
     }
     if (moved) pool.rebuildFree();
   };
@@ -117,8 +142,18 @@ export function createShadowMirror(
       drops = records.drops;
       from = Math.max(from, frame);
     },
-    /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn. */
-    drew(frame: number) {
+    /** The first frame from which every GPU page draw wrote the static layer too; none, Infinity. */
+    layeredFrom: previous?.layeredFrom ?? Infinity,
+    /** The first frame the GPU's page draws ran; none, Infinity. */
+    firstDrew: previous?.firstDrew ?? Infinity,
+    /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn, its
+     *  still casters into the static layer too when `layered`, and an entry withdrawn unmapped may
+     *  hold a draw again (`table.gpuDrew`). */
+    drew(frame: number, layered = false) {
+      table.gpuDrew();
+      if (!layered) mirror.layeredFrom = Infinity;
+      else if (mirror.layeredFrom === Infinity) mirror.layeredFrom = frame;
+      mirror.firstDrew = Math.min(mirror.firstDrew, frame);
       mirror.drewAt = Math.min(mirror.drewAt, frame);
       mirror.drewLast = Math.max(mirror.drewLast, frame);
     },

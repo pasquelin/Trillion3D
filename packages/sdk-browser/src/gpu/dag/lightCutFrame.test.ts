@@ -125,7 +125,6 @@ test('a sweep of many batches a frame converges to full detail', async () => {
     const asked = cut.reports.takeRequests() ?? [];
     for (const page of asked) resident.add(page);
     if (asked.length) cut.redraws.residencyChanged();
-    cut.redraws.rest();
     const again: number[] = [];
     cut.redraws.takeRedraw((page) => again.push(page));
     drawn = again;

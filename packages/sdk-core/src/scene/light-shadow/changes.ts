@@ -34,6 +34,12 @@ const readMin = new Float64Array(3),
  * at rest the union restales exactly what changed, so a settled map is that of the current
  * cut, whatever the history (#159). A representation change of objects already moving is held
  * in a union of its own, released as a moving box: the static layer never held them (#993).
+ *
+ * A **residency** change is the one representation change that enters at once (#831): a page
+ * drawn before a finer form of its caster arrived holds a caster that no longer matches the
+ * receiver the camera now draws, a coarse surface standing above the fine one, read as dark
+ * patches cut straight along page edges while a drive lasts. the reference engine invalidates the cached pages
+ * cluster streaming changes the same way; the pages stay read until redrawn, within the budget.
  */
 /** Boxes the list holds apart at least: each is projected in every light view it may reach at the
  *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and
@@ -103,6 +109,18 @@ export function createShadowChanges(capacity: number) {
      *  `movingOnly`, the one of objects already moving, whose static casters did not change. */
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       boxUnion(held[+movingOnly].box, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+    },
+    /** A caster's residency changed: its box enters the list at once, stale for detail alone,
+     *  merged into the last one when that is a change of detail of the same kind it overlaps — the
+     *  clusters a stream brings in together —, never joined to a far one (#831). */
+    residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
+      const last = changes.count - 1,
+        base = last * 3;
+      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly;
+      for (let axis = 0; overlaps && axis < 3; axis++)
+        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis];
+      if (overlaps) write(base, lo, hi, true);
+      else add(lo, hi, movingOnly, true);
     },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what

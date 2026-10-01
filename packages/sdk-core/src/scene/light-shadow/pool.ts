@@ -81,12 +81,17 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
     },
     /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable there. */
     drew(table: ShadowTable, page: number, mode: number, drawn: number) {
+      const layered = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page] === 1);
+      pool.keepDraw(page, drawn, layered);
+      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn));
+    },
+    /** The GPU's own draw of the page is adopted (`mirror.ts`, #831): current, readable in slot
+     *  `drawn`, with its static layer when `layered`; the GPU's word stands, the host writes none. */
+    keepDraw(page: number, drawn: number, layered = false) {
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
-      pool.layered[page] =
-        mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
+      pool.layered[page] = layered ? 1 : 0;
       pool.range[page] = drawn;
-      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls

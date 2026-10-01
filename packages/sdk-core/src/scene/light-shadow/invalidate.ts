@@ -1,8 +1,9 @@
 import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
+import { createLightWideStamps } from './lightWide.ts';
 import type { createShadowChanges } from './changes.ts';
 import { STALE_BY, type createShadowCounts } from './counts.ts';
-import { createPageRects } from './pageRects.ts';
+import { createPageRects, rectHolds } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -19,17 +20,19 @@ import { lampEntry, ringOf, sunEntry } from './pageModel.ts';
 type Changes = ReturnType<typeof createShadowChanges>;
 type Counts = ReturnType<typeof createShadowCounts>;
 
-/** The position of a light that has none, the sun: its range bounds nothing. */
-const ORIGIN = [0, 0, 0] as const;
+const ORIGIN = [0, 0, 0] as const; // the position of a light that has none, the sun
 /** Why a box stales its pages (`STALE_BY`): wrong, a still caster changed; at `STALE_FULL` and not
  *  wrong, a change of detail; else, moving casters alone. A union counts its strongest. */
 const reasonOf = (level: number, wrong: boolean) =>
   wrong ? STALE_BY.caster : level === STALE_FULL ? STALE_BY.detail : STALE_BY.moving;
 
 /**
- * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation
- * of virtual shadow maps. Only mapped pages can be stale: a page nobody reads has no content to
- * keep, and is drawn whole when first asked for.
+ * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation of
+ * virtual shadow maps. Only mapped pages can be stale: a page nobody reads has no content to keep,
+ * and is drawn whole when first asked for. While the GPU maps pages too (`mirror.ts`), an entry a
+ * box covers that the host does not map goes out withdrawn, its GPU draw redone this frame (#831),
+ * once until a GPU page draw runs again (`table.withdrawUnmapped`), and a light-wide stale bars
+ * the GPU's older draws (`lightWide.ts`).
  *
  * - **The light moved, changed shape, or its clipmap changed frame** (`whole`): every page,
  *   the floor too, and none is read until redrawn (`pool.withdraw`) — its depth was drawn under a
@@ -43,10 +46,10 @@ const reasonOf = (level: number, wrong: boolean) =>
  *   A light examines at most its virtual pages (`tableEntriesOf`) — past that its boxes cover its
  *   entries again —: the boxes beyond join one union per kind, each covered the same way. A
  *   static caster that moved withdraws those pages until redrawn; one already moving stales only
- *   their moving casters, and the static layer under them stays read. With per-page
- *   invalidation off, every page of each light the box touches.
- * - **The representation changed** (the released union of `changes.ts`): the same pages, stale for
- *   detail only — their depth is coarser than the cut, not wrong, and stays read until redrawn.
+ *   their moving casters, and the static layer under them stays read. With per-page invalidation
+ *   off, every page of each light the box touches.
+ * - **The representation changed** (`changes.ts`): the same pages, stale for detail only, read
+ *   until redrawn.
  *
  * Adds the pages staled and the pages visited to `counts`.
  */
@@ -56,6 +59,7 @@ export function createPageInvalidation(
   sun: SunLevels,
   changes: Changes,
   counts: Counts,
+  gpuMaps: () => boolean = () => false,
 ) {
   const { rects, sunRects, lampFaces, lampRects } = createPageRects();
   /** The unions of a light's boxes past its budget, covered once each: those whose static layer
@@ -66,25 +70,21 @@ export function createPageInvalidation(
     wrongMax = restWrong.subarray(3, 6),
     keptMin = restKept.subarray(0, 3),
     keptMax = restKept.subarray(3, 6);
-  /** The light being invalidated — its slice, its kind, its views — and the frame's stamp. */
+  /** The light invalidated — slice, kind, views —, the frame's stamp, whether the GPU maps. */
   let slice = 0,
     sunLight = false,
     views = 0,
     nowMs = 0,
-    frame = 0;
+    frame = 0,
+    gpuDraws = false;
+  const wide = createLightWideStamps();
   /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`, the
    *  GPU's own draw too (#1345). */
   const mark = (page: number, level: number, wrong: boolean, reason: number) => {
     if (pool.stale(page, nowMs, frame, level)) counts.staled(reason);
     if (wrong) pool.withdraw(table, page, true);
   };
-  const within = (view: number, x: number, y: number) =>
-    view >= 0 &&
-    view < views &&
-    x >= rects[view * 4] &&
-    x <= rects[view * 4 + 1] &&
-    y >= rects[view * 4 + 2] &&
-    y <= rects[view * 4 + 3];
+  const within = (view: number, x: number, y: number) => rectHolds(rects, views, view, x, y);
   /** The rectangles of box `min..max` in each view of the light: returns the pages covered. */
   const project = (min: ArrayLike<number>, max: ArrayLike<number>) =>
     sunLight ? sunRects(sun, slice, min, max) : lampRects(min, max);
@@ -97,6 +97,7 @@ export function createPageInvalidation(
     range = -1,
     reason = reasonOf(level, wrong),
   ) => {
+    if (gpuDraws) wide.at[slice] = frame;
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
@@ -122,8 +123,10 @@ export function createPageInvalidation(
             : lampEntry(Math.floor(view / LAMP_MIPS), view % LAMP_MIPS, 0, y));
         for (let x = rects[r]; x <= rects[r + 1]; x++) {
           counts.visitedPages++;
-          const word = table.words[row + (sunLight ? ringOf(x, sun.windowPages) : x)];
+          const entry = row + (sunLight ? ringOf(x, sun.windowPages) : x),
+            word = table.words[entry];
           if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
+          else if (gpuDraws) table.withdrawUnmapped(entry);
         }
       }
     }
@@ -131,7 +134,7 @@ export function createPageInvalidation(
   /** The `covered` pages the rectangles hold: walked, or one pool scan when more than the pool. */
   const cover = (covered: number, level: number, wrong: boolean) =>
     covered > pool.pages ? scan(true, level, wrong) : walk(level, wrong);
-  return (
+  const invalidate = (
     light: SceneLight,
     lightSlice: number,
     whole: boolean,
@@ -145,6 +148,8 @@ export function createPageInvalidation(
     views = sunLight ? SUN_LEVELS : lampFacesOf(rank) * LAMP_MIPS;
     nowMs = now;
     frame = at;
+    gpuDraws = gpuMaps();
+    if (sunLight) wide.sunRange(slice, sun.ranges.current[slice], gpuDraws, frame);
     if (whole) {
       scan(false, STALE_FULL, true, -1, STALE_BY.light);
       return;
@@ -191,4 +196,5 @@ export function createPageInvalidation(
     if (wrong) cover(project(wrongMin, wrongMax), STALE_FULL, true);
     if (level) cover(project(keptMin, keptMax), level, false);
   };
+  return Object.assign(invalidate, { lightWideAt: wide.at });
 }

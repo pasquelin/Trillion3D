@@ -16,6 +16,8 @@ export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** The pass that fills the static layer: timed with the Shadows stage. */
 export const SHADOW_LAYER_PASS = 'Trillion3D shadow static layer v1';
+/** The pass that fills the static layer of the pages the GPU draws itself (#831). */
+export const FRESH_LAYER_PASS = 'Trillion3D shadow GPU page static layer v1';
 /** The transmittance layer's pass, and the one that clears it: both timed with the Shadows stage. */
 export const SHADOW_TRANSMITTANCE_PASS = 'Trillion3D shadow transmittance pass v1';
 export const SHADOW_TRANSMITTANCE_CLEAR_PASS = 'Trillion3D shadow transmittance clear v1';
@@ -30,6 +32,7 @@ export const BLEND_SHADOW_MARKS_PASS = 'Trillion3D shadow blend marks v1';
 export const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 export const SHADOW_FLOORS_PASS = 'Trillion3D shadow floors v1';
 export const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
+export const SHADOW_WITHDRAW_PASS = 'Trillion3D shadow GPU page withdraw v1';
 export const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
 export const SHADOW_FRESH_COUNT_PASS = 'Trillion3D shadow GPU page count v1';
 export const SHADOW_FRESH_ADMIT_PASS = 'Trillion3D shadow GPU page admission v1';
@@ -41,6 +44,7 @@ export const SHADOW_PAGE_PASSES = [
   SHADOW_DEMAND_PASS,
   BLEND_SHADOW_MARKS_PASS,
   SHADOW_ALLOC_PASS,
+  SHADOW_WITHDRAW_PASS,
   SHADOW_WORDS_PASS,
   SHADOW_FRESH_PASS,
   SHADOW_FRESH_COUNT_PASS,

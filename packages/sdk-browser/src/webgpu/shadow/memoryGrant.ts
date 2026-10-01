@@ -1,6 +1,7 @@
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import { reservedStaticBytes } from './staticReserve.ts';
 
 /** A memory-pressure event of the shadows, by name (see `ShadowMemory`). */
 export type ShadowPressure =
@@ -45,9 +46,19 @@ export type ShadowMemory = {
  *  layers once made, its request buffer, and the kept lists' rows its GPU pages' pairs grew. */
 export const shadowPoolHeld = (lights: WebgpuLightState) =>
   (lights.shadows?.allocationBytes ?? 0) +
-  (lights.staticLayer?.bytes ?? 0) +
+  (lights.staticLayer?.bytes ?? reservedStaticBytes(lights)) +
   (lights.pageRequests?.bytes ?? 0) +
   lights.memory.pairBytes;
+
+/** The pool's bytes a frame shows: none until the grant that sized it settled, the static layer
+ *  reserved with it (`staticReserve.ts`) — never the atlas alone for the frames that grant still
+ *  holds (#831). A later grant, the transmittance layer's, hides nothing: the pool is counted. */
+export const shadowPoolShown = (lights: WebgpuLightState) => {
+  const grant = lights.shadowGrant as { sizesPool?: boolean; settled: boolean } | undefined;
+  return lights.shadows?.texture && !(grant?.sizesPool && !grant.settled)
+    ? shadowPoolHeld(lights)
+    : null;
+};
 
 export const createShadowMemory = (): ShadowMemory => ({
   peakBytes: 0,
@@ -73,10 +84,10 @@ export function admitShadowBytes(
 }
 
 /** `admitShadowBytes` for a late layer or the grown pair list: past the grant, its pressure is recorded and said under
- *  `shadow-memory` with the bytes asked, held and granted. */
+ *  `shadow-memory` with the bytes asked, held and granted — silently refused without `diagnose`. */
 export function grantsShadowLayer(
   lights: WebgpuLightState,
-  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'] | undefined,
   pressure: 'static-layer-over-grant' | 'transmittance-over-grant' | 'pairs-over-grant',
   message: string,
   bytes: number,
@@ -85,6 +96,7 @@ export function grantsShadowLayer(
 ) {
   const heldBytes = shadowPoolHeld(lights);
   if (admitShadowBytes(lights.memory, heldBytes, bytes, grantBytes, reserveBytes)) return true;
+  if (!diagnose) return false;
   noteShadowPressure(lights.memory, pressure);
   diagnose('shadow-memory', message, {
     kind: 'warning',

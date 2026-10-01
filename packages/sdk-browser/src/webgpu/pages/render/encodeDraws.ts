@@ -25,6 +25,7 @@ import { uploadRowCorners } from '../../visibility/corners.ts';
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
 import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
+import { uploadRowLods } from '../../shadow/rowLods.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -44,6 +45,7 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (rt.lights.cull) {
     uploadClusterSpheres(rt, device);
     uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
+    uploadRowLods(rt, device, rows.dirtyFrom, rows.dirtyTo);
   }
   uploadRowCorners(rt);
   uploadDirtyRows(rt);

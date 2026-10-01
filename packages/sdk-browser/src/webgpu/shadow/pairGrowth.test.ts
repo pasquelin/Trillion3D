@@ -1,6 +1,6 @@
-// #1363: the GPU pages' pairs land in the region cull's kept list, grown to the need the frames
-// read back by the tables' own growth (`growKeptList`), under the shadow grant: past the grant or
-// the device, a pressure by name and the list as it was; never past one storage binding.
+// #1363, #831: the GPU pages' pairs land in the region cull's kept list, grown once to the pool's
+// fixed pairs (`poolPairs`) by the tables' own growth (`growKeptList`), under the shadow grant: past
+// the grant or the device, a pressure by name and the list as it was; never past one storage binding.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -10,16 +10,17 @@ import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { growPairList } from './pairGrowth.ts';
-import { keptPairs } from './pairRows.ts';
+import { keptPairs, poolPairs } from './pairRows.ts';
+import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 const ROW_BYTES = 4 * MAX_SHADOW_REGIONS;
 
-/** A runtime of `casterSlots` table rows whose latest frame counted `need` pairs, its kept list at
- *  the table's rows, and the diagnostics it says. */
+/** A runtime of `casterSlots` table rows and a pool of `pages` pages, its kept list at the table's
+ *  rows, and the diagnostics it says. */
 function runtime(
   device: GPUDevice,
-  need: number,
+  pages: number,
   casterSlots = 8,
   heldBytes = 0,
   transmittanceDenied = true,
@@ -40,8 +41,8 @@ function runtime(
     lights: {
       cull,
       memory: createShadowMemory(),
-      pageRequests: { bytes: heldBytes, allocation: { pairNeed: need } },
-      plan: { pool: { side: 8, layers: 1 } },
+      pageRequests: { bytes: heldBytes, allocation: {} },
+      plan: { pool: { side: 8, layers: 1, pages } },
       transmittanceDenied,
     },
     layout: { rows: { casterSlots }, growing: undefined as Promise<unknown> | undefined },
@@ -59,26 +60,29 @@ function runtime(
   return { rt, said, grow };
 }
 
-test('the kept list grows to the pairs the frames read back, counted in the shadow grant', async () => {
+test("the kept list grows once to the pool's pairs, counted in the shadow grant, never past", async () => {
   const fake = fakeDevice(),
-    need = 3 * keptPairs(8) + 1,
-    { rt, grow } = runtime(fake.device, need);
+    { rt, grow } = runtime(fake.device, 2);
   const rows = await grow();
-  assert.ok(keptPairs(rows) >= need, 'the list holds the need');
+  assert.ok(keptPairs(rows) >= poolPairs(2), "the list holds the pool's pairs");
+  assert.ok(poolPairs(2) > keptPairs(8), "past the table's rows");
   assert.equal(
     rt.lights.memory.pairBytes,
     (rows - 8) * ROW_BYTES,
     'its rows past the table in the grant',
   );
   assert.equal(shadowPoolHeld(rt.lights), rt.lights.memory.pairBytes);
-  const asked = fake.buffers.length;
-  assert.equal(await grow(), rows, 'a need it holds asks nothing more');
+  const asked = fake.buffers.length,
+    held = shadowPoolHeld(rt.lights);
+  // Asked again, whatever the frames count, it asks nothing: the bytes shown are the ones set.
+  assert.equal(await grow(), rows);
   assert.equal(fake.buffers.length, asked);
+  assert.equal(shadowPoolHeld(rt.lights), held);
 });
 
 test('a list the device refuses names a pressure and is not asked again', async () => {
   const fake = fakeDevice({ refuse: (d) => (Number(d.size) > 8 * ROW_BYTES ? 'oom' : undefined) }),
-    { rt, said, grow } = runtime(fake.device, 10 * keptPairs(8));
+    { rt, said, grow } = runtime(fake.device, 4);
   assert.equal(await grow(), 8, 'the list stays as it was');
   assert.deepEqual(rt.lights.memory.events, ['pairs-refused']);
   assert.deepEqual(said, ['gpu-out-of-memory']);
@@ -89,7 +93,7 @@ test('a list the device refuses names a pressure and is not asked again', async 
 
 test('a list past the shadow grant is not asked of the device', async () => {
   const fake = fakeDevice(),
-    { rt, said, grow } = runtime(fake.device, 10 * keptPairs(8), 8, SHADOW_GRANT_BYTES);
+    { rt, said, grow } = runtime(fake.device, 4, 8, SHADOW_GRANT_BYTES);
   const asked = fake.buffers.length;
   assert.equal(await grow(), 8);
   assert.equal(fake.buffers.length, asked);
@@ -101,7 +105,7 @@ test('a list past the shadow grant is not asked of the device', async () => {
 test('a list leaves the transmittance layer still to come its share of the grant', async () => {
   const fake = fakeDevice(),
     held = SHADOW_GRANT_BYTES - shadowTransmittanceBytes(8, 1),
-    { rt, grow } = runtime(fake.device, 10 * keptPairs(8), 8, held, false);
+    { rt, grow } = runtime(fake.device, 4, 8, held, false);
   assert.equal(await grow(), 8, 'the list stays as it was');
   assert.deepEqual(rt.lights.memory.events, ['pairs-over-grant']);
 });
@@ -109,9 +113,15 @@ test('a list leaves the transmittance layer still to come its share of the grant
 test('the kept list never grows past what one storage binding holds', async () => {
   // A binding of 20 rows and a half a region: a list past it would be invalid, not refused.
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 20.5 * ROW_BYTES } as never }),
-    { grow } = runtime(fake.device, 100 * keptPairs(8));
+    { grow } = runtime(fake.device, 40);
   assert.equal(await grow(), 20, 'the ceiling, in whole rows');
   const asked = fake.buffers.length;
   assert.equal(await grow(), 20);
   assert.equal(fake.buffers.length, asked, 'the ceiling reached, nothing more is asked');
+});
+
+test("the pair list holds a frame's pairs: the grant's pages, the pool's when fewer (#831)", () => {
+  // The GPU maps a frame's page budget at most, the grant's batches' pages (`shadowPagesPerFrame`).
+  assert.equal(poolPairs(4 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS * poolPairs(1));
+  assert.equal(poolPairs(2601), 2601 * poolPairs(1), 'a pool smaller than the budget, its own');
 });
