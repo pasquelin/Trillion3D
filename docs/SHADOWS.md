@@ -93,6 +93,19 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   home page, never reading a neighbour page of another range.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, down to one page. Six faces for a
   point, one for a spot.
+- **The bias follows the receiver's own triangle** (#831): the normal offset and the slope-scaled
+  depth margin, in texels of the level read, are taken along the plane of the triangle the pixel
+  shows (`shadowBiasNormal`, set by `receiverOffset` from the visibility buffer), turned to the side
+  its shading normal lights, never along that smooth normal — over a coarse terrain it leans off
+  each triangle and under-biased one side of every edge, teeth along the triangles as the sun
+  grazed. The shading point is still moved off the triangle by its vertex normals (Phong
+  projection), and both stay bounded by the filter's reach: a caster a few texels away keeps its
+  contact shadow. The demand reads the same point, so it asks the pages the shading reads.
+- **A page a light cut drew from a coarse ancestor** — the fine cluster not resident yet — is drawn
+  again as soon as residency moves, the camera moving or not (#831, `redrawShortPages`), as the reference engine
+  redraws a cached page once cluster streams its finer clusters in: a drive no longer shows the
+  coarse triangles in its shadows until it stops. A camera that only moves, residency still,
+  redraws nothing.
 - **The level is chosen per pixel, from its footprint** (the world distance between two adjacent
   pixels at the depth its centre holds without the TAA jitter, `pixelLevel`,
   `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
@@ -170,19 +183,26 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
   list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
   region's pairs are laid in its place: no pair past the list, none drawn for a page left unread.
-  The list is the region cull's kept list, free once the host's batches are encoded, grown to the
-  need: the seal hands the pairs every region counted to the host in the pool's snapshot, and the
-  kept list grows by the tables' own path (`growKeptList`, the occlusion test's list with it) —
-  asked of the shadow grant, then of the device under an out-of-memory scope, never past one storage
-  binding (`pairGrowth.ts`) —, so it overflows only at the grant or the device's ceiling, each a
-  pressure by name (`pairs-over-grant`, `pairs-refused`). The seal makes each admitted page
+  The list is the region cull's kept list, free once the host's batches are encoded, at a size
+  fixed by the pool and never grown after (#831), as the reference engine's culling buffers are
+  (`a reference setting`): `poolPairs` = the pool's pages × `PAIRS_PER_PAGE` (a page's
+  128² texels over the 32 a kept cluster covers at least, 512), grown once to it by the tables' own
+  path (`growKeptList`, the occlusion test's list with it) — asked of the shadow grant, then of the
+  device under an out-of-memory scope, never past one storage binding (`pairGrowth.ts`) —, each
+  refusal a pressure by name (`pairs-over-grant`, `pairs-refused`). The pool's bytes a frame shows
+  (`shadowPoolBytes`) are thus the ones it was set to, whatever the frames count. The seal makes each admitted page
   readable; each pool layer's pass clears its pages and draws every pair in two indirect draws,
   casters placed on their page in the vertex stage and kept to it by the fragment, no viewport set
   (`freshPass.ts`, `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for
-  blended casters. The host redraws a page with its light cut and static layer once a report names
-  it, the GPU's draw readable meanwhile (`DRAWN_GPU`) — unless what it holds moves in the world: the
-  host then sends its word marked withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw
-  loses its depth as a host one does; the mark never enters the table. So a page read first in a
+  blended casters. A page is drawn once, as the reference engine draws it: the snapshot says which pages the
+  GPU's own draw holds (`drawnBy`), and the host adopts those current, without their static layer
+  (`pool.keepDraw`, #831) — never drawn again until what they hold changes, then drawn whole, layer
+  and all (`DRAW_FULL`). What a page holds moving in the world, the host sends its word marked
+  withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw loses its depth as a host one
+  does; the mark never enters the table. A mover also withdraws, while the GPU maps, the entries
+  it covers that the host does not map yet (`invalidate.ts`): a page the GPU drew frames before the
+  host's snapshot came back is drawn again in this frame (`withdrawGpuDraw`, `wordsWgsl.ts`), so no
+  old silhouette of a moving car trails it, a page row each. So a page read first in a
   frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
   world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
   none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`).
