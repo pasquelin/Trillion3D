@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sphereArrays, turnPoint } from './sphere.ts';
+import { near as within } from '../../math/near.fixture.ts';
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`);
 
@@ -28,12 +29,14 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
       5, 2, -7, 5, 2, -7, 5, 2, -7, 5, 2, -7, 5, 2, -7, 5,
     ],
   );
-  assert.deepEqual(
+  within(
     s.normals,
     [
-      0, 1, 0, 0, 1, 0, -0, 1, 0, 0, 1, -0, 0, 1, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, -1, 1, 0, 0,
-      0, -1, 0, 0, -1, 0, -0, -1, 0, 0, -1, -0, 0, -1, 0,
+      0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, -1, 1, 0, 0, 0,
+      -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
     ],
+    'normals',
+    1e-12,
   );
   assert.deepEqual(
     s.uv,

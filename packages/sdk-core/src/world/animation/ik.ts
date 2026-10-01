@@ -157,8 +157,12 @@ export function solveTwoBoneIK(
   worldPoint(end, c);
   subVector3(ac, c, a);
   crossVector3(plane, ac, at);
-  // Opposite collinear directions need a half-turn around any perpendicular axis.
-  if (!length(plane) && dotVector3(ac, at) < 0) across(plane, ac);
+  // Opposite collinear directions need a half-turn: about the bend's own normal, which keeps both
+  // bones in their plane, or about any perpendicular axis when the chain is straight.
+  if (!(length(plane) > 1e-9 * length(ac) * length(at)) && dotVector3(ac, at) < 0) {
+    crossVector3(plane, ac, subVector3(ab, worldPoint(mid, b), a));
+    if (!(length(plane) > tiny)) across(plane, ac);
+  }
   turnInWorld(root, plane, angle(ac, at));
   // Align the solved elbow with the pole around the target axis, preserving the endpoint.
   if (pole && length(at)) {

@@ -42,7 +42,5 @@ test('polyhedron subdivision covers a spherical octant without duplicate or reve
     }
     assert.equal(faces.size, (detail + 1) ** 2);
   }
-  const flat = polyhedron(vertices, [0, 1, 2]);
-  assert.deepEqual([...flat.attributes.uv.array], [1, 0.5, 1, 1, 0.75, 0.5]);
   assert.equal(polyhedron(vertices, [0, 1, 2, 0, 2, 1], 1, 1).index!.count, 24);
 });

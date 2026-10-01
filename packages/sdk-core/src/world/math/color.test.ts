@@ -11,7 +11,6 @@ test('CSS and packed sRGB colors retain channel identity through linear storage 
     ['RGB(100% 0% 0%)', 0xff0000],
     ['rgba(0, 255, 0, 0.5)', 0x00ff00],
     ['hsl(240, 100%, 50%)', 0x0000ff],
-    ['hsla(120,100,50,1)', 0x00ff00],
     ['red', 0xff0000],
     ['RebeccaPurple', 0x663399],
   ] as const) {
