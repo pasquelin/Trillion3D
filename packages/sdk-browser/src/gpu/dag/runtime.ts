@@ -53,9 +53,16 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
-  // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
-  // before #1333, and the rows' flags go up as they are.
+  // A packed world DAG reads the scene's residency through its mirror (#1332), fed by the rows
+  // taken and parked and the world bundles held (#1333); without it the rows' flags go up as they
+  // are.
   const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world });
+  /** What the world DAG's mirror moved outside the rows' residency goes up now: a cut in hand
+   *  drew under the residency before. */
+  const handWorld = () => {
+    const { flags, changes } = mirror!.flush();
+    if (changes.count && uploadResidency?.(flags, changes)) voidCuts();
+  };
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -115,6 +122,17 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       packed.mark[w] = mark;
       // The mark travels behind the record shift (`primitiveFrameWords`).
       writeFrameWord(w, 3, mark);
+    },
+    placeWorld(w, object) {
+      if (state.disposed || state.dead || !mirror) return;
+      mirror.seat(w, object);
+      handWorld();
+    },
+    holdWorldBundles(pinned, held) {
+      if (state.disposed || state.dead || !mirror) return false;
+      mirror.holdBundles(pinned, held);
+      handWorld();
+      return true;
     },
     updateResidency(next, changes, moved) {
       if (state.disposed || state.dead || !uploadResidency) return false;

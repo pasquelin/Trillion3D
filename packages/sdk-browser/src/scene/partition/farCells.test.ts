@@ -45,7 +45,7 @@ const leave = (cell: number) => void left.push(cell);
 
 test('while no cut packs the world DAG, the plan is the cells own and the DAG is unread', () => {
   const { index, world, placed, far } = partition();
-  const plan = far.plan(index, local, eye, undefined, leave);
+  const plan = far.plan(index, local, eye, {}, leave);
   assert.deepEqual(plan, planCells(index, eye, reach, placed));
   assert.deepEqual(plan.visible, [0, 1, 2, 3], 'every cell within reach has its objects read');
   assert.deepEqual([world.streams, world.held, plan.far], [0, [], []], 'nothing is held far');
@@ -54,12 +54,12 @@ test('while no cut packs the world DAG, the plan is the cells own and the DAG is
 test('once the cut packs it, the cells its super-roots draw are held far, their bundles held', async () => {
   const { index, world, placed, far } = partition();
   // The first frame asks the bound once; until it lands, the plan is unchanged.
-  const first = far.plan(index, local, eye, lens, leave);
+  const first = far.plan(index, local, eye, { lens }, leave);
   assert.deepEqual(first, planCells(index, eye, reach, placed));
-  far.plan(index, local, eye, lens, leave);
+  far.plan(index, local, eye, { lens }, leave);
   assert.equal(world.streams, 1, 'the stream opens once');
   await Promise.resolve();
-  const plan = far.plan(index, local, eye, lens, leave);
+  const plan = far.plan(index, local, eye, { lens }, leave);
   assert.deepEqual(plan.far, [0, 1, 2, 3], 'every cell found is held by its super-roots');
   assert.deepEqual(world.held, plan.far, 'each holds its world bundles');
   // A cell whose super-roots move a shown pixel past the target has its objects read.
@@ -71,9 +71,9 @@ test('once the cut packs it, the cells its super-roots draw are held far, their 
   await new Promise(setImmediate); // the holds land
   // Placed since, a cell lets its far hold go; a cut that no longer packs the world DAG lets all go.
   placed.set(needed[0], {});
-  far.plan(index, local, eye, lens, leave);
+  far.plan(index, local, eye, { lens }, leave);
   assert.deepEqual(world.released, [needed[0]]);
-  far.plan(index, local, eye, undefined, leave);
+  far.plan(index, local, eye, {}, leave);
   assert.deepEqual(world.released.toSorted(), [0, 1, 2, 3]);
 });
 
@@ -82,14 +82,14 @@ test('a placed cell the cut no longer needs is demoted, its world bundles held b
   // A target every cell's super-roots meet within the keep margin: a placed cell gives back its objects.
   const worst = Math.max(...xs.map((_, cell) => cellSuperRootError(bounds, cell, eye, lens)));
   const coarse = { ...lens, pixelError: 2 * worst };
-  far.plan(index, local, eye, coarse, leave);
+  far.plan(index, local, eye, { lens: coarse }, leave);
   await Promise.resolve();
-  assert.deepEqual(far.plan(index, local, eye, coarse, leave).far, [0, 1, 2, 3]);
+  assert.deepEqual(far.plan(index, local, eye, { lens: coarse }, leave).far, [0, 1, 2, 3]);
   await new Promise(setImmediate); // the holds land
   placed.set(0, {});
   const held = world.held.length;
   let holdsBeforeLeave = -1;
-  const plan = far.plan(index, local, eye, coarse, (cell) => {
+  const plan = far.plan(index, local, eye, { lens: coarse }, (cell) => {
     holdsBeforeLeave = world.held.length - held;
     placed.delete(cell);
   });

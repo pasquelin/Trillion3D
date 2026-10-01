@@ -31,6 +31,10 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array;
   /** Rows that fit before it grows. */
   readonly capacity: number;
+  /** Per row, the world-roots object it places (its object roots' `origin`, docs/FORMAT.md, World
+   *  super-roots), -1 for none: written by a partition's cells, read by the cut that packs the
+   *  world DAG (#1333). */
+  origins?: Int32Array;
 };
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -57,6 +61,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.matrices.set(before.matrices);
     rows.live.set(before.live);
     rows.shadowless.set(before.shadowless);
+    if (before.origins) (rows.origins = new Int32Array(rows.capacity).fill(-1)).set(before.origins);
   }
   return rows;
 }

@@ -25,7 +25,7 @@ function scene() {
     manifest = ruleDag(8);
   const packed = packDagSelection([...Array.from({ length: OBJECTS }, () => manifest), world]);
   const mirror = createWorldResidencyMirror({ ...packed, world: packed.world! });
-  world.origins.forEach((origin, rank) => origin < 0 && mirror.superRoot(rank, true));
+  mirror.holdBundles(Math.max(...world.bundles) + 1, []);
   const rows = new Uint32Array(packed.cutLinks[OBJECTS].pageBase);
   const { pageBase } = packed.cutLinks[OBJECTS];
   /** The world DAG's slice of the mirror, as the oracle reads it. */

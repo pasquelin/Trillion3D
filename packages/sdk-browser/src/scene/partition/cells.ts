@@ -33,8 +33,7 @@ import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts';
 import { heldSide, rowsAt, rungOf } from './sizing.ts';
 import { createCellPlacements } from './placements.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
-import { createFarCells } from './farCells.ts';
-import type { SuperRootLens } from './superRoots.ts';
+import { createFarCells, type FarCut } from './farCells.ts';
 
 type Inputs = {
   partition: TablePartition;
@@ -54,7 +53,7 @@ export function createPartitionCells(inputs: Inputs) {
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>();
   const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages, world);
-  const rows = createCellPlacements(root, parents, meshes);
+  const rows = createCellPlacements(root, parents, meshes, world?.table?.cells);
   const { held, touched } = rows;
   const far = createFarCells(world, held);
   /** Cells a mesh short of rows keeps waiting; the rung the rows are sized for (`RUNGS`: every
@@ -119,9 +118,7 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void;
         grow?: PlacementGrowth;
         outgrown?: () => void;
-        /** The cut's lens while it packs the world DAG (#1332): far cells, held by super-roots. */
-        lens?: SuperRootLens;
-      },
+      } & FarCut, // the cut's side while it packs the world DAG (#1332, #1333)
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
       rows.follow();
@@ -132,7 +129,7 @@ export function createPartitionCells(inputs: Inputs) {
         const rung = Math.min(RUNGS, Math.max(local.rung, sized + 2));
         if (!io.grow || !resize(rung, io.grow)) io.outgrown?.();
       }
-      const plan = far.plan(index, local, eye, io.lens, leave);
+      const plan = far.plan(index, local, eye, io, leave);
       plan.leave.forEach(leave);
       io.forget(index.forgotten());
       waiting = 0;

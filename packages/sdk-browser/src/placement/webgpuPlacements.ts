@@ -8,14 +8,21 @@ import {
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows, MOVE_NONE } from './update.ts';
-import { placedBy, type PlacementRows } from './rows.ts';
+import { placedBy, type PlacementOf, type PlacementRows } from './rows.ts';
 
-/** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
-export const flipWorld =
-  (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
-    rt.run.gpuSelection?.parkWorld(rank, !!root.parked);
-    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0);
-  };
+type Flipped = { parked?: boolean; mark?: number; placement?: PlacementOf };
+
+/** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut, with the
+ *  world-roots object its row places while the row is taken, which the world DAG's residency
+ *  mirrors (#1333): a host that hides the mesh hides it, its super-root does not stand in. */
+export const flipWorld = (rt: WebgpuPagesRuntime) => (rank: number, root: Flipped) => {
+  const cut = rt.run.gpuSelection,
+    at = root.placement;
+  cut?.parkWorld(rank, !!root.parked);
+  cut?.markWorld(rank, root.mark ?? 0);
+  const origins = at?.rows.live[at.index] ? at.rows.origins : undefined;
+  cut?.placeWorld?.(rank, origins && at ? origins[at.index] : -1);
+};
 
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
