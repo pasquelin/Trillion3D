@@ -48,6 +48,9 @@ const RECEIVER_OFFSET_FN_WGSL = `fn receiverOffset(pixel:vec2f)->vec3f{
  let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
  // The side the shading lights: a two-sided surface seen from behind lights its back (#1344).
  let lit=select(1.0,face,(page.materialClass&${CLASS_FEATURE.DOUBLE_SIDED}u)!=0u);
+ // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`, #831).
+ let plane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
+ if(dot(plane,plane)>0.0){shadowReceiverNormal=normalize(plane);}
  return shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
 }`;
 
