@@ -16,6 +16,7 @@ import {
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts';
 import { encodeBlend, prepareBlend } from './encodeBlend.ts';
+import { encodeBlendShadowMarks } from '../../blend/marks.ts';
 import { viewProj } from '../helpers.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -41,8 +42,9 @@ export function encodeSurfaceLighting(
   invertMatrix4(inverseViewProj, viewProj);
   // The transparents are selected and ordered first: their runs mark the shadow pages they read
   // before any page is mapped (#1411). Shadows and light lists encode before resolve, its inputs.
-  const blend = prepareBlend(rt, encoder, true);
-  const direct = encodeDirectLights(rt, device, encoder, cam, viewProj, blend);
+  const blendRuns = prepareBlend(rt, device, encoder, true);
+  const marks = blendRuns ? () => encodeBlendShadowMarks(rt, device, encoder) : undefined;
+  const direct = encodeDirectLights(rt, device, encoder, cam, viewProj, marks);
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -70,7 +72,7 @@ export function encodeSurfaceLighting(
   const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);
   encodeShadowReadback(rt, encoder);
-  encodeBlend(rt, device, encoder, uniformBase, true, blend);
+  encodeBlend(rt, device, encoder, uniformBase, true, blendRuns);
   drawParticles(rt, encoder, directTiles());
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt);

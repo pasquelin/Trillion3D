@@ -20,27 +20,23 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 export { encodeSurfaceLighting } from './surfaceLighting.ts';
 
-/**
- * What an image's transparents were prepared to before its lights (`prepareBlend`): drawn by the
- * fallback pass, or by the blend runs, expanded once (`expandBlend`) — before the shadow pages
- * are mapped where they mark the pages they read (`../../blend/marks.ts`, #1411).
- */
-export type BlendFrame = { textured: boolean; expanded: boolean; prepareMs: number };
-
 /** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
 const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam.eye : undefined);
 
 /**
- * The transparents of an image, selected and ordered, ahead of anything that reads them: none
- * without the pass's resources. The compaction reads the mask this very frame's cluster cut wrote,
- * a few commands earlier in the same buffer, and writes the instance list the runs draw from.
+ * The transparents of an image, selected, ordered and expanded ahead of anything that draws them:
+ * `undefined` without the pass's resources, else whether the blend runs draw them (`true`) or the
+ * fallback pass does — the runs mark the shadow pages they read before any page is mapped
+ * (`../../blend/marks.ts`, #1411). The compaction reads the mask this very frame's cluster cut
+ * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from.
  */
 export function prepareBlend(
   rt: WebgpuPagesRuntime,
+  device: GPUDevice,
   encoder: GPUCommandEncoder,
   composes: boolean,
-): BlendFrame | undefined {
-  const { gpu, vis, run, blendState } = rt;
+): boolean | undefined {
+  const { gpu, vis, run, timing, blendState } = rt;
   if (
     !gpu.pipelineBlend ||
     !blendState.blendGpu.length ||
@@ -66,44 +62,35 @@ export function prepareBlend(
   if (!textured && !gpu.bindGroupLayout) return undefined;
   const cpuStart = performance.now();
   encodeTransparentInstances(rt, encoder);
-  // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
-  // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
   if (textured) {
+    // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
+    // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
     boundWaterPass(rt, composes, viewProj);
     run.blendFrustumRejected = orderBlendPasses(blendState, blendEye(rt));
+    // The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU.
+    encodeBlendExpansion(rt, device, encoder);
   }
-  return { textured, expanded: false, prepareMs: performance.now() - cpuStart };
+  const elapsed = performance.now() - cpuStart;
+  timing.transparentPrepareMs += elapsed;
+  timing.transparentEncodeMs += elapsed;
+  return textured;
 }
 
-/** The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU:
- *  once an image, by the first pass that draws the runs. */
-export function expandBlend(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  frame: BlendFrame,
-) {
-  if (frame.expanded) return;
-  frame.expanded = true;
-  encodeBlendExpansion(rt, device, encoder);
-}
-
-/** Draws the transparents of an image, prepared before its lights (`prepareBlend`), else here. */
+/** Draws the transparents of an image, as `prepareBlend` prepared them (`textured`). */
 export function encodeBlend(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
   composes: boolean,
-  before?: BlendFrame,
+  textured: boolean | undefined,
 ) {
   const { run, timing, blendState, diag } = rt;
   // Every image path reaches this stage: the particles step here, beside the water.
   encodeParticles(rt, device, encoder);
-  const frame = before ?? prepareBlend(rt, encoder, composes);
-  if (!frame) return;
+  if (textured === undefined) return;
   const cpuStart = performance.now();
-  if (!frame.textured) {
+  if (!textured) {
     run.blendFrustumRejected = selectWebgpuBlend(
       blendState,
       run.gpuFrameActive
@@ -120,18 +107,17 @@ export function encodeBlend(
     ensureUniform(rt, device, uniformBase + draws.length / DRAW_WORDS);
     writeFallbackBlendUniforms(rt, device, uniformBase, draws);
     const ready = performance.now();
-    timing.transparentPrepareMs += frame.prepareMs + ready - cpuStart;
+    timing.transparentPrepareMs += ready - cpuStart;
     drawFallbackBlendPass(rt, device, encoder, uniformBase, draws);
     timing.transparentDrawMs += performance.now() - ready;
-    timing.transparentEncodeMs += frame.prepareMs + performance.now() - cpuStart;
+    timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
   }
   writeBlendView(rt, device);
   // Resolve lighting resources once; a real resource voids a placeholder's bind group.
   voidStaleBlendGroups(rt, blendLightResources(rt));
-  expandBlend(rt, device, encoder, frame);
   const prepared = performance.now();
-  timing.transparentPrepareMs += frame.prepareMs + prepared - cpuStart;
+  timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
   // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
   // Without the pass — a diagnostic view or variant, a second-camera capture, an image no
@@ -140,7 +126,7 @@ export function encodeBlend(
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
-  timing.transparentEncodeMs += frame.prepareMs + finished - cpuStart;
+  timing.transparentEncodeMs += finished - cpuStart;
   if (diag.traceEnabled)
     diag.traceDiagnostic(
       'transparent-encoding',

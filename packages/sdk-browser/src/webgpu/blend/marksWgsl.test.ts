@@ -29,6 +29,7 @@ const marks = shaderRun<{
   MARKS_WGSL,
   [
     'markBlendShadows',
+    'demandSlice',
     'demandLight',
     'demandSun',
     'demandPages',
