@@ -24,7 +24,14 @@ test('a key the pool takes is noted for each placement at its arrival, before an
   };
   const mirror = createWebgpuResidencyMirror({
     table: {
-      pageIndicesByUrl: new Map([['k', [0, 2]]]),
+      // Key `k` at packed ranks 0 and 2: two placements of one primitive page.
+      instances: {
+        each(key: string, visit: (packed: number) => void) {
+          if (key === 'k') [0, 2].forEach((packed) => visit(packed));
+          return key === 'k';
+        },
+        first: (key: string) => (key === 'k' ? 0 : undefined),
+      },
       residentOffsetWords: new Int32Array(3).fill(-1),
     },
     tracking: createWebgpuPageTracking([]),

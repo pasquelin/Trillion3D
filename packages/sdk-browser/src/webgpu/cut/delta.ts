@@ -1,6 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 
 /**
  * Published difference, and what can be asked of it.
@@ -69,7 +69,7 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * The GPU cut arrives there by its ids (`apply`), the CPU cut by its records (`adoptRecords`): one
  * contract, and readers do not know which one decides.
  */
-export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
+export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDelta {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages);
   /** Epoch of the shown list where the id was last held; an id held by neither list has none. */

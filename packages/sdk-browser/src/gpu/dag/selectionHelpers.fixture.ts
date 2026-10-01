@@ -54,7 +54,7 @@ export function kernelUrls(
     kernelUniforms(dag, roots, camera, pixelError),
     resident && ruleResidency(dag, resident),
   );
-  return { result, urls: (result[field] ?? []).map((id) => dag.pageUrls[id]).sort() };
+  return { result, urls: (result[field] ?? []).map((id) => dag.pageUrlOf(id)).sort() };
 }
 
 export function cpuUrls(

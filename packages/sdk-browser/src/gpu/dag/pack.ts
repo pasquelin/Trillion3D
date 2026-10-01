@@ -18,7 +18,6 @@ import { createRecordTable } from './packRecords.ts';
  * shift leads the page to its record (`layout.ts`). Nodes stay per placement.
  */
 export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
-  const pageUrls: string[] = [];
   // Every primitive descends the same hierarchy: the manifest's, or the one packing
   // gives it — once per page array, so placements sharing their pages share it too.
   // One path, and level descent never has a page range without a root.
@@ -109,7 +108,6 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0;
     pageWorlds.fill(w, pageBase, pageBase + root.pages.length);
     for (const rec of root.pages) {
-      pageUrls.push(rec.url);
       if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)))
         rootClusters++;
     }
@@ -142,7 +140,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     recordCount: records.count,
     recordShift,
     rootCount: rootClusters,
-    pageUrls,
+    pageUrlOf: pageUrlReader(roots, cutLinks, pageCones, clusterCount),
     cutLinks,
   };
 }
@@ -170,4 +168,24 @@ export function rootTranslationsToRenderOrigin(
 ) {
   for (let w = 0; w < roots.length; w++)
     translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+}
+
+/**
+ * A page's url is its placement's shared record, the placement read from the page's world word
+ * (as `readiness.ts` does): nothing more is stored per page (#1235), as a cluster instance reads
+ * its primitive's clusters from its base. Built outside `packDagSelection` so the reader keeps
+ * only these, not the packing's working state.
+ */
+function pageUrlReader(
+  roots: readonly DagRoot[],
+  cutLinks: readonly DagCutLinks[],
+  pageCones: Float32Array,
+  pageCount: number,
+) {
+  const worldOfPage = new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCount);
+  return (page: number) => {
+    if (!(page >= 0 && page < pageCount)) return undefined;
+    const w = worldOfPage[page];
+    return roots[w]?.pages[page - cutLinks[w].pageBase]?.url;
+  };
 }

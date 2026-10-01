@@ -37,7 +37,7 @@ async function sequence(
     const result = await selection.flush();
     if (!result) throw new Error('GPU_SELECTION_FAILED');
     images.push({
-      pages: result.pageIds.map((id) => packed.pageUrls[id]).sort(),
+      pages: result.pageIds.map((id) => packed.pageUrlOf(id)!).sort(),
       frustumRejected: result.frustumRejected,
     });
   }

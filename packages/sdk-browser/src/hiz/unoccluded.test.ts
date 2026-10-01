@@ -22,7 +22,7 @@ type Tagged = HizPage & { tag: number; matrix: G.Matrix4 };
 
 function box(min: number[], max: number[], tag: number) {
   // The oracles read the world on the page, as pages carried it; the engine reads it on root 0.
-  return { min, max, placementIndex: 0, matrix: new G.Matrix4(), tag } as Tagged;
+  return { min, max, matrix: new G.Matrix4(), tag } as Tagged;
 }
 
 /** Splits `pages` with both implementations and asserts the same occluders and rest, by tag. */

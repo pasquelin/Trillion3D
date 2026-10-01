@@ -11,7 +11,7 @@
  * copies lay their own tables out at open (#483): a growth they read is refused, and the owner
  * opens the session again.
  */
-import { countCopies } from '../webgpu/pages/prepare/layout.ts';
+import { countRootCopies } from '../webgpu/pages/prepare/layout.ts';
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts';
 import { postPackedBases } from '../page/selection/placements.ts';
 import { reserveRootBoxes } from '../math/batchBoxes.ts';
@@ -47,17 +47,19 @@ export function growWebgpuPlacements(
 ) {
   const { layout, setup, services, run } = rt,
     { selectionRoots, packedPages, rows } = layout;
-  const first = packedPages.length;
+  const first = packedPages.length,
+    grown = selectionRoots.length;
   for (const { item: root } of growRowRoots(selectionRoots, from, to)) {
-    // The new row reads the primitive's own shared records (#1235): each becomes one more packed
-    // instance, and the placement tables below say which root it belongs to.
-    for (const page of root.pages) packedPages.push(page);
-    countCopies(layout.copies, root.pages);
     selectionRoots.push(root);
     setup.roots.push(root);
   }
-  if (packedPages.length === first) return;
-  layout.placement = postPackedBases(selectionRoots);
+  // The new rows read their primitive's own shared records (#1235): nothing is stored per page,
+  // the placement tables rewritten in place say which root each new packed rank belongs to, and
+  // the pool's copies count each primitive page once by its new placements.
+  const added = selectionRoots.slice(grown);
+  if (!added.some((root) => root.pages.length)) return;
+  countRootCopies(layout.copies, added);
+  postPackedBases(selectionRoots, layout.placement); // in place: readers hold this object
   layout.opaquePageCount += packedPages.length - first;
   rows.addPages(first);
   const worlds = new Float32Array(selectionRoots.length * 16);

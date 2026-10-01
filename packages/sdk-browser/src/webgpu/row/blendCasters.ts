@@ -9,7 +9,7 @@ import {
 } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 import { NO_ROW } from './noRow.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
@@ -43,7 +43,7 @@ export interface BlendRowMap {
  */
 export function createBlendCasterRows(
   rows: Rows,
-  packedPages: readonly PageRec[],
+  packedPages: PageList,
   writePageRow: Writer,
   onCoverageChange: (rec: PageRec, page: number) => void = () => {},
 ) {

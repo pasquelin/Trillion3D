@@ -27,7 +27,7 @@ for (const [side, pages] of [
     packedWorldsToRenderOrigin(dag, roots, [0, 0, 0]);
     const run = sunRun(side, [0, 0, 0], [...pages]);
     const gpu = evaluateDagSelectionKernel(dag, run.uniforms)
-      .pageIds.map((id) => dag.pageUrls[id])
+      .pageIds.map((id) => dag.pageUrlOf(id))
       .sort();
     const viewport = [1, 1] as [number, number];
     const camera = faceEngineCamera(run, createEngineCamera(), viewport);

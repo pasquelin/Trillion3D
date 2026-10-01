@@ -7,6 +7,7 @@ import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts';
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
 import type { StreamPage } from './types.ts';
 import { servedPages } from './servedPages.fixture.ts';
+import { dagPageUrls } from '../gpu/dag/pack.fixture.ts';
 import { sha256Hex } from '../measurement/sha256Hex.ts';
 
 const TRANSFER = 64;
@@ -26,16 +27,16 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   const fixture = dagFixture(),
     camera = wideCamera();
   const { dag } = packed(fixture);
-  const { pages, fetched } = await servedPages(dag.pageUrls);
+  const { pages, fetched } = await servedPages(dagPageUrls(dag));
   const cache = createPageCache(1024 * 1024);
   /** The cut drawn from what `streamer` holds: the GPU pool is filled from it. */
   const cut = (streamer: ReturnType<typeof open>) => {
-    const resident = Uint32Array.from(dag.pageUrls, (url) => Number(streamer.has(url)));
+    const resident = Uint32Array.from(dagPageUrls(dag), (url) => Number(streamer.has(url)));
     return kernelUrls(fixture, 1, camera, resident, 'drawablePageIds').urls;
   };
   // Every page of the fixture: the cut draws a group only once its members and the groups above
   // it are resident (#486), and this DAG is small enough to hold whole.
-  const wanted = [...dag.pageUrls];
+  const wanted = dagPageUrls(dag);
   const before = open(pages, cache);
   await before.request(wanted);
   const drawn = cut(before);

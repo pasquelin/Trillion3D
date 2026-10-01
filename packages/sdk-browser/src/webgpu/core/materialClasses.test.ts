@@ -44,7 +44,7 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'the cut-out flag is set');
   assert.equal(floats[19], 0.5, 'the material alpha threshold travels with the row');
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
-  const blend = Object.assign(collected.roots[1].pages[0], { placementIndex: 1 });
+  const blend = collected.roots[1].pages[0];
   writeRow(blend, 0, 0, 0, floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, false);
   assert.equal(floats[19], 1);
