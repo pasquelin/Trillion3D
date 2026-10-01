@@ -3142,10 +3142,10 @@
       "ids": "Tên nguồn sáng của mỗi khe.",
       "count": "Có bao nhiêu nguồn sáng.",
       "epoch": "Tăng lên khi tập hợp các nguồn sáng thay đổi.",
-      "transportEpoch": "Tăng cùng epoch, trừ khi chỉ sương mù thay đổi: sương mù là một số hạng của tia nhìn, không phải của sự truyền ánh sáng, nên thứ lưu đệm ánh sáng đã truyền (các đầu dò phản xạ) vẫn giữ nó.",
+      "transportEpoch": "Phiên bản truyền ánh sáng, không tính sương mù và liên kết lát bóng phụ thuộc vào khung nhìn.",
       "environment": "Môi trường của cảnh đó.",
       "lightingView": "Góc nhìn mà ứng dụng chủ yêu cầu, nguyên trạng: `auto` chừng nào nó chưa yêu cầu gì cả.",
-      "unlit": "Đúng khi hình ảnh phải xuất ra dưới dạng albedo thô, không có ánh sáng. Đây là hành vi mặc định chừng nào chưa có nguồn sáng nào được khai báo: một cảnh không có nguồn sáng thì không có gì để chiếu sáng, và một hình ảnh đen sẽ chẳng giúp ích gì cho bài đo hình học nào. Ngay khi một nguồn sáng tồn tại, ánh sáng thật sẽ tiếp quản — trừ khi ứng dụng chủ đã yêu cầu rõ ràng góc nhìn chẩn đoán.",
+      "unlit": "Khi không có đèn, hiển thị albedo gốc trừ khi máy chủ chọn rõ một chế độ xem chiếu sáng.",
       "setView": "Đặt những gì ứng dụng chủ yêu cầu xem.",
       "light": "Bản ghi được giữ, của riêng kho lưu trữ: các bộ máy đọc nó trên đường xử lý khung hình và không sao chép gì cả. Không dành cho ứng dụng chủ — API công khai đưa ra các bản sao `cloneSceneLight`.",
       "slotOf": "Khe của một nguồn sáng.",
@@ -3154,7 +3154,8 @@
       "remove": "Gỡ bỏ một nguồn sáng.",
       "setEnvironment": "Đặt môi trường đó.",
       "assignSlice": "Ghi lại lát atlas mà một nguồn sáng chiếm, mà không chạm vào các trường còn lại của nó. Số phiên bản của kho lưu trữ chỉ tăng nếu lát đó thực sự thay đổi: nếu không, không có gì được đẩy tới GPU.",
-      "capacity": "Số ô bảng giữ: bộ đệm nguồn sáng GPU dài bằng này."
+      "capacity": "Số ô bảng giữ: bộ đệm nguồn sáng GPU dài bằng này.",
+      "contentEpoch": "Phiên bản nội dung ánh sáng, không tính liên kết lát bóng phụ thuộc vào khung nhìn."
     }
   },
   "SceneLightingView": {
@@ -3376,7 +3377,7 @@
       "table": "Bảng trang: một từ cho mỗi trang ảo, và khoảng mà mỗi đèn giữ trong đó.",
       "pool": "Các trang vật lý của bể và trang ảo mà mỗi trang giữ.",
       "sun": "Clipmap của mỗi mặt trời: hệ khung, khoảng độ sâu, mức mịn nhất và các vùng của nó.",
-      "records": "Các lát bóng, một cho mỗi đèn đổ bóng.",
+      "records": "Các lát bóng dùng chung cho đèn và tách riêng cho từng nguồn sáng mặt trời và khung nhìn.",
       "requests": "Các báo cáo yêu cầu đã đọc về: những gì báo cáo mới nhất nêu, cấp phát hoặc từ chối.",
       "admission": "Các trang của khung hình này, theo từng góc nhìn ánh sáng.",
       "stamp": "Những gì phép tô bóng, các đèn và góc nhìn trao cho ảnh kế tiếp: một báo cáo đóng dấu bằng nó mà không nêu gì mới chứng minh ảnh chỉ đọc những gì đã vẽ.",
@@ -3385,7 +3386,13 @@
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách.",
       "size": "Pool ở kích thước thiết bị đã cấp (`webgpu/shadow/poolSize.ts`), một lần, trước khi bất kỳ trang nào được ánh xạ: sau đó không bao giờ đổi kích thước, nên không trang nào đổi chỗ (#831).",
       "sunWindow": "Số trang mỗi cạnh của clipmap mặt trời mà một phiên chạy với (`referenceMode.ts`).",
-      "gpu": "Việc cấp phát của GPU (`mirror.ts`): GPU có ánh xạ các trang không, và máy chủ yêu cầu gì ở nó."
+      "gpu": "Việc cấp phát của GPU (`mirror.ts`): GPU có ánh xạ các trang không, và máy chủ yêu cầu gì ở nó.",
+      "eachSlice": "Duyệt các lát bóng của mỗi khung nhìn đang hoạt động cùng nguồn sáng của chúng.",
+      "keptFrom": "Khung hình cũ nhất mà một khung nhìn đang hoạt động vẫn cần các trang bóng của nó.",
+      "registerView": "Dành chỗ cho một khung nhìn trong ngân sách bóng dùng chung, hoặc từ chối trước khi vẽ.",
+      "useView": "Chọn trạng thái bóng phụ thuộc vào máy ảnh cho một khóa khung nhìn ổn định.",
+      "removeView": "Giải phóng các lát bóng mặt trời của khung nhìn và trả các trang về vùng dùng chung.",
+      "receiver": "Ghi lại khung nhìn hiện tại và thứ tự gửi cho báo cáo GPU sau này."
     }
   },
   "ShadowStaleReason": {
@@ -5017,8 +5024,7 @@
     }
   },
   "createShadowPlan": {
-    "summary": "Bộ lập lịch bóng của các bản đồ ảo.",
-    "description": "Tô bóng ghi lại các trang nó đọc; báo cáo của chúng, được đọc lại vài khung hình sau, cấp phát phần thiếu từ pool cố định. Những gì di chuyển làm cũ các trang đã ánh xạ mà nó phủ. Sau đó một khung hình vẽ mọi trang cũ mà ảnh đọc, tất cả trong khung hình đó: thứ giữ chi phí là bộ nhớ đệm — một trang chỉ được vẽ lại khi nội dung của nó thay đổi —, và pool là giới hạn duy nhất. Một cảnh tĩnh, có tô bóng không còn chạy, không yêu cầu gì và không vẽ gì. Mọi mảng được cấp phát một lần; `plan()` không cấp phát gì."
+    "summary": "Vùng và bảng bóng dùng chung, với lịch máy ảnh độc lập cho mỗi khung nhìn đang hoạt động."
   },
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",
@@ -7674,7 +7680,9 @@
       "stamp": "Con dấu của kế hoạch khi khung đó được mã hóa (`ShadowPlan.stamp`).",
       "count": "Các mục được yêu cầu, có thể nhiều hơn `entries` chứa: phần còn lại yêu cầu lại ở khung sau.",
       "entries": "Các mục được yêu cầu, tối đa `count` mục đầu.",
-      "pool": "Kho của bộ cấp phát GPU sau lần cấp phát của khung hình đó, khi GPU cấp phát."
+      "pool": "Kho của bộ cấp phát GPU sau lần cấp phát của khung hình đó, khi GPU cấp phát.",
+      "submission": "Thứ tự gửi của máy chủ, gồm các khung nhìn riêng được vẽ trong cùng một khung hình.",
+      "generation": "Phiên bản vòng đời của lát khi yêu cầu báo cáo GPU."
     }
   },
   "VehicleDriver": {

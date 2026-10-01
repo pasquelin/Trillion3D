@@ -75,10 +75,12 @@ export function createShadowAdmission(poolPages: number) {
       latest: number,
       frame: number,
       isFloor: (page: number) => boolean,
+      active?: Uint8Array,
     ) {
       let count = 0;
       for (let page = 0; page < pool.pages; page++) {
-        if (pool.owner[page] < 0 || !pool.dirty[page]) continue;
+        if (pool.owner[page] < 0 || !pool.dirty[page] || (active && !active[pool.slice[page]]))
+          continue;
         if (pool.requested[page] < latest) pool.withdraw(table, page);
         else {
           const floor = isFloor(page);

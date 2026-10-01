@@ -35,7 +35,8 @@ export function createSceneLightStore() {
   let environment: SceneEnvironment | undefined,
     view: SceneLightingView = 'auto',
     epoch = 1,
-    fogOnly = 0;
+    fogOnly = 0,
+    sliceOnly = 0;
   /** Twice the room, content kept: N lights cost log N copies. */
   const grow = () => {
     capacity = Math.max(capacity * 2, 32);
@@ -80,10 +81,13 @@ export function createSceneLightStore() {
     get epoch() {
       return epoch;
     },
-    /** Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not
-     *  light transport, so what caches transported light (the bounce probes) keeps it. */
+    /** Light transport revision, excluding fog and view-dependent shadow slice bindings. */
     get transportEpoch() {
-      return epoch - fogOnly;
+      return epoch - fogOnly - sliceOnly;
+    },
+    /** Light content revision, excluding view-dependent shadow slice bindings. */
+    get contentEpoch() {
+      return epoch - sliceOnly;
     },
     /** The scene's environment. */
     get environment() {
@@ -93,12 +97,7 @@ export function createSceneLightStore() {
     get lightingView(): SceneLightingView {
       return view;
     },
-    /**
-     * True when the image must come out as raw albedo, with no light. This is the default
-     * behaviour as long as no light is declared: a scene without a source has nothing to light, and a
-     * black image would help no geometry bench. As soon as a light exists, real lighting
-     * takes over — unless the host has explicitly asked for the diagnostic view.
-     */
+    /** No light means raw albedo unless the host explicitly chooses a lighting view. */
     get unlit() {
       return view === 'unlit' || (view === 'auto' && ids.length === 0);
     },
@@ -190,9 +189,10 @@ export function createSceneLightStore() {
     },
     /** Records the atlas slice a light occupies, without touching the rest of its fields. The store
      *  revision only rises if the slice actually changed: otherwise nothing is pushed to the GPU. */
-    assignSlice(slot: number, slice: number) {
+    assignSlice(slot: number, slice: number, viewOnly = false) {
       if (sliceOf(slot) === slice) return;
       writeSlice(slot, slice);
+      if (viewOnly) sliceOnly++;
       epoch++;
     },
   };

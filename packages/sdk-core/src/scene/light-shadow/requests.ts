@@ -15,11 +15,14 @@ import {
   sunFloorLevel,
 } from './virtual.ts';
 import { lampEntry, sunEntry } from './pageModel.ts';
-
 /** What the shading read in one frame: the table entries it asked for, in no order. */
 export interface ShadowRequestReport {
   /** Frame whose shading wrote the report. */
   frame: number;
+  /** Host submission order, including separate views rendered in the same frame. */
+  submission?: number;
+  /** Slice lifecycle revision when the GPU report was requested. */
+  generation?: number;
   /** Table layout that frame read with (`ShadowTable.layoutEpoch`). */
   layoutEpoch: number;
   /** The plan's stamp when that frame was encoded (`ShadowPlan.stamp`). */
@@ -38,10 +41,8 @@ export interface ShadowRequestReport {
 export type ShadowAsks = { entries: Uint32Array; count: number };
 
 /**
- * Reads a request report back: every page the shading asked for is either touched — mapped, it
- * becomes the most recently requested — or allocated. Allocation goes coarse first, then by
- * table entry: which pages a full pool refuses is the same every run, and a finer page falls
- * back to the coarser one under it (`shadowSunCoarseness`, `shadowLampCoarseness`).
+ * Reads requests, touching mapped pages and allocating coarse entries first. Finer pages fall
+ * back to their coarser page (`shadowSunCoarseness`, `shadowLampCoarseness`).
  *
  * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`),
  * mapped first and never evicted while anything above it is read. A sun asks every frame for the
@@ -163,12 +164,13 @@ export function createShadowRequests(
       frame: number,
       cycle = heldCycle,
       gpu?: ShadowAsks,
+      active?: Uint8Array,
     ) {
       reportFrame = counts.latest;
       heldCycle = cycle;
       asking = gpu;
       for (let slice = 0; slice < posed.length; slice++) {
-        if (records.kind[slice] < 0) continue;
+        if (records.kind[slice] < 0 || (active && !active[slice])) continue;
         if (!gpu && !isSun(slice) && posed[slice] <= counts.latest) continue;
         if (!gpu) needs.clear();
         if (isSun(slice)) {
