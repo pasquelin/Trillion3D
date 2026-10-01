@@ -2949,7 +2949,7 @@
     "summary": "Versi paket mesin ini."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Float volume culling: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk kotak, ditandai setengah sudut negatif — dua sumbu lainnya dengan setengah panjangnya, lalu kata yang menyatakan pembuat bayangan mana yang digambar wilayah, tampilan potongan cahaya yang memilihnya, dan dua pengisi."
+    "summary": "Float volume culling: pusat dan bidang jauh, sumbu muka dan setengah sudut, lalu — untuk kotak, ditandai setengah sudut negatif — dua sumbu lainnya dengan setengah panjangnya, lalu kata yang menyatakan pembuat bayangan mana yang digambar wilayah, tampilan potongan cahaya yang memilihnya, texel per meter halaman matahari (`underTexel`, `cullShader.ts`), dan satu pengisi."
   },
   "SHADOW_PAGE": {
     "summary": "Sisi halaman bayangan, dalam texel: satuan pool, peta virtual, dan invalidasi."

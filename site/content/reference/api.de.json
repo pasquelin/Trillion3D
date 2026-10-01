@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` setzt unsere zurück: keine Sitzung erbt sie."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, und zwei zum Auffüllen."
+    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, die Texel pro Meter einer Sonnenseite (`underTexel`, `cullShader.ts`) und eine zum Auffüllen."
   },
   "SHADOW_PAGE": {
     "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."

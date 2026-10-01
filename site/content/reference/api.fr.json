@@ -5590,7 +5590,7 @@
     "description": "`null`/`undefined` remet la nôtre : aucune session n’hérite."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Flottants du volume d’une région : centre et plan lointain, axe de la face et demi-angle, puis — pour une boîte, signalée par un demi-angle négatif — les deux autres axes avec leurs demi-étendues."
+    "summary": "Flottants du volume d’une région : centre et plan lointain, axe de la face et demi-angle, puis — pour une boîte, signalée par un demi-angle négatif — les deux autres axes avec leurs demi-étendues, puis le mot qui dit quels projeteurs la région dessine, la vue de la coupe de lumière qui les a choisis, les texels par mètre d’une page du soleil (`underTexel`, `cullShader.ts`), et un de remplissage."
   },
   "SHADOW_PAGE": {
     "summary": "Côté d’une page de l’atlas, en texels : la case d’invalidation d’une face."
