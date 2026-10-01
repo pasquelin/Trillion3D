@@ -87,6 +87,10 @@ export function fundFrameTargets(
   record();
 }
 
+/** The pools' funding beside the frames still in flight, if any: no frame waits for it, but a
+ *  target grant and a capture do, so two fundings never move the pools at once. */
+export const poolFundingPending = (rt: WebgpuPagesRuntime) => grantPending(refreshing.get(rt));
+
 /**
  * The targets in place fit: the pools are funded again beside the frames, never holding one —
  * like the reference's streaming pool, a budget moves quality, never presentation (#1362). A
@@ -97,7 +101,7 @@ export function refreshTargetGrant(
   size: FrameSize,
   refuse: (error: unknown) => void,
 ) {
-  const pending = grantPending(refreshing.get(rt));
+  const pending = poolFundingPending(rt);
   if (pending) return pending;
   const refresh = refreshTargetFunding(rt, size);
   if (!refresh) return;

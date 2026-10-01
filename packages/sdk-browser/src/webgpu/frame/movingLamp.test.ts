@@ -22,7 +22,7 @@ function lampScene(lights: SceneLight[]) {
     lights: {
       store,
       buffer: {} as GPUBuffer,
-      tiles: { wide: store.count > store.settings.tileLights, buffer: {} as GPUBuffer },
+      tiles: { buffer: {} as GPUBuffer },
       shadows: { dataBuffer: {} as GPUBuffer, view: {} as GPUTextureView },
     },
     bounce: { wanted: false },
@@ -35,45 +35,40 @@ function lampScene(lights: SceneLight[]) {
   return { store, rt };
 }
 
-/** A fake device that counts every program it compiles, on the thread or off it. */
-function countingDevice() {
-  const { device } = fakeDevice();
-  const compiles = { count: 0 };
-  const off = device.createRenderPipelineAsync.bind(device),
-    on = device.createRenderPipeline.bind(device);
-  device.createRenderPipelineAsync = (descriptor) => (compiles.count++, off(descriptor));
-  device.createRenderPipeline = (descriptor) => (compiles.count++, on(descriptor));
-  return { device, compiles };
+/** That session prepared: its lit programs compiled as prepare does, a landing counted. */
+async function preparedLamps(lights: SceneLight[]) {
+  const { store, rt } = lampScene(lights);
+  // Every program the device compiles, on the thread or off it.
+  const { device, renderPipelines: compiles } = fakeDevice();
+  const landed = { count: 0 };
+  const lighting = await createDeferredLighting(
+    device,
+    () => landed.count++,
+    undefined,
+    litPrograms(rt),
+  );
+  await lighting.litReady;
+  return { store, rt, lighting, compiles, prepared: compiles.length, landed };
 }
 
 for (const [name, lights] of Object.entries(LAMP_SCENES))
   test(`${name}: the scene opens, its first frame lit by the program prepare compiled`, async () => {
-    const { rt } = lampScene(lights);
-    const { device, compiles } = countingDevice();
-    let redrawn = 0;
-    const lighting = await createDeferredLighting(device, () => redrawn++, undefined, {
-      ...litPrograms(rt),
-    });
-    await lighting.litReady;
-    const prepared = compiles.count;
+    const { rt, lighting, compiles, prepared, landed } = await preparedLamps(lights);
     // No shadow page drawn yet: no light holds a slot, and the frame asks the same program.
     const direct = directLightResources(rt);
     assert.equal(lighting.awaited(direct), undefined, 'the first frame is not held: it opens');
     lighting.bind(surface, view(), view(), true, direct);
     assert.equal(lighting.usesContract, true, 'lit at once');
-    assert.equal(compiles.count, prepared, 'the first frame compiles nothing');
-    assert.equal(redrawn, 0, 'nor waits for an arrival');
+    // A compile the frame started would have reached the device by now.
+    await new Promise((done) => setImmediate(done));
+    assert.equal(compiles.length, prepared, 'the first frame compiles nothing');
+    assert.equal(landed.count, 0, 'nor waits for an arrival');
   });
 
 test('a moving lamp asks no other program and redraws nothing, frame after frame', async () => {
-  const { store, rt } = lampScene(LAMP_SCENES['a-ring-of-lamps, shadows on']);
-  const { device, compiles } = countingDevice();
-  let redrawn = 0;
-  const lighting = await createDeferredLighting(device, () => redrawn++, undefined, {
-    ...litPrograms(rt),
-  });
-  await lighting.litReady;
-  const prepared = compiles.count;
+  const { store, rt, lighting, compiles, prepared, landed } = await preparedLamps(
+    LAMP_SCENES['a-ring-of-lamps, shadows on'],
+  );
   for (let frame = 0; frame < 120; frame++) {
     const angle = frame * 0.05;
     store.set('lamp0', { position: [Math.cos(angle) * 2, 2.5, Math.sin(angle) * 2] });
@@ -84,13 +79,13 @@ test('a moving lamp asks no other program and redraws nothing, frame after frame
     lighting.bind(surface, view(), view(), true, direct);
   }
   await new Promise((done) => setImmediate(done));
-  assert.equal(compiles.count, prepared, 'no program compiled after prepare');
-  assert.equal(redrawn, 0, 'no program landing asked a redraw');
+  assert.equal(compiles.length, prepared, 'no program compiled after prepare');
+  assert.equal(landed.count, 0, 'no program landing asked a redraw');
   assert.equal(lighting.usesContract, true);
 });
 
 test('frame targets made again at another size compile their seed program once', async () => {
-  const { device, compiles } = countingDevice();
+  const { device, renderPipelines: compiles } = fakeDevice();
   for (const [width, height] of [
     [1728, 1120],
     [3456, 2234],
@@ -98,5 +93,5 @@ test('frame targets made again at another size compile their seed program once',
   ])
     createAsIsShare(device, view(), width, height).dispose();
   await new Promise((done) => setImmediate(done));
-  assert.equal(compiles.count, 1, 'one program, whatever the targets');
+  assert.equal(compiles.length, 1, 'one program, whatever the targets');
 });
