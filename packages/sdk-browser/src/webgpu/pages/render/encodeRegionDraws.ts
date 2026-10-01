@@ -6,7 +6,7 @@ import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
 import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
 import { REGION_RESTORE } from '../../shadow/regions.ts';
 import { pagePlan } from '../../shadow/pagePasses.ts';
-import { shadowRegionGroup } from '../../shadow/regionGroups.ts';
+import { drawnBins, shadowRegionGroup } from '../../shadow/regionGroups.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -62,7 +62,8 @@ export function encodeBins(
   count: number,
   visible: boolean,
 ) {
-  const { bins, cull, occlusion, mobilityRows, shadows } = rt.lights,
+  const { cull, occlusion, mobilityRows, shadows } = rt.lights,
+    bins = drawnBins(rt.lights),
     pages = rt.vis.pageTable;
   if (!bins || !cull || !mobilityRows || !shadows || !pages || (visible && !occlusion)) return;
   const [list, counts] = visible
@@ -105,18 +106,18 @@ export function drawRegionCasters(
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
   const pool = 'cutout' in draws ? draws : undefined,
-    { mobility, bins } = rt.lights,
+    { mobility } = rt.lights,
+    bins = drawnBins(rt.lights),
     cutouts = mobility.hasCutouts;
+  const classes = bins ? SHADOW_BIN_CLASSES : 1;
   let current: GPURenderPipeline | undefined,
-    drawn = 0,
-    commands: GPUBuffer,
-    at = 0;
+    drawn = 0;
   // A list's command, or its bins' — a class no row holds is not drawn (OMB-26).
-  const draw = (pipeline: GPURenderPipeline, list: number) => {
-    for (let c = 0; c < (bins ? SHADOW_BIN_CLASSES : 1); c++) {
+  const draw = (pipeline: GPURenderPipeline, commands: GPUBuffer, at: number, list: number) => {
+    for (let c = 0; c < classes; c++) {
       if (bins && !mobility.binHolds(c)) continue;
       if (pipeline !== current) pass.setPipeline((current = pipeline));
-      pass.drawIndirect(commands, at + (bins ? list * SHADOW_BIN_CLASSES + c : list) * STRIDE);
+      pass.drawIndirect(commands, at + (list * classes + c) * STRIDE);
       drawn++;
     }
   };
@@ -132,12 +133,13 @@ export function drawRegionCasters(
     pass.setScissorRect(x, y, side, side);
     pass.setBindGroup(0, group);
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
-    commands = bins ? bins.commands : visible ? occlusion!.visibleIndirect : cull!.indirect;
-    at = region * (bins ? SHADOW_BIN_REGION_BYTES : SHADOW_REGION_INDIRECT_BYTES);
+    const commands = bins ? bins.commands : visible ? occlusion!.visibleIndirect : cull!.indirect,
+      at = region * (bins ? SHADOW_BIN_REGION_BYTES : SHADOW_REGION_INDIRECT_BYTES);
     if (pool) {
-      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, 0);
-      if (cutouts) draw(pool.cutout, 1);
-    } else for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, 0);
+      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, commands, at, 0);
+      if (cutouts) draw(pool.cutout, commands, at, 1);
+    } else
+      for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, commands, at, 0);
   }
   return drawn;
 }

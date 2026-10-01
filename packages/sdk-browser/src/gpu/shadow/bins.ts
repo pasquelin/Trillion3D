@@ -45,9 +45,10 @@ export interface ShadowBinSource {
 export async function createShadowBins(device: GPUDevice, capacity: number, asked: boolean) {
   const label = 'Trillion3D shadow binned clusters v1',
     fits = (rows: number) =>
-      rows * BIN_STORED_STRIDE * KEPT_ROW_BYTES <= storageBufferCap(device.limits);
+      rows * BIN_STORED_STRIDE * KEPT_ROW_BYTES <= storageBufferCap(device.limits),
+    strideOf = (store: boolean) => (store ? BIN_STORED_STRIDE : 1);
   let stored = asked && fits(capacity),
-    list = keptList(device, capacity * (stored ? BIN_STORED_STRIDE : 1), label);
+    list = keptList(device, capacity * strideOf(stored), label);
   const commands = device.createBuffer({
     label: 'Trillion3D shadow bin commands v1',
     size: MAX_SHADOW_REGIONS * SHADOW_BIN_REGION_BYTES,
@@ -82,10 +83,17 @@ export async function createShadowBins(device: GPUDevice, capacity: number, aske
     );
     const words = new Uint32Array(BIN_UNIFORM_WORDS);
     const groups: Array<{ group: GPUBindGroup; bound: GPUBuffer[] } | undefined> = [];
+    const sameBound = (bound: GPUBuffer[], from: ShadowBinSource) =>
+      bound[0] === from.list &&
+      bound[1] === from.counts &&
+      bound[2] === from.mobility &&
+      bound[3] === list &&
+      bound[5] === from.pages &&
+      bound[6] === from.views;
     const groupOf = (run: number, from: ShadowBinSource) => {
-      const bound = [from.list, from.counts, from.mobility, list, commands, from.pages, from.views];
       const held = groups[run];
-      if (held && held.bound.every((buffer, i) => buffer === bound[i])) return held.group;
+      if (held && sameBound(held.bound, from)) return held.group;
+      const bound = [from.list, from.counts, from.mobility, list, commands, from.pages, from.views];
       const group = device.createBindGroup({
         layout,
         entries: [uniform, ...bound].map((buffer, binding) => ({
@@ -103,7 +111,7 @@ export async function createShadowBins(device: GPUDevice, capacity: number, aske
       },
       /** Words a place takes: its row, and its stored matrix. */
       get stride() {
-        return stored ? BIN_STORED_STRIDE : 1;
+        return strideOf(stored);
       },
       get list() {
         return list;
@@ -138,7 +146,7 @@ export async function createShadowBins(device: GPUDevice, capacity: number, aske
        *  without its matrices from the size one binding no longer holds them. */
       grow(rows: number) {
         const keep = stored && fits(rows),
-          next = keptList(device, rows * (keep ? BIN_STORED_STRIDE : 1), label);
+          next = keptList(device, rows * strideOf(keep), label);
         return pendingBuffers([next], () => {
           const old = list;
           list = next;
