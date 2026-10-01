@@ -92,7 +92,7 @@ test('a record this module did not build is returned untouched', () => {
 
 test('the face bin of a draw follows a side switched in place, so no face is culled for nothing', () => {
   const material = G.basicSurface({ side: G.FRONT_SIDE });
-  const rec = { material: surfaceOf(material), placementIndex: 0 } as unknown as PageRec,
+  const rec = { material: surfaceOf(material) } as unknown as PageRec,
     roots = identityRoots();
   assert.equal(visBin(rec, 0, roots), BIN_BACK, 'front-only: the back faces are culled');
   material.side = G.DOUBLE_SIDE;

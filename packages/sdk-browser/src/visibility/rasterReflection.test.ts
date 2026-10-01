@@ -27,7 +27,6 @@ function page(side: number): VisPage {
   return {
     array: new Uint32Array([0, 1, 2, 3, 4, 5]),
     attributes: geometrie.attributes,
-    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side })),
   };
 }

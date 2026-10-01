@@ -1,4 +1,36 @@
 import type { PageRec } from './types.ts';
+import type { PlacementIndex } from './placements.ts';
+
+/**
+ * The packed instances of a layout, stored as nothing per instance (#1235): a rank is resolved
+ * through the placement tables to its root and the root's shared `pages`, the way an instance of
+ * the reference engine's cluster resolves a cluster as its primitive's page offset plus the instance's base.
+ */
+export type PackedPages = {
+  readonly length: number;
+  recordOf(packed: number): PageRec | undefined;
+};
+
+/** A list of packed pages: a flat array (a fixture, the autonomous backend) or a layout's view. */
+export type PageList = readonly PageRec[] | PackedPages;
+
+/** The packed pages of `roots` as `placement` ranks them, read live: a growth that rewrites the
+ *  tables in place (`postPackedBases(roots, placement)`) is followed with no copy. */
+export function createPackedPages(
+  roots: readonly { readonly pages: readonly PageRec[] }[],
+  placement: PlacementIndex,
+): PackedPages {
+  return {
+    get length() {
+      return placement.rootOfPacked.length;
+    },
+    recordOf(packed: number) {
+      if (!(packed >= 0 && packed < placement.rootOfPacked.length)) return undefined;
+      const root = placement.rootOfPacked[packed];
+      return roots[root]?.pages[packed - placement.baseOfRoot[root]];
+    },
+  };
+}
 
 /**
  * The one catalogue accessor of an engine.
@@ -14,7 +46,10 @@ import type { PageRec } from './types.ts';
  */
 export type PageCatalogue = ReturnType<typeof createPageCatalogue>;
 
-export function createPageCatalogue(packedPages: readonly PageRec[]) {
-  const recordOf = (packed: number) => (packed >= 0 ? packedPages[packed] : undefined);
+export function createPageCatalogue(packedPages: PageList) {
+  const recordOf =
+    'recordOf' in packedPages
+      ? packedPages.recordOf
+      : (packed: number) => (packed >= 0 ? packedPages[packed] : undefined);
   return { recordOf };
 }

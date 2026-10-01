@@ -122,13 +122,11 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     {
       array: indices.get('0')!,
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
     },
     {
       array: indices.get('1')!,
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
     },
   ];

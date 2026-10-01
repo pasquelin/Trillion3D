@@ -1,4 +1,5 @@
 import type { PageRec } from '../selection/selection.ts';
+import { createPageCatalogue, type PageList } from '../selection/catalogue.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import type { PlacementIndex } from '../selection/placements.ts';
 import type { IdDelta } from '../../webgpu/cut/delta.ts';
@@ -31,7 +32,7 @@ export function createGroupClosure(
   /** The per-placement tables: the packed base of each root, the root of each packed rank (#1235). */
   placement: PlacementIndex,
   /** The packed catalogue `forEachHeld` resolves ids in. */
-  packedPages: readonly PageRec[] = [],
+  packedPages: PageList = [],
 ) {
   /** Holders per group and per page, and the pages whose count moved in this difference with
    *  whether each was held before it (1 no, 2 yes). */
@@ -51,6 +52,7 @@ export function createGroupClosure(
   let /** What a walk does: counts `step` on what it reaches, or hands each page to `visitor`. */
     step = 0,
     visitor: ((id: number, rec: PageRec) => void) | undefined;
+  const { recordOf } = createPageCatalogue(packedPages);
   const baseOf = (r: number) => placement.baseOfRoot[r] ?? 0;
   const touchId = (id: number, rec: PageRec) => {
     if (visitor) return visitor(id, rec);
@@ -89,7 +91,7 @@ export function createGroupClosure(
     else touchId(id, rec);
   };
   const enter = (id: number) => {
-    const rec = packedPages[id];
+    const rec = recordOf(id);
     if (rec) enterAs(id, rec);
   };
   const endWalk = () => {
@@ -124,7 +126,7 @@ export function createGroupClosure(
     },
     /** Visits every page the cut closes over now, beside its record, in no particular order. */
     forEachHeld(visit: (id: number, rec: PageRec) => void) {
-      heldPages.forEach((id) => visit(id, packedPages[id]));
+      heldPages.forEach((id) => visit(id, recordOf(id)!));
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {

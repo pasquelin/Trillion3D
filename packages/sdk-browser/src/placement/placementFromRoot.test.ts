@@ -1,5 +1,5 @@
 // #1226 step A: a page record carries no placement values. Every reader takes the world, the row
-// and the winding from the root its `placementIndex` names, so a placement is no longer copied
+// and the winding from the root that places it, so a placement is no longer copied
 // into each of its pages — the step before one record per primitive (#1235).
 // #1233 step B1: the cut publishes its instances as packed catalogue ranks, and the consumers read
 // a record back through the one accessor, `recordOf`.
