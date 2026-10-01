@@ -36,14 +36,16 @@ const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 
 /**
  * Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a
  * box, flagged by a negative half-angle — the two other axes with their half-extents, then the
- * word that says which casters the region draws, the light-cut view that selected them, and two
- * of padding.
+ * word that says which casters the region draws, the light-cut view that selected them, a sun
+ * page's texels per metre (`underTexel`, `cullShader.ts`), and one of padding.
  */
 export const SHADOW_CULL_FLOATS = 20;
 /** Float of a cull volume that carries which casters its region draws. */
 export const SHADOW_CULL_CASTERS = 16;
 /** Float of a cull volume that carries the view of the frame's light cut its region reads. */
 export const SHADOW_CULL_VIEW = 17;
+/** Float of a sun page's cull volume that carries its texels per metre, as the GPU pages' (#831). */
+export const SHADOW_CULL_TEXEL = 18;
 
 /**
  * Writes the view-projection matrix of a lamp face at its slot in `matrices`, and, if the cull

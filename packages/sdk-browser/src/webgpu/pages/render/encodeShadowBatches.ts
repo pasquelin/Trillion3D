@@ -1,3 +1,4 @@
+import { DRAW_DYNAMIC } from '../../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
 import { shadowBatchWrites } from '../../../gpu/shadow/batchWrites.ts';
 import { shadowPagesPerFrame } from '../../../gpu/shadow/batchBudget.ts';
@@ -17,31 +18,50 @@ import type { WebgpuLightState } from '../state/lights.ts';
  * At most the frame's capacity (`frameBatchCapacity`): the current pool's pages in the fewest
  * pages a batch holds, within the memory grant. More than `MAX_SHADOW_BATCHES` full batches stale
  * at once, or a view limit bisected after a light cut dropped work, needs more; the pages past the
- * last are then pending, drawn the next frame; so are those past the frame's page budget
- * (`shadowPagesPerFrame`), a batch at most past it. An empty list visits no batch.
+ * last are then pending, drawn the next frame; so are those past the frame's static fill
+ * (`shadowPagesPerFrame`), a batch at most past it: the pages whose still casters a batch
+ * rasterises (`staticFills`), never its restores (#831). An empty list visits no batch.
  */
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
   visit: (from: number, to: number, runBase: number) => boolean,
   { views, batches } = frameBatchCapacity(rt),
+  budget = shadowPagesPerFrame(rt.lights.plan.pool.pages),
 ) {
   const { plan, runs } = rt.lights,
     { admission } = plan,
-    count = admission.count,
-    budget = shadowPagesPerFrame(rt.lights.plan.pool.pages);
+    count = admission.count;
   let runBase = 0,
-    from = 0;
-  for (let batch = 0; from < count && from < budget && batch < batches; batch++) {
-    const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views);
+    from = 0,
+    fills = 0;
+  for (let batch = 0; from < count && fills < budget && batch < batches; batch++) {
+    const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views),
+      // Counted before the batch: once encoded, its pages are current (`plan.commit`).
+      filled = staticFills(rt.lights, from, to);
     if (!visit(from, to, runBase)) break;
+    fills += filled;
     runBase += runs.count;
     from = to;
   }
   return from;
 }
 
+/** Of the listed pages `[from, to)`, those a batch draws their still casters for: every one
+ *  without a static layer, else those whose layer is stale (`pool.drawMode`, `DRAW_DYNAMIC` the
+ *  restores). */
+function staticFills(lights: WebgpuLightState, from: number, to: number) {
+  const { pool, admission, records } = lights.plan,
+    layer = !!lights.staticLayer;
+  let fills = 0;
+  for (let i = from; i < to; i++) {
+    const page = admission.list[i];
+    if (pool.drawMode(page, layer, records.rangeOf(page)) !== DRAW_DYNAMIC) fills++;
+  }
+  return fills;
+}
+
 /**
- * THE FRAME'S SHADOW PAGES, UP TO ITS PAGE BUDGET (`shadowPagesPerFrame`). The plan lists every stale page
+ * THE FRAME'S SHADOW PAGES, UP TO ITS STATIC FILL (`shadowPagesPerFrame`). The plan lists every stale page
  * the image reads (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and one light
  * cut's views, so the list is drawn batch after batch in the frame's command buffer, each batch's
  * writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's pages

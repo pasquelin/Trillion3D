@@ -2933,7 +2933,7 @@
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Texeln der gelesenen Karte: ein halbes Texel, der Spielraum für das, was nicht die Ebene des Empfängers ist — seine Krümmung innerhalb eines Texels, die Rundung beider Tiefen. Die Neigung des Empfängers deckt ein Tiefenspielraum über die Reichweite des PCF ab, jenseits von 45° ein weiterer Versatz, in denselben Texeln (`shadowDepthMargin`, `shadowNormalTexels`): kein Bias ist eine Länge der Szene.",
-      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels. Ein Bild zeichnet die Seiten, die es markiert, in so vielen Stapeln wie nötig, höchstens die Seiten einer Pool-Ebene pro Bild; die übrigen werden in den nächsten Bildern gezeichnet und bis dahin in der gröberen Stufe gelesen.",
+      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels. Ein Bild zeichnet die Seiten, die es markiert, in so vielen Stapeln wie nötig, höchstens seine statische Füllung, ein Zweiunddreißigstel des Pools pro Bild; die übrigen werden in den nächsten Bildern gezeichnet und bis dahin in der gröberen Stufe gelesen.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSize`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` setzt unsere zurück: keine Sitzung erbt sie."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, und zwei zum Auffüllen."
+    "summary": "Gleitkommazahlen eines Cull-Volumens: Mittelpunkt und ferne Ebene, Flächenachse und halber Winkel, dann — für eine Box, markiert durch einen negativen halben Winkel — die zwei anderen Achsen mit ihren halben Ausdehnungen, dann das Wort, das sagt, welche Schattenwerfer die Region zeichnet, die Lichtschnitt-Ansicht, die sie ausgewählt hat, die Texel pro Meter einer Sonnenseite (`underTexel`, `cullShader.ts`) und eine zum Auffüllen."
   },
   "SHADOW_PAGE": {
     "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."

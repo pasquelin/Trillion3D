@@ -18,11 +18,16 @@ coarser levels stand in for pages not drawn yet: a frame asks for at most
 hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
 finest mip is 32 × 32 pages (`lampFaceSize`).
 
-**The pool is fixed, as Unreal's** (#831). It holds what the display's whole screen reads, or the canvas as it opens if wider (`shadowPoolScreen`), so a window put full screen later keeps its pages —
-one shadowed light's smooth read and a third more while pages wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉`
-pages (`screenPoolPages`): 2 601 at 3456 × 2234, 163 MiB of depth, above falling-boxes' 2 000 —,
-chosen once as Unreal sets `r.Shadow.Virtual.MaxPhysicalPages`, or what the session's
-`shadowPoolPages` option sets; lights past the first share it. It lies in the fewest square layers the device's texture side holds
+**The pool is fixed, as Unreal's** (#831). Its setting is bytes, the hard cap of all the shadows
+hold — the pool, its static layer, its request and allocation buffers, the pairs' share of the kept
+lists (`SHADOW_POOL_SETTING_BYTES`, `webgpu/shadow/poolSetting.ts`): 360 088 288 bytes, what one
+shadowed light reads over the maintainer's screen — its smooth read and a third more while pages
+wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`screenPoolPages`), 2 601 at 3456 × 2234, 163 MiB of
+depth, above falling-boxes' 2 000. The pages follow from it (`shadowPoolWithin`), whatever the
+display or the canvas, chosen once as Unreal sets `r.Shadow.Virtual.MaxPhysicalPages`, or fewer when
+the session's `shadowPoolPages` option asks fewer: a wider screen reads the pages past them at the
+coarser level, never grows the pool past its setting. The blended casters' transmittance layer, made
+only for a scene that has them, is held beside it (`transmittanceGrant.ts`); lights past the first share it. It lies in the fewest square layers the device's texture side holds
 (`shadowPoolShape`), within the memory budget's pool (`SHADOW_ATLAS_BYTES`). It is granted at the
 first frame that casts, before any report, so no first frame reads a coarser level for want of
 pages, and never resized after: a page keeps its place, its depth, its static layer and its table
@@ -258,7 +263,14 @@ So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts
 `moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
 coarse level, lying between the depth texels' centres and the transmittance layer's, a sixteenth of
 a texel of slack aside — writes no texel there before or after it moves: that level's pages keep
-(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moved root whose clusters are all it draws —
+(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moving caster goes further: a sun level whose
+texel is wider than its sphere draws it into none of its pages (`underTexel`, `cullShader.ts`, the
+GPU pages' cull too), so a box of moving casters whose diagonal is under that texel stales none
+there, as Unreal culls a caster too small for a clipmap level; a cluster's sphere spans at most the
+diagonal of a box that holds it, with a sixteenth of slack for the GPU's f32. Its shadow there would
+be under a pixel: the level is read where a texel is about a pixel's footprint
+(`moverUnderTexel.test.ts`, `underTexel.test.ts`, #831). A still caster is always drawn: the static
+layer keeps it. A moved root whose clusters are all it draws —
 every page a leaf, as a run-time primitive's — declares each cluster's box at both poses rather
 than its own box, which holds what lies between them: a ring turning in its plane stales the pages
 along it and keeps its hollow's, a gear the pages under its disc and teeth

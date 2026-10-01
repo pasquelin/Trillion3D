@@ -4,7 +4,7 @@ import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { FULL_FACE } from './volume.ts';
 import { LAMP_MIPS, SHADOW_PAGE, SUN_LEVELS, lampFacesOf, lampPagesAt } from './virtual.ts';
-import { sunPageMetres } from './pageModel.ts';
+import { PAGES, sunPageMetres } from './pageModel.ts';
 
 /** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
 const VIEWS = Math.max(SUN_LEVELS, POINT_FACES * LAMP_MIPS);
@@ -36,6 +36,13 @@ export function createPageRects() {
   let faces = 0,
     near = 0;
 
+  /** View `view` covers no page. */
+  function emptyRect(view: number) {
+    rects[view * 4] = rects[view * 4 + 2] = 0;
+    rects[view * 4 + 1] = rects[view * 4 + 3] = -1;
+    return 0;
+  }
+
   /**
    * Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` meeting `plane`
    * carried to pages, `(plane + offset) · scale`, edges included. Returns the pages covered. None
@@ -49,11 +56,7 @@ export function createPageRects() {
       right = (plane[1] + offset) * scale,
       top = (plane[2] + offset) * scale,
       bottom = (plane[3] + offset) * scale;
-    if (!holdsSample(left, right) || !holdsSample(top, bottom)) {
-      rects[r] = rects[r + 2] = 0;
-      rects[r + 1] = rects[r + 3] = -1;
-      return 0;
-    }
+    if (!holdsSample(left, right) || !holdsSample(top, bottom)) return emptyRect(view);
     rects[r] = Math.max(x0, Math.ceil(left) - 1);
     rects[r + 1] = Math.min(x0 + n - 1, Math.floor(right));
     rects[r + 2] = Math.max(y0, Math.ceil(top) - 1);
@@ -64,9 +67,24 @@ export function createPageRects() {
   }
 
   /** The pages of every clipmap level the box covers, within the level's extent: a page meets the
-   *  box's light-plane rectangle, edges included. Returns the pages covered. */
-  function sunRects(sun: SunLevels, slice: number, min: ArrayLike<number>, max: ArrayLike<number>) {
+   *  box's light-plane rectangle, edges included. A box of moving casters alone (`moving`) covers
+   *  none at a level it is under a texel of: none of them is drawn there, as Unreal culls a caster
+   *  too small for a clipmap level's texels (#831). Returns the pages covered. */
+  function sunRects(
+    sun: SunLevels,
+    slice: number,
+    min: ArrayLike<number>,
+    max: ArrayLike<number>,
+    moving = false,
+  ) {
     sunBoxRect(sun.frame, slice * 9, min, max, plane, 0);
+    // A moving box whose diagonal spans less than 15/16 of a level's texel is under it: the cull
+    // draws no moving caster whose sphere is under a texel into that level's pages (`underTexel`,
+    // `cullShader.ts`), and a cluster's sphere spans at most the diagonal of a box that holds it —
+    // the slack keeps the f32 of the GPU's test on the same side.
+    const reach = moving
+      ? (16 / 15) * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2])
+      : NaN;
     // A bound that is no number — `NaN`, or `0 · ∞` on an axis the frame does not lean on — bounds
     // nothing on that side: the box covers the extent's edge there, never none.
     for (let side = 0; side < 4; side++)
@@ -76,7 +94,8 @@ export function createPageRects() {
       const level = sun.finest[slice] + view;
       const ox = sun.originOf(slice, level, 0),
         oy = sun.originOf(slice, level, 1);
-      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.windowPages);
+      if (reach < PAGES.shadowSunTexelMetres(level)) emptyRect(view);
+      else covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.windowPages);
     }
     return covered;
   }

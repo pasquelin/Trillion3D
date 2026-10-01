@@ -45,8 +45,12 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  return vec4f(0.0);
 }`;
 
-/** The bounded ray: clipped as the full walk's (`reflectionExit`), then walked over the pyramid
- *  within `REFLECTION_TRACE_STEPS`. A hit reads the reprojected source, whose alpha tells a pixel
+/** The bounded ray: from its receiver lifted one pixel's footprint along the normal
+ *  (`shadowFootprint`, which both callers set first), clipped as the full walk's (`reflectionExit`),
+ *  then walked over the pyramid within `REFLECTION_TRACE_STEPS`. Unlifted, a glossy ray leaving its
+ *  plane at a grazing angle met that plane's own depth a pixel or two on — a pixel centre's depth
+ *  inside the ray's span over it — and read the receiver back: the dark grain of a glossy car roof
+ *  (#831). Lifted, the plane's depth over the next pixels stays behind the ray. A hit reads the reprojected source, whose alpha tells a pixel
  *  the last image did not see: a miss. A miss reads the program's filtered reflection at the first
  *  roughness the probes filter — never a proxy ray per pixel. A rough sample (#33) and the water's
  *  mirror (#1279) resolve their ray by it alike. */
@@ -54,7 +58,7 @@ export const HIZ_TRACE_WGSL = `${HIZ_WALK_WGSL}
 fn screenReflectionHiZ(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
 }
 fn boundedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
- let hit=screenReflectionHiZ(P,R);
+ let hit=screenReflectionHiZ(P+N*shadowFootprint,R);
  if(hit.a!=0.0){return hit.rgb;}
  return filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END});
 }`;
