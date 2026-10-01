@@ -12,7 +12,7 @@ import {
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
 import { shadowPoolShapeOf } from './poolSize.ts';
-import { SHADOW_POOL_SETTING_BYTES, shadowHeldBytes } from './poolSetting.ts';
+import { SHADOW_POOL_SETTING_BYTES, shadowPoolWithin } from './poolSetting.ts';
 import { shadowPoolHeld, shadowPoolShown } from './memoryGrant.ts';
 import { disposeStaticLayer } from '../pages/state/lights.ts';
 import { BIN_STORED_STRIDE } from '../../gpu/shadow/binShader.ts';
@@ -88,13 +88,19 @@ test('the held bytes are the setting on a large display and on its canvas alike'
   // A device of narrower layers takes the most pages the setting holds, never more bytes.
   const narrow = shadowPoolShapeOf({}, { maxTextureDimension2D: 4096 });
   assert.deepEqual(narrow, { side: 29, layers: 3 });
-  assert.ok(shadowHeldBytes(narrow.side, narrow.layers) <= SHADOW_POOL_SETTING_BYTES);
-  assert.ok(shadowHeldBytes(52) > SHADOW_POOL_SETTING_BYTES, 'one more side would pass it');
+  assert.ok(shadowPoolWithin(SHADOW_POOL_SETTING_BYTES, 32).heldBytes <= SHADOW_POOL_SETTING_BYTES);
+  // The setting's own pool, the most pages it holds, holds it whole.
+  assert.deepEqual(shadowPoolWithin(SHADOW_POOL_SETTING_BYTES), {
+    side: 51,
+    layers: 1,
+    heldBytes: SHADOW_POOL_SETTING_BYTES,
+  });
   // Bins that store a matrix a row (the `shadowLocalToClip` option) take their bytes off the pages.
   const stored = shadowPoolShapeOf({ shadowLocalToClip: true });
   assert.ok(stored.side ** 2 * stored.layers < SCREEN_POOL, 'fewer pages');
-  const held = shadowHeldBytes(stored.side, stored.layers, undefined, BIN_STORED_STRIDE);
-  assert.ok(held <= SHADOW_POOL_SETTING_BYTES, 'never past the setting');
+  const held = shadowPoolWithin(SHADOW_POOL_SETTING_BYTES, undefined, undefined, BIN_STORED_STRIDE);
+  assert.deepEqual([held.side, held.layers], [stored.side, stored.layers]);
+  assert.ok(held.heldBytes <= SHADOW_POOL_SETTING_BYTES, 'never past the setting');
 });
 
 // The bytes shown are the setting's from the first frame (#831): the static layer was made at the
