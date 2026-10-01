@@ -784,7 +784,7 @@ those reaching it from a pool sized from the view (#849); WebGL2 lights each fra
 reaching its light-grid cell (#835). 64 shadow slices, past which a caster lights without a shadow
 (`shadowCastersUnsliced`); every stale page the image reads is drawn in its frame, with no
 page cap ([SHADOWS.md](SHADOWS.md#when-a-page-is-stale-withdrawn-and-drawn)). The shadow pool is allocated
-once, at the first casting frame, at what the screen the session opens on reads — 2 601 pages of
+once, at the first casting frame, at what the display's whole screen reads (or the canvas, if wider) — 2 601 pages of
 128² texels at 3456 × 2234 (`screenPoolPages`), or the session's `shadowPoolPages` option —, in layers as wide as the
 device draws, within the shadow share — and never resized (#831).
 `metric.frame(world)` publishes `shadowPoolBytes`, `shadowPoolLayers` and the pressure
