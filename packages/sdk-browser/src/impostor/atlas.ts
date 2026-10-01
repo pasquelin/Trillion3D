@@ -32,16 +32,6 @@ function impostorMapRequests(map: ImpostorMap): TextureLevelRequest[] {
 /** The three maps of one card, each its levels, level 0 first. */
 export type ImpostorAtlasLevels = Record<keyof ImpostorMaps, TextureLevel[]>;
 
-/** One level read: from the store when it holds it (the store keeps it), else from the reader. */
-type ReadLevel = { id: string; level: TextureLevel; fresh: boolean };
-async function readLevel(request: TextureLevelRequest, reader: TextureLevelReader) {
-  // Content-addressed, like the file it read: the id is the level's fingerprint.
-  const id = request.sha256,
-    held = reader.store?.get(id);
-  if (held) return { id, level: held, fresh: false } satisfies ReadLevel;
-  return { id, level: await reader(request), fresh: true } satisfies ReadLevel;
-}
-
 const MAP_NAMES = ['colourCoverage', 'normalDepth', 'orm'] as const;
 
 /**
@@ -55,22 +45,38 @@ export async function loadImpostorAtlas<T>(
   reader: TextureLevelReader,
   use: (atlas: ImpostorAtlasLevels) => T,
 ): Promise<T> {
-  // The levels are independent: read them together, in order, instead of one after the other.
-  const read = await Promise.all(
-    MAP_NAMES.map((name) =>
-      Promise.all(impostorMapRequests(maps[name]).map((request) => readLevel(request, reader))),
-    ),
-  );
+  const requests = MAP_NAMES.map((name) => impostorMapRequests(maps[name]));
+  // Content-addressed, like the file it read: the id is the level's fingerprint.
+  const fresh = new Map<string, TextureLevel>();
   try {
+    // The levels the store lacks, read together. A held level is taken from the store only once no
+    // read is pending: the store may close it while another read lands; one it dropped meanwhile
+    // is read again.
+    for (;;) {
+      const missing = new Map<string, TextureLevelRequest>();
+      for (const request of requests.flat())
+        if (!fresh.has(request.sha256) && !reader.store?.has(request.sha256))
+          missing.set(request.sha256, request);
+      if (!missing.size) break;
+      const results = await Promise.allSettled([...missing.values()].map((r) => reader(r)));
+      [...missing.keys()].forEach((id, i) => {
+        const result = results[i];
+        if (result.status === 'fulfilled') fresh.set(id, result.value);
+      });
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed) throw (failed as PromiseRejectedResult).reason;
+    }
+    const levelOf = (request: TextureLevelRequest) =>
+      fresh.get(request.sha256) ?? reader.store!.get(request.sha256)!;
     return use({
-      colourCoverage: read[0].map((entry) => entry.level),
-      normalDepth: read[1].map((entry) => entry.level),
-      orm: read[2].map((entry) => entry.level),
+      colourCoverage: requests[0].map(levelOf),
+      normalDepth: requests[1].map(levelOf),
+      orm: requests[2].map(levelOf),
     });
   } finally {
-    for (const entry of read.flat())
-      if (!entry.fresh) continue;
-      else if (reader.store) reader.store.take(entry.id, entry.level, reader.key);
-      else closeTextureLevel(entry.level);
+    for (const [id, level] of fresh) {
+      if (reader.store) reader.store.take(id, level, reader.key);
+      else closeTextureLevel(level);
+    }
   }
 }

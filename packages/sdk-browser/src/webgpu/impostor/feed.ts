@@ -71,7 +71,12 @@ export function createImpostorFeed(
       (other) => other === key || !fed.get(other)!.group || fed.get(other)!.drawn === frame,
       drop,
     );
-    if (feed.bytes + bytes > budgetBytes) return;
+    if (feed.bytes + bytes > budgetBytes) {
+      // The atlases this frame draws fill the budget: forget the ask, so the mesh is asked again
+      // once they leave. An atlas past the whole budget stays refused: it never fits.
+      if (bytes <= budgetBytes) fed.delete(key);
+      return;
+    }
     for (const name of names) {
       const chain = levels[name];
       const texture = device.createTexture({
