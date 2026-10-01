@@ -5,7 +5,8 @@ import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
-import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS } from './runs.ts';
+import { blendExpandUniform } from './runs.ts';
+import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts';
 import { UNI_WORDS } from './expandUniform.ts';
 
 export type BlendExpand = ReturnType<typeof expandApi>;

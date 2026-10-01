@@ -14,11 +14,11 @@
 //   tests/browser/probes/transparent-scatter-gpu.ts
 import assert from 'node:assert/strict';
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
+import { blendExpandUniform } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
 import {
-  blendExpandUniform,
   EXPAND_GROUP,
   RUN_WORDS,
-} from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
+} from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
 import { buildBlendRuns } from '../../../packages/sdk-browser/src/webgpu/blend/runSlicing.ts';
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts';
 import {

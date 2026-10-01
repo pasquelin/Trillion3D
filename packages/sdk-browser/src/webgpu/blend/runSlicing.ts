@@ -1,5 +1,5 @@
+import { RUN_WORDS } from './planLayout.ts';
 import { planPipeline, planShared } from './plan.ts';
-import { RUN_WORDS } from './runs.ts';
 
 /**
  * Writes the runs of the sorted plan and returns their count.

@@ -11,7 +11,8 @@
 //! surface itself resists the halving (`unreducible`). The reruns only diagnose: their result is
 //! dropped, the group stays stalled and the DAG is the one built without them.
 use super::border::live_triangles;
-use super::reduce::{attempt, Stop};
+use super::reduce::attempt;
+use super::stopped::Stop;
 use super::*;
 
 /// Position counts of a group, over its live triangles.

@@ -33,6 +33,7 @@ use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
 use retries::{with_lock_retries, Endpoint};
+use super::stopped::Stop;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
@@ -46,13 +47,6 @@ impl Attempt {
     pub(super) fn progresses(&self, children: usize) -> bool {
         self.clusters.len() < children
     }
-}
-/// Why an attempt stopped, before the stalled group is diagnosed.
-#[derive(Clone, Copy)]
-pub(super) enum Stop {
-    TooSmall,
-    NoCollapse,
-    BorderLost,
 }
 
 pub(super) fn reduce_group(

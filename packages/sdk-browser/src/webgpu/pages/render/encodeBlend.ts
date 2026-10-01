@@ -18,8 +18,6 @@ import { viewProj } from '../helpers.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-export { encodeSurfaceLighting } from './surfaceLighting.ts';
-
 /** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
 const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam.eye : undefined);
 

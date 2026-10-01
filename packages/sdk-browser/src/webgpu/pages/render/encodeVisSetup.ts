@@ -6,7 +6,7 @@ import { ensureWebgpuShadeBindings } from '../../core/shadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from '../../visibility/uniforms.ts';
 import { requestsComputeRaster } from '../../../diagnostic/gpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './encoder.ts';
-import { encodeSurfaceLighting } from './encodeBlend.ts';
+import { encodeSurfaceLighting } from './surfaceLighting.ts';
 import type { GpuRasterInput } from '../../../gpu/raster/types.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts';

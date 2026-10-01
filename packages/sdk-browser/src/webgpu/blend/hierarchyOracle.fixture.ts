@@ -3,7 +3,7 @@
 import { notDrawn } from '../../placement/hidden.ts';
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import type { blendSceneOf } from './plan.fixture.ts';
-import { RUN_WORDS } from './runs.ts';
+import { RUN_WORDS } from './planLayout.ts';
 
 type BlendState = ReturnType<typeof blendSceneOf>;
 

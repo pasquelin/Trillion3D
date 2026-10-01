@@ -31,8 +31,6 @@ import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { uploadDirtyRows } from './dirtyRows.ts';
 
-export { ensurePageTable, pageTableBuffer } from './pageTable.ts';
-
 /**
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
  * the marks. Both encode paths call it: the fallback draw clears the marks too, and a witness it
