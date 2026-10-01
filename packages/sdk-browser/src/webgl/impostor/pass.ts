@@ -18,6 +18,17 @@ export type CardPass = {
   /** The display curve's rank (`TONE_MAPPING_RANK`). */
   toneCurve: number;
 };
+/** The switches a pass of the cluster program sets, those it leaves out off. */
+export type CardSwitches = Partial<
+  Pick<CardPass, 'toneMapped' | 'srgbDestination' | 'capture' | 'reflections'>
+>;
+const OFF = { toneMapped: false, srgbDestination: false, capture: false, reflections: false };
+/** The one pass a card draw reads, written again for each: its switches `on`, the frame's curve and
+ *  whether it resolved its reflections. */
+const PASS = { ...OFF, resolve: false, toneCurve: 0 };
+export const cardPassOf = (toneCurve: number, resolve: boolean, on: CardSwitches): CardPass =>
+  Object.assign(PASS, OFF, on, { toneCurve, resolve });
+
 /** The image's card draw as the WebGL2 renderer calls it, in each pass its clusters draw in, lit by
  *  the lights the renderer uploaded for them; false when it drew nothing. */
 export type WebglCards = (
