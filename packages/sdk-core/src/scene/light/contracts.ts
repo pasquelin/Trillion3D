@@ -87,8 +87,9 @@ export const LIGHT_SETTINGS = {
   samplesPerPixel: 4,
   /**
    * Shadow pages one GPU batch draws: the size of the per-batch buffers. A frame draws the pages it
-   * marks in as many batches as that takes, up to eight batches a frame; the rest are drawn over the
-   * next frames, read meanwhile at the coarser level.
+   * marks in as many batches as that takes, up to one pool layer's pages a frame
+   * (`shadowPagesPerFrame`); the rest are drawn over the next frames, read meanwhile at the coarser
+   * level.
    */
   shadowPagesPerBatch: 24,
   /**

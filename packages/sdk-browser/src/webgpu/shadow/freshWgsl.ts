@@ -171,7 +171,7 @@ fn composeRegion(k:u32){
 /** After the pair cull: each region admitted whole is readable — in the sun's current
  *  range —; one left short (\`FRESH_SHORT\`) is not, and waits unclaimed for the next
  *  frame's pick. Each layer draws the pairs kept — all, the still, the moving —; the pairs every region counted go to the pool's
- *  counts, which the host reads back to grow the list by (\`pairGrowth.ts\`). */
+ *  counts, a diagnostic: the list is fixed by the pool (\`pairRows.ts\`). */
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
