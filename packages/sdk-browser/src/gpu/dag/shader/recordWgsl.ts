@@ -22,7 +22,9 @@ fn residentWords()->u32{return (views[0u].clusterCount+31u)>>5u;}
 fn poolBase()->u32{return views[0u].clusterCount+2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` pages (\`../layout.ts\`), whatever the readout's cap. */
 fn keyBase()->u32{return poolBase()+1u+min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
-fn coldBase()->u32{return keyBase()+views[0u].clusterCount;}
+/** The link column, one word per placement (\`../worldLinks.ts\`), then the cold records. */
+fn linkBaseOf(w:u32)->u32{return coldAt(keyBase()+views[0u].clusterCount+w);}
+fn coldBase()->u32{return keyBase()+views[0u].clusterCount+max(1u,views[0u].worldCount);}
 fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(coldAt(coldBase()+r*COLD+k));}
 fn coneOf(r:u32)->vec4f{return vec4f(coldF(r,0u),coldF(r,1u),coldF(r,2u),coldF(r,3u));}
 fn boxMin(r:u32)->vec3f{return vec3f(coldF(r,4u),coldF(r,5u),coldF(r,6u));}

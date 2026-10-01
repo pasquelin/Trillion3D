@@ -9,10 +9,8 @@ import { ruleResidency } from '../../gpu/dag/readiness.fixture.ts';
 import type { RuleDag } from './cutRule.fixture.ts';
 import { dagNodeFloor, dagViewFrames } from '../../gpu/dag/oracle/math.fixture.ts';
 import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
-import type { CutRuleAt } from '../../gpu/dag/oracle/predicates.fixture.ts';
+import { wgslText, type KernelText } from './cutRuleText.fixture.ts';
 import type { PackedDag } from '../../gpu/dag/types.ts';
-import { wgslScope } from './wgslPredicate.fixture.ts';
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 import { packedWorldsToRenderOrigin } from '../../gpu/dag/pack.fixture.ts';
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
@@ -55,17 +53,24 @@ export function stripUniforms(dag: RuleDag, threshold: number) {
 }
 
 /** The GPU kernel's CPU model (`../../gpu/dag/oracle/oracle.fixture.ts`), on the residency its host
- *  derives and uploads (`../../gpu/dag/residencyUpload.ts`), deciding with `rule`. */
+ *  derives and uploads (`../../gpu/dag/residencyUpload.ts`), deciding with `decide`. */
 function kernelBackend(
   dag: RuleDag,
   threshold: number,
-  rule?: (packed: PackedDag) => CutRuleAt,
+  decide?: (packed: PackedDag) => KernelText,
 ): CutBackend {
   const { packed, uniforms } = stripUniforms(dag, threshold);
-  const decide = rule?.(packed);
+  const text = decide?.(packed);
   return (resident) => {
     const residency = ruleResidency(packed, resident);
-    const result = evaluateDagSelectionKernel(packed, uniforms, residency, false, decide);
+    const result = evaluateDagSelectionKernel(
+      packed,
+      uniforms,
+      residency,
+      false,
+      text?.rule,
+      text?.links,
+    );
     return { drawn: result.drawablePageIds ?? [], wanted: result.pageIds };
   };
 }
@@ -73,65 +78,13 @@ function kernelBackend(
 /** The kernel's CPU model with the TypeScript rule. */
 export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(dag, threshold);
 
-/**
- * The same model where the kernel's own text decides (`DAG_SELECTION_SHADER`), run in Node. Its
- * residency reads `isResident(i)` and `childResident(i)` on the bit sets the host uploaded into the
- * cold buffer, and the rule itself. Only the projection is the model's: its screen errors are
- * passed where the kernel projects.
- * - `camera`: the cut a camera runs — `dagWanted` keeps the rule's two comparisons in the page's
- *   cone word (`setFlag(coneCache(i),…);`), then `dagMask`'s `let all=…;` and
- *   `draw=drawsCompared(…);` decide on that word.
- * - `light`: a light cut's `dagMask` call site, `let all=…;` then `draw=drawsCluster(…);`, on the
- *   model's two screen errors as `clusterPixels` returns them (`x` the parent's, `y` its own).
- */
-export function wgslBackend(
+/** The model where the kernel's own text decides (`wgslText`), on the strip of `dag`. */
+export const wgslBackend = (
   dag: RuleDag,
   threshold: number,
   source = DAG_SELECTION_SHADER,
   path: 'camera' | 'light' = 'camera',
-) {
-  const all = /\blet all=([^;]+);/.exec(source),
-    light = /\bdraw=(drawsCluster\([^;]+\));/.exec(source),
-    camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
-    word = /\bsetFlag\(coneCache\(i\),([^;]+)\);/.exec(source);
-  if (!all || !light || !camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask');
-  return kernelBackend(dag, threshold, (packed) => {
-    const cold = new Uint32Array(
-      packed.pageCones.buffer,
-      packed.pageCones.byteOffset,
-      packed.pageCones.length,
-    );
-    // The view block the call site and the residency reads name: a cut that holds residency.
-    const views = [{ residentCut: 1, clusterCount: packed.pageCount, pixelError: threshold }];
-    const scope = wgslScope(source, {
-      ...wgslConstants(source),
-      views,
-      cold,
-      vi: 0,
-      select: (no: unknown, yes: unknown, condition: unknown) => (condition ? yes : no),
-    });
-    const held = scope.expression(all[1]);
-    if (path === 'light') {
-      const draw = scope.expression(light[1], ['all', 'i', 'pixels']);
-      return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
-        views[0].pixelError = t;
-        return draw({ all: held(), i: page, pixels: { x: parentPixels, y: ownPixels } }) === true;
-      };
-    }
-    const kept = scope.expression(word[1], ['rejected', 'pixels', 't', 'light']),
-      draw = scope.expression(camera[1], ['all', 'i', 'word']);
-    return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
-      const f32 = Math.fround;
-      const bits = kept({
-        rejected: false,
-        light: false,
-        pixels: { x: f32(parentPixels), y: f32(ownPixels) },
-        t: f32(t),
-      });
-      return draw({ all: held(), i: page, word: bits }) === true;
-    };
-  });
-}
+) => kernelBackend(dag, threshold, (packed) => wgslText(packed, source, path));
 
 /** The light cut's call site of the same kernel text (`wgslBackend`). */
 export const wgslLightBackend = (dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) =>

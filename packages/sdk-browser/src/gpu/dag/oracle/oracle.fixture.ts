@@ -19,7 +19,7 @@ import {
 } from '../request.fixture.ts';
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_TRANSPARENT } from '../clusterFlags.ts';
 import type { PackedDag, DagViewUniforms } from '../types.ts';
-import type { CutRuleAt } from './predicates.fixture.ts';
+import type { CutRuleAt, DagLinkAt } from './predicates.fixture.ts';
 import type { SelectionResult } from '../../core/selection.ts';
 
 /**
@@ -41,6 +41,7 @@ export function evaluateDagSelectionKernel(
   resident?: DagCutResidency,
   cacheCone = false,
   rule?: CutRuleAt,
+  links?: DagLinkAt,
 ): DagOracleResult {
   if (
     resident &&
@@ -69,6 +70,8 @@ export function evaluateDagSelectionKernel(
       ...f,
       light: uniforms.light,
       rule,
+      links,
+      ready: resident?.ready,
     });
   const camera = predicates(frames, nodeFlags);
   const { coneRejects, visible, draws } = camera;

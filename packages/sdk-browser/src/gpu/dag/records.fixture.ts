@@ -19,9 +19,12 @@ import {
   HOT_LOD_ERROR,
   HOT_PARENT_ERROR,
   HOT_PARENT_SPHERE,
+  HOT_ROOT,
   HOT_SPHERE,
   coldBase,
+  linkBase,
 } from './layout.ts';
+import { LINK_PAGE, LINK_WORDS } from './worldLinks.ts';
 
 export type DagRecords = {
   hot: Float32Array;
@@ -30,11 +33,16 @@ export type DagRecords = {
   coldInts: Uint32Array;
   /** First cold record in `cold`, behind the working table and the residency bits. */
   coldAt: number;
+  /** First word of the link column (`worldLinks.ts`). */
+  linkAt: number;
   recordShift: Uint32Array;
   rootBases: Uint32Array;
 };
 export function dagRecords(
-  packed: Pick<PackedDag, 'clusters' | 'pageCones' | 'pageCount' | 'recordShift' | 'rootBases'>,
+  packed: Pick<
+    PackedDag,
+    'clusters' | 'pageCones' | 'pageCount' | 'worldCount' | 'recordShift' | 'rootBases'
+  >,
 ): DagRecords {
   const { clusters, pageCones } = packed;
   return {
@@ -42,7 +50,8 @@ export function dagRecords(
     hotInts: new Uint32Array(clusters.buffer, clusters.byteOffset, clusters.length),
     cold: pageCones,
     coldInts: new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length),
-    coldAt: coldBase(packed.pageCount),
+    coldAt: coldBase(packed.pageCount, packed.worldCount),
+    linkAt: linkBase(packed.pageCount),
     recordShift: packed.recordShift,
     rootBases: packed.rootBases,
   };
@@ -51,7 +60,7 @@ export function dagRecords(
 /** The page's placement: its word in the working table. */
 export const worldOf = (r: DagRecords, i: number) => r.coldInts[i];
 /** The record the page reads: its index plus its placement's shift, wrapping as the u32 add does. */
-const recordOf = (r: DagRecords, i: number) => (i + r.recordShift[worldOf(r, i)]) >>> 0;
+export const recordOf = (r: DagRecords, i: number) => (i + r.recordShift[worldOf(r, i)]) >>> 0;
 const coldOf = (r: DagRecords, i: number) => r.coldAt + recordOf(r, i) * COLD_WORDS;
 
 export const flagsOf = (r: DagRecords, i: number) =>
@@ -82,3 +91,12 @@ export function coneInto(r: DagRecords, i: number, cone: { axis: number[]; angle
   for (let a = 0; a < 3; a++) cone.axis[a] = r.cold[base + a];
   cone.angle = r.cold[base + 3];
 }
+
+/** The first word of the world link of record `record`'s root on placement `w`, `SELECTION_NONE`
+ *  unless both name one (`worldLinks.ts`), as the kernel's `linkOf`; and the world page it names. */
+export function linkOf(r: DagRecords, w: number, record: number) {
+  const base = r.coldInts[r.linkAt + w],
+    root = r.hotInts[record * CLUSTER_WORDS + HOT_ROOT];
+  return base === NONE || root === NONE ? NONE : base + root * LINK_WORDS;
+}
+export const linkedPage = (r: DagRecords, at: number) => r.coldInts[at + LINK_PAGE];

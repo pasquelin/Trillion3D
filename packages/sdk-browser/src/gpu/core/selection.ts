@@ -75,8 +75,9 @@ export type GpuSelection = {
   /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
   readonly packsWorld?: boolean;
   /** Placement `world` draws world-roots object `object` from now on, or none (-1): its row was
-   *  taken or parked (#1333). Without the world DAG packed, nothing. */
-  placeWorld?(world: number, object: number): void;
+   *  taken or parked (#1333); `pose`, its world matrix, on which its roots link to their world
+   *  ranks (`../dag/worldLinks.ts`). Without the world DAG packed, nothing. */
+  placeWorld?(world: number, object: number, pose?: ArrayLike<number>): void;
   /** The world bundles held now, the `pinned` top and `held` (`WorldRootsHold`): a super-root is
    *  resident while its bundle is (#1333). Whether taken: without the world DAG packed, not. */
   holdWorldBundles?(pinned: number, held: readonly number[]): boolean;

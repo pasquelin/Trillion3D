@@ -9,6 +9,7 @@ import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
 import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts';
 import { writeKeyColumn } from './evict.ts';
 import { createRecordTable } from './packRecords.ts';
+import { layWorldLinks, rootRanksOf, worldLinkWords } from './worldLinks.ts';
 
 /**
  * Pack the cluster bands, their cone/box records and the per-primitive culling nodes.
@@ -70,7 +71,8 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE),
     mark = new Uint8Array(worldSlots);
-  const records = createRecordTable();
+  const records = createRecordTable(),
+    rootRanks = rootRanksOf();
   // Culling links, shared by the placements of one node array as the hierarchy is.
   const cutLinks: DagCutLinks[] = [];
   let cluster = 0,
@@ -105,25 +107,27 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       nodeBase,
       nodeCount: packedNodes,
     });
-    recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0;
+    const first = records.place(root, culling.nodes, owner, nodeBase, rootRanks(root));
+    recordShift[w] = (first - pageBase) >>> 0;
     pageWorlds.fill(w, pageBase, pageBase + root.pages.length);
-    for (const rec of root.pages) {
-      if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)))
-        rootClusters++;
-    }
+    for (const rec of root.pages) if (!Number.isFinite(rec.parentError)) rootClusters++;
     cluster += root.pages.length;
   }
   // The hot record only holds what all five passes of a frame reread; the owner
   // node and the cone go to the cold, which the open pass alone reads. Residency bits
   // follow the working table: one word for thirty-two pages, written by delta.
+  // Behind the cold records, each placement's world links (`worldLinks.ts`, #1333).
   const recordSlots = Math.max(1, records.count),
-    coldAt = coldBase(clusterCount);
+    coldAt = coldBase(clusterCount, roots.length),
+    linkAt = coldAt + recordSlots * COLD_WORDS,
+    world = roots.findIndex((root) => root.origins && root.bundles);
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
-    pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS);
-  new Uint32Array(pageCones.buffer).set(pageWorlds);
-  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
+    pageCones = new Float32Array(linkAt + worldLinkWords(roots, world)),
+    words = new Uint32Array(pageCones.buffer);
+  words.set(pageWorlds);
+  writeKeyColumn(roots, words, keyBase(clusterCount));
   records.finish(clusters, pageCones, coldAt);
-  const world = roots.findIndex((root) => root.origins && root.bundles);
+  layWorldLinks(roots, world, words, clusterCount, linkAt);
   return {
     kind: 'dag',
     clusters,

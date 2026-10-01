@@ -14,6 +14,7 @@ import {
   HOT_LOD_ERROR,
   HOT_PARENT_ERROR,
   HOT_PARENT_SPHERE,
+  HOT_ROOT,
   HOT_SPHERE,
   packClusterFlags,
 } from './layout.ts';
@@ -31,9 +32,11 @@ function writeSphere(
 }
 
 /** A placement's hot and cold records, written from rank 0 of `hot` and `cold`. `owner` holds the
- *  absolute owner node; the record keeps it relative to `nodeBase`, the placement's first node. */
+ *  absolute owner node; the record keeps it relative to `nodeBase`, the placement's first node.
+ *  `rootRanks`, each page's rank among the roots (`worldLinks.ts`). */
 function writeRecords(
-  pages: DagRoot['pages'],
+  { pages, origins }: DagRoot,
+  rootRanks: Int32Array,
   owner: Uint32Array,
   nodeBase: number,
   hot: Float32Array,
@@ -52,12 +55,14 @@ function writeRecords(
         : -1;
     hot[dst + HOT_LOD_ERROR] = rec.lodError ?? 0;
     hot[dst + HOT_PARENT_ERROR] = parent;
-    // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
+    // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it. Nor
+    // a world object root: its object's own roots draw it, linked to it (`worldLinks.ts`, #1333).
     hotInts[dst + HOT_FLAGS] = packClusterFlags(
-      owner[i] === NONE,
+      owner[i] === NONE || (origins?.[i] ?? -1) >= 0,
       rec.level ?? 0,
       !!rec.transparent,
     );
+    hotInts[dst + HOT_ROOT] = rootRanks[i] >= 0 ? rootRanks[i] : NONE;
     const cone = leafCone(rec),
       base = i * COLD_WORDS,
       hasBox = rec.min && rec.max ? 1 : 0;
@@ -101,13 +106,19 @@ export function createRecordTable() {
       return count;
     },
     /** First record of this placement's pages, shared or new. */
-    place(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) {
-      const n = pages.length;
+    place(
+      root: DagRoot,
+      shape: object,
+      owner: Uint32Array,
+      nodeBase: number,
+      rootRanks: Int32Array,
+    ) {
+      const n = root.pages.length;
       if (hot.length < n * CLUSTER_WORDS) {
         hot = new Float32Array(n * CLUSTER_WORDS);
         cold = new Float32Array(n * COLD_WORDS);
       }
-      writeRecords(pages, owner, nodeBase, hot, cold);
+      writeRecords(root, rootRanks, owner, nodeBase, hot, cold);
       const hotBits = new Uint32Array(hot.buffer, 0, n * CLUSTER_WORDS),
         coldBits = new Uint32Array(cold.buffer, 0, n * COLD_WORDS);
       const known = byShape.get(shape);
