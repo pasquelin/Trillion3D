@@ -47,3 +47,39 @@ test('the ground below is the highest support the filter accepts, within the dep
   const sunk = { feet: new Float64Array([1, -2.5, 2]), radius: 0.3, height: 1.75 };
   assert.ok(Math.abs(world.groundBelow(sunk, 1, () => true)! + 0.5) < 1e-12);
 });
+
+test('two floors in reach: the higher is the ground, whichever the tree reads first', () => {
+  const upper = [-10, 0, -10, -10, 0, 10, 10, 0, 10],
+    lower = [-10, -1, -10, -10, -1, 10, 10, -1, 10];
+  for (const triangles of [
+    [...upper, ...lower],
+    [...lower, ...upper],
+  ]) {
+    const world = triangleCollision(buildTriangleTree(triangles));
+    const capsule = { feet: new Float64Array([1, 0.5, 2]), radius: 0.3, height: 1.75 };
+    assert.ok(Math.abs(world.groundBelow(capsule, 3, () => true)! - 0.5) < 1e-12);
+  }
+});
+
+test('a floor anywhere inside the body is ground to rise onto, one above its head is not', () => {
+  // Sunk 1 m into a floor, more than the bottom sphere's diameter but under the body's height.
+  const world = triangleCollision(buildTriangleTree([-10, 0, -10, -10, 0, 10, 10, 0, 10]));
+  const sunk = { feet: new Float64Array([1, -1, 2]), radius: 0.3, height: 1.75 };
+  assert.ok(Math.abs(world.groundBelow(sunk, 0, () => true)! + 1) < 1e-12);
+  const below = { feet: new Float64Array([1, -2, 2]), radius: 0.3, height: 1.75 };
+  assert.equal(
+    world.groundBelow(below, 0, () => true),
+    null,
+  );
+});
+
+test("a wall's top corner brushed at the sphere's widest is not ground", () => {
+  // A vertical triangle; the sphere's centre passes exactly one radius beside its top corner,
+  // which it meets level with its centre: the way out is level, nothing holds the body up.
+  const world = triangleCollision(buildTriangleTree([0, 1, 0, 0, 0, -1, 0, 0, 1]));
+  const beside = { feet: new Float64Array([0.3, 2, 0]), radius: 0.3, height: 1.75 };
+  assert.equal(
+    world.groundBelow(beside, 5, () => true),
+    null,
+  );
+});

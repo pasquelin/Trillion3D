@@ -42,8 +42,7 @@ export interface TriangleCollision extends CharacterCollision {
   readonly tree: TriangleTree;
 }
 
-const centre = new Float64Array(3),
-  min = new Float64Array(3),
+const min = new Float64Array(3),
   max = new Float64Array(3),
   touch: CapsuleContact = {
     normal: new Float64Array(3),
@@ -59,19 +58,16 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
     resolveCapsule: (capsule, push) => capsulePass(tree, capsule, push),
     groundBelow(capsule, depth, accepts) {
       const { feet, radius, height } = capsule;
-      centre.set(feet);
-      centre[1] += radius;
-      // `feet + radius` rounds: its error (an exact two-sum), added back to each distance, keeps
-      // feet put on a floor at any height at distance 0, not a rounding above it.
-      const added = centre[1] - feet[1],
-        centreError = feet[1] - (centre[1] - added) + (radius - added);
       // The column the sphere sweeps, up to the top of the body: a support higher than the
       // body is a ceiling, not a floor.
       for (let k = 0; k < 3; k += 2) [min[k], max[k]] = [feet[k] - radius, feet[k] + radius];
       [min[1], max[1]] = [feet[1] - depth, feet[1] + Math.max(height, 2 * radius)];
       let best = Infinity;
       forEachTriangleInBox(tree, min, max, (at) => {
-        const distance = dropSphere(centre, radius, tree.triangles, at, touch) + centreError;
+        // A sweep is the same from any point of its vertical line: lowered from the feet rather
+        // than from `feet + radius`, which rounds, the sphere goes one radius further, and feet
+        // put on a floor at any height are at distance 0, not a rounding above it.
+        const distance = dropSphere(feet, radius, tree.triangles, at, touch) + radius;
         if (distance < best && distance <= depth && touch.normal[1] > 0 && accepts(touch))
           best = distance;
       });

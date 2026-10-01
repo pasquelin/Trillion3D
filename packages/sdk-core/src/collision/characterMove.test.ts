@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { arc, freshReport, isFloor, slide } from './characterMove.ts';
+import { arc, freshReport, isFloor, MOVE_PASSES, slide } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
 import { triangleCollision } from './characterCollision.ts';
 import { buildTriangleTree } from './triangleTree.ts';
@@ -185,4 +185,20 @@ test('a long movement cannot tunnel across a thin triangle wall and keeps tangen
   assert.ok(Math.abs(capsule.feet[2] + 1) < 1e-10);
   assert.deepEqual([...velocity], [0, 0, 10]);
   assert.equal(report.wall, true);
+});
+
+test('an overlap no push resolves is asked MOVE_PASSES times a part, then the move goes on', () => {
+  const capsule = { feet: new Float64Array(3), radius: 1, height: 2 };
+  let asked = 0;
+  const stuck = { groundBelow: () => null, resolveCapsule: () => (asked++, true) };
+  // 1.2 m in parts of half a radius: three parts.
+  slide(
+    stuck,
+    { capsule, velocity: new Float64Array(3) },
+    rules,
+    [1.2, 0, 0],
+    freshReport({ ground: false, wall: false, impact: 0 }),
+  );
+  assert.equal(asked, 3 * MOVE_PASSES);
+  near(capsule.feet, [1.2, 0, 0], 'feet', 1e-12);
 });
