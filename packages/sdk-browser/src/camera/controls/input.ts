@@ -131,10 +131,16 @@ export function trackWheel(
   );
 }
 
+/** The inputs a key types into (#831): not a checkbox, a slider or a button, which keep the
+ *  focus after a click and would swallow every key that drives — a car parked at 0 km/h. */
+const TYPED = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/;
+
 /** Whether an event's target takes typed keys itself: a field, a list or an editor. */
 function editable(target: EventTarget | null) {
-  const element = target as { tagName?: string; isContentEditable?: boolean } | null;
-  return /^(INPUT|TEXTAREA|SELECT)$/.test(element?.tagName ?? '') || !!element?.isContentEditable;
+  const element = target as { tagName?: string; type?: string; isContentEditable?: boolean } | null;
+  const tag = element?.tagName ?? '';
+  if (tag === 'INPUT') return TYPED.test(element?.type || 'text');
+  return /^(TEXTAREA|SELECT)$/.test(tag) || !!element?.isContentEditable;
 }
 
 /**
@@ -143,7 +149,8 @@ function editable(target: EventTarget | null) {
  * focus still steers, as a viewer expects, and `dispose()` takes them back off. The keys of
  * `used` — the ones the controller steers with — keep their default action from the page (Space
  * and the arrows would scroll it). A key typed into a field, a list or an editor is the field's:
- * it neither steers nor loses its action.
+ * it neither steers nor loses its action; a checkbox, a slider or a button that kept the focus
+ * after a click takes no typing, and the key steers.
  */
 export function trackKeys(
   surface: HTMLElement,

@@ -16,6 +16,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, type BuildOptions } from 'esbuild';
 import { CHUNK_PREFIX, foldPlugin } from './bundle-fold.ts';
+import { BUNDLE_SOURCES, bundleSources } from './core-sources.ts';
 
 /** The core module a page imports. */
 export const BUNDLE_ENTRY = 'trillion3d.module.js';
@@ -69,13 +70,14 @@ async function buildBundle(dist: string) {
     outdir: dist,
     logLevel: 'warning',
   };
-  await Promise.all([
+  const [core] = await Promise.all([
     build({
       ...common,
       entryPoints: { [BUNDLE_ENTRY.replace(/\.js$/, '')]: join(dist, 'sdk/browser.js') },
       splitting: true,
       chunkNames: `${CHUNK_PREFIX}[name]-[hash]`,
       plugins: [foldPlugin(dist)],
+      metafile: true, // the sources of each file, which the size gate lists (`core-sources.ts`)
     }),
     // A worker runs alone: nothing it holds is shared with the page's module.
     build({
@@ -90,6 +92,7 @@ async function buildBundle(dist: string) {
       writeFileSync(path, stripShaderComments(readFileSync(path, 'utf8')));
     }
   for (const path of MODULES) copyFileSync(join(dist, path), join(dist, basename(path)));
+  writeFileSync(join(dist, BUNDLE_SOURCES), JSON.stringify(bundleSources(core.metafile, dist)));
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))

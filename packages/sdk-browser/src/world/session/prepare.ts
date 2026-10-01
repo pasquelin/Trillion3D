@@ -16,6 +16,7 @@ import { primePartitions } from '../scene/partitionFrame.ts';
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { sessionFamilies } from './familyUse.ts';
+import { loadRenderers } from '../../backend/engines.ts';
 import type { ExplorerSession } from './session.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -65,6 +66,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
   resources.gpuDevice = gpuDevice;
   const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
+  const renderers = loadRenderers(choice.factories); // its own chunk (#1353), beside the scene
   const autonomous = choice.autonomous;
   // What the loader opens follows what will draw: a path that samples the host images needs
   // them read, however the host set `textureSource`.
@@ -101,8 +103,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
         resources.source = source;
       },
     ));
-  const source = loadedScene.source;
-  resources.source = source;
+  const source = (resources.source = loadedScene.source);
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {
@@ -168,6 +169,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   }
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
+  await renderers; // the engines are built once their renderer has arrived
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,

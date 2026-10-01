@@ -1,4 +1,3 @@
-import { rgbHex } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { hslToLinearRgb, srgbToLinear } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { clusterHue } from '../../diagnostic/colors.ts';
@@ -11,24 +10,6 @@ export const viewProj = new Float64Array(16);
 /** Three linear components reread immediately: a diagnostic colour allocates nothing more. */
 const tint = new Float64Array(3);
 export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6];
-
-/** First GPU readback evidence: requested clear versus two actual pixels from the color target. */
-export function outputColorDiagnostic(
-  pixels: Uint8Array,
-  width: number,
-  height: number,
-  clearColor: number,
-  origin: 'top-left' | 'bottom-left' = 'top-left',
-) {
-  const pixel = (x: number, y: number) => {
-    const offset = ((origin === 'bottom-left' ? height - 1 - y : y) * width + x) * 4;
-    return rgbHex(pixels[offset] ?? 0, pixels[offset + 1] ?? 0, pixels[offset + 2] ?? 0);
-  };
-  const clearHex = `#${clearColor.toString(16).padStart(6, '0')}`;
-  const topLeft = pixel(0, 0),
-    center = pixel(Math.floor(width / 2), Math.floor(height / 2));
-  return { clearColor: clearHex, topLeft, center, matchesClearAtTopLeft: topLeft === clearHex };
-}
 
 /** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
  *  The curve is the repository's (`packages/sdk-core/src/math/primitives/color.ts`), whose gap to the host library's rounded

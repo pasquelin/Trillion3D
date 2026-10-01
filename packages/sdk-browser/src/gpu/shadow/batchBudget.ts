@@ -1,8 +1,12 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS, PAGE_BIND_ALIGN } from '../draw/contract.ts';
-import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
-import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
+import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
+import {
+  DAG_UNIFORM_BYTES,
+  MAX_SHADOW_PAGES,
+  MAX_SHADOW_REGIONS,
+  SHADOW_FACE_STRIDE,
+} from './sizes.ts';
 
 /**
  * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws every page it marks, in as many batches as
@@ -23,13 +27,22 @@ export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
+/**
+ * THE PAGES A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws each: the pages
+ * the granted batches hold (`MAX_SHADOW_RUNS`, one pool layer), never more than the pool's. A
+ * safety net, derived from the grant and the pool, never from a scene: each page draws its casters
+ * at the level its texels want — the host's light cut, the GPU's pair cull (`freshCullWgsl.ts`,
+ * #831) —, so a burst costs its pages' texels, not the whole field's finest form at each. A page
+ * past it waits for the next frame and meanwhile reads the coarser one under it, as Unreal's
+ * virtual shadow maps read a page their frame did not render.
+ */
+export const shadowPagesPerFrame = (poolPages: number) => Math.min(poolPages, MAX_SHADOW_RUNS);
 /** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`): at
  *  120 frames a second, a readback's round trip — the GPU's queue, then the map — can span more
  *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */
 export const SHADOW_FLAG_FRAMES = 8;
 
-/** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
-export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
+export { SHADOW_FACE_STRIDE } from './sizes.ts';
 /** Words of one face's cull uniform (`cull.ts`), of the light cut's cull uniform and its
  *  dispatch argument (`lightCull.ts`), of a region's occlusion slot and the occlusion uniform
  *  (`occlusion.ts`), of one page's bounds in the page pyramids (`pageHiz.ts`), and of a raster bin

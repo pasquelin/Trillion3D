@@ -32,12 +32,14 @@ export function planShadowRegions(
   runs.reset();
   regions.reset();
   lights.packedBatch.frame = -1;
-  // Residency this frame's light cuts see changed since the last plan: those pages alone restale.
+  // Residency this frame's light cuts see changed since the last plan: those pages alone restale,
+  // at once, the camera moving or not (#831).
   let residencyMoved = false;
   const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    noteResidenceChange(lights, roots, rt.layout.placement.rootOfPacked, page, recordOf(page)!);
+    const { rootOfPacked } = rt.layout.placement;
+    noteResidenceChange(lights, roots, rootOfPacked, page, recordOf(page)!, undefined, true);
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;
@@ -63,7 +65,8 @@ export function planShadowRegions(
 }
 
 /**
- * The static layer is built the first time an object moves, with the pyramids of its pages and
+ * The static layer is built the first time an object moves, on the texture made with the pool
+ * (`staticReserve.ts`), with the pyramids of its pages and
  * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
  * caster at once. It is asked of the shadows' grant first (`staticLayerGranted`), its texture
  * made under an out-of-memory check (`deviceMade`): past the grant or refused, it is never made
@@ -79,8 +82,13 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;
-  if (!staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
-  deviceMade(device, () => shadowLayerTexture(device, side, layers))
+  // Made with the pool when its grant held it (`staticReserve.ts`): the move allocates nothing.
+  const kept = lights.staticLayerTexture;
+  if (!kept && !staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
+  (kept
+    ? Promise.resolve(kept)
+    : deviceMade(device, () => shadowLayerTexture(device, side, layers))
+  )
     .then((texture) => {
       if (texture) return createShadowStaticLayer(device, texture);
       noteShadowPressure(lights.memory, 'static-layer-refused');
@@ -104,8 +112,14 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
         rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
       }
       lights.staticLayer = layer;
+      // The layer owns the reserved texture now, and counts its bytes.
+      lights.staticLayerTexture = undefined;
       // A session disposed meanwhile tore its layer down already: what landed after is freed.
       if (rt.signal.aborted) disposeStaticLayer(lights);
     })
-    .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
+    .catch((error) => {
+      // A layer that failed destroyed its texture, the reserved one too.
+      lights.staticLayerTexture = undefined;
+      rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error);
+    });
 }

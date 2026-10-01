@@ -7,11 +7,11 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import {
   PROXY_COUNT_OFFSET,
-  PROXY_HEADER_WORDS,
   PROXY_LAYOUT_WORD,
   PROXY_PARAM_FLOATS,
   PROXY_STEPS_WORD,
 } from '../../bounce/nodeWgsl.ts';
+import { PROXY_HEADER_WORDS } from '../../bounce/sizes.ts';
 import { PROXY_LEAF_OWNED } from '../../../../sdk-core/src/scene/core/proxyLeaves.ts';
 import { ownedProxy, proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';

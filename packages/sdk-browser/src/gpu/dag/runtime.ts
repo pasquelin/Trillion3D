@@ -124,7 +124,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       voidCuts();
       return true;
     },
-    isFinest: (page) => !uploadResidency || uploadResidency.isFinest(page),
+    isReady: (page) => !uploadResidency || uploadResidency.isReady(page),
+    isChildReady: (page) => !uploadResidency || uploadResidency.isChildReady(page),
     notePool(page, held) {
       if (state.disposed || state.dead || !poolList?.note(page, held)) return;
       recut();

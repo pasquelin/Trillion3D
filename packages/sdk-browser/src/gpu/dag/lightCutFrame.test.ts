@@ -17,7 +17,8 @@ import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { createCameraFrames } from './frameRanges.ts';
 import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { VIEW_FLAGS_WORD } from './viewFlagsWord.ts';
+import { viewWord } from './viewLayout.ts';
+const VIEW_FLAGS_WORD = viewWord('viewFlags');
 
 const CASTERS = 16;
 
@@ -125,7 +126,6 @@ test('a sweep of many batches a frame converges to full detail', async () => {
     const asked = cut.reports.takeRequests() ?? [];
     for (const page of asked) resident.add(page);
     if (asked.length) cut.redraws.residencyChanged();
-    cut.redraws.rest();
     const again: number[] = [];
     cut.redraws.takeRedraw((page) => again.push(page));
     drawn = again;

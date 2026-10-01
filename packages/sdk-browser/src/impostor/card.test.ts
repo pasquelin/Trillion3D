@@ -3,6 +3,7 @@
 // for the same inputs. Fails on develop: `card.ts` is not there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lent.fixture.ts';
 import { impostorCardCorners } from './card.ts';
 import { spriteAt } from '../visibility/shader/spriteWgsl.ts';
 

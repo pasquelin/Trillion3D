@@ -367,7 +367,6 @@
       "cascadeShares": "Budgetanteil pro Stufe, von der feinsten zur gröbsten. Die feinste Stufe umgibt die Kamera und erhält den größten Anteil der Strahlen.",
       "raysPerProbe": "Bei jeder Aktualisierung pro Sonde verfolgte Strahlen. Fest einstellbares Budget.",
       "raysPerFrame": "Höchstens Sondenstrahlen pro Bild: feste Obergrenze, die die Größe der gestarteten Berechnung begrenzt.",
-      "lightsPerRay": "Pro Zelle des Oberflächen-Caches getestete Lichter.",
       "surfaceTexelsPerFrame": "Obergrenze der pro Bild aktualisierten Zellen des Oberflächen-Caches.",
       "budgetMs": "Angestrebte Dauer der Rebound-Passage auf der GPU pro Bild, in Millisekunden.",
       "budgetSmoothing": "Bei jeder Messung behaltener Anteil der Fehlerkorrektur, um Schwingungen zu vermeiden.",
@@ -1273,7 +1272,8 @@
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert.",
+      "options.debug": "Der Debug-Modus, die Werkzeuge eines Entwicklungs-Builds gegenüber einem Auslieferungs-Build: Die Bilder werden nur in ihm im CPU-Schrittprofil (`world.cpuSteps`) und im Bildbericht erfasst. Er gehört der Seite, so wie `?profile` in ihrer Adresse ihn einschaltet; `world.diagnostic.debug` schaltet ihn später um."
     }
   },
   "crossVector3": {
@@ -1638,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "Die Eckpunkte eines geladenen Modells wurden vor `await geometry.loadVertices()` gelesen: Eine Sitzung liest sie beim ersten Bedarf, nie im Voraus.",
       "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
       "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
-      "FAMILY_LOAD_FAILED": "Eine optionale Familie der Engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) wurde nicht geladen, ihr Import zuvor erneut versucht (`T3D-E090`): `details.family` nennt sie, auf `world.diagnostic.error`. Die Bilder, die mit ihr zeichnen, warten auf sie, und sie wird bei der nächsten Verwendung erneut angefordert.",
+      "FAMILY_LOAD_FAILED": "Eine optionale Familie der Engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) wurde nicht geladen, ihr Import zuvor erneut versucht (`T3D-E090`): `details.family` nennt sie, auf `world.diagnostic.error`. Die Bilder, die mit ihr zeichnen, warten auf sie, und sie wird bei der nächsten Verwendung erneut angefordert.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
@@ -1658,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Sieht Bild für Bild zu und sagt, wie flüssig die Engine läuft, und was sie ausbremst.",
+    "description": "Wie ein Release-Build seine Statistikwerkzeuge entfernt (#1353), enthält der Kern nur diese Fassade: ihr Code ist der Chunk der Messung (`FrameProfile`, `../host/families.ts`), geladen, sobald der Debug-Modus eingeschaltet wird oder der Profiler zum ersten Mal genutzt wird. Bis er angekommen ist, wird kein Bild gezählt und der Bericht sagt, dass er wartet (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Gehaltene Intervalle, vom ältesten zum neuesten: das, was `frameStatistics` erhält.",
       "setMetadata": "Sagt ihr, welches Modell geladen ist.",
@@ -1665,7 +1666,7 @@
       "getReport": "Eine Zusammenfassung der letzten Bilder.",
       "formatReport": "Diese Zusammenfassung als Text.",
       "printReport": "Zeigt diese Zusammenfassung in der Konsole an.",
-      "startAutoLog": "Zeigt sie alle paar Sekunden an; gibt eine stoppende Funktion zurück.",
+      "startAutoLog": "Zeigt sie alle paar Sekunden an, im Debug-Modus, der allein den Bericht füllt; gibt eine stoppende Funktion zurück.",
       "stopAutoLog": "Stoppt die Anzeige.",
       "dispose": "Stoppt und vergisst alles."
     }
@@ -2213,8 +2214,8 @@
     "description": "Unbekannt ergibt `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "GPU-Dauer jedes Blocks einer Messung (`../../stage/mapping.ts` sagt, welcher welcher ist).",
-    "description": "`null` überall für eine fehlende oder abgeschnittene Messung, und `null` für einen Block, dessen Durchgang keine nutzbare Dauer hat: eine Teilsumme würde für eine Messung durchgehen. `null` auch für einen Block, den das Bild nie laufen ließ — eine Null würde sich lesen wie „mit null gemessen“. Die drei Blöcke summieren sich zum `totalMs` der Messung, wenn alle drei gemessen sind, und werden nie zu einer CPU-Dauer addiert."
+    "summary": "GPU-Dauer jedes Blocks einer Messung (`../stage/mapping.ts` sagt, welcher welcher ist).",
+    "description": "`null` überall für eine fehlende oder abgeschnittene Messung, und `null` für einen Block, dessen Durchgang keine nutzbare Dauer hat: eine Teilsumme würde für eine Messung durchgehen. `null` auch für einen Block, den das Bild nie laufen ließ — eine Null würde sich lesen wie „mit null gemessen“. Die drei Blöcke summieren sich zum `totalMs` der Messung, wenn alle drei gemessen sind, und werden nie zu einer CPU-Dauer addiert. Bis die Passtabelle angekommen ist, ist jeder Block `null`, wie bei einer Messung, die nichts gemessen hat."
   },
   "GpuPassBlockTotals": {
     "summary": "GPU-Zeit eines Bildes in drei Blöcken: Sichtbarkeit, Materialien, der Rest.",
@@ -2932,7 +2933,7 @@
       "shadowNearFraction": "Nahebene einer Kachel: ein Anteil der Reichweite, nie weniger als dieser Mindestwert.",
       "shadowNearMin": "Nächste Schattenentfernung.",
       "shadowNormalOffsetTexels": "Versatz des Abtastpunkts entlang der Normale, in Texeln der gelesenen Karte: ein halbes Texel, der Spielraum für das, was nicht die Ebene des Empfängers ist — seine Krümmung innerhalb eines Texels, die Rundung beider Tiefen. Die Neigung des Empfängers deckt ein Tiefenspielraum über die Reichweite des PCF ab, jenseits von 45° ein weiterer Versatz, in denselben Texeln (`shadowDepthMargin`, `shadowNormalTexels`): kein Bias ist eine Länge der Szene.",
-      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels, nie eine Grenze des Bildes. Ein Bild zeichnet jede Seite, die es markiert, in so vielen Stapeln wie nötig.",
+      "shadowPagesPerBatch": "Schattenseiten, die ein GPU-Stapel zeichnet: die Größe der Puffer eines Stapels. Ein Bild zeichnet die Seiten, die es markiert, in so vielen Stapeln wie nötig, höchstens die Seiten einer Pool-Ebene pro Bild; die übrigen werden in den nächsten Bildern gezeichnet und bis dahin in der gröberen Stufe gelesen.",
       "lampFaceSize": "Seitenlänge der feinsten Mip-Stufe einer Lampenfläche in Texeln: 32 × 32 Seiten zu 128 (der Pool: `shadowPoolSize`).",
       "shadowRequestCap": "Virtuelle Seiten, die die Schattierung pro Bild anfordern darf; der Rest fragt im nächsten Bild erneut.",
       "sunLevels": "Clipmap-Stufen eines gerichteten Lichts. Stufe `L` hat Texel von `2^L` Metern, und ein Pixel liest die Stufe, deren Texel höchstens seinem eigenen Fußabdruck entspricht: sechzehn Stufen decken ein Fern/Nah-Verhältnis von 2^15. Jenseits der letzten Stufe übernimmt der Fernschatten.",
@@ -5627,7 +5628,7 @@
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
-      "shadowCutCoarsePages": "Seiten, die neu gezeichnet werden, weil eine Ansicht einen gröberen Cluster als gewünscht gezeichnet hat, seit dem Öffnen des Explorers: freigegeben, sobald sich die Residenz geändert hat und die Kamera ruht.",
+      "shadowCutCoarsePages": "Seiten, die das Bild erneut zum Zeichnen schickt, weil eine Ansicht einen gröberen Cluster gezeichnet hat als gewünscht, freigegeben, sobald die Residenz den feineren gebracht hat, ob sich die Kamera bewegt oder nicht: eine Zahl pro Bild, wie die Zeichenaufrufe des Bildes (#831).",
       "shadowCutViewLimit": "Lichtansichten, in die ein Light-Cut-Batch jetzt zeichnet: die Obergrenze, bis ein Batch verwirft, dann was passt.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "tileLightPoolReserved": "Wörter, die die Kacheln jenseits ihrer Liste im Lichtindex-Pool der Ansicht reserviert haben, im zuletzt vom Gerät abgetasteten Bild, solange die Szene mehr Lichter hält als eine Liste; sonst `null` (#849).",
@@ -5667,6 +5668,7 @@
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "changeRoom": "Boxen, die die Liste vor dem Überlauf noch getrennt hält.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
+      "residencyChanged": "Ein Schattenwerfer kam in den Speicher oder verließ ihn: Seine Box macht seine Seiten beim nächsten Plan veraltet, gelesen bis zum Neuzeichnen, ob die Kamera sich bewegt oder nicht (#831).",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
       "releaseDeferred": "Das Bild plant keinen Schatten: die gehaltene Vereinigung kommt sofort in die Liste.",
@@ -6842,7 +6844,8 @@
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
       "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat; `FAMILY_LOAD_FAILED`, wenn eine optionale Familie nicht geladen wurde, auch dann), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
-      "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
+      "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet.",
+      "debug": "Der Debug-Modus der Seite (`WorldOptions.debug`): Die Bilder werden nur in ihm im CPU-Schrittprofil und im Bildbericht erfasst, ab dem nächsten Bild."
     }
   },
   "world.materials": {
@@ -6995,7 +6998,7 @@
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
-      "shadowCutCoarsePages": "Seiten, die neu gezeichnet werden, weil eine Ansicht einen gröberen Cluster als gewünscht gezeichnet hat, seit dem Öffnen des Explorers: freigegeben, sobald sich die Residenz geändert hat und die Kamera ruht.",
+      "shadowCutCoarsePages": "Seiten, die das Bild erneut zum Zeichnen schickt, weil eine Ansicht einen gröberen Cluster gezeichnet hat als gewünscht, freigegeben, sobald die Residenz den feineren gebracht hat, ob sich die Kamera bewegt oder nicht: eine Zahl pro Bild, wie die Zeichenaufrufe des Bildes (#831).",
       "shadowCutViewLimit": "Lichtansichten, in die ein Light-Cut-Batch jetzt zeichnet: die Obergrenze, bis ein Batch verwirft, dann was passt.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
       "tileLightPoolReserved": "Wörter, die die Kacheln jenseits ihrer Liste im Lichtindex-Pool der Ansicht reserviert haben, im zuletzt vom Gerät abgetasteten Bild, solange die Szene mehr Lichter hält als eine Liste; sonst `null` (#849).",
@@ -7078,7 +7081,8 @@
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
       "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
-      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
+      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1; unter WebGL2, das nur neu abtastet, ist `min` standardmäßig 1), eine Zahl legt ihn fest. Unter WebGPU wird auch ein ruhendes Bild mit diesem Maßstab gezeichnet und aus seinen Jitter-Phasen wiederhergestellt; unter WebGL2 wird es mit dem Maximum gezeichnet. Später über `world.renderScale` geändert.",
+      "debug": "Der Debug-Modus, die Werkzeuge eines Entwicklungs-Builds gegenüber einem Auslieferungs-Build: Die Bilder werden nur in ihm im CPU-Schrittprofil (`world.cpuSteps`) und im Bildbericht erfasst. Er gehört der Seite, so wie `?profile` in ihrer Adresse ihn einschaltet; `world.diagnostic.debug` schaltet ihn später um."
     }
   },
   "RenderScale": {
@@ -7659,6 +7663,7 @@
     "members": {
       "owner": "Der Eintrag, den jede physische Seite abbildet, −1 für eine freie.",
       "requested": "Der Frame, in dem jede Seite zuletzt angefragt wurde.",
+      "gpuDrawn": "1, wo die eigene Zeichnung der GPU die Tiefe der Seite hält (#831); fehlt es, ist keine bekannt.",
       "allocated": "Seiten, die dieser Frame abgebildet hat, und Einträge, für die er keine Seite hatte.",
       "refused": "Einträge, für die dieser Frame keine Seite hatte.",
       "drawn": "Seiten, die dieser Frame zum Zeichnen durch die GPU aufgelistet hat (`listDraw`).",

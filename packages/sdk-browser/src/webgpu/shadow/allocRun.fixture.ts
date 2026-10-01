@@ -1,7 +1,6 @@
-// The GPU allocation of shadow pages and the host's table words (#1275), run from their shipped
-// WGSL through `shaderRun`, over the bytes of the buffers they bind: phase by phase, every lane of
-// a phase before the next, as the barriers of `allocateShadowPages` order them. What the mock GPU
-// dispatches (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
+// The GPU page allocation and the host's table words (#1275), run from their WGSL by `shaderRun`
+// over their buffers' bytes, every lane of a phase before the next (`allocateShadowPages`'s
+// barriers): what the mock GPU (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import {
   MAX_SHADOW_SLICES,
   POINT_FACES,
@@ -13,13 +12,10 @@ import {
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
-import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
-import { WORDS_HEADER } from './wordsWgsl.ts';
+import { ALLOC_PARAM_WORDS, POOL_COUNTS, WORDS_HEADER, shadowEntryBits } from './allocLayout.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { ALLOC_LANES } from './allocLanes.ts';
 import { ALLOCATION_WGSL, SHADOW_WORDS_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
@@ -56,7 +52,7 @@ export function shadowsOf(data: Uint8Array) {
  *  listed by whoever set it. */
 export function claimShadowRequest(requests: Uint8Array, e: number) {
   const list = u32(requests),
-    cap = list.length - 1 - shadowRequestBits(),
+    cap = list.length - 1 - shadowEntryBits(),
     word = 1 + cap + (e >>> 5),
     bit = 1 << (e & 31);
   if (list[word] & bit) return;
@@ -123,6 +119,7 @@ function allocationLanes(...bound: Uint8Array[]) {
       asks: words[3],
       candidateBase: words[4],
       keepFrom: i32(params)[5],
+      budget: words[6],
       generation: words.subarray(8, 8 + MAX_SHADOW_SLICES),
       entries: words.subarray(ALLOC_PARAM_WORDS),
     },
@@ -162,8 +159,7 @@ export function runShadowAllocation(...bound: Uint8Array[]) {
   each('assignPages', needs, candidates);
 }
 
-/** Runs `applyShadowWords` over the shadow buffer, the GPU pool, the host's words and the draw
- *  list. */
+/** Runs `withdrawGpuPages`, then `applyShadowWords`, over the shadow data, pool, words, draw list. */
 export function runShadowWords(
   data: Uint8Array,
   state: Uint8Array,
@@ -175,14 +171,17 @@ export function runShadowWords(
       count: sent[0],
       pages: sent[1],
       frame: i32(words)[2],
+      every: sent[3],
       words: Array.from({ length: sent[0] }, (_, i) => [
         sent[WORDS_HEADER + 2 * i],
         sent[WORDS_HEADER + 2 * i + 1],
       ]),
     };
-  const { applyShadowWord } = shaderRun<Lanes>(
+  const { applyShadowWords, withdrawGpuPages } = shaderRun<Lanes>(
     SHADOW_WORDS_WGSL,
-    ['applyShadowWord', 'loseDepth', 'listDraw', 'poolAt', 'shadowPoolPages'],
+    'applyShadowWords withdrawGpuPages applyShadowWord withdrawGpuDraw withdrawGpuPage loseDepth listDraw poolAt'
+      .split(' ')
+      .concat('shadowPoolPages'),
     {
       ...wgslConstants(SHADOW_WORDS_WGSL),
       ...atomicsOf(state, new Uint8Array(4)),
@@ -192,5 +191,7 @@ export function runShadowWords(
       drawList: u32(drawList),
     },
   );
-  for (let i = 0; i < shadowWords.count; i++) applyShadowWord(i);
+  if (shadowWords.every)
+    for (let i = 0; i < shadowWords.pages; i++) withdrawGpuPages([i, 0, 0] as never);
+  for (let i = 0; i < shadowWords.count; i++) applyShadowWords([i, 0, 0] as never);
 }

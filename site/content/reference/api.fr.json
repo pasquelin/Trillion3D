@@ -367,7 +367,6 @@
       "cascadeShares": "Part du budget par niveau, du plus fin au plus grossier. Le niveau le plus fin entoure la caméra et reçoit la plus grande part des rayons.",
       "raysPerProbe": "Rayons tracés par sonde à chaque mise à jour. Budget fixe réglable.",
       "raysPerFrame": "Rayons de sondes maximum par image : plafond fixe qui borne la taille du calcul lancé.",
-      "lightsPerRay": "Lumières testées par case du cache de surface.",
       "surfaceTexelsPerFrame": "Plafond de cases du cache de surface mises à jour par image.",
       "budgetMs": "Durée visée de la passe de rebond sur le GPU par image, en millisecondes.",
       "budgetSmoothing": "Part de la correction d’erreur gardée à chaque mesure, pour éviter les oscillations.",
@@ -1273,7 +1272,8 @@
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "options.debug": "Le mode débogage, les outils d’une version de développement face à une version publiée : les images ne sont rangées dans le profil des étapes CPU (`world.cpuSteps`) et dans le rapport d’images que dans ce mode. Il appartient à la page, comme `?profile` dans son adresse l’allume ; `world.diagnostic.debug` le change ensuite."
     }
   },
   "crossVector3": {
@@ -1638,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
-      "FAMILY_LOAD_FAILED": "Une famille facultative du moteur (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) ne s’est pas chargée, son import retenté d’abord (`T3D-E090`) : `details.family` la nomme, sur `world.diagnostic.error`. Les images qui dessinent avec elle l’attendent, et elle est redemandée au prochain usage.",
+      "FAMILY_LOAD_FAILED": "Une famille facultative du moteur (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) ne s’est pas chargée, son import retenté d’abord (`T3D-E090`) : `details.family` la nomme, sur `world.diagnostic.error`. Les images qui dessinent avec elle l’attendent, et elle est redemandée au prochain usage.",
       "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
@@ -1658,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Regarde image après image et dit avec quelle fluidité tourne le moteur, et ce qui le ralentit.",
+    "description": "Comme une version de production retire ses outils de statistiques (#1353), le cœur ne contient que cette façade : son code est le morceau de la mesure (`FrameProfile`, `../host/families.ts`), téléchargé dès que le mode débogage s’active ou au premier usage du profileur. Tant qu’il n’est pas arrivé, une image n’est pas comptée et le rapport dit qu’il attend (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalles gardés, du plus ancien au plus récent : ce que reçoit `frameStatistics`.",
       "setMetadata": "Lui dit quel modèle est chargé.",
@@ -1665,7 +1666,7 @@
       "getReport": "Un résumé des dernières images.",
       "formatReport": "Ce résumé en texte.",
       "printReport": "Affiche ce résumé dans la console.",
-      "startAutoLog": "L’affiche toutes les quelques secondes ; renvoie une fonction qui arrête.",
+      "startAutoLog": "L’affiche toutes les quelques secondes, en mode débogage, le seul qui remplit le rapport ; renvoie une fonction qui arrête.",
       "stopAutoLog": "Arrête l’affichage.",
       "dispose": "Arrête et oublie tout."
     }
@@ -2221,8 +2222,8 @@
     "description": "Inconnu vaut `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durée GPU de chaque bloc d’une mesure (`../../stage/mapping.ts` dit lequel est lequel).",
-    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU."
+    "summary": "Durée GPU de chaque bloc d’une mesure (`../stage/mapping.ts` dit lequel est lequel).",
+    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU. Tant que la table des passes n’est pas arrivée, chaque bloc vaut `null`, comme pour une mesure qui n’a rien mesuré."
   },
   "GpuPassBlockTotals": {
     "summary": "Temps GPU d’une image en trois blocs : visibilité, matériaux, le reste.",
@@ -2940,7 +2941,7 @@
       "shadowNearFraction": "Plan proche d’une tranche : une part de la portée, jamais moins que ce plancher.",
       "shadowNearMin": "Distance d’ombre la plus proche.",
       "shadowNormalOffsetTexels": "Décalage du point d’échantillonnage le long de la normale, en texels de la carte lue : un demi-texel, la marge de ce qui n’est pas le plan du récepteur — sa courbure dans un texel, l’arrondi des deux profondeurs. La pente du récepteur est couverte par une marge de profondeur sur la portée du PCF, et au-delà de 45° par un décalage supplémentaire, dans les mêmes texels (`shadowDepthMargin`, `shadowNormalTexels`) : aucun biais n’est une longueur de la scène.",
-      "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot, jamais une limite de l’image. Une image dessine chaque page qu’elle marque, en autant de lots qu’il faut.",
+      "shadowPagesPerBatch": "Pages d’ombre qu’un lot GPU dessine : la taille des tampons d’un lot. Une image dessine les pages qu’elle marque en autant de lots qu’il faut, au plus les pages d’une couche du pool par image ; les autres sont dessinées aux images suivantes, lues entre-temps au niveau plus grossier.",
       "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSize`).",
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
@@ -5635,7 +5636,7 @@
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
-      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutCoarsePages": "Pages que l’image renvoie au dessin parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, relâchées une fois que la résidence a apporté le plus fin, que la caméra bouge ou non : un compte par image, comme les appels de dessin de l’image (#831).",
       "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
@@ -5675,6 +5676,7 @@
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "changeRoom": "Boîtes que la liste garde encore à part avant le débordement.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
+      "residencyChanged": "Un objet qui projette une ombre est entré en résidence ou en est sorti : sa boîte rend ses pages périmées au plan suivant, lues jusqu’à leur nouveau dessin, que la caméra bouge ou non (#831).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
       "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : l’union tenue entre tout de suite dans la liste, où la lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
@@ -6850,7 +6852,8 @@
       "mode": "Le mode de vue : `'beauty'` pour l’image normale, ou un mode qui montre comment travaille le moteur.",
       "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel.",
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
-      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil; `FAMILY_LOAD_FAILED` quand une famille facultative ne s’est pas chargée, alors aussi), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
+      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil; `FAMILY_LOAD_FAILED` quand une famille facultative ne s’est pas chargée, alors aussi), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté.",
+      "debug": "Le mode débogage de la page (`WorldOptions.debug`) : les images ne sont rangées dans le profil des étapes CPU et dans le rapport d’images que dans ce mode, dès l’image suivante."
     }
   },
   "world.materials": {
@@ -7003,7 +7006,7 @@
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
-      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutCoarsePages": "Pages que l’image renvoie au dessin parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, relâchées une fois que la résidence a apporté le plus fin, que la caméra bouge ou non : un compte par image, comme les appels de dessin de l’image (#831).",
       "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
@@ -7086,7 +7089,8 @@
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "debug": "Le mode débogage, les outils d’une version de développement face à une version publiée : les images ne sont rangées dans le profil des étapes CPU (`world.cpuSteps`) et dans le rapport d’images que dans ce mode. Il appartient à la page, comme `?profile` dans son adresse l’allume ; `world.diagnostic.debug` le change ensuite."
     }
   },
   "RenderScale": {
@@ -7659,6 +7663,7 @@
     "members": {
       "owner": "L’entrée que mappe chaque page physique, −1 pour une page libre.",
       "requested": "L’image dans laquelle chaque page a été demandée en dernier.",
+      "gpuDrawn": "1 là où le dessin propre du GPU tient la profondeur de la page (#831) ; absent, aucune n’est connue.",
       "allocated": "Pages que cette image a mappées, et entrées pour lesquelles elle n’avait pas de page.",
       "refused": "Entrées pour lesquelles cette image n’avait pas de page.",
       "drawn": "Pages que cette image a listées pour que le GPU les dessine (`listDraw`).",

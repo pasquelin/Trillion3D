@@ -1,19 +1,11 @@
 import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts';
-import { EMISSIVE_AO_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { core } from '../../impostor/borrowed.ts';
+import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts';
 
-/** Floats of one card record (`Card` below): four corners, world, inverse world, shape, pivot. */
-export const CARD_FLOATS = 56;
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
 export const CARD_VIEW_FLOATS = 20;
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2;
-/**
- * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
- * masked material without its own declares (`MASK_CUTOFF`, the world API's: not imported into the
- * shader layer). The bake stores coverage, never a cut, so the cut is the runtime's; a mesh whose
- * material declares another keeps it on its own clusters.
- */
-const CARD_COVERAGE_CUT = 0.5;
 
 /** The card's depth nudged toward the eye by one part in 2^20 when its surface is drawn: the
  *  visibility stage wrote the same depth, and the nudge keeps it the nearest even where two
@@ -33,7 +25,7 @@ const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20;
  * `card_fs` writes its surface where its depth is the one kept, so the lighting, the shadows and
  * every later pass read it as they read a cluster.
  */
-export const CARD_PASS_WGSL = `
+export const cardPassWgsl = () => `
 struct CardView{viewProj:mat4x4f,eye:vec4f}
 /** \`shape\`: object radius, frames a side, hemi (0 or 1), the mip level. \`pivot\`: object-space
  *  bounding-sphere centre. */
@@ -97,6 +89,6 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let px=cardPixel(in);let b=px.blend;
  let n=normalize(mat3x3f(in.n0,in.n1,in.n2)*b.normal);
  let ao=b.orm.x;
- let flag=${LIT_SURFACE_FLAG}u|select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
+ let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
 }`;

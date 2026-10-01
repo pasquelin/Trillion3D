@@ -5,9 +5,8 @@ import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts';
+import { REST_COMPACT_PASS } from '../../stage/passLabels.ts';
 
-/** Pass label, the one the per-step profile files under "Geometry". */
-export const REST_COMPACT_PASS = 'Trillion3D rest compaction';
 const REST_PASS = { label: REST_COMPACT_PASS } as const;
 
 export type GpuRestCompact = {
