@@ -68,13 +68,13 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
       resident = residency(random(3));
     cut(resident);
     const both = cut.held.bytes;
-    assert.equal(cut.held.placements, 2);
+    assert.equal(cut.held.primitives, 2);
     // The second placement leaves, and its pages move while it is away: none of it is held.
     roots[1].worldBox = AWAY;
     cut(resident);
     for (let page = n + 1; page < 2 * n; page += 3) resident[page] = 1;
     const { drawn } = cut(resident);
-    assert.equal(cut.held.placements, 1);
+    assert.equal(cut.held.primitives, 1);
     const alone = placements(dag, 2);
     alone[1].worldBox = AWAY;
     const fresh = mount(name, alone);
@@ -84,7 +84,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
     // Back in view, it is read whole again; everything gone, nothing is held.
     roots[1].worldBox = undefined;
     assert.deepEqual(sorted(cut(resident).drawn), sorted(mount(name)(resident).drawn));
-    assert.equal(cut.held.placements, 2);
+    assert.equal(cut.held.primitives, 2);
     // A placement whose hierarchy changed enters again: its old state leaves the total.
     (roots[0] as { structure: object }).structure = { ...dag.structure };
     cut(resident);
@@ -93,7 +93,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
     assert.equal(cut.held.bytes, again.held.bytes);
     for (const root of roots) root.worldBox = AWAY;
     cut(resident);
-    assert.deepEqual([cut.held.placements, cut.held.bytes], [0, 0]);
+    assert.deepEqual([cut.held.primitives, cut.held.bytes], [0, 0]);
   });
 }
 

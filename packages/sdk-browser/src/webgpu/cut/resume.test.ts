@@ -78,9 +78,9 @@ test("the GPU cut's images let go of the readiness the CPU cut held", () => {
   const b = banc(),
     held = b.rt.services.heldResidency;
   held.readiness({ pages: [{ triangles: 1 }] } as unknown as ClusterRoot<PageRec>);
-  assert.equal(held.placements, 1);
+  assert.equal(held.primitives, 1);
   // A light's cut of the last CPU image may still have visited it: the next image lets it go.
   b.image();
   b.image();
-  assert.deepEqual([held.placements, held.bytes], [0, 0]);
+  assert.deepEqual([held.primitives, held.bytes], [0, 0]);
 });
