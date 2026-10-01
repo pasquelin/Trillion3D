@@ -68,7 +68,11 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
-      return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
+      return (
+        (uploadResidency?.hostBytes ?? 0) +
+        (poolList?.entries.byteLength ?? 0) +
+        (mirror?.hostBytes ?? 0)
+      );
     },
     maskBuffer: resources.flagParts[mask.part],
     maskOffset: mask.word,
