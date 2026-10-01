@@ -11,13 +11,13 @@ import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { DRAWN_HOST } from './poolDrawn.ts';
+import { DRAWN_GPU, DRAWN_HOST } from './poolDrawn.ts';
 import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
 const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 /** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
-const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
+const snapshotWords = (pages: number) => POOL_COUNTS.length + 3 * pages;
 /** Pairs the host's table words hold at most: the table's changed words of a frame, or every
  *  mapped page once (`table.ts`, `flush`). */
 const wordsCap = (pages: number) => 4 * pages;
@@ -172,8 +172,13 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.listings = from[POOL_COUNTS.indexOf('listings')];
       allocation.pairNeed = from[POOL_COUNTS.indexOf('pairs')];
-      into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
-      into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
+      const field = (k: number) =>
+        signed.subarray(POOL_COUNTS.length + k * pages, POOL_COUNTS.length + (k + 1) * pages);
+      into.owner.set(field(0));
+      into.requested.set(field(1));
+      const drawnBy = field(2);
+      for (let p = 0; p < pages && into.gpuDrawn; p++)
+        into.gpuDrawn[p] = +(drawnBy[p] === DRAWN_GPU);
     },
     dispose() {
       for (const buffer of Object.values(buffers)) buffer.destroy();

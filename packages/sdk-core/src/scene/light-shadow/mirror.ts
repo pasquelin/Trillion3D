@@ -12,6 +12,8 @@ export interface ShadowPoolSnapshot {
   owner: Int32Array;
   /** The frame each page was last asked for in. */
   requested: Int32Array;
+  /** 1 where the GPU's own draw holds the page's depth (#831); absent, none is known. */
+  gpuDrawn?: Uint8Array;
   /** Pages that frame mapped, and entries it had no page for. */
   allocated: number;
   /** Entries that frame had no page for. */
@@ -78,6 +80,10 @@ export function createShadowMirror(
       pool.x[page] = at[1];
       pool.y[page] = at[2];
       pool.rank[page] = entries.rankOf(slice, at);
+      // Drawn once, as Unreal draws a page: the GPU's draw is kept, never drawn again by the host
+      // until what it holds changes; its static layer is made then (`pool.drawMode`).
+      if (snapshot.gpuDrawn?.[page])
+        pool.keepDraw(page, entries.isSun(slice) ? sun.ranges.current[slice] : 0);
     }
     if (moved) pool.rebuildFree();
   };
