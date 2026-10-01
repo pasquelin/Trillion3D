@@ -367,7 +367,6 @@
       "cascadeShares": "Parte del presupuesto por nivel, del más fino al más grueso. El nivel más fino rodea la cámara y recibe la mayor parte de los rayos.",
       "raysPerProbe": "Rayos trazados por sonda en cada actualización. Presupuesto fijo ajustable.",
       "raysPerFrame": "Rayos de sondas como máximo por fotograma: límite fijo que acota el tamaño del cálculo lanzado.",
-      "lightsPerRay": "Luces probadas por celda de la caché de superficie.",
       "surfaceTexelsPerFrame": "Límite de celdas de la caché de superficie actualizadas por fotograma.",
       "budgetMs": "Duración objetivo del paso de rebote en la GPU por fotograma, en milisegundos.",
       "budgetSmoothing": "Parte de la corrección de error conservada en cada medición, para evitar oscilaciones.",
