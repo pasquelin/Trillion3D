@@ -6,7 +6,7 @@ import type { WebgpuLightState } from '../pages/state/lights.ts';
 
 /** The static layer's texture, made with the pool and held until the first move builds the layer
  *  on it (`ensureStaticLayer`), per session. */
-const reserved = new WeakMap<WebgpuLightState, { texture: GPUTexture; bytes: number }>();
+const reserved = new WeakMap<WebgpuLightState, { texture?: GPUTexture; bytes: number }>();
 
 /**
  * Makes the static layer's texture with the pool, in the same held frame, when the shadows' grant
@@ -30,12 +30,15 @@ export async function reserveStaticLayer(rt: WebgpuPagesRuntime, granted: boolea
   });
 }
 
-/** The texture reserved with the pool, handed once to the layer the first move builds. */
+/** The texture reserved with the pool, handed once to the layer the first move builds; its bytes
+ *  stay counted while that layer is built (`reservedStaticBytes`). */
 export function takeStaticLayerTexture(lights: WebgpuLightState) {
-  const texture = reserved.get(lights)?.texture;
-  reserved.delete(lights);
+  const held = reserved.get(lights),
+    texture = held?.texture;
+  if (held) held.texture = undefined;
   return texture;
 }
 
-/** GPU bytes of the texture reserved, until a layer takes it. */
+/** GPU bytes of the texture reserved, until the layer built on it counts them itself
+ *  (`shadowPoolHeld`): never the pool without them while the layer is being built. */
 export const reservedStaticBytes = (lights: WebgpuLightState) => reserved.get(lights)?.bytes ?? 0;
