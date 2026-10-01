@@ -1,62 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EngineError } from '../contracts/cache.ts';
-import { readCookedPhysics } from './cooked.ts';
+import { refuses } from '../contracts/cache.fixture.ts';
+import { PHYSICS_FORMAT_VERSIONS, readCookedPhysics } from './cooked.ts';
 import { JOLT_COMMIT } from './joltCommit.ts';
 
-const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+const read = PHYSICS_FORMAT_VERSIONS;
+const file = { formatVersion: read[0], jolt: JOLT_COMMIT, colliders: [], instances: [] };
+/** A version that is none of those read. */
+const unread = Math.max(...read) + 1;
 
-/** Asserts `read` refuses the file as `PHYSICS_FORMAT`, its message naming each of `named`, a
- *  number as a word of its own. */
-function refused(read: () => unknown, named: unknown[], details?: Record<string, unknown>) {
-  assert.throws(read, (error: unknown) => {
-    assert.ok(error instanceof EngineError);
-    assert.equal(error.code, 'PHYSICS_FORMAT');
-    if (details) assert.deepEqual(error.details, details);
-    for (const name of named)
-      assert.ok(
-        typeof name === 'number'
-          ? new RegExp(`\\b${name}\\b`).test(error.message)
-          : error.message.includes(String(name)),
-        error.message,
-      );
-    return true;
-  });
-}
-
-test('physics.json of a format read, cooked by this Jolt, is read as it is', () => {
-  assert.equal(readCookedPhysics(file), file);
-  const later = { ...file, formatVersion: 3, softBodies: [], bodies: [] };
-  assert.equal(readCookedPhysics(later), later, 'pieces carried');
+test('physics.json of each format read, cooked by this Jolt, is read as it is', () => {
+  for (const formatVersion of read) {
+    const later = { ...file, formatVersion, softBodies: [], bodies: [] };
+    assert.equal(readCookedPhysics(later), later, `format ${formatVersion}, pieces carried`);
+  }
+  assert.equal(readCookedPhysics(file), file, 'no soft or declared bodies');
   assert.equal(readCookedPhysics({ ...file, jolt: 'a-build' }, 'a-build').jolt, 'a-build');
 });
 
-test('another format, or none, is refused naming the version found and the ones read', () => {
+test('another format, or none, is refused naming the version found and, one by one, those read', () => {
   // Format 1, as the cook wrote it before #475: its dynamic `bodies`, no matter on an instance.
   for (const [wrong, found] of [
     [{ ...file, formatVersion: 1, bodies: [] }, 1],
-    [{ ...file, formatVersion: 4 }, 4],
-    [{ formatVersion: '2' }, '2'],
+    [{ ...file, formatVersion: unread }, unread],
+    [{ formatVersion: String(read[0]) }, String(read[0])],
     [{}, null],
     [null, null],
     [undefined, null],
-  ] as const)
-    refused(() => readCookedPhysics(wrong), [found ?? 'undefined', 2, 3], { formatVersion: found });
+  ] as const) {
+    const message = refuses(() => readCookedPhysics(wrong), 'PHYSICS_FORMAT', {
+      formatVersion: found,
+    });
+    assert.ok(message.includes(String(found ?? undefined)), message);
+    for (const version of read) assert.match(message, new RegExp(`\\b${version}\\b`));
+  }
 });
 
 test('shapes cooked by another Jolt are refused naming both builds', () => {
   for (const jolt of [undefined, '', '0'.repeat(40)])
-    refused(() => readCookedPhysics({ ...file, jolt }), [String(jolt), JOLT_COMMIT], {
-      jolt: jolt ?? null,
-    });
+    refuses(() => readCookedPhysics({ ...file, jolt }), 'PHYSICS_FORMAT', { jolt: jolt ?? null }, [
+      String(jolt),
+      JOLT_COMMIT,
+    ]);
 });
 
 test('a list missing or not a list is refused by name', () => {
   for (const key of ['colliders', 'instances', 'softBodies', 'bodies'])
     for (const value of [null, {}, 'bad'])
-      refused(() => readCookedPhysics({ ...file, [key]: value }), [key]);
+      refuses(() => readCookedPhysics({ ...file, [key]: value }), 'PHYSICS_FORMAT', undefined, [
+        key,
+      ]);
   for (const key of ['colliders', 'instances'] as const) {
     const { [key]: _, ...without } = file;
-    refused(() => readCookedPhysics(without), [key]);
+    refuses(() => readCookedPhysics(without), 'PHYSICS_FORMAT', undefined, [key]);
   }
 });

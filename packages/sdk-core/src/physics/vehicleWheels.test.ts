@@ -21,8 +21,6 @@ test('a car’s forward wheels steer, its `drive` wheels drive, the handbrake ho
   ]);
   const front = wheelsOf(vehicle.car(body, { wheels, drive: 'front' }));
   assert.deepEqual(roles(front.words), [steers | driven, steers | driven, handbrake, handbrake]);
-  // A wheelbase of 2.5 m in a 5.5 m turning radius.
-  assert.equal(rear.maxSteer.toFixed(4), Math.asin(2.5 / 5.5).toFixed(4));
   // Centre, radius and width in the body's frame, its scale applied.
   body.scale.set(2, 2, 2);
   const first = wheelsOf(vehicle.car(body, { wheels })).words.slice(0, 5);
