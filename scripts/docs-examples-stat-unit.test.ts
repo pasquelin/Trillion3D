@@ -80,6 +80,9 @@ test('the corner reads each frame of the half second, though the engine hands th
     { open: () => true, stages: () => [['physics step', 1]] },
   );
   const metrics = { cpuFrameMs: 0 };
+  // The first read only opens the engine's window again: it spans the time before the corner.
+  t.mock.timers.tick(500);
+  assert.ok(!shown.at(-1)?.some(([label]) => label === 'CPU physics step'));
   for (const value of [2, 4, 9]) hook({ metrics: Object.assign(metrics, { cpuFrameMs: value }) });
   t.mock.timers.tick(500);
   assert.deepEqual(shown.at(-1)?.slice(1), [
@@ -110,7 +113,12 @@ test('with the panel closed, the corner keeps no CPU time and reads no CPU stage
   hook({ metrics: { cpuFrameMs: 6, gpuFrameMs: 1 } });
   t.mock.timers.tick(500);
   assert.ok(shown.at(-1)?.some(([label, value]) => label === 'CPU frame' && value === '6.00 ms'));
+  // The engine's window spans the closed time: read to open it again, not shown.
+  assert.ok(!shown.at(-1)?.some(([label]) => label === 'CPU command encoding'));
   assert.equal(reads, 1);
+  hook({ metrics: { cpuFrameMs: 6, gpuFrameMs: 1 } });
+  t.mock.timers.tick(500);
+  assert.ok(shown.at(-1)?.some(([label]) => label === 'CPU command encoding'));
   stop();
 });
 

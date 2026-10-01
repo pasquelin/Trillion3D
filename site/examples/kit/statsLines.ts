@@ -160,6 +160,7 @@ export function watchStats(
   let last: FrameCounters = {},
     fps: number | null = null,
     gpuFrameMs: number | null = null,
+    cpuWasOpen = false,
     shown = '';
   const unhook = world.onFrame(({ metrics }) => {
     drawn.push(performance.now());
@@ -184,12 +185,17 @@ export function watchStats(
       gpuFrameMs,
       gpuFrameLast: last.gpuFrameMs == null,
     };
-    if (cpu.open())
+    const cpuOpen = cpu.open();
+    if (cpuOpen) {
+      // The engine's window ran on while the corner was closed: its first read after opening
+      // spans that time, so it only opens the window again and is not shown.
+      const stages = cpu.stages();
       sample.cpu = {
         frameMs: spread(cpuFrameMs.splice(0))?.p50 ?? null,
-        stages: cpu.stages() ?? [],
+        stages: (cpuWasOpen && stages) || [],
       };
-    else cpuFrameMs.length = 0;
+    } else cpuFrameMs.length = 0;
+    cpuWasOpen = cpuOpen;
     if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
     const lines = [...statLines(sample), ...extra()].map(([label, value]): [string, string] => [
         kitWord('stats', label, label),
