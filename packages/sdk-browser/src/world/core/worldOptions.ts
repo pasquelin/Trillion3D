@@ -40,6 +40,11 @@ export interface WorldOptions {
    *  from its jitter phases; on WebGL2 it is drawn at the maximum. Changed later by
    *  `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale;
+  /** Debug mode, as Unreal's Development build against its Shipping one: the frames are filed
+   *  into the CPU step profile (`world.cpuSteps`) and the frame report only in it. It is the
+   *  page's, as `?profile` in its address turns it on; `world.diagnostic.debug` switches it later.
+   *  @defaultValue false */
+  debug?: boolean;
 }
 
 /**

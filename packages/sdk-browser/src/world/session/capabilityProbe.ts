@@ -1,6 +1,6 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { detectCapabilities } from '../../measurement/capabilities.ts';
+import { detectCapabilities } from '../capability/capabilities.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
 import type { ExplorerSession } from './session.ts';
 
