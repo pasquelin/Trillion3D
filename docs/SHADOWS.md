@@ -185,7 +185,8 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   region's pairs are laid in its place: no pair past the list, none drawn for a page left unread.
   The list is the region cull's kept list, free once the host's batches are encoded, at a size
   fixed by the pool and never grown after (#831), as Unreal's culling buffers are
-  (`r.Nanite.MaxCandidateClusters`): `poolPairs` = the pool's pages × `PAIRS_PER_PAGE` (a page's
+  (`r.Nanite.MaxCandidateClusters`): `poolPairs` = the pages the GPU draws a frame at most
+  (`SHADOW_GPU_PAGES_PER_FRAME`, the pool's own when smaller) × `PAIRS_PER_PAGE` (a page's
   128² texels over the 32 a kept cluster covers at least, 512), grown once to it by the tables' own
   path (`growKeptList`, the occlusion test's list with it) — asked of the shadow grant, then of the
   device under an out-of-memory scope, never past one storage binding (`pairGrowth.ts`) —, each
@@ -209,9 +210,13 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
 
 ## When a page is stale, withdrawn and drawn
 
-**Every stale page the image reads is drawn in the frame that marks it** (#489): no per-frame page
-cap, no millisecond budget. The list goes coarsest first, each light's floor leading (#525), an
-order that matters only to a frame its memory guard stops. Cost is held by caching — a page is
+**Every stale page the image reads is drawn, at most a page budget a frame** (#489, #831): the host
+draws `SHADOW_PAGES_PER_FRAME` (192) pages a frame at most, the GPU maps and draws
+`SHADOW_GPU_PAGES_PER_FRAME` (96) of its own; a burst past them — a scene's first frames, a camera
+cut — is drawn over the next frames, the pixels reading the coarser level meanwhile, as Unreal's
+virtual shadow maps read a page their frame did not render. Without it one frame drew 2 423 pages
+in 286 ms on a-field-of-pebbles. The list goes coarsest first, each light's floor leading (#525),
+the oldest first once pages wait. Otherwise cost is held by caching — a page is
 redrawn only when what it holds changed —, never by showing a coarse or stale page as current. A
 page is drawn with its own projection into its physical page (viewport and scissor), touching no
 other.
@@ -283,8 +288,10 @@ A placement turns moving the first time its pose or its row's flag actually chan
 a pose that moves no corner of the caster's box by one float32 step at its reach (`poseHoldsBox`:
 a resting body's pose rounded again, which the GPU's float32 world cannot show, #831) is no move —
 and stays so. From then on the pool keeps a static layer, a second depth texture the
-pool's size, allocated at that first move: a scene where nothing moves pays neither its bytes nor
-its pass. A page drawn in full writes its static casters into the layer, restores itself from it and
+pool's size. Its texture is made with the pool, in the same held frame, as Unreal allocates its
+static page pool beside the dynamic one (`webgpu/shadow/staticReserve.ts`, #831): the pool's bytes
+are its setting's from the first frame, whatever moves; the layer itself, its pyramids and
+occlusion test, is built on it at that first move, so a scene where nothing moves pays no pass. A page drawn in full writes its static casters into the layer, restores itself from it and
 draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
 alone, split by one word per row in the page cull. Each page keeps, of the moving casters, only
 the clusters whose sphere meets its own light-space box (`keepCaster`, `gpu/shadow/cullShader.ts`):

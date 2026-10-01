@@ -64,7 +64,8 @@ export function planShadowRegions(
 }
 
 /**
- * The static layer is built the first time an object moves, with the pyramids of its pages and
+ * The static layer is built the first time an object moves, on the texture made with the pool
+ * (`staticReserve.ts`), with the pyramids of its pages and
  * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
  * caster at once. It is asked of the shadows' grant first (`staticLayerGranted`), its texture
  * made under an out-of-memory check (`deviceMade`): past the grant or refused, it is never made
