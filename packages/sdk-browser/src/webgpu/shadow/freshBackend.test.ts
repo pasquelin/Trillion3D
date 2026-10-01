@@ -23,7 +23,12 @@ const GPU_PAGE_WORK = ['composeShadowPages', 'shadowCullPairs', 'sealShadowPages
 type Words = (label: string) => Uint32Array;
 
 async function lampOverFloor() {
-  const run = await floorCasterBackend({ ...LAMP, position: [0, 0, 4], range: 40 });
+  // Two lamps' pages over a 32-pixel screen, whose own read is a pool of four (`screenPoolPages`):
+  // the pool is set as a world sets it, at the 256 pages the seed pool held.
+  const run = await floorCasterBackend(
+    { ...LAMP, position: [0, 0, 4], range: 40 },
+    { shadowPoolPages: 256 },
+  );
   const words: Words = (label) => {
     const made = run.gpu.buffers.filter((buffer) => buffer.label === label).at(-1)!.data;
     return new Uint32Array(made.buffer, made.byteOffset, made.byteLength >> 2).slice();

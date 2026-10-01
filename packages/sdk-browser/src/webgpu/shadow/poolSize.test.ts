@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  screenPoolPages,
   shadowPoolSide,
   shadowPoolSize as pages,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { sizeShadowPool } from './poolSize.ts';
+import { shadowPoolShapeOf, sizeShadowPool } from './poolSize.ts';
 import { shadowPoolFor } from './poolFor.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
@@ -18,7 +19,8 @@ import { SHADOW_ATLAS_BYTES } from '../../residency/shadowBudgetBytes.ts';
  *  past `limit` bytes; its atlas records the side it was sized at, and what the frame was told. */
 function session(viewport: [number, number], limit = Infinity) {
   installGpuGlobals();
-  const lights = createWebgpuLightState(shadowPoolSide(300, 150));
+  const shape = shadowPoolShapeOf({ viewport }, { maxTextureDimension2D: 8192 }),
+    lights = createWebgpuLightState(shape.side, undefined, undefined, shape.layers);
   lights.plan.setPageInvalidation(false);
   const sized: number[] = [],
     said: Array<[string, Record<string, unknown>]> = [];
@@ -45,6 +47,7 @@ function session(viewport: [number, number], limit = Infinity) {
   const capture = { capturing: false };
   const rt = {
     lights,
+    context: {},
     capture,
     setup: { viewport },
     blendState: { blendGpu: [] },
@@ -77,14 +80,14 @@ function session(viewport: [number, number], limit = Infinity) {
   };
 }
 
-/** The budget's whole pool on the sessions' device, 8 192 texels wide: two layers of 53². */
-const BUDGET = shadowPoolFor(Infinity, 8192 / 128)(SHADOW_ATLAS_BYTES);
+/** The pool a 1280 × 720 screen reads on the sessions' device, 8 192 texels wide: one layer of
+ *  18² — 320 pages asked (`screenPoolPages`). */
+const BUDGET = shadowPoolFor(18 * 18, 8192 / 128)(SHADOW_ATLAS_BYTES);
 
-// A world prepares before any report says what it reads: the first frame that casts is granted the
-// budget's whole pool, whatever the canvas, once, as the reference engine allocates its physical pages up front —
-// no first frame reads a coarser level for want of pages; the reports size it then
-// (`poolResize.ts`).
-test('the first frame that casts is granted the budget pool, whatever the canvas', async () => {
+// The first frame that casts is granted the pool the screen the session opened on reads, once, as
+// the reference engine allocates its physical pages up front from `a reference setting`; a later
+// canvas resizes nothing (#831).
+test('the first frame that casts is granted the pool its opening screen reads, once', async () => {
   const viewport: [number, number] = [1280, 720];
   const s = session(viewport);
   s.capture.capturing = true;
@@ -96,19 +99,20 @@ test('the first frame that casts is granted the budget pool, whatever the canvas
   assert.deepEqual(s.sized, [], 'no light casts a shadow: no pool');
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
-  assert.deepEqual([BUDGET.side, BUDGET.layers], [53, 2]);
+  assert.equal(screenPoolPages(...viewport), 320);
+  assert.deepEqual([BUDGET.side, BUDGET.layers], [18, 1]);
   assert.deepEqual(s.sized, [BUDGET.side]);
-  assert.equal(s.lights.plan.pool.pages, 53 * 53 * 2, 'the plan follows the atlas');
+  assert.equal(s.lights.plan.pool.pages, 18 * 18, 'the plan follows the atlas');
   assert.equal(s.lights.plan.pageInvalidation, false, "the host's setting is kept");
   assert.equal(s.changed, 1, 'the granted pool is a new resource: the next frame is drawn');
   viewport[0] = 3840;
   viewport[1] = 2160;
   await s.size();
-  assert.deepEqual(s.sized, [BUDGET.side], 'seeded once: the demand is followed apart');
+  assert.deepEqual(s.sized, [BUDGET.side], 'allocated once, never resized');
 });
 
 test('a shadow pool the device refuses is drawn smaller, said, and never taken for a lost device', async () => {
-  // Room for a quarter of the pool's bytes: the budget pool refused, then half, then half again.
+  // Room for a quarter of the pool's bytes: the setting's pool refused, then half, then half again.
   const room = BUDGET.allocatedBytes / 4,
     s = session([1280, 720], room);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
