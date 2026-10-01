@@ -26,7 +26,7 @@ const order = new Set<Held>();
 let heldBytes = 0,
   budget = RAYCAST_TREE_BUDGET;
 /** Drops the tree of a geometry collected without `dispose()`. */
-const collected = new FinalizationRegistry<Held>((held) => drop(held));
+const collected = new FinalizationRegistry<Held>(drop);
 
 function drop(held: Held) {
   collected.unregister(held);
