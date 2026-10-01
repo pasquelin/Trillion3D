@@ -34,10 +34,7 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
  */
 const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
-  diagnostics: [
-    'sdk-browser/src/host/scene/graphDiagnostic.js',
-    'sdk-browser/src/webgpu/pages/diagnostic/',
-  ],
+  diagnostics: ['sdk-browser/src/host/scene/graphDiagnostic.js'],
   'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
   'the WebGL2 renderer': ['sdk-browser/src/backend/autonomous/', 'sdk-browser/src/webgl/cluster/'],
   'the WebGPU shadows': ['sdk-browser/src/gpu/shadow/', 'sdk-browser/src/webgpu/shadow/'],

@@ -1020,6 +1020,7 @@
   },
   "EngineProfiler": {
     "summary": "Mengawasi bingkai demi bingkai dan mengatakan seberapa mulus mesin berjalan, dan apa yang memperlambatnya.",
+    "description": "Seperti build rilis yang membuang alat statistiknya (#1353), inti hanya memuat fasad ini: kodenya adalah potongan pengukuran (`FrameProfile`, `../host/families.ts`), diunduh begitu mode debug menyala atau saat profiler pertama kali dipakai. Sebelum tiba, sebuah frame tidak dihitung dan laporan mengatakan bahwa ia menunggu (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Interval yang disimpan, dari terlama ke terbaru: yang diterima `frameStatistics`.",
       "setMetadata": "Memberitahunya model mana yang dimuat.",
@@ -1027,7 +1028,7 @@
       "getReport": "Ringkasan bingkai-bingkai terbaru.",
       "formatReport": "Ringkasan itu sebagai teks.",
       "printReport": "Mencetak ringkasan itu ke konsol.",
-      "startAutoLog": "Mencetaknya setiap beberapa detik; mengembalikan sebuah fungsi yang menghentikannya.",
+      "startAutoLog": "Mencetaknya setiap beberapa detik, dalam mode debug, satu-satunya yang mengisi laporan; mengembalikan sebuah fungsi yang menghentikannya.",
       "stopAutoLog": "Menghentikan pencetakan.",
       "dispose": "Menghentikan dan melupakan semuanya."
     }
@@ -5410,8 +5411,8 @@
     "description": "Tidak diketahui adalah `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durasi GPU setiap blok dalam sebuah sampel (`../../stage/mapping.ts` mengatakan mana yang mana).",
-    "description": "`null` di mana pun untuk sampel yang hilang atau terpotong, dan `null` untuk blok yang pass-nya tidak punya durasi yang bisa dipakai: jumlah parsial akan lolos sebagai sebuah pengukuran. `null` juga untuk sebuah blok yang tidak pernah dijalankan bingkai — nol akan terbaca sebagai \"terukur pada nol\". Ketiga blok berjumlah `totalMs` sampel saat ketiganya terukur, dan tidak pernah ditambahkan ke durasi CPU."
+    "summary": "Durasi GPU setiap blok dalam sebuah sampel (`../stage/mapping.ts` mengatakan mana yang mana).",
+    "description": "`null` di mana pun untuk sampel yang hilang atau terpotong, dan `null` untuk blok yang pass-nya tidak punya durasi yang bisa dipakai: jumlah parsial akan lolos sebagai sebuah pengukuran. `null` juga untuk sebuah blok yang tidak pernah dijalankan bingkai — nol akan terbaca sebagai \"terukur pada nol\". Ketiga blok berjumlah `totalMs` sampel saat ketiganya terukur, dan tidak pernah ditambahkan ke durasi CPU. Sebelum tabel pass tiba, setiap blok bernilai `null`, seperti sampel yang tidak mengukur apa pun."
   },
   "gpuPassStageOf": {
     "summary": "Tahap sebuah pass, menurut labelnya.",

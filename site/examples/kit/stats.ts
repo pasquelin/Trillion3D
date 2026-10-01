@@ -37,8 +37,8 @@ export function statsCard(corner: keyof typeof statsCorners = 'bottom-left') {
 /**
  * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
  * the world drew per second, the engine's counters of the last frame and where its time went, CPU
- * and GPU, as Unreal's `stat unit` (`unitLines`), refreshed twice a second; hidden, it reads no
- * CPU time. With `?profile` in the page's address, it adds each second's CPU profile
+ * and GPU, as Unreal's `stat unit` (`unitLines`), refreshed twice a second; hidden, it reads
+ * nothing, while the debug mode it turns on keeps filing the engine's CPU steps. With `?profile` in the page's address, it adds each second's CPU profile
  * (`profile.ts`), also kept as `window.__profile`. What it returns stops the corner's timers.
  */
 export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {

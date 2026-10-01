@@ -16,14 +16,12 @@ export class FrameProfile {
   private readonly intervals: Float64Array;
   private intervalCount = 0;
   private intervalHead = 0;
-  private readonly maxIntervals: number;
   private lastTime = 0;
   private lastMetrics: FrameMetrics | null = null;
   private sourceTriangles = 0;
   private totalClusters = 0;
 
   constructor(maxIntervals = 120) {
-    this.maxIntervals = maxIntervals;
     this.intervals = new Float64Array(Math.max(1, maxIntervals));
   }
 
