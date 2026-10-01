@@ -13,13 +13,18 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
  * two to save three lines. What made a module hard to change was never its length but the length
  * and the branching of its functions, which a file bound cannot see — a module of six one-line
  * functions and a module of one 189-line function both passed it. `check:cohesion` measures those
- * two instead, on the modules a branch touches.
+ * two instead, on the modules a branch touches — the 405 functions of the tree already over 60 lines
+ * are its queue rather than a failure, which is why it is not a step of `validate`.
  *
  * The tests keep the bound: a test is long by nature, its cases are its sections, and the split
  * that stays under it is by the behaviour under test (`b237eb625`). The scripts keep it too — they
  * are read whole, one gate or one step each.
  */
-const RUNTIME_SOURCE = /^(?:packages\/(?:sdk-core|sdk-browser|sdk-node|page-codec)\/src)\//;
+/** The maintained runtime modules `check:cohesion` reads instead. `page-codec` is listed both as
+ *  `packages/page-codec/src` and as the package root, because the modules live at the root — a
+ *  path that does not exist would silently keep the bound on files the other gate never sees. */
+const RUNTIME_SOURCE =
+  /^(?:packages\/(?:sdk-core|sdk-browser|sdk-node)\/src\/|packages\/page-codec\/)/;
 const TEST_FILE = /\.(?:test|fixture|perf|browser)\.m?ts$/;
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,

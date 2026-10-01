@@ -55,6 +55,32 @@ test('a nested function is measured inside the one that holds it, never counted 
   assert.equal(fns[0].lines, 8);
 });
 
+test('a class is not a function, but its methods are: a long class is only reached through them', () => {
+  // `ts.SyntaxKind` members are ordinals, not flags. A bitwise mask of them matches every kind
+  // below it, which reported classes as functions and skipped every method inside one.
+  const source = `export class EngineProfiler {\n  private n = 0;\n  record(name: string) {\n    let hit = 0;\n    for (const key of [1, 2, 3, 4]) if (key) hit += key;\n    this.n += hit;\n    return hit;\n  }\n}\n`;
+  const fns = functionsOf('packages/sdk-core/src/p.ts', source);
+  assert.deepEqual(
+    fns.map((f) => f.name),
+    ['record'],
+  );
+  // The method's own `for` and `if`, and the class field's initialiser nothing: 1 + 2.
+  assert.equal(fns[0].complexity, 3);
+});
+
+test('an interface and a type alias are never reported as functions', () => {
+  const source = `export interface Long {\n${Array.from({ length: 80 }, (_, i) => `  f${i}: number;`).join('\n')}\n}\nexport type Alias = { a: 1 };\n`;
+  assert.deepEqual(functionsOf('packages/sdk-core/src/l.ts', source), []);
+});
+
+test('a constructor, an accessor pair and an object method are all functions, each named', () => {
+  // A getter and a setter share a name in the class: reporting both as `get` would send a reader
+  // to the wrong line of the pair.
+  const source = `export class C {\n  constructor(private a: number) {}\n  get b() {\n    return this.a;\n  }\n  set b(v: number) {\n    this.a = v;\n  }\n}\nexport const o = { run() {\n  let n = 0;\n  for (let i = 0; i < 3; i++) n += i;\n  return n;\n} };\n`;
+  const fns = functionsOf('packages/sdk-core/src/c.ts', source);
+  assert.deepEqual(fns.map((f) => f.name).sort(), ['constructor', 'get b', 'run', 'set b']);
+});
+
 test('the gate reads the packages, and leaves the scripts, the site and the bench to their own gates', () => {
   assert.ok(unitOf('packages/sdk-browser/src/gpu/dag/uniforms.ts'));
   assert.equal(unitOf('scripts/check-cohesion.ts'), null);

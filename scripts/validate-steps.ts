@@ -8,6 +8,10 @@
 //              or a lint mistake should be reported, not after the Rust suite — and the unit
 //              tests that read documentation (`test:docs`), which a documentation-only pull
 //              request, whose code jobs are skipped, still runs;
+//              `check:cohesion` is deliberately NOT one of them: it reads the modules a branch
+//              touches and is a step of `check:changed`. Run against the whole tree it reports the
+//              417 functions that predate it — that is the queue it works through, not a failure,
+//              and a gate that cannot go green is not a gate;
 //   typescript the `tsc` build, the site build (`build:docs`) and the gates that read their
 //              products, the CDN core's gzip budget among them;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
@@ -33,7 +37,6 @@ export const VALIDATE_GROUPS = {
     'check:local',
     'format:check',
     'check:lines',
-    'check:cohesion',
     'check:duplicates',
     'check:helpers',
     'lint:js',

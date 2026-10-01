@@ -13,7 +13,6 @@ import {
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
-import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts';
 
@@ -53,7 +52,7 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
     at = AHEAD_VIEW * VIEW_BLOCK_WORDS;
   if (!ahead || uniforms.light || target.length < at + VIEW_BLOCK_WORDS) return;
   target.copyWithin(at, 0, VIEW_BLOCK_WORDS);
-  target.set(ahead.planes, at);
+  target.set(ahead.planes, at + viewWord('planes'));
   target.set(ahead.view, at + viewWord('view'));
   ints[viewWord('ahead')] = 1;
 }
@@ -75,7 +74,7 @@ export function writeDagUniforms(
 ) {
   const W = viewWord;
   target.fill(0);
-  target.set(uniforms.planes, 0);
+  target.set(uniforms.planes, W('planes'));
   target.set(uniforms.view, W('view'));
   target[W('pixelScale')] = uniforms.pixelScale[0];
   target[W('pixelScale') + 1] = uniforms.pixelScale[1];

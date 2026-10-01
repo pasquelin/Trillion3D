@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord } from './viewLayout.ts';
+import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from './viewLayout.ts';
 import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { writeDagUniforms } from './uniforms.ts';
@@ -15,7 +15,7 @@ test('the block holds the sixty-four words the uniform array strides by', () => 
 test('every field starts where WGSL puts it, by its own alignment', () => {
   // The words the host wrote by hand before the table existed, read from the merge that introduced
   // them. A table that moved one of them would move every word after it in the kernel's view.
-  const asWritten: [string, number][] = [
+  const asWritten: [FieldName, number][] = [
     ['planes', 0],
     ['view', 24],
     ['pixelScale', 40],
@@ -68,9 +68,14 @@ test('the struct the kernels bind is the one the table describes, in order', () 
   assert.equal(DAG_SELECTION_SHADER.match(/struct Uniforms\{/g)?.length, 1);
 });
 
-test('an unknown field is refused by name, never read as undefined', () => {
-  assert.throws(() => viewWord('pageRow'), /pageRow is not a field/);
-  assert.throws(() => viewWord(''), /is not a field/);
+test('a field the table does not name is a type error, not a lookup that returns undefined', () => {
+  // `viewWord` takes the union of the table's names, so `viewWord('pageRow')` and
+  // `viewWord('cameraWrold')` do not compile — checked by `tsc` on this file, which is why they are
+  // spelled here as strings the compiler sees. The runtime guard below is what a JavaScript caller
+  // reaches, and it names the field rather than writing into word `undefined`.
+  const asText = viewWord as (field: string) => number;
+  assert.throws(() => asText('pageRow'), /pageRow is not a field/);
+  assert.throws(() => asText(''), /is not a field/);
 });
 
 test('the host writes each field at the word the kernels read, values unchanged', () => {
@@ -122,7 +127,7 @@ test('a view ahead fills block one and raises the word that says it is there', (
     pixelError: 0.5,
     near: 0.1,
     cameraStretch: 1,
-  } as never;
+  };
   const uniforms = {
     ...base,
     ahead: { planes: new Float32Array(24).fill(9), view: new Float32Array(16).fill(9) },

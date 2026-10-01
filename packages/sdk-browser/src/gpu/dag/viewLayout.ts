@@ -22,8 +22,10 @@ type Field = {
   readonly align: number;
 };
 
-/** The block, in order. */
-const VIEW_FIELDS: readonly Field[] = [
+/** The block, in order. `as const` is what makes `FieldName` a union of the twenty-two names rather
+ *  than `string`: annotated `readonly Field[]`, the literal types widen and a typo in `viewWord`
+ *  would compile and throw mid-frame, which is the drift this module exists to prevent. */
+const VIEW_FIELDS = [
   { name: 'planes', type: 'array<vec4f,6>', words: 24, align: 4 },
   { name: 'view', type: 'mat4x4f', words: 16, align: 4 },
   { name: 'pixelScale', type: 'vec2f', words: 2, align: 2 },
@@ -46,7 +48,7 @@ const VIEW_FIELDS: readonly Field[] = [
   { name: 'viewCapacity', type: 'u32', words: 1, align: 1 },
   { name: 'queueCap', type: 'u32', words: 1, align: 1 },
   { name: 'ahead', type: 'u32', words: 1, align: 1 },
-];
+] as const satisfies readonly Field[];
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
 const firstWord = (field: Field, after: number): number =>
@@ -73,13 +75,26 @@ export const VIEW_BLOCK_WORDS = VIEW_FIELDS.reduce(
   0,
 );
 
-/** The word a field starts at. `VIEW_WORD.viewFlags` is where the host writes what the kernels read
- *  as `views[vi].viewFlags`; nothing else may hold that number. */
-export const viewWord = (field: string): number => {
+/** The word a field starts at. `viewWord('viewFlags')` is where the host writes what the kernels read
+ *  as `views[vi].viewFlags`; nothing else may hold that number.
+ *
+ *  `field` is a union of the table's names, so a typo is a type error rather than a throw thrown
+ *  mid-frame: the compiler and the shader are checked against the same list. */
+export const viewWord = (field: FieldName): number => {
   const at = VIEW_WORD[field];
   if (at === undefined) throw new Error(`${field} is not a field of a view's uniform block`);
   return at;
 };
+
+/** The name of a field of the block, as the union the compiler and the host are checked against: a
+ *  typo is a type error, not a throw thrown mid-frame. */
+export type FieldName = (typeof VIEW_FIELDS)[number]['name'];
+
+/** The stride must be a whole number of four-word units: WGSL lays a uniform array out with a
+ *  sixteen-byte aligned stride, and a block of 65 words would fail at shader-compile time, on a
+ *  device, rather than here. */
+if (VIEW_BLOCK_WORDS % 4 !== 0)
+  throw new Error(`a view's uniform block is ${VIEW_BLOCK_WORDS} words, not a multiple of four`);
 
 /** The WGSL struct the kernels bind, built from the same table the host writes against. */
 export const VIEW_UNIFORM_STRUCT = `struct Uniforms{${VIEW_FIELDS.map(

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { unitOf } from './check-cohesion-measure.ts';
 import {
   keepsLineBound,
   lineCount,
@@ -71,6 +72,18 @@ test('a test, a fixture and an index keep the bound: they are read whole', () =>
     assert.equal(keepsLineBound(file), true, file);
     assert.equal(lineLimitViolations(new Map([[file, 400]])).length, 1, file);
   }
+});
+
+test('`page-codec` keeps no `src/`, and its modules are read by the cohesion gate', () => {
+  // The two lists must agree: a path `check-file-lines` exempts and `check:cohesion` never reads
+  // would leave a file with no gate at all.
+  assert.equal(keepsLineBound('packages/page-codec/geometryPage.ts'), false);
+  assert.equal(unitOf('packages/page-codec/geometryPage.ts') !== null, true);
+  assert.equal(keepsLineBound('packages/sdk-node/src/cli/cli.mts'), false);
+  // A barrel keeps the bound and is read by the cohesion gate too: the overlap is harmless, and
+  // what matters is that no file is read by neither.
+  assert.equal(keepsLineBound('packages/sdk-node/src/index.mts'), true);
+  assert.equal(unitOf('packages/sdk-node/src/index.mts') !== null, true);
 });
 
 test('a Rust crate, a script, the site and the bench all keep the bound', () => {
