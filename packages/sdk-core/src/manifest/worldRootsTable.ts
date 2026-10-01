@@ -22,20 +22,21 @@ const [DAG_HEADER, CLUSTER, GROUP] = [24, 152, 64];
 /** An index word naming nothing. */
 const NONE = 0xffffffff;
 
-/** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts. */
+/** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts: `poolAt`
+ *  refuses a file its records do not fill exactly. */
 function opened(
   bytes: Uint8Array,
   magic: string,
+  header: number,
   poolAt: (word: (at: number) => number) => number,
 ) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const word = (at: number) => view.getUint32(at, true);
-  if (bytes.byteLength < DAG_HEADER || String.fromCharCode(...bytes.subarray(0, 4)) !== magic)
+  if (bytes.byteLength < header || String.fromCharCode(...bytes.subarray(0, 4)) !== magic)
     refuse(`not a ${magic} file`);
   if (word(4) !== VERSION) refuse(`version ${word(4)}`);
   const at = poolAt(word);
   const words = (bytes.byteLength - at) / 4;
-  if (!(words >= 0) || !Number.isInteger(words)) refuse(`${magic} is not its records' length`);
   // Aligned it is viewed in place; a caller's unaligned view is copied once.
   const pool =
     (bytes.byteOffset + at) % 4 === 0
@@ -61,7 +62,7 @@ const below = (values: Uint32Array, end: number) => values.every((value) => valu
  * first `pinned` bundles, and every dependency naming a bundle of the table.
  */
 export function readWorldRoots(bytes: Uint8Array): WorldRoots {
-  const { view, word, list } = opened(bytes, 'WRTB', (w) => {
+  const { view, word, list } = opened(bytes, 'WRTB', TABLE_HEADER, (w) => {
     const counts = [w(20), w(24), w(28), w(32)];
     const records = counts[0] * BUNDLE + counts[1] * PAGE + counts[2] * CELL + counts[3] * OBJECT;
     if (TABLE_HEADER + records + w(36) * 4 !== bytes.byteLength) refuse('table length');
@@ -141,10 +142,10 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
  * naming clusters of the DAG.
  */
 export function readWorldRootsDag(bytes: Uint8Array) {
-  const { view, word, list } = opened(bytes, 'WRTD', (w) => {
-    if (DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP + w(16) * 4 !== bytes.byteLength)
-      refuse('DAG length');
-    return DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP;
+  const { view, word, list } = opened(bytes, 'WRTD', DAG_HEADER, (w) => {
+    const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP;
+    if (records + w(16) * 4 !== bytes.byteLength) refuse('DAG length');
+    return records;
   });
   const clusterCount = word(8);
   const floats = (at: number, count: number) =>
