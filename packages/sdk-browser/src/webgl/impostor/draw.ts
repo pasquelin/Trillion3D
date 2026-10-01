@@ -81,7 +81,9 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext, lent: typeof Len
       gl.uniform1i(at('reflectionResolve'), pass.resolve ? 1 : 0);
       // The lights the cluster program uploaded for the pass: their records, lists and lobe stay on
       // the units this program samples too; only its uniforms are sent.
-      for (const part of [lights.lists, lights.probe, lights.fog]) part.send(at);
+      lights.lists.send(at);
+      lights.probe.send(at);
+      lights.fog.send(at);
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.depthMask(true);
