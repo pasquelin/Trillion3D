@@ -1305,6 +1305,7 @@
     "members": {
       "name": "Geçişin adı.",
       "gpuMs": "Geçişin GPU süresi.",
+      "ownMs": "Daha önce başlayan bir geçişin kapsadığı kısım çıkarılmış süresi (WebGPU).",
       "reason": "Neden ölçülmediği."
     }
   },
