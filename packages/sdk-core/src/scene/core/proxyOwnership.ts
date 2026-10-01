@@ -14,6 +14,8 @@ export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffe
   const owners = take(d.owners * 2);
   const sourceParents = new Int32Array(buffer, at, d.instances);
   at += d.instances * 4;
+  const sourceMeshes = new Int32Array(buffer, at, d.instances);
+  at += d.instances * 4;
   // The preceding u32 columns need not leave doubles aligned to eight bytes.
   const bytes = new DataView(buffer);
   const bindWorlds = new Float64Array(d.instances * 16);
@@ -42,5 +44,6 @@ export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffe
     }
   }
   for (const value of bindWorlds) if (!Number.isFinite(value)) refuse('non-finite bind matrix');
-  return { triangleGroups, groupOffsets, owners, bindWorlds, sourceParents };
+  for (const mesh of sourceMeshes) if (mesh < -1) refuse('source mesh');
+  return { triangleGroups, groupOffsets, owners, bindWorlds, sourceParents, sourceMeshes };
 }

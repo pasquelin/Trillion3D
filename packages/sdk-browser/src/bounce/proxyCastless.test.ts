@@ -50,6 +50,25 @@ test('a group is marked castless only when every owner casts none, and uploaded 
   assert.equal(bits(), 0, 'a mesh casting again blocks the ray again');
 });
 
+test("each owner is asked with the mesh its source node places, from the proxy's column", () => {
+  const { device } = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 28, maxBufferSize: 1 << 28 },
+  });
+  // Source nodes 0 and 1 both place mesh 0; source 2 places none (`sourceMeshes`).
+  const resident = createGpuBounceProxy(device, ownedProxy());
+  const asked: [number, number][] = [];
+  resident.castless((source, mesh) => (asked.push([source, mesh]), mesh === 0));
+  assert.deepEqual(asked, [
+    [0, 0],
+    [1, 0],
+  ]);
+  assert.equal(
+    resident.castless((_, mesh) => mesh === -1),
+    true,
+    'marked, then cleared',
+  );
+});
+
 test("only the far sun's ray lets a castless triangle through, before testing it", () => {
   const blocked = BOUNCE_TRACE_WGSL.slice(BOUNCE_TRACE_WGSL.indexOf('fn proxyBlocked('));
   assert.match(blocked, /casters:bool\)->bool\{/);
