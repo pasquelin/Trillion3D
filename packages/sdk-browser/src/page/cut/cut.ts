@@ -59,15 +59,13 @@ export function selectVisiblePages<T extends PageRecord>(
   // (rank by rank), which widens them as the cut emits (`./take.ts`): they follow what the view
   // selects, never the instances the roots could name (#1232). Their end is the two record
   // counts, so a reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
-  const shownPacked = result.shownPacked,
-    wantedPacked = result.wantedPacked;
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
-  state.wantedPacked = wantedPacked;
-  state.shownPacked = shownPacked;
+  state.wantedPacked = result.wantedPacked;
+  state.shownPacked = result.shownPacked;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
