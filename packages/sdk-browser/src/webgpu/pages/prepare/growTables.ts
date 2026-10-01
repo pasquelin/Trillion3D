@@ -1,6 +1,6 @@
 import { askedTableRows, rowScratch } from './layout.ts';
-import { grownTableRows } from '../../row/tableRows.ts';
-import { pageTableBuffer } from '../render/encodeDraws.ts';
+import { grownTableRows, viewRowsFor } from '../../row/tableRows.ts';
+import { pageTableBuffer } from '../render/pageTable.ts';
 import { followOcclusion } from './lightResources.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
@@ -15,7 +15,32 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
   const { layout } = rt;
   const blended = layout.packedPages.length - layout.opaquePageCount;
   const limits = rt.context.gpuDevice?.limits;
-  return askedTableRows(layout.opaquePageCount, blended, slots, layout.copies.max, limits);
+  return askedTableRows(
+    layout.opaquePageCount,
+    blended,
+    slots,
+    layout.copies.max,
+    limits,
+    layout.viewRows,
+  );
+}
+
+/**
+ * THE CUT CLAIMS ITS ROWS (#1232). The CPU cut selected `asked` rows — its clusters and the light
+ * cuts' casters behind them —, or the blended casters found none left: past four fifths of the
+ * rows the view holds, they rise a quarter above them and the table grows after them, in place, as a
+ * larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
+ * never the placements a scene repeats its pages on, as cluster's visible-cluster list is what its
+ * cut emits. Until the growth is granted, the image draws the rows the table holds.
+ */
+export function followCutRows(rt: WebgpuPagesRuntime, asked: number) {
+  const { layout } = rt;
+  // Four fifths of the rows held: the table grows before the cut reaches its end, not after.
+  if (5 * asked <= 4 * layout.viewRows) return;
+  layout.viewRows = viewRowsFor(asked);
+  growWebgpuTables(rt, rt.setup.cap).catch((error) =>
+    rt.diag.diagnosticFailure('page-tables-growth-failed', error),
+  );
 }
 
 /**

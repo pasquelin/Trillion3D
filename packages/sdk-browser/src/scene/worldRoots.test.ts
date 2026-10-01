@@ -8,28 +8,40 @@ import {
   worldRootsDag,
   worldRootsFixture,
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts';
 import { openWorldRoots } from './worldRoots.ts';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
 /** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it, `dag` the
- *  keys its table adds; returns the manifest that declares its table, and the ranges asked. */
-function served(t: TestContext, bin?: Uint8Array, ignoresRange = false, dag = {}) {
+ *  world DAG its cook writes beside it; returns the manifest that declares its files, the ranges
+ *  asked and the files read whole. */
+function served(
+  t: TestContext,
+  bin?: Uint8Array,
+  ignoresRange = false,
+  dag?: Parameters<typeof encodeWorldRootsDag>[0],
+) {
   const world = worldRootsFixture(sha);
-  const json = new TextEncoder().encode(JSON.stringify({ ...world.table, ...dag }));
+  const records = { table: world.bytes, dag: dag && encodeWorldRootsDag(dag) };
   const held = bin ?? world.bin,
-    ranges: string[] = [];
+    ranges: string[] = [],
+    whole: string[] = [];
   t.mock.method(globalThis, 'fetch', async (input: string, init?: RequestInit) => {
-    if (input.endsWith('.json'))
-      return new Response(json, { headers: { 'content-type': 'application/json' } });
+    const file = /\.(table|dag)$/.exec(input)?.[1] as 'table' | 'dag' | undefined;
+    if (file) return (whole.push(file), new Response(records[file]!.slice()));
     const range = (init?.headers as Record<string, string>).Range;
     ranges.push(range);
     if (ignoresRange) return new Response(held.slice());
     const [from, to] = range.slice('bytes='.length).split('-').map(Number);
     return new Response(held.slice(from, to + 1), { status: 206 });
   });
-  const files = { 'world-roots.json': { bytes: json.byteLength, sha256: sha(json) } };
-  return { ...world, ranges, manifest: { files } as unknown as ClusterManifest };
+  const announce = (bytes: Uint8Array) => ({ bytes: bytes.byteLength, sha256: sha(bytes) });
+  const files = {
+    'world-roots.table': announce(records.table),
+    ...(records.dag && { 'world-roots.dag': announce(records.dag) }),
+  };
+  return { ...world, ranges, whole, manifest: { files } as unknown as ClusterManifest };
 }
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
@@ -76,7 +88,7 @@ test('a server that ignores the Range is read once, whole, and every byte counte
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`);
   assert.deepEqual(
     metered,
-    ['http://world/world-roots.json', 'http://world/world-roots.bin'],
+    ['http://world/world-roots.table', 'http://world/world-roots.bin'],
     'the binary read is counted as it arrives, as the table is',
   );
   const bundles = roots.held().reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0);
@@ -89,10 +101,13 @@ test('a server that ignores the Range is read once, whole, and every byte counte
 
 test('the world DAG names its pages through the one source, from what is held (#1238)', async (t) => {
   const { clusters, groups } = worldRootsDag();
-  const { manifest, ranges } = served(t, undefined, false, { clusters, groups });
+  const { manifest, ranges, whole } = served(t, undefined, false, { clusters, groups });
   const roots = (await openWorldRoots(manifest, 'http://world/'))!;
+  assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG (#1232)');
   const stream = await roots.stream();
+  assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once its stream opens');
   assert.equal(stream, await roots.stream(), 'opened once');
+  assert.deepEqual(whole, ['table', 'dag'], 'an opened stream reads its DAG no more');
   assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank');
   await roots.hold(0); // cell 0 holds bundles 1 and 3, the top is pinned
   const asked = ranges.length;
@@ -114,13 +129,10 @@ test('the world DAG names its pages through the one source, from what is held (#
   assert.equal(roots.bytes(), before, 'both views served, it is let go');
 });
 
-test('a world DAG out of the cook\u2019s rank is refused when its stream opens (#1238)', async (t) => {
-  const { clusters, groups } = worldRootsDag();
-  const swapped = [...clusters];
-  [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
-  const { manifest } = served(t, undefined, false, { clusters: swapped, groups });
+test('a cache without its DAG file opens a stream with no DAG (#1232)', async (t) => {
+  const { manifest } = served(t);
   const roots = (await openWorldRoots(manifest, 'http://world/'))!;
-  await assert.rejects(roots.stream(), /WORLD_CLUSTER_RANK: 1 at 0/);
+  assert.equal((await roots.stream()).dag, undefined);
 });
 
 test('a cache that publishes no world roots pins nothing', async () => {
