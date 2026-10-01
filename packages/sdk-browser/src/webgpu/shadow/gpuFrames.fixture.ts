@@ -135,7 +135,8 @@ export function gpuFrames(
         drawnAt[page] = frame;
       }
       plan.commit();
-      if (allocation.writeWords(plan, frame, (sink) => plan.table.flush(sink)))
+      const words = allocation.writeWords(plan, frame, (sink) => plan.table.flush(sink));
+      if (words.words || words.withdraw)
         runShadowWords(
           bytes(data),
           bytes(state),

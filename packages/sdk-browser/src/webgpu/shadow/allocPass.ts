@@ -13,6 +13,7 @@ import { shadowKeptFrom } from './poolCeiling.ts';
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 const SHADOW_FLOORS_PASS = 'Trillion3D shadow floors v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
+const SHADOW_WITHDRAW_PASS = 'Trillion3D shadow GPU page withdraw v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
 const SHADOW_FRESH_COUNT_PASS = 'Trillion3D shadow GPU page count v1';
 const SHADOW_FRESH_ADMIT_PASS = 'Trillion3D shadow GPU page admission v1';
@@ -26,6 +27,7 @@ export const SHADOW_PAGE_PASSES = [
   SHADOW_DEMAND_PASS,
   BLEND_SHADOW_MARKS_PASS,
   SHADOW_ALLOC_PASS,
+  SHADOW_WITHDRAW_PASS,
   SHADOW_WORDS_PASS,
   SHADOW_FRESH_PASS,
   SHADOW_FRESH_COUNT_PASS,
@@ -55,22 +57,19 @@ export async function createShadowAllocation(device: GPUDevice, pages = SUN_WIND
   const culled: GPUBufferBindingType[] = [READ, READ, READ, 'storage', 'storage', READ, READ];
   const pairs = (label: string, entry: string) =>
     computePass(device, SHADOW_FRESH_CULL_WGSL, label, entry, culled);
-  const [floors, allocate, words, compose, seal, count, admit, cull] = await Promise.all([
+  const wordBindings: GPUBufferBindingType[] = ['storage', 'storage', READ, 'storage'];
+  const [floors, allocate, withdraw, words, compose, seal, count, admit, cull] = await Promise.all([
     computePass(device, allocation, SHADOW_FLOORS_PASS, 'claimShadowFloors', allocated),
     computePass(device, allocation, SHADOW_ALLOC_PASS, 'allocateShadowPages', allocated),
-    computePass(device, wordsWgsl, SHADOW_WORDS_PASS, 'applyShadowWords', [
-      'storage',
-      'storage',
-      READ,
-      'storage',
-    ]),
+    computePass(device, wordsWgsl, SHADOW_WITHDRAW_PASS, 'withdrawGpuPages', wordBindings),
+    computePass(device, wordsWgsl, SHADOW_WORDS_PASS, 'applyShadowWords', wordBindings),
     computePass(device, freshWgsl, SHADOW_FRESH_PASS, 'composeShadowPages', fresh),
     computePass(device, freshWgsl, SHADOW_FRESH_SEAL_PASS, 'sealShadowPages', fresh),
     pairs(SHADOW_FRESH_COUNT_PASS, 'shadowCountPairs'),
     pairs(SHADOW_FRESH_ADMIT_PASS, 'admitShadowPairs'),
     pairs(SHADOW_FRESH_CULL_PASS, 'shadowCullPairs'),
   ]);
-  return { floors, allocate, words, compose, count, admit, cull, seal };
+  return { floors, allocate, withdraw, words, compose, count, admit, cull, seal };
 }
 
 export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;
@@ -150,13 +149,11 @@ export function flushShadowTable(rt: WebgpuPagesRuntime, encoder: GPUCommandEnco
     buffers = pageRequests?.allocation;
   if (!shadows?.texture) return;
   if (!allocation || !buffers?.seeded || !plan.gpu.on) return shadows.flushData(plan.table);
-  const count = buffers.writeWords(plan, rt.run.frame, (sink) =>
-    shadows.flushData(plan.table, sink),
-  );
-  if (count)
-    allocation.words(
-      encoder,
-      [shadows.dataBuffer, buffers.state, buffers.words, buffers.drawList],
-      Math.ceil(count / WORDS_GROUP),
-    );
+  const sent = buffers.writeWords(plan, rt.run.frame, (sink) =>
+      shadows.flushData(plan.table, sink),
+    ),
+    bound = [shadows.dataBuffer, buffers.state, buffers.words, buffers.drawList];
+  // The sweep first: a word landing a host draw on a page it withdraws is applied after it.
+  if (sent.withdraw) allocation.withdraw(encoder, bound, Math.ceil(sent.withdraw / WORDS_GROUP));
+  if (sent.words) allocation.words(encoder, bound, Math.ceil(sent.words / WORDS_GROUP));
 }

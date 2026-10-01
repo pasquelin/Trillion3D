@@ -24,6 +24,7 @@ const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
   'Trillion3D shadow demand v1': ['shadows', 'cull'],
   'Trillion3D shadow blend marks v1': ['shadows', 'cull'],
   'Trillion3D shadow allocation v1': ['shadows', 'cull'],
+  'Trillion3D shadow GPU page withdraw v1': ['shadows', 'cull'],
   'Trillion3D shadow table words v1': ['shadows', 'cull'],
   'Trillion3D shadow GPU pages v1': ['shadows', 'cull'],
   'Trillion3D shadow GPU page count v1': ['shadows', 'cull'],
