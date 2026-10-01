@@ -195,6 +195,10 @@ nothing presented. Refused, Hi-Z goes first, for the rest of the session: its ab
 never image (`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then,
 the visibility targets included, they are refused by name and the mode kept, never a lost device
 (`frame-targets-refused`); they are asked again only when the view's size changes, or by a capture.
+Once the targets are in place, a live allocation that moves the ledger funds the pools again beside
+the frames, one funding at a time, and never holds one: a funding refused keeps the pools in place
+and is said once (`frame-targets-refused`, `reason: 'budget'`), the frames going on (#1362). A
+target grant and a capture wait for a funding in flight, so two never move the pools at once.
 
 **WebGL2.** It has no out-of-memory scope, so the engine reads `gl.getError()` for its allocations
 — a buffer, a texture level, a target sized again, never an upload in place — without holding a
