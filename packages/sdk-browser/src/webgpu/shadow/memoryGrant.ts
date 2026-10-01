@@ -38,12 +38,13 @@ export type ShadowMemory = {
   bias: number;
   /** Replaced, never mutated, at each event: a frame's metrics publish it without a copy. */
   events: readonly ShadowPressure[];
-  /** Bytes of the kept lists' rows past the table's, grown for the GPU pages' pairs. */
+  /** Bytes of the pairs' share of the kept lists (`followPairBytes`). */
   pairBytes: number;
 };
 
 /** GPU bytes the shadow pool holds: its buffers and depth pages, their transmittance and static
- *  layers once made, its request buffer, and the kept lists' rows its GPU pages' pairs grew. */
+ *  layers once made, its request buffer, and the pairs' share of the kept lists: its setting's,
+ *  `SHADOW_POOL_SETTING_BYTES`, the transmittance layer apart (`poolSetting.ts`). */
 export const shadowPoolHeld = (lights: WebgpuLightState) =>
   (lights.shadows?.allocationBytes ?? 0) +
   (lights.staticLayer?.bytes ?? reservedStaticBytes(lights)) +

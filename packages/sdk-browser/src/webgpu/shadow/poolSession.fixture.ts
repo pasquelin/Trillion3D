@@ -12,9 +12,13 @@ import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 import { createWebgpuLightState, type WebgpuLightState } from '../pages/state/lights.ts';
 import { shadowPoolShapeOf, sizeShadowPool } from './poolSize.ts';
 import { followShadowCeiling } from './poolCeiling.ts';
+import { shadowAtlasBytes, shadowBufferBytes } from '../../gpu/shadow/sizes.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 type Fake = { size: number[]; destroyed: boolean };
+
+/** The table's caster rows: more than the pool's pairs take (`pairRows`). */
+const CASTER_ROWS = 4096;
 
 /** The maintainer's screen, 1 728 × 1 117 CSS pixels at DPR 2. */
 export const SCREEN: [number, number] = [3456, 2234];
@@ -48,36 +52,46 @@ function sunGrid(plan: WebgpuLightState['plan'], slice: number, count: number) {
   );
 }
 
-/** A session with a sun, opened on the maintainer's 3 456 × 2 234 screen, its pool allocated at
- *  the first frame — `shadowPoolPages` of them, what that screen reads by default — and a first
- *  report naming nothing: nothing said yet; its atlas records
- *  the textures it takes. */
-export async function session(shadowPoolPages?: number) {
+/** A session with a sun, opened on a `viewport` canvas — the maintainer's 3 456 × 2 234 by
+ *  default —, its pool allocated at the first frame — `shadowPoolPages` of them, what its setting
+ *  holds by default — and a first report naming nothing: nothing said yet; its atlas records the
+ *  textures it takes. */
+export async function session(shadowPoolPages?: number, viewport = SCREEN) {
   installGpuGlobals();
   const limit = { bytes: Infinity },
     gpu = device(limit),
-    context = { shadowPoolPages, viewport: SCREEN },
+    context = { shadowPoolPages, viewport, pixelRatio: () => 2 },
     shape = shadowPoolShapeOf(context, gpu.device.limits),
     lights = createWebgpuLightState(shape.side, undefined, undefined, shape.layers),
     said: Array<[string, Record<string, unknown>]> = [],
     taken: Fake[] = [];
   const make = (size: number[]) =>
     gpu.device.createTexture({ size, format: 'depth32float', usage: 0 });
-  lights.shadows = {
+  // The atlas's buffers beside the pool, then its depth pages (`atlas.ts`), and a kept list as
+  // wide as the table's caster rows, which the pool's pairs share (`followPairBytes`).
+  const fixed = shadowBufferBytes(lights.plan.table.entries);
+  const atlas = {
     get texture() {
       return taken.at(-1);
     },
-    allocationBytes: 0,
+    allocationBytes: fixed,
     transmittanceHeld: false,
     makePool: (side: number, layers: number) => make([side * 128, side * 128, layers]),
-    sizePool: (_: number, __: number, made: Fake) => void taken.push(made),
-  } as unknown as NonNullable<typeof lights.shadows>;
+    sizePool: (side: number, layers: number, made: Fake) => {
+      atlas.allocationBytes = fixed + shadowAtlasBytes(side, layers);
+      taken.push(made);
+    },
+  };
+  lights.shadows = atlas as unknown as NonNullable<typeof lights.shadows>;
+  lights.cull = { capacity: CASTER_ROWS } as unknown as NonNullable<typeof lights.cull>;
+  lights.bins = { stride: 1 } as unknown as NonNullable<typeof lights.bins>;
   lights.store.add({ ...SUN, id: 'shadow sun' });
   const rt = {
     lights,
     context,
+    layout: { rows: { casterSlots: CASTER_ROWS } },
     capture: { capturing: false },
-    setup: { viewport: SCREEN },
+    setup: { viewport },
     blendState: { blendGpu: [] },
     gpu: { device: gpu.device },
     run: { lost: false, frame: 0, gate: { resourcesChanged() {} } },
