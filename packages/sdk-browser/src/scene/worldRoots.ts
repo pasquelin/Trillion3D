@@ -114,10 +114,11 @@ export async function openWorldRoots(
       ? Promise.resolve(topBundles[bundle])
       : (held.get(bundle)?.pages ??
         readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
+  const source = worldRootsPageSource(table, bundlePages);
   return {
     table,
     /** The detached page source of the world pages, both engines' shape (`worldRootsPage.ts`). */
-    source: worldRootsPageSource(table, bundlePages),
+    source,
     /** The world DAG in the engine's own `DagRoot` shape, from the cook's rank order, or
      *  `undefined` for a table cooked without its `clusters` and `groups`. Built here, so a table
      *  out of its rank is refused when the world opens (`WORLD_CLUSTER_RANK`), not mid-frame. */
@@ -148,7 +149,13 @@ export async function openWorldRoots(
     held: () => [...held.keys()].sort((a, b) => a - b),
     /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
      *  server that ignores the Range answered (`rangedReader`). */
-    bytes: () => table.pinnedTopBytes + heldBytes + read.held(),
+    bytes: () => {
+      // The source's own bundles past the top and the held ones: kept for a page's other view.
+      let kept = 0;
+      for (const bundle of source.bundles())
+        if (bundle >= table.pinned && !held.has(bundle)) kept += table.bundles[bundle].bytes;
+      return table.pinnedTopBytes + heldBytes + read.held() + kept;
+    },
   };
 }
 

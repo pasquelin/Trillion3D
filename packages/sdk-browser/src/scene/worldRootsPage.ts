@@ -127,6 +127,8 @@ export function worldRootsPageSource(
       if (view === 'whole' || (other && other !== view)) own.owed.delete(index);
       else if (!other) {
         own.owed.set(index, view);
+        // Newest last, so the budget lets go of the bundle owed longest, never the one just served.
+        owing.delete(own);
         owing.add(own);
         for (const oldest of owing) {
           if (owing.size <= pendingBundles) break;
@@ -141,6 +143,8 @@ export function worldRootsPageSource(
     }
   };
   const source = {
+    /** The bundles this source keeps right now: in flight, or owing a page's other GPU view. */
+    bundles: () => streamed.keys(),
     /** The page at `address`: world-space vertices, `u16` triangles. */
     page: (address: string, signal?: AbortSignal) => serve(address, 'whole', signal),
     /** The bytes a GPU page slot holds: the page's widened `u32` index words. */
