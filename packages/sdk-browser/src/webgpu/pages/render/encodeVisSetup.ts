@@ -10,6 +10,7 @@ import { encodeSurfaceLighting } from './encodeBlend.ts';
 import type { GpuRasterInput } from '../../../gpu/raster/types.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts';
+import { encodeImpostorCards } from '../../impostor/encode.ts';
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -33,6 +34,8 @@ export function encodeEmptySurfaces(
     },
   });
   pass.end();
+  // Every root of the image may stand behind its card: the cards still draw.
+  encodeImpostorCards(rt, device, encoder);
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, 0);
   submitColorCopy(rt, device, encoder, height, width, presented);
   return run.blendSubmittedTriangles;

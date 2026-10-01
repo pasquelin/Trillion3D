@@ -19,6 +19,7 @@ import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import type { FrameSize } from './renderScale.ts';
 import type { FloatAtlas } from '../../core/floatAtlas.ts';
+import type { WebgpuImpostors } from '../../impostor/frame.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -116,6 +117,8 @@ export interface WebgpuGpuState {
   guideRevision: number;
   /** The particle step, made by the first image with a pool (`../../../particles/`). */
   particles: WebgpuParticles | undefined;
+  /** The impostor cards and their atlases, made by the first image of a baked cache (#1335). */
+  impostors: WebgpuImpostors | undefined;
 }
 
 /** The frozen colour the water composite rereads and the depth its surface stage tests and
@@ -183,5 +186,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     guides: undefined,
     guideRevision: 0,
     particles: undefined,
+    impostors: undefined,
   };
 }
