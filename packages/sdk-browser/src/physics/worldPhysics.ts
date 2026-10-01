@@ -1,6 +1,6 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/index.ts';
+import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/options.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
