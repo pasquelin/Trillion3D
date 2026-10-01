@@ -163,8 +163,7 @@ export function runShadowAllocation(...bound: Uint8Array[]) {
   each('assignPages', needs, candidates);
 }
 
-/** Runs `applyShadowWords` over the shadow buffer, the GPU pool, the host's words and the draw
- *  list. */
+/** Runs `applyShadowWords` over the shadow buffer, the GPU pool, the host's words, the draw list. */
 export function runShadowWords(
   data: Uint8Array,
   state: Uint8Array,
@@ -176,14 +175,17 @@ export function runShadowWords(
       count: sent[0],
       pages: sent[1],
       frame: i32(words)[2],
+      every: sent[3],
       words: Array.from({ length: sent[0] }, (_, i) => [
         sent[WORDS_HEADER + 2 * i],
         sent[WORDS_HEADER + 2 * i + 1],
       ]),
     };
-  const { applyShadowWord } = shaderRun<Lanes>(
+  const { applyShadowWords } = shaderRun<Lanes>(
     SHADOW_WORDS_WGSL,
-    ['applyShadowWord', 'withdrawGpuDraw', 'loseDepth', 'listDraw', 'poolAt', 'shadowPoolPages'],
+    'applyShadowWords applyShadowWord withdrawGpuDraw withdrawGpuPage loseDepth listDraw poolAt'
+      .split(' ')
+      .concat('shadowPoolPages'),
     {
       ...wgslConstants(SHADOW_WORDS_WGSL),
       ...atomicsOf(state, new Uint8Array(4)),
@@ -193,5 +195,6 @@ export function runShadowWords(
       drawList: u32(drawList),
     },
   );
-  for (let i = 0; i < shadowWords.count; i++) applyShadowWord(i);
+  const invocations = Math.max(shadowWords.count, shadowWords.every ? shadowWords.pages : 0);
+  for (let i = 0; i < invocations; i++) applyShadowWords([i, 0, 0] as never);
 }

@@ -20,19 +20,19 @@ import { lampEntry, ringOf, sunEntry } from './pageModel.ts';
 type Changes = ReturnType<typeof createShadowChanges>;
 type Counts = ReturnType<typeof createShadowCounts>;
 
-/** The position of a light that has none, the sun: its range bounds nothing. */
-const ORIGIN = [0, 0, 0] as const;
+const ORIGIN = [0, 0, 0] as const; // the position of a light that has none, the sun
 /** Why a box stales its pages (`STALE_BY`): wrong, a still caster changed; at `STALE_FULL` and not
  *  wrong, a change of detail; else, moving casters alone. A union counts its strongest. */
 const reasonOf = (level: number, wrong: boolean) =>
   wrong ? STALE_BY.caster : level === STALE_FULL ? STALE_BY.detail : STALE_BY.moving;
 
 /**
- * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation
- * of virtual shadow maps. Only mapped pages can be stale: a page nobody reads has no content to
- * keep, and is drawn whole when first asked for. While the GPU maps pages too (`mirror.ts`), an
- * entry a box covers that the host does not map goes out withdrawn, its GPU draw redone this frame
- * (`wordsWgsl.ts`, #831), and a light-wide stale bars the GPU's older draws (`lightWide.ts`).
+ * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation of
+ * virtual shadow maps. Only mapped pages can be stale: a page nobody reads has no content to keep,
+ * and is drawn whole when first asked for. While the GPU maps pages too (`mirror.ts`), an entry a
+ * box covers that the host does not map goes out withdrawn, its GPU draw redone this frame (#831),
+ * once until a GPU page draw runs again (`table.withdrawUnmapped`), and a light-wide stale bars
+ * the GPU's older draws (`lightWide.ts`).
  *
  * - **The light moved, changed shape, or its clipmap changed frame** (`whole`): every page,
  *   the floor too, and none is read until redrawn (`pool.withdraw`) — its depth was drawn under a
@@ -126,7 +126,7 @@ export function createPageInvalidation(
           const entry = row + (sunLight ? ringOf(x, sun.windowPages) : x),
             word = table.words[entry];
           if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
-          else if (gpuDraws) table.withdraw(entry);
+          else if (gpuDraws) table.withdrawUnmapped(entry);
         }
       }
     }

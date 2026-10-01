@@ -52,7 +52,7 @@ export async function createShadowAllocation(device: GPUDevice, pages = SUN_WIND
   fresh.push('storage', READ, 'storage');
   const allocated: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', READ];
   allocated.push('storage');
-  const culled: GPUBufferBindingType[] = [READ, READ, READ, 'storage', 'storage', READ];
+  const culled: GPUBufferBindingType[] = [READ, READ, READ, 'storage', 'storage', READ, READ];
   const pairs = (label: string, entry: string) =>
     computePass(device, SHADOW_FRESH_CULL_WGSL, label, entry, culled);
   const [floors, allocate, words, compose, seal, count, admit, cull] = await Promise.all([

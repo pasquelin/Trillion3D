@@ -5,8 +5,8 @@ import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
 import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /**
- * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws the pages it marks, up to its page budget
- * (`SHADOW_PAGES_PER_FRAME`), in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`); what each batch adds — its
+ * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws every page it marks, in as many batches as
+ * that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`); what each batch adds — its
  * staged writes, its flag word, its CPU cut's faces, its sampled counts — is sized here from one
  * rule and counted in the memory budget (`residency/memoryBudget.ts`).
  *
@@ -18,31 +18,21 @@ import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
  * drawn the next frame.
  */
 
-/**
- * THE PAGES ONE FRAME DRAWS AT MOST: eight full batches. A frame that marks more — a scene's first
- * frames, a camera cut, a sun moved — draws this many, the coarsest and the oldest first
- * (`admit.ts`), and the rest the next frames; meanwhile a page not drawn reads the coarser level
- * under it, as Unreal's virtual shadow maps read a page their frame did not render. Without it,
- * a burst of 2 423 pages in one frame took 286 ms of GPU on a-field-of-pebbles, and 563 pages
- * 66 ms on drive-a-car (#831). The GPU's own mapping holds to a smaller one, below. It is
- * above what a moving body re-renders a frame — 80 to 140 pages for the car —, so a body's
- * pages are never left a frame behind it.
- */
-export const SHADOW_PAGES_PER_FRAME = 8 * MAX_SHADOW_PAGES;
-/**
- * The pages the GPU maps and draws itself at most a frame (`allocWgsl.ts`, `freshPass.ts`): four
- * batches. Its draw keeps every resident caster row a page's volume touches, at the finest form
- * the residency holds, with no light cut choosing a coarser one for a coarse page: a sun page of a
- * far level then draws the whole field. 192 such pages took 150 to 180 ms on a-field-of-pebbles
- * (#831); half as many halve it, and the pages past them are mapped the next frames.
- */
-export const SHADOW_GPU_PAGES_PER_FRAME = 4 * MAX_SHADOW_PAGES;
-
 /** Batches the memory grant holds: one pool layer, `LAYER_PAGES` pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
+/**
+ * THE PAGES A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws each: the pages
+ * the granted batches hold (`MAX_SHADOW_RUNS`, one pool layer), never more than the pool's. A
+ * safety net, derived from the grant and the pool, never from a scene: each page draws its casters
+ * at the level its texels want — the host's light cut, the GPU's pair cull (`freshCullWgsl.ts`,
+ * #831) —, so a burst costs its pages' texels, not the whole field's finest form at each. A page
+ * past it waits for the next frame and meanwhile reads the coarser one under it, as Unreal's
+ * virtual shadow maps read a page their frame did not render.
+ */
+export const shadowPagesPerFrame = (poolPages: number) => Math.min(poolPages, MAX_SHADOW_RUNS);
 /** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`): at
  *  120 frames a second, a readback's round trip — the GPU's queue, then the map — can span more
  *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */

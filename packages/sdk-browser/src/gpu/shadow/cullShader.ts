@@ -30,13 +30,11 @@ export const CASTERS_ALL = 0,
   CASTERS_STATIC = 1,
   CASTERS_MOVING = 2;
 /** Bits of a row's mobility word (`../../webgpu/shadow/mobility.ts`): its placement moves; its
- *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965); a finer resident
- *  form of its surface stands for it, which the GPU's own page draws keep instead (#831); and, from
+ *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965); and, from
  *  `MOBILITY_CORNER_SHIFT` up, the corners its page-table row draws (#966). */
 export const MOBILITY_MOVING = 1,
   MOBILITY_CUTOUT = 2,
-  MOBILITY_COARSER = 4,
-  MOBILITY_CORNER_SHIFT = 3;
+  MOBILITY_CORNER_SHIFT = 2;
 /**
  * A region's two lists in its slot of `capacity` rows (#965): the casters no fragment can cut from
  * the slot's start up, counted by the region's first command and drawn with no fragment stage; the
@@ -49,9 +47,10 @@ export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return
 fn keptCorners(region:u32,cutout:bool)->u32{return keptCount(region,cutout)-1u;}
 fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** A region's volume and the test of a caster's sphere against it: every cull's
- *  (\`../../webgpu/shadow/freshCullWgsl.ts\` too). */
+ *  (\`../../webgpu/shadow/freshCullWgsl.ts\` too). A GPU page's \`texel\` is its texels per metre,
+ *  a lamp page's its focal in texels (#831); the host's regions leave it unread. */
 export const SHADOW_VOLUME_WGSL = `struct Sphere{center:vec3f,radius:f32,}
-struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,pad1:u32,pad2:u32,}
+struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,texel:f32,pad2:u32,}
 /** Whether a caster's world sphere touches a region's volume: the cone of a lamp page within its
  *  range, or the box of a sun page. */
 fn sphereTouches(volume:Face,sphere:Sphere)->bool{

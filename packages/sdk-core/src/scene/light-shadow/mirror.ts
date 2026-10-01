@@ -147,8 +147,10 @@ export function createShadowMirror(
     /** The first frame the GPU's page draws ran; none, Infinity. */
     firstDrew: previous?.firstDrew ?? Infinity,
     /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn, its
-     *  still casters into the static layer too when `layered`. */
+     *  still casters into the static layer too when `layered`, and an entry withdrawn unmapped may
+     *  hold a draw again (`table.gpuDrew`). */
     drew(frame: number, layered = false) {
+      table.gpuDrew();
       if (!layered) mirror.layeredFrom = Infinity;
       else if (mirror.layeredFrom === Infinity) mirror.layeredFrom = frame;
       mirror.firstDrew = Math.min(mirror.firstDrew, frame);
