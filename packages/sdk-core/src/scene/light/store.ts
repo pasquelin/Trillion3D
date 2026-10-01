@@ -68,6 +68,8 @@ export function createSceneLightStore() {
       return capacity;
     },
     sliceOf,
+    /** A light's kind (`LIGHT_KIND`), read from the buffer as its slice is. */
+    kindOf: (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.kind],
     /** Each slot's light name. */
     ids,
     /** How many lights. */

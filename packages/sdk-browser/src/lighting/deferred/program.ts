@@ -32,9 +32,9 @@ export interface DirectLightResources {
   surfaceCache?: GPUTextureView;
   /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
-  /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
-  narrow?: boolean;
+  narrow?: boolean; // the narrow tile pass wrote the lists (`contractVariants.ts`, #849)
   unshadowed?: boolean; // no light holds a shadow slot: no shadow code (#1249)
+  rectless?: boolean; // no light is a rectangle: no rectangle code (#1369)
   receiver?: ReceiverResources; // what the receiver offset reads (#1410)
 }
 export interface DeferredSources {

@@ -1,137 +1,94 @@
+// #1369: the shipped `sampledSliceLighting`, run in JavaScript on a list of weights — each light's
+// unshadowed contribution its weight times a factor, as `lightWeight` and `declaredLight` are, zero
+// together. It walks the weights twice, shades at most `LIGHT_SAMPLES` lights, shades a light worth a
+// sample's share exactly once whatever the offset, and averaged over the offsets its estimate is the
+// full sum: the history converges to the still image's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+import { DIRECT_LIGHTING_WGSL } from './lightingWgsl.ts';
 
-// #924 (OMB-20): `sampledTileLighting` no longer keeps its weights in a private array: each loop
-// recomputes the weight it reads. Both forms are ported here statement by statement, in f32,
-// WGSL's comparisons included (any comparison with NaN is false): on random weights and the edge
-// cases — NaN, ±0, ±Inf, all zero, one light heavy enough to be exact, a full list — they choose
-// the same lights with the same factors, to the bit, so they shade the same pixel.
-
-const f = Math.fround;
 const SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
   MAX = LIGHT_SETTINGS.tileLights;
-type Choice = { chosen: number[]; factors: number[] } | 'none';
+const K = wgslConstants(DIRECT_LIGHTING_WGSL);
+type Light = { index: number };
+/** The list run, swapped per case: weights, contributions, the offset, and what was read. */
+const live = { weights: [0], values: [0], offset: 0, walked: 0, shaded: [] as number[] };
+const tileLights = new Uint32Array(MAX).map((_, i) => i);
+const { sampledSliceLighting } = shaderRun<{
+  sampledSliceLighting: (...args: unknown[]) => number[];
+}>(DIRECT_LIGHTING_WGSL, ['sampledSliceLighting'], {
+  ...K,
+  tileLights,
+  directLights: { items: [...Array(MAX).keys()].map((index) => ({ index })) },
+  listedWeight: (_: number, index: number) => (live.walked++, live.weights[index]),
+  lightWeight: (light: Light) => live.weights[light.index],
+  declaredLight: (light: Light) => (
+    live.shaded.push(light.index),
+    [live.values[light.index], 0, 0]
+  ),
+  hashUnit: () => live.offset,
+  fract: (x: number) => x - Math.floor(x),
+});
 
-/** The sampler of before: the weights read once into an array, the exact ones zeroed in it. */
-function withArray(weightOf: (i: number) => number, kept: number, offset: number): Choice {
-  const weights: number[] = [];
-  let total = 0;
-  for (let i = 0; i < kept; i++) {
-    weights[i] = weightOf(i);
-    total = f(total + weights[i]);
-  }
-  if (total <= 0) return 'none';
-  const chosen: number[] = [],
-    factors: number[] = [];
-  let pool = 0,
-    last = 0;
-  for (let i = 0; i < kept; i++) {
-    if (f(weights[i] * SAMPLES) >= total) {
-      chosen.push(i);
-      factors.push(1);
-      weights[i] = 0;
-    } else if (weights[i] > 0) {
-      pool = f(pool + weights[i]);
-      last = i;
-    }
-  }
-  const samples = SAMPLES - chosen.length;
-  if (samples > 0 && pool > 0) {
-    let running = 0,
-      drawn = 0,
-      next = f(f(offset / samples) * pool);
-    for (let i = 0; i < kept && drawn < samples; i++) {
-      const weight = weights[i];
-      if (weight <= 0) continue;
-      running = f(running + weight);
-      while (drawn < samples && (next < running || i === last)) {
-        chosen.push(i);
-        factors.push(f(pool / f(samples * weight)));
-        drawn++;
-        next = f(f(f(drawn + offset) / samples) * pool);
-      }
-    }
-  }
-  return { chosen, factors };
+/** The estimate of the list at `offset`, the weights walked and the lights shaded. */
+function run(weights: number[], values: number[], offset: number) {
+  Object.assign(live, { weights, values, offset, walked: 0, shaded: [] });
+  // The list, from word 0 of the pool: light `i` at word `i`.
+  const sum = sampledSliceLighting(0, 0, 0, 0, 0, 0, 0, [0, weights.length], 0, [0.5, 0.5])[0];
+  return { sum, walked: live.walked, shaded: live.shaded };
 }
 
-/** The sampler now: `listedWeight` wherever a weight is read, an exact light skipped in the pool. */
-function recomputed(weightOf: (i: number) => number, kept: number, offset: number): Choice {
-  let total = 0;
-  for (let i = 0; i < kept; i++) total = f(total + weightOf(i));
-  if (total <= 0) return 'none';
-  const chosen: number[] = [];
-  let pool = 0,
-    last = 0;
-  for (let i = 0; i < kept; i++) {
-    const weight = weightOf(i);
-    if (f(weight * SAMPLES) >= total) chosen.push(i);
-    else if (weight > 0) {
-      pool = f(pool + weight);
-      last = i;
-    }
-  }
-  const exact = chosen.length,
-    samples = SAMPLES - exact;
-  if (samples > 0 && pool > 0) {
-    let running = 0,
-      drawn = 0,
-      next = f(f(offset / samples) * pool);
-    for (let i = 0; i < kept && drawn < samples; i++) {
-      const weight = weightOf(i);
-      if (weight <= 0 || f(weight * SAMPLES) >= total) continue;
-      running = f(running + weight);
-      while (drawn < samples && (next < running || i === last)) {
-        chosen.push(i);
-        drawn++;
-        next = f(f(f(drawn + offset) / samples) * pool);
-      }
-    }
-  }
-  // A drawn light is never exact: its factor reads its own weight.
-  const factors = chosen.map((index, slot) =>
-    slot < exact ? 1 : f(pool / f(samples * weightOf(index))),
+/** A list and its contributions: each light's weight times a factor, a share of zeros. */
+function list(r: () => number, kept: number, heavy: boolean) {
+  const weights = [...Array(kept).keys()].map((i) =>
+    r() < 0.2 ? 0 : heavy && i % 17 === 3 ? r() * 1e3 : r() ** 3,
   );
-  return { chosen, factors };
+  return { weights, values: weights.map((w) => w * (0.5 + r() * 1.5)) };
 }
 
-const EDGE = [NaN, 0, -0, Infinity, -Infinity, 1e-45, 3.4e38, 1, 0.25];
-
-test('recomputed weights choose the lights and factors of the weight array, to the bit', () => {
-  const r = mulberry32(20);
-  for (let run = 0; run < 10000; run++) {
+test('two walks of the weights, at most LIGHT_SAMPLES lights shaded, the exact ones once', () => {
+  const r = mulberry32(1369);
+  for (let i = 0; i < 2000; i++) {
     const kept = SAMPLES + 1 + Math.floor(r() * (MAX - SAMPLES));
-    const edgy = run % 4 === 0,
-      heavy = run % 3 === 0;
-    const weights = [...Array(kept).keys()].map((i) => {
-      if (edgy && r() < 0.2) return f(EDGE[Math.floor(r() * EDGE.length)]);
-      if (r() < 0.2) return 0;
-      return f(heavy && i % 17 === 3 ? r() * 1e4 : r() ** 3);
+    const { weights } = list(r, kept, i % 3 === 0);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const { walked, shaded } = run(weights, weights, r());
+    assert.equal(walked, 2 * kept, 'two walks');
+    assert.ok(shaded.length <= SAMPLES, `${shaded.length} lights shaded`);
+    weights.forEach((w, index) => {
+      const times = shaded.filter((s) => s === index).length;
+      if (w * SAMPLES >= total) assert.equal(times, 1, `exact light ${index} shaded once`);
+      if (w <= 0) assert.equal(times, 0, `light ${index} of no weight never shaded`);
     });
-    const offset = f(r());
-    const weightOf = (i: number) => weights[i];
-    assert.deepEqual(
-      recomputed(weightOf, kept, offset),
-      withArray(weightOf, kept, offset),
-      `run ${run}`,
-    );
   }
 });
 
-test('edge lists: all zero, one exact light, every light exact, a full list of equals', () => {
-  const lists = [
-    Array<number>(SAMPLES + 1).fill(0),
-    [1e6, ...Array<number>(SAMPLES).fill(1)],
-    Array<number>(SAMPLES + 1).fill(1),
-    Array<number>(MAX).fill(0.5),
-    [NaN, ...Array<number>(MAX - 1).fill(1)],
+test('averaged over the offsets, the drawn estimate is the full sum', () => {
+  const r = mulberry32(924);
+  const cases = [
+    list(r, SAMPLES + 1, false),
+    list(r, MAX, true),
+    { weights: [1e3, ...Array<number>(SAMPLES).fill(1)], values: [2e3, 1, 2, 3, 4] },
+    { weights: Array<number>(SAMPLES + 1).fill(1), values: [1, 2, 3, 4, 5] },
+    { weights: Array<number>(MAX).fill(0.5), values: [...Array(MAX).keys()] },
+    ...Array.from({ length: 20 }, (_, i) =>
+      list(r, SAMPLES + 1 + Math.floor(r() * (MAX - SAMPLES)), i % 2 === 0),
+    ),
   ];
-  for (const list of lists)
-    for (const offset of [0, f(0.5), f(0.99999994)])
-      assert.deepEqual(
-        recomputed((i) => list[i], list.length, offset),
-        withArray((i) => list[i], list.length, offset),
-      );
+  const STEPS = 8192;
+  for (const { weights, values } of cases) {
+    const full = values.reduce((a, b) => a + b, 0);
+    let mean = 0;
+    for (let k = 0; k < STEPS; k++) mean += run(weights, values, (k + 0.5) / STEPS).sum / STEPS;
+    assert.ok(Math.abs(mean - full) <= 5e-3 * full, `${mean} against ${full}`);
+  }
+  // No weight, no light: nothing shaded.
+  assert.equal(
+    run(Array<number>(SAMPLES + 1).fill(0), Array<number>(SAMPLES + 1).fill(0), 0.3).sum,
+    0,
+  );
 });

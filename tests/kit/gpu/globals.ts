@@ -9,7 +9,8 @@ import type { MockDraw } from './mockEncoder.ts';
  * is its own — instances, bins, buffers.
  */
 export function indirectDraws(draws: readonly MockDraw[]) {
-  const vis = draws.filter((draw) => draw.indirect);
+  // The material classes draw their tiles indirectly too (`materialTiles.ts`): not the raster's.
+  const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs');
   assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS);
   assert.ok(vis.every((draw) => draw.firstInstance === 0));
   assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % PAGE_BIND_ALIGN === 0));

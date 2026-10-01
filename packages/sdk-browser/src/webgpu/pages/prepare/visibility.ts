@@ -3,9 +3,9 @@ import { ensureWebgpuShadeBindings } from '../../core/shadeBindings.ts';
 import { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts';
 import {
   createWebgpuCoplanarLayerPipelines,
-  createWebgpuShadePipelines,
   createWebgpuVisibilityRasterPipelines,
 } from '../../visibility/pipelines.ts';
+import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts';
 import { visUniformSlots } from '../../visibility/uniforms.ts';
 import { MAX_DEPTH_LAYER, depthLayerUnits } from '../../../../../sdk-core/src/index.ts';
 import { createGpuHiz } from '../../../gpu/hiz/hiz.ts';
@@ -139,6 +139,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     shadePipelineFor: vis.shadePipelineFor,
     shadePipelines: vis.shadePipelines,
     singleShadePipelines: vis.singleShadePipelines,
+    materialTiles: vis.materialTiles,
   } = await createWebgpuShadePipelines(gpuDevice, shadeModule, classes, variant));
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,
