@@ -26,10 +26,10 @@ const MAX_FRESH_REGIONS = 65535;
  * page is its view cropped by the orthography, its box the square by the range's depth. Every
  * listed page is picked (`pickPages`), as Unreal's virtual shadow maps draw every page a frame
  * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
- * pair list grows to the pairs the frames count (`pairGrowth.ts`); a region past the longest prefix
+ * pair list holds the pool's fixed pairs (`pairGrowth.ts`, #831); a region past the longest prefix
  * it holds whole is left short (`FRESH_SHORT`, `admitShadowPairs`) and the seal makes readable the
  * others alone — never a page short of a caster —; a short one waits, listed again, for the next
- * frame, by which the list has grown to the need the seal hands the host, or for the host. The
+ * frame or for the host. The
  * window is the session's (`referenceMode.ts`), the ordinary constant by default.
  */
 export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
