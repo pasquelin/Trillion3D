@@ -5,6 +5,7 @@
 // keeps its clusters. Fails on develop: the WebGL2 card draw is new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import '../../impostor/lent.fixture.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { WebglClusterRenderer } from '../cluster/renderer.ts';
 import { readDegraded } from '../cluster/validation.ts';
@@ -23,7 +24,6 @@ import {
   VIEWPORT,
 } from '../../impostor/section.fixture.ts';
 import { createWebglImpostors } from './frame.ts';
-import * as lent from './lent.ts';
 import { CARD_FLOATS } from '../../impostor/cards.ts';
 
 /** A WebGL2 session reduced to what the plan and the draw read, on a recording context. */
@@ -38,7 +38,7 @@ function bench() {
     onDiagnostic: () => undefined,
   } as unknown as Parameters<typeof createWebglImpostors>[1];
   const gate = { resourcesChanged: () => void landed++ };
-  const impostors = createWebglImpostors(lent, session, roots, gate, () => 1 << 20)!;
+  const impostors = createWebglImpostors(session, roots, gate, () => 1 << 20)!;
   const renderer = new WebglClusterRenderer(
     context.gl,
     readDegraded(() => {}),

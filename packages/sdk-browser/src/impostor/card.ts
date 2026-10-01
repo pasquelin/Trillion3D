@@ -5,7 +5,7 @@
  * the object's projected disc, and it keeps its world size (attenuation on) rather than its screen
  * size, as a distant stand-in must.
  */
-import { spriteAt } from '../visibility/shader/spriteWgsl.ts';
+import { core } from './borrowed.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 
 const CARD_SPRITE: NonNullable<VisMaterial['sprite']> = { rotation: 0, sizeAttenuation: true };
@@ -31,7 +31,7 @@ export function impostorCardCorners(
   cardPlace[13] = pivot[1];
   cardPlace[14] = pivot[2];
   for (let i = 0; i < 4; i++) {
-    spriteAt(
+    core.spriteAt(
       cardCorner,
       toClip,
       cardPlace,

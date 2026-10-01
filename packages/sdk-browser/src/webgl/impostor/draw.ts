@@ -4,15 +4,15 @@ import type { HostDrawCamera } from '../../camera/world.ts';
 import { ATLAS_SAMPLERS, CARD_TEXELS, cardFragment, cardVertex } from './cardGlsl.ts';
 import type { WebglAtlas } from './feed.ts';
 import type { CardPass } from './pass.ts';
-import type * as Lent from './lent.ts';
+import { core } from '../../impostor/borrowed.ts';
 
 /** One card program — the display's or the effect chain's linear variant. */
-function createCardProgram(gl: WebGL2RenderingContext, lent: typeof Lent, linear: boolean) {
-  const { CARD_RECORD_UNIT, ATLAS_UNITS } = lent,
-    program = lent.createWebglProgram(gl, cardVertex(lent), cardFragment(lent, linear)),
-    at = lent.uniformLocations(gl, program);
+function createCardProgram(gl: WebGL2RenderingContext, linear: boolean) {
+  const { CARD_RECORD_UNIT, ATLAS_UNITS } = core,
+    program = core.createWebglProgram(gl, cardVertex(core), cardFragment(core, linear)),
+    at = core.uniformLocations(gl, program);
   gl.useProgram(program);
-  lent.setClusterSamplers(gl, at);
+  core.setClusterSamplers(gl, at);
   gl.uniform1i(at('impostorCards'), CARD_RECORD_UNIT);
   ATLAS_SAMPLERS.forEach((name, map) => gl.uniform1i(at(name), ATLAS_UNITS[map]));
   // A card is a lit, covering surface of the standard model; every other switch stays off.
@@ -27,14 +27,16 @@ const view = new Float32Array(16);
  * THE CARD DRAW ON WEBGL2 (#1336): the image's cards (`impostor/cards.ts`) drawn by the card
  * program (`cardGlsl.ts`) into the pass the cluster program draws, one instanced draw per mesh
  * atlas, as on WebGPU. The records go up once an image, into a float texture as the light records
- * do (`WebglLightTexture`, lent by the core with the cluster program's pieces, `lent.ts`); the program's lights are those the cluster program uploaded for the
- * pass, their uniforms sent again. A card is opaque: depth-tested and written, never blended or culled. The caller binds its
- * own program again and forgets its cached state after (`../cluster/renderer.ts`).
+ * do (`WebglLightTexture`, lent by the core with the cluster program's pieces,
+ * `../../impostor/lent.ts`); the program's lights are those the cluster program uploaded for the
+ * pass, their uniforms sent again. A card is opaque: depth-tested and written, never blended or
+ * culled. The caller binds its own program again and forgets its cached state after
+ * (`../cluster/renderer.ts`).
  */
-export function createWebglCardDraw(gl: WebGL2RenderingContext, lent: typeof Lent) {
+export function createWebglCardDraw(gl: WebGL2RenderingContext) {
   const programs: Partial<Record<'display' | 'linear', ReturnType<typeof createCardProgram>>> = {};
-  const { ATLAS_UNITS, CARD_RECORD_UNIT, FLOAT_TEXELS } = lent,
-    records = new lent.WebglLightTexture(
+  const { ATLAS_UNITS, CARD_RECORD_UNIT, FLOAT_TEXELS } = core,
+    records = new core.WebglLightTexture(
       gl,
       CARD_RECORD_UNIT,
       FLOAT_TEXELS,
@@ -56,11 +58,7 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext, lent: typeof Len
     ) {
       const { count, runs, runCount } = cards;
       if (!count) return false;
-      const card = (programs[linear ? 'linear' : 'display'] ??= createCardProgram(
-        gl,
-        lent,
-        linear,
-      ));
+      const card = (programs[linear ? 'linear' : 'display'] ??= createCardProgram(gl, linear));
       gl.useProgram(card.program);
       if (sent !== image) {
         records.reserve(count * CARD_TEXELS);
