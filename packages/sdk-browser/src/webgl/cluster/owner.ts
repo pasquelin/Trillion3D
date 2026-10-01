@@ -12,7 +12,7 @@ import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
 import { WebglTextureQueue } from './textureQueue.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
 import type { FramePass } from '../core/frameTimer.ts';
-import type { WebglCards } from '../impostor/draw.ts';
+import type { WebglCards } from '../impostor/pass.ts';
 
 /** What the session grants the maps: the texture pool and a frame's upload budget. */
 export type TextureHosts = Pick<

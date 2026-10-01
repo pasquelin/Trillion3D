@@ -17,7 +17,7 @@ import type { PageDraws } from './pageDraws.ts';
 import type { WebglDeformation } from '../../deformation/webglFrame.ts';
 import { stillFrame } from './stillFrame.ts';
 import { type WebglViewState } from './viewKeys.ts';
-import type { WebglImpostors } from '../../webgl/impostor/frame.ts';
+import type { webglImpostorTier } from '../../webgl/impostor/code.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -78,7 +78,7 @@ export function createAutonomousRender(options: {
     'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
   >;
   /** The impostor tier (#1336), absent without a baked section: planned before each cut. */
-  impostors?: Pick<WebglImpostors, 'plan'>;
+  impostors?: Pick<NonNullable<ReturnType<typeof webglImpostorTier>>, 'plan'>;
 }) {
   const {
     state,
