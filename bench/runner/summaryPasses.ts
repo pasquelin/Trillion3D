@@ -18,6 +18,9 @@ interface PasseGpu {
   name: string;
   bloc: string | null;
   gpuMs: Distribution;
+  /** Its own share of the image, an overlap counted once on the pass begun first; null where the
+   *  device reports none (WebGL2). */
+  ownMs: Distribution;
 }
 
 /** GPU passes and their comparable blocks, summarised over a series' readings. */
@@ -30,7 +33,8 @@ export interface PassesGpu {
 /**
  * Comparable blocks then each pass of a side, under its per-stage table. The blocks are those a
  * published profile names — visibility buffer, materials pass — and nothing else: a pass that
- * neither side covers is in "the rest", named in the table below.
+ * neither side covers is in "the rest", named in the table below, with its whole span and its own
+ * share: passes the device overlaps add up past the image, their own shares to it once.
  */
 export function passes(passesGpu: PassesGpu | null) {
   if (!passesGpu) return ['- GPU passes: no reading', ''];
@@ -38,9 +42,11 @@ export function passes(passesGpu: PassesGpu | null) {
     `- Comparable blocks over ${passesGpu.releves} readings, GPU ms p50/p95: ` +
       BLOCS.map(([k, label]) => `${label} ${p50p95(passesGpu.blocs[k])}`).join(' · '),
     '',
-    '| passe | GPU ms p50/p95 | bloc |',
-    '|---|---|---|',
-    ...passesGpu.passes.map((p) => `| ${p.name} | ${p50p95(p.gpuMs)} | ${p.bloc} |`),
+    '| passe | GPU ms p50/p95 | own share ms p50/p95 | bloc |',
+    '|---|---|---|---|',
+    ...passesGpu.passes.map(
+      (p) => `| ${p.name} | ${p50p95(p.gpuMs)} | ${p50p95(p.ownMs)} | ${p.bloc} |`,
+    ),
     '',
   ];
 }

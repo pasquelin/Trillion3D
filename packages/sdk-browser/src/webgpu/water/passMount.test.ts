@@ -78,3 +78,24 @@ test('a mode first drawn after the pass was built compiles its three pipelines t
   assert.equal(plain.pipelines.length, 6);
   assert.throws(() => built.blendPipelines.at(15), /names no blending mode/);
 });
+
+test("a reference session's water pass is mounted with the whole mirror walk (#1279)", async () => {
+  const composite = async (unboundedReflections: boolean) => {
+    const mount = mountDevice();
+    await createWebgpuBlendPipelines(
+      mount.device,
+      items(1, true),
+      undefined,
+      true,
+      undefined,
+      false,
+      {
+        unboundedReflections,
+      },
+    );
+    const pipeline = mount.renderPipelines.find((p) => p.fragment!.entryPoint === 'composeWater');
+    return (pipeline!.fragment!.module as { label: string }).label;
+  };
+  assert.equal(await composite(false), 'WATER_COMPOSITE');
+  assert.equal(await composite(true), 'WATER_COMPOSITE_UNBOUNDED');
+});

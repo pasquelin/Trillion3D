@@ -1313,6 +1313,7 @@
     "members": {
       "name": "Tên của chặng đó.",
       "gpuMs": "Thời gian GPU của chặng đó.",
+      "ownMs": "Thời gian của nó trừ phần một lượt bắt đầu sớm hơn đã phủ (WebGPU).",
       "reason": "Vì sao nó chưa được đo."
     }
   },
