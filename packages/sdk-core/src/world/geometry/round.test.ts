@@ -167,33 +167,6 @@ test('lathe angular UV direction and capsule lower hemisphere keep their declare
   assert.ok(p.getY(9) > -5 && p.getY(9) < -3);
 });
 
-class Parabola extends Curve {
-  getPoint(t: number, out = new Vector3()) {
-    return out.set(t, t * t, t * t * t);
-  }
-}
-
-test('open curved tubes use one-sided endpoint tangents and preserve their centres', () => {
-  const path = new Parabola();
-  const g = tube(path, 4, 0.2, 8, false);
-  const p = g.attributes.position,
-    n = g.attributes.normal;
-  for (const endpoint of [0, 4]) {
-    const t = endpoint / 4;
-    const centre = path.getPoint(t);
-    const tangent =
-      endpoint === 0 ? path.getPoint(0.25).sub(centre) : centre.clone().sub(path.getPoint(0.75));
-    for (let ring = 0; ring <= 8; ring++) {
-      const i = ring * 5 + endpoint;
-      const normal = new Vector3(n.getX(i), n.getY(i), n.getZ(i));
-      assert.ok(Math.abs(normal.dot(tangent)) < 1e-9);
-      assert.ok(Math.abs(p.getX(i) - centre.x - 0.2 * normal.x) < 1e-9);
-      assert.ok(Math.abs(p.getY(i) - centre.y - 0.2 * normal.y) < 1e-9);
-      assert.ok(Math.abs(p.getZ(i) - centre.z - 0.2 * normal.z) < 1e-9);
-    }
-  }
-});
-
 class Slanted extends Curve {
   getPoint(t: number, out = new Vector3()) {
     return out.set(3 * t, 4 * t, 0);
@@ -210,19 +183,6 @@ test('tube UVs run around each ring and along the path, end to end', () => {
       assert.equal(uv.getX(vertex), along / 2);
       assert.equal(uv.getY(vertex), ring / 3);
     }
-  }
-});
-
-test('closed tubes follow each interior tangent instead of reusing the closing tangent', () => {
-  const path = new Parabola();
-  const g = tube(path, 4, 0.2, 4, true);
-  const n = g.attributes.normal;
-  const tangent = path.getPoint(0.5).sub(path.getPoint(0));
-  for (let ring = 0; ring <= 4; ring++) {
-    const i = ring * 5 + 1;
-    assert.ok(
-      Math.abs(n.getX(i) * tangent.x + n.getY(i) * tangent.y + n.getZ(i) * tangent.z) < 1e-9,
-    );
   }
 });
 

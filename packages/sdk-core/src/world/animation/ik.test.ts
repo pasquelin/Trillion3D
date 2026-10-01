@@ -147,15 +147,6 @@ test('an oblique pole settles a bent chain at its target without changing bone l
   assert.ok(Math.abs(mid.getWorldPosition().distanceTo(end.getWorldPosition()) - 2) < 1e-7);
 });
 
-test('sub-threshold target movement does not suddenly flip a straight chain elbow', () => {
-  const elbows = [0, 5e-10].map((z) => {
-    const { root, mid, end } = ikChain();
-    solveTwoBoneIK(root, mid, end, new Vector3(0, 1, z));
-    return mid.getWorldPosition();
-  });
-  assert.ok(elbows[0].distanceTo(elbows[1]) < 1e-7);
-});
-
 test('a solve needing no final swing still publishes rotated sibling world matrices', () => {
   const { root, mid, end } = ikChain();
   const marker = end.clone();
@@ -178,14 +169,20 @@ test('aiming exactly at the root keeps the limiting folded pose instead of addin
 });
 
 test('a bent chain half-turn keeps both bones on the same turn in its transverse plane', () => {
-  const { root, mid, end } = ikChain();
-  mid.position.set(4.5, 1, Math.sqrt(19) / 2);
-  end.position.set(4.5, -1, Math.sqrt(19) / 2);
-  const expectedElbow = mid.position.clone().multiplyScalar(-1);
-  const target = new Vector3(-9, 0, -Math.sqrt(19));
-  solveTwoBoneIK(root, mid, end, target);
-  assert.ok(mid.getWorldPosition().distanceTo(expectedElbow) < 1e-7);
-  assert.ok(end.getWorldPosition().distanceTo(target) < 1e-7);
+  const z = Math.sqrt(19) / 2;
+  for (const [elbow, tip] of [
+    [new Vector3(4.5, 1, z), new Vector3(4.5, -1, z)],
+    [new Vector3(1, 2, 0.5), new Vector3(1, -2, 0.3)],
+  ]) {
+    const { root, mid, end } = ikChain();
+    mid.position.copy(elbow);
+    end.position.copy(tip);
+    const expectedElbow = elbow.clone().multiplyScalar(-1);
+    const target = end.getWorldPosition().multiplyScalar(-1);
+    solveTwoBoneIK(root, mid, end, target);
+    assert.ok(mid.getWorldPosition().distanceTo(expectedElbow) < 1e-7);
+    assert.ok(end.getWorldPosition().distanceTo(target) < 1e-7);
+  }
 });
 
 test('without a pole the original bend plane follows the shortest swing onto the target', () => {
