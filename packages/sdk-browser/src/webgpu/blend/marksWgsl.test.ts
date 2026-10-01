@@ -7,15 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
-import {
-  basisMatrix4,
-  createCameraFrame,
-  crossVector3,
-  invertMatrix4,
-  perspectiveProjection,
-  transformHomogeneousPoint,
-  updateCameraFrame,
-} from '../../../../sdk-core/src/math/index.ts';
+import { invertMatrix4 } from '../../../../sdk-core/src/math/index.ts';
 import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { PAGE_MAPPED, PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -26,8 +18,10 @@ import { gpuFrames } from '../shadow/gpuFrames.fixture.ts';
 import {
   floorTiles,
   footprintAt,
+  pixelOf,
   shadingReads,
   tileGrid,
+  viewProjectionOf,
   type Lit,
 } from '../shadow/shadingReads.fixture.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
@@ -45,30 +39,7 @@ const pane: Lit[] = floorTiles(tileGrid(-2, 2, -10, -8), 3).lits.map(({ P, N }) 
   N,
 }));
 
-/** The view's projection (`perspectiveProjection`: reversed depth, infinite far plane). */
-function viewProjection() {
-  const right = crossVector3([0, 0, 0], along, [0, 1, 0]).map(
-      (c) => c / Math.hypot(along[0], along[2]),
-    ),
-    up = crossVector3([0, 0, 0], right, along),
-    world = basisMatrix4(
-      new Float64Array(16),
-      right,
-      up,
-      along.map((c) => -c),
-      view.position,
-    ),
-    projection = new Float64Array(16);
-  perspectiveProjection(projection, (view.halfFovY * 360) / Math.PI, view.aspect, view.near, 1);
-  return updateCameraFrame(createCameraFrame(), projection, world).viewProjection;
-}
-const projection = viewProjection();
-
-/** Pixel and depth of world point `P` through the view. */
-function pixelOf(P: V) {
-  const [x, y, z, w] = transformHomogeneousPoint([0, 0, 0, 0], projection, P[0], P[1], P[2]);
-  return { pixel: [((x / w + 1) / 2) * WIDTH, ((1 - y / w) / 2) * HEIGHT], z: z / w };
-}
+const projection = viewProjectionOf(view);
 
 const MARKS_WGSL = blendShadowMarksWgsl();
 const K = wgslConstants(MARKS_WGSL);
@@ -155,7 +126,7 @@ test('a transparent pane over an unlit floor has its own shadow pages asked for 
 test('a water surface in the sun has its own shadow pages asked for and drawn', () =>
   // From each water pixel's position and depth, through the deferred view, as the composite reads.
   marksItsOwnPages(({ P, N }) => {
-    const { pixel, z } = pixelOf(P);
+    const { pixel, z } = pixelOf(projection, P, WIDTH, HEIGHT);
     marks.markWaterAt(pixel, z, [...N]);
   }));
 
