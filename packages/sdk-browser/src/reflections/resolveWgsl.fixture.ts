@@ -4,8 +4,8 @@ import { REFLECTION_RESOLVE_WGSL, REFLECTION_STILL_FRAMES } from './resolveWgsl.
 
 /** The shipped rough resolve run on the CPU at pixel (4, 4) of an 8 × 8 image: its inputs are
  *  `samples` (a function reads the pixel), `view`, `uv` and `motion`; `traced` lists the
- *  half-resolution texels the trace wrote. */
-export function fixture() {
+ *  half-resolution texels the trace wrote. `constants` overrides the shader's own. */
+export function fixture(constants: Record<string, number> = {}) {
   const samples: Record<string, number | number[] | ((at: number[]) => number | number[])> = {
     ids: [0x107, 0, 0, 0],
     sampleColor: [2, 4, 6, 1],
@@ -41,6 +41,7 @@ export function fixture() {
     ],
     {
       ...wgslConstants(REFLECTION_RESOLVE_WGSL),
+      ...constants,
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
       view,
       motion,

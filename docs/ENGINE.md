@@ -448,7 +448,9 @@ history. A moved source is reprojected, its confidence capped at 16 samples whil
 live motion, a placement change (moved or newly resident reflected content, shadow pages, probes)
 caps it at 4 samples for 24 frames instead of restarting it from one, so a moving view does not
 flicker and a stale reflection halves in three frames; a full window after that, no stale share is
-left. A static image closes its filter window after 64 accepted frames; a changed jitter still
+left. A history short or clipped widens this image's spatial filter by the frames it lacks, up to
+twice its reach, as the reference's reflection denoiser does after its temporal pass; a converged
+history is filtered as before (#831). A static image closes its filter window after 64 accepted frames; a changed jitter still
 reprojects until the temporal image can be held — a bounded effective weight, not infinite Monte
 Carlo convergence. Captures/replay add no duplicate samples; drawn extent changes discard the
 history; shadow-page landings advance the source epoch before resolving the same image. Transparent
