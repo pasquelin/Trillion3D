@@ -9,6 +9,7 @@ import { solveTransportOracle } from './oracle.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 import { solveTransport } from './solve.ts';
 import { oracle, traced } from './solve.fixture.ts';
+import { neighbours } from './intersections.fixture.ts';
 test('dense oracle matches the closed-form two-surface multiple-bounce solution', () => {
   const source = Float64Array.of(1, 2, 3, 4, 5, 6);
   const albedo = Float64Array.of(0.6, 0.3, 0.9, 0.4, 0.7, 0.2);
@@ -131,4 +132,30 @@ test('a reused solved state starts from its last radiance unless told to start c
       `${mode} ${initialized} ${warmStart}`,
     );
   }
+});
+
+test('the solver stops on the first bounce within its share of the tolerance, exactly on it too', () => {
+  const albedo: [number, number, number] = [0.8, 0.8, 0.8];
+  const { contraction } = solveTransport(traced(albedo), 'rebuild', {});
+  // From darkness the first bounce moves the radiance by the brightest emission.
+  const first = Math.max(...traced(albedo).source);
+  const tolerance = [...neighbours(first / (1 - contraction), 64)].find(
+    (value) => value * (1 - contraction) === first,
+  );
+  assert.ok(tolerance, 'no tolerance puts the first bounce exactly on its share');
+  assert.equal(
+    solveTransport(traced(albedo, { maxIterations: 5, tolerance }), 'rebuild', {}).iterations,
+    1,
+  );
+});
+
+test('a solve whose error bound equals the tolerance has converged', () => {
+  const albedo: [number, number, number] = [0.8, 0.5, 0.3];
+  const { errorBound } = solveTransport(traced(albedo, { maxIterations: 1 }), 'rebuild', {});
+  const result = solveTransport(
+    traced(albedo, { maxIterations: 1, tolerance: errorBound }),
+    'rebuild',
+    {},
+  );
+  assert.deepEqual([result.errorBound, result.converged], [errorBound, true]);
 });
