@@ -1,5 +1,5 @@
 import type { TilePlace } from '../../texture/tiles.ts';
-import type { LaneCounts } from '../../texture/blockFormats.ts';
+import type { LaneCounts, PoolLane } from '../../texture/blockFormats.ts';
 import type { TileTexture } from './tileTexture.ts';
 import type { WebgpuTilePool } from './pool.ts';
 import type { TileKey, WebgpuTilePageTable } from './pageTable.ts';
@@ -16,6 +16,8 @@ export type WebgpuTileAtlas = {
   readonly evictions: number;
   readonly refused: number;
   poolOf(slot: number): WebgpuTilePool;
+  /** Tiles the pool of `lane` holds, none when the lane has no pool. */
+  residentIn(lane: PoolLane): number;
   /** Pins the tail of each texture from slot `from` on; `fromHost` sets that of a texture with no
    *  tail in bytes. */
   pinTails(

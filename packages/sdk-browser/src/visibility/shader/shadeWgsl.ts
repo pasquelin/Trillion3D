@@ -11,6 +11,7 @@ import {
   SURFACE_MODEL,
 } from '../../scene/surfaceModel.ts';
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
+import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts';
 import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
@@ -21,6 +22,7 @@ import { FLAG_FOG_FREE } from '../types.ts';
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
 ${NORMAL_VIEW_COLOR_WGSL}
+${EMISSIVE_AO_FLAG_WGSL}
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  // Material depth admitted this pixel, unless the prepared one-class path guards it below.
  let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
@@ -149,6 +151,7 @@ ${NORMAL_VIEW_COLOR_WGSL}
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){storeSubsurface(pos.xy,thin);flag|=${SUBSURFACE_FLAG}u;}
  }
- return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag,request);
+ // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
+ return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
 `;

@@ -3,10 +3,10 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
-/** Words of a tile record: the two counts, the two lists of `tileLights` each, then one word
- *  saying whether the opaque list holds a shadowed light — the per-tile fact the moving resolve
- *  reads once instead of walking the list a pixel at a time (#1249). */
-export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
+/** Words of a cell record of the light grid (#1369): its count — the high bit set when a light of
+ *  its list holds a shadow slot, the per-cell fact the moving resolve reads once (#1249) —, then
+ *  where its list starts in the view's pool. */
+export const TILE_STRIDE_WORDS = 2;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -17,19 +17,29 @@ export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
  */
 export const directLightWgsl = (slots?: number) => `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
-/** A tile carries two lists: two header words — the count of each —, the opaque list, then
- *  the blend one, which covers a deeper depth slice. Each list holds \`TILE_LIGHTS\` lights; past
- *  them, the list's first word is where the tile's lights start in the view's pool, after the
- *  records (#849), or \`TILE_NO_SLICE\` when the pool had no room left: that tile walks every
- *  light of the scene (\`tileSlice\`). */
+/** The light grid (#1369): cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
+ *  the view depth every \`SLICES_PER_OCTAVE\` slices from the near plane, the last reaching to
+ *  infinity. A cell's record (\`TILE_STRIDE\` words) holds its count and where its list of lights
+ *  starts in the view's pool, or \`TILE_NO_SLICE\` when the pool had no room left: that cell walks
+ *  every light of the scene (\`cellSlice\`). */
+const GRID_SLICES:u32=${LIGHT_SETTINGS.gridSlices}u;
+const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
+/** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
 const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
-const TILE_OPAQUE_BASE:u32=2u;
-const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
-/** The record's last word: one when the opaque list holds a light with a shadow slot, zero
- *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
-const TILE_SHADOW_BASE:u32=${TILE_STRIDE_WORDS - 1}u;
+/** The count word's high bit: a light of the list holds a shadow slot (#1249). */
+const TILE_SHADOWED:u32=0x80000000u;
 const TILE_NO_SLICE:u32=0xffffffffu;
+/** The slice of a depth \`z\` (reverse-Z, 1 at the near plane): the doublings of its view depth
+ *  past the near plane, \`SLICES_PER_OCTAVE\` a doubling; the background falls in the last. */
+fn gridSlice(z:f32)->u32{return u32(clamp(-log2(max(z,1e-30))*SLICES_PER_OCTAVE,0.0,f32(GRID_SLICES-1u)));}
+/** The first word of the record of the cell holding a pixel at depth \`z\`, \`cells\` the grid's
+ *  columns across and down; \`TILE_NO_SLICE\` past the grid. */
+fn gridCell(pixel:vec2f,z:f32,cells:vec2u)->u32{
+ let column=vec2u(pixel)/TILE_SIZE;
+ if(column.x>=cells.x||column.y>=cells.y){return TILE_NO_SLICE;}
+ return ((column.y*cells.x+column.x)*GRID_SLICES+gridSlice(z))*TILE_STRIDE;
+}
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
