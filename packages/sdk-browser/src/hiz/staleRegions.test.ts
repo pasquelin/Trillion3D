@@ -69,6 +69,9 @@ test('a moved root stales its region alone, and the image is every page shaded',
       if (branch.pyramid) heldFrames++;
       const d = applyTemporalHiz(pages, locations, cam, SIZE, develop).shown as Page[];
       const b = applyTemporalHiz(pages, locations, cam, SIZE, branch).shown as Page[];
+      // Each history writes its own lists: a scratch shared by every caller would hand both the
+      // same array here and the first result would already be the second image's.
+      assert.notEqual(d, b, 'the two histories do not share their lists');
       sameImage(pages, locations, d, `develop, round ${round} frame ${frame}`);
       sameImage(pages, locations, b, `branch, round ${round} frame ${frame}`);
       // One page moves: develop drops the pyramid, the branch stales where it was and is.
