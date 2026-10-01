@@ -17,7 +17,8 @@ import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { createCameraFrames } from './frameRanges.ts';
 import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { VIEW_FLAGS_WORD } from './viewFlagsWord.ts';
+import { viewWord } from './viewLayout.ts';
+const VIEW_FLAGS_WORD = viewWord('viewFlags');
 
 const CASTERS = 16;
 

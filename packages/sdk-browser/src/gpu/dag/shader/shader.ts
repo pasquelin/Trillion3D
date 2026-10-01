@@ -25,6 +25,7 @@ import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
 import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
 import { FRAME_VEC4 } from '../types.ts';
+import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
@@ -34,7 +35,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}
+${VIEW_UNIFORM_STRUCT}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,ahead:atomic<u32>,aheadPlaced:u32,pages:array<u32>,}
 // The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
 struct FrameRange{first:u32,count:u32,}
