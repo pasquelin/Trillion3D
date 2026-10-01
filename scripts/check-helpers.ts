@@ -4,12 +4,11 @@
 // is a copy, reported with the module that should own it. The body is compared too: a driver's
 // `convert` or a codec's `encode` share a name and a signature with their siblings by design and
 // hold different code. `pnpm run check:helpers`; `scripts/check-helpers.test.ts` plants a copy.
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts';
-import { repositoryFiles } from './repository-files.ts';
+import { sourceFilesOf } from './repository-files.ts';
 
 /** Each package or crate is its own namespace: a helper is owned once per unit. */
 export const UNITS = [
@@ -91,13 +90,7 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = resolve(import.meta.dirname, '..');
-  const tracked = repositoryFiles(root);
-  if (!tracked) throw new Error('Not a Git repository.');
-  const files = new Map(
-    tracked
-      .filter((file) => /\.(?:m?ts|rs)$/.test(file))
-      .map((file): [string, string] => [file, readFileSync(join(root, file), 'utf8')]),
-  );
+  const files = sourceFilesOf(/\.(?:m?ts|rs)$/, root);
   const groups = duplicateHelpers(files);
   for (const group of groups)
     console.error(
