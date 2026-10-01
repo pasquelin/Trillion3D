@@ -58,6 +58,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
       pool: {
         owner: new Int32Array(pages),
         requested: new Int32Array(pages),
+        gpuDrawn: new Uint8Array(pages),
         allocated: 0,
         refused: 0,
         drawn: 0,
