@@ -10,14 +10,15 @@ import { createCutPending } from './pending.ts';
 
 /** Eight records: record `2k + 1` is installed after record `2k`, its bundle. */
 function world() {
-  const packed = Array.from({ length: 8 }, (_, id) => ({ url: `p${id}`, packedIndex: id }));
+  const packed = Array.from({ length: 8 }, (_, id) => ({ url: `p${id}` }));
   for (let id = 1; id < 8; id += 2)
     (packed[id] as { dependencies?: unknown[] }).dependencies = [packed[id - 1]];
   return packed as unknown as PageRec[];
 }
 
-/** The first packed rank of a record (#1235): each of these records is its own single instance. */
-const rankOf = (rec: PageRec) => (rec as { packedIndex?: number }).packedIndex ?? -1;
+/** The first packed rank of a record (#1235): each of these records is its own single instance,
+ *  at the rank its URL names. */
+const rankOf = (rec: PageRec) => Number(rec.url.slice(1));
 
 test('the awaited list is rebuilt only when something it reads moved', () => {
   const packed = world(),
@@ -69,7 +70,7 @@ test('a dependency named only by a cut record moves it; one outside the cut move
 
 test('its tables follow the cut: the same cut in a larger catalogue weighs the same', () => {
   const bytes = (records: number) => {
-    const packed = Array.from({ length: records }, (_, id) => ({ url: `p${id}`, packedIndex: id }));
+    const packed = Array.from({ length: records }, (_, id) => ({ url: `p${id}` }));
     const delta = createCutDelta(packed as unknown as PageRec[]),
       pending = createCutPending(
         packed as unknown as PageRec[],

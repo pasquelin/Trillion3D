@@ -27,7 +27,6 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
       array: Uint32Array.from([0, 1, 2]),
       depthLayer,
       material,
-      placementIndex: 0,
     }) as unknown as PageRec;
   // The two page-table rows carry the three indices each page draws.
   const rowWords = PAGE_INFO_STRIDE / 4;
