@@ -18,9 +18,11 @@ coarser levels stand in for pages not drawn yet: a frame asks for at most
 hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
 finest mip is 32 × 32 pages (`lampFaceSize`).
 
-**The pool is fixed, as the reference engine's** (#831). It holds `LIGHT_SETTINGS.shadowPoolPages` pages —
-4 096, 256 MiB of depth, the reference engine's `a reference setting` —, or what the session's
-`shadowPoolPages` option sets, in the fewest square layers the device's texture side holds
+**The pool is fixed, as the reference engine's** (#831). It holds what the screen the session opens on reads —
+one shadowed light's smooth read and a third more while pages wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉`
+pages (`screenPoolPages`): 2 601 at 3456 × 2234, 163 MiB of depth, above falling-boxes' 2 000 —,
+chosen once as the reference engine sets `a reference setting`, or what the session's
+`shadowPoolPages` option sets; lights past the first share it. It lies in the fewest square layers the device's texture side holds
 (`shadowPoolShape`), within the memory budget's pool (`SHADOW_ATLAS_BYTES`). It is granted at the
 first frame that casts, before any report, so no first frame reads a coarser level for want of
 pages, and never resized after: a page keeps its place, its depth, its static layer and its table
@@ -257,12 +259,17 @@ report proves it reads only drawn pages.
 ## The static layer: moving objects redraw their own casters
 
 A placement turns moving the first time its pose or its row's flag actually changes
-(`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, or a row inside a written range,
-is no move — and stays so. From then on the pool keeps a static layer, a second depth texture the
+(`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, a row inside a written range, or
+a pose that moves no corner of the caster's box by one float32 step at its reach (`poseHoldsBox`:
+a resting body's pose rounded again, which the GPU's float32 world cannot show, #831) is no move —
+and stays so. From then on the pool keeps a static layer, a second depth texture the
 pool's size, allocated at that first move: a scene where nothing moves pays neither its bytes nor
 its pass. A page drawn in full writes its static casters into the layer, restores itself from it and
 draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
-alone, split by one word per row in the page cull. A mover never goes back into the layer (#993):
+alone, split by one word per row in the page cull. Each page keeps, of the moving casters, only
+the clusters whose sphere meets its own light-space box (`keepCaster`, `gpu/shadow/cullShader.ts`):
+a car moved half a metre stales two pages a level, each drawing only its parts over it, never a
+parked car's (`movingCar.test.ts`). A mover never goes back into the layer (#993):
 staying moving costs its casters only in the pages another mover makes the frame redraw, while
 rejoining would cost two layer redraws per pause, static casters included, and a rest timer would be
 a scene-tuned constant; revisit only if falling boxes and a walker or car at 1728×1117 CSS, DPR 2,
@@ -323,8 +330,9 @@ pause/resume not run. The astrolabe is the counterexample: every caster of its p
 layer restores almost nothing; a cache percentage is no measure of it. Physical pages are memory,
 not frame time: the pool past one layer (#818) left the falling boxes' GPU envelope unchanged and
 raised their peak memory by 118 MB (1 410 against 1 292 MB, #850's baseline; the walker 1 465, the
-car 1 417), its layer doubling with it. Since #831 the pool is fixed at its setting, 4 096 pages, its
-static layer as many, whatever the scene. Later batches post their numbers on the issues they
+car 1 417), its layer doubling with it. Since #831 the pool is fixed once at what the session's
+screen reads, its static layer as many, whatever the scene: 2 601 pages at 3456 × 2234, two
+170 MB textures, where the 4 096 pages declared before held drive-a-car's shadows at 555 MB. Later batches post their numbers on the issues they
 measure.
 
 ## Casters: the light cut
