@@ -203,12 +203,13 @@ test('a frame grows past the first buffer whole, a command across the boundary i
   }
   const writer = new CommandWriter();
   for (let i = 0; i < 1100; i++) writer.impulse(i, [i, -i, 0.5]);
-  const { words, floats } = read(writer.take());
-  assert.equal(words.length, 1100 * 5);
+  const expected = new Uint32Array(1100 * 5),
+    numbers = new Float32Array(expected.buffer);
   for (let i = 0; i < 1100; i++) {
-    assert.deepEqual([...words.subarray(i * 5, i * 5 + 2)], [OP.impulse, i]);
-    assert.deepEqual([...floats.subarray(i * 5 + 2, i * 5 + 5)], [i, -i, 0.5]);
+    expected.set([OP.impulse, i], i * 5);
+    numbers.set([i, -i, 0.5], i * 5 + 2);
   }
+  assert.deepEqual(writer.take(), expected);
 });
 
 test('a taken frame is its own: later frames, through recycled buffers, never write over it', () => {

@@ -8,7 +8,7 @@ import { JOLT_COMMIT } from './joltCommit.ts';
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
  * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
-const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
+export const PHYSICS_FORMAT_VERSIONS: readonly number[] = [2, 3];
 
 /** One cooked shape: a SHA-addressed object beside the manifest. */
 export interface CookedTile {
@@ -154,7 +154,7 @@ export interface CookedPhysics {
  */
 export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhysics {
   const cooked = file as Partial<CookedPhysics> | null;
-  if (!cooked || !PHYSICS_FORMAT_VERSIONS.includes(cooked.formatVersion))
+  if (!cooked || !PHYSICS_FORMAT_VERSIONS.includes(cooked.formatVersion as number))
     throw new EngineError(
       'PHYSICS_FORMAT',
       `physics.json format ${cooked?.formatVersion} is not ${PHYSICS_FORMAT_VERSIONS.join(' or ')}: recompile the model.`,

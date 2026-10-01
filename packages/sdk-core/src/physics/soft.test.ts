@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { plane, sphere } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
 import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts';
+import { refuses } from '../contracts/cache.fixture.ts';
+import { near } from '../math/near.fixture.ts';
+import { positions } from './geometry.fixture.ts';
 import { GRAVITY_PRESETS } from './options.ts';
-import { EngineError } from '../contracts/cache.ts';
-import { Geometry } from '../world/geometry/geometry.ts';
-import { BufferAttribute } from '../world/buffer/attribute.ts';
 import {
   isSoftType,
   softOf,
@@ -27,12 +27,11 @@ const of = (options: SoftBodyOptions, scale = one, geometry = plane(2, 1, 4, 2))
 
 test('a cloth weighs its scaled area times the fabric’s, or the mass it is given, spread by area', () => {
   const cloth = of({ type: 'cloth' });
-  assert.ok(Math.abs(sum(masses(cloth.vertices)) - 2 * SOFT_AREAL_DENSITY) < 1e-6);
-  assert.ok(
-    Math.abs(sum(masses(of({ type: 'cloth' }, { x: 3, y: 1, z: 1 }).vertices)) - 1.2) < 1e-6,
-  );
+  near([sum(masses(cloth.vertices))], [2 * SOFT_AREAL_DENSITY], '2 m²', 1e-6);
+  const wide = of({ type: 'cloth' }, { x: 3, y: 1, z: 1 });
+  near([sum(masses(wide.vertices))], [6 * SOFT_AREAL_DENSITY], '6 m² scaled', 1e-6);
   const given = masses(of({ type: 'cloth', mass: 5 }).vertices);
-  assert.ok(Math.abs(sum(given) - 5) < 1e-5);
+  near([sum(given)], [5], 'given', 1e-5);
   // A corner holds one triangle's third, an inner vertex six: they weigh so.
   assert.ok(given[0] < given[6]);
   assert.equal(cloth.pressure, 0, 'a cloth holds no gas');
@@ -45,7 +44,6 @@ test('pins weigh nothing, and a pin naming no vertex is refused', () => {
     [0, 0],
   );
   assert.ok(vertices[map[1] * SOFT_VERTEX_WORDS + 3] > 0);
-  assert.throws(() => of({ type: 'cloth', pins: [15] }), RangeError);
 });
 
 test('a sphere’s seam and poles are welded: one vertex per position, no degenerate triangle', () => {
@@ -55,14 +53,18 @@ test('a sphere’s seam and poles are welded: one vertex per position, no degene
   assert.equal(map.length, ball.getAttribute('position')!.count);
   for (let t = 0; t < indices.length; t += 3)
     assert.equal(new Set(indices.subarray(t, t + 3)).size, 3);
-  // Its default pressure rests its weight on a quarter of its mean cross-section (area / 4).
-  assert.ok(
-    Math.abs(pressure - (4 * SOFT_AREAL_DENSITY * GRAVITY_PRESETS.earth) / SOFT_FOOTPRINT) < 1e-6,
-  );
+  // Its default pressure bears its weight on `SOFT_FOOTPRINT` of its mean cross-section, a
+  // quarter of its area for a convex body (Cauchy); its skin weighs its area times the fabric's.
+  const mass = sum(masses(vertices));
+  const area = mass / SOFT_AREAL_DENSITY;
+  near([pressure * SOFT_FOOTPRINT * (area / 4)], [mass * GRAVITY_PRESETS.earth], 'weight', 1e-6);
   assert.equal(of({ type: 'volume', pressure: 200 }, one, ball).pressure, 200);
   // Past what its skin holds within a tenth of its volume, a pressure is refused; a light fine
   // skin's default is capped there, below its weight's.
-  assert.throws(() => of({ type: 'volume', pressure: 900 }, one, ball), RangeError);
+  assert.throws(
+    () => of({ type: 'volume', pressure: 900 }, one, ball),
+    (error: unknown) => error instanceof RangeError && error.message.includes('900'),
+  );
   const fine = sphere(0.1, 32, 24);
   const held = of({ type: 'volume' }, one, fine).pressure;
   assert.ok(held < pressure, `${held} Pa`);
@@ -76,7 +78,7 @@ test('a rope is its vertices in order, weighing its length times the rope’s', 
   const rope = of({ type: 'rope' }, one, fromArrays([0, 0, 0, 1, 0, 0, 1, 2, 0], [], [], []));
   assert.equal(rope.indices.length, 0);
   const each = [0.5, 1.5, 1].map((metres) => metres * SOFT_LINEAR_DENSITY);
-  masses(rope.vertices).forEach((kg, i) => assert.ok(Math.abs(kg - each[i]) < 1e-6));
+  near(masses(rope.vertices), each, 'by length', 1e-6);
   assert.throws(() => of({ type: 'rope' }, one, plane(0, 0, 1, 1)), { code: 'PHYSICS_FAILED' });
 });
 
@@ -94,24 +96,9 @@ test('a cloth over an interleaved position reads its vertices, not the whole sha
   assert.deepEqual(of({ type: 'cloth' }, one, woven).vertices, of({ type: 'cloth' }).vertices);
 });
 
-/** A geometry of `values` positions, indexed by `index` when given. */
-function geometry(values: number[], index?: number[]) {
-  const value = new Geometry().setAttribute(
-    'position',
-    new BufferAttribute(new Float32Array(values), 3),
-  );
-  if (index) value.setIndex(index);
-  return value;
-}
-/** Asserts `run` refuses the soft body as `PHYSICS_FAILED`, saying why. */
-function failed(run: () => unknown, named = '') {
-  assert.throws(run, (error: unknown) => {
-    assert.ok(error instanceof EngineError);
-    assert.equal(error.code, 'PHYSICS_FAILED');
-    assert.ok(error.message.includes(named) && error.message.length > named.length, error.message);
-    return true;
-  });
-}
+/** Asserts `run` refuses the soft body as `PHYSICS_FAILED`, saying why, naming `named`. */
+const failed = (run: () => unknown, named?: string) =>
+  refuses(run, 'PHYSICS_FAILED', undefined, named ? [named] : []);
 
 test('an option names a soft body by its type alone; a rigid one is none', () => {
   for (const type of ['cloth', 'rope', 'volume']) {
@@ -126,35 +113,35 @@ test('an option names a soft body by its type alone; a rigid one is none', () =>
 });
 
 test('a rope of two vertices shares its mass between them; it has no triangles nor gas', () => {
-  const rope = of({ type: 'rope', mass: 4 }, one, geometry([0, 0, 0, 0, 0, 2]));
+  const rope = of({ type: 'rope', mass: 4 }, one, positions([0, 0, 0, 0, 0, 2]));
   assert.deepEqual([...masses(rope.vertices)], [2, 2]);
   assert.equal(rope.indices.length, 0);
   assert.equal(rope.pressure, 0);
   // Three loose vertices, unindexed, are a rope's three, never a triangle of them.
-  const bent = of({ type: 'rope', mass: 3 }, one, geometry([0, 0, 0, 1, 0, 0, 1, 1, 0]));
+  const bent = of({ type: 'rope', mass: 3 }, one, positions([0, 0, 0, 1, 0, 0, 1, 1, 0]));
   assert.equal(bent.indices.length, 0);
   assert.deepEqual([...masses(bent.vertices)], [0.75, 1.5, 0.75], 'by the length each holds');
   for (const type of ['rope', 'cloth'] as const)
-    failed(() => of({ type }, one, geometry([0, 0, 0])), type);
+    failed(() => of({ type }, one, positions([0, 0, 0])), type);
 });
 
 test('welding drops every triangle it folds, never a whole neighbour', () => {
-  const folded = geometry([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 2]);
+  const folded = positions([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 2]);
   const cloth = of({ type: 'cloth', mass: 9 }, one, folded);
   assert.deepEqual([...cloth.indices], [0, 1, 2]);
   assert.deepEqual([...masses(cloth.vertices)], [3, 3, 3], 'one triangle: a third each');
   // A trailing pair of corners makes no triangle.
-  const trailing = geometry([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 1, 2, 0, 1]);
+  const trailing = positions([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 1, 2, 0, 1]);
   assert.deepEqual([...of({ type: 'cloth' }, one, trailing).indices], [0, 1, 2]);
   failed(
-    () => of({ type: 'cloth' }, one, geometry([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 0, 1])),
+    () => of({ type: 'cloth' }, one, positions([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 0, 1])),
     'cloth',
   );
-  failed(() => of({ type: 'cloth' }, one, geometry([0, 0, 0, 1, 0, 0, 2, 0, 0])), '');
+  failed(() => of({ type: 'cloth' }, one, positions([0, 0, 0, 1, 0, 0, 2, 0, 0])), '');
 });
 
 test('a pin names a whole vertex of the geometry, or is refused naming it', () => {
-  const flat = geometry([0, 0, 0, 2, 0, 0, 0, 3, 0]);
+  const flat = positions([0, 0, 0, 2, 0, 0, 0, 3, 0]);
   for (const pin of [-1, 0.5, NaN, 3])
     assert.throws(
       () => of({ type: 'cloth', pins: [pin] }, one, flat),
@@ -163,13 +150,11 @@ test('a pin names a whole vertex of the geometry, or is refused naming it', () =
   assert.equal(masses(of({ type: 'cloth', pins: [2] }, one, flat).vertices)[2], 0);
 });
 
-test('a pressure the skin cannot hold is refused naming it; an open cloth holds none', () => {
-  const flat = geometry([0, 0, 0, 2, 0, 0, 0, 3, 0], [0, 1, 2, 0, 1]);
-  assert.throws(
-    () => of({ type: 'volume', pressure: 1e10 }, one, flat),
-    (error: unknown) => error instanceof RangeError && error.message.includes(String(1e10)),
-  );
+test('an open cloth holds no gas, even given a pressure', () => {
   const settings = softSettings({ type: 'cloth' });
   settings.pressure = 1;
-  assert.throws(() => softBodyOf(flat, one, settings), RangeError);
+  assert.throws(
+    () => softBodyOf(positions([0, 0, 0, 2, 0, 0, 0, 3, 0]), one, settings),
+    RangeError,
+  );
 });

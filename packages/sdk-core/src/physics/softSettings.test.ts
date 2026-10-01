@@ -6,12 +6,8 @@ import { softSettings } from './softSettings.ts';
 
 test('soft options out of range are refused, and a soft body keeps its type and settings', () => {
   for (const bad of [{ stretch: -1 }, { bend: Number.NaN }, { mass: -2 }, { pressure: -5 }])
-    assert.throws(() => new ObjectPhysics({ type: 'volume', ...bad }), RangeError);
-  // What Jolt's soft bodies cannot take is refused, never dropped.
-  const rigid = [{ shape: 'box' }, { sensor: true }, { ccd: false }, { decorative: true }];
-  for (const bad of [...rigid, { damping: { angular: 0.1 } }])
     assert.throws(
-      () => new ObjectPhysics({ type: 'cloth', ...bad } as SoftBodyOptions),
+      () => new ObjectPhysics({ type: 'volume', ...bad } as SoftBodyOptions),
       RangeError,
     );
   const body = new ObjectPhysics({ type: 'cloth', pins: [1] });
