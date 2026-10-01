@@ -26,15 +26,24 @@ const view = new Float32Array(16);
 /**
  * THE CARD DRAW ON WEBGL2 (#1336): the image's cards (`impostor/cards.ts`) drawn by the card
  * program (`cardGlsl.ts`) into the pass the cluster program draws, one instanced draw per mesh
- * atlas, as on WebGPU. The records go up once an image, into a float texture as the light records
- * do (`WebglLightTexture`, lent by the core with the cluster program's pieces,
- * `lent.ts`); the program's lights are those the cluster program uploaded for the
+ * atlas, as on WebGPU. Its two programs, the display's and the linear one, are made with it: one
+ * that does not compile or link throws here, never in a draw. The records go up once an image, into
+ * a float texture as the light records do (`WebglLightTexture`, lent by the core with the cluster
+ * program's pieces, `lent.ts`); the program's lights are those the cluster program uploaded for the
  * pass, their uniforms sent again. A card is opaque: depth-tested and written, never blended or
  * culled. The caller binds its own program again and forgets its cached state after
  * (`../cluster/renderer.ts`).
  */
 export function createWebglCardDraw(gl: WebGL2RenderingContext) {
-  const programs: Partial<Record<'display' | 'linear', ReturnType<typeof createCardProgram>>> = {};
+  // Both programs made at once, so a refused one is known before any root is switched to a card.
+  const display = createCardProgram(gl, false);
+  let linear: typeof display;
+  try {
+    linear = createCardProgram(gl, true);
+  } catch (error) {
+    gl.deleteProgram(display.program);
+    throw error;
+  }
   const { ATLAS_UNITS, CARD_RECORD_UNIT, FLOAT_TEXELS } = core,
     records = new core.WebglLightTexture(
       gl,
@@ -54,11 +63,11 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext) {
       camera: HostDrawCamera,
       lights: WebglClusterLights,
       pass: CardPass,
-      linear: boolean,
+      toLinear: boolean,
     ) {
       const { count, runs, runCount } = cards;
       if (!count) return false;
-      const card = (programs[linear ? 'linear' : 'display'] ??= createCardProgram(gl, linear));
+      const card = toLinear ? linear : display;
       gl.useProgram(card.program);
       if (sent !== image) {
         records.reserve(count * CARD_TEXELS);
@@ -103,7 +112,7 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext) {
       return true;
     },
     dispose() {
-      for (const card of Object.values(programs)) gl.deleteProgram(card.program);
+      for (const card of [display, linear]) gl.deleteProgram(card.program);
       records.dispose();
       gl.deleteVertexArray(vao);
     },
