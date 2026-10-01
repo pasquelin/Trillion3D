@@ -4,11 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
-import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
+import { MAX_SHADOW_BATCHES, shadowPagesPerFrame } from '../../../gpu/shadow/batchBudget.ts';
+import { STALE_DYNAMIC } from '../../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
-import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
+import { encodeShadowBatches, forEachShadowBatch, staticFills } from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
@@ -151,4 +152,27 @@ test('at the cap, every sun turning every frame is drawn within the bound, none 
     for (let slot = 0; slot < store.count; slot++)
       assert.ok(f - lastDrawn[slot] <= bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
   }
+});
+
+// #831: a frame's static fill is bounded (`shadowPagesPerFrame`): the batches stop once the pages
+// whose still casters they rasterise reach it, a batch at most past it, the rest pending; a page
+// restored from its static layer, its moving casters alone drawn, is no fill and never stops them.
+test('the batches stop at the static fill, restores uncounted', () => {
+  const { rt, lights, pages } = frame(64);
+  const { plan } = lights,
+    budget = shadowPagesPerFrame(plan.pool.pages),
+    visit = () => (lights.runs.reset(), true);
+  assert.ok(pages > budget + MAX_SHADOW_PAGES, `${pages} pages, past the fill`);
+  const filled = forEachShadowBatch(rt, visit);
+  assert.ok(filled >= budget && filled < budget + MAX_SHADOW_PAGES, `${filled} pages filled`);
+  assert.equal(staticFills(lights, 0, filled), filled, 'without a static layer, every page fills');
+  // Every page kept in a current static layer, stale for its moving casters alone: restores.
+  lights.staticLayer = {} as never;
+  for (const page of plan.admission.list.subarray(0, pages)) {
+    plan.pool.layered[page] = 1;
+    plan.pool.dirty[page] = STALE_DYNAMIC;
+    plan.pool.range[page] = plan.records.rangeOf(page);
+  }
+  assert.equal(staticFills(lights, 0, pages), 0);
+  assert.equal(forEachShadowBatch(rt, visit), pages, 'restores never stop the batches');
 });

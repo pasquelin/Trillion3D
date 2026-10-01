@@ -25,7 +25,7 @@ import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
-import { freshSlices, freshWanted } from './freshInputs.ts';
+import { freshSlices as slices, freshWanted } from './freshInputs.ts';
 
 /** The scene's box: a ground a hundred metres wide, ten metres deep. */
 const MIN = [-50, 0, -50],
@@ -79,7 +79,9 @@ export function gpuFrames(
     drawnAt = new Int32Array(pages).fill(-1),
     regions: number[] = [];
   const shadows = { writeSun: pack.writeSun, writeLamp: pack.writeLamp, clearRecord: pack.clear };
-  return {
+  const run = {
+    /** The pages the GPU's own draws may fill a frame, its page budget unless a test sets it. */
+    fill: undefined as number | undefined,
     plan,
     store,
     /** The GPU allocation's buffers: its page budget a test may lower (`pagesPerFrame`). */
@@ -148,7 +150,7 @@ export function gpuFrames(
         gpuDraws === 'wanted' ? freshWanted(plan, store.epoch, allocation.lost) : gpuDraws;
       if (draws) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.
-        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, 1, freshSlices(store));
+        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, 1, run.fill ?? allocation.pagesPerFrame, slices(store));
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
         fresh.push(allocation.freshVolumes, allocation.freshArgs, allocation.freshParams);
         fresh.push(allocation.freshDispatch);
@@ -172,4 +174,5 @@ export function gpuFrames(
       return read;
     },
   };
+  return run;
 }

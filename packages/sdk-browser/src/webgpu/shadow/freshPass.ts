@@ -13,7 +13,8 @@ const blend: [number, number] = [0, 0];
  * THE PAGES THE GPU MAPPED AND NO DRAW HAS FILLED, DRAWN IN THE FRAME THAT ASKS FOR THEM (#1275),
  * after the host's batches and table words, before the resolve reads any page — every one, a page
  * whose pairs the kept list could not hold the next frame or the host's (#1363, #831). One
- * workgroup composes them into regions (`freshWgsl.ts`); the pair cull counts, admits whole and
+ * workgroup composes them into regions (`freshWgsl.ts`), as many as the frame's static fill the
+ * host's batches left (`shadowPagesPerFrame`), the coarsest first; the pair cull counts, admits whole and
  * keeps, for each, every caster row its page's light-space volume touches at the level its texels
  * want (`freshCullWgsl.ts`, `rowLods.ts`) — the table's rows are every resident page of every
  * caster, the camera no part of it — in the
@@ -51,7 +52,9 @@ export function encodeFreshPages(
   // The frame's pairs, never more, though the host's caster rows widen the list (`poolPairs`): a
   // region past them waits, whole, for the next frame or the host's draw.
   const capacity = Math.min(keptPairs(cull.capacity), poolPairs(plan.pool.pages));
-  const slices = freshSlices(lights.store);
+  const slices = freshSlices(lights.store),
+    // The frame's static fill less what the host's batches filled (#831): the rest the next frames.
+    budget = Math.max(0, buffers.pagesPerFrame - lights.shadowWork.rasterizedPages);
   buffers.writeFresh(
     side,
     layers,
@@ -59,6 +62,7 @@ export function encodeFreshPages(
     blend,
     capacity,
     lights.shadowPixelError,
+    budget,
     slices,
   );
   const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
