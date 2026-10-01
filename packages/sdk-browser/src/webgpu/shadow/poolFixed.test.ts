@@ -93,6 +93,9 @@ test('the static layer is made with the pool: its bytes held before anything mov
   assert.equal(shadowPoolShown(s.lights), shadowPoolHeld(s.lights), 'shown once granted');
   s.lights.shadowGrant = { settled: false, done: Promise.resolve() };
   assert.equal(shadowPoolShown(s.lights), null, 'never the atlas alone while the grant holds');
+  s.lights.shadowGrant = undefined;
+  const held = shadowPoolHeld(s.lights);
   assert.ok(takeStaticLayerTexture(s.lights), 'its texture made');
   assert.equal(takeStaticLayerTexture(s.lights), undefined, 'handed once, to the first move');
+  assert.equal(shadowPoolHeld(s.lights), held, 'its bytes counted while the layer is built');
 });
