@@ -91,14 +91,6 @@ export const LIGHT_SETTINGS = {
    */
   shadowPagesPerBatch: 24,
   /**
-   * Physical pages of the shadow pool, allocated once, at the first frame a light casts, and never
-   * resized: Unreal's `r.Shadow.Virtual.MaxPhysicalPages`. Declared, as a memory budget is: 256 MiB
-   * of depth at 128² texels a page, twice the 2 000 pages the busiest proof scene asks in a frame. A
-   * frame that asks more reads the coarser level past it, said once (`shadow-pool`, `ceiling`).
-   * A world sets another with the `shadowPoolPages` option, within the memory budget's pool.
-   */
-  shadowPoolPages: 4096,
-  /**
    * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
    * invalidation. A moving object only stales the pages its projected box covers.
    */

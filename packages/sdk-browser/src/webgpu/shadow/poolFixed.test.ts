@@ -5,14 +5,34 @@
 // page-shaped shards on drive-a-car's terrain, and grain on the car.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts';
-import { session } from './poolSession.fixture.ts';
+import {
+  screenPoolPages,
+  shadowPoolShape,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { SCREEN, session } from './poolSession.fixture.ts';
 
-test('the pool keeps its setting’s size whatever the reports ask: no page changes place', async () => {
+/** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
+const SCREEN_POOL = 51 * 51;
+
+// The default is the screen's page budget, chosen once (#831): one shadowed light's smooth read
+// over it and a third more while pages wait, where the 4 096 pages declared before held 555 MB.
+test('the pool a session opens with is what its screen reads: 2 601 pages, 163 MiB a layer', async () => {
+  assert.equal(screenPoolPages(...SCREEN), 2520);
+  assert.deepEqual(shadowPoolShape(screenPoolPages(...SCREEN)), { side: 51, layers: 1 });
+  const s = await session();
+  assert.equal(s.lights.plan.pool.pages, SCREEN_POOL);
+  assert.deepEqual(s.taken[0].size, [51 * 128, 51 * 128, 1]);
+  // The pool and the static layer that mirrors it page for page: 2 × 170 459 136 bytes.
+  assert.equal(shadowAtlasBytes(51), 170_459_136);
+  assert.equal(screenPoolPages(1280, 720), 320, 'a smaller screen, a smaller pool');
+});
+
+test('the pool keeps its size whatever the reports ask: no page changes place', async () => {
   const s = await session(),
     { pool } = s.lights.plan;
-  assert.equal(pool.pages, LIGHT_SETTINGS.shadowPoolPages);
-  s.ask(3000, true);
+  assert.equal(pool.pages, SCREEN_POOL);
+  s.ask(2000, true);
   const held = [...pool.owner];
   // Seventy reports asking for a pool a hundred times smaller, under a moving view: what shrank
   // the demand-following pool past sixty of them.
@@ -22,7 +42,7 @@ test('the pool keeps its setting’s size whatever the reports ask: no page chan
   const kept = held.filter((entry, page) => entry >= 0 && pool.owner[page] === entry).length;
   assert.equal(kept, held.filter((entry) => entry >= 0).length, 'every page where it was');
   s.ask(6000);
-  assert.equal(s.lights.plan.pool.pages, LIGHT_SETTINGS.shadowPoolPages, 'nor grows past it');
+  assert.equal(s.lights.plan.pool.pages, SCREEN_POOL, 'nor grows past it');
   const warned = s.said.filter(([phase, context]) => phase === 'shadow-pool' && context.wanted);
   assert.deepEqual(
     warned.map(([, context]) => context.clamp),
