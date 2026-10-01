@@ -37,7 +37,7 @@ test('a cloth weighs its scaled area times the fabric’s, or the mass it is giv
   assert.equal(cloth.pressure, 0, 'a cloth holds no gas');
 });
 
-test('pins weigh nothing, and a pin naming no vertex is refused', () => {
+test('pins weigh nothing, the vertices around them something', () => {
   const { vertices, map } = of({ type: 'cloth', pins: [0, 4] });
   assert.deepEqual(
     [0, 4].map((v) => vertices[map[v] * SOFT_VERTEX_WORDS + 3]),
