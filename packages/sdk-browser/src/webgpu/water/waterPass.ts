@@ -34,10 +34,11 @@ export async function createWaterPass(
   layout: GPUBindGroupLayout,
   feedback = true,
   sunWindow?: number,
+  unboundedReflections = false,
 ): Promise<WaterPass> {
   const [surfaces, frame] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout, feedback),
-    createWaterFrame(device, sunWindow),
+    createWaterFrame(device, sunWindow, unboundedReflections),
   ]);
   return { surfaces, frame };
 }

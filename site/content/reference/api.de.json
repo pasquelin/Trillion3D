@@ -2234,6 +2234,7 @@
     "members": {
       "name": "Der Name des Durchgangs.",
       "gpuMs": "GPU-Zeit des Durchgangs.",
+      "ownMs": "Seine Zeit abzüglich dessen, was ein früher begonnener Pass abgedeckt hat (WebGPU).",
       "reason": "Warum er nicht gemessen wurde."
     }
   },
