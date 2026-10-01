@@ -86,6 +86,7 @@
     "format:check": "prettier --ignore-path .gitignore --ignore-path .prettierignore --check \"**/*.{ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml -- --check",
     "check:lines": "node scripts/check-file-lines.ts",
     "check:cohesion": "node scripts/check-cohesion.ts",
+    "check:cycles": "node --experimental-strip-types scripts/check-cycles.ts",
     "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust,tsx --no-tips",
     "check:helpers": "node scripts/check-helpers.ts",
     "check:unused": "node scripts/check-unused.ts",

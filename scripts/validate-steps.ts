@@ -39,6 +39,7 @@ export const VALIDATE_GROUPS = {
     'check:local',
     'format:check',
     'check:lines',
+    'check:cycles',
     'check:duplicates',
     'check:helpers',
     'lint:js',
