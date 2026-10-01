@@ -27,9 +27,9 @@ const merge = (map: Map<number, number>, page: number, bits: number) =>
  * - **Coarser** (`COARSER_VIEWS`, one bit per view): a view wanted a cluster that is not resident
  *   and drew its nearest resident ancestor — and every page of that view is sent back, not only the
  *   pages over the missing cluster, which alone a residency change stales. Those pages, and only
- *   those of the views that drew coarser, wait for residency to change and the camera to rest, then
- *   are drawn again: like any change of representation (`changes.ts`), a camera that only moves
- *   redraws no page whose casters and light stayed where they were. A batch whose requests were
+ *   those of the views that drew coarser, wait for residency to change, then are drawn again, the
+ *   camera moving or not (#831, `rest`): a camera that only moves, residency still, redraws no page
+ *   whose casters and light stayed where they were. A batch whose requests were
  *   not read — the frame's report not copied, or its list full before the batch's flag — waits
  *   for nothing: what it lacked was never asked for, and its pages are drawn again at once.
  *
@@ -168,7 +168,7 @@ export function createLightCutRedraws(
       moved = true;
       limit.residencyChanged();
     },
-    /** The camera rests: what residency changed meanwhile is drawn again. */
+    /** Residency changed, or the camera rests: what residency changed meanwhile is drawn again. */
     rest() {
       if (!moved) return;
       moved = false;
