@@ -100,11 +100,16 @@ test('a ball reaches the farthest point, on a plain list and on a morphed shape 
   const plain = spanSphere(new Sphere(), g);
   assert.deepEqual(plain.center.toArray(), [3, 4, 0]);
   assert.equal(plain.radius, 5);
-  // A target carrying the first vertex out to (0, 0, 24) widens the box to its middle and the ball.
-  g.morphAttributes.position = [
-    new BufferAttribute(new Float32Array([0, 0, 24, 6, 0, 0, 0, 8, 0]), 3),
+  // No vertex of the rest shape sits at a corner of the box; the morphed one does, and alone
+  // reaches √6 from the middle (1, 1, 2), where the rest shape reaches √5.
+  const m = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Float32Array([1, 0, 0, 0, 1, 0, 1, 2, 0]), 3),
+  );
+  m.morphAttributes.position = [
+    new BufferAttribute(new Float32Array([1, 0, 0, 0, 1, 0, 2, 2, 4]), 3),
   ];
-  const morphed = spanSphere(new Sphere(), g);
-  assert.deepEqual(morphed.center.toArray(), [3, 4, 12]);
-  assert.equal(morphed.radius, 13);
+  const morphed = spanSphere(new Sphere(), m);
+  assert.deepEqual(morphed.center.toArray(), [1, 1, 2]);
+  assert.equal(morphed.radius, Math.sqrt(6));
 });

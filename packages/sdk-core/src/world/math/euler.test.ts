@@ -4,6 +4,7 @@ import { Quaternion } from './quaternion.ts';
 import { Euler } from './euler.ts';
 import { Matrix4 } from './matrix4.ts';
 import { listen } from './observed.ts';
+import * as THREE from 'three';
 import { near as within } from '../../math/near.fixture.ts';
 
 const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7);
@@ -117,4 +118,8 @@ test('explicit conversions notify, silent ones do not', () => {
   value.setFromQuaternion(turn, 'XYZ', true);
   value.setFromRotationMatrix(new Matrix4().makeRotationFromQuaternion(turn), 'XYZ', true);
   assert.equal(changes, 2);
+});
+
+test('angles given no order turn in the reference default order', () => {
+  assert.equal(new Euler().order, THREE.Euler.DEFAULT_ORDER);
 });
