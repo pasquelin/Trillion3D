@@ -18,7 +18,7 @@ import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { WebglClusterSubmission } from './submission.ts';
 import type { FramePass } from '../core/frameTimer.ts';
 import { WebglClusterDeformation, type DeformationSource } from './deformation.ts';
-import { cardPass, type CardSwitches, type WebglCards } from '../impostor/draw.ts';
+import { cardPass, type CardSwitches, type WebglCards } from '../impostor/pass.ts';
 
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
