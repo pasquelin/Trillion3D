@@ -114,7 +114,7 @@ export function planCells(
   index: Pick<CellIndex, 'near' | 'distance'>,
   eye: ArrayLike<number>,
   reach: number,
-  held: Pick<ReadonlyMap<number, unknown>, 'has' | 'keys'>,
+  held: { has(cell: number): boolean; keys(): Iterable<number> },
   superRoots?: SuperRootPlan,
 ) {
   type Found<T> = { item: T; distance: number };

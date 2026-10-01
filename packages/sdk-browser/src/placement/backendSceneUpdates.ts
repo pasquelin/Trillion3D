@@ -4,6 +4,7 @@ import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
 import type { HostAttributes, HostMaterials } from '../host/resources.ts';
+import type { SelectionUniforms } from '../gpu/core/selection.ts';
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -76,6 +77,9 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** Rows `from` to `to` of an instance buffer the session was opened with were written — a pose,
    *  a row taken or parked: the roots that read them follow at the next frame, no table rebuilt. */
   updatePlacements?(rows: PlacementRows, from: number, to: number): void;
+  /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
+   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
+  worldCut?(): SelectionUniforms | undefined;
   /** A resource the session was not opened with enters it (#572): its pages join the same cache,
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */

@@ -26,6 +26,12 @@ test('the table reads every bundle, page, cell and object back at its record', (
     cells.map((_, at) => table.cells.objects(at)),
     cells.map((c) => c.objects),
   );
+  // Each object, by its rank, is found in its cell: an object root's `origin` names it (#1332).
+  const ranks = cells.flatMap((cell, at) => cell.objects.map(() => at));
+  assert.deepEqual(
+    ranks.map((_, object) => table.cells.cellOf(object)),
+    ranks,
+  );
   // An unaligned view of the same bytes is read alike.
   const shifted = new Uint8Array(bytes.byteLength + 1);
   shifted.set(bytes, 1);

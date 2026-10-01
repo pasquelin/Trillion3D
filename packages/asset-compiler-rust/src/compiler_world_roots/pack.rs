@@ -3,7 +3,7 @@
 //! The object roots of level 0 are packed too, last, only to take their dependency lists: their
 //! pages are the objects' own, never written twice.
 use super::merge::WorldDag;
-use super::table::{clusters, group_list};
+use super::table::{clusters, group_list, object_ranks};
 use super::*;
 use crate::dag::{build_culling_bvh, DagCluster};
 use crate::geometry_page::localise;
@@ -119,9 +119,10 @@ pub(super) fn pack_world(
     let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();
     refuse_over_budget(world, &top, (pinned_bytes, budget))?;
     let objects = object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
+    let clusters = clusters(dag, world, (&located, &object_ranks(instances, cells)));
     let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
         "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects,
-        "clusters":clusters(dag, world, &located),"groups":group_list(&world.groups)});
+        "clusters":clusters,"groups":group_list(&world.groups)});
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,"cells":cells,
         "superRoots":pages.len(),"topPages":top.len(),"pinnedBundles":pinned,
         "pinnedTopBytes":pinned_bytes,"budgetBytes":budget,"dependencyBound":bound});

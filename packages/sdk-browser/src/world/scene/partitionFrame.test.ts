@@ -5,6 +5,8 @@ import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { lensSlope } from '../../scene/partition/superRoots.ts';
+import { createSelectionUniforms } from '../../gpu/core/selection.ts';
 import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
 import { paged } from '../../scene/partition/paged.fixture.ts';
@@ -72,10 +74,23 @@ test('a frame reads the cells within the far plane of its camera, visible first 
   })!();
   assert.deepEqual(seen[0].eye, [3, 4, 5]);
   assert.equal(seen[0].reach, cellReach(camera));
+  assert.equal(seen[0].io.lens, undefined, 'no cut packs the world DAG: no far cell (#1332)');
   assert.deepEqual(asked, [
     [['near.json'], PRIORITY_VISIBLE],
     [['ahead.json'], PRIORITY_PREFETCH],
   ]);
+});
+
+test('a cut that packs the world DAG lends the plan its lens, on the frustum diagonal (#1332)', () => {
+  const { cells, seen } = recording();
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 500);
+  const uniforms = createSelectionUniforms(),
+    worldCut = () => uniforms;
+  const frame = { partitions: [cells], streamer: streamer().port, camera, budget };
+  createPartitionFrame({ ...frame, active: () => ({ worldCut }) as unknown as RenderBackend })!();
+  assert.deepEqual(seen[0].io.lens, { ...uniforms, slope: lensSlope(camera) });
+  const diagonal = Math.tan(Math.PI / 6) * Math.hypot(1, 16 / 9);
+  assert.ok(Math.abs(lensSlope(camera) - diagonal) < 1e-12, 'the half diagonal of the field');
 });
 
 /** What the frames from `camera` ask of one cell of one node, boxed by `bounds` under the root,

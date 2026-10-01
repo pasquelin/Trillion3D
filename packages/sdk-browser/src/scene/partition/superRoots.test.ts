@@ -3,26 +3,28 @@
 // own certified bound gives any replacing sphere's point the frustum shows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellSuperRootError, cellSuperRoots, SUPER_ROOT_FLOATS } from './superRoots.ts';
+import { cellSuperRootError, cellSuperRoots } from './superRoots.ts';
 import { worldRootsDag } from '../../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { projectedErrorAt } from '../../page/selection/projection.ts';
 
 const lens = { pixelScale: [800, 600] as [number, number], pixelError: 1, near: 0.1, slope: 1 };
 /** Four object roots per cell, as the fixture's origins run. */
 const cellOf = (origin: number) => Math.floor(origin / 4);
+/** Five numbers per cell: its error, then its sphere. */
+const FLOATS = 5;
 
 test("a cell's super-roots are bounded by the spheres replacing its object roots", () => {
   const { clusters } = worldRootsDag();
   const bounds = cellSuperRoots(clusters, cellOf, 3);
   for (let cell = 0; cell < 3; cell++)
     assert.deepEqual(
-      [...bounds.subarray(cell * SUPER_ROOT_FLOATS, (cell + 1) * SUPER_ROOT_FLOATS)],
+      [...bounds.subarray(cell * FLOATS, (cell + 1) * FLOATS)],
       [0.05, cell * 4 + 2, 0, 0, 2],
     );
   // An object root no super-root replaces keeps its cell near; a cell absent from the DAG too.
   const kept = clusters.map((c) => (c.cluster === 5 ? { ...c, parentError: null } : c));
   const near = cellSuperRoots(kept, cellOf, 4);
-  assert.deepEqual([near[SUPER_ROOT_FLOATS], near[3 * SUPER_ROOT_FLOATS]], [Infinity, Infinity]);
+  assert.deepEqual([near[FLOATS], near[3 * FLOATS]], [Infinity, Infinity]);
   assert.equal(near[0], 0.05, 'the other cells keep their bound');
 });
 
