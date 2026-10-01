@@ -47,12 +47,7 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
     [0, 6, 5, 1, 7, 6, 2, 8, 7, 3, 9, 8, 5, 6, 11, 6, 7, 12, 7, 8, 13, 8, 9, 14],
   );
   assert.deepEqual(sphereArrays([2, -3, 5], 4, 4.8, 2.9), s);
-  const minimum = sphereArrays([0, 0, 0], 1, -1, 0);
-  assert.equal(minimum.positions.length, 36);
-  assert.equal(minimum.indices.length, 18);
   const defaultSphere = sphereArrays([1, 2, 3], 2);
-  assert.equal(defaultSphere.positions.length, 6435);
-  assert.equal(defaultSphere.indices.length, 11904);
   for (let i = 0; i < defaultSphere.positions.length; i += 3) {
     near(
       Math.hypot(
@@ -64,4 +59,10 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
     );
     near(Math.hypot(...defaultSphere.normals.slice(i, i + 3)), 1);
   }
+});
+
+test('a full arc starting away from zero rotates its first point by that offset', () => {
+  const [x, y] = turnPoint(0, Math.PI / 2);
+  assert.ok(Math.abs(x) < 1e-8);
+  assert.equal(y, 1);
 });

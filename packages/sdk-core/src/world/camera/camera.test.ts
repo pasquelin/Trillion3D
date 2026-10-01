@@ -142,8 +142,8 @@ test('cube eyes cover the six axes and stereo eyes retain parallel views and dis
   eyes.position.set(10, 20, 30);
   const l = left.rayThrough(0, 0, 1),
     r = right.rayThrough(0, 0, 1);
-  near(l.origin.toArray(), [9.968, 20, 30]);
-  near(r.origin.toArray(), [10.032, 20, 30]);
+  near(l.origin.toArray(), [10 - eyeSep / 2, 20, 30]);
+  near(r.origin.toArray(), [10 + eyeSep / 2, 20, 30]);
   near(l.direction.toArray(), [0, 0, -1]);
   near(r.direction.toArray(), [0, 0, -1]);
   assert.ok(Math.abs(l.origin.distanceTo(r.origin) - eyeSep) < 1e-10);

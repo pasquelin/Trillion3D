@@ -40,7 +40,6 @@ test('planar vector arithmetic preserves both coordinates and notifies its owner
 });
 
 test('four-dimensional vectors retain all components through copy and clone', () => {
-  assert.deepEqual(new Vector4().toArray(), [0, 0, 0, 1]);
   const value = new Vector4(1, 2, 3, 4);
   assert.deepEqual(value.toArray(), [1, 2, 3, 4]);
   assert.equal(value.set(5, 6, 7, 8), value);

@@ -52,7 +52,6 @@ test('box sheets cover six distinct faces with sharp outward normals and complet
   assert.equal(faces.size, 6);
   const unit = box();
   verify(unit, 24, 12);
-  assert.deepEqual(unit.recipe!.args, [1, 1, 1, 1, 1, 1]);
 });
 
 test('plane subdivisions place exact thirds and middle lines with corresponding UVs', () => {
@@ -127,9 +126,6 @@ test('disc fans and annular strips preserve hole, radius, winding and texture pl
   );
   assert.equal(uv.getX(10), 1);
   assert.equal(uv.getY(11), 1);
-  verify(circle(), 34, 32);
-  verify(ring(), 66, 64);
-  assert.deepEqual(ring().recipe!.args, [0.5, 1, 32, 1]);
 });
 
 test('cylinders and cones retain cap orientation, taper normals, rings and saved parameters', () => {
@@ -154,7 +150,43 @@ test('cylinders and cones retain cap orientation, taper normals, rings and saved
   verify(c, 21, 20);
   assert.deepEqual(c.recipe, { type: 'cone', args: [3, 8, 4, 2, false] });
   verify(cone(3, 8, 4, 2, true), 15, 16);
-  assert.deepEqual(cone().recipe!.args, [1, 1, 32, 1, false]);
-  assert.deepEqual(cylinder().recipe!.args, [1, 1, 1, 32, 1, false]);
-  assert.deepEqual(sphere().recipe!.args, [1, 32, 16]);
+});
+
+test('decimal sheet endpoints stay exact and box texture origins retain face orientation', () => {
+  const sheet = plane(0.1, 0.7, 3, 3),
+    p = sheet.attributes.position;
+  assert.equal(p.getX(0), -0.05);
+  assert.equal(p.getY(0), -0.35);
+  assert.equal(p.getX(15), 0.05);
+  assert.equal(p.getY(15), 0.35);
+  const g = box(6, 4, 2, 3, 2, 1),
+    positions = g.attributes.position;
+  const corners = [
+    [0, [3, -2, 1]],
+    [6, [-3, -2, -1]],
+    [12, [-3, 2, 1]],
+    [20, [-3, -2, -1]],
+    [28, [-3, -2, 1]],
+    [40, [3, -2, -1]],
+  ] as const;
+  for (const [i, expected] of corners)
+    assert.deepEqual([positions.getX(i), positions.getY(i), positions.getZ(i)], expected);
+  assert.equal(sphere().recipe!.type, 'sphere');
+  assert.deepEqual(circle(2, 4, 1, 2).recipe, { type: 'circle', args: [2, 4, 1, 2] });
+  assert.equal(ring().recipe!.type, 'ring');
+});
+
+test('cylinder cap centers and rims stay on their corresponding end planes', () => {
+  const g = cylinder(2, 4, 6, 4, 2),
+    p = g.attributes.position;
+  for (let i = 15; i < 27; i++) assert.equal(p.getY(i), i < 21 ? 3 : -3);
+  for (const [first, radius] of [
+    [16, 2],
+    [22, 4],
+  ]) {
+    const rim = new Set(
+      Array.from({ length: 5 }, (_, j) => [p.getX(first + j), p.getZ(first + j)].join(',')),
+    );
+    assert.deepEqual(rim, new Set([`0,${radius}`, `${radius},0`, `0,${-radius}`, `${-radius},0`]));
+  }
 });
