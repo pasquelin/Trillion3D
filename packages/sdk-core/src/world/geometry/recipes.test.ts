@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import { RECIPES } from './recipes.ts';
 import type { Geometry } from './geometry.ts';
 
+test('a shape made with its defaults records them: its recipe builds the same shape', () => {
+  for (const [type, build] of Object.entries(RECIPES)) {
+    const shape = build();
+    const rebuilt = (build as (...a: unknown[]) => Geometry)(...shape.recipe!.args);
+    assert.deepEqual(
+      Array.from(rebuilt.attributes.position.array),
+      Array.from(shape.attributes.position.array),
+      type,
+    );
+    assert.deepEqual(rebuilt.recipe, shape.recipe, type);
+  }
+});
+
 test('a count below what a shape closes with builds the fewest pieces, and the recipe says so', () => {
   const zeros: Record<string, unknown[]> = {
     box: [1, 1, 1, 0, 0, 0],

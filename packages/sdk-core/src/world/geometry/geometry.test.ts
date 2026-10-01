@@ -12,6 +12,15 @@ import {
 
 const box = (g: Geometry) => [...g.boundingBox!.min.toArray(), ...g.boundingBox!.max.toArray()];
 
+// #457: a normal, uv or colour list a world geometry owns has always been drawn and turned as its
+// stored numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
+const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
+const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
+  new BufferAttribute(array, itemSize, true);
+type Owner = Geometry['_owner'];
+/** An empty geometry built by `owner`, as its maker marks it. */
+const owned = (owner: Owner) => Object.assign(new Geometry(), { _owner: owner });
+
 test('a copied geometry keeps every value it held: lists, morphs, groups, range, data, bounds', () => {
   const g = new Geometry()
     .setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 2, 0]), 3))
@@ -88,15 +97,6 @@ test('a two-wide position lies at z = 0, a moved normalised one moves at its val
   moved.translate(0.5, 0, 0);
   assert.deepEqual(Array.from(moved.attributes.position.array), [16384, 2, 3]);
 });
-
-// #457: a normal, uv or colour list a world geometry owns has always been drawn and turned as its
-// stored numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
-const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
-const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
-  new BufferAttribute(array, itemSize, true);
-type Owner = Geometry['_owner'];
-/** An empty geometry built by `owner`, as its maker marks it. */
-const owned = (owner: Owner) => Object.assign(new Geometry(), { _owner: owner });
 
 test('a world geometry draws the normalised colour, normal and uv it owns as stored, a host one at their value', () => {
   const shaded = (owner: Owner) =>
