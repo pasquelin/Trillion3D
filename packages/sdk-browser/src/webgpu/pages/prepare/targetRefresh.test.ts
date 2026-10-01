@@ -75,3 +75,35 @@ for (const [name, lights] of Object.entries(LAMP_SCENES))
       disposeQuadRun(backend, fixture);
     }
   });
+
+test('a resize while the pools are funded again waits for that funding: one moves the pools at a time', async () => {
+  const gpu = mockGpu({ limits: SHADOW_LIMITS, compute: true });
+  const sceneLights = createSceneLightStore();
+  for (const light of LAMP_SCENES['a-lighthouse-beam']) sceneLights.add(light);
+  const { budget, admit } = pressedBudget();
+  const viewport: [number, number] = [1728, 1117];
+  const { fixture, backend } = quadBackend(gpu.device, {
+    viewport,
+    sceneLights,
+    admitGpuMemory: admit,
+  });
+  const lamp = { buffer: undefined as GPUBuffer | undefined };
+  try {
+    await backend.prepare();
+    backend.render(camera());
+    await backend.flush?.();
+    backend.render(camera());
+    lamp.buffer = gpu.device.createBuffer({ label: 'lamp', size: 1 << 20, usage: 0x80 });
+    backend.render(camera());
+    const funding = budget.asked;
+    // The view grows while that funding is in flight: its targets are asked once it landed.
+    viewport.splice(0, 2, 3456, 2234);
+    backend.render(camera());
+    assert.equal(budget.asked, funding, 'the targets wait for the pools in flight');
+    await backend.flush?.();
+    assert.ok(budget.asked > funding, 'then are funded');
+  } finally {
+    lamp.buffer?.destroy();
+    disposeQuadRun(backend, fixture);
+  }
+});
