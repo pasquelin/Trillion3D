@@ -63,7 +63,6 @@ export type {
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts';
-export { detectCapabilities } from '../../sdk-browser/src/measurement/capabilities.ts';
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts';

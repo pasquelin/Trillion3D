@@ -2,7 +2,7 @@
 // engine reserves once prepared comes out of the page cache's share (`../residency/memoryBudget.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 import { createPageStreamer } from './pageStreamer.ts';
 
 test('bytes reserved for the engine tables come out of the cache budget', async () => {
