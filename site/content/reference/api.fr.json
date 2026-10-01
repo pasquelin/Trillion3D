@@ -2242,6 +2242,7 @@
     "members": {
       "name": "Le nom de la passe.",
       "gpuMs": "Temps GPU de la passe.",
+      "ownMs": "Son temps moins ce qu’une passe commencée plus tôt a couvert (WebGPU).",
       "reason": "Pourquoi il n’a pas été mesuré."
     }
   },

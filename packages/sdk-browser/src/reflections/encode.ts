@@ -38,8 +38,10 @@ export function encodeReflectionSource(
   source.end();
   const history = reflection.history;
   const traced = !!history && !history.reuse;
-  // Without radiance levels only the trace reads the depth bounds: an image it skips skips them.
-  if (reflection.pyramid?.radiance || traced) reflection.pyramid?.encode(encoder);
+  // Without radiance levels only the trace and the water's mirror ray read the depth bounds: an
+  // image both skip skips them.
+  if (reflection.pyramid?.radiance || traced || reflection.water)
+    reflection.pyramid?.encode(encoder);
   if (traced) {
     const trace = encoder.beginRenderPass({
       label: 'Trillion3D rough reflection trace',
