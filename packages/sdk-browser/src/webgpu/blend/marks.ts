@@ -1,6 +1,5 @@
 import { isCancelled } from '../../backend/common.ts';
 import { BLEND_SHADOW_MARKS_PASS } from '../shadow/allocPass.ts';
-import { expandBlend, type BlendFrame } from '../pages/render/encodeBlend.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { drawBlendRuns } from './draw.ts';
 import { voidStaleBlendGroups } from './identity.ts';
@@ -13,7 +12,7 @@ import { blendStagePipelines, type RankedPipelines } from './stagePipelines.ts';
  * layout, picked by the same plan rank, and the group of the request buffer it marks and the
  * opaque depth it tests against, kept while both stay the same.
  */
-export async function createBlendShadowMarks(
+async function createBlendShadowMarks(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   pages: number,
@@ -22,11 +21,18 @@ export async function createBlendShadowMarks(
     label: BLEND_SHADOW_MARKS_PASS,
     code: blendShadowMarksWgsl(pages),
   });
-  const { requests, depth } = BLEND_MARKS_BINDINGS;
   const marksLayout = device.createBindGroupLayout({
     entries: [
-      { binding: requests, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'storage' } },
-      { binding: depth, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+      {
+        binding: BLEND_MARKS_BINDINGS.requests,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'storage' },
+      },
+      {
+        binding: BLEND_MARKS_BINDINGS.depth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
     ],
   });
   // No colour target, no depth write: the request buffer is all the pass writes. Its group goes
@@ -72,8 +78,8 @@ export async function prepareBlendShadowMarks(rt: WebgpuPagesRuntime, device: GP
 }
 
 /**
- * The blend runs of the image, expanded now and drawn into the marks pass after the opaque
- * demand, before the allocation: every page a transparent fragment reads is asked for in the frame
+ * The blend runs of the image, expanded when they were prepared (`prepareBlend`), drawn into the
+ * marks pass after the opaque demand, before the allocation: every page a transparent fragment reads is asked for in the frame
  * it reads it, mapped and drawn there, never left to a coarser level (#1411). The pass tests the
  * opaque depth read-only and binds the blend pass's own groups, its lighting resolved first.
  */
@@ -81,13 +87,13 @@ export function encodeBlendShadowMarks(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  blend: BlendFrame,
 ) {
   const { blendState, gpu, lights } = rt,
     marks = blendState.shadowMarks,
     requests = lights.pageRequests?.buffer;
   if (!marks || !requests || !lights.shadows?.texture || !gpu.depthView) return;
-  expandBlend(rt, device, encoder, blend);
+  // A diagnostic view lights no transparent (`FLAG_DIAGNOSTIC_VIEW`): no fragment would mark.
+  if (rt.run.diagnostic !== 'beauty') return;
   if (!blendState.runCount[0] || !blendState.argsBuffer) return;
   voidStaleBlendGroups(rt, blendLightResources(rt));
   const pass = encoder.beginRenderPass({

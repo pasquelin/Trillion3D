@@ -83,17 +83,18 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
       diag.diagnosticFailure('shadow-demand-unavailable', error);
       return undefined;
     });
-  // The blends mark the pages they read beside the pixels (#1411).
-  await prepareBlendShadowMarks(rt, device);
   // The GPU maps what the demand marks; without either, the reports map the pages on the host.
-  if (lights.demand)
-    lights.allocation = await createShadowAllocation(device, lights.plan.sunWindow).catch(
-      (error) => {
+  // The blends mark the pages they read beside the pixels (#1411), built alongside.
+  const [allocation] = await Promise.all([
+    lights.demand &&
+      createShadowAllocation(device, lights.plan.sunWindow).catch((error) => {
         if (isCancelled(rt.signal)) throw error;
         diag.diagnosticFailure('shadow-allocation-unavailable', error);
         return undefined;
-      },
-    );
+      }),
+    prepareBlendShadowMarks(rt, device),
+  ]);
+  if (lights.demand) lights.allocation = allocation;
   if (lights.tiles && lights.shadows) grantCapability(capabilities, DIRECT_LIGHT_CAPABILITY);
   diag.engineDiagnostic('direct-lighting', 'Direct lighting of the contract, fitted', {
     version: 1,

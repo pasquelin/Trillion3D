@@ -22,11 +22,12 @@ export const SHADOW_DEMAND_GROUP = 8;
 const DEMAND_RECEIVER_BINDING = 8;
 
 /**
- * What a reader of shadow pages marks of them, light by light (\`demandLight\`): the per-pixel
- * demand below, and the transparent surfaces' marks (\`../blend/marksWgsl.ts\`, #1411) — one demand
- * path for every receiver, as the reference engine's virtual shadow maps mark the pages every receiver samples.
- * The host text declares the shadow records, the page model, the reads (\`sunReadAt\`,
- * \`lampReadAt\`, \`lampSoftDisk\`) and \`requestShadowPage\` before it.
+ * What a reader of shadow pages marks of them, light by light (`demandLight`) over its cell's
+ * list (`demandSlice`): the per-pixel demand below, and the transparent surfaces' marks
+ * (`../blend/marksWgsl.ts`, #1411) — one demand path for every receiver, as the reference engine's virtual
+ * shadow maps mark the pages every receiver samples. The host text declares the shadow records,
+ * the page model, the reads (`sunReadAt`, `lampReadAt`, `lampSoftDisk`), the light lists and
+ * `requestShadowPage` before it.
  */
 export const SHADOW_DEMAND_LIGHT_WGSL = `/** Marks page \`p\` of the map: nothing outside a ring's window. */
 fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
@@ -122,6 +123,15 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  if(shadows.records[index].info.x<0.5){return;}
  let n=select(N,-N,thin&&dot(N,incidence.xyz)<0.0);
  if(isSun(light)){demandSun(index,receiver,n,footprint);}else{demandLamp(index,light,receiver,n,incidence.xyz,footprint);}
+}
+/** Marks the pages of every light of \`slice\` (\`cellSlice\`), or of every declared light past the
+ *  grid (\`TILE_NO_SLICE\`), at the point, normal and footprint the receiver's read takes. */
+fn demandSlice(slice:vec2u,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footprint:f32){
+ for(var index=0u;index<slice.y;index++){
+  var light=index;
+  if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
+  demandLight(directLights.items[light],at,receiver,N,thin,footprint);
+ }
 }`;
 
 /**
@@ -181,9 +191,5 @@ ${SHADOW_DEMAND_LIGHT_WGSL}
  let P=at+receiverOffset(pixel);
  let N=normalize(textureLoad(normalRough,coord,0).xyz);
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
- for(var index=0u;index<slice.y;index++){
-  var light=index;
-  if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
-  demandLight(directLights.items[light],at,P,N,thin,level.footprint);
- }
+ demandSlice(slice,at,P,N,thin,level.footprint);
 }`;

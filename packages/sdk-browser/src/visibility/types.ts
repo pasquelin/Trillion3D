@@ -56,7 +56,10 @@ export const FLAG_LIT = 1,
   FLAG_HAS_COLOR = 32768,
   /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
    *  transmittance of its coverage (`PageInfo.blendCoverage`, `../gpu/shadow/transmittance.ts`). */
-  FLAG_BLEND_CASTER = 65536;
+  FLAG_BLEND_CASTER = 65536,
+  /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
+   *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
+  FLAG_DIAGNOSTIC_VIEW = 0x40000000;
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
 export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21;
