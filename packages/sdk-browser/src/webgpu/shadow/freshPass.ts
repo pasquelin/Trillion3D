@@ -4,6 +4,19 @@ import { freshSlices, freshWanted } from './freshInputs.ts';
 import { freshGroups } from './freshGroups.ts';
 import { growPairList } from './pairGrowth.ts';
 import { keptPairs, poolPairs } from './pairRows.ts';
+import { FRESH_LAYER_PASS, type ShadowStaticLayer } from '../../gpu/shadow/staticLayer.ts';
+
+/** The static layer's passes of the GPU's own pages, labelled apart from the host's layer passes
+ *  (`SHADOW_LAYER_PASS`): made once a layer. */
+const layerPasses = new WeakMap<ShadowStaticLayer, GPURenderPassDescriptor[]>();
+const freshLayerPasses = (layer: ShadowStaticLayer) => {
+  let passes = layerPasses.get(layer);
+  if (!passes) {
+    passes = layer.passes.map((pass) => ({ ...pass, label: FRESH_LAYER_PASS }));
+    layerPasses.set(layer, passes);
+  }
+  return passes;
+};
 
 /** The blended casters' rows, rewritten each frame: a frame allocates nothing. */
 const blend: [number, number] = [0, 0];
@@ -18,8 +31,10 @@ const blend: [number, number] = [0, 0];
  * region cull's kept list, of the pool's fixed pairs (`pairGrowth.ts`); the seal makes readable
  * each page admitted; then each pool layer's pass clears its pages' squares and draws every kept
  * pair, in two indirect draws (`freshDrawsWgsl.ts`), and, while a tinted layer is read, that
- * layer's pass the same with the blended casters: no indirect draw sets a viewport. The host draws
- * a page again, with its light cut and static layer, once a report tells it the page (`mirror.ts`).
+ * layer's pass the same with the blended casters: no indirect draw sets a viewport. With a static
+ * layer, each layer's pass of it does the same with the still casters alone. The host adopts the
+ * page once a report tells it (`mirror.ts`), its static layer with it, and draws it again only
+ * when what it holds changes (#831).
  *
  * Nothing without the GPU allocation, the cull's rows or the draws, and nothing in a frame that
  * has nothing new to draw (`freshWanted`): a frame at rest runs none of it.
@@ -86,5 +101,23 @@ export function encodeFreshPages(
       lights.shadowDrawCalls += kinds.length;
       run.gpuDrawCalls += kinds.length;
     }
-  plan.gpu.drew(run.frame);
+  // The still casters into the static layer too, as Unreal renders a new page's static casters
+  // into its static cache: a mover that crosses the page later restores it, and its static
+  // geometry is never drawn again for it (#831).
+  const layer = lights.staticLayer;
+  for (let at = 0; layer && at < layers; at++) {
+    const pass = encoder.beginRenderPass(freshLayerPasses(layer)[at]);
+    pass.setBindGroup(0, groups.page);
+    pass.setBindGroup(1, shadows.faceGroup, [0]);
+    pass.setBindGroup(2, groups.pool);
+    [draws.clear, draws.staticCasters].forEach((pipeline, k) => {
+      pass.setPipeline(pipeline);
+      pass.drawIndirect(buffers.freshArgs, 4 * freshDrawWord(at, k ? FRESH_CASTERS : FRESH_CLEAR));
+    });
+    pass.end();
+    lights.shadowRenderPasses++;
+    lights.shadowDrawCalls += 2;
+    run.gpuDrawCalls += 2;
+  }
+  plan.gpu.drew(run.frame, !!layer);
 }

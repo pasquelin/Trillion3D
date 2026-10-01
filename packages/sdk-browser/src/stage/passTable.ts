@@ -5,7 +5,7 @@ import { TAA_PASS } from '../taa/shaderWgsl.ts';
 import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
-import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
+import { FRESH_LAYER_PASS, SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
 import {
   SHADOW_TRANSMITTANCE_CLEAR_PASS,
   SHADOW_TRANSMITTANCE_PASS,
@@ -76,6 +76,7 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   [PARTICLE_DRAW_PASS]: ['transparents', 'other'],
   [SHADOW_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_LAYER_PASS]: ['shadows', 'other', 'raster'],
+  [FRESH_LAYER_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_TRANSMITTANCE_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_TRANSMITTANCE_CLEAR_PASS]: ['shadows', 'other', 'raster'],
   [LIGHT_CUT_PASS]: ['shadowCasters', 'other', 'cull'],

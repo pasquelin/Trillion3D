@@ -1,5 +1,5 @@
 import { TRANSMITTANCE_CLEAR_WGSL } from '../../gpu/shadow/transmittance.ts';
-import { FRESH_CLEAR } from './freshLayout.ts';
+import { FRESH_CLEAR, FRESH_MOVING_PAIR } from './freshLayout.ts';
 
 /**
  * THE DRAWS OF THE PAGES THE GPU DRAWS ITSELF (#1275), entries of the shadow depth shader
@@ -13,6 +13,8 @@ import { FRESH_CLEAR } from './freshLayout.ts';
  *   (`freshCullWgsl.ts`), a caster row of a region, drawn by that region's view; a pair of another
  *   layer draws nothing. Its clip square is carried onto the page's square of the layer, after the
  *   sun's snap (`freshPlace`), and the fragment keeps the page's texels alone (`freshInPage`).
+ * - `shadow_fresh_static_vs`: the same, a moving caster's pair drawing nothing — the static layer's
+ *   draw, so a page the GPU drew is restored from it when a mover crosses it later (#831).
  */
 export const SHADOW_FRESH_DRAWS_WGSL = `
 /** A GPU page's view as the depth pass reads a face, then its page's clip square in the layer's. */
@@ -29,20 +31,23 @@ fn pageHolds(view:ShadowView,at:vec2f)->bool{
 /** Whether layer texel \`at\` lies in \`page\`. */
 fn freshInPage(page:FreshView,at:vec2f)->bool{return pageHolds(page.view,at);}
 /** The \`instance\`-th pair's caster at corner \`vertexIndex\`, if its region lies in the draw's layer. */
-fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
- let layer=vertexIndex>>FRESH_LAYER_SHIFT;let k=freshPairs[2u*instance];
+fn freshCaster(vertexIndex:u32,instance:u32,blended:bool,still:bool)->ShadowOut{
+ let layer=vertexIndex>>FRESH_LAYER_SHIFT;let word=freshPairs[2u*instance];let k=word&${FRESH_MOVING_PAIR - 1}u;
  let first=freshArgs[FRESH_LAYER_STARTS+layer];
- if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
+ if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]||(still&&word!=k)){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
  let page=freshFaces[k];
  var out=shadowVertexIn(page.view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
  out.position=freshPlace(page,out.position);out.region=k;
  return out;
 }
 @vertex fn shadow_fresh_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,false);
+ return freshCaster(vertexIndex,instanceIndex,false,false);
+}
+@vertex fn shadow_fresh_static_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return freshCaster(vertexIndex,instanceIndex,false,true);
 }
 @vertex fn shadow_fresh_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return freshCaster(vertexIndex,instanceIndex,true);
+ return freshCaster(vertexIndex,instanceIndex,true,false);
 }
 @vertex fn shadow_fresh_clear_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->@builtin(position) vec4f{
  let layer=vertexIndex>>FRESH_LAYER_SHIFT;let i=vertexIndex&FRESH_CORNER_MASK;
