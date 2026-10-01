@@ -191,6 +191,16 @@ export class WebglClusterLights {
     gl.bindTexture(gl.TEXTURE_2D, this.ltc);
     return count;
   }
+  /**
+   * The frame's lights as last uploaded, to another program of the path drawing in the same pass
+   * (the impostor card's, `../impostor/draw.ts`): its uniforms only, bound now — the records, the
+   * lists and the lobe stay on the units the upload left them, which it samples too.
+   */
+  send(at: (name: string) => WebGLUniformLocation | null) {
+    this.lists.send(at);
+    this.probe.send(at);
+    this.fog.send(at);
+  }
   dispose() {
     this.records.dispose();
     this.lists.dispose();

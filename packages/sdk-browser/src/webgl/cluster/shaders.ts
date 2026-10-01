@@ -152,11 +152,14 @@ float alpha=base.a;if(transmissive&&!reflectionOutput){vec4 through=transmission
 if(reflectionOutput)rgb=reflectedRadiance(viewPosition,N,reflect(-V,N),rough);
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
 
-/** Replaces `from` in `text`, which must hold it once: a variant never drifts off its source. */
-function variant(text: string, from: string, to: string) {
-  if (text.indexOf(from) < 0 || text.indexOf(from) !== text.lastIndexOf(from))
+/** Replaces `from` in `text`, which must hold it once — or, given `upTo`, the span from `from` up
+ *  to the next `upTo`, kept —: a variant never drifts off its source. */
+export function variant(text: string, from: string, to: string, upTo?: string) {
+  const start = text.indexOf(from),
+    end = upTo === undefined ? start + from.length : text.indexOf(upTo, start);
+  if (start < 0 || end < start || start !== text.lastIndexOf(from))
     throw new Error(`CLUSTER_FRAGMENT_VARIANT:${from}`);
-  return text.replace(from, to);
+  return text.slice(0, start) + to + text.slice(end);
 }
 
 /**

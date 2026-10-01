@@ -4,7 +4,7 @@
  * card's code, which the impostor family brings (`code.ts`).
  */
 import type { HostDrawCamera } from '../../camera/world.ts';
-import type { WebglClusterScene } from '../cluster/lights.ts';
+import type { WebglClusterLights } from '../cluster/lights.ts';
 
 /** What the card program reads of the pass it draws in: the cluster program's output and
  *  reflection switches there (`../cluster/renderer.ts`). */
@@ -18,25 +18,11 @@ export type CardPass = {
   /** The display curve's rank (`TONE_MAPPING_RANK`). */
   toneCurve: number;
 };
-/** The switches a pass of the cluster program sets: the output's curve and encoding, the mirror
- *  capture, the screen reflections. */
-export type CardSwitches = [
-  toneMapped: boolean,
-  srgbDestination: boolean,
-  capture: boolean,
-  reflections: boolean,
-];
-export const cardPass = (
-  toneCurve: number,
-  resolve: boolean,
-  ...[toneMapped, srgbDestination, capture, reflections]: CardSwitches
-): CardPass => ({ toneMapped, srgbDestination, capture, reflections, resolve, toneCurve });
-
-/** The image's card draw as the WebGL2 renderer calls it, in each pass its clusters draw in; false
- *  when it drew nothing. */
+/** The image's card draw as the WebGL2 renderer calls it, in each pass its clusters draw in, lit by
+ *  the lights the renderer uploaded for them; false when it drew nothing. */
 export type WebglCards = (
   camera: HostDrawCamera,
-  scene: WebglClusterScene,
+  lights: WebglClusterLights,
   pass: CardPass,
   linear: boolean,
 ) => boolean;

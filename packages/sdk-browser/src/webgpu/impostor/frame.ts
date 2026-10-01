@@ -1,4 +1,4 @@
-import type { ImpostorSection } from '../../../../sdk-core/src/index.ts';
+import type { ImpostorMaps, ImpostorSection } from '../../../../sdk-core/src/index.ts';
 import { markReach } from '../../deformation/halfFloat.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -26,8 +26,7 @@ function createWebgpuImpostors(
     ...createImpostorCards<GPUBindGroup>(section),
     moved,
     /** The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`). */
-    atlasOf: (mesh: number, maps: Parameters<ImpostorPass['feed']['group']>[1]) =>
-      pass.feed.group(mesh, maps, rt.run.frame),
+    atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),
   };
 }
 
