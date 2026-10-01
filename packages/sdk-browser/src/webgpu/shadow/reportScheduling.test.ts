@@ -90,3 +90,38 @@ test('under a still lamp, a camera moving closer leaves no hole the report path 
     }
   }
 });
+
+test('a lamp flying round the ring of lamps requests its report alone, its pages drawn as it moves', () => {
+  // `a-ring-of-lamps` with one shadowed lamp, the boss's case: 1.5 m out, 2.5 m up, a 6 m reach,
+  // over the floor its light reaches, the example's camera.
+  const tiles = floorTiles(tileGrid(-3, 3, -3, 3), 5),
+    at = (frame: number): [number, number, number] => [
+      1.5 * Math.cos(frame / 10),
+      2.5,
+      1.5 * Math.sin(frame / 10),
+    ],
+    scene = reportScene(71, [{ ...LAMP, position: at(0), range: 6 }], tiles.boxes),
+    cam = cameraAt(
+      [0, 7, 9.5],
+      [0, -7, -9.5].map((v) => v / Math.hypot(7, 9.5)),
+    );
+  let reads = scene.frame(1, cam, [], tiles.lits);
+  for (let frame = 2; frame < 12; frame++) {
+    scene.store.set(LAMP.id, { position: at(frame) });
+    const reported = new Set(reads);
+    reads = scene.frame(frame, cam, [...reported], tiles.lits);
+    // The report of the frame before is all it asks: the measured ring's 5,476 pages are its
+    // thirty-two lamps' own reads, never a box's.
+    assert.equal(scene.plan.requests.counts.requested, reported.size, `requested at ${frame}`);
+    const base = scene.plan.table.baseOf(scene.store.sliceOf(0));
+    assert.ok(reads.length > 0);
+    for (const entry of reads) {
+      if (readable(scene.plan, entry)) continue;
+      assert.ok(!reported.has(entry), `entry ${entry} was reported, drawn at ${frame}`);
+      assert.ok(
+        coarser(entry, base).some((up) => readable(scene.plan, up)),
+        `entry ${entry} has a coarser page drawn at ${frame}`,
+      );
+    }
+  }
+});
