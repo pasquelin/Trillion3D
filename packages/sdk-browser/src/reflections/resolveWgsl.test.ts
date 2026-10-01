@@ -63,8 +63,10 @@ test('#1346: the texels around a pixel are filtered by a tent of distance, on it
   f.samples.historyColor = [0, 0, 0, 0];
   // Owners (2, 2), (4, 2), (2, 4) and (6, 6) around (4, 4); the radius at roughness 0.5 is 3.
   f.traced.push([1, 1], [2, 1], [1, 2], [3, 3]);
-  const { REFLECTION_FILTER_RADIUS } = wgslConstants(REFLECTION_RESOLVE_WGSL);
-  const tent = (distance: number) => 1 - distance / (REFLECTION_FILTER_RADIUS * (1 + 0.5));
+  // No history: the filter is at its widest (#831).
+  const { REFLECTION_FILTER_RADIUS: radius, REFLECTION_FILTER_WIDEST: widest } =
+    wgslConstants(REFLECTION_RESOLVE_WGSL);
+  const tent = (distance: number) => 1 - distance / (radius * (1 + 0.5) * widest);
   const weight = 1 + 2 * tent(2) + 2 * tent(2 * Math.SQRT2);
   const near = (value: number[], expected: number[]) =>
     value.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${value} ~ ${expected}`));
@@ -123,7 +125,8 @@ test('#831: moving, an unchanged reflection keeps its whole window; a changed on
   // The reflected source moved: a history of 5 lies past the box, 1 ± 2 × 0.5, and is clipped.
   const changed = frame(5, 1);
   assert.ok(changed[0] <= 2, `clipped to the neighbourhood: ${changed[0]}`);
-  assert.equal(changed[3], moving[3], 'its weight kept: no frame of noise added');
+  // Its whole window kept; a clipped history widens this image's filter, which adds weight.
+  assert.ok(changed[3] > moving[3], `its weight kept: ${changed[3]} > ${moving[3]}`);
   assert.ok(frame(5, 0)[0] > 4, 'still, nothing is clipped: the image converged before stays');
 });
 

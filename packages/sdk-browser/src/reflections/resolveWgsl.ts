@@ -4,7 +4,7 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
 
 /** The weight a history stores at most: a bound on binary16 storage, never the window it keeps
- *  (`params.y`). At this scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
+ *  (`params.y`); binary16 has 1/32 weight spacing there, RGB arithmetic binary32. */
 const REFLECTION_HISTORY_WEIGHT = 64;
 /** Frames a still history accumulates before the image may rest (#1346), and the frames of its own
  *  filtered weight it keeps at most: the reference's rough reflections average about this many
@@ -16,6 +16,13 @@ export const REFLECTION_STILL_FRAMES = 12;
 const REFLECTION_FILTER_RADIUS = 2;
 /** A neighbour off the pixel's plane by more than this share of its distance is another surface. */
 const REFLECTION_FILTER_PLANE = 0.1;
+/** reference-GI's reflection denoiser after its temporal pass (#831): a history holding fewer frames of
+ *  its own weight than this, or clipped, is noisier than the window that suffices while moving
+ *  (`REFLECTION_MOVING_KEPT` plus this image); the filter's area grows by the frames it lacks, its
+ *  reach by their square root, up to `REFLECTION_FILTER_WIDEST` times. A history holding them,
+ *  as any converged one does, is filtered as before. */
+const REFLECTION_FILTER_FRAMES = 5;
+const REFLECTION_FILTER_WIDEST = 2;
 /** The frames of its own weight a history keeps while its sources or camera move at a pixel whose
  *  neighbourhood holds too few traced samples to clip it by (`REFLECTION_CLIP_SAMPLES`): a
  *  reflection there lags them by about this many frames. Everywhere else the history keeps its
@@ -71,7 +78,8 @@ fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
  * window, or `REFLECTION_CHANGE_KEPT` after a change it cannot follow): the share a frame renews is
  * the same at every roughness. `params.w` is the trace seed's low bits. While its sources or camera
  * move (`clip.x`), the history's mean is clipped to the neighbourhood of this image's samples
- * (`REFLECTION_CLIP_SIGMAS`) instead of its window being shortened; still, nothing is clipped. */
+ * (`REFLECTION_CLIP_SIGMAS`) instead of its window being shortened; still, nothing is clipped. A
+ * history short or clipped widens this image's filter (`REFLECTION_FILTER_FRAMES`). */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
@@ -92,6 +100,8 @@ ${PREVIOUS_DEPTH_WGSL}
 ${REFLECTION_PHASE_WGSL}
 const REFLECTION_FILTER_RADIUS:f32=${REFLECTION_FILTER_RADIUS}.0;
 const REFLECTION_FILTER_PLANE:f32=${REFLECTION_FILTER_PLANE};
+const REFLECTION_FILTER_FRAMES:f32=${REFLECTION_FILTER_FRAMES}.0;
+const REFLECTION_FILTER_WIDEST:f32=${REFLECTION_FILTER_WIDEST}.0;
 const REFLECTION_MOVING_KEPT:f32=${REFLECTION_MOVING_KEPT}.0;
 const REFLECTION_CLIP_SIGMAS:f32=${REFLECTION_CLIP_SIGMAS}.0;
 const REFLECTION_CLIP_SAMPLES:f32=${REFLECTION_CLIP_SAMPLES}.0;
@@ -100,17 +110,19 @@ const REFLECTION_CLIP_SAMPLES:f32=${REFLECTION_CLIP_SAMPLES}.0;
 var<private> neighbourhood:vec4f;
 var<private> spread:vec3f;
 fn pointAt(pixel:vec2f,z:f32)->vec3f{let position=clipAt(pixel,z);return position.xyz/position.w;}
-fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
+// \`widen\` scales the tent's reach; widened, the block is 8 × 8 texels and no clip is gathered.
+fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
  let phase=reflectionPhase(u32(view.params.w));
- let base=vec2i(max(at-vec2i(3),vec2i(0))/2);
+ let span=select(4,8,widen>1.0);
+ let base=vec2i(max(at-vec2i(span-1),vec2i(0))/2);
  let P=pointAt(vec2f(at)+vec2f(0.5),z);
- let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a);let reach=radius*radius;
+ let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a)*widen;let reach=radius*radius;
  let plane=REFLECTION_FILTER_PLANE*REFLECTION_FILTER_PLANE;
  var sum=vec4f(0.0);var near=vec4f(0.0);var square=vec3f(0.0);
- let clipping=view.clip.x!=0.0;
- for(var k=0;k<16;k++){
-  let q=base+vec2i(k&3,k>>2u);
+ let clipping=view.clip.x!=0.0&&widen<=1.0;
+ for(var y=0;y<span;y++){for(var x=0;x<span;x++){
+  let q=base+vec2i(x,y);
   if(any(q>=half)){continue;}
   let owner=min(q*2+phase,drawn-vec2i(1));
   let apart=vec2f(owner-at);let far=dot(apart,apart);
@@ -129,7 +141,7 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
   if(clipping){near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;}
   if(far>=reach){continue;}
   sum+=vec4f(traced.rgb*traced.a,traced.a)*(1.0-sqrt(far)/radius);
- }
+ }}
  neighbourhood=vec4f(0.0);spread=vec3f(0.0);
  if(clipping&&near.a>0.0){
   let mean=near.rgb/near.a;
@@ -145,7 +157,7 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
  var normal=nr.xyz;
  if(view.params.z!=0.0&&id!=0u){normal=(motion[placementOf(id)]*vec4f(normal,0.0)).xyz;}
  if(id==0u){return vec4f(0.0);}
- let current=roughSamples(at,id,nr,z);
+ var current=roughSamples(at,id,nr,z,1.0);
  var history=vec4f(0.0);
  let uv=previousUv(at,z,id);
  if(view.params.x!=0.0&&uv.z!=0.0){
@@ -159,13 +171,18 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
   }
  }
  // Moving, the history is clipped to the neighbourhood, or held short where too few texels say it.
- var cap=view.params.y;
+ var cap=view.params.y;var frames=min(cap,history.a/max(current.a,1e-6));
  if(view.clip.x!=0.0&&history.a>0.0){
   if(neighbourhood.a>=REFLECTION_CLIP_SAMPLES){
    let box=REFLECTION_CLIP_SIGMAS*spread;
-   history=vec4f(clamp(history.rgb,neighbourhood.rgb-box,neighbourhood.rgb+box),history.a);
-  }else{cap=min(cap,REFLECTION_MOVING_KEPT);}
+   let clipped=clamp(history.rgb,neighbourhood.rgb-box,neighbourhood.rgb+box);
+   if(any(clipped!=history.rgb)){frames=0.0;}
+   history=vec4f(clipped,history.a);
+  }else{cap=min(cap,REFLECTION_MOVING_KEPT);frames=min(frames,cap);}
  }
+ // A short or clipped history: the spatial filter widens by the frames it lacks.
+ let widen=min(sqrt(REFLECTION_FILTER_FRAMES/(frames+1.0)),REFLECTION_FILTER_WIDEST);
+ if(widen>1.0&&current.a>0.0){current=roughSamples(at,id,nr,z,widen);}
  // A pixel no texel reached this image keeps its history as it is.
  let kept=select(min(history.a,cap*current.a),history.a,current.a<=0.0);
  let total=kept+current.a;
@@ -173,25 +190,3 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
  let mean=history.rgb+(current.rgb-history.rgb)*(current.a/total);
  return vec4f(mean,min(total,${REFLECTION_HISTORY_WEIGHT}.0));
 }`;
-
-export function reflectionResolveLayout(device: GPUDevice) {
-  const visibility = GPUShaderStage.FRAGMENT;
-  return device.createBindGroupLayout({
-    entries: [
-      ...Array.from({ length: 8 }, (_, binding) => ({
-        binding,
-        visibility,
-        texture: {
-          sampleType: (binding === 2 || binding === 5
-            ? 'depth'
-            : binding === 4 || binding === 7
-              ? 'uint'
-              : 'unfilterable-float') as GPUTextureSampleType,
-        },
-      })),
-      { binding: 8, visibility, buffer: { type: 'uniform' } },
-      { binding: 9, visibility, buffer: { type: 'read-only-storage' } },
-      { binding: 10, visibility, buffer: { type: 'read-only-storage' } },
-    ],
-  });
-}
