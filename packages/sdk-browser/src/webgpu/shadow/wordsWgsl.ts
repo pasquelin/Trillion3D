@@ -34,6 +34,9 @@ export const sentShadowWord = (table: ShadowTable, entry: number) => {
  * never enters the table: the word kept is the one without it, and no reader of the table
  * (`shadowPageWgsl.ts`, `allocWgsl.ts`, `freshWgsl.ts`) ever sees it.
  *
+ * A word that does not map and says \`PAGE_WITHDRAWN\` is an entry the host has not adopted yet,
+ * covered by a mover (\`invalidate.ts\`): a page the GPU drew for it loses its depth (\`withdrawGpuDraw\`).
+ *
  * A page that loses its depth here — withdrawn by the host, or overwritten for another entry —
  * while this frame asks for it (`POOL_REQUESTED`) joins the frame's draw list (`listDraw`): the GPU
  * draws it in this same frame, before anything reads it, and no read falls in a hole. The pool's
@@ -58,9 +61,18 @@ fn loseDepth(p:u32){
  shadowPool.pages[by]=DRAWN_NONE;
  if(shadowPool.pages[poolAt(POOL_REQUESTED,p)]==shadowWords.frame){listDraw(p);}
 }
+/** An entry the host does not map yet, withdrawn (#831): a mover covered it after the GPU drew
+ *  its page itself; the depth is lost, and the page drawn again this frame when the frame asks. */
+fn withdrawGpuDraw(e:u32){
+ let word=shadows.table[e];let p=word&PAGE_INDEX_MASK;
+ if((word&PAGE_MAPPED)==0u||shadowPool.pages[poolAt(POOL_OWNER,p)]!=i32(e)){return;}
+ if(shadowPool.pages[poolAt(POOL_DRAWNBY,p)]!=DRAWN_GPU){return;}
+ shadows.table[e]=word&(0xffffffffu^PAGE_VALID);
+ loseDepth(p);
+}
 fn applyShadowWord(i:u32){
  let pair=shadowWords.words[i];let e=pair.x;let word=pair.y;
- if((word&PAGE_MAPPED)==0u){return;}
+ if((word&PAGE_MAPPED)==0u){withdrawGpuDraw(e);return;}
  let p=word&PAGE_INDEX_MASK;
  let owner=shadowPool.pages[poolAt(POOL_OWNER,p)];
  let by=poolAt(POOL_DRAWNBY,p);
