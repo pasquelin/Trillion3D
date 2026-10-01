@@ -59,6 +59,18 @@ test('a fold steeper than 5° is a crease, met along the slant from its line', (
   assert.ok(slant(Math.PI / 90) < Math.sin(Math.PI / 90) + 1e-9, `${slant(Math.PI / 90)}`);
 });
 
+test('a ridge folded less than 5° holds a body right above its seam', () => {
+  // Over the ridge's line, the foot on either half's plane falls on the other half: neither
+  // triangle may leave the contact to the other, or the body sinks through the seam.
+  const slope = Math.tan((2 * Math.PI) / 180) * 5;
+  const ridge = [-5, -slope, -5, 0, 0, 5, 0, 0, -5, 0, 0, -5, 0, 0, 5, 5, -slope, 5];
+  for (const x of [0, 0.003, 0.008]) {
+    const seen = contacts(ridge, [x, -0.1, 0]);
+    const deepest = Math.max(0, ...seen.map(({ depth }) => depth));
+    assert.ok(deepest > 0.09, `${x}: ${deepest}`);
+  }
+});
+
 test("a box's corner is a crease: a body against it leaves it diagonally", () => {
   const world = meshCollision([block(0, 0, 0, 1, 2, 1)]);
   const capsule = { feet: new Float64Array([-0.1, 0, -0.1]), radius: 0.25, height: 1.75 };
