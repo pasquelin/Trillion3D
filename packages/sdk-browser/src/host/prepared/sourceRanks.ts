@@ -9,8 +9,7 @@ export const registerPreparedNodeRank = (node: Object3D, rank: number) => ranks.
  *  no host node of its own, and casts as that mesh says. */
 const placedRanks = new WeakMap<Object3D, number>();
 export const placedMeshRank = (node: Object3D) => placedRanks.get(node);
-export const registerPlacedMeshRank = (node: Object3D, rank: number) =>
-  placedRanks.set(node, rank);
+export const registerPlacedMeshRank = (node: Object3D, rank: number) => placedRanks.set(node, rank);
 
 /** Fixed-width source ranks keep the core node table's byte size independent of world size. */
 export function readPreparedSourceRank(value: unknown, tableRank: number): number {
