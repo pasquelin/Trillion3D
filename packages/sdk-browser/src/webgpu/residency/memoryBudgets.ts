@@ -35,7 +35,8 @@ export type TexturePools = {
   demand: AtlasLanes;
   tails: AtlasLanes;
   coverage: CoverageReaders;
-  /** Bytes of the live textures' working textures the pool was drawn without (#362). */
+  /** Bytes held beside the pool it was drawn without: the live textures' working textures (#362)
+   *  and the resident impostor atlases (#1335) (`textureBytesBeside`). */
   liveBytes?: number;
 };
 

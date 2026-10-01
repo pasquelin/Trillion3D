@@ -33,6 +33,11 @@ export function geometryBudgetBeside(rt: WebgpuPagesRuntime, budgetBytes: number
   };
 }
 
+/** Texture bytes held beside the texture pool, outside it, within the one texture budget: the live
+ *  textures' working textures (#362) and the resident impostor atlases (#1335). */
+export const textureBytesBeside = (rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu'>) =>
+  (rt.vis.textures?.sources.liveBytes ?? 0) + (rt.gpu.impostors?.pass.feed.bytes ?? 0);
+
 /** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
  *  plus the bounce and far-sun proxies (the far sun's, when borrowed from bounce, once). */
 export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
@@ -84,9 +89,10 @@ export async function setWebgpuMemoryBudgets(
     // Before prepare nothing is granted yet: the budget is kept, and prepare draws it.
     if (!pools) setup.texturePoolBudget = budgets.texturePoolBytes;
     else {
-      // A live texture's working texture (#362) is texture memory too: the pool is drawn from
-      // what the budget leaves it, the budget recorded staying the one declared.
-      const live = vis.textures?.sources.liveBytes ?? 0,
+      // A live texture's working texture (#362) and an impostor atlas (#1335) are texture memory
+      // too: the pool is drawn from what the budget leaves it, the budget recorded staying the one
+      // declared.
+      const live = textureBytesBeside(rt),
         { bytes, deducted } = budgetBeside(budgets.texturePoolBytes, live);
       pools.liveBytes = live;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
@@ -156,13 +162,14 @@ export async function setWebgpuMemoryBudgets(
 }
 
 /**
- * A texture turned live since the pool was drawn (#362): the pool is drawn again under the same
- * budget, less the new working texture, as `setMemoryBudgets` draws it — tiles kept, out of
- * memory absorbed. Once per texture turned live; a still scene reads one number.
+ * A texture turned live (#362) or an impostor atlas landed or left (#1335) since the pool was
+ * drawn: the pool is drawn again under the same budget, less the bytes held beside it, as
+ * `setMemoryBudgets` draws it — tiles kept, out of memory absorbed. Once per change; a still scene
+ * reads one number.
  */
 export function followLiveTextures(rt: WebgpuPagesRuntime) {
   const pools = rt.setup.texturePools,
-    live = rt.vis.textures?.sources.liveBytes ?? 0;
+    live = textureBytesBeside(rt);
   if (!pools || live === (pools.liveBytes ?? 0)) return;
   setWebgpuMemoryBudgets(rt, { texturePoolBytes: rt.setup.texturePoolBudget }).catch((error) =>
     rt.diag.diagnosticFailure('texture-live-budget', error),

@@ -46,8 +46,8 @@ function encodeHizMidFrame(
 }
 
 /**
- * The visibility buffer, in the reference's order: the primary hardware pass, the occluder half of
- * the compute raster blended into it, the pyramid and its test, the secondary pass, the tested
+ * The visibility buffer, in the reference's order: the primary hardware pass and the impostor
+ * cards, the occluder half of the compute raster blended into it, the pyramid and its test, the secondary pass, the tested
  * half of compute, then its identifiers. Without `compute` — no compute raster — hardware alone
  * produces the same attachments, and each compute step is simply absent.
  */
@@ -99,6 +99,8 @@ export function encodeWebgpuVisibilityPasses(
   });
   visPass.setViewport(0, 0, width, height, 0, 1);
   drawVis(rt, device, visPass, false, useIndirect);
+  // The impostor cards occlude as their meshes would: in the depth and the pyramid built next.
+  rt.gpu.impostorCode?.drawImpostorVisibility(rt, device, visPass, !!gpuHiz);
   visPass.end();
   compute?.occluders(encoder);
   rt.run.hizPyramidFresh = false;
