@@ -7,7 +7,7 @@
 // stand for GPU memory, which the renderer does not hold: they are not counted.
 //
 //   node --max-old-space-size=<mb> tests/integration/view-rows-load.fixture.ts <manifest> <cap mb>
-import { readFile } from 'node:fs/promises';
+import { open, readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { installGpuGlobals } from '../kit/gpu/globals.ts';
 import { mockGpu } from '../kit/gpu/mockGpu.ts';
@@ -87,13 +87,28 @@ export async function openUnderCap(manifest: string, capMb: number) {
     process.exit(OUT_OF_MEMORY);
   };
   const watch = setInterval(poll, 5);
+  // A server as the page's: it answers a Range with that range alone (206), as a static server does.
   Object.assign(globalThis, {
-    fetch: async (input: string | URL | Request) => {
+    fetch: async (input: string | URL | Request, init?: RequestInit) => {
       const href = input instanceof Request ? input.url : String(input);
       const type = /\.(json|gltf)$/.test(href) ? 'application/json' : 'application/octet-stream';
-      return new Response(await readFile(fileURLToPath(href)), {
-        headers: { 'content-type': type },
-      });
+      const range = new Headers(input instanceof Request ? input.headers : init?.headers).get(
+        'range',
+      );
+      const [from, to] = (/^bytes=(\d+)-(\d+)$/.exec(range ?? '') ?? []).slice(1).map(Number);
+      if (range === null || to === undefined)
+        return new Response(await readFile(fileURLToPath(href)), {
+          headers: { 'content-type': type },
+        });
+      const file = await open(fileURLToPath(href));
+      const { buffer, bytesRead } = await file.read(
+        Buffer.alloc(to - from + 1),
+        0,
+        to - from + 1,
+        from,
+      );
+      await file.close();
+      return new Response(buffer.subarray(0, bytesRead), { status: 206 });
     },
   });
   const canvas = canvasOf(gpu.device);
