@@ -42,7 +42,7 @@ export interface MovingBody {
  * the overlap tests a crowded corner costs against how many re-entries one part settles; one
  * pass would leave a two-wall corner to the next part.
  */
-const PASSES = 4;
+export const MOVE_PASSES = 4;
 
 const part = new Float64Array(3),
   away = new Float64Array(3);
@@ -129,7 +129,7 @@ export function slide(
   for (let k = 0; k < 3; k++) part[k] = delta[k] / parts;
   for (let i = 0; i < parts; i++) {
     for (let k = 0; k < 3; k++) capsule.feet[k] += part[k];
-    for (let pass = 0; pass < PASSES; pass++) {
+    for (let pass = 0; pass < MOVE_PASSES; pass++) {
       firstPass = pass === 0;
       if (!world.resolveCapsule(capsule, push)) break;
     }
