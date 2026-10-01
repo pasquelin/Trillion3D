@@ -186,7 +186,7 @@ export interface BackendContext {
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
   shadowLocalToClip?: boolean; // shadow corners from a stored LocalToClip (OMB-25), off by default
-  shadowPoolPages?: number; // physical shadow pages, allocated once; `LIGHT_SETTINGS.shadowPoolPages`
+  shadowPoolPages?: number; // physical shadow pages, allocated once; else the screen's (`screenPoolPages`)
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   readPage?: (url: string) => Promise<Uint32Array>; // Validated reader of the GPU fallback.
