@@ -14,6 +14,9 @@ export interface ScreenRadiance {
   head?: string;
   /** The cone's colour and the share of the lobe it left to the fallback. */
   filtered?: string;
+  /** The function that resolves the mirror ray, `(P,N,R)`: by default the full walk, a miss on the
+   *  program's fallback at the roughness floor. */
+  mirror?: string;
 }
 
 /** Screen reflections resolved per pixel in either graphics API (#1341): Unreal's roughness fade,
@@ -27,6 +30,7 @@ export function screenRadianceShader(
     fallback,
     head = '',
     filtered = 'filteredResolvedReflection(P,R,rough)',
+    mirror,
   }: ScreenRadiance,
 ) {
   return shaderLanguage(
@@ -34,10 +38,14 @@ export function screenRadianceShader(
 fn screenReflectionFade(rough:f32)->f32{
  return clamp(2.0-2.0*rough/${SCREEN_REFLECTION_MAX_ROUGHNESS},0.0,1.0);
 }
-fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
+fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{${
+      mirror
+        ? `\n return ${mirror}(P,N,R);`
+        : `
  var hit:vec4f=screenReflection(P,R);
  if(hit.a!=0.0){return hit.rgb;}
- return ${fallback(ROUGHNESS_FLOOR)};
+ return ${fallback(ROUGHNESS_FLOOR)};`
+    }
 }
 fn filteredResolvedReflection(P:vec3f,R:vec3f,rough:f32)->vec4f{
  var hit:vec4f=screenReflectionCone(P,R,rough);

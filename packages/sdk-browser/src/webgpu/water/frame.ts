@@ -21,9 +21,9 @@ import { WATER_SURFACE_PASS, WATER_COMPOSITE_PASS } from './passLabels.ts';
  * when the shadow atlas or the probe grid arrive: `bind` writes their identities and rebuilds only
  * when one moved, so a still frame builds and allocates nothing.
  */
-export async function createWaterFrame(device: GPUDevice, sunWindow?: number) {
+export async function createWaterFrame(device: GPUDevice, sunWindow?: number, unbounded = false) {
   const layout = createWaterCompositeLayout(device);
-  const composites = await createWaterComposites(device, layout, sunWindow);
+  const composites = await createWaterComposites(device, layout, sunWindow, unbounded);
   const freeze = await createWaterFreeze(device);
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
