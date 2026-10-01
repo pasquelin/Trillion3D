@@ -108,3 +108,15 @@ test('the static layer is made with the pool: its bytes held before anything mov
   assert.equal(s.lights.staticLayerTexture, undefined);
   assert.equal(shadowPoolHeld(s.lights), held - layer);
 });
+
+// #831: the boss read 551 758 544 bytes where 359 MB was announced. The setting said is every byte
+// the pool holds — atlas, static layer, buffers, the pair lists —, not the atlas alone, and it is
+// the very figure every frame shows; a display wider than the canvas sizes it (above).
+test('the setting said is the bytes every frame shows, not the atlas alone', async () => {
+  const s = await session();
+  const setting = s.opened.find(([phase]) => phase === 'shadow-pool');
+  assert.ok(setting, 'the pool said at its setting');
+  assert.equal(setting[1].bytes, shadowPoolShown(s.lights));
+  assert.equal(setting[1].atlasBytes, shadowAtlasBytes(51));
+  assert.ok(Number(setting[1].bytes) > shadowAtlasBytes(51), 'its static layer and buffers too');
+});
