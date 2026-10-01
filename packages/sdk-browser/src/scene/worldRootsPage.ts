@@ -41,21 +41,9 @@ export const worldRootsPageAddress = (payloadUrl: string, bundle: number, offset
 
 /** The bundle and the offset inside it that a world page address names. */
 function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
-  const at = address.lastIndexOf('#'),
-    parts = address.slice(at < 0 ? 0 : at + 1).split(':'),
-    bundle = Number(parts[0]),
-    offset = Number(parts[1]);
-  if (
-    parts.length !== 2 ||
-    !parts[0] ||
-    !parts[1] ||
-    !Number.isSafeInteger(bundle) ||
-    !Number.isSafeInteger(offset) ||
-    bundle < 0 ||
-    offset < 0
-  )
-    throw new Error(`WORLD_PAGE_ADDRESS: ${address}`);
-  return { bundle, offset };
+  const named = /#(\d+):(\d+)$/.exec(address);
+  if (!named) throw new Error(`WORLD_PAGE_ADDRESS: ${address}`);
+  return { bundle: Number(named[1]), offset: Number(named[2]) };
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
@@ -63,7 +51,7 @@ type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>;
 
 /** The `u32` indices of a world page: the `u16` local list widened one-to-one, the width both the
  *  WebGPU `array<u32>` and WebGL2's `UNSIGNED_INT` draw read. */
-const worldRootsIndices = (page: WorldRootsPage) => Uint32Array.from(page.indices);
+const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices);
 
 /**
  * The detached page source of `table`, its bundles read through `bundlePages`: a page is resolved
@@ -88,22 +76,18 @@ export function worldRootsPageSource(table: WorldRoots, bundlePages: BundlePages
     }
     return known;
   };
-  // Each page's rank inside its bundle, in binary order: the table lists every page's offset.
-  const rankInBundle = new Map<string, number>();
-  const byBundle = new Map<number, number[]>();
+  // Each bundle's page offsets in binary order: a page's rank among them is its place in the bundle.
+  const offsets = new Map<number, number[]>();
   for (const entry of table.pages) {
-    const offsets = byBundle.get(entry.bundle) ?? [];
-    offsets.push(entry.offset);
-    byBundle.set(entry.bundle, offsets);
+    const known = offsets.get(entry.bundle);
+    if (known) known.push(entry.offset);
+    else offsets.set(entry.bundle, [entry.offset]);
   }
-  for (const [bundle, offsets] of byBundle)
-    offsets
-      .sort((a, b) => a - b)
-      .forEach((offset, index) => rankInBundle.set(`${bundle}:${offset}`, index));
+  for (const known of offsets.values()) known.sort((a, b) => a - b);
   const page = async (address: string, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address),
       pages = await shared(bundle),
-      index = rankInBundle.get(`${bundle}:${offset}`) ?? -1;
+      index = offsets.get(bundle)?.indexOf(offset) ?? -1;
     signal?.throwIfAborted();
     if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`);
     return pages[index];
