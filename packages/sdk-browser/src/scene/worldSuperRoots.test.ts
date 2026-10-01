@@ -1,7 +1,7 @@
 // The world super-roots drawn by the ONE cut (#1238): a cell's super-root stands in for its
 // per-instance roots when those are not resident, and the surface is covered exactly once across a
 // cell's arrival and departure. Driven by the cook's own table shape — `worldRootsDag`, a
-// world-roots.json fixture extended with the `clusters` and `groups` keys #1238 adds — read through
+// world-roots fixture with the `clusters` and `groups` #1238 adds (`world-roots.dag`) — read through
 // the runtime's `worldRootDag`, and proved on the CPU oracle and the kernel's own WGSL text.
 import test from 'node:test';
 import assert from 'node:assert/strict';
