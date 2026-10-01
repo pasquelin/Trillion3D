@@ -18,6 +18,7 @@ use crate::dag::DagStrategy;
 mod cover;
 mod merge;
 mod pack;
+mod records;
 mod table;
 #[cfg(test)]
 mod table_tests;
@@ -25,9 +26,12 @@ mod table_tests;
 mod tests;
 pub(crate) use cover::RootCover;
 
-/// Version of the `world-roots.json` product.
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 1;
-pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.json";
+/// Version of the world-roots products: 2 since their records (#1232).
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 2;
+/// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
+pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
+/// The world clusters and groups the world stream reads on its first use, as records.
+pub(crate) const WORLD_ROOTS_DAG: &str = "world-roots.dag";
 /// The super-root bundles, end to end: each bundle's range and digest is in the table.
 pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
 /// The most bytes the world's pinned top may hold, whatever the world's size: four bootstrap
@@ -65,7 +69,8 @@ pub(crate) fn cook(
 }
 
 /// Compilation stage: the super-roots of the objects the partition placed, `cells` naming the
-/// published nodes of each cell. Written as `world-roots.bin` and `world-roots.json`; the report
+/// published nodes of each cell. Written as `world-roots.bin`, `world-roots.table` and
+/// `world-roots.dag`; the report
 /// goes to the manifest. Exact clusters carry no simplification, so no super-root either. The
 /// builds run on the job's `pool`: its threads, its phase counters.
 pub(super) fn stage_world_roots(
@@ -107,6 +112,7 @@ pub(super) fn stage_world_roots(
     let bin = product(directory, WORLD_ROOTS_BIN, &cooked.payload)?;
     let mut table = cooked.table;
     table["payload"] = json!({"url":WORLD_ROOTS_BIN,"sha256":bin.sha256,"bytes":bin.bytes});
-    let written = product(directory, WORLD_ROOTS_FILE, &serde_json::to_vec(&table)?)?;
-    Ok((vec![bin, written], cooked.report))
+    let written = product(directory, WORLD_ROOTS_FILE, &records::encode_table(&table)?)?;
+    let dag = product(directory, WORLD_ROOTS_DAG, &records::encode_dag(&table)?)?;
+    Ok((vec![bin, written, dag], cooked.report))
 }

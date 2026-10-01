@@ -8024,7 +8024,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: DAG thế giới mà trình biên dịch tiếp nối phía trên gốc của mọi đối tượng — các gói, trang và ô của nó, đỉnh được ghim trước.",
+    "summary": "`world-roots.table`: DAG thế giới mà trình biên dịch tiếp nối phía trên gốc của mọi đối tượng — các gói, trang và ô của nó, đỉnh được ghim trước —, các trang và ô được đọc từ bản ghi của chúng.",
     "members": {
       "version": "Phiên bản định dạng.",
       "budgetBytes": "Số byte tối đa mà bước nấu cho phép đỉnh được ghim.",
@@ -8032,8 +8032,8 @@
       "pinnedTopBytes": "Số byte của đỉnh được ghim.",
       "payload": "Tệp nhị phân nơi các gói nối tiếp nhau: địa chỉ, dấu băm và độ dài của nó.",
       "bundles": "Các gói, theo thứ tự của tệp nhị phân.",
-      "pages": "Mỗi trang: gói của nó, độ lệch trong gói, cấp và sai số của nó.",
-      "cells": "Mỗi ô thế giới: các primitive đã đặt mà nó chứa."
+      "pages": "Các trang: bao nhiêu, và của một trang thì gói, độ lệch trong gói, cấp và sai số, đọc từ bản ghi của nó.",
+      "cells": "Các ô thế giới: bao nhiêu, và các primitive đã đặt mà một ô chứa, đọc từ bản ghi của chúng."
     }
   },
   "WorldRootsBundle": {
