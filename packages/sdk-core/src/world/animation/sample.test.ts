@@ -137,3 +137,36 @@ test('additive vector and quaternion differences reconstruct the original keyed 
   const rebuilt = reference.clone().multiply(new Quaternion().fromArray(delta));
   assert.ok(rebuilt.angleTo(target) < 1e-7);
 });
+
+test('a later segment interpolates its own keys, on every interpolation', () => {
+  const at = (track: Track, t: number, size: number) =>
+    Array.from(sample(track, t, { owner: {}, field: 'f', key: 0, value: new Float64Array(size) }));
+  // Cubic, flat tangents: halfway between the second and third values, whatever the first.
+  const cubic: Track = {
+    name: 'p',
+    kind: 'number',
+    interpolation: 'cubic',
+    times: new Float32Array([0, 1, 2]),
+    values: new Float32Array([0, 7, 0, 0, 2, 0, 0, 4, 0]),
+  };
+  assert.deepEqual(at(cubic, 1.5, 1), [3]);
+  // A quarter turn about z, then back: halfway through the second segment, an eighth of a turn.
+  const s = Math.SQRT1_2;
+  const turn: Track = {
+    name: 'q',
+    kind: 'quaternion',
+    times: new Float32Array([0, 1, 2]),
+    values: new Float32Array([0, 0, 0, 1, 0, 0, s, s, 0, 0, 0, 1]),
+  };
+  at(turn, 1.5, 4).forEach((v, i) =>
+    close(v, [0, 0, Math.sin(Math.PI / 8), Math.cos(Math.PI / 8)][i]),
+  );
+  // Four morph weights are numbers, never normalised like a rotation.
+  const weights: Track = {
+    name: 'w',
+    kind: 'number',
+    times: new Float32Array([0, 1]),
+    values: new Float32Array([1, 2, 3, 4, 3, 4, 5, 6]),
+  };
+  assert.deepEqual(at(weights, 0.5, 4), [2, 3, 4, 5]);
+});
