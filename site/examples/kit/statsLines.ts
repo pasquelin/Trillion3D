@@ -1,4 +1,5 @@
 import type { ProfiledWorld } from './profile.ts';
+import { cpuUnit, ms, unitLines, type CpuUnit } from './statUnit.ts';
 import { kitWord, labelOf, language } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
@@ -10,6 +11,8 @@ interface FrameCounters {
   geometryPoolBytes?: number | null;
   lightsActive?: number | null;
   gpuFrameMs?: number | null;
+  /** The frame's GPU passes, each with its own share where the device has timestamps. */
+  gpuPassMs?: { passes: { name: string; gpuMs: number | null; ownMs?: number }[] } | null;
 }
 
 /** A node of the scene as far as counting its triangles goes. */
@@ -34,11 +37,12 @@ export interface StatsSample extends FrameCounters {
    *  `timestamp-query`, or on WebGL2: `gpuFrameMs` is the last one measured. */
   gpuFrameLast?: boolean;
   sceneTriangles: number | null;
+  cpu?: CpuUnit;
 }
 
+export { ms };
+
 const count = (value: number) => Math.round(value).toLocaleString(language());
-/** A duration as the kit prints it: milliseconds to two places. */
-export const ms = (value: number) => `${value.toFixed(2)} ms`;
 
 /**
  * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
@@ -76,7 +80,7 @@ export function statLines(sample: StatsSample): [string, string][] {
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
   if (sample.gpuFrameMs != null)
     lines.push([sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame', ms(sample.gpuFrameMs)]);
-  return [...lines, ...shadowLines(sample)];
+  return [...lines, ...unitLines(sample), ...shadowLines(sample)];
 }
 
 /** Frames a second from the times frames were drawn, in ms: `null` from fewer than two. */
@@ -109,15 +113,20 @@ export const STATS_VALUE = 'text-end tabular-nums';
 /**
  * Watches `world`: counts the frames it draws and keeps the engine's counters of the last one,
  * and twice a second hands `show` the corner's lines — `extra` added — when they changed, each
- * label in the page's language (a profiled engine step keeps its identifier). Returns what stops
- * it.
+ * label in the page's language (a profiled engine step keeps its identifier). Unless `cpu` is
+ * false, it keeps each frame's own CPU steps of the half second for the CPU lines (`cpuUnit`),
+ * the engine's step window (`steps`, `engineSteps`) ranking them when it gives one. Returns what
+ * stops it.
  */
 export function watchStats(
   world: StatsWorld,
   show: (lines: [string, string][]) => void,
   extra: () => [string, string][] = () => [],
+  cpu = true,
+  steps?: () => [string, number][] | null,
 ) {
-  const drawn: number[] = [];
+  const drawn: number[] = [],
+    frames: object[] = [];
   let last: FrameCounters = {},
     fps: number | null = null,
     gpuFrameMs: number | null = null,
@@ -125,6 +134,7 @@ export function watchStats(
   const unhook = world.onFrame(({ metrics }) => {
     drawn.push(performance.now());
     last = metrics;
+    if (cpu) frames.push(metrics);
     // A held image times nothing: the corner keeps the GPU time last measured.
     if (metrics.gpuFrameMs != null) gpuFrameMs = metrics.gpuFrameMs;
   });
@@ -143,6 +153,12 @@ export function watchStats(
       gpuFrameMs,
       gpuFrameLast: last.gpuFrameMs == null,
     };
+    if (cpu) {
+      const unit = cpuUnit(frames.splice(0)),
+        engine = steps?.();
+      if (engine?.length) unit.steps = engine;
+      sample.cpu = unit;
+    }
     if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
     const lines = [...statLines(sample), ...extra()].map(([label, value]): [string, string] => [
         kitWord('stats', label, label),
