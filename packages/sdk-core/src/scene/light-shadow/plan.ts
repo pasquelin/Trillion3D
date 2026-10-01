@@ -30,7 +30,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     records = createShadowRecords(table, pool, sun),
     changes = createShadowChanges(Math.max(pool.pages, SHADOW_CHANGE_BOXES)),
     counts = createShadowCounts(),
-    invalidate = createPageInvalidation(pool, table, sun, changes, counts),
+    invalidate = createPageInvalidation(pool, table, sun, changes, counts, () => gpu.on),
     thresholds = createShadowThresholds(pool),
     posed = new Int32Array(records.taken.length),
     spent = { requestsMs: NaN, admissionMs: NaN },
