@@ -24,11 +24,19 @@ import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
  * (`admit.ts`), and the rest the next frames; meanwhile a page not drawn reads the coarser level
  * under it, as the reference engine's virtual shadow maps read a page their frame did not render. Without it,
  * a burst of 2 423 pages in one frame took 286 ms of GPU on a-field-of-pebbles, and 563 pages
- * 66 ms on drive-a-car (#831). The GPU's own mapping holds to it too (`allocWgsl.ts`). It is
+ * 66 ms on drive-a-car (#831). The GPU's own mapping holds to a smaller one, below. It is
  * above what a moving body re-renders a frame — 80 to 140 pages for the car —, so a body's
  * pages are never left a frame behind it.
  */
 export const SHADOW_PAGES_PER_FRAME = 8 * MAX_SHADOW_PAGES;
+/**
+ * The pages the GPU maps and draws itself at most a frame (`allocWgsl.ts`, `freshPass.ts`): four
+ * batches. Its draw keeps every resident caster row a page's volume touches, at the finest form
+ * the residency holds, with no light cut choosing a coarser one for a coarse page: a sun page of a
+ * far level then draws the whole field. 192 such pages took 150 to 180 ms on a-field-of-pebbles
+ * (#831); half as many halve it, and the pages past them are mapped the next frames.
+ */
+export const SHADOW_GPU_PAGES_PER_FRAME = 4 * MAX_SHADOW_PAGES;
 
 /** Batches the memory grant holds: one pool layer, `LAYER_PAGES` pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);

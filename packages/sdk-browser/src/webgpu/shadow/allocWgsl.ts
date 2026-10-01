@@ -43,7 +43,7 @@ export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
  *    past the candidates is refused: every page is one this frame asks for. A need past the
- *    frame's page budget (`budget`, `SHADOW_PAGES_PER_FRAME`) is not refused: it stays unmapped,
+ *    frame's page budget (`budget`, `SHADOW_GPU_PAGES_PER_FRAME`) is not refused: it stays unmapped,
  *    reads the coarser page, and is a need again the next frame, the coarsest first (#831).
  *
  * Sorted, the order is the atomics' no more: the same frame maps the same pages. The window is the
