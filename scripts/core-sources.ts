@@ -28,9 +28,9 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
 /**
  * What the core must never hold, by source (#1353): the debug tools, fetched only in debug mode —
  * the measurement's code and the diagnostic views —, and each renderer's own code, fetched only
- * by the page that draws with it — the WebGPU page raster and its shadows, sized by their own
- * formulas (`residency/shadowShares.ts`), the WebGL2 page path. A family's own module the core
- * holds already fails the gate by name (`familiesInCore`); these are the sources around them.
+ * by the page that draws with it — the WebGPU page raster and its shadow passes, the WebGL2 page
+ * path. A family's own module the core holds already fails the gate by name (`familiesInCore`);
+ * these are the sources around them.
  */
 const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
@@ -40,12 +40,17 @@ const NOT_IN_CORE = {
   ],
   'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
   'the WebGL2 renderer': ['sdk-browser/src/backend/autonomous/', 'sdk-browser/src/webgl/cluster/'],
-  'the WebGPU shadows': [
-    'sdk-browser/src/gpu/shadow/',
-    'sdk-browser/src/webgpu/shadow/',
-    'sdk-browser/src/residency/shadowBudgetBytes.js',
-  ],
+  'the WebGPU shadows': ['sdk-browser/src/gpu/shadow/', 'sdk-browser/src/webgpu/shadow/'],
 };
+/** The shadows' lean size modules, which no shader text nor pipeline imports: the memory budget
+ *  the core splits at a world's creation reads its shadow shares from them
+ *  (`residency/shadowBudgetBytes.ts`), and only them of the shadows' folders. */
+const SHADOW_SIZES = [
+  'sdk-browser/src/gpu/shadow/sizes.js',
+  'sdk-browser/src/gpu/shadow/batchBudget.js',
+  'sdk-browser/src/webgpu/shadow/allocLayout.js',
+  'sdk-browser/src/webgpu/shadow/freshLayout.js',
+];
 
 /** The folder a source is listed under: its package's own `src/` and the folder below it. */
 const folderOf = (source: string) => {
@@ -73,6 +78,7 @@ export function coreSources(dist: string, files: readonly string[]) {
   const forbidden = Object.entries(NOT_IN_CORE).flatMap(([name, prefixes]) =>
     [...held.keys()]
       .filter((source) => prefixes.some((prefix) => source.startsWith(prefix)))
+      .filter((source) => !SHADOW_SIZES.includes(source))
       .map((source) => `${name} (${source})`),
   );
   return { folders: [...folders].sort((a, b) => b[1] - a[1]), forbidden };

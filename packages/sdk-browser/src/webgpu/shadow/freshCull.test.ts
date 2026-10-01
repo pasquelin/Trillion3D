@@ -25,7 +25,7 @@ import {
   freshArgWords,
   freshDrawWord,
 } from './freshLayout.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './allocLayout.ts';
 import { DRAWN_GPU, DRAWN_NONE } from './poolDrawn.ts';
 
 const PAGES = 4;
