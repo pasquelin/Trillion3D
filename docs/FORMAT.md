@@ -719,8 +719,8 @@ children and outputs — by its first word and its length in a `u32` **pool** af
   `WRTD`, version, the counts of clusters and groups, the pool's length, zero —; a 152-byte
   **cluster** for every world cluster, object roots included, at its world rank — the rank the
   groups use —: its level, its triangles, its material, its page's `bundle` and `offset` in the bin
-  (a super-root) and its `origin`, the placed instance whose own stream holds its page (an object
-  root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
+  (a super-root) and its `origin`, the rank among the table's objects of the placed object whose
+  own stream holds its page (an object root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
   its sphere, its parent's sphere (NaN for a root), its minimum and its maximum —; a 64-byte
   **group** — its level, its children and outputs, zero, then as `f64` its error and sphere —, the
   relation the runtime flattens into its cluster structure; then the pool.
@@ -747,13 +747,16 @@ each once, until the last cell needing it leaves ([RESIDENCY.md](RESIDENCY.md#th
 Pinned bytes). The super-roots are not drawn yet (#1238): the image is unchanged.
 
 Packed last in the one cut, the world DAG reads a mirror of the scene's residency
-(`packages/sdk-browser/src/gpu/dag/worldMirror.ts`, #1332): a super-root resident while its bundle
-is held, an object root while its placed object (`origin`) is placed and its root cover resident,
-so the cut keeps a cell's super-root until its objects are drawable. A partition's plan reads the
-cut's own choice (`scene/partition/superRoots.ts`): a cell is held by its super-roots, its object
-pages unread, until their largest `parentError` projects past the pixel target on the frustum's
-diagonal; a placed cell gives its objects back once that error is within the target over
-`1 + KEEP`.
+(`packages/sdk-browser/src/gpu/dag/worldMirror.ts`, #1332), which the cut that packs it builds and
+feeds the rows' flags through: a super-root resident while its bundle is held, an object root while
+its placed object (`origin`) is placed and its root cover resident, so the cut keeps a cell's
+super-root until its objects are drawable. A partition's plan reads the cut's own choice
+(`scene/partition/superRoots.ts`, `farCells.ts`), each cell's bound read once the world stream
+opens (an object root's cell is its object's, `cells.cellOf`): a cell is held by its super-roots,
+its object pages unread, until their largest `parentError` projects past the pixel target on the
+frustum's diagonal; a placed cell gives its objects back once that error is within the target over
+`1 + KEEP`. Both wait for a cut that packs the world DAG (#1333): until then no cell is held far
+and the rows' flags go up as they are.
 
 ## `physics.json` — cooked colliders
 

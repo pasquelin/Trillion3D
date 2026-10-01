@@ -10,6 +10,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts';
 import { openWorldRoots } from './worldRoots.ts';
+import { cellSuperRoots } from './partition/superRoots.ts';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
@@ -132,7 +133,22 @@ test('the world DAG names its pages through the one source, from what is held (#
 test('a cache without its DAG file opens a stream with no DAG (#1232)', async (t) => {
   const { manifest } = served(t);
   const roots = (await openWorldRoots(manifest, 'http://world/'))!;
-  assert.equal((await roots.stream()).dag, undefined);
+  const stream = await roots.stream();
+  assert.deepEqual([stream.dag, stream.superRoots], [undefined, undefined]);
+});
+
+test("the stream bounds each cell's super-roots, an object root in its object's cell (#1332)", async (t) => {
+  // The table lists one object in cell 0, two in cell 1, one in cell 2: an object root's `origin`
+  // is its object's rank there, as the cook writes it.
+  const { clusters, groups } = worldRootsDag();
+  const cellOf = (origin: number) => Math.floor(origin / 4);
+  const ranked = clusters.map((c) =>
+    c.origin === null ? c : { ...c, origin: [0, 1, 3][cellOf(c.origin)] },
+  );
+  const { manifest } = served(t, undefined, false, { clusters: ranked, groups });
+  const roots = (await openWorldRoots(manifest, 'http://world/'))!;
+  const { superRoots } = await roots.stream();
+  assert.deepEqual(superRoots, cellSuperRoots(clusters, cellOf, 3));
 });
 
 test('a cache that publishes no world roots pins nothing', async () => {
