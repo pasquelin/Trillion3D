@@ -33,6 +33,8 @@ test('visibility reports progress from zero to every row, now and then between t
     done.some((value) => value > 0 && value < state.size),
     `${done}`,
   );
+  // Progress is a summary: far fewer events than rows.
+  assert.ok(events.length < state.size, `${events.length}`);
 });
 
 test('visibility honors a cancellation request during a large row before tracing its remaining rays', () => {
