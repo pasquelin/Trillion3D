@@ -70,6 +70,7 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-E051](messages/T3D-E051.md) | `INVALID_ORACLE_SOURCE` | error | The reference path tracer's scene is invalid. |
 | [T3D-W003](messages/T3D-W003.md) | `DAG_FLAT` | warning | A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance. |
 | [T3D-W004](messages/T3D-W004.md) | `DAG_ROOTS` | warning | A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance. |
+| [T3D-E091](messages/T3D-E091.md) | `INVALID_WORLD_ROOTS` | error | The world roots' table could not be written as its records. |
 
 ## Archives
 

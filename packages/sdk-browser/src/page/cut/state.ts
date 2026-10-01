@@ -25,7 +25,7 @@ export interface SelectionState<T extends PageRecord> {
   /** The same two cuts by packed catalogue rank, rank by rank (the root's `packedBase` plus the
    *  page's index): what the engines' consumers read, resolved back to a record through the
    *  catalogue (`recordOf`). The cut still decides on the records above — a packed rank names the
-   *  instance, never a record. Reused `Int32Array`s preallocated to the cut's capacity (`fitPacked`). */
+   *  instance, never a record. Reused `Int32Array`s widened as the cut emits (`fitPacked`, #1232). */
   wantedPacked: Int32Array;
   shownPacked: Int32Array;
   /** Packed base of the root the cut is walking: set by `selectFlat` per root, like `flatWorld`,
@@ -88,14 +88,17 @@ export { createSelectionResult } from './result.ts';
 /**
  * A packed list wide enough for `needed` ranks. The buffer is kept when it already holds them —
  * `Int32Array.length` is getter-only in a module, so the list is never truncated; the cut's counts
- * are the record lists' lengths, rank by rank — and replaced by a power-of-two-sized one otherwise:
- * a cut that has been seen reuses its two lists for life, and a larger one allocates once.
+ * are the record lists' lengths, rank by rank — and replaced by a power-of-two-sized one otherwise,
+ * holding the old one's first `keep` ranks: a cut that has been seen reuses its two lists for life,
+ * and one that selects more widens them a logarithmic number of times, to what it selected.
  */
-export function fitPacked(list: Int32Array, needed: number): Int32Array {
+export function fitPacked(list: Int32Array, needed: number, keep = 0): Int32Array {
   if (list.length >= needed) return list;
   let size = Math.max(8, list.length);
   while (size < needed) size <<= 1;
-  return new Int32Array(size);
+  const next = new Int32Array(size);
+  if (keep) next.set(list.subarray(0, keep));
+  return next;
 }
 
 export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_ELEMENTS };
