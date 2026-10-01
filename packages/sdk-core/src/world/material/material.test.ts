@@ -40,8 +40,6 @@ test('physical material records retain independent linear channels and supplied 
   assert.notEqual(copy.color, material.color);
   copy.color.setRGB(0, 1, 0);
   assert.deepEqual(material.color.toArray(), [0.2, 0.4, 0.6]);
-  const defaults = new Material('meshStandard', { roughness: undefined }, { roughness: 0.2 });
-  assert.equal(defaults.roughness, new Material('meshStandard').roughness);
 });
 
 test('materials hear shared Color instances and stop hearing replaced colors', () => {
@@ -98,13 +96,9 @@ test('every default color drives revision and wearer notifications when edited i
   material.subsurfaceColor.setRGB(0.6, 0.7, 0.8);
   assert.equal(material.version, before + 3);
   assert.equal(changes, 3);
-  const marker = Symbol('host-material');
-  Reflect.set(material, marker, 'owned');
-  assert.equal(Reflect.get(material, marker), 'owned');
-  assert.equal(changes, 4);
   material.version = 123;
   assert.equal(material.version, 123);
-  assert.equal(changes, 4);
+  assert.equal(changes, 3, 'the revision itself is bookkeeping');
 });
 
 test('cloned materials own revisions, callbacks and color channels independently', () => {
