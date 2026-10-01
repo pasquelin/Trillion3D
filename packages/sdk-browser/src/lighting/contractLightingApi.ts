@@ -51,6 +51,12 @@ export function contractLightingApi(
   const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused);
   return {
     ...sceneLightingApi(source, sceneChanged),
+    /** The source graph's lights copied again, then the contract told: a source left with no
+     *  light hands the view to the contract, one that gains a light takes it back. */
+    refreshSceneLighting: () => {
+      source.refresh();
+      contract.apply();
+    },
     /** The image comes out in real light as soon as either light set carries one. */
     sceneLit: () => contract.lit,
     /** The display curve the scene chose through its environment; ACES when it chose none. */
