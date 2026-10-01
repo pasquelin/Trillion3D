@@ -1,6 +1,21 @@
 import { storageBufferCap } from '../../residency/pools.ts';
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
+import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts';
 import { pageTableRows } from './pageTableRows.ts';
+
+/**
+ * THE ROWS A VIEW IS GIVEN (#1232): cluster's fixed visible-cluster budget
+ * (`a reference setting`). The page table is sized by what a view draws, never by the
+ * world's placements: a scene asks at most these rows however many times its pages are placed, and
+ * only a cut that selected more raises them (`viewRowsFor`). A scene whose packed instances exceed
+ * them is cut on the CPU, which claims a row for each cluster it selects and nothing more
+ * (`../pages/prepare/preparePages.ts`).
+ */
+export const VIEW_ROWS = 1 << 18;
+
+/** The rows a view holds once its cut selected `asked`: the power of two above them, so a growing
+ *  view grows the table a few times, never once per image; within what a visibility ID names. */
+export const viewRowsFor = (asked: number) =>
+  Math.min(VIS_MAX_PAGES, Math.max(VIEW_ROWS, 2 ** Math.ceil(Math.log2(Math.max(1, asked)))));
 
 /**
  * THE ROWS OF THE PAGE TABLE, bounded by the device. The visibility rows (`draw`) and the blended
