@@ -15,7 +15,7 @@ import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts';
 import { planWebgpuImpostors } from './frame.ts';
 import { recordingEncoder } from './recorder.fixture.ts';
-import { IMPOSTOR_PASS } from './pass.ts';
+import { IMPOSTOR_PASS } from './pipelines.ts';
 import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import { castsNoShadow } from '../../page/cut/select.ts';
 import {
