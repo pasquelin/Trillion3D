@@ -68,7 +68,8 @@ import {
   SHADOW_DEMAND_WGSL,
   MIP_SHADER,
 } from './shaderTexts.fixture.ts';
-import { CARD_PASS_WGSL } from '../../webgpu/impostor/cardWgsl.ts';
+import '../../impostor/lent.fixture.ts';
+import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts';
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -195,5 +196,5 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
-  CARD_PASS_WGSL,
+  CARD_PASS_WGSL: cardPassWgsl(),
 };
