@@ -55,11 +55,13 @@ override CLASS_DEPTH:f32=f32(CLASS_KEY+1u)/${CLASS_DEPTH_UNITS}.0;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
   .join('\n')}
-/** Depth of a pixel's class, read off the page table, zero on the background: what each class
- *  pass tests against. */
-fn materialClassDepth(id:u32)->f32{
- if(id==0u){return 0.0;}
+/** A pixel's class key plus one, read off the page table, zero on the background: the one
+ *  answer the material depth and the material tiles (\`materialTilesWgsl.ts\`) share. */
+fn materialClassOf(id:u32)->u32{
+ if(id==0u){return 0u;}
  let pageIndex=(id>>8u)-1u;
- if(pageIndex>=uni.pageCount){return 0.0;}
- return f32(pages[pageIndex].materialClass+1u)/${CLASS_DEPTH_UNITS}.0;
-}`;
+ if(pageIndex>=uni.pageCount){return 0u;}
+ return pages[pageIndex].materialClass+1u;
+}
+/** Depth of a pixel's class, zero on the background: what each class pass tests against. */
+fn materialClassDepth(id:u32)->f32{return f32(materialClassOf(id))/${CLASS_DEPTH_UNITS}.0;}`;

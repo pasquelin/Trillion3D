@@ -1,20 +1,22 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts';
 
-/** Pool words per tile a view starts with once its scene holds more lights than a list. */
-const START_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights / 4;
-/** Pool words per tile the view grows to at most: its memory stays bounded by the view. */
-const MOST_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 4;
+/** Pool words per column of the light grid a view starts with: `tileLights` lights over sixteen of
+ *  its slices, a run of a lamp across a doubling of the view depth. */
+const START_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 16;
+/** Pool words per column the view grows to at most: its memory stays bounded by the view. */
+const MOST_WORDS_PER_TILE = START_WORDS_PER_TILE * 16;
 /** `TilePool` (`./compactWgsl.ts`): start, capacity, words reserved, overflow. */
 const STATE_BYTES = 16;
 /** Growth past what an overflowing frame reserved: a demand risen by less between samples fits. */
 const HEADROOM = 1.25;
 
 /**
- * The view's light-index pool, after the tile records in the same buffer (#849): a tile slice
- * past its list takes its room there. Sampled one frame in fifteen, an overflow is named
- * (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times what it reserved, within
- * `MOST_WORDS_PER_TILE`; until then, and past it, a tile with no room walks every light exactly.
+ * The view's light-index pool, after the cell records in the same buffer (#849, #1369): each column
+ * of the light grid takes the room of its cells' lists there. Sampled one frame in fifteen, an
+ * overflow is named (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times what it
+ * reserved, within `MOST_WORDS_PER_TILE`; until then, and past it, a column with no room walks
+ * every light exactly.
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4);
@@ -46,7 +48,7 @@ export function createTileLightPool(device: GPUDevice) {
     sample() {
       return reader.ready ? sample : undefined;
     },
-    /** Pool words for `tiles` tiles of a scene that holds more lights than a list. */
+    /** Pool words for `tiles` columns of the light grid. */
     words(tiles: number) {
       return Math.min(Math.max(tiles * START_WORDS_PER_TILE, asked), tiles * MOST_WORDS_PER_TILE);
     },

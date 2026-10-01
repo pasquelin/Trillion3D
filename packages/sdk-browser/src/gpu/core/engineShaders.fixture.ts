@@ -8,6 +8,7 @@ import { withScreenErrorVariant } from '../dag/shader/error.ts';
 import { drawShader } from '../draw/shader.ts';
 import { ROW_MAP_SHADER } from '../draw/lightRowsWgsl.ts';
 import { HIZ_SHADER } from '../hiz/shader.ts';
+import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts';
 import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
@@ -35,7 +36,7 @@ import { withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { withReflectionSourceOutput } from '../../reflections/sourceOutputWgsl.ts';
 import { REFLECTION_SOURCE_WGSL } from '../../reflections/sourceWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
-import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
+import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { COVERAGE_WGSL, mipShader } from '../../texture/mipsWgsl.ts';
@@ -108,6 +109,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DRAW_SHADER: drawShader(2),
   ROW_MAP_SHADER,
   HIZ_SHADER,
+  MATERIAL_TILES_SHADER,
   PARTITION_SHADER,
   RASTER: rasterSource(4096, 16),
   RESOLVE,
@@ -132,6 +134,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
+  // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
+  DIRECT_UNSHADOWED_RECTLESS_LIGHTING: contractLightingShader(
+    false,
+    false,
+    undefined,
+    false,
+    false,
+  ),
+  BOUNCE_NARROW_RECTLESS_LIGHTING: contractLightingShader(true, true, undefined, true, false),
   REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, true)),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
@@ -148,7 +159,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
   ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
-  ...Object.fromEntries(LIGHT_TILES_SHADERS),
+  LIGHT_TILES_SHADER,
   TAA_SHADER,
   ALLOCATION_WGSL,
   SHADOW_WORDS_WGSL,

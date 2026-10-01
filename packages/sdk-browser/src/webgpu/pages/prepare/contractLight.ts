@@ -1,3 +1,4 @@
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -42,10 +43,20 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 
 const contractResources: DirectLightResources = {};
 
-/** Whether a light of the store holds a shadow slot, as the shaders read it (`params.y > -1`). */
-function sliced(store: WebgpuPagesRuntime['lights']['store']) {
-  for (let slot = 0; slot < store.count; slot++) if (store.sliceOf(slot) > -1) return true;
-  return false;
+/**
+ * Which code the frame's resolve needs, the store walked once: shadow code when a light holds a
+ * shadow slot, as the shaders read it (`params.y > -1`, #1249), rectangle code when a light is a
+ * rectangle (`isRect`, #1369). Without either, the program with none of it.
+ */
+function leaveOut(resources: DirectLightResources, store: WebgpuPagesRuntime['lights']['store']) {
+  let sliced = false,
+    rect = false;
+  for (let slot = 0; slot < store.count && !(sliced && rect); slot++) {
+    sliced ||= store.sliceOf(slot) > -1;
+    rect ||= store.kindOf(slot) === LIGHT_KIND.rect;
+  }
+  resources.unshadowed = !sliced;
+  resources.rectless = !rect;
 }
 
 /**
@@ -59,10 +70,12 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
-  contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
-  // No light holds a shadow slot this frame: the resolve with no shadow code (#1249).
-  contractResources.unshadowed = active && !sliced(lights.store);
+  // A scene of at most `tileLights` lights resolves with a light array that long (#849).
+  contractResources.narrow =
+    active && !!lights.tiles && lights.store.count <= LIGHT_SETTINGS.tileLights;
+  // No light holds a shadow slot, or none is a rectangle: the resolve without that code.
+  if (active) leaveOut(contractResources, lights.store);
+  else contractResources.unshadowed = contractResources.rectless = false;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
