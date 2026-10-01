@@ -1,0 +1,49 @@
+# AMF, LDraw and VRML source readers
+
+These readers publish the existing scene-table contract. They preserve their supported source semantics and reject unsupported rendering constructs by name. They do not silently drop unsupported geometry. Filesystem dependencies stay under the model root; no remote URL or installed asset library is fetched.
+
+| Reader           | Preserved source semantics                                                                                                                                                                                                                                                                                                                                                 | Explicitly unsupported scope                                                                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AMF 1.0/1.1 XML  | Physical units; indexed triangle volumes; object/material identity; vertex, triangle, volume and object colour precedence; opacity; constellation hierarchy and shared instances                                                                                                                                                                                           | Compressed ZIP AMF; curved edges/normals; textures; material composites; formulas                                                                                                    |
+| LDraw/MPD        | Local part references and MPD subfiles; 0.4 mm units; shared instances; triangles/quads; BFC winding, INVERTNEXT and NOCLIP; inherited/direct/custom colours; alpha, luminance and metallic finish fields; separate EDGE colours; ordinary and conditional line records                                                                                                    | Implicit global part libraries; TEXMAP/data records; procedural glitter/speckle/pearlescent finishes; indexed colours outside the original sixteen unless declared through `!COLOUR` |
+| VRML97 V2.0 utf8 | DEF/USE; Group/Transform hierarchy, centre and scale orientation; IndexedFaceSet triangulation; IndexedLineSet segments with per-vertex/per-polyline colours; indexed normal/colour/UV bindings; crease-angle smoothing; ccw/solid; local ImageTexture fallback URLs and wraps; TextureTransform; default UV projection; diffuse/emissive/opacity/specular material fields | VRML1; Script/PROTO/ROUTE/Inline; parametric geometry nodes; non-ImageTexture textures; texture formats whose component metadata the enabled image readers cannot inspect            |
+
+AMF instance rotations apply X, Y, then Z, followed by translation. Unmodified uniform materials retain their source ranks. Colour overrides use a derived surface retaining source material/volume identity; varying vertex colours use a white diffuse multiplier, and any alpha below one enables blending.
+
+LDraw converts display RGB with the existing colour helper and rotates the root into Y-up. Palette declarations are scoped to their submodels. Mesh sharing includes inherited colour, palette, winding and sidedness in its identity. Type2 records use real glTF `mode: 1` segments, grouped by material. Each type5 segment has its own two-vertex primitive; `_LDRAW_CONTROL0` and `_LDRAW_CONTROL1` retain the two projection controls in local metric coordinates. The runtime evaluates conditional visibility independently of the user's parent visibility flag. These records never become fabricated triangles.
+
+VRML polygons use the shared concave-polygon cutter. Generated normals use the existing connectivity-aware implementation with crease-angle hard edges. The material conversion is declared: VRML shininess becomes PBR roughness `sqrt(2 / (128 * shininess + 2))`, specular RGB is preserved in `KHR_materials_specular`, and original shininess/ambient intensity remain in extras. This is not an assertion of identical Phong and PBR images.
+
+The readers reject cycles, excessive recursion, malformed indices and non-finite values. They check cancellation at bounded work boundaries. Byte/node/geometry admission estimates use the caller's RAM budget; no hard RSS guarantee is claimed. Dependency hashes contribute to source provenance. Symlink and lexical path escapes are refused.
+
+VRML97 IndexedLineSet uses unlit vertex colours when supplied, otherwise the authored Material emissive colour (white if no Material). Line transparency and textures are ignored as required by the source format; polygon materials retain their ordinary diffuse/texture/opacity path.
+
+Fixtures under `tests/fixtures/formats/{amf,ldraw,vrml}` are original CC0 data with independently stated expected counts or coordinates. Tests assert values, ordering, sharing, transforms, colour/alpha precedence, provenance, smoothing, texture transforms and refusals. LDraw additionally checks actual conditional-control accessors. A real-cache runtime check loads native output through `loadModel`, examines editable line instances and tests perspective/orthographic conditional visibility without claiming a browser pixel proof.
+
+The final native gate exited 0. Its release test run passed 839 tests across the library, binaries and CLI integrations, with 0 failures and 14 pre-existing ignored tests. All 19 tests in this subset passed: AMF 3, LDraw 6, VRML 8 and glTF material variants 2. This includes IndexedLineSet emissive/white defaults, ignored transparency/texture and colour precedence.
+
+The final complete `check:changed` gate exited 0: all 768 tests passed, with 0 failures or skips. Its three native-cache integration tests use the release CLI. LDraw proves four editable line instances, shared geometry, EDGE colours, conditional controls, perspective/orthographic visibility, explicit user hide and model transforms. The mixed line/triangle fixture additionally proves triangle vertices remain deferred while all four lines are ready.
+
+The VRML integration proves green/red vertex colours survive loading and line-quad expansion. It failed before the SDK correction with `drawn.colors === null`; after the correction, all 16 targeted geometry/integration tests passed, with no failures or skips. Endpoint RGBA, normalized imported colours, indexed order, zero-length segments, wireframe and loop closure are also covered. Browser image evidence belongs to the repository's post-merge recette process.
+
+## Native measurements and reproduction
+
+All five source compiles exited 0 using the final validated release CLI, SHA-256 `82ee39079e17a8cc7737a93cdfdd26c38050b5eb79227e9629e729c1d6ce2057`. Each used one worker, a 64 MiB admission budget, a fresh output cache, a triangle target of 1,000,000 and BC7 previews selected (these five fixtures contain no textures). Runs belonged to one sequential batch after the validation gates; filesystem caches were not flushed. These tiny fixtures are correctness witnesses, not performance benchmarks or RSS guarantees. `/usr/bin/time` was unavailable, so wall time used `perf_counter` and each child's raw usage came from `os.wait4` (Linux peak RSS in KiB).
+
+| Fixture                          | Unique / placed triangles | Source / cooked materials | Wall time | Peak RSS   |
+| -------------------------------- | ------------------------- | ------------------------- | --------- | ---------- |
+| AMF two instances                | 1 / 2                     | 1 / 1                     | 14.41 ms  | 18,476 KiB |
+| VRML two instances               | 3 / 6                     | 1 / 1                     | 14.35 ms  | 20,928 KiB |
+| LDraw two polygon instances      | 2 / 4                     | 1 / 1                     | 14.80 ms  | 18,668 KiB |
+| LDraw ordinary/conditional lines | 0 / 0                     | 1 / 1                     | 6.92 ms   | 15,084 KiB |
+| VRML indexed lines               | 0 / 0                     | 1 / 1                     | 6.93 ms   | 15,328 KiB |
+
+[Final raw commands, hashes, timings and child resource usage](source-formats-356-final-timings.json) retain these five measurements within the shared release batch. [Earlier debug measurements](source-formats-356-adapter-timings.json) remain a separate historical snapshot. Counts were checked against `source.gltf` accessors/instances and cooked `scene-tables.json`. The line sources retain real segments rather than contributing fake source triangles. Their compiler pointers explicitly report `autonomous-scene-lines`: the public loader uses the retained source graph and the existing world line renderer; the autonomous triangle-only representation is not advertised for these scenes.
+
+After building this checkout's native CLI, reproduce the LDraw and VRML line load/runtime witnesses with:
+
+```sh
+node --test tests/integration/ldraw-lines.test.ts
+```
+
+The integration test compiles the committed fixture itself and tests the public loader's returned objects; it does not substitute a manually created source graph. It prefers this checkout's release CLI and otherwise uses its debug CLI, explicitly skips when neither is built, and cleans its temporary cache. No skip occurred in the recorded run. It makes no GPU pixel claim. Native reader tests are selected with `cargo test --manifest-path packages/asset-compiler-rust/Cargo.toml --all-features --locked --lib plugins::scene:: -j2`.

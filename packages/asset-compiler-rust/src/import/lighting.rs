@@ -42,6 +42,10 @@ pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64>
 
 impl Importer<'_> {
     pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {
+        if !node.visible || !light.cast_light {
+            self.report.add("light-disabled");
+            return;
+        }
         let kind = match light.type_ {
             ufbx::LightType::Point => "point",
             ufbx::LightType::Directional => "directional",
@@ -65,10 +69,11 @@ impl Importer<'_> {
             kind,
             colour: [light.color.x, light.color.y, light.color.z],
             intensity: light.intensity * crate::compiler_lights::fbx_intensity_scale(kind),
+            // FBX openings span the full cone; glTF angles run from its axis to its edge.
             cone: (kind == "spot").then(|| {
                 (
-                    light.inner_angle.to_radians(),
-                    light.outer_angle.to_radians().max(0.001),
+                    light.inner_angle.to_radians() * 0.5,
+                    (light.outer_angle.to_radians() * 0.5).max(0.001),
                 )
             }),
             casts_shadow: Some(light.cast_shadows),

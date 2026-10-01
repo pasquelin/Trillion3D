@@ -1,0 +1,9 @@
+0 FILE model.ldr
+0 Hand-authored fixture; no external part library.
+0 !COLOUR Signal CODE 100 VALUE #FF8000 EDGE #202020 ALPHA 128
+1 100 10 0 0 1 0 0 0 1 0 0 0 1 panel.dat
+1 100 0 20 0 1 0 0 0 1 0 0 0 1 panel.dat
+0 FILE panel.dat
+0 BFC CERTIFY CCW
+4 16 0 0 0 10 0 0 10 10 0 0 10 0
+0 NOFILE

@@ -62,6 +62,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        if: runner.arch == 'X64'
+        with:
+          version: 2.16.03
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/asset-compiler-rust
@@ -93,6 +97,10 @@ jobs:
           submodules: true
       - uses: ./.github/actions/node
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        if: runner.arch == 'X64'
+        with:
+          version: 2.16.03
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: base/packages/asset-compiler-rust

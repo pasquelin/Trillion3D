@@ -1,3 +1,4 @@
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 /**
  * The host surfaces of the prepared scene, built from the material table under the rules the host
  * loader applied, so that the engine reads from them exactly what it read before
@@ -39,11 +40,11 @@ const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
 /** The variant of a surface a primitive asks for: what its geometry carries. */
-export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
+export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean; lines?: boolean };
 
 /** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
-export const variantKey = ({ vertexColors, flatShading }: SurfaceVariant) =>
-  `${vertexColors}:${flatShading}`;
+export const variantKey = ({ vertexColors, flatShading, lines }: SurfaceVariant) =>
+  `${vertexColors}:${flatShading}${lines ? ':lines' : ''}`;
 
 /** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
  *  no normal — at open (`graph.ts`) and for a created material assigned later (#847). */
@@ -84,6 +85,8 @@ async function build(
   slot: Slot,
 ) {
   const entry = materials[rank];
+  if (!Number.isSafeInteger(rank) || rank < 0 || !entry)
+    throw new EngineError('INVALID_SCENE_TABLES', 'Material table rank is out of range', { rank });
   const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity };
   const pending: Promise<void>[] = [];
   const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
@@ -126,8 +129,13 @@ async function build(
   if (variant.vertexColors) params.vertexColors = true;
   if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
-  const family =
-    entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard';
+  const family = variant.lines
+    ? 'basic'
+    : entry.kind === 'unlit'
+      ? 'basic'
+      : entry.kind === 'physical'
+        ? 'physical'
+        : 'standard';
   const material = new GraphSurface(family, params);
   if (entry.name) material.name = entry.name;
   tableRanks.set(material, rank);

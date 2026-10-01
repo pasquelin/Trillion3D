@@ -140,8 +140,7 @@ fn candidates(
         };
         let Some(image) = textures
             .get(texture)
-            .and_then(|texture| texture.get("source"))
-            .and_then(Value::as_u64)
+            .and_then(crate::compiler_tables::texture_image)
             .map(|image| image as usize)
         else {
             continue;

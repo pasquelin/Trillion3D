@@ -69,6 +69,10 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-E051](messages/T3D-E051.md) | `INVALID_ORACLE_SOURCE` | error | The reference path tracer's scene is invalid. |
 | [T3D-W003](messages/T3D-W003.md) | `DAG_FLAT` | warning | A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance. |
 | [T3D-W004](messages/T3D-W004.md) | `DAG_ROOTS` | warning | A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance. |
+| [T3D-W218](messages/T3D-W218.md) | `autonomous-scene-lines` | warning | The standalone triangle scene was not written because the source contains lines. |
+| [T3D-E090](messages/T3D-E090.md) | `IMPORT_INVALID` | error | The source file contains invalid format data. |
+| [T3D-E091](messages/T3D-E091.md) | `IMPORT_UNSUPPORTED` | error | A source feature is not supported by this importer. |
+| [T3D-E092](messages/T3D-E092.md) | `IMPORT_RESOURCE_LIMIT` | error | The source exceeded an import resource limit. |
 
 ## Archives
 
@@ -113,6 +117,7 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-W028](messages/T3D-W028.md) | `texture-uv-transform` | warning | A texture's UV transform was dropped. |
 | [T3D-I002](messages/T3D-I002.md) | `node-hidden` | info | Hidden nodes were left out of the scene. |
 | [T3D-W029](messages/T3D-W029.md) | `node-invalid-transform` | warning | A node's transform is not a finite number, so the node is left out. |
+| [T3D-I016](messages/T3D-I016.md) | `light-disabled` | info | A disabled or hidden source light was left out. |
 
 ## Blender
 
@@ -149,11 +154,11 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | Code | Name | Level | Message |
 | --- | --- | --- | --- |
 | [T3D-W044](messages/T3D-W044.md) | `image-lossy-unsupported` | warning | A lossy WebP texture was refused, so it falls back to white. |
-| [T3D-W045](messages/T3D-W045.md) | `image-animation-unsupported` | warning | An animated WebP or GIF texture was refused, so it falls back to white. |
+| [T3D-W045](messages/T3D-W045.md) | `image-animation-unsupported` | warning | An animated WebP, GIF or AVIF texture was refused. |
 | [T3D-W046](messages/T3D-W046.md) | `image-animation-first-frame` | warning | An animated PNG was read as its default image only. |
 | [T3D-W047](messages/T3D-W047.md) | `image-icc-profile-ignored` | warning | An embedded colour profile was ignored; the texture is read as sRGB. |
-| [T3D-W048](messages/T3D-W048.md) | `image-transfer-unsupported` | warning | A PNG gamma other than sRGB or linear was ignored; the texture is read as sRGB. |
-| [T3D-W049](messages/T3D-W049.md) | `image-profile-unsupported` | warning | A TIFF profile or codec was declined, so the texture falls back to white. |
+| [T3D-W048](messages/T3D-W048.md) | `image-transfer-unsupported` | warning | A texture declares an unsupported transfer curve. |
+| [T3D-W049](messages/T3D-W049.md) | `image-profile-unsupported` | warning | A texture profile or codec was declined. |
 | [T3D-W050](messages/T3D-W050.md) | `image-depth-unsupported` | warning | A texture with more than 8 bits per channel was refused, so it falls back to white. |
 | [T3D-W051](messages/T3D-W051.md) | `image-too-large` | warning | A texture is above the decoding size ceiling, so it falls back to white. |
 | [T3D-W052](messages/T3D-W052.md) | `image-float-unsupported` | warning | A floating-point image (OpenEXR or HDR) was used where an 8-bit image is expected. |
@@ -214,6 +219,10 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-W106](messages/T3D-W106.md) | `texture-out-of-bounds` | warning | A material names a texture the file does not declare, so its texture levels are not baked. |
 | [T3D-W107](messages/T3D-W107.md) | `texture-without-image` | warning | A glTF texture names no image, so its texture levels are not baked. |
 | [T3D-W108](messages/T3D-W108.md) | `texture-blocks-undecodable` | warning | A compressed texture level did not decode back during its quality check. |
+| [T3D-W219](messages/T3D-W219.md) | `image-colour-association-unsupported` | warning | The AVIF primary image has no supported colour-property association. |
+| [T3D-W220](messages/T3D-W220.md) | `image-transform-unsupported` | warning | The AVIF declares a crop, rotation or mirror that this decoder cannot apply. |
+| [T3D-W221](messages/T3D-W221.md) | `image-primaries-unsupported` | warning | The AVIF colour primaries are not supported by the decoder. |
+| [T3D-W222](messages/T3D-W222.md) | `image-colour-description-unsupported` | warning | The AVIF colour description is not supported by the decoder. |
 
 ## USD
 

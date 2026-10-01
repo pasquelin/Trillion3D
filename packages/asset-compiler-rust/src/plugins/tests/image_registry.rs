@@ -65,7 +65,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
         registry::extensions().collect::<Vec<_>>(),
         [
             "png", "jpg", "jpeg", "tga", "tpic", "tif", "tiff", "dds", "webp", "exr", "hdr",
-            "rgbe", "pic", "ktx2", "psd", "psb", "bmp", "dib", "rle", "gif"
+            "rgbe", "pic", "ktx2", "psd", "psb", "bmp", "dib", "rle", "gif", "avif"
         ]
     );
 }
@@ -88,6 +88,13 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "usd=",
         "usdz=",
         "ma=",
+        "ply=",
+        "stl=",
+        "amf=",
+        "vox=",
+        "collada=",
+        "3mf=",
+        "ldraw=",
         "png=",
         "jpeg=",
         "tga=",
@@ -100,9 +107,10 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "psd=",
         "bmp=",
         "gif=",
+        "avif=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
-    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(11));
-    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(12));
+    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(24));
+    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(13));
 }

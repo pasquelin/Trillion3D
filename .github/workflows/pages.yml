@@ -63,6 +63,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/asset-compiler-rust
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        if: runner.arch == 'X64' && steps.plan.outputs.deploy == 'true'
+        with:
+          version: 2.16.03
       - if: steps.plan.outputs.deploy == 'true'
         run: pnpm run build:native && pnpm run compile:caches
       # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;

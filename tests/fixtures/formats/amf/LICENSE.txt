@@ -1,0 +1,2 @@
+Original hand-authored fixture for Trillion3D, distributed under the repository license.
+No third-party geometry, imagery or source code is included.

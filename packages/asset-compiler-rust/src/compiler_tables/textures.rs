@@ -23,7 +23,7 @@ fn filter(value: Option<&Value>, default: &'static str) -> &'static str {
 }
 /// The image a texture shows, the one the reference loader reads: the WebP, then the AVIF source
 /// an extension declares (a texture may carry no other), else the core `source`.
-fn texture_image(texture: &Value) -> Option<u64> {
+pub(crate) fn texture_image(texture: &Value) -> Option<u64> {
     ["EXT_texture_webp", "EXT_texture_avif"]
         .iter()
         .find_map(|name| texture.pointer(&format!("/extensions/{name}/source")))

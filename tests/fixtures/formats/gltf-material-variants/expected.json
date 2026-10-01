@@ -1,0 +1,7 @@
+{
+  "triangles": 1,
+  "sourceMaterials": 3,
+  "variantNames": ["paint", "paint"],
+  "defaultMaterial": "default",
+  "variantMaterials": ["blue", "green"]
+}

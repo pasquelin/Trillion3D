@@ -69,6 +69,24 @@ pub(super) fn primitive_triangles(g: &Value, p: &Value) -> Result<usize> {
         return Err(invalid("primitive.attributes.POSITION is required"));
     }
     let accessors = values(g, "accessors")?;
+    let mode = optional_index(p.get("mode"), "primitive.mode", 4)?;
+    if (1..=3).contains(&mode) {
+        let id = required_index(
+            p.get("indices").or_else(|| attributes.get("POSITION")),
+            "line accessor",
+        )?;
+        let count = required_index(
+            item(accessors, id, "accessor")?.get("count"),
+            "accessor.count",
+        )?;
+        if count < 2 || (mode == 1 && count % 2 != 0) {
+            return Err(invalid(
+                "Lines require complete segments and at least two vertices",
+            ));
+        }
+        return Ok(0);
+    }
+
     if let Some(index_v) = p.get("indices") {
         let id = required_index(Some(index_v), "primitive.indices")?;
         let count = required_index(

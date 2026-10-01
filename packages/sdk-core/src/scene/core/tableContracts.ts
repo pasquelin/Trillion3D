@@ -130,6 +130,8 @@ export interface PreparedSceneTables {
   animations: TableAnimation[];
   /** The surfaces. */
   materials: TableMaterial[];
+  /** Declared KHR_materials_variants names, addressed by rank to preserve duplicate names. */
+  materialVariants?: readonly string[];
   /** The textures. */
   textures: TableTexture[];
   /** The geometry layout of each published scene file, by its name. */
@@ -184,6 +186,12 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
         ...(tables.documents ? [] : ['documents']),
       ],
     });
+  if (
+    tables.materialVariants !== undefined &&
+    (!Array.isArray(tables.materialVariants) ||
+      tables.materialVariants.some((name) => typeof name !== 'string'))
+  )
+    throw new EngineError('INVALID_SCENE_TABLES', 'Invalid material variant names');
   tables.partition = assertTablePartition(tables.partition);
   return tables;
 }

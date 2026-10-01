@@ -1,3 +1,4 @@
+import { isImportedLine, loadModelLines } from './modelLines.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
@@ -78,10 +79,13 @@ export class LoadedModel extends Object3D {
     else this.nodeOf(graph.parent).add(node);
     return node;
   }
-  /** The first node below with this name: the model, a node of its source file, then any other
-   *  child — a light the file carried, a node a page placed. */
+  /** The first node with this name: the model, a carried lamp, a source node, then another child. */
   override getObjectByName(name: string): Object3D | undefined {
     if (this.name === name) return this;
+    const lamp = this.children.find(
+      (child) => this.carried.has(child) && (child as Light).isLight && child.name === name,
+    );
+    if (lamp) return lamp;
     const graph = findGraphNode(this.record.scene.source, name);
     return graph ? this.nodeOf(graph) : super.getObjectByName(name);
   }
@@ -97,6 +101,9 @@ export class LoadedModel extends Object3D {
     super();
     this.record = record;
     this.type = 'LoadedModel';
+    record.scene.source.traverse((node) => {
+      if (isImportedLine(node)) this.nodeOf(node);
+    });
     const flat = hostWorldBounds(record.scene.source, emptyWorldBox());
     this.bounds = new Box3(
       new Vector3(flat[0], flat[1], flat[2]),
@@ -174,6 +181,7 @@ export async function loadModel(
     }),
     loadImportedLights(base, signal, meter),
   ]);
+  await loadModelLines(scene.source);
   meter.settle();
   loaded.settle();
   const model = new LoadedModel({

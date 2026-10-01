@@ -51,3 +51,39 @@ dependency. The fixtures that prove them are described in
 | `texture2ddecoder` | 0.1.2 | MIT or Apache-2.0 | https://github.com/UniversalGameExtraction/texture2ddecoder | GPU block reconstruction (BCn, ETC2, EAC, ASTC) for the `dds` and `ktx2` drivers, through the `image::blocks` foundation; pure Rust |
 | `basisu` | 0.1.0 | Apache-2.0 | https://github.com/marcogomez/basisu | Basis Universal payloads in KTX 2.0; pure Rust, a port of Binomial's reference transcoder verified byte for byte against it |
 | `ruzstd` | 0.7.3 | MIT | https://github.com/KillingSpark/zstd-rs | Zstandard supercompression in KTX 2.0; pure Rust, decompression only |
+| `avif-decode` | 3.0.0 | BSD-3-Clause | https://github.com/kornelski/avif-decode | AVIF still image decoding; no encoder or CLI |
+| `avif-parse` | 2.1.0 | MPL-2.0 | https://github.com/kornelski/avif-parse | AVIF demuxing and AV1 sequence metadata; upstream sources remain unmodified |
+| `rav1d` | 1.1.0 | BSD-2-Clause | https://github.com/memorysafety/rav1d | AV1 decoding, a Rust port of dav1d with platform assembly |
+
+## Source XML reader
+
+`roxmltree` 0.20.0 (MIT or Apache-2.0), https://github.com/RazrFalcon/roxmltree,
+reads source-format XML. DTD processing is disabled. Its licence notices remain with
+the dependency; no editor or external application SDK is linked.
+
+
+## CAD source readers
+
+- `cadmpeg-codec-rhino`, `cadmpeg-core`, `cadmpeg-ir` and their `cadmpeg-container`
+  dependency, version 0.5.5, Apache-2.0, https://github.com/cadmpeg/cadmpeg.
+  The compiler uses bounded read-only Rhino decoding and its native metadata.
+  `cadmpeg-codec-rhino` is vendored with one source change correcting the CRC
+  coverage of instance-definition wrappers; see
+  [`PATCH.md`](packages/asset-compiler-rust/vendor/cadmpeg-codec-rhino/PATCH.md).
+  Its upstream Apache-2.0 licence is retained. The other cadmpeg sources are unmodified.
+- `ifc-lite-core` 20.2.0, MPL-2.0, https://github.com/LTplus-AG/ifc-lite.
+  Only the STEP syntax/entity reader is linked; geometry is converted by the compiler's
+  bounded format adapter. Upstream source remains unmodified and is available at that
+  repository and https://crates.io/crates/ifc-lite-core/20.2.0.
+- Fixture generation uses McNeel's `rhino3dm` independently of the runtime decoder;
+  the fixture README records its MIT licence and the authored sample provenance.
+
+## Isolated JSON dependency features
+
+- `serde_json` 1.0.151, MIT OR Apache-2.0, https://github.com/serde-rs/json.
+  Its unchanged source and build script are vendored as package `serde_json_legacy`
+  for the compiler's existing JSON feature domain. Only the package name in its
+  manifest changes; both upstream licences are included. This prevents cadmpeg's
+  `float_roundtrip` requirement from changing historical Maya/Unity numeric bits,
+  while preserving that feature for cadmpeg itself. See
+  [`PATCH.md`](packages/asset-compiler-rust/vendor/serde-json-legacy/PATCH.md).

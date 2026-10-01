@@ -1795,7 +1795,7 @@
       "bounds": "该模型所占据的包围盒,以它自身的坐标系表示。",
       "lights": "该模型之下的光源——即源文件以节点形式携带的那些:页面可以像对待自己的节点一样编辑、移动或移除它们,它们会随模型一起移动。",
       "record": "世界为这个模型保存的一切:它的地址、清单和图结构。",
-      "getObjectByName": "下方第一个带此名称的节点：模型、其源文件的节点，然后是其他任何子节点——文件携带的灯光、页面放置的节点。",
+      "getObjectByName": "具有此名称的第一个节点：依次查找模型、导入的灯光、源节点和其他子节点。",
       "metadata": "该模型已编译的清单——它的图元、`sourceTriangles`——以及 `clusters`(它的页面所持有的簇,统计了其 DAG 的每一个层级)。",
       "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
       "animations": "文件中的动画片段，绑定到模型节点：`animation.createMixer(model).clipAction(model.animations[0]).play()`。"
@@ -4223,6 +4223,12 @@
       "error": "最后一个会话为何无法打开，以具名的引擎错误表示：其 `code` 是 `EngineError` 上记录的代码之一（WebGPU 丢失设备时为 `WEBGPU_LOST`），或对于没有自身代码的原因为 `SESSION_OPEN_FAILED`。带有已记录代码的 `EngineError` 就是抛出的那个错误；其他任何错误都会被转换，此时抛出的错误位于 `details.cause`。从每次打开开始时起，以及没有尝试任何打开时，为 `null`。",
       "modes": "当前渲染器提供的所有视图模式。"
     }
+  },
+  "world.materialVariants": {
+    "summary": "导入的 glTF 变体，包含模型范围内的标识符和原始名称。"
+  },
+  "world.selectMaterialVariant": {
+    "summary": "选择列表中的导入变体；null 恢复所有模型的默认表面。"
   },
   "world.materials": {
     "summary": "当前导入的材质，以及页面创建的材质。"

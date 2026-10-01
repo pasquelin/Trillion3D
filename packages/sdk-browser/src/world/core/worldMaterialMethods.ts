@@ -11,6 +11,14 @@ export function worldMaterialMethods(session: () => MeasuredWorld | null, invali
   const createMaterial: MeasuredWorld['createMaterial'] = ((props = {}) =>
     drawn().createMaterial(props)) as MeasuredWorld['createMaterial'];
   return {
+    /** Imported glTF variant sets with scoped IDs, including their source names. */
+    materialVariants: () => drawn().materialVariants(),
+    /** Select a listed imported set; null restores every model's default surfaces. */
+    selectMaterialVariant(id: string | null) {
+      const taken = drawn().selectMaterialVariant(id);
+      invalidate();
+      return taken;
+    },
     /** Current imported materials, followed by page-created materials. */
     materials: () => drawn().materials(),
     /** One material by its listed ID. */

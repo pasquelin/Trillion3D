@@ -146,12 +146,12 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
+    contents.conditionalLines(camera());
     apply();
     if (!explorer) return;
     fit.apply(explorer);
     placeCamera(explorer.camera);
   };
-  // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
     if (inputs.drawn() || disposed || !scene.children.length) return null;
     return explorer ? 'its session is open and draws nothing' : `no session has opened, ${closed}`;

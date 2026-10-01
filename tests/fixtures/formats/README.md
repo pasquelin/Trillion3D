@@ -58,7 +58,9 @@ dated otherwise; "written here" as [above](#rules-for-every-folder). Sizes are t
 | `gltf/compressed-box` | `Box.gltf` (2,427 bytes), `Box.bin` (120 bytes) | **CC-BY-4.0**, [LICENSE.txt](gltf/compressed-box/LICENSE.txt) | unmodified Draco glTF and binary from Khronos glTF Sample Assets, [`Models/Box/glTF-Draco`](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Box/glTF-Draco) | © 2017 Cesium (`COLLADA2GLTF`); added 2026-09-28 |
 | `gltf-world` | `world.gltf`, `world.bin` (124 bytes) | CC0-1.0 | written by hand for this repository (#823) | 2026-09-26 |
 | `hdr` | seven `.hdr` (81–106 bytes), `scene.gltf`, `scene.bin` | CC0-1.0 | written here from Greg Ward's “Real Pixels” (Graphics Gems II, 1991) and the Radiance manual (Lawrence Berkeley National Laboratory) | Trillion3D corpus, 2026-09-15 |
-| `import-fbx` | `riviere.fbx` (2,990 bytes), `bend.fbx` (2,499 bytes) | repository [`LICENSE`](../../../LICENSE) | ASCII FBX 7400 written in this repository: `riviere.fbx` by hand (2026-09-15), `bend.fbx` with #357 (2026-09-29) | Alban Pasquelin |
+| `import-fbx` | `riviere.fbx` (2,990 bytes), `bend.fbx` (2,499 bytes), `lights.fbx` (3,520 bytes) | repository [`LICENSE`](../../../LICENSE) | ASCII FBX 7400 written in this repository: `riviere.fbx` by hand (2026-09-15), `bend.fbx` with #357 (2026-09-29), `lights.fbx` with #356 (2026-09-30) | Alban Pasquelin |
+| `rhino` | seven `.3dm` mesh/instance/attribute/optical-refusal fixtures; `generate.py` | repository [`LICENSE`](../../../LICENSE) | authored here with official McNeel `rhino3dm` 8.17.0; no external artwork | 2026-10-01, #356 |
+| `vox` | `default.vox` (64 bytes), `scene.vox` (1,747 bytes) | repository [`LICENSE`](../../../LICENSE) | MagicaVoxel 150/200 binary chunks authored in this repository for #356 (2026-09-30), from the published format grammar | Alban Pasquelin |
 | `ktx2` | `basis.ktx2` (8,108 bytes) | CC0-1.0, [LICENSE.txt](ktx2/LICENSE.txt) | corpus `tests/assets/textures/ktx2-matrix/basis.ktx2` | `ktx create v4.4.2 / libktx v4.4.2`, `tests/assets/tools/texture_assets.py` |
 | `ktx2` | `uastc.ktx2` (416 bytes) | CC0-1.0, same notice | cut from corpus `tests/assets/textures/ktx2-matrix/uastc.ktx2`, no re-encoding | corpus |
 | `ktx2` | `base.ktx2` (260 bytes), `base-zstd.ktx2` (256 bytes), `tronque.ktx2` (40 bytes), `scene.*`, `expected.json` | CC0-1.0, same notice | written here from Khronos “KTX File Format Specification, version 2.0”; `tronque.ktx2` is forty bytes of `basis.ktx2` | Trillion3D corpus |
@@ -377,6 +379,18 @@ colour and opacity, the test replaces the last connection with
 `BlendShape` whose channel `curl` curls it, and an `AnimationStack` `sway` sliding the bone. The
 conversion writes a skin, a morph target and a clip; the compilation pages the skinned leaf and
 tables its motion.
+
+**`lights.fbx`** (`src/tests/formats/fbx_lights.rs`): authored ASCII FBX 7400 with a
+triangle and a translated, quarter-turned parent. Two nodes instance one point-light
+attribute; a spot and a sun carry independent colours/intensities, while `CastLight=0`
+and `Visibility=0` lamps must not illuminate the cooked scene. The point instances land
+at `[13,22,29]` and `[12,20,31]`; the spot points down Y, the sun down X. Its full spot
+openings of 20°/60° become glTF half-angles of 10°/30°. This follows the FBX convention
+used by [Blender's exporter](https://github.com/blender/blender-addons/blob/main/io_scene_fbx/export_fbx_bin.py):
+`OuterAngle = degrees(lamp.spot_size)` and
+`InnerAngle = degrees(lamp.spot_size * (1 - lamp.spot_blend))`.
+The test also checks radiometric conversion, instance IDs, cooked tables and repeatable
+cache identity. No external artwork is embedded.
 
 ## ktx2
 
@@ -906,3 +920,47 @@ compilations are one: the key serves only that equality, the real subject — th
 Each trap is refused by its own code, nothing extracted; regenerate the two synthetic ones with
 `sh traps.sh` from `zip/`. `expected.json` also pins the `zip` → inner driver chain and the
 three rejection codes.
+
+## vox
+
+Two authored binary fixtures follow [MagicaVoxel's base grammar](https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt)
+and [scene/material extensions](https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox-extension.txt).
+No artwork or third-party implementation is embedded.
+
+- `default.vox`: version 150, SIZE `[1,1,1]`, one XYZI voxel using palette slot 216,
+  no RGBA chunk. The published default palette gives `[238,0,0,255]` before linear RGB conversion.
+- `scene.vox`: version 200, two adjacent voxels with red/green RGBA slots, MATL metal
+  (weight 0.6 / roughness 0.2) and emission (weight 0.4), and one shared model instantiated
+  three times. A translated parent, a signed quarter-turn and an offset instance retain
+  the hierarchy; the third instance belongs to a hidden layer.
+
+Opaque adjacency yields 20 triangles (two internal faces removed), with separate palette
+material identities. Tests mutate this fixture to verify equal colours remain distinct,
+transparent interfaces retain 24 triangles, bad graph/counts are refused, and graph metadata
+has cumulative admission even when only one voxel is present. Native integration compiles
+it through the public pipeline and checks cooked visibility, material identity and cache reuse.
+
+The reader treats one voxel as one world unit, centres each model's SIZE box on its pivot,
+and applies a right-handed Z-up→Y-up root transform. Its surface is unmerged unit faces;
+meshes are reused by instances. Static SIZE/XYZI/RGBA/MATL, nTRN/nGRP/nSHP and LAYR are
+supported. Animated frame sets, legacy MATT, IMAP and nested non-MAIN chunks fail explicitly.
+Unknown metadata chunks are counted in the import report. MATL properties without a defined
+conversion (`_flux`, `_att`, `_plastic`, `_spec`) remain in extras and are reported as unmapped;
+this does not claim optical equivalence with MagicaVoxel's renderer. Budget admission accounts
+for voxels and decoded graph/dictionary/output expansion; it is not an OS RSS limit.
+
+## rhino
+
+Seven source archives are encoded by the independent official McNeel
+`rhino3dm==8.17.0` package using [`generate.py`](rhino/generate.py).
+`meshes.3dm` contains two differently bound materials and a hidden object;
+`instances.3dm` uses one triangle definition twice with translation and reflection;
+`attributes.3dm` has authored normals, UVs and vertex colours.
+`untessellated.3dm` is an exact sphere outside the mesh-only reader domain.
+`glossy.3dm`, `glass.3dm` and `pbr.3dm` use active unsupported optical properties
+and must fail with named refusals. Units are millimetres and UUIDs are authored.
+
+Reproduce with the official Python package installed, then run
+`python3 tests/fixtures/formats/rhino/generate.py`. Native tests read these real
+archives and exercise cooked material/visibility tables, identity and cache reuse.
+Strict integrity tests alter copies in memory, never fixture checksums.

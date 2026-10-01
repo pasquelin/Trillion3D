@@ -90,10 +90,11 @@ fn semantics(
 
 /// One primitive: its attributes by glTF semantic, its morph targets, its index list and the surface rank it wears.
 fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -> Result<Value> {
-    if optional_index(p.get("mode"), "primitive.mode", 4)? != 4 {
+    let mode = optional_index(p.get("mode"), "primitive.mode", 4)?;
+    if !(1..=4).contains(&mode) {
         return Err(CompilerError::new(
             "UNSUPPORTED_PRIMITIVE",
-            "Only static triangles are supported",
+            "Only triangles and lines are supported",
         ));
     }
     let attributes = semantics(p.get("attributes"), accessors)?
@@ -117,9 +118,15 @@ fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -
     if indices.is_some_and(|id| id >= accessors) {
         return Err(invalid("primitive.indices index is out of bounds"));
     }
-    Ok(
-        json!({"attributes":attributes,"targets":targets,"indices":indices,"material":surfaces.rank(g, p)?}),
-    )
+    let mut out = json!({"attributes":attributes,"targets":targets,"indices":indices,"material":surfaces.rank(g, p)?});
+    if mode != 4 {
+        out["mode"] = json!(mode);
+    }
+    let variants = super::variants::bindings(g, p, surfaces)?;
+    if !variants.is_null() {
+        out["variants"] = variants;
+    }
+    Ok(out)
 }
 
 fn images(g: &Value, views: usize) -> Result<Vec<Value>> {

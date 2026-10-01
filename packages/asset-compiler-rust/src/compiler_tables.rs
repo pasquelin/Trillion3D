@@ -19,6 +19,7 @@ pub(crate) mod partition;
 mod physical;
 mod sparse;
 mod textures;
+mod variants;
 use documents::document_table;
 use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::material_entry;
@@ -120,7 +121,7 @@ pub(super) fn stage_scene_tables(
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
     let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
-    let tables = json!({
+    let mut tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
         "materialTableVersion": MATERIAL_TABLE_VERSION,
@@ -137,6 +138,10 @@ pub(super) fn stage_scene_tables(
         "textures": textures,
         "documents": documents,
     });
+    let variants = variants::names(published)?;
+    if !variants.is_empty() {
+        tables["materialVariants"] = json!(variants);
+    }
     let written = product(directory, SCENE_TABLES_FILE, &serde_json::to_vec(&tables)?)?;
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
@@ -171,3 +176,5 @@ pub(crate) fn cell_records(directory: &Path) -> std::result::Result<Map<String, 
     let named = |cell: Value| (cell["url"].as_str().unwrap_or_default().to_string(), cell);
     Ok(records.into_iter().map(named).collect())
 }
+
+pub(crate) use textures::texture_image;

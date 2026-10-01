@@ -65,13 +65,26 @@ function drawTriangles(
   }
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const loop = reading === 'lineLoop' && corners.length > 2;
-    return quads(p, lineCorners(corners, reading), traced, options.dashed, loop);
+    return quads(
+      p,
+      lineCorners(corners, reading),
+      traced,
+      readList(geometry, 'color', 4, position.count),
+      options.dashed,
+      loop,
+    );
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
     // Every edge once, however many triangles share it (`edgesOf`).
     const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
-    return quads(p, segments, traced, options.dashed);
+    return quads(
+      p,
+      segments,
+      traced,
+      readList(geometry, 'color', 4, position.count),
+      options.dashed,
+    );
   }
   const drawn = {
     positions: new Float32Array(p),
@@ -118,6 +131,7 @@ function quads(
   p: number[],
   segments: number[],
   traced: boolean,
+  color: Float32Array | null,
   dashed = false,
   loop = false,
 ): DrawnTriangles | null {
@@ -125,7 +139,8 @@ function quads(
     normals: number[] = [],
     uvs: number[] = [],
     indices: number[] = [],
-    sourceVertices: number[] = [];
+    sourceVertices: number[] = [],
+    colors: number[] = [];
   let distance = 0;
   for (let s = 0; s + 1 < segments.length; s += 2) {
     const a = segments[s] * 3,
@@ -143,6 +158,7 @@ function quads(
       [b, -1],
     ]) {
       if (traced) sourceVertices.push(at / 3);
+      if (color) for (let c = 0; c < 4; c++) colors.push(color[(at / 3) * 4 + c]);
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
       if (dashed) uvs.push(at === a ? distance : end, 0);
@@ -155,7 +171,7 @@ function quads(
     positions: new Float32Array(positions),
     normals: new Float32Array(normals),
     uvs: dashed ? new Float32Array(uvs) : null,
-    colors: null,
+    colors: color ? new Float32Array(colors) : null,
     indices: new Uint32Array(indices),
     lines: true,
     ...(traced && { sourceVertices: new Uint32Array(sourceVertices) }),

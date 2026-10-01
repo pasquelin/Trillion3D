@@ -111,7 +111,9 @@
       "bench/perf/**",
       "bench/oracles/**",
       "bench/core/**",
-      "site/assets/**"
+      "site/assets/**",
+      "packages/asset-compiler-rust/vendor/cadmpeg-codec-rhino/**",
+      "packages/asset-compiler-rust/vendor/serde-json-legacy/**"
     ]
   },
   "dependencies": {

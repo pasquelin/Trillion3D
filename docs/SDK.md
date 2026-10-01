@@ -696,11 +696,23 @@ model's materials through its `world`:
 | `world.materials()` | `SceneMaterial[]`: the current materials in cache table order, then the page's, as detached copies with `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`, `alphaMode`, `alphaCutoff` and `tiling` (`null` without a map) |
 | `world.material(id)` | one by listed ID; an unknown ID raises `UNKNOWN_MATERIAL` |
 | `world.importedMaterials()` | the source file's values, whatever the page changed; created materials excluded |
+| `world.materialVariants()` | imported glTF variant sets as `{ id, name }`; IDs distinguish models and duplicate names |
+| `world.selectMaterialVariant(id)` | select a listed set on its model; `null` restores all imported models' default materials |
 | `world.setMaterial(id, patch)` | every surface built from it, next frame; `true` if every renderer took it in place, `false` if one needs a new session |
 | `world.createMaterial(props?)` | a page-owned material, at most 256 per session (`MATERIAL_CEILING` past it, nothing created) |
 | `world.dropMaterial(id)` | releases an unused created material, its variants, map and accounted bytes |
 | `world.materialMapBytes()` | runtime map bytes held and pending, under the fixed 64 MiB ceiling |
 | `world.assignMaterial('mesh/primitive', id)` | a created material on a compiled primitive — `world.assignMaterial('mesh/primitive', created.id)`, numbers from `metadata.primitives`; unknown: `UNKNOWN_SCENE_NODE` |
+
+`KHR_materials_variants` alternatives use the same prepared materials, textures and live assignment
+path as other material changes. A selection affects every instance of the model; a primitive with
+no mapping for that set returns to its default material. Other loaded models keep their selection.
+Choose a listed ID rather than assuming names are unique; IDs last for the loaded source graph.
+`null` restores the imported surface assignments, retaining edits made with `setMaterial`.
+An unknown set raises `UNKNOWN_MATERIAL`. Every alpha-class/backend check runs before surfaces
+change: `MATERIAL_CLASS_CHANGE` or `UNSUPPORTED_SCENE_UPDATE` leaves the previous selection intact.
+The call returns whether every renderer refreshed in place. Alternate surfaces and their textures
+are prepared during loading and released with the model, including alternatives never selected.
 
 A patch sets `baseColor` (three linear channels, 0 to 1), `opacity`, `metalness`, `roughness` and
 `alphaCutoff` (each 0 to 1), nonnegative linear `emissive`, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`)

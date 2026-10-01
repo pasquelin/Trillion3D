@@ -39,7 +39,11 @@ pub fn pack(colour: [f64; 3]) -> u32 {
 /// `packages/sdk-browser/src/lighting/deferred/shaders.ts` carries it on the engine side. Three precisions,
 /// three locations, no sharing.
 pub fn srgb_to_linear(byte: u8) -> f64 {
-    let value = byte as f64 / 255.0;
+    srgb_component_to_linear(byte as f64 / 255.0)
+}
+
+/// An sRGB component at its source precision, without an intermediate eight-bit quantization.
+pub(crate) fn srgb_component_to_linear(value: f64) -> f64 {
     if value <= 0.04045 {
         value / 12.92
     } else {

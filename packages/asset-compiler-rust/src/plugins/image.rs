@@ -6,6 +6,7 @@
 use super::Plugin;
 use std::path::Path;
 
+mod avif;
 pub(crate) mod blocks;
 mod bmp;
 mod crate_image;
@@ -45,6 +46,7 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &psd::PSD,
     &bmp::BMP,
     &gif::GIF,
+    &avif::AVIF,
 ];
 
 /// A texture 2³² texels on a side has only thirty-three levels: beyond that, the field is lying.

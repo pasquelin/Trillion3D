@@ -1,10 +1,6 @@
 /**
- * The host scene graph of the prepared scene, assembled from the node table under the rules the
- * host loader applied, since the scene the engine draws is proven by being the same scene:
- *
  * - a node carrying one thing IS that thing (a mesh, a camera, a light), one carrying several is a group of
  *   them, one carrying nothing is a bare node; its children follow what it carries;
- * - a mesh of one primitive is one host mesh, a mesh of several a group of one host mesh each;
  * - a mesh, a camera or a light several nodes name is copied per node, the copies sharing geometry and
  *   surface, and named `_instance_<n>` in turn;
  * - names are made unique in the order the loader reserved them: scene, then each node, its
@@ -20,11 +16,12 @@ import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDoc
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
 import { surfaceVariantOf, type SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { primitiveMesh, referenceCounts } from './primitiveMesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { primitiveMaterials, copyPreparedVariants } from './materialVariants.ts';
 import { placedMeshes } from './placed.ts';
 import { registerPagedSource } from './pagedSource.ts';
 import { bindSkins, clipsOf, movedNodes } from './motion.ts';
@@ -53,14 +50,13 @@ export async function preparedGraph(inputs: Inputs) {
   const unique = uniqueNames();
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
+  const variants = { id: scene.id, names: tables.materialVariants ?? [] };
   if (tables.scene.name) scene.name = unique(tables.scene.name);
-  const refs = (field: 'mesh' | 'light' | 'camera') => {
-    const counts = new Map<number, number>();
-    for (const node of tables.nodes)
-      if (node[field] !== null) counts.set(node[field], (counts.get(node[field]) ?? 0) + 1);
-    return counts;
+  const counts = {
+    mesh: referenceCounts(tables, 'mesh'),
+    light: referenceCounts(tables, 'light'),
+    camera: referenceCounts(tables, 'camera'),
   };
-  const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') };
   const uses = new Map<string, number>();
   /** The object a node names, or its copy when several nodes name it. */
   const reference = (kind: keyof typeof counts, rank: number, made: Object3D) => {
@@ -68,6 +64,7 @@ export async function preparedGraph(inputs: Inputs) {
     const copy = numbered(made.clone());
     const walk = (from: Object3D, to: Object3D) => {
       if (from !== made && from.name) to.name = unique(from.name);
+      copyPreparedVariants(from, to);
       const held = ranks.get(from);
       if (held) ranks.set(to, held);
       from.children.forEach((child, i) => walk(child, to.children[i]));
@@ -121,10 +118,11 @@ export async function preparedGraph(inputs: Inputs) {
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
       const variant = surfaceVariantOf(geometry.attributes);
+      if (primitive.mode) variant.lines = true;
       // The pages carry the normals of the primitive they were cut from: flat only without them.
       const cut = pagedFrom?.[rank]?.primitives[p];
       if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
-      return { geometry, material: materialOf(primitive.material, variant) };
+      return { geometry, material: primitiveMaterials(variants, primitive, variant, materialOf) };
     }),
   );
   // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
@@ -134,7 +132,7 @@ export async function preparedGraph(inputs: Inputs) {
     order.map((rank, at) =>
       Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
         drawn[at].map(({ geometry }, p) => {
-          const mesh = numbered(new Mesh(geometry, surfaces[p]));
+          const mesh = primitiveMesh(geometry, surfaces[p], meshes[rank].primitives[p]);
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
           return mesh;
@@ -145,11 +143,13 @@ export async function preparedGraph(inputs: Inputs) {
   const built = new Map<number, Object3D>();
   for (const [at, rank] of order.entries()) {
     const parts = made[at];
-    parts.forEach((mesh, p) => ranks.set(mesh, { meshes: rank, primitives: p }));
+    parts.forEach((mesh, p) => {
+      if (mesh.primitive === 'triangles') ranks.set(mesh, { meshes: rank, primitives: p });
+    });
     if (parts.length === 1) built.set(rank, parts[0]);
     else {
       const group = new Group();
-      ranks.set(group, { meshes: rank });
+      if (parts.some((mesh) => mesh.primitive === 'triangles')) ranks.set(group, { meshes: rank });
       for (const part of parts) group.add(part);
       built.set(rank, group);
     }

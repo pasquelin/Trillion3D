@@ -2,6 +2,7 @@ use super::*;
 pub(in crate::tests) mod autonomous_scene;
 pub(in crate::tests) mod cuts;
 pub(in crate::tests) mod extension_tables;
+mod material_variants;
 pub(in crate::tests) mod mesh_pages;
 pub(in crate::tests) mod motion_tables;
 pub(in crate::tests) mod partition;

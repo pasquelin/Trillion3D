@@ -104,6 +104,10 @@ jobs:
         uses: ./.github/actions/node
       # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
       # `Cargo.lock` into its own `target/`).
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        if: runner.arch == 'X64'
+        with:
+          version: 2.16.03
       - uses: Swatinem/rust-cache@v2
         if: steps.native.outputs.hit != 'true'
         with:
@@ -143,6 +147,10 @@ jobs:
         id: native
         with:
           rust: ${{ steps.rust.outputs.cachekey }}
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
+        if: runner.arch == 'X64'
+        with:
+          version: 2.16.03
       - uses: Swatinem/rust-cache@v2
         if: steps.native.outputs.hit != 'true'
         with:

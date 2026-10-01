@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 authored KML 2.2 Model fixture, geodetic placement in WGS84. -->
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><name>sample model</name><Model>
+<altitudeMode>absolute</altitudeMode><Location><longitude>2</longitude><latitude>48</latitude><altitude>100</altitude></Location>
+<Orientation><heading>90</heading><tilt>0</tilt><roll>0</roll></Orientation><Scale><x>2</x><y>2</y><z>2</z></Scale>
+<Link><href>models/scene.dae</href></Link></Model></Placemark></Document></kml>

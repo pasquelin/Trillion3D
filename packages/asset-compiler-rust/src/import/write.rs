@@ -35,6 +35,7 @@ impl Tables<'_> {
             gltf["samplers"] = json!(self.samplers);
             gltf["textures"] = json!(self.textures);
         }
+        declare_extensions(&mut gltf);
         gltf
     }
 }
@@ -68,4 +69,32 @@ pub(crate) fn write_scene(
         &directory.join("manifest.json"),
         &serde_json::to_vec_pretty(&manifest)?,
     )
+}
+
+/// Inventory actual extension objects, excluding application extras.
+pub(crate) fn declare_extensions(document: &mut Value) {
+    fn collect(value: &Value, names: &mut std::collections::BTreeSet<String>) {
+        match value {
+            Value::Object(fields) => {
+                for (key, child) in fields {
+                    if key == "extras" {
+                        continue;
+                    }
+                    if key == "extensions" {
+                        if let Some(entries) = child.as_object() {
+                            names.extend(entries.keys().cloned());
+                        }
+                    }
+                    collect(child, names);
+                }
+            }
+            Value::Array(items) => items.iter().for_each(|item| collect(item, names)),
+            _ => {}
+        }
+    }
+    let mut names = std::collections::BTreeSet::new();
+    collect(document, &mut names);
+    if !names.is_empty() {
+        document["extensionsUsed"] = json!(names);
+    }
 }

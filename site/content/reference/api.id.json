@@ -1813,7 +1813,7 @@
       "bounds": "Kotak yang diisi model itu, dalam kerangkanya sendiri.",
       "lights": "Cahaya di bawah model — yang dibawa berkas sumbernya, sebagai node: sebuah halaman mengedit, memindah atau menghapusnya seperti miliknya sendiri, dan mereka bergerak bersama model itu.",
       "record": "Semua yang disimpan dunia tentang model ini: alamatnya, manifest dan grafnya.",
-      "getObjectByName": "Node pertama di bawah dengan nama ini: model, node dari berkas sumbernya, lalu anak lain mana pun — cahaya yang dibawa berkas, node yang ditempatkan halaman.",
+      "getObjectByName": "Node pertama dengan nama ini: model, lampu impor, node sumber, lalu anak lainnya.",
       "metadata": "Manifest terkompilasi model itu — primitifnya, `sourceTriangles` — dan `clusters`, cluster yang disimpan halamannya, setiap tingkat DAG-nya dihitung.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
       "animations": "Klip berkas yang terikat ke simpul model: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
@@ -7213,6 +7213,12 @@
       "error": "Mengapa sesi terakhir tidak bisa dibuka, sebagai galat mesin yang bernama: `code`-nya adalah salah satu yang didokumentasikan pada `EngineError` (`WEBGPU_LOST` saat WebGPU kehilangan perangkatnya), atau `SESSION_OPEN_FAILED` untuk alasan tanpa kode sendiri. `EngineError` dengan kode terdokumentasi adalah galat yang dilempar itu sendiri; galat lain dikonversi, dan galat yang dilempar lalu ada di `details.cause`. `null` sejak awal setiap pembukaan, dan saat tidak ada yang dicoba.",
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
+  },
+  "world.materialVariants": {
+    "summary": "Varian glTF yang diimpor dengan ID khusus setiap model dan nama aslinya."
+  },
+  "world.selectMaterialVariant": {
+    "summary": "Memilih varian impor dari daftar; null memulihkan permukaan bawaan semua model."
   },
   "world.materials": {
     "summary": "Material impor saat ini, diikuti material yang dibuat halaman."

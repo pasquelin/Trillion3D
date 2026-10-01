@@ -11,6 +11,18 @@ const RUST = join(ROOT, 'packages/asset-compiler-rust/src');
 const NODE = join(ROOT, 'packages/sdk-node/src');
 /** Code-shaped literals of the compiler that name something else: attributes, variables, tags. */
 const NOT_MESSAGES = new Set([
+  'A_ONE',
+  'A_ZERO',
+  'RGB_ONE',
+  'RGB_ZERO',
+  'X_UP',
+  'Y_UP',
+  'Z_UP',
+  'NEAREST_MIPMAP_NEAREST',
+  'LINEAR_MIPMAP_NEAREST',
+  'NEAREST_MIPMAP_LINEAR',
+  'LINEAR_MIPMAP_LINEAR',
+  'MATTE_METALLIC',
   'CARGO_PKG_VERSION',
   'COLOR_0',
   'JOINTS_0',

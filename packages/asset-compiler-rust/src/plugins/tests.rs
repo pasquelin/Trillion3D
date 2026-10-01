@@ -3,6 +3,7 @@
 use super::*;
 use std::{fs, path::PathBuf};
 
+mod avif;
 mod bmp;
 mod dds;
 mod exr;
