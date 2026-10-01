@@ -6,16 +6,18 @@ import { createSparseInts } from './sparseInts.ts';
 import type { PageRecord } from './state.ts';
 
 type Root = ClusterRoot<PageRecord>;
+/** A primitive: the `pages` its placements share (#1235), the key of its readiness. */
+type Primitive = Root['pages'];
 type Held = {
   readiness: CutReadiness;
-  /** The pages the feed named since the last read (`moved`), by rank in the placement. */
+  /** The pages the feed named since the last read (`moved`), by rank in the primitive. */
   moved: ReturnType<typeof createSparseInts>;
   structure: Root['structure'];
   nodes: Float64Array | undefined;
   pages: number;
-  /** The packed rank of its first page, or -1 when the feed cannot name its moves: such a
-   *  placement is read whole at every visit, and `unroutedReads` counts it. */
-  base: number;
+  /** False when the feed cannot name its moves, its placement holding no packed base: such a
+   *  primitive is read whole at every visit, and `unroutedReads` counts it. */
+  routed: boolean;
   /** What the running total counts of it. */
   bytes: number;
   /** The image that last visited it. */
@@ -40,28 +42,32 @@ function baseOf(
 }
 
 /**
- * THE RESIDENCY A POOL'S CUTS HOLD: the cut rule's readiness of each placement they visit
+ * THE RESIDENCY A POOL'S CUTS HOLD: the cut rule's readiness of each primitive they visit
  * (`./readiness.ts`), kept from one cut to the next and moved by the pool's own residency feed
  * (#483 rule 7). A page is resident when `isResident` says so, or, without one, when it holds its
  * index array. `moved` names a record whose residency may have changed, and the next cut visiting
- * its placement reads that page alone: a cut over placements in which nothing moved reads no page.
+ * a placement of its primitive reads that page alone: a cut over primitives in which nothing moved
+ * reads no page.
  *
- * A placement is read whole when it enters — first seen, or its DAG or hierarchy changed. A move
- * is routed by the packed base both layouts post on each root (`postPackedBases`, #1235),
- * against the placements `track` last named; a layout that changes calls `track` again, and the
- * placements that stay keep their state. A placement whose moves cannot be routed is read whole
- * at every visit, and counted.
+ * Residency belongs to the record, which every placement of a primitive shares (#1235): so does
+ * the readiness, one state per primitive however many of its placements the view holds, as
+ * Nanite's streaming state is its resource's and never an instance's (#1232). A primitive is read
+ * whole when it enters — first seen, or its DAG or hierarchy changed. A move is routed by the
+ * packed base both layouts post on each root (`postPackedBases`, #1235), against the placements
+ * `track` last named; a layout that changes calls `track` again, and the primitives that stay keep
+ * their state. A primitive entered by a placement whose moves cannot be routed is read whole at
+ * every visit, and counted.
  *
  * Bounded by the view (#483 rule 6): each image ends (`endImage`: its cut, or a GPU cut's image)
  * by releasing the states no cut visited since the previous one, so the states held are those of
- * the placements the image and its lights see. `bytes` is their running total, read without walking.
+ * the primitives the image and its lights see. `bytes` is their running total, read without walking.
  */
 export function createHeldResidency<T extends PageRecord>(
   rule: { isResident?: (page: T) => boolean } = {},
   placement?: PlacementIndex,
 ) {
   const isResident = rule.isResident as ((page: PageRecord) => boolean) | undefined;
-  const states = new Map<Root, Held>();
+  const states = new Map<Primitive, Held>();
   let routes: readonly Root[] = [],
     rankOfRoot = new Map<Root, number>(),
     bytes = 0,
@@ -72,9 +78,9 @@ export function createHeldResidency<T extends PageRecord>(
     bytes += now - held.bytes;
     held.bytes = now;
   };
-  const release = (root: Root, held: Held) => {
+  const release = (pages: Primitive, held: Held) => {
     bytes -= held.bytes;
-    states.delete(root);
+    states.delete(pages);
   };
   const enter = (root: Root): Held => {
     const { culling } = root,
@@ -85,11 +91,11 @@ export function createHeldResidency<T extends PageRecord>(
       structure: root.structure,
       nodes: culling?.nodes,
       pages: count,
-      base: baseOf(rankOfRoot, root, placement),
+      routed: baseOf(rankOfRoot, root, placement) >= 0,
       bytes: 0,
       seen: 0,
     };
-    states.set(root, held);
+    states.set(root.pages, held);
     return held;
   };
   // What one read walks, set for its duration: the walk allocates nothing.
@@ -104,8 +110,8 @@ export function createHeldResidency<T extends PageRecord>(
     get bytes() {
       return bytes;
     },
-    /** How many placements hold a state. */
-    get placements() {
+    /** How many primitives hold a state: one each, whatever the placements of it in view. */
+    get primitives() {
       return states.size;
     },
     /** Visits read whole because the layout did not let the feed name their moves. */
@@ -116,26 +122,25 @@ export function createHeldResidency<T extends PageRecord>(
     track(roots: readonly Root[]) {
       routes = roots.slice();
       rankOfRoot = new Map(routes.map((root, rank) => [root, rank]));
-      // The pending moves are ranks within their placement: they survive a new layout. A state
-      // no move reached, read whole at each visit so far, is read whole once more.
-      for (const [root, held] of states) {
-        const base = baseOf(rankOfRoot, root, placement);
-        if (base < 0 || held.base < 0) release(root, held);
-        else held.base = base;
-      }
+      // The pending moves are ranks within their primitive: they survive a new layout. A state no
+      // move reached, read whole at each visit so far, or no placement of it left, lets go.
+      const kept = new Set(routes.map((root) => root.pages));
+      for (const [pages, held] of states)
+        if (!held.routed || !kept.has(pages)) release(pages, held);
     },
     /** The pool names the packed rank of a record whose residency may have moved. */
     moved(packed: number, rec: PageRecord) {
       if (!placement) return;
-      const root = routes[placement.rootOfPacked[packed]],
-        held = root && states.get(root);
-      if (!held || held.base < 0) return;
-      const page = packed - held.base;
+      const rank = placement.rootOfPacked[packed],
+        root = routes[rank],
+        held = root && states.get(root.pages);
+      if (!held || !held.routed) return;
+      const page = packed - placement.baseOfRoot[rank];
       if (root.pages[page] === rec && held.moved.set(page, 1) === 0) weigh(held);
     },
-    /** The readiness of `root`, up to date with every move the feed named. */
+    /** The readiness of `root`'s primitive, up to date with every move the feed named. */
     readiness(root: Root) {
-      let held = states.get(root);
+      let held = states.get(root.pages);
       // A placement whose DAG or hierarchy changed enters again.
       if (
         held &&
@@ -143,10 +148,10 @@ export function createHeldResidency<T extends PageRecord>(
           held.nodes !== root.culling?.nodes ||
           held.pages !== root.pages.length)
       ) {
-        release(root, held);
+        release(root.pages, held);
         held = undefined;
       }
-      const whole = !held || held.base < 0;
+      const whole = !held || !held.routed;
       if (held && whole) unroutedReads++;
       held ??= enter(root);
       held.seen = image;
@@ -164,7 +169,7 @@ export function createHeldResidency<T extends PageRecord>(
     },
     /** Ends an image's cut: lets go of every state no cut visited since the previous image's. */
     endImage() {
-      for (const [root, held] of states) if (held.seen !== image) release(root, held);
+      for (const [pages, held] of states) if (held.seen !== image) release(pages, held);
       image++;
     },
   };
