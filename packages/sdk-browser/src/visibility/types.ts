@@ -66,8 +66,6 @@ export const FLAG_FOG_FREE = 1 << 20,
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
-  /** Rank of the root whose world places it (`../page/selection/types.ts`, `rootOf`). */
-  placementIndex?: number;
   /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
   material: PageSurface;
   clusterId?: string;

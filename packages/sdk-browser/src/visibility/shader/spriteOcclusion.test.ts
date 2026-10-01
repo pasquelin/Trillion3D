@@ -111,7 +111,6 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
   const page = (sizeAttenuation: boolean) => ({
     min: [0, 0, 0],
     max: [1, 1, 1],
-    placementIndex: 0,
     material: { sprite: sprite(sizeAttenuation) },
   });
   let sent = false;

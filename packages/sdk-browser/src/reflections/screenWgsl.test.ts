@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { withScreenReflections } from './screenWgsl.ts';
+import { BOUNDED_SCREEN_REFLECTION_WGSL, withScreenReflections } from './screenWgsl.ts';
+import { MIRROR_TRANSITION_END } from './modelShader.ts';
 import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts';
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
@@ -37,4 +38,28 @@ test('the final direct resolve adds screen reflections over the environment, wit
     /return environmentReflection\(R,rough\)/,
   );
   assert.doesNotMatch(shader, /rayRadiance/);
+});
+
+test('the water mirror walks the depth bounds; a miss reads the filtered probes, no proxy ray', () => {
+  const read = (hit: boolean) => {
+    let walks = 0,
+      filteredAt: number | undefined;
+    const { calls, at } = resolvedDisplay({
+      shader: BOUNDED_SCREEN_REFLECTION_WGSL,
+      functions: ['boundedReflectionRay'],
+      globals: {
+        screenReflectionHiZ: () => (walks++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
+        filteredReflectedRadiance: (...args: number[]) => ((filteredAt = args[3]), FILTERED),
+      },
+    });
+    const value = at(0);
+    return { value, walks, fullWalks: calls.traced, fallback: calls.fallback, filteredAt };
+  };
+  const none = { walks: 1, fullWalks: 0, fallback: 0 };
+  assert.deepEqual(read(true), { ...none, value: RAY, filteredAt: undefined });
+  assert.deepEqual(read(false), {
+    ...none,
+    value: FILTERED,
+    filteredAt: Number(MIRROR_TRANSITION_END),
+  });
 });

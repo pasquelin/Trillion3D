@@ -32,14 +32,12 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(farMat),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([3, 4, 5]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     material: surfaceOf(nearMat),
     clusterId: 'near',
   };
@@ -107,14 +105,12 @@ test('UV derivatives come from the winning triangle, not a neighbour across a vi
     {
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
       clusterId: 'left',
     },
     {
       array: new Uint32Array([3, 4, 5]),
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
       clusterId: 'right',
     },

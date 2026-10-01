@@ -46,7 +46,7 @@ function arc(i: number) {
 const clusters = (sourceMesh?: object) =>
   Array.from(
     { length: CLUSTERS },
-    (_, i) => ({ sourceMesh, packedIndex: i, level: 0, ...arc(i) }) as unknown as PageRec,
+    (_, i) => ({ sourceMesh, level: 0, ...arc(i) }) as unknown as PageRec,
   );
 
 /** The ring turned as a named node: what it declares. */

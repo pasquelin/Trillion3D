@@ -1,5 +1,10 @@
 import type { LightingSceneLight, Vec3 } from './types.ts';
 
+/** Most area panels a lighting scene holds. */
+const MAX_LIGHTING_PANELS = 16;
+/** Emitted radiance of a panel of colour 1 and intensity 1 under a scene intensity of 1. */
+export const LIGHTING_PANEL_RADIANCE = 12;
+
 /** Independent copies for callers that animate individual controls. */
 export function createDefaultLightingSceneLights(): LightingSceneLight[] {
   return [
@@ -9,11 +14,8 @@ export function createDefaultLightingSceneLights(): LightingSceneLight[] {
   ];
 }
 
-export const LIGHTING_CAMERA_POSES: Record<string, { position: Vec3; target: Vec3 }> = {
-  right_room: { position: [2.8, 1.5, 2.5], target: [-1, 1.2, -1] },
-  doorway: { position: [2.7, 1.6, 1.1], target: [-2, 1.3, 0] },
-  left_room: { position: [-2.8, 1.5, 2.5], target: [-1, 1.2, -1] },
-};
+/** The right room's eye: the mirrors turn its view towards the left room's red wall (`objects.ts`). */
+export const LIGHTING_EYE: Vec3 = [2.8, 1.5, 2.5];
 
 export function validateLightingSceneControls(
   doorAngle: number,
@@ -31,11 +33,12 @@ export function validateLightingSceneControls(
     !Number.isFinite(roughness) ||
     roughness < 0 ||
     roughness > 1 ||
-    !Number.isFinite(lightIntensity * 12)
+    !Number.isFinite(lightIntensity * LIGHTING_PANEL_RADIANCE)
   )
     throw new RangeError('Invalid lighting experiment parameters');
   const lights = options.lights ?? createDefaultLightingSceneLights();
-  if (lights.length > 16) throw new RangeError('Lighting scene supports at most 16 area panels');
+  if (lights.length > MAX_LIGHTING_PANELS)
+    throw new RangeError(`Lighting scene supports at most ${MAX_LIGHTING_PANELS} area panels`);
   const lightIds = new Set<string>();
   for (const light of lights) {
     if (
@@ -48,7 +51,7 @@ export function validateLightingSceneControls(
       !light.position.every(Number.isFinite) ||
       !Number.isFinite(light.intensity) ||
       light.intensity < 0 ||
-      !Number.isFinite(12 * light.intensity * lightIntensity)
+      !Number.isFinite(LIGHTING_PANEL_RADIANCE * light.intensity * lightIntensity)
     )
       throw new RangeError('Invalid lighting scene area panel');
     lightIds.add(light.id);

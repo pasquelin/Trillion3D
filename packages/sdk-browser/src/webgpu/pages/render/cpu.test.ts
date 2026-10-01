@@ -122,7 +122,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
         queueCutResidency: () => {
           journal.push('file');
           // The image stops here: everything that follows needs a device.
-          throw new Error('BANC_ARRET');
+          throw new Error('BENCH_STOP');
         },
       },
     },
@@ -151,7 +151,7 @@ test('nothing resident yet: the image draws no hole, and still asks for its cut'
   // Coverage ready, but no resident page: no cluster is drawn in place of what is missing, and the
   // requested cut is published so the pool loads it — no throw, no pinned-only substitute.
   const b = banc({ ready: true, resident: false });
-  assert.throws(() => image(b), /BANC_ARRET/, 'the bench stops at the queue, for lack of a device');
+  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device');
   assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file']);
   assert.deepEqual(b.run.shown, [], 'nothing resident is drawn');
   assert.deepEqual(
@@ -162,7 +162,7 @@ test('nothing resident yet: the image draws no hole, and still asks for its cut'
 
 test('an image that passes its guards publishes its cut, just before queuing residency', () => {
   const b = banc({ ready: true, resident: true });
-  assert.throws(() => image(b), /BANC_ARRET/, 'the bench stops at the queue, for lack of a device');
+  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device');
   assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'], 'in that order');
   assert.deepEqual(
     b.run.desired.map((page) => page.url),
@@ -182,4 +182,14 @@ test("the cache's changes reach the cut's residency before the cut reads it", ()
   const synced = b.journal.indexOf('sync');
   assert.ok(synced >= 0, 'the mirror is synced');
   assert.ok(synced < b.journal.indexOf('lecture'), 'before the first residency the cut reads');
+});
+
+test('the drawn packed ranks are written into the array the GPU adopter and the rows hold', () => {
+  // Rebinding `run.drawnPacked` would leave them reading a list no image writes any more (#1235).
+  const b = banc({ ready: true, resident: true }),
+    held = b.run.drawnPacked;
+  assert.throws(() => image(b), /BENCH_STOP/);
+  assert.equal(b.run.drawnPacked, held, 'the same array');
+  assert.deepEqual(held, b.run.shownPacked, 'holding what the image draws');
+  assert.ok(held.length > 0);
 });
