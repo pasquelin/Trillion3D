@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Texture } from './texture.ts';
 import { Vector2 } from '../math/vector2.ts';
+import { wrap, filter, colorSpace } from '../constants/index.ts';
 
 test('textures classify image, sampling and placement edits and propagate vector changes', () => {
   const texture = new Texture({ width: 7, height: 11 });
@@ -151,4 +152,13 @@ test('an explicit image upload request notifies once and false does not request 
   texture.needsUpdate = true;
   assert.equal(texture.version, 2);
   assert.equal(notifications, 2);
+});
+
+test('a new texture is unnamed, clamps, filters smoothly through its mips, reads colours and flips', () => {
+  const texture = new Texture(null);
+  assert.ok(!texture.name);
+  assert.deepEqual([texture.wrapS, texture.wrapT], [wrap.clamp, wrap.clamp]);
+  assert.deepEqual([texture.minFilter, texture.magFilter], [filter.linearMipLinear, filter.linear]);
+  assert.equal(texture.colorSpace, colorSpace.srgb);
+  assert.equal(texture.flipY, true);
 });

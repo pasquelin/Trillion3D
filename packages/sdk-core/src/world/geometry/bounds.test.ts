@@ -91,3 +91,20 @@ test('bounds read normalized/interleaved coordinates and preserve a supplied sph
   assert.equal(kept.radius, 5);
   assert.equal(spanBox(new Box3(new Vector3(), new Vector3(1, 1, 1)), empty).isEmpty(), true);
 });
+
+test('a ball reaches the farthest point, on a plain list and on a morphed shape alike', () => {
+  const g = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Float32Array([0, 0, 0, 6, 0, 0, 0, 8, 0]), 3),
+  );
+  const plain = spanSphere(new Sphere(), g);
+  assert.deepEqual(plain.center.toArray(), [3, 4, 0]);
+  assert.equal(plain.radius, 5);
+  // A target carrying the first vertex out to (0, 0, 24) widens the box to its middle and the ball.
+  g.morphAttributes.position = [
+    new BufferAttribute(new Float32Array([0, 0, 24, 6, 0, 0, 0, 8, 0]), 3),
+  ];
+  const morphed = spanSphere(new Sphere(), g);
+  assert.deepEqual(morphed.center.toArray(), [3, 4, 12]);
+  assert.equal(morphed.radius, 13);
+});
