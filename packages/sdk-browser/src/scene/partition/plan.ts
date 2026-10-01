@@ -123,9 +123,10 @@ export function planCells(
     pages: Found<IndexPage>[] = [];
   const keep = reach * (1 + KEEP);
   const placed = superRoots?.placed ?? held;
-  /** Whether the cut needs `cell`'s objects, its super-roots' error widened by `margin`. */
-  const needs = (cell: number, margin: number) =>
-    !superRoots || superRoots.projected(cell) * margin > superRoots.target;
+  /** `cell`'s super-roots' projected error over the target: the cut needs its objects past 1, and
+   *  without super-roots always. */
+  const need = (cell: number) =>
+    superRoots ? superRoots.projected(cell) / superRoots.target : Infinity;
   index.near(
     eye,
     reach * (1 + AHEAD),
@@ -135,8 +136,9 @@ export function planCells(
       if (placed.has(item)) return;
       if (superRoots && !held.has(item)) far.push({ item, distance });
       // Past the reach, or its objects wanted only within the prefetch margin: read ahead.
-      if (distance <= reach && needs(item, 1)) cells.push({ item, distance });
-      else if (needs(item, 1 + AHEAD)) cells.push({ item, distance: reach + distance });
+      const ratio = need(item);
+      if (distance <= reach && ratio > 1) cells.push({ item, distance });
+      else if (ratio * (1 + AHEAD) > 1) cells.push({ item, distance: reach + distance });
     },
     (item, distance) => void pages.push({ item, distance }),
   );
@@ -144,7 +146,7 @@ export function planCells(
     demoted: number[] = [];
   for (const cell of held.keys())
     if (index.distance(cell, eye) > keep) leave.push(cell);
-    else if (superRoots?.placed.has(cell) && !needs(cell, 1 + KEEP)) demoted.push(cell);
+    else if (superRoots?.placed.has(cell) && need(cell) * (1 + KEEP) <= 1) demoted.push(cell);
   /** The items of `list` within the reach, or past it when `past`, nearest first. */
   const nearest = <T>(list: Found<T>[], past: boolean) =>
     list
