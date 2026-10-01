@@ -50,10 +50,15 @@ export const shadowPoolHeld = (lights: WebgpuLightState) =>
   (lights.pageRequests?.bytes ?? 0) +
   lights.memory.pairBytes;
 
-/** The pool's bytes a frame shows: none until its grant settled, the static layer reserved with
- *  it (`staticReserve.ts`) — never the atlas alone for the frames the grant still holds (#831). */
-export const shadowPoolShown = (lights: WebgpuLightState) =>
-  lights.shadows?.texture && lights.shadowGrant?.settled !== false ? shadowPoolHeld(lights) : null;
+/** The pool's bytes a frame shows: none until the grant that sized it settled, the static layer
+ *  reserved with it (`staticReserve.ts`) — never the atlas alone for the frames that grant still
+ *  holds (#831). A later grant, the transmittance layer's, hides nothing: the pool is counted. */
+export const shadowPoolShown = (lights: WebgpuLightState) => {
+  const grant = lights.shadowGrant as { sizesPool?: boolean; settled: boolean } | undefined;
+  return lights.shadows?.texture && !(grant?.sizesPool && !grant.settled)
+    ? shadowPoolHeld(lights)
+    : null;
+};
 
 export const createShadowMemory = (): ShadowMemory => ({
   peakBytes: 0,
