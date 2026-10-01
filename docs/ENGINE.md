@@ -15,10 +15,10 @@ texture residency is [RESIDENCY.md](RESIDENCY.md).
 A world opens one internal session on itself (`openMeasuredWorld`, `createMeasuredWorldJob`). Its
 options beyond `WorldOptions` — `maxResidentPages`, `pageFetchWorkers`, `replicaCount`, `backends`,
 `preload`, `comparisonLayout`, `comparisonPair`, `gpu`, `temporalAntialiasing`, `bounce`,
-`bounceBudgetMs`, `shadowPageInvalidation`, `shadowLocalToClip`, `importedLights`,
-`textureSource`, `textureCompression`, `mathPath` — stay on it; a published world always runs the
-defaults (`shadowLocalToClip`, off, places shadow casters by a LocalToClip stored per caster and
-light view: its depths may differ by one ulp, an image of class 2). The
+`bounceBudgetMs`, `shadowPageInvalidation`, `shadowLocalToClip`, `shadowPoolPages`,
+`importedLights`, `textureSource`, `textureCompression`, `mathPath` — stay on it; a published world
+always runs the defaults (`shadowLocalToClip`, off, places shadow casters by a LocalToClip stored
+per caster and light view: its depths may differ by one ulp, an image of class 2). The
 comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render two backends to
 detached targets with the same camera: a bench and proof tool, never a performance verdict.
 `replicateInstances` instances the source 1, 4 or 9 times, sharing geometry and materials, for the

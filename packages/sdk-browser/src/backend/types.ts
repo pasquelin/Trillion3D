@@ -177,8 +177,7 @@ export interface BackendContext {
   sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
   shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   importedLightIds?: string[]; // imported light ids in cache order, set by `importedLights()`
-  /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
-   *  `bounceBudgetMs`: its GPU target per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target. */
+  /** Bounced light, off by default; `bounceBudgetMs`, its GPU target a frame (0.8 ms by default). */
   bounce?: boolean;
   bounceBudgetMs?: number;
   stageProfile?: boolean; // Off by default; the bench and harness time the frame steps.
@@ -187,6 +186,7 @@ export interface BackendContext {
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
   shadowLocalToClip?: boolean; // shadow corners from a stored LocalToClip (OMB-25), off by default
+  shadowPoolPages?: number; // physical shadow pages, allocated once; else the screen's (`screenPoolPages`)
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   readPage?: (url: string) => Promise<Uint32Array>; // Validated reader of the GPU fallback.

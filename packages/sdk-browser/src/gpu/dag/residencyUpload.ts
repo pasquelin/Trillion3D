@@ -42,8 +42,9 @@ export function updateResidencyBits(
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
  * rule's two bit sets and the nodes' open counts come out (`readiness.ts`), and only the word and
- * node ranges that changed are written. Returns whether anything did. Its change lists grow to the
- * largest change seen, never to the catalogue.
+ * node ranges that changed are written, each page whose readiness moved handed to `moved`.
+ * Returns whether anything did. Its change lists grow to the largest change seen, never to the
+ * catalogue.
  */
 export function createDagResidencyUpload(resources: {
   device: GPUDevice;
@@ -107,9 +108,14 @@ export function createDagResidencyUpload(resources: {
     );
   whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
   whole(nodeParts, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
-  const apply = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
+  const apply = (
+    next: ArrayLike<number>,
+    changes?: ResidencyChanges,
+    moved?: (page: number) => void,
+  ) => {
     const settled = readiness.apply(next, changes);
     if (!settled.pages.length && !settled.nodes.length) return false;
+    if (moved) for (const page of settled.pages) moved(page);
     const most = Math.max(settled.pages.length, settled.nodes.length);
     if (changed.pages.length < most) changed.pages = grown(changed.pages, most);
     if (touched.length < most) touched = grown(touched, most);
@@ -127,9 +133,13 @@ export function createDagResidencyUpload(resources: {
     upload(nodeParts, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
     return true;
   };
-  return Object.defineProperty(apply, 'hostBytes', {
+  return Object.defineProperties(apply, {
     /** Bytes of the host tables: the readiness and this upload's change lists. */
-    get: () =>
-      readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength,
-  }) as typeof apply & { readonly hostBytes: number };
+    hostBytes: {
+      get: () =>
+        readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength,
+    },
+    /** Whether a packed page is the finest representation its residency holds. */
+    isFinest: { value: readiness.isFinest },
+  }) as typeof apply & { readonly hostBytes: number; readonly isFinest: (page: number) => boolean };
 }
