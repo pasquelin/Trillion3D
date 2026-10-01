@@ -8,8 +8,9 @@ import {
 export const MAX_POOL_LAYERS = (PAGE_INDEX_MASK + 1) / LAYER_PAGES;
 /** Words of the parameters before the slices: pages, layer side, layers, the rows the cull tests
  *  — the table's, then the blended casters' `[blendFirst, blendEnd)` —, the pairs it may keep, the
- *  error in texels the casters are chosen at (`f32`, #831). */
-export const FRESH_PARAM_WORDS = 8;
+ *  error in texels the casters are chosen at (`f32`, #831), the pages it may fill (`budget`), then
+ *  padding to the slices' 16-byte alignment. */
+export const FRESH_PARAM_WORDS = 12;
 /** Floats of a slice's parameters: its emitter — centre and envelope radius —, its far plane. */
 export const FRESH_SLICE_FLOATS = 8;
 /** Words of the parameters, header and slices. */

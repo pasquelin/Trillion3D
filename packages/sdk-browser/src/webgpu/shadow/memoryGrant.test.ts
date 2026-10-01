@@ -10,8 +10,8 @@ import { shadowRequestBytes } from './allocLayout.ts';
 import { admitShadowBytes, createShadowMemory } from './memoryGrant.ts';
 import { staticLayerGranted } from './poolSize.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { along, camera } from '../pages/testScenes.fixture.ts';
-import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { camera } from '../pages/testScenes.fixture.ts';
+import { castAt, floorCasterBackend } from './floorCaster.fixture.ts';
 import { shadowPoolFor } from './poolFor.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { SHADOW_LAYER_PASS } from '../../stage/passLabels.ts';
@@ -76,7 +76,7 @@ async function movingCaster(refuse: boolean) {
     const pages = backend.metrics().shadowPagesTotal ?? 0,
       passes = gpu.passes.length,
       draws = gpu.draws.length;
-    if (step) backend.setTransform!('caster', along(step * 0.05));
+    if (step) backend.setTransform!('caster', castAt(step * 0.05));
     backend.render(view);
     await backend.flush?.();
     await new Promise((settled) => setTimeout(settled, 0));

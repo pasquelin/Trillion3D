@@ -22,7 +22,7 @@ type Counts = ReturnType<typeof createShadowCounts>;
 
 const ORIGIN = [0, 0, 0] as const; // the position of a light that has none, the sun
 /** Why a box stales its pages (`STALE_BY`): wrong, a still caster changed; at `STALE_FULL` and not
- *  wrong, a change of detail; else, moving casters alone. A union counts its strongest. */
+ *  wrong, a change of detail; else, moving casters alone (a box of detail alone passes `detail`). */
 const reasonOf = (level: number, wrong: boolean) =>
   wrong ? STALE_BY.caster : level === STALE_FULL ? STALE_BY.detail : STALE_BY.moving;
 
@@ -85,9 +85,10 @@ export function createPageInvalidation(
     if (wrong) pool.withdraw(table, page, true);
   };
   const within = (view: number, x: number, y: number) => rectHolds(rects, views, view, x, y);
-  /** The rectangles of box `min..max` in each view of the light: returns the pages covered. */
-  const project = (min: ArrayLike<number>, max: ArrayLike<number>) =>
-    sunLight ? sunRects(sun, slice, min, max) : lampRects(min, max);
+  /** The rectangles of box `min..max` — of `moving` casters alone — in each view of the light:
+   *  returns the pages covered. */
+  const project = (min: ArrayLike<number>, max: ArrayLike<number>, moving = false) =>
+    sunLight ? sunRects(sun, slice, min, max, moving) : lampRects(min, max);
   /** Every page of the light — or only those drawn in depth-range slot `range` —, or, `covered`,
    *  those the rectangles hold: stale at `level`, and withdrawn when `wrong`, for `reason`. */
   const scan = (
@@ -108,10 +109,9 @@ export function createPageInvalidation(
     }
   };
   /** The table entries the rectangles hold: a mapped one names its page. */
-  const walk = (level: number, wrong: boolean) => {
+  const walk = (level: number, wrong: boolean, reason = reasonOf(level, wrong)) => {
     const base = table.baseOf(slice),
-      finest = sun.finest[slice],
-      reason = reasonOf(level, wrong);
+      finest = sun.finest[slice];
     for (let view = 0; view < views; view++) {
       const r = view * 4;
       for (let y = rects[r + 2]; y <= rects[r + 3]; y++) {
@@ -132,8 +132,8 @@ export function createPageInvalidation(
     }
   };
   /** The `covered` pages the rectangles hold: walked, or one pool scan when more than the pool. */
-  const cover = (covered: number, level: number, wrong: boolean) =>
-    covered > pool.pages ? scan(true, level, wrong) : walk(level, wrong);
+  const cover = (covered: number, level: number, wrong: boolean, reason?: number) =>
+    covered > pool.pages ? scan(true, level, wrong, -1, reason) : walk(level, wrong, reason);
   const invalidate = (
     light: SceneLight,
     lightSlice: number,
@@ -176,11 +176,11 @@ export function createPageInvalidation(
         wrong ||= boxWrong;
         continue;
       }
-      const covered = project(moved.min, moved.max),
+      const covered = project(moved.min, moved.max, moved.moving),
         cost = Math.min(covered, pool.pages);
       if (cost <= budget) {
         budget -= cost;
-        cover(covered, boxLevel, boxWrong);
+        cover(covered, boxLevel, boxWrong, moved.detail ? STALE_BY.detail : undefined);
         continue;
       }
       const { min, max } = moved;

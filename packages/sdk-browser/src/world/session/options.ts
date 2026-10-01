@@ -172,8 +172,9 @@ export interface MeasuredWorldOptions {
    *  matrix-vector product per vertex. Off by default: its depths may differ by one ulp. */
   shadowLocalToClip?: boolean;
   /** Physical pages of the shadow pool, allocated once at the first frame a light casts and never
-   *  resized, as the reference engine's `a reference setting`: by default what the display's whole
-   *  screen reads, or the canvas if wider (`shadowPoolScreen`), 64 KiB each, bounded by the memory budget's pool. */
+   *  resized, as the reference engine's `a reference setting`, 64 KiB each: by default the most its
+   *  byte setting holds, whatever the display (`SHADOW_POOL_SETTING_BYTES`); fewer may be asked,
+   *  never more. A frame that reads more pages draws the coarser level past them. */
   shadowPoolPages?: number;
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */

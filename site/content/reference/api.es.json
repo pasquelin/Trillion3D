@@ -2933,7 +2933,7 @@
       "shadowNearFraction": "Plano cercano de una porción: una parte del alcance, nunca menos que este suelo.",
       "shadowNearMin": "Distancia de sombra más cercana.",
       "shadowNormalOffsetTexels": "Desplazamiento del punto de muestreo a lo largo de la normal, en texels del mapa leído: medio texel, el margen de lo que no es el plano del receptor — su curvatura dentro de un texel, el redondeo de ambas profundidades. La pendiente del receptor la cubre un margen de profundidad sobre el alcance del PCF, y más allá de 45° un desplazamiento adicional, en los mismos texels (`shadowDepthMargin`, `shadowNormalTexels`): ningún sesgo es una longitud de la escena.",
-      "shadowPagesPerBatch": "Páginas de sombra que dibuja un lote de GPU: el tamaño de los búferes de un lote. Un fotograma dibuja las páginas que marca en tantos lotes como haga falta, hasta las páginas de una capa del pool por fotograma; las demás se dibujan en los fotogramas siguientes y, mientras tanto, se leen en el nivel más grueso.",
+      "shadowPagesPerBatch": "Páginas de sombra que dibuja un lote de GPU: el tamaño de los búferes de un lote. Un fotograma dibuja las páginas que marca en tantos lotes como haga falta, hasta su relleno estático, un treintaidosavo del pool por fotograma; las demás se dibujan en los fotogramas siguientes y, mientras tanto, se leen en el nivel más grueso.",
       "lampFaceSize": "Lado del mip más fino de una cara de lámpara, en téxeles: 32 × 32 páginas de 128 (el pool: `shadowPoolSize`).",
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
       "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
@@ -5582,7 +5582,7 @@
     "description": "`null`/`undefined` restablece la nuestra: ninguna sesión la hereda."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Flotantes de un volumen de descarte: centro y plano lejano, eje de la cara y medio ángulo, luego — para una caja, marcada por un medio ángulo negativo — los otros dos ejes con sus semiextensiones, luego la palabra que dice qué proyectores dibuja la región, la vista del corte de luz que los eligió, y dos de relleno."
+    "summary": "Flotantes de un volumen de descarte: centro y plano lejano, eje de la cara y medio ángulo, luego — para una caja, marcada por un medio ángulo negativo — los otros dos ejes con sus semiextensiones, luego la palabra que dice qué proyectores dibuja la región, la vista del corte de luz que los eligió, los téxeles por metro de una página del sol (`underTexel`, `cullShader.ts`), y uno de relleno."
   },
   "SHADOW_PAGE": {
     "summary": "Lado de una página de sombra, en téxeles: la unidad del pool, de los mapas virtuales y de la invalidación."

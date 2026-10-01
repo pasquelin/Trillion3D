@@ -21,9 +21,25 @@ export const poolPairs = (pages: number) => shadowPagesPerFrame(pages) * PAIRS_P
 /** Pairs a kept list of `rows` rows a region holds. */
 export const keptPairs = (rows: number) => Math.floor((rows * ROW_BYTES) / PAIR_BYTES);
 
+/** The rows `need` pairs take in a region of the kept list, by `ROW_STEP`. */
+const rowsFor = (need: number) =>
+  ROW_STEP * Math.ceil((need * PAIR_BYTES) / (ROW_BYTES * ROW_STEP));
+
+/** The rows a region of the kept list gives the pairs of a pool of `pages` pages (`poolPairs`):
+ *  their share of the shadows' bytes, whether grown for them or shared with the table's caster
+ *  rows (`followPairBytes`). */
+export const pairRows = (pages: number) => rowsFor(poolPairs(pages));
+
+/** Bytes of `rows` rows of the kept lists the pairs are held in: the cull's, the occlusion test's
+ *  (`occlusion`, made with the static layer), and the raster bins' — `binStride` words a row, a row
+ *  and, stored, its matrix (`../../gpu/shadow/bins.ts`). One formula for the setting
+ *  (`poolSetting.ts`) and the bytes held (`followPairBytes`). */
+export const keptListBytes = (rows: number, binStride: number, occlusion = true) =>
+  rows * ROW_BYTES * (1 + (occlusion ? 1 : 0) + binStride);
+
 /** The rows a region of the kept list holds: the table's `casterSlots`, or more for the GPU pages'
  *  `need` pairs — by `ROW_STEP` —, never past what one storage binding holds. */
 export function keptRows(casterSlots: number, need: number, limits?: GPUSupportedLimits) {
-  const asked = ROW_STEP * Math.ceil((need * PAIR_BYTES) / (ROW_BYTES * ROW_STEP));
-  return Math.max(casterSlots, Math.min(asked, Math.floor(storageBufferCap(limits) / ROW_BYTES)));
+  const cap = Math.floor(storageBufferCap(limits) / ROW_BYTES);
+  return Math.max(casterSlots, Math.min(rowsFor(need), cap));
 }

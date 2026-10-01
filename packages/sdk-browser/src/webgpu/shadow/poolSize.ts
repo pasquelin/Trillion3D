@@ -1,8 +1,10 @@
 import {
   SHADOW_PAGE,
-  screenPoolPages,
   shadowPoolShape,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_POOL_SETTING_BYTES, shadowPoolWithin } from './poolSetting.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { BIN_STORED_STRIDE } from '../../gpu/shadow/binShader.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
@@ -10,9 +12,10 @@ import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
 import { startGrant } from '../../gpu/core/errorScope.ts';
 import { shadowPoolFor } from './poolFor.ts';
 import { reserveStaticLayer } from './staticReserve.ts';
+import { followPairBytes, growPairList } from './pairGrowth.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
+import { grantsShadowLayer, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import {
   grantShadowTransmittance,
   sceneCastsBlended,
@@ -23,39 +26,35 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
-type PoolContext = Pick<BackendContext, 'shadowPoolPages' | 'viewport' | 'pixelRatio'>;
-
-/** The widest drawing buffer a session can reach: its canvas as it opens, or its display's whole
- *  screen at its pixel ratio, whichever is wider each way. A window enlarged or put full screen
- *  later then keeps the shadow pages it reads, with a pool never resized (#831). */
-function shadowPoolScreen(context: PoolContext) {
-  const display = globalThis.screen;
-  const [width, height] = context.viewport ?? [1, 1];
-  if (!display) return [width, height] as const;
-  const ratio = context.pixelRatio?.() ?? 1;
-  return [
-    Math.max(width, Math.floor(display.width * ratio)),
-    Math.max(height, Math.floor(display.height * ratio)),
-  ] as const;
-}
-
-/** The pages a world's shadow pool holds: its `shadowPoolPages` option, else what its screen reads
- *  (`screenPoolPages`, `shadowPoolScreen`), chosen once; the memory budget's pool bounds it
- *  (`shadowPoolFor`). */
-const shadowPoolPagesOf = (context: PoolContext) =>
-  context.shadowPoolPages ?? screenPoolPages(...shadowPoolScreen(context));
+type PoolContext = Pick<BackendContext, 'shadowPoolPages' | 'sunWindow' | 'shadowLocalToClip'>;
 
 /** Pages a side of one layer as wide as a device of `limits` draws: a pool that fits it is one
  *  pass a batch; the portable side when the device names none. */
 const layerSideOf = (limits: Partial<Pick<GPUSupportedLimits, 'maxTextureDimension2D'>>) =>
   limits.maxTextureDimension2D ? Math.floor(limits.maxTextureDimension2D / SHADOW_PAGE) : undefined;
 
-/** The pool's shape on a device of `limits`, chosen once as the session opens: the host plan is
- *  made at it (`../pages/runtime.ts`), and the grant asks its pages (`sizeShadowPool`). */
-export const shadowPoolShapeOf = (
+/** The pool's shape on a device of `limits`, chosen once as the session opens: the most pages
+ *  whose held bytes fit the setting (`SHADOW_POOL_SETTING_BYTES`, `shadowPoolWithin`), whatever the
+ *  display or the canvas, or fewer when the world's `shadowPoolPages` option asks fewer. The host
+ *  plan is made at it (`../pages/runtime.ts`), and the grant asks its pages (`sizeShadowPool`). */
+export function shadowPoolShapeOf(
   context: PoolContext,
   limits?: Pick<GPUSupportedLimits, 'maxTextureDimension2D'>,
-) => shadowPoolShape(shadowPoolPagesOf(context), limits && layerSideOf(limits));
+) {
+  const layerSide = limits && layerSideOf(limits),
+    // The `shadowLocalToClip` option's bins store a matrix a row: their bytes come off the pages.
+    binStride = explorerSwitch(context, 'shadowLocalToClip') ? BIN_STORED_STRIDE : 1,
+    { side, layers } = shadowPoolWithin(
+      SHADOW_POOL_SETTING_BYTES,
+      layerSide,
+      context.sunWindow,
+      binStride,
+    ),
+    asked = context.shadowPoolPages;
+  return asked && asked < side * side * layers
+    ? shadowPoolShape(asked, layerSide)
+    : { side, layers };
+}
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
  *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). The layer
@@ -104,20 +103,16 @@ function askShadowPool(
 /** A shadow pool the device granted, and its texture. */
 type GrantedPool = Granted<ReturnType<ReturnType<typeof shadowPoolFor>>, GPUTexture>;
 
-/**
- * Takes the pool the device granted for `wanted` pages, once: the plan pages it (`plan.size`); the
- * atlas holds its texture; the region list and the request return path follow its pages, the
- * seed's path freed once its reads have landed.
- */
+/** Takes the pool the device granted, once: the plan pages it (`plan.size`); the atlas holds its
+ *  texture; the region list and the request path follow its pages, the seed's freed once read. */
 function adoptShadowPool(
   rt: WebgpuPagesRuntime,
   atlas: GpuShadowAtlas,
   device: GPUDevice,
   granted: GrantedPool,
-  wanted: number,
 ) {
-  const { lights, diag } = rt,
-    { side, layers, clamp, allocatedBytes } = granted.pool;
+  const { lights } = rt,
+    { side, layers } = granted.pool;
   // Coarser pages for memory alone, by name: the halvings the device's refusals took.
   if (granted.halvings) noteShadowPressure(lights.memory, 'pool-shrunk', granted.halvings);
   lights.plan.size(side, layers);
@@ -130,21 +125,12 @@ function adoptShadowPool(
     lights.plan.sunWindow,
   );
   void requests?.settled().then(requests.dispose);
-  diag.engineDiagnostic('shadow-pool', 'Shadow pool allocated at its setting', {
-    version: 2,
-    wanted,
-    side,
-    layers,
-    pages: lights.plan.pool.pages,
-    bytes: allocatedBytes,
-    clamp,
-  });
 }
 
 /**
  * Allocates the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
- * once, at the pages the plan was made at — the `shadowPoolPages` option, else what the display's screen
- * reads (`shadowPoolPagesOf`) —, as the reference engine allocates its physical pages up front
+ * once, at the pages the plan was made at — those its byte setting holds (`shadowPoolShapeOf`), or
+ * the fewer the `shadowPoolPages` option asks —, as the reference engine allocates its physical pages up front
  * from `a reference setting`: it is never resized after (`poolCeiling.ts`), so a page
  * keeps its place, its depth and its static layer for as long as it is mapped (#831). Until then
  * no shadow page exists; the plan built at creation pages the granted pool from then on
@@ -186,10 +172,22 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       }
       // A session closed, or a device lost, while the device answered keeps nothing.
       if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return granted.made.destroy();
-      adoptShadowPool(rt, atlas, device, granted, ask.wanted);
+      adoptShadowPool(rt, atlas, device, granted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
+      // The pair list, then the static layer and its occlusion share: all held from frame one (#831).
+      // The pairs' share counted first: a list already wide enough grows nothing, yet is held.
+      followPairBytes(rt);
+      await growPairList(rt);
       await reserveStaticLayer(rt, staticLayerGranted(lights));
+      followPairBytes(rt);
+      // Its setting, said once all is held: the bytes every frame shows from then on.
+      const { side, layers, clamp, allocatedBytes: atlasBytes } = granted.pool,
+        { wanted } = ask;
+      diag.engineDiagnostic('shadow-pool', 'Shadow pool allocated at its setting', {
+        ...{ version: 2, wanted, side, layers, pages: lights.plan.pool.pages },
+        ...{ bytes: shadowPoolHeld(lights), atlasBytes, clamp },
+      });
       run.gate.resourcesChanged();
     },
     (error: unknown) => {

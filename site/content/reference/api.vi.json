@@ -1689,7 +1689,7 @@
       "shadowNearFraction": "Mặt phẳng gần của một lát: một phân số của tầm, không bao giờ nhỏ hơn sàn này.",
       "shadowNearMin": "Khoảng cách bóng đổ gần nhất.",
       "shadowNormalOffsetTexels": "Độ lệch của điểm lấy mẫu dọc theo pháp tuyến, tính bằng texel của bản đồ được đọc: nửa texel, phần dư cho những gì không phải mặt phẳng của bề mặt nhận — độ cong của nó trong một texel, việc làm tròn cả hai độ sâu. Độ dốc của bề mặt nhận được phủ bởi một phần dư độ sâu trên tầm với của PCF, và quá 45° bởi một độ lệch bổ sung, cùng đơn vị texel (`shadowDepthMargin`, `shadowNormalTexels`): không độ lệch nào là một độ dài của cảnh.",
-      "shadowPagesPerBatch": "Số trang bóng một lô GPU vẽ: kích thước bộ đệm của một lô. Một khung hình vẽ các trang nó đánh dấu trong bao nhiêu lô cần thiết, tối đa số trang của một lớp vùng chứa mỗi khung hình; phần còn lại được vẽ ở các khung hình sau và trong lúc chờ được đọc ở mức thô hơn.",
+      "shadowPagesPerBatch": "Số trang bóng một lô GPU vẽ: kích thước bộ đệm của một lô. Một khung hình vẽ các trang nó đánh dấu trong bao nhiêu lô cần thiết, tối đa phần lấp đầy tĩnh của nó, một phần ba mươi hai vùng chứa mỗi khung hình; phần còn lại được vẽ ở các khung hình sau và trong lúc chờ được đọc ở mức thô hơn.",
       "lampFaceSize": "Cạnh của mip mịn nhất của một mặt đèn, tính bằng texel: 32 × 32 trang 128 (bể: `shadowPoolSize`).",
       "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
       "sunLevels": "Các mức clipmap của một đèn định hướng. Mức `L` có texel `2^L` mét, và một điểm ảnh đọc mức có texel không lớn hơn dấu chân của chính nó: mười sáu mức phủ tỉ lệ xa/gần 2^15. Sau mức cuối, bóng xa đảm nhận.",
@@ -2949,7 +2949,7 @@
     "summary": "Phiên bản của gói bộ máy này."
   },
   "SHADOW_CULL_FLOATS": {
-    "summary": "Các số float của một thể tích loại: tâm và mặt phẳng xa, trục mặt và nửa góc, rồi — với một hộp, đánh dấu bằng nửa góc âm — hai trục còn lại với nửa kích thước của chúng, rồi từ cho biết vùng vẽ những vật đổ bóng nào, góc nhìn lát cắt đèn đã chọn chúng, và hai từ đệm."
+    "summary": "Các số float của một thể tích loại: tâm và mặt phẳng xa, trục mặt và nửa góc, rồi — với một hộp, đánh dấu bằng nửa góc âm — hai trục còn lại với nửa kích thước của chúng, rồi từ cho biết vùng vẽ những vật đổ bóng nào, góc nhìn lát cắt đèn đã chọn chúng, số texel trên mỗi mét của một trang mặt trời (`underTexel`, `cullShader.ts`), và một từ đệm."
   },
   "SHADOW_PAGE": {
     "summary": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể, của các bản đồ ảo và của việc vô hiệu hóa."
