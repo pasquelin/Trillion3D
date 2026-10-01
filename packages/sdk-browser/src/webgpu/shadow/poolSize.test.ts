@@ -4,7 +4,6 @@ import {
   shadowPoolSide,
   shadowPoolSize as pages,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { sizeShadowPool } from './poolSize.ts';
 import { shadowPoolFor } from './poolFor.ts';
@@ -78,9 +77,14 @@ function session(viewport: [number, number], limit = Infinity) {
   };
 }
 
-// A world prepares before any report says what it reads: the first frame that casts grants the
-// seed, whatever the canvas, once; the reports size it then (`poolResize.ts`).
-test('the shadow pool is seeded by the first frame that casts, whatever the canvas', async () => {
+/** The budget's whole pool on the sessions' device, 8 192 texels wide: two layers of 53². */
+const BUDGET = shadowPoolFor(Infinity, 8192 / 128)(SHADOW_ATLAS_BYTES);
+
+// A world prepares before any report says what it reads: the first frame that casts is granted the
+// budget's whole pool, whatever the canvas, once, as Unreal allocates its physical pages up front —
+// no first frame reads a coarser level for want of pages; the reports size it then
+// (`poolResize.ts`).
+test('the first frame that casts is granted the budget pool, whatever the canvas', async () => {
   const viewport: [number, number] = [1280, 720];
   const s = session(viewport);
   s.capture.capturing = true;
@@ -92,29 +96,31 @@ test('the shadow pool is seeded by the first frame that casts, whatever the canv
   assert.deepEqual(s.sized, [], 'no light casts a shadow: no pool');
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
-  assert.deepEqual(s.sized, [SEED_POOL_SIDE]);
-  assert.equal(s.lights.plan.pool.side, SEED_POOL_SIDE, 'the plan follows the atlas');
+  assert.deepEqual([BUDGET.side, BUDGET.layers], [53, 2]);
+  assert.deepEqual(s.sized, [BUDGET.side]);
+  assert.equal(s.lights.plan.pool.pages, 53 * 53 * 2, 'the plan follows the atlas');
   assert.equal(s.lights.plan.pageInvalidation, false, "the host's setting is kept");
   assert.equal(s.changed, 1, 'the granted pool is a new resource: the next frame is drawn');
   viewport[0] = 3840;
   viewport[1] = 2160;
   await s.size();
-  assert.deepEqual(s.sized, [SEED_POOL_SIDE], 'seeded once: the demand is followed apart');
+  assert.deepEqual(s.sized, [BUDGET.side], 'seeded once: the demand is followed apart');
 });
 
 test('a shadow pool the device refuses is drawn smaller, said, and never taken for a lost device', async () => {
-  const wanted = SEED_POOL_SIDE;
-  // Room for a quarter of the pool's bytes: the seed refused, then half, then half again.
-  const s = session([1280, 720], shadowAtlasBytes(wanted) / 4);
+  // Room for a quarter of the pool's bytes: the budget pool refused, then half, then half again.
+  const room = BUDGET.allocatedBytes / 4,
+    s = session([1280, 720], room);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
-  const side = s.sized[0];
-  assert.ok(side < wanted && shadowAtlasBytes(side) <= shadowAtlasBytes(wanted) / 4, `${side}`);
-  assert.equal(s.lights.plan.pool.side, side, 'the plan pages the pool the device granted');
+  const side = s.sized[0],
+    { pool } = s.lights.plan;
+  assert.ok(side < BUDGET.side && shadowAtlasBytes(side, pool.layers) <= room, `${side}`);
+  assert.equal(pool.side, side, 'the plan pages the pool the device granted');
   const [phase, context] = s.said[0];
   assert.equal(phase, 'gpu-out-of-memory');
   assert.equal(context.pool, 'shadow');
-  assert.equal(context.grantedBytes, shadowAtlasBytes(side));
+  assert.equal(context.grantedBytes, shadowAtlasBytes(side, pool.layers));
   assert.deepEqual(s.lights.memory.events, ['pool-shrunk'], 'a pressure, by name');
   assert.equal(s.lights.memory.bias, 2, 'a quarter of the bytes: two halvings');
   assert.equal(s.uncaptured, 0, 'every refusal was caught by its scope: no device loss');

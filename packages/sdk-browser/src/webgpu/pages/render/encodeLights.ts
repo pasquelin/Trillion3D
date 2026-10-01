@@ -103,8 +103,8 @@ function encodeTileLists(
   const { lights, gpu } = rt,
     { tiles } = lights,
     [width, height] = gpu.targetSize;
-  if (!tiles || !gpu.depthView || !lights.buffer) return false;
-  if (!tiles.ensure(width, height, gpu.depthView, lights.buffer, lights.store.count)) return false;
+  if (!tiles || !lights.buffer) return false;
+  if (!tiles.ensure(width, height, lights.buffer)) return false;
   tiles.update(viewProjection, eye, width, height);
   return tiles.encode(encoder, rt.run.frame);
 }
@@ -163,8 +163,6 @@ function logFirstDirectFrame(rt: WebgpuPagesRuntime) {
   diag.engineDiagnostic('direct-lighting-frame', 'First image lit by the contract', {
     version: 1,
     tiles: [lights.tiles?.tilesX ?? 0, lights.tiles?.tilesY ?? 0],
-    // The light tiles' depth bounds reduced per subgroup: the device granted `subgroups`.
-    tileSubgroups: lights.tiles?.subgroups ?? false,
     ...directLightingState(rt),
   });
 }

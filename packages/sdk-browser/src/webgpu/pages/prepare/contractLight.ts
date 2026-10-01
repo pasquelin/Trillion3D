@@ -1,9 +1,9 @@
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
-import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
+import type { LitPrograms } from '../../../lighting/deferred/contractVariants.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { receiverResources } from '../../visibility/receiver.ts';
-import { shadowCasterLights } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
-import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/scene/light/contracts.ts';
+import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -29,19 +29,30 @@ export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
 export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   precompile: wantsContractLighting(rt),
   bounce: rt.bounce.wanted,
-  ...contractKey(rt, rt.lights.store.count > LIGHT_SETTINGS.tileLights, true),
+  key: { ...contractKey(rt.lights.store, true) },
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   unboundedReflections: rt.context.unboundedReflections === true,
 });
 
+const key = { narrow: false, unshadowed: false, rectless: false };
 /**
- * The contract program a frame lights with, keyed on stable state alone (#1362): narrow while the
- * scene's lights fit a tile list (#849), with shadow code while a light declares a shadow and the
- * atlas exists (#1249). Never on a slot held this frame: a lamp that moves, a page that comes and
- * goes, asks no other program. `atlas` is whether the shadow atlas exists, or will at prepare.
+ * The contract program a frame lights with, keyed on stable state alone, the store walked once
+ * (#1362): narrow while the scene's lights fit a tile list (#849); shadow code while a light
+ * declares a shadow and `atlas` holds one (#1249); rectangle code while a light is a rectangle
+ * (#1369). Never on a slot held this frame: a lamp that moves, a page that comes and goes, asks no
+ * other program. The object is reused from one frame to the next.
  */
-function contractKey(rt: WebgpuPagesRuntime, wide: boolean, atlas: boolean) {
-  return { narrow: !wide, unshadowed: !atlas || shadowCasterLights(rt.lights.store) === 0 };
+function contractKey(store: WebgpuPagesRuntime['lights']['store'], atlas: boolean) {
+  let caster = false,
+    rect = false;
+  for (let slot = 0; slot < store.count && !(caster && rect); slot++) {
+    caster ||= castsShadow(store, slot);
+    rect ||= store.kindOf(slot) === LIGHT_KIND.rect;
+  }
+  key.narrow = store.count <= LIGHT_SETTINGS.tileLights;
+  key.unshadowed = !atlas || !caster;
+  key.rectless = !rect;
+  return key;
 }
 
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
@@ -67,11 +78,12 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849); no
-  // light declares a shadow, or no atlas holds one: the resolve with no shadow code (#1249).
-  const key = contractKey(rt, !lights.tiles || lights.tiles.wide, !!lights.shadows);
-  contractResources.narrow = active && key.narrow;
-  contractResources.unshadowed = active && key.unshadowed;
+  // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
+  // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
+  const { narrow, unshadowed, rectless } = contractKey(lights.store, !!lights.shadows);
+  contractResources.narrow = active && !!lights.tiles && narrow;
+  contractResources.unshadowed = active && unshadowed;
+  contractResources.rectless = active && rectless;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;

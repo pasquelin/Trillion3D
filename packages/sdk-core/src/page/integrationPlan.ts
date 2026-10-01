@@ -76,10 +76,11 @@ export function planPageIntegration(
   for (let i = 0; i < count; i++) {
     const spec = i * PAGE_SPEC_STRIDE,
       offset = specs[spec + SPEC_STREAM_OFFSET],
-      page = specs[spec + SPEC_PAGE_INDEX];
-    const slice = i * PAGE_SLICE_STRIDE;
-    slices[slice + SLICE_OFFSET_WORDS] = offset < 0 ? 0 : offset / 4;
-    slices[slice + SLICE_WORDS] = offset < 0 ? words : specs[spec + SPEC_TRIANGLES] * 3;
+      page = specs[spec + SPEC_PAGE_INDEX],
+      slice = i * PAGE_SLICE_STRIDE,
+      whole = offset < 0;
+    slices[slice + SLICE_OFFSET_WORDS] = whole ? 0 : offset / 4;
+    slices[slice + SLICE_WORDS] = whole ? words : specs[spec + SPEC_TRIANGLES] * 3;
     slices[slice + SLICE_PAGE_INDEX] = page;
     if (page < 0) continue;
     if (page <= last) sorted = false;

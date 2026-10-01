@@ -24,6 +24,7 @@ import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
 import { SHADE_REQUEST_WGSL } from './request.ts';
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
+import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts';
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
 
 /**
@@ -94,9 +95,11 @@ fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0)
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 ${FRAMEBUFFER_WGSL}
 /** Full-screen triangle at the class depth: the depth test keeps the class's pixels only. */
-@vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
+fn classTriangle(i:u32)->vec4f{
  let x=f32(i32(i&1u)*4-1);let y=f32(i32(i>>1u)*4-1);return vec4f(x,y,CLASS_DEPTH,1.0);
 }
+@vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return classTriangle(i);}
+${MATERIAL_TILE_DRAW_WGSL}
 /** Material depth: the class of the pixel's page, zero on the background. */
 @fragment fn material_depth_fs(@builtin(position) pos:vec4f)->@builtin(frag_depth) f32{
  return materialClassDepth(textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r);
