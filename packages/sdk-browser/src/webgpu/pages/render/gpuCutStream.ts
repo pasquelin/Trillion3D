@@ -2,6 +2,14 @@ import type { GpuSelection } from '../../../gpu/core/selection.ts';
 import { ensurePageTable } from './encodeDraws.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
+/** The rows `markRow` marks: the stream's, set before each residency upload. */
+let marked: WebgpuPagesRuntime['layout']['rows'] | undefined;
+/** Packed page `page`'s readiness moved: its row, if it has one, is written again. */
+const markRow = (page: number) => {
+  const row = marked!.rowOfPage[page];
+  if (row >= 0) marked!.markRowWords(row);
+};
+
 /**
  * What advances an image's stream: ask the cache for the pages the cut wants, post the page table,
  * sync ranks then publish residency flags to GPU selection.
@@ -35,8 +43,10 @@ export function streamCutResidency(
   marks.rowsEnd = performance.now();
   if (rows.candidateOverflow) return false;
   // The rank journal names pages that just entered or left: comparing the DAG's two thousand three
-  // hundred pages no longer happens, and only their ranges are rewritten.
-  if (selection.updateResidency(rows.residentFlags, rows.residencyChanges))
+  // hundred pages no longer happens, and only their ranges are rewritten. A row whose readiness
+  // moved has its mobility word written again: whether a finer form now stands for it (#831).
+  marked = rows;
+  if (selection.updateResidency(rows.residentFlags, rows.residencyChanges, markRow))
     run.gpuMetricsReady = false;
   rows.clearResidencyChanges();
   marks.residencyUploadEnd = performance.now();

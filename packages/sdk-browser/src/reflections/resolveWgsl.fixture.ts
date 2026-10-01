@@ -22,6 +22,7 @@ export function fixture() {
     invViewProj: identity,
     viewport: [8, 8, 1 / 8, 1 / 8],
     params: [1, REFLECTION_STILL_FRAMES, 0, 0],
+    clip: [0, 0, 0, 0],
   };
   const motion = [identity];
   const uv = [0.5, 0.5, 1];
@@ -43,6 +44,8 @@ export function fixture() {
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
       view,
       motion,
+      neighbourhood: [0, 0, 0, 0],
+      spread: [0, 0, 0],
       pages: [{ placement: 0 }],
       previousUv: () => uv,
       dpdx: () => 0,
