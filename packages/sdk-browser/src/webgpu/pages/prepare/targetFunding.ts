@@ -1,5 +1,4 @@
-import { startGrant } from '../../../gpu/core/errorScope.ts';
-import { viewGpu } from '../state/view.ts';
+import { grantPending, startGrant, type DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { shadowBatchWrites } from '../../../gpu/shadow/batchWrites.ts';
@@ -13,11 +12,15 @@ import type { FrameSize } from '../state/renderScale.ts';
  * the same constructors as normal residency, so root coverage and texture tails
  * cannot be silently enlarged after this budget transaction. */
 const funded = new WeakMap<WebgpuPagesRuntime, number>();
+/** The pools funded again beside targets already in place, one at a time. */
+const refreshing = new WeakMap<WebgpuPagesRuntime, DeviceGrant>();
 
 function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
   if (!rt.context.admitGpuMemory) return;
   const bytes = gpuDeviceLedgerOf(rt.gpu.device)?.bytes;
   if (bytes === undefined || bytes === funded.get(rt)) return;
+  // Asked once per ledger state, granted or refused: a refusal is said once, not every frame.
+  funded.set(rt, bytes);
   try {
     return fundFrameTargets(rt, size, 0, true);
   } catch (error) {
@@ -84,17 +87,21 @@ export function fundFrameTargets(
   record();
 }
 
-/** Hold only while an allocation change actually requires asynchronous pool redistribution. */
+/**
+ * The targets in place fit: the pools are funded again beside the frames, never holding one —
+ * like the reference's streaming pool, a budget moves quality, never presentation (#1362). A
+ * refusal is said (`refuse`) and keeps the pools in place. Prepare and capture await the answer.
+ */
 export function refreshTargetGrant(
   rt: WebgpuPagesRuntime,
   size: FrameSize,
   refuse: (error: unknown) => void,
 ) {
-  if (rt.gpu.targetGrant) return rt.gpu.targetGrant.done;
+  const pending = grantPending(refreshing.get(rt));
+  if (pending) return pending;
   const refresh = refreshTargetFunding(rt, size);
   if (!refresh) return;
-  const view = rt.views.active;
-  const done = refresh.then(() => void (viewGpu(rt, view).targetGrant = undefined), refuse);
-  rt.gpu.targetGrant = startGrant(done, { ...size });
-  return done;
+  const grant = startGrant(refresh.catch(refuse));
+  refreshing.set(rt, grant);
+  return grant.done;
 }
