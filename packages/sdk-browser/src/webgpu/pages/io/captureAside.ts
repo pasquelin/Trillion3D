@@ -3,12 +3,18 @@ import type { HostCamera } from '../../../camera/world.ts';
 import { encodeDraws } from '../render/encodeDraws.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { grantFrameTargets } from '../prepare/targetGrant.ts';
+import { poolFundingPending } from '../prepare/targetFunding.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import { grantPending } from '../../../gpu/core/errorScope.ts';
 import { createWebgpuView, type WebgpuView } from '../state/view.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+/** Targets asked of the device, or pools funded again beside them (#1362), while a capture draws:
+ *  it waits for them and draws again, never reading pages a funding moved. */
+const targetsMoving = (rt: WebgpuPagesRuntime) =>
+  rt.gpu.targetGrant !== undefined || poolFundingPending(rt) !== undefined;
 
 /**
  * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
@@ -34,6 +40,7 @@ export async function captureAside<T>(
     await rt.gpu.device?.queue.onSubmittedWorkDone();
     // The main view's grant in flight settles before the switch, on the main view.
     await grantPending(rt.gpu.targetGrant);
+    await poolFundingPending(rt);
     // A session closed meanwhile draws nothing.
     rt.context.signal?.throwIfAborted();
     useWebgpuView(rt, view);
@@ -63,10 +70,10 @@ export async function renderForCapture(
     renderWebgpuPages(rt, camera, aspect);
     // Selection can reveal a first mirror after the initial target grant. Finish that grant
     // and draw its targets before any capture reads them or returns to the original view.
-    if (rt.gpu.targetGrant) {
+    if (targetsMoving(rt)) {
       await grantFrameTargets(rt, rt.gpu.device!);
       renderWebgpuPages(rt, camera, aspect);
-      if (rt.gpu.targetGrant) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_RENDER');
+      if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_RENDER');
     }
   } finally {
     rt.capture.surfaceRenderAllowed = false;
@@ -92,11 +99,11 @@ export async function drawResidentCut(
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
-  if (rt.gpu.targetGrant) {
+  if (targetsMoving(rt)) {
     await grantFrameTargets(rt, gpuDevice);
     hooks.beforeEncode?.();
     run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
-    if (rt.gpu.targetGrant) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE');
+    if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE');
   }
 }
 
@@ -105,6 +112,7 @@ export async function drawResidentCut(
 export async function releaseSettledCapture(rt: WebgpuPagesRuntime, view: WebgpuView) {
   try {
     await grantPending(rt.views.active === view ? rt.gpu.targetGrant : view.gpu.targetGrant);
+    await poolFundingPending(rt);
   } finally {
     releaseWebgpuView(rt, view);
   }

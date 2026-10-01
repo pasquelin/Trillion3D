@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
 import { onView } from '../state/viewSwitch.ts';
 import { frameSizeOf, sameFrameSize, type FrameSize } from '../state/renderScale.ts';
-import { fundFrameTargets, refreshTargetGrant } from './targetFunding.ts';
+import { fundFrameTargets, poolFundingPending, refreshTargetGrant } from './targetFunding.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
@@ -111,6 +111,7 @@ async function grantTargets(
 ) {
   const { vis, diag } = rt,
     hiz = !!vis.gpuHiz;
+  await poolFundingPending(rt); // One funding moves the pools at a time (#1362).
   await onView(rt, view, () => fundFrameTargets(rt, asked, asked.requestedBytes));
   // Made, and released when refused, on the view that asked.
   const make = () =>
