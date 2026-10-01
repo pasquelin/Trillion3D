@@ -5,7 +5,8 @@ import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { blendStagePipelines } from '../blend/stagePipelines.ts';
-import { WATER_BINDINGS, waterCompositeShader, waterRoutedShader } from './compositeWgsl.ts';
+import { WATER_BINDINGS, waterCompositeShader } from './compositeWgsl.ts';
+import { waterRoutedShader } from './routedWgsl.ts';
 import { displayMaskLayout } from '../blend/displayFilter.ts';
 import { waterCompositeTargets } from './compositeTargets.ts';
 
@@ -69,16 +70,19 @@ const COMPOSE_ENTRIES = [
  * routed through the display layers (`waterRoutedShader`: the tint and the added value of a
  * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output. A scene
  * with no share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
+ * A reference session's (`unbounded`) walk the mirror ray whole (`waterCompositeShader`).
  */
 export async function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   sunWindow?: number,
+  unbounded = false,
 ) {
+  const suffix = unbounded ? '_UNBOUNDED' : '';
   const module = await createCheckedShaderModule(
     device,
-    waterCompositeShader(sunWindow),
-    'WATER_COMPOSITE',
+    waterCompositeShader(sunWindow, unbounded),
+    `WATER_COMPOSITE${suffix}`,
   );
   const layouts = [layout, reflectionLayout(device)];
   const base = await makeFullscreenPipeline(
@@ -88,13 +92,14 @@ export async function createWaterComposites(
     COMPOSE_ENTRIES[0],
     waterCompositeTargets(false),
   );
+  const routedLabel = `WATER_ROUTED${suffix}`;
   let routedModule: GPUShaderModule | undefined;
   const made: (GPURenderPipeline | undefined)[] = [base, undefined, undefined, undefined];
   const build = (filtered: boolean, share: boolean, entryPoint: string) => {
     const code = filtered
       ? (routedModule ??= device.createShaderModule({
-          label: 'WATER_ROUTED',
-          code: waterRoutedShader(sunWindow),
+          label: routedLabel,
+          code: waterRoutedShader(sunWindow, unbounded),
         }))
       : module;
     const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts;
