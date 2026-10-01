@@ -162,13 +162,13 @@ export function createLightCutRedraws(
       if (open) open.reported = copied;
     },
     /** Residency the light cuts see changed: the drop goes stale, not forgotten (the limit may
-     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again once the
-     *  camera rests (`rest`). */
+     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again
+     *  (`rest`), the camera moving or not (#831). */
     residencyChanged() {
       moved = true;
       limit.residencyChanged();
     },
-    /** Residency changed, or the camera rests: what residency changed meanwhile is drawn again. */
+    /** Residency changed: what waited on it is drawn again, the camera moving or not (#831). */
     rest() {
       if (!moved) return;
       moved = false;

@@ -4,19 +4,6 @@ import { freshSlices, freshWanted } from './freshInputs.ts';
 import { freshGroups } from './freshGroups.ts';
 import { growPairList } from './pairGrowth.ts';
 import { keptPairs, poolPairs } from './pairRows.ts';
-import { FRESH_LAYER_PASS, type ShadowStaticLayer } from '../../gpu/shadow/staticLayer.ts';
-
-/** The static layer's passes of the GPU's own pages, labelled apart from the host's layer passes
- *  (`SHADOW_LAYER_PASS`): made once a layer. */
-const layerPasses = new WeakMap<ShadowStaticLayer, GPURenderPassDescriptor[]>();
-const freshLayerPasses = (layer: ShadowStaticLayer) => {
-  let passes = layerPasses.get(layer);
-  if (!passes) {
-    passes = layer.passes.map((pass) => ({ ...pass, label: FRESH_LAYER_PASS }));
-    layerPasses.set(layer, passes);
-  }
-  return passes;
-};
 
 /** The blended casters' rows, rewritten each frame: a frame allocates nothing. */
 const blend: [number, number] = [0, 0];
@@ -61,7 +48,7 @@ export function encodeFreshPages(
   blend[1] = rows.casterSlots;
   // The frame's pairs, never more, though the host's caster rows widen the list (`poolPairs`): a
   // region past them waits, whole, for the next frame or the host's draw.
-  const capacity = Math.min(keptPairs(cull.capacity), poolPairs(side * side * layers));
+  const capacity = Math.min(keptPairs(cull.capacity), poolPairs(plan.pool.pages));
   buffers.writeFresh(side, layers, rows.packedCount, blend, capacity, freshSlices(lights.store));
   const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
   composed.push(
@@ -107,18 +94,12 @@ export function encodeFreshPages(
     // and merges them under the dynamic ones (#831): the still casters into the layer, then the
     // pool's page restored from it and the moving casters alone over it. A mover crossing the
     // page later restores it too: its still geometry is drawn once.
-    if (layer)
-      drawPass(freshLayerPasses(layer)[at], at, groups.pool, [draws.clear, draws.staticCasters]);
-    // The layer's own descriptors (`layerPasses`): labelled for the GPU timing (#685).
-    if (layer)
-      drawPass(
-        shadows.passes[at],
-        at,
-        groups.pool,
-        [draws.restore, draws.movingCasters],
-        layer.groups[at],
-      );
-    else drawPass(shadows.passes[at], at, groups.pool, [draws.clear, draws.casters]);
+    // Each layer's own descriptors (`layerPasses`): labelled for the GPU timing (#685).
+    if (layer) {
+      drawPass(layer.freshPasses[at], at, groups.pool, [draws.clear, draws.staticCasters]);
+      const restore = [draws.restore, draws.movingCasters];
+      drawPass(shadows.passes[at], at, groups.pool, restore, layer.groups[at]);
+    } else drawPass(shadows.passes[at], at, groups.pool, [draws.clear, draws.casters]);
     if (tint)
       drawPass(tint.passes[at], at, groups.tint[at], [
         draws.tintClear,
