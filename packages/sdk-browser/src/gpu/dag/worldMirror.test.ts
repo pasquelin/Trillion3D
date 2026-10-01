@@ -48,6 +48,9 @@ test('the cut that packs the world DAG mirrors the rows itself; one without it r
   const selection = await cutOf(packed);
   assert.deepEqual([packed.world!.root, selection.packsWorld], [OBJECTS, true]);
   assert.equal(mirror.update(rows).flags.length, packed.pageCount);
+  // Its tables are host bytes the CPU budget holds, counted in the cut's own.
+  assert.ok(mirror.hostBytes >= mirror.flags.byteLength);
+  assert.ok(selection.hostBytes >= mirror.hostBytes, 'the cut counts its mirror');
   assert.doesNotThrow(() => selection.updateResidency(rows));
   assert.throws(
     () => selection.updateResidency(rows.subarray(1)),
