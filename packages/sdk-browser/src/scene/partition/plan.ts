@@ -85,32 +85,66 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
 }
 
 /**
+ * How a plan reads the world super-roots (#1332): the cells whose objects are placed, and the error
+ * the cut projects for a cell's super-roots (`cellSuperRootError`) against its pixel target. A
+ * cell is then held one of two ways — placed, its objects read and drawn, or drawn by its
+ * super-roots alone, its world bundles held and its object pages unread.
+ */
+export type SuperRootPlan = {
+  placed: { has(cell: number): boolean };
+  target: number;
+  projected(cell: number): number;
+};
+
+/**
  * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
  * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
  * index (`cellIndex.ts`); the held cells past `reach·(1 + KEEP)`, which leave; and the pages of the
  * index within those spheres not yet opened (`pages`), nearest first, the index closing those past
  * the keep sphere. `reach` is the frame camera's (`cellReach`).
+ *
+ * Given `superRoots`, `held` holds both kinds of cell and the near/far choice is the cut's: a cell
+ * found is `far` — held, drawn by its super-roots, its objects unread — until its super-roots'
+ * error projects past the target, when its objects are `visible` (within the reach) or `ahead`
+ * (past `target/(1 + AHEAD)`); a placed cell is `demoted` to its super-roots once that error is
+ * within `target/(1 + KEEP)`, so one hovering on the border is not read again at every step, as
+ * World Partition's loading range keeps a cell's actors until past its own margin.
  */
 export function planCells(
   index: Pick<CellIndex, 'near' | 'distance'>,
   eye: ArrayLike<number>,
   reach: number,
   held: Pick<ReadonlyMap<number, unknown>, 'has' | 'keys'>,
+  superRoots?: SuperRootPlan,
 ) {
   type Found<T> = { item: T; distance: number };
   const cells: Found<number>[] = [],
+    far: Found<number>[] = [],
     pages: Found<IndexPage>[] = [];
   const keep = reach * (1 + KEEP);
+  const placed = superRoots?.placed ?? held;
+  /** Whether the cut needs `cell`'s objects, its super-roots' error widened by `margin`. */
+  const needs = (cell: number, margin: number) =>
+    !superRoots || superRoots.projected(cell) * margin > superRoots.target;
   index.near(
     eye,
     reach * (1 + AHEAD),
     keep,
     held,
-    (item, distance) => void (held.has(item) || cells.push({ item, distance })),
+    (item, distance) => {
+      if (placed.has(item)) return;
+      if (superRoots && !held.has(item)) far.push({ item, distance });
+      // Past the reach, or its objects wanted only within the prefetch margin: read ahead.
+      if (distance <= reach && needs(item, 1)) cells.push({ item, distance });
+      else if (needs(item, 1 + AHEAD)) cells.push({ item, distance: reach + distance });
+    },
     (item, distance) => void pages.push({ item, distance }),
   );
-  const leave: number[] = [];
-  for (const cell of held.keys()) if (index.distance(cell, eye) > keep) leave.push(cell);
+  const leave: number[] = [],
+    demoted: number[] = [];
+  for (const cell of held.keys())
+    if (index.distance(cell, eye) > keep) leave.push(cell);
+    else if (superRoots?.placed.has(cell) && !needs(cell, 1 + KEEP)) demoted.push(cell);
   /** The items of `list` within the reach, or past it when `past`, nearest first. */
   const nearest = <T>(list: Found<T>[], past: boolean) =>
     list
@@ -121,6 +155,8 @@ export function planCells(
     visible: nearest(cells, false),
     ahead: nearest(cells, true),
     leave,
+    far: far.sort((a, b) => a.distance - b.distance).map(({ item }) => item),
+    demoted,
     pages: { visible: nearest(pages, false), ahead: nearest(pages, true) },
   };
 }
