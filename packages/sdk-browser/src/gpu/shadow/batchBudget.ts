@@ -27,16 +27,26 @@ export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
+/** Frames a whole view's pages are filled over at most: a camera cut, a world's first frames, a
+ *  residency change over the view, as the reference engine fills its cached pages over frames rather than in one. */
+export const SHADOW_FILL_FRAMES = 8;
 /**
- * THE PAGES A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws each: the pages
- * the granted batches hold (`MAX_SHADOW_RUNS`, one pool layer), never more than the pool's. A
- * safety net, derived from the grant and the pool, never from a scene: each page draws its casters
- * at the level its texels want — the host's light cut, the GPU's pair cull (`freshCullWgsl.ts`,
- * #831) —, so a burst costs its pages' texels, not the whole field's finest form at each. A page
- * past it waits for the next frame and meanwhile reads the coarser one under it, as the reference engine's
- * virtual shadow maps read a page their frame did not render.
+ * THE STATIC FILL A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws together:
+ * the pages whose still casters are rasterised — a page mapped anew, or one whose static layer is
+ * stale —, a restore of its moving casters over its static layer never counted (#831). A pool holds
+ * two views' pages (`priorPoolPages`), so a whole view is half of it, filled over
+ * `SHADOW_FILL_FRAMES` frames: the budget follows the screen the pool was sized from, never a
+ * scene, and is at least a batch's pages and at most the granted batches' (`MAX_SHADOW_RUNS`). A
+ * page past it waits for the next frame, the coarsest first, and meanwhile reads the coarser one
+ * under it or its own former depth, as the reference engine's virtual shadow maps read a page their frame did
+ * not render: no frame pays a burst whole.
  */
-export const shadowPagesPerFrame = (poolPages: number) => Math.min(poolPages, MAX_SHADOW_RUNS);
+export const shadowPagesPerFrame = (poolPages: number) =>
+  Math.min(
+    poolPages,
+    MAX_SHADOW_RUNS,
+    Math.max(MAX_SHADOW_PAGES, Math.ceil(poolPages / (2 * SHADOW_FILL_FRAMES))),
+  );
 /** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`): at
  *  120 frames a second, a readback's round trip — the GPU's queue, then the map — can span more
  *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */
