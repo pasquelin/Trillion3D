@@ -1,38 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LIGHT_SETTINGS, createSceneLightStore } from '../../../sdk-core/src/index.ts';
-import { attachContractLights } from './contractLights.ts';
-import { installLighting } from './contractLightingApi.ts';
+import { LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { harness, light } from './contractLights.fixture.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
-import { createDrawLists } from '../webgl/cluster/drawLists.ts';
-import { Scene } from '../world/core/scene.ts';
 import { Light } from '../../../sdk-core/src/world/light/light.ts';
-import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
 const coords = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z].map((n) => n + 0);
-/** A source light of the given kind and strength. */
-const light = (kind: string, intensity = 1) => new Light(kind, { intensity });
-
-/** A WebGL2 engine, reduced to what the contract asks of it: its scene and its source graph. */
-function harness(sourceLights: Object3D[] = []) {
-  const [scene, source, store] = [new Scene(), new Object3D(), createSceneLightStore()];
-  source.add(...sourceLights);
-  const contract = attachContractLights(scene, store, installLighting(scene, 0, source), () => {});
-  return {
-    scene,
-    store,
-    contract,
-    /** Lights the render would see: the list a WebGL2 frame reads (`drawLists.ts`). */
-    visibleLights() {
-      const lists = createDrawLists(scene, []);
-      lists.refresh();
-      const found = [...lists.lights];
-      lists.dispose();
-      return found;
-    },
-  };
-}
 
 test('with no light and no requested view, the source graph lights alone and the image does not change', () => {
   const bench = harness([light('directional', 2)]);
