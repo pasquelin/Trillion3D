@@ -150,7 +150,16 @@ export function gpuFrames(
         gpuDraws === 'wanted' ? freshWanted(plan, store.epoch, allocation.lost) : gpuDraws;
       if (draws) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.
-        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, 1, run.fill ?? allocation.pagesPerFrame, slices(store));
+        allocation.writeFresh(
+          poolSide,
+          1,
+          0,
+          [0, 0],
+          0,
+          1,
+          run.fill ?? allocation.pagesPerFrame,
+          slices(store),
+        );
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
         fresh.push(allocation.freshVolumes, allocation.freshArgs, allocation.freshParams);
         fresh.push(allocation.freshDispatch);

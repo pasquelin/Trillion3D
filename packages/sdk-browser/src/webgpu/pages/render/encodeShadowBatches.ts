@@ -35,9 +35,11 @@ export function forEachShadowBatch(
     from = 0,
     fills = 0;
   for (let batch = 0; from < count && fills < budget && batch < batches; batch++) {
-    const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views);
+    const to = admission.batchEnd(from, MAX_SHADOW_PAGES, views),
+      // Counted before the batch: once encoded, its pages are current (`plan.commit`).
+      filled = staticFills(rt.lights, from, to);
     if (!visit(from, to, runBase)) break;
-    fills += staticFills(rt.lights, from, to);
+    fills += filled;
     runBase += runs.count;
     from = to;
   }
