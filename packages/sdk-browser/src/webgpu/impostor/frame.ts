@@ -1,6 +1,7 @@
 import {
   frustumExcludesBox,
   impostorBakedByMesh,
+  impostorTexelDepth,
   invertMatrix4,
   planImpostors,
   type ImpostorCard,
@@ -43,7 +44,8 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
     reader = rt.context.readTextureLevel,
     device = rt.gpu.device;
   if (!rt.vis.visEnabled) return undefined;
-  if (rt.gpu.impostors || !section?.baked || !reader || !device) return rt.gpu.impostors;
+  if (rt.gpu.impostors) return rt.gpu.impostors;
+  if (!section?.baked || !reader || !device) return undefined;
   const pass = createImpostorPass(device, reader, () => rt.run.gate.resourcesChanged());
   return (rt.gpu.impostors = createWebgpuImpostors(pass, section));
 }
@@ -52,24 +54,30 @@ const pixelScale = [0, 0],
   pivot = new Float64Array(3),
   corners = new Float64Array(12),
   inverse = new Float64Array(16),
-  ordered: ImpostorCard[] = [],
-  byMesh = (a: ImpostorCard, b: ImpostorCard) => a.mesh - b.mesh;
+  ordered: { card: ImpostorCard; group: GPUBindGroup }[] = [],
+  byMesh = (a: { card: ImpostorCard }, b: { card: ImpostorCard }) => a.card.mesh - b.card.mesh;
 
 /** Writes one card's record at `at`: corners, world, inverse world, shape, object pivot. */
 function writeCard(
   out: Float32Array,
   at: number,
   card: ImpostorCard,
-  shape: [number, number, number, number],
+  radius: number,
+  frames: number,
+  hemi: boolean,
+  lod: number,
   centre: readonly number[],
 ) {
   for (let i = 0; i < 4; i++) {
-    out.set(corners.subarray(i * 3, i * 3 + 3), at + i * 4);
+    for (let k = 0; k < 3; k++) out[at + i * 4 + k] = corners[i * 3 + k];
     out[at + i * 4 + 3] = 1;
   }
   out.set(card.world as ArrayLike<number>, at + 16);
   out.set(invertMatrix4(inverse, card.world), at + 32);
-  out.set(shape, at + 48);
+  out[at + 48] = radius;
+  out[at + 49] = frames;
+  out[at + 50] = hemi ? 1 : 0;
+  out[at + 51] = lod;
   for (let k = 0; k < 3; k++) out[at + 52 + k] = centre[k];
   out[at + 55] = 1;
 }
@@ -88,7 +96,17 @@ export function planWebgpuImpostors(
   roots: readonly ClusterRoot<unknown>[],
 ) {
   const state = impostorsOf(rt);
-  if (!state) return undefined;
+  if (!state) {
+    // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing: its last
+    // plan would hide roots from the CPU cut with no card in their place.
+    const stale = rt.gpu.impostors;
+    if (stale) {
+      stale.switched = undefined;
+      stale.count = 0;
+      stale.runs.length = 0;
+    }
+    return undefined;
+  }
   const { feed } = state.pass;
   feed.beginFrame();
   pixelScaleOf(cam.projection, rt.setup.viewport ?? rt.gpu.targetSize, pixelScale);
@@ -96,8 +114,9 @@ export function planWebgpuImpostors(
   const plan = planImpostors(roots, state.section, cam.view, focal);
   ordered.length = 0;
   for (const card of plan.cards) {
-    if (!feed.group(card.mesh, card.maps)) plan.switched[card.root] = 0;
-    else ordered.push(card);
+    const group = feed.group(card.mesh, card.maps);
+    if (!group) plan.switched[card.root] = 0;
+    else ordered.push({ card, group });
   }
   ordered.sort(byMesh);
   state.count = 0;
@@ -105,29 +124,32 @@ export function planWebgpuImpostors(
   if (state.records.length < ordered.length * CARD_FLOATS)
     state.records = new Float32Array(ordered.length * CARD_FLOATS * 2);
   let last: ArrayLike<number> | undefined;
-  for (const card of ordered) {
-    const entry = state.baked.get(card.mesh)!,
-      centre = entry.centre ?? [0, 0, 0],
-      R = card.radius;
+  for (const { card, group } of ordered) {
     // Two primitives of one placement are two roots of one mesh, at one world: one card.
     if (card.world === last) continue;
     last = card.world;
+    const entry = state.baked.get(card.mesh)!,
+      centre = entry.centre ?? [0, 0, 0],
+      R = card.radius;
     transformAffinePoint(pivot, card.world, centre[0], centre[1], centre[2]);
     const [x, y, z] = pivot;
     if (frustumExcludesBox(cam.planes, x - R, y - R, z - R, x + R, y + R, z + R)) continue;
     impostorCardCorners(corners, cam.viewProjection, pivot, R);
-    // The mip whose texel covers a pixel: the frame side over the card's side in pixels.
+    // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
     const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2]),
-      lod = Math.max(0, Math.log2((entry.frameSide * distance) / (2 * R * focal)));
-    const shape: [number, number, number, number] = [
-      entry.objectRadius ?? entry.radius,
+      lod = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)));
+    const objectRadius = entry.objectRadius ?? entry.radius;
+    writeCard(
+      state.records,
+      state.count * CARD_FLOATS,
+      card,
+      objectRadius,
       entry.frames,
-      entry.hemi ? 1 : 0,
+      !!entry.hemi,
       lod,
-    ];
-    writeCard(state.records, state.count * CARD_FLOATS, card, shape, centre);
-    const group = feed.group(card.mesh, card.maps)!,
-      run = state.runs[state.runs.length - 1];
+      centre,
+    );
+    const run = state.runs[state.runs.length - 1];
     if (run?.group === group) run.count++;
     else state.runs.push({ group, first: state.count, count: 1 });
     state.count++;
