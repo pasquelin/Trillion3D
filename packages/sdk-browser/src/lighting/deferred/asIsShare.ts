@@ -1,5 +1,7 @@
 import { AS_IS_SHARE_SHADER } from './asIsShareWgsl.ts';
 import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts';
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts';
+import { preparedPipeline, started } from './fullscreen.ts';
 
 /** Red, the as-is share; green, the reactive value (#833). */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm';
@@ -17,6 +19,24 @@ export const SHARE_TARGET: GPUColorTargetState = {
  *  (`../../particles/webgpuParticleDraw.ts`, `../../webgpu/water/pipelines.ts`): the same, green
  *  alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 };
+
+/** The seed's program, once a device, compiled off the thread from the first targets on: frame
+ *  targets made again at another size compile nothing (#1362). */
+const seedProgram = oncePerDevice((device) => {
+  const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER });
+  const layout = device.createBindGroupLayout({
+    entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'uint' } }],
+  });
+  const pipeline = started(
+    preparedPipeline(device, {
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      vertex: { module, entryPoint: 'fullscreen' },
+      fragment: { module, entryPoint: 'seed', targets: [{ format: AS_IS_SHARE_FORMAT }] },
+      primitive: { topology: 'triangle-list' },
+    }),
+  );
+  return { layout, pipeline };
+});
 
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
@@ -38,16 +58,7 @@ export function createAsIsShare(
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
   const view = texture.createView();
-  const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER });
-  const layout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'uint' } }],
-  });
-  const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint: 'seed', targets: [{ format: AS_IS_SHARE_FORMAT }] },
-    primitive: { topology: 'triangle-list' },
-  });
+  const { layout, pipeline } = seedProgram(device);
   const group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: flags }] });
   return {
     view,
@@ -56,7 +67,7 @@ export function createAsIsShare(
         label: 'Trillion3D as-is share seed',
         colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] }],
       });
-      pass.setPipeline(pipeline);
+      pass.setPipeline(pipeline.get());
       pass.setBindGroup(0, group);
       pass.draw(3);
       pass.end();
