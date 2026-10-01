@@ -36,6 +36,7 @@ export const LAMP_SCENES: Record<string, SceneLight[]> = {
       castsShadow: false,
     },
   ],
-  'a-ring-of-lamps': lamps(32, false),
-  'a-ring-of-lamps, shadows on': lamps(32, true),
+  // Its 64 lamps, exactly a tile list long (`LIGHT_SETTINGS.tileLights`).
+  'a-ring-of-lamps': lamps(64, false),
+  'a-ring-of-lamps, shadows on': lamps(64, true),
 };
