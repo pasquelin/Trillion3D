@@ -32,6 +32,22 @@ export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boo
 
 export type TimingEntry = { slot: number; name: string; part: number };
 
+/**
+ * Sets each timed pass's own share of the image, ms: its span less what a pass the device began
+ * earlier already covered (#1279). A device that overlaps passes reports each one's whole span, so
+ * their durations add up past the image; these shares count an overlap once, on the pass begun
+ * first, and add up to the time the timed passes cover. `timed`, in the passes' order, is sorted.
+ */
+function setOwnShares(timed: { pass: { ownMs: number }; begin: bigint; end: bigint }[]) {
+  let covered = 0n;
+  timed.sort((a, b) => (a.begin < b.begin ? -1 : a.begin > b.begin ? 1 : 0));
+  for (const { pass, begin, end } of timed) {
+    const from = begin > covered ? begin : covered;
+    pass.ownMs = nanosecondsToMs(Number(end > from ? end - from : 0n));
+    if (end > covered) covered = end;
+  }
+}
+
 /** Reconstruct one image from device timestamp pairs without counting host gaps as GPU work. */
 export function summarizeTimestamps(
   entries: TimingEntry[],
@@ -46,6 +62,7 @@ export function summarizeTimestamps(
     lastEnd = 0n,
     spanValid = true;
   const submissionSpans = new Map<number, { beginNs: bigint; endNs: bigint; passes: number }>();
+  const timed: Parameters<typeof setOwnShares>[0] = [];
   const passes = entries.map((entry) => {
     const begin = values[entry.slot],
       end = values[entry.slot + 1];
@@ -69,8 +86,11 @@ export function summarizeTimestamps(
       if (end > span.endNs) span.endNs = end;
       span.passes++;
     }
-    return { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)) };
+    const pass = { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)), ownMs: 0 };
+    timed.push({ pass, begin, end });
+    return pass;
   });
+  setOwnShares(timed);
   const total =
     truncated || passes.some((pass) => pass.gpuMs === null)
       ? null

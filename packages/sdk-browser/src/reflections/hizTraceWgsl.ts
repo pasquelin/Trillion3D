@@ -1,4 +1,5 @@
 import { REFLECTION_SEGMENT } from './traceShader.ts';
+import { MIRROR_TRANSITION_END } from './modelShader.ts';
 
 /** Steps a rough ray takes at most; past them it misses and its lobe reads the fallback, as a ray
  *  leaving the screen does. The reference's hierarchical trace holds a fixed count the same way. */
@@ -44,9 +45,16 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  return vec4f(0.0);
 }`;
 
-/** The rough trace's ray: clipped as the full walk's (`reflectionExit`), then walked over the
- *  pyramid within `REFLECTION_TRACE_STEPS`. A hit reads the reprojected source, whose alpha tells
- *  a pixel the last image did not see: a miss. */
+/** The bounded ray: clipped as the full walk's (`reflectionExit`), then walked over the pyramid
+ *  within `REFLECTION_TRACE_STEPS`. A hit reads the reprojected source, whose alpha tells a pixel
+ *  the last image did not see: a miss. A miss reads the program's filtered reflection at the first
+ *  roughness the probes filter — never a proxy ray per pixel. A rough sample (#33) and the water's
+ *  mirror (#1279) resolve their ray by it alike. */
 export const HIZ_TRACE_WGSL = `${HIZ_WALK_WGSL}
 fn screenReflectionHiZ(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
+}
+fn boundedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
+ let hit=screenReflectionHiZ(P,R);
+ if(hit.a!=0.0){return hit.rgb;}
+ return filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END});
 }`;
