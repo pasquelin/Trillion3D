@@ -28,8 +28,10 @@ export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
 /** Frames a whole view's pages are filled over at most: a camera cut, a world's first frames, a
- *  residency change over the view, as the reference engine fills its cached pages over frames rather than in one. */
-export const SHADOW_FILL_FRAMES = 8;
+ *  residency change over the view. On drive-a-car at the maintainer's screen (2 601 pages, 82 a
+ *  frame) no frame's static layer passed 16 ms, where eight frames (163) still let one reach 47 ms;
+ *  driving never left a page pending more than four frames (#831). */
+export const SHADOW_FILL_FRAMES = 16;
 /**
  * THE STATIC FILL A FRAME DRAWS AT MOST, the host's batches and the GPU's own page draws together:
  * the pages whose still casters are rasterised — a page mapped anew, or one whose static layer is

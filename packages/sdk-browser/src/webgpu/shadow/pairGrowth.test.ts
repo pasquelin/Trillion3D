@@ -125,7 +125,7 @@ test("the pair list holds a frame's static fill's pairs, never the whole pool's 
   // The GPU fills a frame's static fill at most (`shadowPagesPerFrame`), never past the grant's.
   assert.equal(poolPairs(32 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS * poolPairs(1));
   assert.equal(poolPairs(2601), shadowPagesPerFrame(2601) * poolPairs(1));
-  assert.ok(poolPairs(2601) < 2601 * poolPairs(1) / 8, 'an eighth of the pool at most');
+  assert.ok(poolPairs(2601) < (2601 * poolPairs(1)) / 16, 'a sixteenth of the pool at most');
 });
 
 // #831: the pool's bytes are its setting's from the first frame: the occlusion test's list, made at
