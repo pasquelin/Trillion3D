@@ -77,17 +77,17 @@ export function encodeFreshPages(
   allocation.seal(encoder, composed, 1);
   const draws = shadows.freshDraws.made(),
     layer = lights.staticLayer;
-  /** One pass over `descriptor` with group 2 `group` (and the static layer's at 3 when `from`),
-   *  drawing `kinds` in turn, each a pipeline and its draw (`FRESH_*`): its pages cleared or
-   *  restored, then its casters. */
+  /** One pass over layer `at`'s labelled descriptor `passes[at]` (`layerPasses`), with group 2
+   *  `group` (and the static layer's at 3 when `from`), drawing `kinds` in turn, each a pipeline
+   *  and its draw (`FRESH_*`): its pages cleared or restored, then its casters. */
   const drawPass = (
-    descriptor: GPURenderPassDescriptor,
+    passes: GPURenderPassDescriptor[],
     at: number,
     group: GPUBindGroup,
     kinds: [GPURenderPipeline, number][],
     from?: GPUBindGroup,
   ) => {
-    const pass = encoder.beginRenderPass(descriptor);
+    const pass = encoder.beginRenderPass(passes[at]);
     pass.setBindGroup(0, groups.page);
     pass.setBindGroup(1, shadows.faceGroup, [0]);
     pass.setBindGroup(2, group);
@@ -109,18 +109,15 @@ export function encodeFreshPages(
     // Each layer's own descriptors (`layerPasses`): labelled for the GPU timing (#685).
     const cleared: [GPURenderPipeline, number] = [draws.clear, FRESH_CLEAR];
     if (layer) {
-      drawPass(layer.freshPasses[at], at, groups.pool, [
-        cleared,
-        [draws.staticCasters, FRESH_STILL],
-      ]);
+      drawPass(layer.freshPasses, at, groups.pool, [cleared, [draws.staticCasters, FRESH_STILL]]);
       const restore: [GPURenderPipeline, number][] = [
         [draws.restore, FRESH_CLEAR],
         [draws.movingCasters, FRESH_MOVING],
       ];
-      drawPass(shadows.passes[at], at, groups.pool, restore, layer.groups[at]);
-    } else drawPass(shadows.passes[at], at, groups.pool, [cleared, [draws.casters, FRESH_CASTERS]]);
+      drawPass(shadows.passes, at, groups.pool, restore, layer.groups[at]);
+    } else drawPass(shadows.passes, at, groups.pool, [cleared, [draws.casters, FRESH_CASTERS]]);
     if (tint)
-      drawPass(tint.passes[at], at, groups.tint[at], [
+      drawPass(tint.passes, at, groups.tint[at], [
         [draws.tintClear, FRESH_CLEAR],
         [draws.tintDepth, FRESH_CASTERS],
         [draws.tintColour, FRESH_CASTERS],
