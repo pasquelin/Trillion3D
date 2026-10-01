@@ -74,8 +74,9 @@ export function worldPageServer(
   // Each bundle's page offsets in binary order: a page's rank among them is its place in it,
   // resolved once here rather than searched per request.
   const offsets = new Map<number, number[]>();
-  for (const entry of table.pages) {
-    const known = offsets.get(entry.bundle);
+  for (let page = 0; page < table.pages.count; page++) {
+    const entry = table.pages.at(page),
+      known = offsets.get(entry.bundle);
     if (known) known.push(entry.offset);
     else offsets.set(entry.bundle, [entry.offset]);
   }

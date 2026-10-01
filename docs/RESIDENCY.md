@@ -63,7 +63,7 @@ cut ranks through the same admission: at the smallest budget a root the view ref
 its group, one it accepts drawn as before.
 
 **Pinned bytes** (#1237, `scene/worldRoots.ts`). The runtime pins one thing: the world top the cook
-publishes (`world-roots.json`, [FORMAT.md](FORMAT.md#world-super-roots)), read as the model loads —
+publishes (`world-roots.table`, [FORMAT.md](FORMAT.md#world-super-roots)), read as the model loads —
 its bundles, the first of `world-roots.bin`, in one ranged read, each checked against its digest —
 and held for the scene's life, bounded by the materials, never the world (the session's `world-top`
 diagnostic: `pinnedBundles`, `pinnedBytes`, `heldBytes`). Object roots are pages held by the view:
