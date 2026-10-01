@@ -84,6 +84,10 @@ export class WebglTextureQueue {
   /** The census' pool and the bytes it holds; a map promoted later obeys the same pool. */
   private poolBytes = 0;
   private held = 0;
+  /** The pool's bytes the census left beside the maps it counted: 0 before it. */
+  get room() {
+    return Math.max(0, this.poolBytes - this.held);
+  }
   /** Queues `bind` into `into` if the pool has room left; false past the pool. */
   private admit(into: Ahead[], bind: Bind, [width, height]: [number, number]) {
     if (this.held >= this.poolBytes) return false;

@@ -1,7 +1,8 @@
 import { viewProj } from '../pages/helpers.ts';
 import { surfaceLoadAttachments } from '../pages/prepare/attachments.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { CARD_FLOATS, CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { CARD_VIEW_FLOATS } from './cardWgsl.ts';
+import { CARD_FLOATS } from '../../impostor/cards.ts';
 import { IMPOSTOR_PASS } from './pass.ts';
 import type { WebgpuImpostors } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
