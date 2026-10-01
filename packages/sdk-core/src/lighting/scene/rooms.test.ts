@@ -22,8 +22,11 @@ const hit = (scene: Scene, origin: Vec3, direction: Vec3) => {
 
 for (const doorAngle of [0, Math.PI / 2]) {
   const scene = createLightingScene({ doorAngle, lightIntensity: 1, patchSize: PATCH });
-  test(`door at ${doorAngle}: rooms are valid transport scenes`, () => {
+  test(`door at ${doorAngle}: rooms are valid transport scenes, each surface named for its part`, () => {
     assert.doesNotThrow(() => validateScene(scene));
+    // A part's name, then its face: `west_wall_px`, never a bare `_px`.
+    for (const surface of scene.surfaces) assert.match(surface.id, /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/);
+    assert.equal(new Set(scene.surfaces.map((surface) => surface.id)).size, scene.surfaces.length);
   });
 
   test(`door at ${doorAngle}: every ray from inside a room meets a face turned to it, cut into patches`, () => {
