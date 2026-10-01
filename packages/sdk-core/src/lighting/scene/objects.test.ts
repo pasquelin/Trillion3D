@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { LightingSceneLight, Vec3 } from './types.ts';
 import { createLightingSceneGeometry } from './geometry.ts';
+import { createLightingScene } from './experimentScene.ts';
 import { addLightingSceneObjects } from './objects.ts';
 import { LIGHTING_EYE } from './controls.ts';
 import {
   centre,
   close,
+  nearestHit,
+  unit,
   cross,
   dot,
   sub,
@@ -55,6 +58,7 @@ test('the warm panel is the large one; every other panel shares one smaller size
   const [warm, ...others] = objects(['warm', 'b', 'c'].map((id) => light(id))).panels;
   assert.ok(others.every((panel) => area(panel) < area(warm)));
   assert.equal(new Set(others.map(area)).size, 1);
+  for (const panel of others) close(Math.hypot(...panel.u), Math.hypot(...panel.v));
 });
 
 test('a panel emits in its colour, in proportion to its own and the scene intensity', () => {
@@ -81,4 +85,27 @@ test('the two mirrors stand still, upright and facing the camera', () => {
     assert.ok(dot(normal, sub(LIGHTING_EYE, centre(mirror))) > 0, mirror.id);
     assert.ok(mirror.albedo.every((value) => value > 0 && value <= 1));
   }
+});
+
+test('through the open door the eye sees only the left room in the near mirror', () => {
+  const scene = createLightingScene({ doorAngle: Math.PI / 2, lightIntensity: 1 });
+  const mirror = scene.surfaces.find((surface) => surface.id === 'mirror_near')!;
+  const normal = unit(cross(mirror.u, mirror.v));
+  const wrong: string[] = [];
+  for (let a = 0.1; a < 1; a += 0.2)
+    for (let b = 0.1; b < 1; b += 0.2) {
+      const point = mirror.origin.map(
+        (value, axis) => value + a * mirror.u[axis] + b * mirror.v[axis],
+      ) as Vec3;
+      const view = unit(sub(point, LIGHTING_EYE));
+      const reflected = view.map(
+        (value, axis) => value - 2 * dot(view, normal) * normal[axis],
+      ) as Vec3;
+      const hit = nearestHit(scene, point, reflected);
+      const seen = hit && scene.surfaces[hit.surface];
+      // The partition's left face is at x = 0 minus its half thickness: the left room is x < 0.
+      const x = seen && seen.origin[0] + hit.u * seen.u[0] + hit.v * seen.v[0];
+      if (!(x! < 0)) wrong.push(`${a} ${b} ${seen?.id}`);
+    }
+  assert.deepEqual(wrong, []);
 });
