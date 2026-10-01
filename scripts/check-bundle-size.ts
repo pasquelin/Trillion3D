@@ -16,11 +16,11 @@ import { BUNDLE_ENTRY } from './build-bundle.ts';
 import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts';
 import { coreSources } from './core-sources.ts';
 
-/** The budget of the gzip core, in bytes: the 256 180 bytes CI's Node measured once each renderer,
- *  its shadows and the debug tools left the core (#1353, 693 537 bytes before), and about 4 kB of
- *  margin. A declared value, not a derived one; a pull request that crosses it says why, and
- *  raises it. */
-const CORE_BUDGET_BYTES = 260_000;
+/** The budget of the gzip core, in bytes: the 255 314 bytes CI's Node measured once each renderer,
+ *  its shadow passes and the debug tools — the frame report and the pass table among them — left
+ *  the core (#1353, 693 537 bytes before), and about 3.7 kB of margin. A declared value, not a
+ *  derived one; a pull request that crosses it says why, and raises it. */
+const CORE_BUDGET_BYTES = 259_000;
 
 /** `from"./x.js"` and a bare `import"./x.js"`, as esbuild writes them, never `import("./x.js")`. */
 const STATIC_IMPORT = /(?:\bfrom\s*|\bimport\s*)(["'])(\.\/[^"']+)\1/g;

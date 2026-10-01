@@ -1,7 +1,7 @@
 // Telemetry: frame intervals and hexadecimal digests, against the oracles of before batch A.
 import { frameStatistics } from '../../../packages/sdk-core/src/index.ts';
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
-import { EngineProfiler } from '../../../packages/sdk-browser/src/diagnostic/telemetry.ts';
+import { FrameProfile } from '../../../packages/sdk-browser/src/diagnostic/frameProfile.ts';
 import { toHex } from '../../../packages/sdk-browser/src/streaming/sha256Hex.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceHex, referenceIntervals } from '../../oracles/browser/telemetry.ts';
@@ -34,13 +34,13 @@ const METRIQUES_VIDES: FrameMetrics = {
 
 const resTelemetry = await mesure({
   name: 'intervals and hexadecimal',
-  fichier: 'packages/sdk-browser/src/diagnostic/telemetry.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/frameProfile.ts',
   cas: [
     { name: '2 000 frames, 2 000 digests', input: { intervalles, digests }, size: 2000 },
     { name: 'no frames', input: { intervalles: [], digests: [] }, size: 0 },
   ],
   calcul: ({ intervalles: valeurs, digests: liste }) => {
-    const profil = new EngineProfiler(120);
+    const profil = new FrameProfile(120);
     let horloge = 0;
     for (const dt of valeurs) profil.record(METRIQUES_VIDES, (horloge += dt));
     return { stats: frameStatistics(profil.orderedIntervals()), hex: liste.map(toHex) };
