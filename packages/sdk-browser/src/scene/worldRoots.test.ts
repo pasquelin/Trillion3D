@@ -105,6 +105,14 @@ test('the world DAG names its pages through the one source, from what is held (#
   assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold');
 });
 
+test('a world DAG out of the cook\u2019s rank is refused when the world opens (#1238)', async (t) => {
+  const { clusters, groups } = worldRootsDag();
+  const swapped = [...clusters];
+  [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+  const { manifest } = served(t, undefined, false, { clusters: swapped, groups });
+  await assert.rejects(openWorldRoots(manifest, 'http://world/'), /WORLD_CLUSTER_RANK: 1 at 0/);
+});
+
 test('a cache that publishes no world roots pins nothing', async () => {
   assert.equal(await openWorldRoots({} as ClusterManifest, 'http://world/'), undefined);
 });
