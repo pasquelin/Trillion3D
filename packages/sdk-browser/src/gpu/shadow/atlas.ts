@@ -26,7 +26,7 @@ export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
 const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
 /** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`plan.ts`). */
-export const shadowBufferBytes = (tableEntries: number) =>
+const shadowBufferBytes = (tableEntries: number) =>
   MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(tableEntries);
 export const SHADOW_BUFFER_BYTES = shadowBufferBytes(SHADOW_TABLE_ENTRIES);
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
