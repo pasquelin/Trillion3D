@@ -126,7 +126,7 @@ export function shadowFreshDraws(
     restore: pipeline(
       'restore',
       restored,
-      ['shadow_fresh_clear_vs', 'shadow_fresh_restore_fs'],
+      ['shadow_fresh_clear_vs', 'restore_fs'],
       undefined,
       true,
       'always',

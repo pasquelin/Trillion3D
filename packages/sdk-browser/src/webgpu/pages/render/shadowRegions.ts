@@ -12,7 +12,6 @@ import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
-import { takeStaticLayerTexture } from '../../shadow/staticReserve.ts';
 
 import { shadowViewpointOf } from './shadowViewpoint.ts';
 
@@ -36,10 +35,10 @@ export function planShadowRegions(
   // Residency this frame's light cuts see changed since the last plan: those pages alone restale,
   // at once, the camera moving or not (#831).
   let residencyMoved = false;
-  const { residentFlags, residentOffsetWords } = rows;
+  const { residentFlags, residentOffsetWords } = rows,
+    { rootOfPacked } = rt.layout.placement;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    const { rootOfPacked } = rt.layout.placement;
     noteResidenceChange(lights, roots, rootOfPacked, page, recordOf(page)!, undefined, true);
   });
   lights.shadowPages = 0;
@@ -84,7 +83,7 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;
   // Made with the pool when its grant held it (`staticReserve.ts`): the move allocates nothing.
-  const kept = takeStaticLayerTexture(lights);
+  const kept = lights.staticLayerTexture;
   if (!kept && !staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
   (kept
     ? Promise.resolve(kept)
@@ -113,8 +112,14 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
         rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
       }
       lights.staticLayer = layer;
+      // The layer owns the reserved texture now, and counts its bytes.
+      lights.staticLayerTexture = undefined;
       // A session disposed meanwhile tore its layer down already: what landed after is freed.
       if (rt.signal.aborted) disposeStaticLayer(lights);
     })
-    .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
+    .catch((error) => {
+      // A layer that failed destroyed its texture, the reserved one too.
+      lights.staticLayerTexture = undefined;
+      rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error);
+    });
 }

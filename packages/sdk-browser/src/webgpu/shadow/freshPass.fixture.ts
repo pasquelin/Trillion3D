@@ -33,7 +33,7 @@ export function frame(calls: unknown[][]) {
           this.layered = layered;
         },
       },
-      pool: { side: 4, layers: LAYERS },
+      pool: { side: 4, layers: LAYERS, pages: 4 * 4 * LAYERS },
     },
     allocation: Object.fromEntries(
       ['compose', 'count', 'admit', 'cull', 'seal'].map((name) => [name, pass(name)]),
@@ -44,7 +44,6 @@ export function frame(calls: unknown[][]) {
         lost: 0,
         ...Object.fromEntries(buffers.map((k) => [k, named(k)])),
         writeFresh: (...args: unknown[]) => calls.push(['params', ...args.slice(0, 5)]),
-        pairNeed: 0,
       },
     },
     shadows: {

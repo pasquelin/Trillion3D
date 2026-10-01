@@ -1,4 +1,5 @@
 import { TRANSMITTANCE_CLEAR_WGSL } from '../../gpu/shadow/transmittance.ts';
+import { depthRestoreWgsl } from '../../gpu/core/depthRestoreWgsl.ts';
 import { FRESH_CLEAR, FRESH_MOVING_PAIR } from './freshLayout.ts';
 
 /**
@@ -15,7 +16,7 @@ import { FRESH_CLEAR, FRESH_MOVING_PAIR } from './freshLayout.ts';
  *   sun's snap (`freshPlace`), and the fragment keeps the page's texels alone (`freshInPage`).
  * - `shadow_fresh_static_vs`, `shadow_fresh_moving_vs`: the same, of the still casters alone —
  *   the static layer's draw —, or of the moving ones alone, over the page restored from that layer
- *   (`shadow_fresh_restore_fs`, group 3): as the reference engine renders a new page's static casters into its
+ *   (`restore_fs`, group 3): as the reference engine renders a new page's static casters into its
  *   static cache and merges them under the dynamic ones, the still geometry is drawn once (#831).
  */
 export const SHADOW_FRESH_DRAWS_WGSL = `
@@ -80,9 +81,5 @@ fn pageBlendTexel(view:ShadowView,in:ShadowOut,front:bool)->vec4f{
  return pageBlendTexel(freshFaces[in.region].view,in,front);
 }
 /** The static layer's layer the pass draws in: a page restored from it takes its texels' depth. */
-@group(3) @binding(0) var freshStatic:texture_depth_2d;
-@fragment fn shadow_fresh_restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
- return textureLoad(freshStatic,vec2i(p.xy),0);
-}
-/** A page of the transmittance layer cleared: all the light, and far. */
+${depthRestoreWgsl(3)}/** A page of the transmittance layer cleared: all the light, and far. */
 @fragment fn shadow_fresh_clear_fs()->@location(0) vec4f{return ${TRANSMITTANCE_CLEAR_WGSL};}`;

@@ -81,11 +81,8 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
     },
     /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable there. */
     drew(table: ShadowTable, page: number, mode: number, drawn: number) {
-      pool.dirty[page] = 0;
-      pool.valid[page] = 1;
-      pool.layered[page] =
-        mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
-      pool.range[page] = drawn;
+      const layered = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page] === 1);
+      pool.keepDraw(page, drawn, layered);
       table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn));
     },
     /** The GPU's own draw of the page is adopted (`mirror.ts`, #831): current, readable in slot
