@@ -3,7 +3,7 @@ import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
 import { freshSlices, freshWanted } from './freshInputs.ts';
 import { freshGroups } from './freshGroups.ts';
 import { growPairList } from './pairGrowth.ts';
-import { keptPairs } from './pairRows.ts';
+import { keptPairs, poolPairs } from './pairRows.ts';
 
 /** The blended casters' rows, rewritten each frame: a frame allocates nothing. */
 const blend: [number, number] = [0, 0];
@@ -44,7 +44,9 @@ export function encodeFreshPages(
     tint = shadows.transmittance;
   blend[0] = rows.blendFirst;
   blend[1] = rows.casterSlots;
-  const capacity = keptPairs(cull.capacity);
+  // The frame's pairs, never more, though the host's caster rows widen the list (`poolPairs`): a
+  // region past them waits, whole, for the next frame or the host's draw.
+  const capacity = Math.min(keptPairs(cull.capacity), poolPairs(side * side * layers));
   buffers.writeFresh(side, layers, rows.packedCount, blend, capacity, freshSlices(lights.store));
   const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
   composed.push(
