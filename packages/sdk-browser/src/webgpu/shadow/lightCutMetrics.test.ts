@@ -90,6 +90,18 @@ test('a coarser page is drawn again when residency moves, the camera moving', as
   assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 1, 'residency moved: drawn again');
 });
 
+// #831: a count per frame, as Unreal's frame counters and this frame's draw calls are, never a
+// running total read beside them.
+test('the coarser pages are counted per frame: the next frame counts its own', async () => {
+  const flag = { value: (1 << COARSER_VIEWS) >>> 0 };
+  const { rt, frame } = runtime(flag);
+  await frame([6, 7]);
+  redrawShortPages(rt, 2, 0, true);
+  assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 1);
+  redrawShortPages(rt, 3, 0, true);
+  assert.equal(lightCutMetrics(rt).shadowCutCoarsePages, 0, 'nothing sent back this frame');
+});
+
 test('the light-cut metrics are null without a light cut', () => {
   const rt = { lights: createWebgpuLightState(32) } as unknown as WebgpuPagesRuntime;
   assert.deepEqual(lightCutMetrics(rt), {
