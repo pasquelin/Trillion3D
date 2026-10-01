@@ -9,7 +9,8 @@ import { prepared, replay, targets } from '../water/pass.fixture.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { BLEND_SHADOW_MARKS_PASS, encodeShadowAsks } from '../shadow/allocPass.ts';
 import { SHADOW_DEMAND_LIGHT_WGSL } from '../shadow/demandWgsl.ts';
-import { createBlendShadowMarks } from './marks.ts';
+import { encodeBlendShadowMarks, prepareBlendShadowMarks } from './marks.ts';
+import { prepareBlend } from '../pages/render/encodeBlend.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
 import type { BlendExpand } from './expand.ts';
 
@@ -29,7 +30,6 @@ async function litImage() {
     };
   // The GPU expansion, recorded by the compute pass it opens.
   blendState.expand = { uploadPlan() {}, uploadKeep() {}, encode() {} } as unknown as BlendExpand;
-  blendState.shadowMarks = await createBlendShadowMarks(device, {} as GPUBindGroupLayout, 64);
   const lights = createWebgpuLightState(32),
     note = (name: string) => () => log.push(name);
   Object.assign(lights, {
@@ -43,10 +43,21 @@ async function litImage() {
     allocation: { floors: note('floors'), allocate: note('allocate') },
     demand: note('demand'),
   });
-  const visibility = { visView: {}, shadeUniform: {}, pageTable: {}, concatPos: {}, concatNrm: {} };
-  Object.assign(rt, { lights, vis: { ...rt.vis, ...visibility } });
-  Object.assign(rt.run, { frame: 1 });
-  Object.assign(gpu, { cache: { buffer: {} } });
+  // What the blend runs draw with (`prepareBlend`): the textured pass's resources.
+  const visibility = {
+    ...{ visView: {}, shadeUniform: {}, pageTable: {}, concatPos: {}, concatNrm: {} },
+    ...{ concatUv: {}, blendBindGroupLayout: {}, textures: {}, mapsSampler: {} },
+  };
+  Object.assign(rt, {
+    lights,
+    vis: { ...rt.vis, ...visibility },
+    timing: { transparentPrepareMs: 0, transparentEncodeMs: 0 },
+  });
+  // The fixture's eye, where its sort placed the copies (`prepared`).
+  Object.assign(rt.run, { frame: 1, lastCamera: {}, gate: { cam: { eye: [0, 0, 0] } } });
+  Object.assign(gpu, { cache: { buffer: {} }, pipelineBlend: {}, uniformBuffer: {}, zeroUv: {} });
+  await prepareBlendShadowMarks(rt, device);
+  Object.assign(blendState, { itemBuffer: {}, expandedBuffer: {} });
   const encoder = {
     beginComputePass: ({ label }: GPUComputePassDescriptor) => {
       log.push(label!);
@@ -67,19 +78,25 @@ async function litImage() {
   return { rt, device, encoder, log, marks, renderPipelines };
 }
 
+/** The image's order (`encodeSurfaceLighting`, `encodeDirectLights`): the blend runs prepared and
+ *  expanded, then the floors, the pixels' demand, the runs' marks and the allocation. */
+function encodeImageAsks({ rt, device, encoder }: Awaited<ReturnType<typeof litImage>>) {
+  const blendRuns = prepareBlend(rt, device, encoder, true);
+  assert.equal(blendRuns, true, 'the blend runs draw the transparents');
+  encodeShadowAsks(rt, encoder, true, () => encodeBlendShadowMarks(rt, device, encoder));
+}
+
 test('the blend runs are expanded and mark their pages after the demand, before the allocation', async () => {
-  const { rt, device, encoder, log, marks } = await litImage();
-  const frame = { textured: true, expanded: false, prepareMs: 0 };
-  encodeShadowAsks(rt, device, encoder, true, frame);
-  assert.deepEqual(log, ['floors', 'demand', EXPANSION, BLEND_SHADOW_MARKS_PASS, 'allocate']);
-  assert.ok(marks.draws > 0, 'the marks draw the blend runs');
-  // The blend pass that follows draws the same runs: they are not expanded twice.
-  assert.equal(frame.expanded, true);
+  const image = await litImage();
+  encodeImageAsks(image);
+  assert.deepEqual(image.log, [EXPANSION, 'floors', 'demand', BLEND_SHADOW_MARKS_PASS, 'allocate']);
+  assert.ok(image.marks.draws > 0, 'the marks draw the blend runs');
 });
 
 test('the blend marks call demandLight and write no colour or depth', async () => {
-  const { rt, device, encoder, marks, renderPipelines } = await litImage();
-  encodeShadowAsks(rt, device, encoder, true, { textured: true, expanded: false, prepareMs: 0 });
+  const image = await litImage();
+  const { marks, renderPipelines } = image;
+  encodeImageAsks(image);
   assert.deepEqual(marks.pass!.colorAttachments, [], 'no colour attachment');
   assert.equal(marks.pass!.depthStencilAttachment!.depthReadOnly, true, 'the depth is read only');
   // One pipeline per cull mode, each of the marks' fragment stage, with no target and no write.
@@ -93,7 +110,8 @@ test('the blend marks call demandLight and write no colour or depth', async () =
   // The stage marks through the demand's own `demandLight`: one demand path, not a second.
   const wgsl = blendShadowMarksWgsl();
   assert.match(functionsOf(wgsl, ['markShadows']), /markBlendShadows\(/);
-  assert.match(functionsOf(wgsl, ['markBlendShadows']), /demandLight\(directLights/);
+  assert.match(functionsOf(wgsl, ['markBlendShadows']), /demandSlice\(/);
+  assert.match(functionsOf(wgsl, ['demandSlice']), /demandLight\(directLights/);
   assert.ok(wgsl.includes(SHADOW_DEMAND_LIGHT_WGSL), 'the demand functions, verbatim');
   assert.equal(wgsl.split('fn demandLight(').length, 2, 'declared once');
   // No two resources of the module share a binding: its other stages declare group 2 too.

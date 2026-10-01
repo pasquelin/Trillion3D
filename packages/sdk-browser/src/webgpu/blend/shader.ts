@@ -1,5 +1,6 @@
 import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import type { ShadowRequestSlot } from '../../lighting/direct/shadowRequestWgsl.ts';
 import * as surfaceModel from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
@@ -16,7 +17,7 @@ import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts';
 import { BLEND_BINDINGS } from '../core/bindLayout.ts';
 import { BLEND_ITEM_WGSL } from './items.ts';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
-import { FLAG_HAS_COLOR, FLAG_PAGED, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
+import * as itemFlags from '../../visibility/buffer.ts';
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
@@ -28,7 +29,7 @@ import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 /** The pass's view uniform (`uniforms.ts`), the water composite's too (`displayFilter.ts`). */
 export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
-export const blendShader = (pages?: number) => `${BLEND_VIEW_WGSL}
+export const blendShader = (pages?: number, request?: ShadowRequestSlot) => `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
@@ -43,7 +44,7 @@ ${PAGE_INFO_STRUCT_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance, pages)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance, pages, request)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 ${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
 ${MIRROR_LIGHTING_WGSL.replace(')*reflectedRadiance(', ')*resolvedRadiance(')}
@@ -100,7 +101,7 @@ ${FACING_WGSL}
  page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;
  var count=it.indexCount-slot.y;
  var clusterId=0u;
- if((flags&${FLAG_PAGED}u)!=0u){
+ if((flags&${itemFlags.FLAG_PAGED}u)!=0u){
   let span=clusterSpans[slot.y];
   page.pageOffset=span.x;page.deformOutput=span.z;page.deformCount=span.w;
   count=span.y;
@@ -118,7 +119,7 @@ ${FACING_WGSL}
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal.xyz=vec3f(0.0,0.0,1.0);out.tangent.xyz=vec3f(0.0);out.bitangent.xyz=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
- if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
+ if((flags&${itemFlags.FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
  let p=pagePosition(page,h,v);
  let world=it.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
@@ -158,7 +159,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let s=blendSurface(in,front);
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}
- if((flags&0x40000000u)!=0u){
+ if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   if(s.alpha<=0.01){discard;}
   var color=vec3f(0.204,0.827,0.6);
   if((flags&0x20000000u)!=0u){
@@ -172,7 +173,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  var rgb=s.rgb;
  // No declared lamp, or an unlit view requested: the raw albedo and its emission, exactly like
  // the opaque resolve. Neither ambient, nor sky, nor a default sun (P6).
- let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
+ let unlit=(flags&${itemFlags.FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=clamp(s.rough,${ROUGHNESS_FLOOR},1.0);
  if(!unlit){
