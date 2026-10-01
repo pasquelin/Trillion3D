@@ -1,4 +1,4 @@
-import { FLAG_SAMPLED } from '../../visibility/types.ts';
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { FACING_SHIFT } from './facing.ts';
 
@@ -19,8 +19,14 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  // the back of a two-sided material — flipping it too would send the geometric one opposite the
  // light, and the surface would render exactly zero. Same rule as the opaque resolve, which only
  // flips the interpolated normal.
- if((in.ids.y&16u)==0u){return uniteOuZero(-cross(q0,q1));}
- return uniteOuZero(in.normal.xyz)*select(1.0,select(-1.0,1.0,front),(in.ids.y&2u)!=0u);
+ let flags=in.ids.y;
+ var N=uniteOuZero(-cross(q0,q1));
+ if((flags&${FLAG_HAS_NORMAL}u)!=0u){
+  N=uniteOuZero(in.normal.xyz);
+  let face=select(-1.0,1.0,front);
+  if((flags&${FLAG_DOUBLE}u)!=0u){N*=face;}
+ }
+ return N;
 }`;
 
 /**

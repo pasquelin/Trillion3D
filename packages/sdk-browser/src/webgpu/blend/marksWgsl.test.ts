@@ -8,12 +8,17 @@ import type { ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
 import { SUN, VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { PAGE_MAPPED, PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_READ_STRUCTS, sunRecord } from '../shadow/readStructs.fixture.ts';
 import { gpuFrames } from '../shadow/gpuFrames.fixture.ts';
-import { floorTiles, shadingReads, tileGrid, type Lit } from '../shadow/shadingReads.fixture.ts';
+import {
+  floorTiles,
+  footprintAt,
+  shadingReads,
+  tileGrid,
+  type Lit,
+} from '../shadow/shadingReads.fixture.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
 import { blendShader } from './shader.ts';
 
@@ -25,7 +30,15 @@ const live = { records: [] as object[], marked: new Set<number>() };
 /** The sun, the scene's one light, in shadow slice 0: no light grid, every light is walked. */
 const sun = { params: [0, 0, 0, 0] };
 const marks = shaderRun<{
-  markBlendShadows: (pixel: V, z: number, P: V, N: V, thin: boolean, footprint: number) => void;
+  markBlendShadows: (
+    pixel: V,
+    z: number,
+    P: V,
+    N: V,
+    thin: boolean,
+    bothSides: boolean,
+    footprint: number,
+  ) => void;
 }>(
   MARKS_WGSL,
   [
@@ -79,15 +92,7 @@ test('a transparent pane over an unlit floor has its own shadow pages asked for 
   live.records = [sunRecord(plan, store.sliceOf(0))];
   live.marked.clear();
   for (const { P, N } of pane) {
-    // The footprint the pane's shading reads at (`shadingReads`), at the pixel's own depth.
-    const footprint =
-      (view.pixelNear *
-        dotVector3(
-          P.map((x, i) => x - view.position[i]),
-          view.forward,
-        )) /
-      view.near;
-    marks.markBlendShadows([0, 0], 0.5, [...P], [...N], false, footprint);
+    marks.markBlendShadows([0, 0], 0.5, [...P], [...N], false, false, footprintAt(view, P));
   }
   // What the marks ask for is what the pane reads, at the level it wants.
   assert.deepEqual(
