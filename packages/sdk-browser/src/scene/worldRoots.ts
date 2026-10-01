@@ -30,7 +30,8 @@ import { corruptObject, fetchVerified } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 import { worldRootsPageSource } from './worldRootsPage.ts';
-import { worldRootDag, type WorldRootsDagTable } from './worldSuperRoots.ts';
+import { worldRootDag } from './worldSuperRoots.ts';
+import type { DagRoot } from '../gpu/dag/types.ts';
 
 type Announced = { bytes: number; sha256: string };
 /** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
@@ -114,13 +115,16 @@ export async function openWorldRoots(
       ? Promise.resolve(topBundles[bundle])
       : (held.get(bundle)?.pages ??
         readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
+  let dag: { root: DagRoot | undefined } | undefined;
   return {
     table,
     /** The detached page source of the world pages, both engines' shape (`worldRootsPage.ts`). */
     source: worldRootsPageSource(table, bundlePages),
     /** The world DAG in the engine's own `DagRoot` shape, from the cook's rank order, or
-     *  `undefined` for a table cooked without its `clusters` and `groups`. */
-    dag: worldRootDag(table as WorldRoots & WorldRootsDagTable),
+     *  `undefined` for a table cooked without its `clusters` and `groups`; built on first use. */
+    get dag() {
+      return (dag ??= { root: worldRootDag(table) }).root;
+    },
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
     pinned: { bundles: table.pinned, pages: topBundles.flat(), bytes: table.pinnedTopBytes },
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,
