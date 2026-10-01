@@ -141,7 +141,7 @@ export function nearestTriangleOnRay(
   let best = Infinity,
     found = -1,
     top = free;
-  const base = top;
+  const base = free;
   stack[top++] = 0;
   while (top > base) {
     const node = stack[--top];

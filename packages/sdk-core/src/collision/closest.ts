@@ -10,7 +10,7 @@
  * written into caller-owned arrays, so a query allocates nothing.
  */
 
-import { closestBetweenSegments, pairParameters, squaredGap, unit } from './segmentPair.ts';
+import { closestBetweenSegments, pairParameter, squaredGap, unit } from './segmentPair.ts';
 
 type Numbers = ArrayLike<number>;
 
@@ -72,7 +72,8 @@ function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number
     if (distance < best) {
       best = distance;
       out.set(candidate.subarray(0, 3));
-      [edgeOf, alongOf] = [e, t];
+      edgeOf = e;
+      alongOf = t;
     }
   }
   return best;
@@ -144,7 +145,8 @@ export function closestSegmentTriangle(
     if (distance < best) {
       best = distance;
       for (let k = 0; k < 3; k++) [out[k], out[3 + k]] = [tail[k], onEdge[k]];
-      [touched.edge, touched.along] = [edgeOf, alongOf];
+      touched.edge = edgeOf;
+      touched.along = alongOf;
     }
   }
   for (let e = 0; e < 3; e++) {
@@ -155,7 +157,8 @@ export function closestSegmentTriangle(
     if (distance < best) {
       best = distance;
       out.set(candidate);
-      [touched.edge, touched.along] = [e, pairParameters.t];
+      touched.edge = e;
+      touched.along = pairParameter.t;
     }
   }
   // Stryker restore EqualityOperator
