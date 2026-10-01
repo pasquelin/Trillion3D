@@ -7,9 +7,10 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/recordPack.ts';
 import { growKeptList, keptList } from '../../gpu/shadow/keptList.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
+import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
-import { growPairList } from './pairGrowth.ts';
+import { followPairBytes, growPairList } from './pairGrowth.ts';
 import { keptPairs, poolPairs } from './pairRows.ts';
 import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -125,4 +126,26 @@ test("the pair list holds a frame's static fill's pairs, never the whole pool's 
   assert.equal(poolPairs(32 * MAX_SHADOW_RUNS), MAX_SHADOW_RUNS * poolPairs(1));
   assert.equal(poolPairs(2601), shadowPagesPerFrame(2601) * poolPairs(1));
   assert.ok(poolPairs(2601) < 2601 * poolPairs(1) / 8, 'an eighth of the pool at most');
+});
+
+// #831: the pool's bytes are its setting's from the first frame: the occlusion test's list, made at
+// the first move with the static layer, is held from the layer's reservation with the pool on, so
+// the move changes no byte shown (the boss read 359, 380 then 390 MB on one session).
+test("the occlusion list's share is held from the static layer's reservation: a move adds none", async () => {
+  const fake = fakeDevice(),
+    { rt, grow } = runtime(fake.device, 2);
+  const rows = await grow(),
+    { lights } = rt;
+  assert.equal(lights.memory.pairBytes, (rows - 8) * ROW_BYTES, 'the cull’s rows alone');
+  lights.staticLayerTexture = {} as GPUTexture;
+  followPairBytes(rt);
+  const reserved = shadowPoolHeld(lights);
+  assert.equal(lights.memory.pairBytes, 2 * (rows - 8) * ROW_BYTES, 'and the occlusion’s');
+  // The first move: the layer takes the reserved texture, the occlusion list is made.
+  lights.staticLayerTexture = undefined;
+  lights.staticLayer = { bytes: shadowAtlasBytes(8) } as never;
+  lights.occlusion = {} as never;
+  followPairBytes(rt);
+  assert.equal(lights.memory.pairBytes, 2 * (rows - 8) * ROW_BYTES);
+  assert.equal(shadowPoolHeld(lights), reserved, 'the bytes shown are unchanged');
 });

@@ -106,6 +106,7 @@ export async function session(shadowPoolPages?: number) {
     followShadowCeiling(rt);
   };
   ask(0);
-  said.length = 0;
-  return { rt, lights, limit, said, ask, taken };
+  /** What the session said as it opened. */
+  const opened = said.splice(0);
+  return { rt, lights, limit, said, opened, ask, taken };
 }

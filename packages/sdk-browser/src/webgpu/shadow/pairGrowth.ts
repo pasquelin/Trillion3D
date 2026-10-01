@@ -19,10 +19,14 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 const asking = new WeakMap<object, number>();
 const PAST_GRANT = 'The shadow pair list is past the grant';
 
-/** Bytes of `rows` rows of the kept lists: the cull's, the occlusion test's that follows it, and
- *  the raster bins' — a row and, stored, its matrix (`../../gpu/shadow/bins.ts`). */
-const listBytes = (rows: number, { occlusion, bins }: WebgpuPagesRuntime['lights']) =>
-  rows * ROW_BYTES * (1 + (occlusion ? 1 : 0) + (bins?.stride ?? 0));
+/** Bytes of `rows` rows of the kept lists: the cull's, the occlusion test's that follows it — made
+ *  with the static layer, held in the grant from the layer's reservation with the pool on
+ *  (`staticReserve.ts`, #831) —, and the raster bins' — a row and, stored, its matrix
+ *  (`../../gpu/shadow/bins.ts`). */
+const listBytes = (rows: number, lights: WebgpuPagesRuntime['lights']) =>
+  rows *
+  ROW_BYTES *
+  (1 + (lights.occlusion || lights.staticLayerTexture ? 1 : 0) + (lights.bins?.stride ?? 0));
 
 /** The bytes the kept lists — the cull's, the occlusion test's, the bins' alike — hold past the table's caster
  *  rows, the pairs' share the shadow grant holds (`shadowPoolHeld`): recounted after each growth. */
@@ -100,5 +104,5 @@ export function growPairList(rt: WebgpuPagesRuntime) {
     followPairBytes(rt);
     run.gate.resourcesChanged();
   };
-  void queueTableGrowth(rt, () => grow().finally(() => asking.delete(cull)));
+  return queueTableGrowth(rt, () => grow().finally(() => asking.delete(cull)));
 }

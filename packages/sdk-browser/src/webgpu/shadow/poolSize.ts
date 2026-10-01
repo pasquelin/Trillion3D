@@ -10,9 +10,10 @@ import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
 import { startGrant } from '../../gpu/core/errorScope.ts';
 import { shadowPoolFor } from './poolFor.ts';
 import { reserveStaticLayer } from './staticReserve.ts';
+import { followPairBytes, growPairList } from './pairGrowth.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
+import { grantsShadowLayer, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import {
   grantShadowTransmittance,
   sceneCastsBlended,
@@ -104,20 +105,16 @@ function askShadowPool(
 /** A shadow pool the device granted, and its texture. */
 type GrantedPool = Granted<ReturnType<ReturnType<typeof shadowPoolFor>>, GPUTexture>;
 
-/**
- * Takes the pool the device granted for `wanted` pages, once: the plan pages it (`plan.size`); the
- * atlas holds its texture; the region list and the request return path follow its pages, the
- * seed's path freed once its reads have landed.
- */
+/** Takes the pool the device granted, once: the plan pages it (`plan.size`); the atlas holds its
+ *  texture; the region list and the request path follow its pages, the seed's freed once read. */
 function adoptShadowPool(
   rt: WebgpuPagesRuntime,
   atlas: GpuShadowAtlas,
   device: GPUDevice,
   granted: GrantedPool,
-  wanted: number,
 ) {
-  const { lights, diag } = rt,
-    { side, layers, clamp, allocatedBytes } = granted.pool;
+  const { lights } = rt,
+    { side, layers } = granted.pool;
   // Coarser pages for memory alone, by name: the halvings the device's refusals took.
   if (granted.halvings) noteShadowPressure(lights.memory, 'pool-shrunk', granted.halvings);
   lights.plan.size(side, layers);
@@ -130,15 +127,6 @@ function adoptShadowPool(
     lights.plan.sunWindow,
   );
   void requests?.settled().then(requests.dispose);
-  diag.engineDiagnostic('shadow-pool', 'Shadow pool allocated at its setting', {
-    version: 2,
-    wanted,
-    side,
-    layers,
-    pages: lights.plan.pool.pages,
-    bytes: allocatedBytes,
-    clamp,
-  });
 }
 
 /**
@@ -186,10 +174,20 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       }
       // A session closed, or a device lost, while the device answered keeps nothing.
       if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return granted.made.destroy();
-      adoptShadowPool(rt, atlas, device, granted, ask.wanted);
+      adoptShadowPool(rt, atlas, device, granted);
       // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
       if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
+      // The pair list, then the static layer and its occlusion share: all held from frame one (#831).
+      await growPairList(rt);
       await reserveStaticLayer(rt, staticLayerGranted(lights));
+      followPairBytes(rt);
+      // Its setting, said once all is held: the bytes every frame shows from then on.
+      const { side, layers, clamp, allocatedBytes: atlasBytes } = granted.pool,
+        { wanted } = ask;
+      diag.engineDiagnostic('shadow-pool', 'Shadow pool allocated at its setting', {
+        ...{ version: 2, wanted, side, layers, pages: lights.plan.pool.pages },
+        ...{ bytes: shadowPoolHeld(lights), atlasBytes, clamp },
+      });
       run.gate.resourcesChanged();
     },
     (error: unknown) => {
