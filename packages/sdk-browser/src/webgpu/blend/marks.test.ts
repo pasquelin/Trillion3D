@@ -13,12 +13,14 @@ import { encodeBlendShadowMarks, prepareBlendShadowMarks } from './marks.ts';
 import { prepareBlend } from '../pages/render/encodeBlend.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
 import type { BlendExpand } from './expand.ts';
+import type { WaterPass } from '../water/waterPass.ts';
 
 const EXPANSION = 'Trillion3D blend expansion';
 
 /** A lit image of the water fixture's three transparents, with its shadow page passes recorded in
- *  `log` as they are encoded, and the marks pass's descriptor and draws. */
-async function litImage() {
+ *  `log` as they are encoded, and the marks pass's descriptor and draws; `water`, with the water
+ *  pass that composes its transmissive copy. */
+async function litImage(water = false) {
   const { device, renderPipelines } = fakeDevice();
   const { blendState, gpu } = prepared();
   targets(gpu);
@@ -56,6 +58,7 @@ async function litImage() {
   // The fixture's eye, where its sort placed the copies (`prepared`).
   Object.assign(rt.run, { frame: 1, lastCamera: {}, gate: { cam: { eye: [0, 0, 0] } } });
   Object.assign(gpu, { cache: { buffer: {} }, pipelineBlend: {}, uniformBuffer: {}, zeroUv: {} });
+  if (water) blendState.water = {} as WaterPass;
   await prepareBlendShadowMarks(rt, device);
   Object.assign(blendState, { itemBuffer: {}, expandedBuffer: {} });
   const encoder = {
@@ -117,4 +120,24 @@ test('the blend marks call demandLight and write no colour or depth', async () =
   // No two resources of the module share a binding: its other stages declare group 2 too.
   const bindings = [...wgsl.matchAll(/@group\((\d+)\) @binding\((\d+)\)/g)].map(([at]) => at);
   assert.equal(new Set(bindings).size, bindings.length);
+});
+
+test('the water marks call demandLight and run after the demand, before the allocation', async () => {
+  const image = await litImage(true);
+  const { marks, renderPipelines } = image;
+  encodeImageAsks(image);
+  assert.deepEqual(image.log, [EXPANSION, 'floors', 'demand', BLEND_SHADOW_MARKS_PASS, 'allocate']);
+  assert.ok(image.rt.blendState.transmissiveInView > 0, 'witness: the water is in view');
+  // The transmission slice draws with the water stage, which writes no colour and no depth.
+  const water = renderPipelines.filter((p) => p.fragment!.entryPoint === 'markWaterShadows');
+  assert.equal(water.length, 3);
+  for (const pipeline of water) {
+    assert.deepEqual([...pipeline.fragment!.targets], []);
+    assert.equal(pipeline.depthStencil!.depthWriteEnabled, false);
+  }
+  assert.ok(marks.pipelines.some((pipeline) => water.includes(pipeline as never)));
+  // Through the demand's own `demandLight`, as the blends' marks.
+  const wgsl = blendShadowMarksWgsl();
+  assert.match(functionsOf(wgsl, ['markWaterShadows']), /markWaterAt\(/);
+  assert.match(functionsOf(wgsl, ['markWaterAt']), /markBlendShadows\(/);
 });
