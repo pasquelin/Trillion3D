@@ -33,7 +33,7 @@ test('the WebGL2 tier is made by a baked cache only, and plans once its code has
   const tier = webglImpostorTier(session(impostorSection), roots, gate, () => 1 << 20)!;
   tier.plan(engineAt(200), VIEWPORT);
   tier.plan(engineAt(200), VIEWPORT);
-  assert.deepEqual(asked, [], 'no card and no atlas before the code lands');
+  assert.equal(asked.length, 0, 'no card and no atlas before the code lands');
   assert.equal(tier.cards(...([] as unknown as Parameters<typeof tier.cards>)), false);
   await families.impostors.settled();
   await Promise.resolve();
