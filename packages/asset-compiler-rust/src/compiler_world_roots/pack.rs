@@ -3,7 +3,7 @@
 //! The object roots of level 0 are packed too, last, only to take their dependency lists: their
 //! pages are the objects' own, never written twice.
 use super::merge::WorldDag;
-use super::table::{clusters, group_list, object_ranks};
+use super::table::{clusters, group_list};
 use super::*;
 use crate::dag::{build_culling_bvh, DagCluster};
 use crate::geometry_page::localise;
@@ -118,8 +118,9 @@ pub(super) fn pack_world(
     }
     let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();
     refuse_over_budget(world, &top, (pinned_bytes, budget))?;
-    let objects = object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
-    let clusters = clusters(dag, world, (&located, &object_ranks(instances, cells)));
+    let (objects, ranks) =
+        object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
+    let clusters = clusters(dag, world, (&located, &ranks));
     let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
         "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects,
         "clusters":clusters,"groups":group_list(&world.groups)});
@@ -134,14 +135,16 @@ pub(super) fn pack_world(
 }
 
 /// Per cell, each placed object's primitive: the bundles holding its own roots, and every world
-/// bundle those roots need, up to the top. An object whose list misses the top is refused.
+/// bundle those roots need, up to the top. An object whose list misses the top is refused. With
+/// them, each instance's rank among the table's objects, cell after cell (`None` for an instance
+/// whose primitive has no root cover): the `origin` an object root names (#1332).
 fn object_dependencies(
     world: &WorldDag,
     instances: &[Instance],
     bundle_of: &[usize],
     closed: &[Vec<usize>],
     (pinned, cells): (usize, usize),
-) -> Result<Vec<Value>> {
+) -> Result<(Vec<Value>, Vec<Option<usize>>)> {
     // Per instance, the bundles holding its roots that stay roots, and the distinct bundles of
     // their parents: each parent's closed list is then added once, not once per root sharing it.
     let mut own: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); instances.len()];
@@ -163,7 +166,8 @@ fn object_dependencies(
         all
     });
     let mut table = vec![Vec::new(); cells];
-    for (instance, needs) in instances.iter().zip(needs) {
+    let mut in_cell = vec![None; instances.len()];
+    for ((instance, needs), at) in instances.iter().zip(needs).zip(&mut in_cell) {
         if instance.cover.clusters.is_empty() {
             continue;
         }
@@ -179,11 +183,18 @@ fn object_dependencies(
         let mut roots: Vec<usize> = instance.cover.clusters.iter().map(|c| c.bundle).collect();
         roots.sort_unstable();
         roots.dedup();
+        *at = Some(table[instance.cell].len());
         table[instance.cell].push(json!({"node":instance.node,"primitive":instance.primitive,
             "roots":roots,"dependencies":needs}));
     }
-    Ok(table
+    // Each cell's first rank: its objects follow the cells before it.
+    let mut first = vec![0; cells];
+    (1..cells).for_each(|cell| first[cell] = first[cell - 1] + table[cell - 1].len());
+    let ranks = in_cell
         .into_iter()
-        .map(|objects| json!({"objects":objects}))
-        .collect())
+        .zip(instances)
+        .map(|(at, instance)| at.map(|at| first[instance.cell] + at))
+        .collect();
+    let table = table.into_iter().map(|objects| json!({"objects":objects}));
+    Ok((table.collect(), ranks))
 }

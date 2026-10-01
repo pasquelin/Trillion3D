@@ -24,7 +24,7 @@ function scene() {
   const world = worldDag(),
     manifest = ruleDag(8);
   const packed = packDagSelection([...Array.from({ length: OBJECTS }, () => manifest), world]);
-  const mirror = createWorldResidencyMirror(packed, OBJECTS, world.origins);
+  const mirror = createWorldResidencyMirror({ ...packed, world: packed.world! });
   world.origins.forEach((origin, rank) => origin < 0 && mirror.superRoot(rank, true));
   const rows = new Uint32Array(packed.cutLinks[OBJECTS].pageBase);
   const { pageBase } = packed.cutLinks[OBJECTS];

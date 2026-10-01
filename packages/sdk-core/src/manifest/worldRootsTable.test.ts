@@ -57,7 +57,8 @@ test('a binary past 4 GiB is named whole, its offsets in two words', () => {
 
 test('a table that breaks its contract is refused whole', () => {
   const broken: ((spec: ReturnType<typeof worldRootsFixture>['spec']) => void)[] = [
-    (spec) => (spec.version = 1),
+    // Version 2 named an object root by its instance (#1332): an old cache is refused, cooked again.
+    (spec) => (spec.version = 2),
     (spec) => (spec.pinned = 0),
     (spec) => (spec.pinnedTopBytes += 1),
     (spec) => (spec.bundles[2].offset += 4),
