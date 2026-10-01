@@ -19,8 +19,8 @@ export const staticLayerEntries = (): GPUBindGroupLayoutEntry[] => [
  * geometry under a moving object is never drawn again for it.
  *
  * It exists from the first move of an object on (`../../webgpu/shadow/mobility.ts`): a scene where
- * nothing moves pays neither its bytes — as many as the pool's — nor its pass. Its texture is
- * made apart (`shadowLayerTexture`), so the caller allocates it under an out-of-memory check.
+ * nothing moves pays no pass. Its texture is made apart (`shadowLayerTexture`), under an
+ * out-of-memory check, with the pool (`../../webgpu/shadow/staticReserve.ts`, #831).
  */
 export async function createShadowStaticLayer(device: GPUDevice, texture: GPUTexture) {
   const size = texture.width,

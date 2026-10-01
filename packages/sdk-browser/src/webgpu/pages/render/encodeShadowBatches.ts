@@ -40,12 +40,12 @@ export function forEachShadowBatch(
 }
 
 /**
- * THE FRAME'S SHADOW PAGES, EVERY ONE, IN THE FRAME THAT MARKS THEM. The plan lists every stale page
+ * THE FRAME'S SHADOW PAGES, UP TO ITS PAGE BUDGET (`SHADOW_PAGES_PER_FRAME`). The plan lists every stale page
  * the image reads (`admit.ts`); the per-batch buffers hold `MAX_SHADOW_PAGES` pages and one light
  * cut's views, so the list is drawn batch after batch in the frame's command buffer, each batch's
  * writes landing in command order (`../../../gpu/shadow/batchWrites.ts`), and each batch's pages
- * committed once encoded. Nothing is deferred to a later frame: a batch that cannot be encoded — a
- * resource missing — leaves its pages and the rest stale, pending, for the next frame.
+ * committed once encoded. Only the pages past the budget wait for the next frame, and so do those
+ * of a batch that cannot be encoded — a resource missing —: stale, pending.
  *
  * Returns whether every page was encoded.
  */

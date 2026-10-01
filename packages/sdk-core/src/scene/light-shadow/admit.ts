@@ -22,9 +22,9 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
 
 /**
  * THE PAGES A FRAME DRAWS: every stale page the latest request report named — what the image
- * reads now —, all of them, in the frame that marks them. There is no per-frame page cap, no
- * millisecond budget and no priority that defers a page — the list's order below only matters to a
- * frame its memory guard stops —: the cost is held by caching — a page is drawn only once it
+ * reads now —, all of them, up to the frame's page budget (`SHADOW_PAGES_PER_FRAME`, #831): a
+ * burst past it — a scene's first frames, a camera cut — is drawn over the next frames, in the
+ * order below, the coarsest and the oldest first. Otherwise the cost is held by caching — a page is drawn only once it
  * is marked, and it is marked only when what it holds changed (`invalidate.ts`) or it was just
  * mapped (`requests.ts`) —, and the pool is the only limit: what it cannot hold is refused at
  * allocation and published as memory (`requests.counts.refused`), never shown as current.

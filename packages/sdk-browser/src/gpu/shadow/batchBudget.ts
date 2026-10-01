@@ -5,8 +5,8 @@ import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
 import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /**
- * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws every page it marks, in as many batches as
- * that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`); what each batch adds — its
+ * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws the pages it marks, up to its page budget
+ * (`SHADOW_PAGES_PER_FRAME`), in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`); what each batch adds — its
  * staged writes, its flag word, its CPU cut's faces, its sampled counts — is sized here from one
  * rule and counted in the memory budget (`residency/memoryBudget.ts`).
  *
