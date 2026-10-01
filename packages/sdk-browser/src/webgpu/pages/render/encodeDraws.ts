@@ -81,7 +81,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     run.cameraRows = rt.services.syncRowsFromCut(shadows, rt.lights.cpuCasters?.castersPacked);
     if (shadows) writeCpuCasters(rt, device);
     // The rows this cut selected size the table, the placements never do (#1232).
-    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked))
+    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked));console.error("ASKED", rt.services.rowsAsked(), rt.services.blendCasters.asked, rt.layout.drawSlots, rt.layout.viewRows);
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
