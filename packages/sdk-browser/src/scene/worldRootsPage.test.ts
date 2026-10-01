@@ -81,10 +81,7 @@ test('a bundle of several pages resolves the one its offset names (#1238)', asyn
   // The cooked fixture gives each page a bundle; a bundle of two proves the offset → page mapping:
   // the source picks the page whose `offset` the table lists, in binary order.
   const low = worldPage(0),
-    high = worldPage(2),
-    bin = new Uint8Array(low.byteLength + high.byteLength);
-  bin.set(low, 0);
-  bin.set(high, low.byteLength);
+    bin = new Uint8Array([...low, ...worldPage(2)]);
   const table = {
       bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
       pages: [

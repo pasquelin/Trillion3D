@@ -21,7 +21,6 @@ import type { ClusterGroup } from '../../../sdk-core/src/index.ts';
 import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts';
 import { structureIndex } from '../page/selection/structure.ts';
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts';
-import { cullingLinks } from '../page/cut/links.ts';
 import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
 import { worldRootsPageAddress } from './worldRootsPage.ts';
 
@@ -29,7 +28,7 @@ import { worldRootsPageAddress } from './worldRootsPage.ts';
  *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`). */
 export type WorldRootsDagTable = {
   clusters?: readonly WorldRootsCluster[];
-  groups?: readonly ClusterGroup[];
+  groups?: ClusterGroup[];
   payload?: { url: string };
 };
 
@@ -43,15 +42,24 @@ export type WorldRootsDagTable = {
  * its middle levels.
  */
 export function worldRootDag(table: WorldRootsDagTable): DagRoot | undefined {
-  const clusters = table.clusters,
-    groups = table.groups;
+  const { clusters, groups } = table;
   if (!clusters?.length || !groups?.length) return undefined;
   const url = table.payload?.url ?? '';
   const pages = clusters.map((cluster, rank) => {
     if (cluster.cluster !== rank)
       throw new Error(`WORLD_CLUSTER_RANK: ${cluster.cluster} at ${rank}`);
-    const { bundle, offset, level, lodError, sphere, parentError, parentSphere, min, max } =
-      cluster;
+    const {
+      bundle,
+      offset,
+      level,
+      lodError,
+      sphere,
+      parentError,
+      parentSphere,
+      min,
+      max,
+      triangles,
+    } = cluster;
     return {
       url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
       level,
@@ -61,16 +69,16 @@ export function worldRootDag(table: WorldRootsDagTable): DagRoot | undefined {
       parentSphere,
       min,
       max,
-      triangles: cluster.triangles,
+      triangles,
     };
   });
   const roots = clusters.flatMap((cluster, rank) => (cluster.parentError === null ? [rank] : []));
-  const structure = structureIndex({ version: 1, roots, groups: [...groups] }, pages.length);
-  const culling = flatHierarchy(pages);
+  const structure = structureIndex({ version: 1, roots, groups }, pages.length);
   return {
     world: { elements: IDENTITY_ELEMENTS },
     pages,
     structure,
-    culling: { ...culling, links: cullingLinks(culling, pages.length) },
+    // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
+    culling: flatHierarchy(pages),
   };
 }
