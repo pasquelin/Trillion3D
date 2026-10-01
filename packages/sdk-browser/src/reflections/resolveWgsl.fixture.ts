@@ -2,7 +2,7 @@ import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { REFLECTION_RESOLVE_WGSL, REFLECTION_STILL_FRAMES } from './resolveWgsl.ts';
 
-/** The shipped rough resolve run on the CPU at pixel (4, 4) of an 8 × 8 image: its inputs are
+/** The shipped rough resolve run on the CPU at pixel (4, 4) of an 8 × 8 image by default: its inputs are
  *  `samples` (a function reads the pixel), `view`, `uv` and `motion`; `traced` lists the
  *  half-resolution texels the trace wrote. `constants` overrides the shader's own. */
 export function fixture(constants: Record<string, number> = {}) {

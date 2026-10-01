@@ -16,18 +16,17 @@ export const REFLECTION_STILL_FRAMES = 12;
 const REFLECTION_FILTER_RADIUS = 2;
 /** A neighbour off the pixel's plane by more than this share of its distance is another surface. */
 const REFLECTION_FILTER_PLANE = 0.1;
-/** Lumen's reflection denoiser after its temporal pass (#831): a history holding fewer frames of
- *  its own weight than this, or clipped, is noisier than the window that suffices while moving
- *  (`REFLECTION_MOVING_KEPT` plus this image); the filter's area grows by the frames it lacks, its
- *  reach by their square root, up to `REFLECTION_FILTER_WIDEST` times. A history holding them,
- *  as any converged one does, is filtered as before. */
-const REFLECTION_FILTER_FRAMES = 5;
-const REFLECTION_FILTER_WIDEST = 2;
 /** The frames of its own weight a history keeps while its sources or camera move at a pixel whose
  *  neighbourhood holds too few traced samples to clip it by (`REFLECTION_CLIP_SAMPLES`): a
  *  reflection there lags them by about this many frames. Everywhere else the history keeps its
  *  whole window, clipped (#831). */
 const REFLECTION_MOVING_KEPT = 4;
+/** Lumen's reflection denoiser after its temporal pass (#831): while its sources or camera move, a
+ *  history holding fewer frames of its own weight than the moving window plus this image, or
+ *  clipped, widens the filter: its area grows by the frames it lacks, its reach by their square
+ *  root, up to `REFLECTION_FILTER_WIDEST` times. Still, the filter is as before. */
+const REFLECTION_FILTER_FRAMES = REFLECTION_MOVING_KEPT + 1;
+const REFLECTION_FILTER_WIDEST = 2;
 /** While its sources or camera move, a history's mean is clipped to this image's neighbourhood —
  *  the traced texels around the pixel on its receiver, lobe and plane — at its mean plus or minus
  *  this many standard deviations, as Unreal's temporal filters clip theirs (#831): a reflection
@@ -109,18 +108,22 @@ const REFLECTION_CLIP_SAMPLES:f32=${REFLECTION_CLIP_SAMPLES}.0;
  *  the per-channel deviation. */
 var<private> neighbourhood:vec4f;
 var<private> spread:vec3f;
+/** The 4 × 4 block's texels the clip's gather accepted, one bit each: a widened gather reads them
+ *  again without testing them again. */
+var<private> accepted:u32;
 fn pointAt(pixel:vec2f,z:f32)->vec3f{let position=clipAt(pixel,z);return position.xyz/position.w;}
-// \`widen\` scales the tent's reach; widened, the block is 8 × 8 texels and no clip is gathered.
+// \`widen\` scales the tent's reach; a widened gather follows the clip's, so it gathers none.
 fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
  let phase=reflectionPhase(u32(view.params.w));
- let span=select(4,8,widen>1.0);
+ let wide=widen>1.0;let span=select(4,8,wide);
  let base=vec2i(max(at-vec2i(span-1),vec2i(0))/2);
  let P=pointAt(vec2f(at)+vec2f(0.5),z);
  let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a)*widen;let reach=radius*radius;
  let plane=REFLECTION_FILTER_PLANE*REFLECTION_FILTER_PLANE;
  var sum=vec4f(0.0);var near=vec4f(0.0);var square=vec3f(0.0);
- let clipping=view.clip.x!=0.0&&widen<=1.0;
+ let clipping=view.clip.x!=0.0&&!wide;
+ let first=vec2i(max(at-vec2i(3),vec2i(0))/2);if(!wide){accepted=0u;}
  for(var y=0;y<span;y++){for(var x=0;x<span;x++){
   let q=base+vec2i(x,y);
   if(any(q>=half)){continue;}
@@ -130,7 +133,10 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
   if(far>=reach&&!clipping){continue;}
   let traced=textureLoad(sampleColor,q,0);
   if(traced.a<=0.0){continue;}
-  if(any(owner!=at)){
+  let inner=q-first;
+  if(wide&&all(inner>=vec2i(0))&&all(inner<vec2i(4))){
+   if((accepted&(1u<<u32(inner.x+4*inner.y)))==0u){continue;}
+  }else if(any(owner!=at)){
    if(textureLoad(ids,owner,0).r!=id){continue;}
    let other=textureLoad(normalRough,owner,0);
    if(dot(other.xyz,nr.xyz)<0.99||abs(other.a-nr.a)>0.001){continue;}
@@ -138,7 +144,7 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
    let off=dot(offset,nr.xyz);
    if(off*off>plane*dot(offset,offset)){continue;}
   }
-  if(clipping){near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;}
+  if(clipping){accepted=accepted|(1u<<u32(x+4*y));near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;}
   if(far>=reach){continue;}
   sum+=vec4f(traced.rgb*traced.a,traced.a)*(1.0-sqrt(far)/radius);
  }}
@@ -171,18 +177,19 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
   }
  }
  // Moving, the history is clipped to the neighbourhood, or held short where too few texels say it.
- var cap=view.params.y;var frames=min(cap,history.a/max(current.a,1e-6));
+ var cap=view.params.y;var clipped=false;
  if(view.clip.x!=0.0&&history.a>0.0){
   if(neighbourhood.a>=REFLECTION_CLIP_SAMPLES){
    let box=REFLECTION_CLIP_SIGMAS*spread;
-   let clipped=clamp(history.rgb,neighbourhood.rgb-box,neighbourhood.rgb+box);
-   if(any(clipped!=history.rgb)){frames=0.0;}
-   history=vec4f(clipped,history.a);
-  }else{cap=min(cap,REFLECTION_MOVING_KEPT);frames=min(frames,cap);}
+   let inside=clamp(history.rgb,neighbourhood.rgb-box,neighbourhood.rgb+box);
+   clipped=any(inside!=history.rgb);
+   history=vec4f(inside,history.a);
+  }else{cap=min(cap,REFLECTION_MOVING_KEPT);}
  }
- // A short or clipped history: the spatial filter widens by the frames it lacks.
+ // Moving, a short or clipped history: the spatial filter widens by the frames it lacks.
+ let frames=select(min(history.a,cap*current.a)/max(current.a,1e-6),0.0,clipped);
  let widen=min(sqrt(REFLECTION_FILTER_FRAMES/(frames+1.0)),REFLECTION_FILTER_WIDEST);
- if(widen>1.0&&current.a>0.0){current=roughSamples(at,id,nr,z,widen);}
+ if(view.clip.x!=0.0&&widen>1.0&&current.a>0.0){current=roughSamples(at,id,nr,z,widen);}
  // A pixel no texel reached this image keeps its history as it is.
  let kept=select(min(history.a,cap*current.a),history.a,current.a<=0.0);
  let total=kept+current.a;

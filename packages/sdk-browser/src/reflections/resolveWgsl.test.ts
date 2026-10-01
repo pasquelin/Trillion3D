@@ -63,10 +63,8 @@ test('#1346: the texels around a pixel are filtered by a tent of distance, on it
   f.samples.historyColor = [0, 0, 0, 0];
   // Owners (2, 2), (4, 2), (2, 4) and (6, 6) around (4, 4); the radius at roughness 0.5 is 3.
   f.traced.push([1, 1], [2, 1], [1, 2], [3, 3]);
-  // No history: the filter is at its widest (#831).
-  const { REFLECTION_FILTER_RADIUS: radius, REFLECTION_FILTER_WIDEST: widest } =
-    wgslConstants(REFLECTION_RESOLVE_WGSL);
-  const tent = (distance: number) => 1 - distance / (radius * (1 + 0.5) * widest);
+  const { REFLECTION_FILTER_RADIUS } = wgslConstants(REFLECTION_RESOLVE_WGSL);
+  const tent = (distance: number) => 1 - distance / (REFLECTION_FILTER_RADIUS * (1 + 0.5));
   const weight = 1 + 2 * tent(2) + 2 * tent(2 * Math.SQRT2);
   const near = (value: number[], expected: number[]) =>
     value.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${value} ~ ${expected}`));
@@ -103,21 +101,24 @@ test('a moved receiver keeps its history through the placement motion, held shor
 });
 
 test('#831: moving, an unchanged reflection keeps its whole window; a changed one is clipped at once', () => {
-  const f = fixture();
   // A glossy floor, every texel round the pixel traced on its receiver, lobe and plane: a noisy
   // reflection of 1, half the texels at 0.5 and half at 1.5 — a mean of 1, a deviation of 0.5.
-  f.traced.length = 0;
-  for (let k = 0; k < 16; k++) f.traced.push([k & 3, k >> 2]);
-  f.samples.normalRough = f.samples.previousNormal = [0, 0, 1, 0.06];
-  f.samples.sampleColor = (at: number[]) => {
-    const value = (at[0] + at[1]) & 1 ? 1.5 : 0.5;
-    return [value, value, value, 1];
+  const floor = (constants: Record<string, number> = {}) => {
+    const f = fixture(constants);
+    f.traced.length = 0;
+    for (let k = 0; k < 16; k++) f.traced.push([k & 3, k >> 2]);
+    f.samples.normalRough = f.samples.previousNormal = [0, 0, 1, 0.06];
+    f.samples.sampleColor = (at: number[]) => {
+      const value = (at[0] + at[1]) & 1 ? 1.5 : 0.5;
+      return [value, value, value, 1];
+    };
+    return (history: number, clip: number) => {
+      f.samples.historyColor = [history, history, history, REFLECTION_STILL_FRAMES];
+      f.view.clip[0] = clip;
+      return f.resolve();
+    };
   };
-  const frame = (history: number, clip: number) => {
-    f.samples.historyColor = [history, history, history, REFLECTION_STILL_FRAMES];
-    f.view.clip[0] = clip;
-    return f.resolve();
-  };
+  const frame = floor();
   const still = frame(1, 0),
     moving = frame(1, 1);
   assert.deepEqual(moving, still, 'a converged history inside the box: the still result');
@@ -125,8 +126,10 @@ test('#831: moving, an unchanged reflection keeps its whole window; a changed on
   // The reflected source moved: a history of 5 lies past the box, 1 ± 2 × 0.5, and is clipped.
   const changed = frame(5, 1);
   assert.ok(changed[0] <= 2, `clipped to the neighbourhood: ${changed[0]}`);
-  // Its whole window kept; a clipped history widens this image's filter, which adds weight.
-  assert.ok(changed[3] > moving[3], `its weight kept: ${changed[3]} > ${moving[3]}`);
+  // The filter held at its still reach: the clip shortens no window, no frame of noise added.
+  assert.equal(floor({ REFLECTION_FILTER_WIDEST: 1 })(5, 1)[3], moving[3], 'its weight kept');
+  // Widened by the clip (#831), this image's filter adds its own weight to the whole window.
+  assert.ok(changed[3] > moving[3], `the widened filter adds weight: ${changed[3]} > ${moving[3]}`);
   assert.ok(frame(5, 0)[0] > 4, 'still, nothing is clipped: the image converged before stays');
 });
 
