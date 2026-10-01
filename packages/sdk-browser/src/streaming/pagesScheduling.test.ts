@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 import { createPageStreamer } from './pageStreamer.ts';
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
   const bytes = new Uint32Array([0, 1, 2]);

@@ -15,7 +15,7 @@ import {
 } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
-import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
+import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/sizes.ts';
 import { createTraceRig } from './movingProxyTrace.ts';
 import { openGpuDevice as openDevice } from './webgpuDevice.ts';
 

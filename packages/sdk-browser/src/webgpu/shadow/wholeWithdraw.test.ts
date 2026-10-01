@@ -16,9 +16,9 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { createShadowAllocationBuffers } from './allocBuffers.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS, WORDS_HEADER } from './allocLayout.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
-import { WORDS_HEADER, shadowWordsWgsl } from './wordsWgsl.ts';
+import { shadowWordsWgsl } from './wordsWgsl.ts';
 
 const PAGES = 2;
 

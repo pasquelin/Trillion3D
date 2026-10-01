@@ -7,43 +7,24 @@ import {
   PAGE_WITHDRAWN,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { FRESH_PARAM_WORDS, FRESH_PARAMS } from './freshLayout.ts';
 import { DRAWN_GPU, DRAWN_HOST } from './poolDrawn.ts';
-import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
+import { shadowPagesPerFrame } from '../../gpu/shadow/batchBudget.ts';
+import { sentShadowWord } from './wordsWgsl.ts';
+import {
+  ALLOC_PARAM_WORDS,
+  POOL_COUNTS,
+  POOL_FIELDS,
+  WORDS_HEADER,
+  allocationBuffers,
+  shadowAllocationBytes,
+  spanOf,
+  wordsCap,
+  type Usage,
+} from './allocLayout.ts';
 
-/** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
-const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 /** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
 const snapshotWords = (pages: number) => POOL_COUNTS.length + 3 * pages;
-/** Pairs the host's table words hold at most: the table's changed words of a frame, or every
- *  mapped page once and the entries withdrawn (`table.ts`, `flush`, `eachWithdrawn`). */
-const wordsCap = (pages: number) => 5 * pages;
-
-type Usage = keyof typeof GPUBufferUsage;
-/** Words of each buffer of the allocation of a pool of `pages`, with its label and its usages
- *  beside `STORAGE`: its pool, keys, parameters and words, then the draw list, parameters,
- *  arguments, dispatch, views and volumes of the pages the GPU draws itself. */
-const allocationBuffers = (pages: number) =>
-  ({
-    state: ['GPU pool', POOL_COUNTS.length + POOL_FIELDS.length * pages, ['COPY_DST', 'COPY_SRC']],
-    keys: ['allocation keys', spanOf(shadowRequestCap(pages)) + spanOf(pages), []],
-    params: ['allocation', ALLOC_PARAM_WORDS + shadowRequestCap(pages), ['COPY_DST']],
-    words: ['table words', WORDS_HEADER + 2 * wordsCap(pages), ['COPY_DST']],
-    drawList: ['GPU draw list', pages, []],
-    freshParams: ['GPU pages', FRESH_PARAMS, ['COPY_DST']],
-    freshArgs: ['GPU page draws', freshArgWords(pages), ['INDIRECT']],
-    freshDispatch: ['GPU page cull', 3, ['INDIRECT']],
-    freshFaces: ['GPU page views', pages * FRESH_FACE_WORDS, []],
-    freshVolumes: ['GPU page volumes', pages * SHADOW_CULL_FLOATS, []],
-  }) satisfies Record<string, [string, number, Usage[]]>;
-
-/** GPU bytes of the allocation of a pool of `pages`: every buffer it makes. */
-export const shadowAllocationBytes = (pages: number) =>
-  Object.values(allocationBuffers(pages)).reduce((sum, [, words]) => sum + 4 * words, 0);
 
 /**
  * THE BUFFERS OF THE GPU ALLOCATION of one pool (`allocWgsl.ts`), made with its request buffer

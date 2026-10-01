@@ -9,7 +9,7 @@ import { MAX_SHADOW_RUNS, shadowPagesPerFrame } from '../../gpu/shadow/batchBudg
 import { MAX_SHADOW_PAGES } from '../../gpu/shadow/atlas.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
-import { POOL_COUNTS } from './poolWgsl.ts';
+import { POOL_COUNTS } from './allocLayout.ts';
 import { PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 const { lits } = floorTiles(tileGrid(-40, 40, -80, 0), 2),

@@ -7,13 +7,14 @@ import { functionsOf } from '../../texture/shaderRule.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { prepared, replay, targets } from '../water/pass.fixture.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { BLEND_SHADOW_MARKS_PASS, encodeShadowAsks } from '../shadow/allocPass.ts';
+import { encodeShadowAsks } from '../shadow/allocPass.ts';
 import { SHADOW_DEMAND_LIGHT_WGSL } from '../shadow/demandWgsl.ts';
 import { encodeBlendShadowMarks, prepareBlendShadowMarks } from './marks.ts';
 import { prepareBlend } from '../pages/render/encodeBlend.ts';
 import { blendShadowMarksWgsl } from './marksWgsl.ts';
 import type { BlendExpand } from './expand.ts';
 import type { WaterPass } from '../water/waterPass.ts';
+import { BLEND_SHADOW_MARKS_PASS } from '../../stage/passLabels.ts';
 
 const EXPANSION = 'Trillion3D blend expansion';
 

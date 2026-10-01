@@ -15,7 +15,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './allocLayout.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
 import { sentShadowWord } from './wordsWgsl.ts';
 

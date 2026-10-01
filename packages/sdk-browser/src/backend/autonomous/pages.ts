@@ -23,14 +23,14 @@ import { createWebglViews } from './views.ts';
 import { autonomousRenderScale } from './renderScale.ts';
 import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
-import type { BackendFactory } from '../types.ts';
+import { engineRenderer } from '../engines.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import { createWebglDeformation } from '../../deformation/webglFrame.ts';
 import { webglImpostorTier } from '../../webgl/impostor/code.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
-export const autonomousPagesBackend: BackendFactory = (context) => {
+export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
   const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
@@ -195,4 +195,4 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.release();
     },
   };
-};
+});
