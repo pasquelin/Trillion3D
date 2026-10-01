@@ -15,6 +15,7 @@ import {
   ensureVisBindings,
 } from './encodeVisSetup.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { encodeImpostorCards } from '../../impostor/encode.ts';
 
 /** The visibility-buffer image: occluder and rest raster passes, small triangles, material surfaces,
  *  lighting and presentation, all in the image's command buffer. Returns the triangles submitted. */
@@ -87,6 +88,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Surfaces, one class at a time, and the virtual-texture feedback target where each opaque
   // pixel posts the tile rank it wants — completed by transparents, reduced to counts at submit.
   encodeMaterialPasses(rt, encoder);
+  encodeImpostorCards(rt, device, encoder);
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width, presented);
   // Submitted triangles are those of every drawable row: both halves are drawn, and a cluster the

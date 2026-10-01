@@ -38,6 +38,8 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
       held: rt.services.heldResidency,
       wanted: run.selectResult.wanted,
       result: run.selectResult,
+      // The roots this image's impostor cards stand for (`../../impostor/frame.ts`).
+      switched: rt.gpu.impostors?.switched,
     },
     run.shown,
   );
