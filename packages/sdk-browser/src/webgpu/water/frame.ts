@@ -167,7 +167,8 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number) {
           : plain;
       const composite = encoder.beginRenderPass(compositePass);
       scissorTo(composite, rect);
-      composite.setPipeline(composites.at(!!filter, !!share));
+      // A reference session's mirror ray walks the whole screen (`reflectionTrace`).
+      composite.setPipeline(composites.at(!!filter, !!share, !!rt.context?.unboundedReflections));
       composite.setBindGroup(0, group);
       if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
       if (filter) composite.setBindGroup(2, filter.maskGroup);

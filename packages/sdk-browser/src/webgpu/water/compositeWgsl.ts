@@ -1,4 +1,7 @@
-import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
+import {
+  BOUNDED_SCREEN_REFLECTION_WGSL,
+  SCREEN_REFLECTION_WGSL,
+} from '../../reflections/screenWgsl.ts';
 import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
@@ -18,7 +21,6 @@ import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -68,8 +70,10 @@ export const WATER_BINDINGS = {
  * crosses an object before its exit does not see it, a known limit shared with the forward pass.
  * And the share transmitted through an empty backdrop keeps that emptiness as coverage, so the
  * display background shows through a surface in front of nothing instead of a black radiance.
+ * Its mirror ray is bounded (`BOUNDED_SCREEN_REFLECTION_WGSL`, #1279), but in a reference session:
+ * `unbounded`, the whole walk and the proxy ray (`reflectionTrace`, `frame/referenceMode.ts`).
  */
-export const waterCompositeShader = (pages?: number) => `${VIEW_WGSL}
+export const waterCompositeShader = (pages?: number, unbounded = false) => `${VIEW_WGSL}
 ${BLEND_VIEW_WGSL}
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
 ${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
@@ -174,26 +178,5 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
  return Composed(c,vec4f(0.0,1.0,0.0,c.a));
 }
 
-${SCREEN_REFLECTION_WGSL}
+${unbounded ? SCREEN_REFLECTION_WGSL : BOUNDED_SCREEN_REFLECTION_WGSL}
 `;
-/** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
- *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. */
-export const waterRoutedShader = (
-  pages?: number,
-) => `${waterCompositeShader(pages)}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
-struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
-struct RoutedReactive{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,@location(3) reactive:vec4f,}
-fn waterRoute(pixel:vec4f,c:vec4f)->Route{
- let unlit=(uni.viewFlags&${FLAG_UNLIT_VIEW}u)!=0u;
- return displayRoute(c.rgb,uni.exposure,uni.toneCurve,unlit,c.a,maskAt(pixel));
-}
-@fragment fn composeWaterRouted(@builtin(position) pixel:vec4f)->Routed{
- let c=waterColor(pixel);
- let r=waterRoute(pixel,c);
- return Routed(vec4f(c.rgb,c.a*r.keep),r.tint,r.add);
-}
-@fragment fn composeWaterRoutedReactive(@builtin(position) pixel:vec4f)->RoutedReactive{
- let c=waterColor(pixel);
- let r=waterRoute(pixel,c);
- return RoutedReactive(vec4f(c.rgb,c.a*r.keep),r.tint,r.add,vec4f(0.0,1.0,0.0,c.a));
-}`;

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
-import { waterRoutedShader } from './compositeWgsl.ts';
+import { waterRoutedShader } from './routedWgsl.ts';
 import { WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 import { waterCompositeTargets } from './compositeTargets.ts';
 
