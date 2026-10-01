@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { statLines, unitLines, watchStats } from '../site/examples/kit/statsLines.ts';
-import { CPU_STAGES, cpuStages, engineStages } from '../site/examples/kit/statUnit.ts';
+import { statLines, watchStats } from '../site/examples/kit/statsLines.ts';
+import { CPU_STAGES, cpuStages, engineStages, unitLines } from '../site/examples/kit/statUnit.ts';
 
 test('the stats corner shows where the frame went, CPU frame, each CPU stage and GPU passes, as stat unit', () => {
   const sample = {

@@ -1,5 +1,6 @@
 import type { Engine } from './engineTypes.ts';
 import { spread, type ProfiledWorld } from './profile.ts';
+import { ms, unitLines } from './statUnit.ts';
 import { kitWord, labelOf, language } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
@@ -44,30 +45,6 @@ export interface StatsSample extends FrameCounters {
 }
 
 const count = (value: number) => Math.round(value).toLocaleString(language());
-/** A duration as the kit prints it: milliseconds to two places. */
-export const ms = (value: number) => `${value.toFixed(2)} ms`;
-
-/** How many GPU passes the corner names: the costliest first. */
-const GPU_PASS_ROWS = 5;
-
-/**
- * Where the frame's time went, as Unreal's `stat unit` shows it: the CPU frame and each of its
- * stages, then the costliest GPU passes by their own share (a pass's time less what an earlier
- * pass covered), the GPU time when the device gives no share. Nothing unmeasured shows.
- */
-export function unitLines({ cpu, gpuPassMs }: Pick<StatsSample, 'cpu' | 'gpuPassMs'>) {
-  const lines: [string, string][] = [];
-  if (cpu?.frameMs != null) lines.push(['CPU frame', ms(cpu.frameMs)]);
-  for (const [name, value] of cpu?.stages ?? []) lines.push([`CPU ${name}`, ms(value)]);
-  const passes = (gpuPassMs?.passes ?? [])
-    .map(({ name, gpuMs, ownMs }): [string, number] => [name, ownMs ?? gpuMs ?? 0])
-    .filter(([, value]) => value > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, GPU_PASS_ROWS);
-  for (const [name, value] of passes) lines.push([`GPU ${name}`, ms(value)]);
-  return lines;
-}
-
 /**
  * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
  * counter measured shows, zero included — zero is what a still scene must read —, and one the
