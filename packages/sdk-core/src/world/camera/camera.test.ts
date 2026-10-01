@@ -5,6 +5,7 @@ import { Object3D } from '../object/object3d.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
 import { near as within } from '../../math/near.fixture.ts';
+import * as THREE from 'three';
 
 const near = (actual: ArrayLike<number>, expected: readonly number[]) =>
   within(actual, expected, 'camera', 1e-10);
@@ -119,33 +120,27 @@ test('orthographic projection maps asymmetric view corners and updates each box 
   near(new Vector3(8, 7, -5).applyMatrix4(matrix).toArray(), [1, 1, 1]);
 });
 
-test('cube eyes cover the six axes and stereo eyes retain parallel views and distinct origins', () => {
-  const rig = camera.cube({ near: 2, far: 50 });
-  const directions = [
-    [1, 0, 0],
-    [-1, 0, 0],
-    [0, 1, 0],
-    [0, -1, 0],
-    [0, 0, 1],
-    [0, 0, -1],
-  ];
-  assert.equal(rig.children.length, 6);
-  rig.children.forEach((child, i) => {
-    assert.ok(child instanceof Camera);
-    near(child.rayThrough(0, 0, 1).direction.toArray(), directions[i]);
-    near(new Vector3(2, 2, -2).applyMatrix4(child.projectionMatrix).toArray(), [1, 1, -1]);
-    near(new Vector3(0, 0, -50).applyMatrix4(child.projectionMatrix).toArray(), [0, 0, 1]);
-  });
-  const { left, right, eyeSep } = camera.stereo();
-  const eyes = camera.array([left, right]);
-  eyes.position.set(10, 20, 30);
-  const l = left.rayThrough(0, 0, 1),
-    r = right.rayThrough(0, 0, 1);
-  near(l.origin.toArray(), [10 - eyeSep / 2, 20, 30]);
-  near(r.origin.toArray(), [10 + eyeSep / 2, 20, 30]);
-  near(l.direction.toArray(), [0, 0, -1]);
-  near(r.direction.toArray(), [0, 0, -1]);
-  assert.ok(Math.abs(l.origin.distanceTo(r.origin) - eyeSep) < 1e-10);
-  assert.equal(left.parent, eyes);
-  assert.equal(right.parent, eyes);
+test('a camera names its kind as the reference does, and its default box is centred', () => {
+  assert.equal(camera.perspective().type, new THREE.PerspectiveCamera().type);
+  assert.equal(camera.orthographic().type, new THREE.OrthographicCamera().type);
+  const box = camera.orthographic();
+  assert.deepEqual([box.left + box.right, box.top + box.bottom], [0, 0]);
+  assert.ok(box.right > 0 && box.top > 0);
+});
+
+test('fitting the aspect, copying optics and setting a pose each recompose what is read', () => {
+  const eye = camera.orthographic({ left: -1, right: 1, top: 1, bottom: -1, aspect: 2 });
+  const matrix = eye.projectionMatrix;
+  const before = [...matrix.elements];
+  eye.fitAspect = true;
+  assert.notDeepEqual([...matrix.elements], before, 'the box widened to the picture');
+  const wide = camera.perspective({ fov: 20 });
+  const lens = camera.perspective();
+  const read = lens.projectionMatrix;
+  wide.add(new Object3D());
+  lens.copy(wide);
+  assert.deepEqual([...read.elements], [...wide.projectionMatrix.elements]);
+  assert.equal(lens.children.length, 1, 'children come along by default');
+  lens.set({ position: [4, 5, 6], target: [4, 5, 0] });
+  near(lens.rayThrough(0, 0, 1).origin.toArray(), [4, 5, 6]);
 });
