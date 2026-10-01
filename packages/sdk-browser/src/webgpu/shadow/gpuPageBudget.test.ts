@@ -1,5 +1,5 @@
-// #831: a frame fills at most its static fill (`shadowPagesPerFrame`), a sixteenth of the pool — a
-// view over eight frames —, never past the grant's batches. Past it a need stays unmapped, or
+// #831: a frame fills at most its static fill (`shadowPagesPerFrame`), a thirty-second of the pool — a
+// view over sixteen frames —, never past the grant's batches. Past it a need stays unmapped, or
 // mapped and unclaimed, reads the coarser page, and is filled the next frames, the coarsest first.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +21,7 @@ const { lits } = floorTiles(tileGrid(-40, 40, -80, 0), 2),
 /** A budget below the burst these views ask, four batches: the grant's holds these whole pools. */
 const BUDGET = 4 * MAX_SHADOW_PAGES;
 
-test('the static fill is a view over eight frames, a batch at least, the grant at most', () => {
+test('the static fill is a view over sixteen frames, a batch at least, the grant at most', () => {
   assert.equal(shadowPagesPerFrame(2601), Math.ceil(2601 / (2 * SHADOW_FILL_FRAMES)));
   assert.equal(shadowPagesPerFrame(64), MAX_SHADOW_PAGES, 'a batch at least');
   assert.equal(shadowPagesPerFrame(8), 8, 'the pool when smaller');
