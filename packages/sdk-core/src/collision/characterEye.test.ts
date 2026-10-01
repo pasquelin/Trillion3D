@@ -44,6 +44,9 @@ test('a landing dips the eye impact × landingDip / e, then it settles to exactl
     'no overshoot',
   );
   assert.equal(seen.at(-1), 0);
+  // The knees bend and straighten smoothly: never faster than the 4 m/s of the impact, so no
+  // frame of a millisecond moves the eye more than 4 mm.
+  seen.forEach((y, i) => assert.ok(i === 0 || Math.abs(y - seen[i - 1]) <= 4e-3, `jump at ${i}`));
 });
 
 test('headBob and landingDip at 0 keep the eye level', () => {
@@ -77,4 +80,12 @@ test('landing recoil survives a zero-time frame and a live disabled setting clea
   assert.ok(eye.offset(0, [0, 0, 0], true) === 0);
   settings.landingDip = HUMAN_BODY.landingDip;
   assert.ok(eye.offset(0.03, [0, 0, 0], true) === 0);
+});
+
+test('a landing made while landingDip is 0 is not dipped once it is set again', () => {
+  const settings = { ...HUMAN_BODY, landingDip: 0 };
+  const eye = createCharacterEye(settings);
+  eye.land(3);
+  settings.landingDip = HUMAN_BODY.landingDip;
+  assert.ok(offsets(eye, 0.5, REST).every((y) => y === 0));
 });
