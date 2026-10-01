@@ -178,10 +178,12 @@ export function createWebgpuTileAtlas(
     },
     flush: (target) => pages.flush(target),
     resize(target, layers) {
+      const fillLane = lanes.lanes.get(textures[0].lane);
+      // The fill follows its lane: its place given back as it closes, pinned as it opens or closes.
+      if (fillLane && layers[textures[0].lane] === 0) releaseTileSlot(fillLane, 0);
       const waited = fillWaits(),
         result = lanes.resize(target, layers, pages);
-      // The fill's lane opened by a map appended after open: the fill takes its place in it.
-      if (waited && !fillWaits()) pinTails(target.queue, () => {}, 0, 1);
+      if (waited !== fillWaits()) pinTails(target.queue, () => {}, 0, 1);
       if (result.replaced) {
         views = lanes.views();
         pools = lanes.pools();

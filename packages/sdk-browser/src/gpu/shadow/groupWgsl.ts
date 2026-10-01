@@ -83,8 +83,8 @@ fn groupCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->ShadowOut
 }
 /** A texel of the region's page off its emitter's envelope (a sun has none), as \`shadow_fs\`. */
 @fragment fn shadow_group_fs(in:ShadowOut){
- let view=groupViews[in.region].view;let radius=view.emitter.w;
- if(!pageHolds(view,in.position.xy)||(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius)){discard;}
+ let view=groupViews[in.region].view;
+ if(!pageHolds(view,in.position.xy)||onEmitter(view.emitter,in)){discard;}
 }
 /** A cutout caster's texel of the region's page, as \`shadow_fs\` keeps it. */
 @fragment fn shadow_group_cutout_fs(in:ShadowOut){
