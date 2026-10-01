@@ -58,8 +58,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
     impostors = webglImpostorTier(context, roots, gate, () => hostDraw.textureRoom()),
     // The cards' atlases are paid from the one texture pool, beside the maps (`textureQueue.ts`).
-    cards = { cards: impostors?.cards, cardBytes: impostors?.bytes },
-    hosts = { ...context, deformation: deformation.source, ...cards },
+    cards = impostors?.cards,
+    hosts = { ...context, deformation: deformation.source, cards, cardBytes: impostors?.bytes },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
