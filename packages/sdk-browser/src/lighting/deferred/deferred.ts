@@ -12,10 +12,8 @@ import {
   type DirectLightResources,
 } from './program.ts';
 import { ZERO_DIRECT, createDeferredView } from './view.ts';
+import { DEFERRED_LIGHTING_PASS } from '../../stage/passLabels.ts';
 export { FULLSCREEN_VERTEX } from './shaders.ts';
-
-/** Label of the measured pass; `gpuLightingMs` is read under this name. */
-export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
 /** The contract program these resources light with: with bounce, narrow, unshadowed, rectless. */
 const contractOf = ({ bounceGrid, probes, narrow, unshadowed, rectless }: DirectLightResources) =>

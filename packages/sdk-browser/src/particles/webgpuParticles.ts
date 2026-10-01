@@ -6,7 +6,7 @@ import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.t
 import { DRAW_FLOATS } from './drawWords.ts';
 import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
 import { createStepWords } from './stepWords.ts';
-import { PARTICLES_PASS } from './webgpuParticleFrame.ts';
+import { PARTICLES_PASS } from '../stage/passLabels.ts';
 
 type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
 
