@@ -100,6 +100,10 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
   return [];
 }
 
+/** The pixel's footprint at `P`, in metres: what a read there takes its level from. */
+export const footprintAt = (view: ShadowViewpoint, P: Vec) =>
+  (view.pixelNear * dot(sub(P, view.position), view.forward)) / view.near;
+
 /** Every page the frame's shading reads at the points `lits`, each named once: what its readback
  *  lists, seen from `view`. */
 export function shadingReads(
@@ -110,7 +114,7 @@ export function shadingReads(
 ) {
   const read = new Set<number>();
   for (const lit of lits) {
-    const f = (view.pixelNear * dot(sub(lit.P, view.position), view.forward)) / view.near;
+    const f = footprintAt(view, lit.P);
     for (let slot = 0; slot < store.count; slot++) {
       const slice = store.sliceOf(slot);
       if (slice < 0) continue;

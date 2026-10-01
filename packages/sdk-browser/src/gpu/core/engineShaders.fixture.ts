@@ -43,6 +43,7 @@ import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { COVERAGE_WGSL, mipShader } from '../../texture/mipsWgsl.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
+import { blendShadowMarksWgsl } from '../../webgpu/blend/marksWgsl.ts';
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts';
@@ -77,7 +78,6 @@ import {
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
-
 /** Every runtime reflection combination: lighting lobe, binding width and request mode. */
 function reflectionVariants() {
   const variants: Record<string, string> = {};
@@ -183,6 +183,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DISPLAY_FILTER_SHADER,
   BLEND_WATER: BLEND_SHADER + WATER_SURFACE_WGSL,
   BLEND_DIAGNOSTIC: BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL,
+  BLEND_SHADOW_MARKS: blendShadowMarksWgsl(),
   BLEND_EXPAND_SHADER,
   PREPARE_SHADER,
   REDUCE_WGSL,
