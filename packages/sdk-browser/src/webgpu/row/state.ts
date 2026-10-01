@@ -21,7 +21,7 @@ export function createWebgpuRowState(
   blendSlots = 0,
   /** Packed ranks by pool ADDRESS, the key the cache names when a slot moves: the layout's, per
    *  primitive page (`./instances.ts`); made here over a flat list built without one. */
-  instances: PackedInstances = flatInstances(packedPages as readonly PageRec[]),
+  instances: PackedInstances = flatInstances(packedPages),
 ) {
   const casterSlots = drawSlots + blendSlots;
   const catalogue = createPageCatalogue(packedPages);
