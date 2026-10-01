@@ -11,10 +11,8 @@ import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { aheadViewOf, copyAheadView, holdAheadView, type AheadView } from './aheadView.ts';
 
-const NONE = 0xffffffff,
-  WORKGROUP = 64;
-export const SELECTION_NONE = NONE,
-  SELECTION_WORKGROUP = WORKGROUP;
+export const SELECTION_NONE = 0xffffffff,
+  SELECTION_WORKGROUP = 64;
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
@@ -63,9 +61,9 @@ export type GpuCut = {
   /** Pose revision it was cut under: behind the selection's, it streams, counts, holds no image. */
   worldRevision: number;
 };
-/** Pages whose residency flag just changed, in increasing order. `sorted` false means the list
- *  no longer describes the set: the reader then starts over from every page. */
+/** Pages whose residency flag just changed, in increasing order; `sorted` false: every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
+type Visit = (page: number) => void;
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;
 export type GpuSelection = {
@@ -74,6 +72,8 @@ export type GpuSelection = {
   /** Index in u32 words of the current-frame drawable page mask. */
   readonly maskOffset: number;
   readonly pageCount: number;
+  /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
+  readonly packsWorld?: boolean;
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
@@ -84,12 +84,14 @@ export type GpuSelection = {
   parkWorld(world: number, parked: boolean): void;
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
   markWorld(world: number, mark: number): void;
-  updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
+  /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
+  updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean;
+  /** The cut rule at threshold 0: `page` is the finest resident form of its surface. */
+  isFinest(page: number): boolean;
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void;
-  /** Encodes the selection. Given `shared`, the caller owns the command buffer (one image, one
-   *  buffer) and calls the settlement it gets back: `true` once that buffer is on the queue, `false`
-   *  when the image abandons it. Nothing is read back before the settlement says submitted. */
+  /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
+   *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(
     uniforms: SelectionUniforms,
     shared?: GPUCommandEncoder,

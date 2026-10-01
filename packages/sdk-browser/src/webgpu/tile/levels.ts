@@ -146,3 +146,29 @@ export function createWebgpuTileLevels(options: {
     },
   };
 }
+
+/** Cooked-level reads in flight at most: beyond that, a level waits for the next image. */
+const MAX_LEVEL_READS = 6;
+
+/**
+ * THE ONE READ OF A HELD LEVEL, tiles' and impostor atlases' alike: what `levels` holds of `key`
+ * (the tile `tx`, `ty`'s record for a block level), marked read; otherwise its read asked —
+ * never doubled, within the store's room, a failure reported by `levels` — and `waiting` until it
+ * lands. `refused` when `roomFor` says the caller has no place for it, or the level cannot fit
+ * beside what the store keeps: nothing will come until room comes back, and nothing was read.
+ */
+export function readHeldLevel(
+  levels: WebgpuTileLevels,
+  key: LevelKey,
+  frame: number,
+  size: Size,
+  tx = 0,
+  ty = 0,
+  roomFor: () => boolean = () => true,
+): TextureLevel | 'waiting' | 'refused' {
+  const held = levels.get(key, size, tx, ty);
+  if (held) return held;
+  if (!roomFor()) return 'refused';
+  if (levels.inFlight >= MAX_LEVEL_READS) return 'waiting';
+  return levels.request(key, frame, size, tx, ty) ? 'waiting' : 'refused';
+}

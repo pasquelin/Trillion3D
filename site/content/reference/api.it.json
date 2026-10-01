@@ -1638,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "I vertici di un modello caricato sono stati letti prima di `await geometry.loadVertices()`: una sessione li legge al primo bisogno, mai in anticipo.",
       "SESSION_OPEN_FAILED": "La sessione del mondo non si è potuta aprire, per un motivo senza un codice proprio (`world.diagnostic.error`): l’errore lanciato è in `details.cause`.",
       "WEBGPU_LOST": "WebGPU ha perso il suo dispositivo, oppure un errore su di esso ha lasciato uno stato da cui nulla può disegnare: lanciato da `render`, `flush` e dalle letture che richiedono il dispositivo, nominato dalla diagnostica `gpu-device-lost`, e su `world.diagnostic.error` quando una sessione non si è potuta aprire per questo.",
-      "FAMILY_LOAD_FAILED": "Una famiglia opzionale del motore (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) non si è caricata, dopo aver ritentato la sua importazione (`T3D-E090`): `details.family` la nomina, su `world.diagnostic.error`. I fotogrammi che disegnano con essa la attendono, e viene richiesta di nuovo al prossimo uso.",
+      "FAMILY_LOAD_FAILED": "Una famiglia opzionale del motore (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) non si è caricata, dopo aver ritentato la sua importazione (`T3D-E090`): `details.family` la nomina, su `world.diagnostic.error`. I fotogrammi che disegnano con essa la attendono, e viene richiesta di nuovo al prossimo uso.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "PHYSICS_BUDGET": "Alla fisica è stato chiesto oltre uno dei suoi limiti (`world.budget.physics`: corpi, corpi decorativi, memoria), oppure un corpo dinamico non era figlio diretto della scena (`PHYSICS_NESTED`), oppure il modulo fisico è fallito (`PHYSICS_FAILED`), oppure la posa o i vertici di un corpo sono diventati non finiti ed è uscito dalla simulazione (`PHYSICS_DIVERGED`): su `world.physics.error`.",
@@ -5686,7 +5686,7 @@
       "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
       "receive": "È tornato un rapporto di richieste: l’elenco di pagine della GPU conta subito (`gpu.hear`), il resto lo legge il piano successivo.",
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
-      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina.",
+      "size": "Il pool alla dimensione concessa dal dispositivo (`webgpu/shadow/poolSize.ts`), una volta, prima che una pagina sia mappata: non viene mai ridimensionato dopo, quindi nessuna pagina cambia posto (#831).",
       "sunWindow": "Pagine per lato del clipmap di un sole con cui gira una sessione (`referenceMode.ts`).",
       "gpu": "L’allocazione della GPU (`mirror.ts`): se colloca le pagine e cosa le chiede l’host."
     }
@@ -8023,7 +8023,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima.",
+    "summary": "`world-roots.table`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima —, le sue pagine e celle lette nei loro record.",
     "members": {
       "version": "Versione del formato.",
       "budgetBytes": "Il massimo di byte che la cottura lascia pesare alla cima fissata.",
@@ -8031,8 +8031,8 @@
       "pinnedTopBytes": "I byte della cima fissata.",
       "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
       "bundles": "I pacchetti, nell’ordine del binario.",
-      "pages": "Ogni pagina: il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore.",
-      "cells": "Ogni cella del mondo: le primitive posizionate che contiene."
+      "pages": "Le pagine: quante, e di una il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore, letti nel suo record.",
+      "cells": "Le celle del mondo: quante, le primitive piazzate che una contiene, lette nei loro record, e la cella che contiene l’oggetto `object`, l’`origin` di una radice d’oggetto (#1332)."
     }
   },
   "WorldRootsBundle": {
@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Pianifica lo strato di impostori per una vista: ogni radice la cui mesh ha una voce cotta e la cui commutazione tiene produce una scheda ed è contrassegnata come soppressa.",
-    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine."
+    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine. `into`, un piano restituito da una vista precedente, viene ripianificato sul posto: il suo `switched` e le sue card vengono riutilizzati, così un runtime che pianifica ogni immagine non alloca più nulla una volta stabilizzato il numero di card."
   },
   "validateImpostorSection": {
     "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",

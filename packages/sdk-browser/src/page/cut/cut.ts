@@ -1,11 +1,10 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { castsNoShadow, openToCamera, selectFlat } from './select.ts';
+import { castsNoShadow, drawsCard, openToCamera, selectFlat } from './select.ts';
 import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
-  fitPacked,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -38,11 +37,6 @@ export function selectVisiblePages<T extends PageRecord>(
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
     light?: LightPages;
-    /** Per-root suppression of the impostor plan (`ImpostorPlan.switched`, #1239/#1314): one entry
-     *  per root, `1` at a switched root. The plan already tied the switch to its card, so a `1`
-     *  here is the whole decision: the root's clusters are skipped and its card is drawn instead.
-     *  Absent, every root is cut as before — WebGL2 and a pre-impostor cache keep their behaviour. */
-    switched?: ArrayLike<number>;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -57,22 +51,16 @@ export function selectVisiblePages<T extends PageRecord>(
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
   // The packed lists are the result's own, parallel to the records, written by the same `keep`
-  // (rank by rank). The cut cannot name more instances than the roots hold pages: their two
-  // `Int32Array`s are widened once to that capacity and their end is the two record counts, so a
-  // reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
-  let capacity = 0;
-  for (const root of roots) capacity += root.pages.length;
-  result.shownPacked = fitPacked(result.shownPacked, capacity);
-  result.wantedPacked = fitPacked(result.wantedPacked, capacity);
-  const shownPacked = result.shownPacked,
-    wantedPacked = result.wantedPacked;
+  // (rank by rank), which widens them as the cut emits (`./take.ts`): they follow what the view
+  // selects, never the instances the roots could name (#1232). Their end is the two record
+  // counts, so a reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
-  state.wantedPacked = wantedPacked;
-  state.shownPacked = shownPacked;
+  state.wantedPacked = result.wantedPacked;
+  state.shownPacked = result.shownPacked;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
@@ -93,13 +81,12 @@ export function selectVisiblePages<T extends PageRecord>(
   state.nodesTested = 0;
   state.lodLevel = 0;
   state.complete = true;
-  const { switched } = options;
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank];
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
-    // light's cut takes no root that casts no shadow. A switched root is drawn by its card
-    // (`planImpostors`): its clusters are dropped here, in the same breath as the card it yields.
-    if (root.parked || castsNoShadow(root.mark, state.light) || switched?.[rank]) continue;
+    // light's cut takes no root that casts no shadow, a camera's none its impostor card draws.
+    const { mark } = root;
+    if (root.parked || castsNoShadow(mark, state.light) || drawsCard(mark, state.light)) continue;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;
@@ -129,6 +116,8 @@ export function selectVisiblePages<T extends PageRecord>(
   // the next.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
+  result.shownPacked = state.shownPacked;
+  result.wantedPacked = state.wantedPacked;
   // Both sums are held as a running total: no more sweep of the records after the cut.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;

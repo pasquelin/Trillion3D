@@ -2,7 +2,6 @@ import type { ReflectionMetadata } from './historyTargets.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_KEPT,
-  REFLECTION_MOVING_KEPT,
   REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 
@@ -33,9 +32,9 @@ export interface ReflectionHistoryFrame {
 
 /** The frames of its own weight a history may keep this image (`resolveWgsl.ts`):
  *  `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES` after a placement change the motion did
- *  not follow (#33), `REFLECTION_MOVING_KEPT` while its sources or camera move, the still window
- *  otherwise. */
-export function historyConfidence(followed: boolean, sinceChange: number, moving: boolean) {
+ *  not follow (#33), the still window otherwise. While its sources or camera move the window is
+ *  kept whole and the history clipped to the image's neighbourhood instead (#831). */
+export function historyConfidence(followed: boolean, sinceChange: number) {
   if (!followed && sinceChange < REFLECTION_CHANGE_FRAMES) return REFLECTION_CHANGE_KEPT;
-  return moving ? REFLECTION_MOVING_KEPT : REFLECTION_STILL_FRAMES;
+  return REFLECTION_STILL_FRAMES;
 }

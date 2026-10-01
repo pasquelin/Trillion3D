@@ -14,6 +14,7 @@ import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts';
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts';
 import { prepareCones } from './cones.ts';
+import { cutsOnCpu, VIEW_ROWS } from '../../row/tableRows.ts';
 import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, fallbackToCpuCut, grantCapability } from '../io/drops.ts';
@@ -24,6 +25,7 @@ import { prepareDirectLights, prepareShadowPipelines } from './lights.ts';
 import { grantWebgpuPagesCache } from './cache.ts';
 import { litPrograms } from './contractLight.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
+import { loadImpostorCode } from '../../impostor/code.ts';
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
  *  backend closed or a device lost starts no further step; the teardown releases what steps built. */
@@ -36,6 +38,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     rt.context.preparationStep?.(name);
     return work();
   };
+  // The impostor draw's code, on its way beside every step below, awaited before the first image.
+  const impostorCode = loadImpostorCode(rt);
   const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store);
   rt.lights.buffer = lightBuffer;
   // No more light written into the scene: opaques and transparents read the same declared-light buffer.
@@ -116,6 +120,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     geometryFailure = { error };
   }
   if (geometryFailure && vis.deformation?.any) throw geometryFailure.error;
+  gpu.impostorCode = await impostorCode;
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
@@ -148,7 +153,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice));
   prepareCones(rt);
   // One thread per cluster, each with its own error band; a device that cannot hold it is said.
-  if (vis.gpuDraw && selectionRoots.length) {
+  // The GPU cut packs a node per placement and claims a row per resident instance: a scene whose
+  // instances pass the rows a view holds is cut on the CPU, which claims a row per cluster it
+  // selects, so neither its DAG nor its rows grow with the placements (#1232).
+  if (vis.gpuDraw && selectionRoots.length && cutsOnCpu(packedPages.length))
+    fallbackToCpuCut(rt, 'view rows', { instances: packedPages.length, viewRows: VIEW_ROWS });
+  else if (vis.gpuDraw && selectionRoots.length) {
     run.gpuSelection = await step('GPU cut', () =>
       createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
         residentCut: true,

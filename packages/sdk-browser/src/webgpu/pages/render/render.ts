@@ -8,7 +8,7 @@ import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
-import { followShadowDemand } from '../../shadow/poolResize.ts';
+import { followShadowCeiling } from '../../shadow/poolCeiling.ts';
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
 import { deviceAnswering } from '../../frame/deviceAnswer.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
@@ -51,7 +51,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     aspect,
   );
   sizeShadowPool(rt);
-  followShadowDemand(rt);
+  followShadowCeiling(rt);
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice);
   const pixelError = run.gate.pixelError,
@@ -125,6 +125,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
+  // The impostor plan: the cards, and the card bit of the roots they replace, read by both cuts.
+  rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam);
   // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
   if (
     rt.views.active === rt.views.main &&

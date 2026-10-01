@@ -1,5 +1,5 @@
-// #1345, PR #1359's first risk: a pool held at its ceiling — the scene asks more than it can grow
-// to — under a still view keeps what the view asked since it rested. The jitter phases no longer
+// #1345, PR #1359's first risk: a pool at its ceiling — the scene asks more than two reports it
+// holds — under a still view keeps what the view asked since it rested. The jitter phases no longer
 // evict and map each other's pages every frame: what they ask past the pool is refused, reads the
 // coarser page, and the image rests. Run from the shipped WGSL over a mock device.
 import test from 'node:test';
@@ -11,22 +11,22 @@ import {
   sunPages,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
-import { session } from './poolResize.fixture.ts';
-import { shadowKeptFrom } from './poolResize.ts';
+import { session } from './poolSession.fixture.ts';
+import { shadowKeptFrom } from './poolCeiling.ts';
 
-test('a pool held at its ceiling keeps, under a still view, what the view asked since it rested', async () => {
+test('a pool at its ceiling keeps, under a still view, what the view asked since it rested', async () => {
   const s = await session(),
     { lights } = s;
-  // The pool grows to its ceiling, and the next report asks past it again.
-  await s.ask(6000);
-  await s.ask(6000);
+  // Two reports ask more than the pool holds.
+  s.ask(6000);
+  s.ask(6000);
   assert.equal(lights.plan.resting, true, 'the view rests');
   assert.equal(shadowKeptFrom(lights, 40), 40);
   assert.equal(shadowKeptFrom(lights, 41), 40, 'what it asked since it rested is kept');
-  // The view moves: the latest frame's asks alone are kept, as a pool that can grow keeps them.
+  // The view moves: the latest frame's asks alone are kept.
   planFrame(lights.plan, lights.store, 42, { ...VIEW, position: [3, 2, 1] });
   assert.equal(shadowKeptFrom(lights, 42), 42);
-  await s.ask(100);
+  s.ask(100);
   assert.equal(lights.plan.resting, true);
   assert.equal(shadowKeptFrom(lights, 50), 50, 'a demand the pool holds evicts as before');
 });

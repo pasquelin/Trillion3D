@@ -21,25 +21,27 @@ fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
     options.simplification = "qem-endpoints".into();
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
-    let table = read_json(&directory.join(WORLD_ROOTS_FILE));
+    // The table's records (`compiler_world_roots/records.rs`): header words, then the bundles,
+    // pages, cells and objects at their fixed sizes.
+    let table = fs::read(directory.join(WORLD_ROOTS_FILE)).expect("table");
+    let word = |at: usize| u32::from_le_bytes(table[at..at + 4].try_into().expect("word")) as usize;
+    assert_eq!(&table[..4], b"WRTB");
     let report = &result["worldRoots"];
     let pinned = report["pinnedTopBytes"].as_u64().expect("published") as usize;
     assert!(pinned > 0 && pinned <= WORLD_TOP_BUDGET_BYTES, "{report}");
-    assert_eq!(report["pinnedTopBytes"], table["pinnedTopBytes"]);
+    assert_eq!(pinned, word(16));
     let partition = cells(&directory);
     assert!(partition.len() > 1, "the world is split");
     assert_eq!(report["cells"], json!(partition.len()));
-    let world = table["cells"].as_array().expect("cells");
-    assert_eq!(world.len(), partition.len());
-    let mut nodes = Vec::new();
-    for (at, cell) in world.iter().enumerate() {
+    let (bundles, pages, world) = (word(20), word(24), word(28));
+    assert_eq!(world, partition.len());
+    let (cell_at, mut nodes) = (80 + bundles * 56 + pages * 24, Vec::new());
+    let object_at = cell_at + world * 8;
+    for at in 0..world {
         let body = read_json(&directory.join(format!("scene-cell-{at}.json")));
-        let objects = cell["objects"].as_array().expect("objects");
-        assert_eq!(
-            objects.len(),
-            body["nodes"].as_array().expect("nodes").len()
-        );
-        nodes.extend(objects.iter().map(|o| o["node"].as_u64().expect("node")));
+        let (first, count) = (word(cell_at + at * 8), word(cell_at + at * 8 + 4));
+        assert_eq!(count, body["nodes"].as_array().expect("nodes").len());
+        nodes.extend((first..first + count).map(|object| word(object_at + object * 24) as u64));
     }
     nodes.sort_unstable();
     let placed: Vec<u64> = (0..(side * side) as u64).collect();
@@ -48,6 +50,7 @@ fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
         "every placement once, in the cell that places it"
     );
     let payload = fs::read(directory.join(WORLD_ROOTS_BIN)).expect("payload");
-    assert_eq!(table["payload"]["sha256"], json!(hash(&payload)));
-    assert_eq!(table["payload"]["bytes"], json!(payload.len()));
+    let digest: String = table[48..80].iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(digest, hash(&payload));
+    assert_eq!(word(40) + (word(44) << 32), payload.len());
 }

@@ -1638,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "Die Eckpunkte eines geladenen Modells wurden vor `await geometry.loadVertices()` gelesen: Eine Sitzung liest sie beim ersten Bedarf, nie im Voraus.",
       "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
       "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
-      "FAMILY_LOAD_FAILED": "Eine optionale Familie der Engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream) wurde nicht geladen, ihr Import zuvor erneut versucht (`T3D-E090`): `details.family` nennt sie, auf `world.diagnostic.error`. Die Bilder, die mit ihr zeichnen, warten auf sie, und sie wird bei der nächsten Verwendung erneut angefordert.",
+      "FAMILY_LOAD_FAILED": "Eine optionale Familie der Engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) wurde nicht geladen, ihr Import zuvor erneut versucht (`T3D-E090`): `details.family` nennt sie, auf `world.diagnostic.error`. Die Bilder, die mit ihr zeichnen, warten auf sie, und sie wird bei der nächsten Verwendung erneut angefordert.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
@@ -5686,7 +5686,7 @@
       "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
       "receive": "Ein Anforderungsbericht kam zurück: die Seitenliste der GPU zählt sofort (`gpu.hear`), den Rest liest der nächste Plan.",
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste.",
-      "resize": "Der Pool in anderer Größe, seine Seiten behalten, seine Arrays neu: gibt zurück, wohin jede Seite ging.",
+      "size": "Der Pool in der Größe, die das Gerät gewährt hat (`webgpu/shadow/poolSize.ts`), einmal, bevor eine Seite zugeordnet ist: Er wird danach nie in der Größe geändert, sodass keine Seite je ihren Platz wechselt (#831).",
       "sunWindow": "Seiten pro Seite der Clipmap einer Sonne, mit der eine Sitzung läuft (`referenceMode.ts`).",
       "gpu": "Die Zuteilung der GPU (`mirror.ts`): ob sie die Seiten zuordnet und was der Host von ihr verlangt."
     }
@@ -8023,7 +8023,7 @@
     }
   },
   "WorldRoots": {
-    "summary": "`world-roots.json`: der Welt-DAG, den der Compiler über den Wurzeln jedes Objekts fortsetzt — seine Bündel, Seiten und Zellen, die angeheftete Spitze zuerst.",
+    "summary": "`world-roots.table`: der Welt-DAG, den der Compiler über den Wurzeln jedes Objekts fortsetzt — seine Bündel, Seiten und Zellen, die angeheftete Spitze zuerst —, seine Seiten und Zellen aus ihren Datensätzen gelesen.",
     "members": {
       "version": "Formatversion.",
       "budgetBytes": "Die meisten Bytes, die das Kochen der angehefteten Spitze erlaubt.",
@@ -8031,8 +8031,8 @@
       "pinnedTopBytes": "Die Bytes der angehefteten Spitze.",
       "payload": "Die Binärdatei, in der die Bündel hintereinander liegen: ihre Adresse, ihr Hash und ihre Länge.",
       "bundles": "Die Bündel, in der Reihenfolge der Binärdatei.",
-      "pages": "Jede Seite: ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler.",
-      "cells": "Jede Weltzelle: die platzierten Primitive, die sie hält."
+      "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
+      "cells": "Die Weltzellen: wie viele, die platzierten Primitive, die eine enthält, an ihren Datensätzen gelesen, und die Zelle, die das Objekt `object` enthält — der `origin` einer Objektwurzel (#1332)."
     }
   },
   "WorldRootsBundle": {
@@ -8293,7 +8293,7 @@
   },
   "planImpostors": {
     "summary": "Plant die Impostor-Stufe für eine Ansicht: jede Wurzel, deren Mesh einen gebackenen Eintrag hat und deren Umschaltung hält, ergibt eine Karte und wird als unterdrückt markiert.",
-    "description": "`view` bildet die Welt auf den Sichtraum ab (spaltenweise), und `focalPixels` ist die eine Brennweite der Engine in Pixeln am Viewport des Bildes."
+    "description": "`view` bildet die Welt auf den Sichtraum ab (spaltenweise), und `focalPixels` ist die eine Brennweite der Engine in Pixeln am Viewport des Bildes. `into`, ein Plan, den eine frühere Ansicht zurückgegeben hat, wird an Ort und Stelle neu geplant: sein `switched` und seine Karten werden wiederverwendet, sodass eine Laufzeit, die jedes Bild plant, nichts mehr allokiert, sobald sich ihre Kartenzahl eingependelt hat."
   },
   "validateImpostorSection": {
     "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
