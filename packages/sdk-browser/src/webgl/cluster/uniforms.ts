@@ -34,8 +34,10 @@ export class Matrix3UniformCache {
 export function uniformLocations(gl: WebGL2RenderingContext, program: WebGLProgram) {
   const locations = new Map<string, WebGLUniformLocation | null>();
   return (name: string) => {
-    if (!locations.has(name)) locations.set(name, gl.getUniformLocation(program, name));
-    return locations.get(name)!;
+    let location = locations.get(name);
+    if (location === undefined)
+      locations.set(name, (location = gl.getUniformLocation(program, name)));
+    return location;
   };
 }
 
