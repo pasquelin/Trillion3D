@@ -4411,7 +4411,8 @@
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "xr": "Menyiapkan XR sebelum konteks; tanpa pengikatan GPU XR, mode otomatis memilih WebGL2."
     }
   },
   "RenderScale": {
@@ -5069,7 +5070,8 @@
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`.",
+      "options.xr": "Menyiapkan XR sebelum konteks; tanpa pengikatan GPU XR, mode otomatis memilih WebGL2."
     }
   },
   "crossVector3": {
@@ -8307,5 +8309,24 @@
   "validateImpostorSection": {
     "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",
     "description": "Bagian yang tidak ada bukanlah kesalahan: cache yang mendahuluinya menggambar setiap mesh secara utuh, seperti sebelumnya. Bagian yang ada ditolak seluruhnya ketika versinya tidak diketahui atau entri `baked` kehilangan angka yang dibutuhkan sakelar dan kartunya."
+  },
+  "world.xr": {
+    "summary": "Sesi imersif, masukan, ruang referensi dan uji benturan AR.",
+    "members": {
+      "supported": "Apakah peramban dapat menyediakan mode imersif yang diminta.",
+      "inputs": "Simpul terlacak berada dalam ruang referensi; tambahkan mesh sebagai anaknya.",
+      "setReferenceSpace": "Mengganti ruang pose, masukan dan uji benturan sekaligus.",
+      "teleport": "Memindahkan titik asal relatif terhadap ruang referensi; yaw dalam radian.",
+      "hitTest": "Benturan sinar pandang AR dalam ruang yang sama dengan mata dan masukan.",
+      "createLayer": "Membuat lapisan gambar yang dikomposisi browser dan dimiliki sesi aktif.",
+      "enter": "Memasuki mode imersif yang diminta melalui tindakan pengguna.",
+      "enterVR": "Memasuki VR imersif melalui tindakan pengguna.",
+      "enterAR": "Memasuki AR imersif dengan lingkungan transparan melalui tindakan pengguna.",
+      "timing": "Waktu CPU terukur dan anggaran asli headset; waktu GPU yang tidak diketahui tetap null.",
+      "session": "Sesi XR native yang aktif, atau null saat tidak aktif.",
+      "referenceSpace": "Ruang bersama headset, input, dan uji hit, atau null.",
+      "exit": "Mengakhiri imersi dan menunggu pelepasan semua sumber daya mata yang dipinjam.",
+      "dispose": "Menghentikan masuk XR secara permanen dan melepaskan sumber daya saat dunia dihancurkan."
+    }
   }
 }

@@ -6,6 +6,8 @@ import type { RenderScale } from '../../frame/renderScaleOption.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
+  /** Choose an XR-compatible renderer before the canvas acquires its context. @defaultValue false */
+  xr?: boolean;
   /**
    * How the world draws, `'webgpu'` or `'webgl2'`. Left out, the world takes the best the machine
    * grants; a renderer the machine lacks is refused by its name, never swapped for the other.

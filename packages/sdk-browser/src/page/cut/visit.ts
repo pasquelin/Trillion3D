@@ -1,4 +1,4 @@
-import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
+import { clipCutViews } from './viewSet.ts';
 import { frameClusterError } from '../selection/frame.ts';
 import { joue } from '../../math/batchLot.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
@@ -30,7 +30,8 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
     // A node already settled and entirely inside the frustum is not tested: it is only traversed.
     if (!inside || !settled) s.nodesTested++;
     if (!inside) {
-      const clipped = frustumClipBox(
+      const clipped = clipCutViews(
+        s.lenses,
         planes,
         nodes[base],
         nodes[base + 1],
@@ -114,7 +115,7 @@ export function traverse<T extends PageRecord>(
   culling?: WalkCulling,
 ) {
   // The module's walk reads no deformation's reach: a deformed root descends here.
-  const wasm = culling && !(s.flatReach > 0) ? cutWalkModule() : null;
+  const wasm = culling && !s.lenses && !(s.flatReach > 0) ? cutWalkModule() : null;
   if (!wasm || !culling) return descend(s, pages, culling);
   joue(
     CUT_WALK,

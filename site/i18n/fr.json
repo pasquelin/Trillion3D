@@ -477,14 +477,7 @@
       "sort-and-reduce": "API de calcul GPU",
       "a-software-rasteriser": "API de calcul GPU",
       "sound-from-the-gpu": "API de calcul GPU",
-      "breaking-things": "intégration d’un moteur physique",
-      "a-room-in-vr": "session WebXR",
-      "a-360-photo-in-vr": "session WebXR",
-      "vr-composition-layers": "session WebXR : calques",
-      "hands-in-vr": "session WebXR : suivi des mains",
-      "teleport-in-vr": "session WebXR",
-      "controllers-in-vr": "session WebXR",
-      "ar-on-the-table": "session WebXR : réalité augmentée"
+      "breaking-things": "intégration d’un moteur physique"
     }
   },
   "api": {

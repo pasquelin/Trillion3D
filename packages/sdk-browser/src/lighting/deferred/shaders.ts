@@ -162,7 +162,7 @@ fn composeColor(pixel:vec4f)->vec4f{
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
  ${read ? asIsMix(chaine, read.share) : `let color=linearToSrgb(${chaine});`}
- return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
+ return vec4f(color*value.a+view.background.rgb*(1.0-value.a),select(1.0,value.a,view.background.a==0.0));
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
 struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}

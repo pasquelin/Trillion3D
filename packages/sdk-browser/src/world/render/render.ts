@@ -44,7 +44,7 @@ type Inputs = {
       toggle: 0 | 1,
     ) => void;
   };
-  fillMetrics: (backend: RenderBackend) => void;
+  fillMetrics: (backend: RenderBackend, xr?: ReturnType<RenderBackend['metrics']>) => void;
   metricsScratch: FrameMetrics;
   profiler: EngineProfiler;
   pageIdByUrl: Map<string, number>;
@@ -127,6 +127,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
         compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle);
       }
     } catch (error) {
+      if (state.xrDraw) throw error;
       handleExplorerRenderError(error, {
         measuring,
         diagnostic,
@@ -140,7 +141,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
         compose,
       });
     }
-    fillMetrics(state.active);
+    fillMetrics(state.active, state.xrMetrics);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
     // Submitted triangles of this frame: those the engine counted, and only those. `null` when

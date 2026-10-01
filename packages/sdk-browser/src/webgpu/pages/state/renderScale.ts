@@ -14,6 +14,7 @@ function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
   const { gpu, run, vis } = rt,
     { bounds } = rt.scale;
   const reconstructed =
+    !rt.context.stereo &&
     !!gpu.temporal &&
     gpu.temporalWanted &&
     run.diagnostic === 'beauty' &&

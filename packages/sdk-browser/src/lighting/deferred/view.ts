@@ -41,12 +41,13 @@ export function createDeferredView(device: GPUDevice) {
       rawOutput: boolean,
       direct: ArrayLike<number>,
       sampledRank: number,
+      transparent = false,
     ) {
       packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
       packed.set(camera, 16);
       packed.set([width, height, rawOutput ? 1 : 0, sampledRank], 20);
       const clear = clearValueOf(clearColor);
-      packed.set([clear.r, clear.g, clear.b, clear.a], 24);
+      packed.set(transparent ? [0, 0, 0, 0] : [clear.r, clear.g, clear.b, clear.a], 24);
       packed.set(direct as number[], 28);
       device.queue.writeBuffer(buffer, 0, packed);
     },

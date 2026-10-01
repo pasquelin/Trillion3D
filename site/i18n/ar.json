@@ -1666,14 +1666,7 @@
       "sort-and-reduce": "واجهة حوسبة GPU",
       "a-software-rasteriser": "واجهة حوسبة GPU",
       "sound-from-the-gpu": "واجهة حوسبة GPU",
-      "breaking-things": "تكامل الفيزياء",
-      "a-room-in-vr": "جلسة WebXR",
-      "a-360-photo-in-vr": "جلسة WebXR",
-      "vr-composition-layers": "جلسة WebXR: طبقات",
-      "hands-in-vr": "جلسة WebXR: إدخال اليدين",
-      "teleport-in-vr": "جلسة WebXR",
-      "controllers-in-vr": "جلسة WebXR",
-      "ar-on-the-table": "جلسة WebXR: الواقع المعزز"
+      "breaking-things": "تكامل الفيزياء"
     }
   }
 }

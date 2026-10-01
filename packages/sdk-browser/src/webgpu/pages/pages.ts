@@ -1,3 +1,4 @@
+import { createXrGpuEye } from './state/xrView.ts';
 import { pendingWebgpuFrame } from '../frame/interactiveFrame.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
@@ -9,7 +10,7 @@ import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
 import { captureColorView } from './io/colorCapture.ts';
-import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
+import * as persistent from './state/persistentView.ts';
 import {
   captureImage,
   pageUrls,
@@ -50,6 +51,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
+    createXrEye: (width, height) => createXrGpuEye(rt, width, height),
     capabilities: rt.capabilities,
     signal: rt.signal,
     scene: setup.scene,
@@ -128,11 +130,13 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     captureColorView(camera, size) {
       return captureColorView(rt, camera, size);
     },
+    setXrActive: (active) => rt.services.setMainViewActive(!active),
     async addView(rect) {
-      const view = await addWebgpuView(rt, rect);
+      const view = await persistent.addWebgpuView(rt, rect);
       return {
-        render: (camera) => renderWebgpuView(rt, view, camera),
-        release: () => removeWebgpuView(rt, view),
+        render: (camera, compose) => persistent.renderWebgpuView(rt, view, camera, compose),
+        resize: (rect) => persistent.resizeWebgpuView(rt, view, rect),
+        release: () => persistent.removeWebgpuView(rt, view),
       };
     },
     capture() {
@@ -183,7 +187,6 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     ...webgpuAudits(rt),
     dispose() {
-      // Inert and read as lost at once; torn down once, after the preparation stopped.
       rt.closer.abort();
       gpuDeviceLedgerOf(claim?.device)?.releaseAdmission();
       claim?.release();

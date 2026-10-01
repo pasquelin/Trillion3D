@@ -12,7 +12,11 @@ let cachedWebgl:
 export async function detectCapabilities(
   mode: 'webgl' | 'webgpu',
   _canvas: HTMLCanvasElement,
-  environment: { gpu?: GPU; createWebglCanvas?: () => HTMLCanvasElement } = {},
+  environment: {
+    gpu?: GPU;
+    createWebglCanvas?: () => HTMLCanvasElement;
+    xrCompatible?: boolean;
+  } = {},
 ) {
   if (mode === 'webgl') {
     if (!environment.createWebglCanvas && cachedWebgl) return cachedWebgl;
@@ -45,7 +49,9 @@ export async function detectCapabilities(
       reason: 'WebGPU unavailable; create a separate WebGL canvas',
       adapter: null,
     };
-  const adapter = await gpu.requestAdapter();
+  const adapter = await gpu.requestAdapter(
+    environment.xrCompatible ? ({ xrCompatible: true } as GPURequestAdapterOptions) : undefined,
+  );
   return {
     tier: adapter
       ? adapter.features.has('timestamp-query')

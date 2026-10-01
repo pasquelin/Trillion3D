@@ -42,7 +42,7 @@ export function startInteractiveExplorer(
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
       // A frame that waits for a family on its way (`familyUse.ts`) is not drawn, nor stepped.
-      if (capturing || runtime.familiesPending()) return;
+      if (state.xrActive || capturing || runtime.familiesPending()) return;
       original.beforeFrame?.();
       const metrics = explorer.render();
       pageLoads = metrics.pageLoads;
@@ -51,7 +51,7 @@ export function startInteractiveExplorer(
     // A page landing is the image still arriving: those frames spend none of the settle limit. The
     // engine's own count of the pages it made resident, else the pages fetched.
     progress: () => runtime.landings() ?? pageLoads,
-    pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
+    pending: () => (state.xrActive || capturing ? Promise.resolve(false) : runtime.pendingFrame()),
     error: reportFailure,
     limited: () =>
       events.diagnose(

@@ -21,17 +21,18 @@ import {
  */
 const OUTPUT_FRAGMENT = `#version 300 es
 precision highp float;precision highp sampler2D;uniform sampler2D image,untoned,depth;uniform bool toneMapped;
-uniform vec3 background;out vec4 color;
+uniform vec3 background;uniform float backgroundAlpha;out vec4 color;
 ${OUTPUT_TRANSFER_GLSL}
 void main(){ivec2 at=ivec2(gl_FragCoord.xy);gl_FragDepth=texelFetch(depth,at,0).r;vec4 v=texelFetch(image,at,0);
-if(v.a<=0.0){color=vec4(background,1.0);return;}
+if(v.a<=0.0){color=vec4(background,backgroundAlpha);return;}
 float a=min(v.a,1.0);vec3 c=v.rgb/a;
 if(toneMapped)c=mix(toneMap(c),c,clamp(texelFetch(untoned,at,0).r/a,0.0,1.0));
-color=vec4(linearToSrgb(c)*a+background*(1.0-a),1.0);}`;
+color=vec4(linearToSrgb(c)*a+background*(1.0-a),backgroundAlpha==0.0?a:1.0);}`;
 
 /** What one display chain needs besides the passes: the curve and the encoded background. */
 export type WebglEffectOutput = {
   toneMapped: boolean;
+  backgroundAlpha?: number;
   /** Rank of the scene's curve (`TONE_MAPPING_RANK`). */
   toneCurve: number;
   /** The background, sRGB-encoded. */
@@ -89,11 +90,13 @@ export function createWebglOutput(gl: WebGL2RenderingContext) {
   gl.uniform1i(at('image'), 0);
   gl.uniform1i(at('untoned'), 1);
   gl.uniform1i(at('depth'), 2);
+  const backgroundAlpha = at('backgroundAlpha');
   const [toneMapped, toneCurve, background] = ['toneMapped', 'toneCurve', 'background'].map(at);
   const read = (unit: number, texture: WebGLTexture) => bindWebglTexture(gl, unit, texture);
   return {
     draw(image: WebglRenderTarget, scene: WebglSceneTarget, out: WebglEffectOutput) {
       gl.useProgram(program);
+      gl.uniform1f(backgroundAlpha, out.backgroundAlpha ?? 1);
       gl.uniform1i(toneMapped, out.toneMapped ? 1 : 0);
       gl.uniform1i(toneCurve, out.toneCurve);
       gl.uniform3f(background, out.background[0], out.background[1], out.background[2]);

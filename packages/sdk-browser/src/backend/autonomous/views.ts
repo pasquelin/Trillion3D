@@ -72,6 +72,13 @@ export function createWebglViews(
       views.use(main);
       all.splice(at, 1);
       others.splice(others.indexOf(view), 1);
+      moved();
+    },
+    /** Suspending the ordinary camera drops only its pins; XR eyes publish into the same pool. */
+    suspendMain() {
+      for (const key of ['shown', 'shownPacked', 'desired', 'desiredPacked', 'requested'] as const)
+        main[key].length = 0;
+      moved();
     },
     /** Runs `work` in a view of its own at `size`, released after, whatever `work` did: the main
      *  view keeps its cut and its motion. */

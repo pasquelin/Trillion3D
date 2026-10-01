@@ -477,14 +477,7 @@
       "sort-and-reduce": "GPU-Rechen-API",
       "a-software-rasteriser": "GPU-Rechen-API",
       "sound-from-the-gpu": "GPU-Rechen-API",
-      "breaking-things": "Anbindung einer Physik-Engine",
-      "a-room-in-vr": "WebXR-Sitzung",
-      "a-360-photo-in-vr": "WebXR-Sitzung",
-      "vr-composition-layers": "WebXR-Sitzung: Ebenen",
-      "hands-in-vr": "WebXR-Sitzung: Handverfolgung",
-      "teleport-in-vr": "WebXR-Sitzung",
-      "controllers-in-vr": "WebXR-Sitzung",
-      "ar-on-the-table": "WebXR-Sitzung: erweiterte Realität"
+      "breaking-things": "Anbindung einer Physik-Engine"
     }
   },
   "api": {

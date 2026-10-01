@@ -40,6 +40,7 @@ export function createWebgpuCutPublication(
   const { run, gpu, views, capture } = rt,
     { rows, packedPages, recordOf } = rt.layout,
     { ahead } = tiers;
+  let mainActive = true;
   const cutDelta = createCutDelta(packedPages, run.desired);
   // The drawable cut writes its records itself; `run.shown` is only a copy of it, when adopted.
   const drawnPages: PageRec[] = [];
@@ -172,10 +173,19 @@ export function createWebgpuCutPublication(
       // own buffer is swapped at each difference and longer than its live ranks, never handed out.
       copyPacked(run.desiredPacked, cut.asked.ids, cut.asked.count);
       // A capture is drawn alone, the others wait for it: its cut is ranked first under the one
-      // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
-      // (#268). A persistent view and the main one rank the union, the same queue whichever is
-      // drawn, so views drawn every frame never trade slots.
       residencySets.drawnFirst = captureDrawn(views, capture) ? run.desiredPacked : null;
+    },
+    /** XR draws no main image: remove its pins without releasing its presentation state. */
+    setMainViewActive(active: boolean) {
+      if (active === mainActive) return;
+      mainActive = active;
+      if (!active) {
+        adopt(views.main.cut!, NO_IDS, NO_IDS);
+        ahead.offerIds(NO_IDS);
+      }
+      run.gate.resourcesChanged();
+      run.cutEpoch++;
+      cutAdopter.forgetReadback();
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {

@@ -16,11 +16,7 @@ import { namedMove } from './worldSceneMethods.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
-
-/** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
- *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
- *  (`placement/growth.ts`), resources mounted (`worldMounts.ts`), poses, background —, and opened
- *  again once per burst for what it lacks: a model, or what its engine cannot take in place. */
+/** Applies the scene change list before each frame and reopens when a change cannot fit in place. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -39,20 +35,26 @@ export function createWorldRuntime(inputs: Inputs) {
     disposed = false,
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
-  const invalidate = () => explorer?.invalidate();
-  // A move by name through the session (#972), and the one the world offers its page.
+  const invalidate = () => {
+    if (!disposed) explorer?.invalidate();
+  };
   const moveNamed = namedMove(scene, poses, invalidate);
   const relight = () => ((lightsChanged = true), invalidate());
-  /** One opening: the session in place closed, the next one opened on what the scene holds. */
   const reopen = async () => {
     if (disposed) return;
     closed = 'its session is opening';
-    // What was resolved since the last frame opens with this session, not with the next one.
     if (seatWanted) contents.seat();
     seatWanted = false;
     const plan = contents.plan();
     const built = buildWorldSource(plan);
     const release = mounts.opening(plan.batches);
+    const closing = explorer && inputs.closing?.();
+    if (closing) await closing;
+    if (disposed) {
+      if (built) releaseWorldMirror(built.root);
+      release();
+      return;
+    }
     track.closing(explorer);
     explorer?.dispose();
     if (mirror) releaseWorldMirror(mirror.root);
@@ -73,10 +75,8 @@ export function createWorldRuntime(inputs: Inputs) {
       const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
       const given = inputs.options();
-      // The session's own loop hands its frames on as `render()` does: bytes told (#573).
       const onFrame: typeof given.onFrame = (m) => (cuts.dynamic.drew(m), given.onFrame?.(m));
       const options = track.options({ ...given, scope, onFrame });
-      // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
     } catch (error) {
       closed = 'its session failed to open';
@@ -84,13 +84,11 @@ export function createWorldRuntime(inputs: Inputs) {
       return track.none();
     }
     if (disposed) return explorer.dispose();
-    // Lit and a frame asked before the page's own settings: the first image had no lights.
     explorer.setLightingView('lit');
     invalidate();
     inputs.opened(explorer);
   };
   const reopens = createRequestLoop(reopen);
-  // Changes before the grant or during a resolution fold into the next; a throw ends the burst.
   const resolve = async () => {
     try {
       while ((structureChanged || contents.staleCount) && !disposed) {
@@ -119,7 +117,6 @@ export function createWorldRuntime(inputs: Inputs) {
     (cut) => mirror?.geometryOf(cut),
     track.asks('vertices-refused'),
   );
-  /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
     const session = explorer;
     if (seatWanted) {
@@ -127,7 +124,6 @@ export function createWorldRuntime(inputs: Inputs) {
       contents.seat(session?.growsPlacements() ? session : undefined);
       if (session && mirror) mounts.apply(mirror, session);
       if (contents.reopenNeeded() || (!session && !reopens.running)) track.request('scene-change');
-      // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
       const painted = contents.repainted(),
         open = explorer === session ? session : null;
       if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
@@ -146,18 +142,23 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
+    if (disposed) return;
     apply();
     if (!explorer) return;
     fit.apply(explorer);
     placeCamera(explorer.camera);
   };
-  // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
     if (inputs.drawn() || disposed || !scene.children.length) return null;
     return explorer ? 'its session is open and draws nothing' : `no session has opened, ${closed}`;
   });
   scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule });
+  const stop = () => {
+    disposed = true;
+    scene.traverse((node) => (node._link = null));
+  };
   return {
+    stop,
     beforeFrame,
     invalidate,
     /** A move by name the world offers its page (`world.setTransform`, #972). */
@@ -178,7 +179,7 @@ export function createWorldRuntime(inputs: Inputs) {
     },
     /** A frame, `ahead` stepping first; one waiting for a family (`familyUse.ts`) does neither. */
     render(ahead?: () => void) {
-      if (!explorer || explorer.familiesPending()) return null;
+      if (disposed || !explorer || explorer.familiesPending()) return null;
       ahead?.();
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
@@ -189,12 +190,11 @@ export function createWorldRuntime(inputs: Inputs) {
       return metrics;
     },
     dispose() {
-      disposed = true;
+      stop();
       explorer?.dispose();
       track.dispose(explorer);
       if (mirror) releaseWorldMirror(mirror.root);
       cuts.dispose();
-      scene.traverse((node) => (node._link = null));
     },
   };
 }

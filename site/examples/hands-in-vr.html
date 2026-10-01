@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hands In VR</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101729;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, object, geometry, material, light } from '../runtime/engine.js';
+      import { xrControls } from '../runtime/kit.js';
+      const world = createWorld('view', { xr: true, controls: 'orbit', renderScale: 1 });
+      world.camera.position.set(0, 1.6, 3);
+      world.camera.lookAt(0, 1.2, -2);
+      world.scene.add(
+        object.mesh(geometry.box(6, 0.1, 6), material.meshStandard({ color: '#253350' })),
+        light.ambient({ intensity: 1 }),
+        light.directional({ intensity: 2, position: [2, 5, 3] }),
+      );
+      for (const [x, color] of [
+        [-1, '#56b4e9'],
+        [0, '#ffd166'],
+        [1, '#d55e00'],
+      ]) {
+        const box = object.mesh(geometry.box(0.5, 0.5, 0.5), material.meshStandard({ color }));
+        box.position.set(x, 1.2, -2);
+        world.scene.add(box);
+      }
+      const shape = geometry.sphere(0.008, 12, 8);
+      const paint = material.meshBasic({ color: '#ffcc99' });
+      const pool = Array.from({ length: 50 }, () => {
+        const dot = object.mesh(shape, paint);
+        dot.visible = false;
+        world.scene.add(dot);
+        return dot;
+      });
+      const all = pool.slice();
+      let attached = new WeakSet();
+      world.beforeFrame(() => {
+        for (const input of world.xr.inputs)
+          for (const joint of input.joints.values()) {
+            if (attached.has(joint) || !pool.length) continue;
+            attached.add(joint);
+            const dot = pool.pop();
+            dot.visible = true;
+            joint.add(dot);
+            world.scene.add(joint);
+          }
+      });
+      await xrControls(world, false, () => {
+        world.xr.session.addEventListener(
+          'end',
+          () => {
+            attached = new WeakSet();
+            pool.length = 0;
+            pool.push(...all);
+            for (const dot of all) {
+              dot.visible = false;
+              world.scene.add(dot);
+            }
+          },
+          { once: true },
+        );
+      });
+    </script>
+  </body>
+</html>

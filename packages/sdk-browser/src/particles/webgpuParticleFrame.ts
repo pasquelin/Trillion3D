@@ -34,7 +34,10 @@ export function encodeParticles(
     return;
   }
   // One step a frame, the main view's: a view drawn beside it draws the pools as they stand.
-  if (rt.views.active !== rt.views.main) return;
+  if (
+    rt.context.stereo ? !rt.context.stereo.once(encodeParticles) : rt.views.active !== rt.views.main
+  )
+    return;
   if (!rt.gpu.particles) {
     // The step's code, which the frame waited for (`../host/families.ts`).
     const fail = (error: unknown) => rt.diag.diagnosticFailure('particles-unavailable', error);

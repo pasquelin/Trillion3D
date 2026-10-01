@@ -15,12 +15,13 @@ export function holdWorldDevice(
   forced: WorldRenderer | undefined,
   regranted: (lostAt: number) => void,
   probe = probeWorldRenderer,
+  xrCompatible = false,
 ) {
   let renderer: WorldRenderer | null = null,
     gpuDevice: GPUDevice | undefined,
     disposed = false;
   const grant = (again: boolean): Promise<void> =>
-    probe(canvas, forced).then((granted) => {
+    probe(canvas, forced, xrCompatible).then((granted) => {
       // A world disposed while its renderer was asked for keeps nothing it was granted.
       if (disposed) return granted.gpuDevice?.destroy();
       if (again && !granted.gpuDevice)
@@ -45,6 +46,7 @@ export function holdWorldDevice(
   // A refusal is the world's `ready` to report, never an unhandled rejection.
   pending.catch(() => {});
   return {
+    xrCompatible,
     ready: pending,
     /** The grant asked last: a session opens once it settles, never in a device's absence. */
     get pending() {

@@ -1666,14 +1666,7 @@
       "sort-and-reduce": "GPU कंप्यूट API",
       "a-software-rasteriser": "GPU कंप्यूट API",
       "sound-from-the-gpu": "GPU कंप्यूट API",
-      "breaking-things": "फ़िज़िक्स इंटीग्रेशन",
-      "a-room-in-vr": "WebXR सेशन",
-      "a-360-photo-in-vr": "WebXR सेशन",
-      "vr-composition-layers": "WebXR सेशन: लेयर",
-      "hands-in-vr": "WebXR सेशन: हाथ इनपुट",
-      "teleport-in-vr": "WebXR सेशन",
-      "controllers-in-vr": "WebXR सेशन",
-      "ar-on-the-table": "WebXR सेशन: AR"
+      "breaking-things": "फ़िज़िक्स इंटीग्रेशन"
     }
   }
 }

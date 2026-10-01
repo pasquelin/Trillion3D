@@ -60,6 +60,12 @@
     "banner": {
       "close": "닫기",
       "waiting": "엔진 대기 중 (#{issue})"
+    },
+    "xr": {
+      "checking": "XR 지원 확인 중…",
+      "enterVR": "VR 시작",
+      "enterAR": "AR 시작",
+      "unavailable": "이 브라우저 또는 기기에서 XR을 사용할 수 없습니다"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "포즈"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "호환 헤드셋을 사용하여 XR을 시작하세요."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "360° 이미지를 선택한 후 VR을 시작하세요."
+  },
+  "vr-composition-layers": {
+    "banner": "호환 헤드셋을 사용하여 XR을 시작하세요."
+  },
+  "hands-in-vr": {
+    "banner": "호환 헤드셋을 사용하여 XR을 시작하세요."
+  },
+  "teleport-in-vr": {
+    "banner": "트리거를 누르면 1미터 앞으로 이동합니다."
+  },
+  "controllers-in-vr": {
+    "banner": "호환 헤드셋을 사용하여 XR을 시작하세요."
+  },
+  "ar-on-the-table": {
+    "banner": "기기를 테이블로 향해 큐브를 배치하세요."
   }
 }

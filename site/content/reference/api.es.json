@@ -1272,7 +1272,8 @@
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
       "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
-      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija. En WebGPU una imagen quieta también se dibuja a esa escala y se reconstruye a partir de sus fases de jitter; en WebGL2 se dibuja al máximo. Se cambia después con `world.renderScale`."
+      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija. En WebGPU una imagen quieta también se dibuja a esa escala y se reconstruye a partir de sus fases de jitter; en WebGL2 se dibuja al máximo. Se cambia después con `world.renderScale`.",
+      "options.xr": "Prepara XR antes del contexto; sin enlace GPU XR, el modo automático elige WebGL2."
     }
   },
   "crossVector3": {
@@ -7084,7 +7085,8 @@
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
       "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
-      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija. En WebGPU una imagen quieta también se dibuja a esa escala y se reconstruye a partir de sus fases de jitter; en WebGL2 se dibuja al máximo. Se cambia después con `world.renderScale`."
+      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija. En WebGPU una imagen quieta también se dibuja a esa escala y se reconstruye a partir de sus fases de jitter; en WebGL2 se dibuja al máximo. Se cambia después con `world.renderScale`.",
+      "xr": "Prepara XR antes del contexto; sin enlace GPU XR, el modo automático elige WebGL2."
     }
   },
   "RenderScale": {
@@ -8306,5 +8308,24 @@
   "validateImpostorSection": {
     "summary": "Un motivo breve por el que la sección no se puede usar, o `null`.",
     "description": "Una sección ausente no es un error: una caché anterior a ella dibuja cada malla completa, como antes. Una presente se rechaza en conjunto cuando su versión es desconocida o una entrada `baked` carece de los números que necesitan su conmutación y su tarjeta."
+  },
+  "world.xr": {
+    "summary": "Sesiones inmersivas, entradas, espacio de referencia y pruebas de impacto AR.",
+    "members": {
+      "supported": "Indica si el navegador puede conceder el modo inmersivo solicitado.",
+      "inputs": "Los nodos seguidos están en el espacio de referencia; añada mallas como hijos.",
+      "setReferenceSpace": "Cambia conjuntamente el espacio de poses, entradas y pruebas de impacto.",
+      "teleport": "Desplaza el origen relativo del espacio de referencia; giro en radianes.",
+      "hitTest": "Impactos del rayo de vista AR en el mismo espacio que ojos y entradas.",
+      "createLayer": "Crea una capa de imagen compuesta por el navegador y propiedad de la sesión activa.",
+      "enter": "Entra en el modo inmersivo solicitado desde una acción del usuario.",
+      "enterVR": "Entra en VR inmersiva desde una acción del usuario.",
+      "enterAR": "Entra en AR inmersiva con entorno transparente desde una acción del usuario.",
+      "timing": "Tiempo de CPU medido y presupuesto nativo del visor; los tiempos GPU desconocidos quedan en null.",
+      "session": "La sesión XR nativa activa, o null cuando no hay ninguna.",
+      "referenceSpace": "El espacio compartido del visor, las entradas y las pruebas de impacto, o null.",
+      "exit": "Sale de la inmersión y espera la liberación de todos los recursos prestados de los ojos.",
+      "dispose": "Impide nuevas entradas XR y libera los recursos al destruir el mundo."
+    }
   }
 }

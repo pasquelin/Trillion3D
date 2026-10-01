@@ -51,20 +51,20 @@ export type ComposedChain = {
  * (`../../particles/particleCode.ts`). A refusal never fails the session: the pools are refused
  * by name, `particlesRefused` hearing why once, and the frame goes on without them. An engine with
  * a render scale draws both below the display, resampled before the chain (`./renderScale.ts`).
- * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
   layers: {
     effects?: ComposedChain;
+    transparent?: boolean;
     particles?: readonly ParticlePool[];
     particlesRefused?: (reason: string) => void;
+    particleStep?: () => ReturnType<typeof webglParticleStep>;
   } & ({ guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }) = {},
 ) {
   const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
-  // Each made on the family's code the frame waited for (`../../host/families.ts`).
   let stepped: ReturnType<typeof webglParticleStep>,
     guideDraw: ReturnType<typeof createWebglGuideDraw> | undefined,
     effects: ReturnType<typeof createWebglEffects> | undefined;
@@ -84,13 +84,14 @@ export function createFrameComposer(
     toneMapped: true,
     toneCurve: 0,
     background: [0, 0, 0],
+    backgroundAlpha: layers.transparent ? 0 : 1,
   };
-  /** `keptParticles`: the kept frame shows particles, never put back, pools let go since included. */
   let keptRevision = 0,
     keptParticles = false;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
   const encode = (background: SceneColour) => {
-    const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
+    const { r, g, b } =
+      !layers.transparent && background?.isColor ? background : { r: 0, g: 0, b: 0 };
     display.background[0] = linearToSrgb(r);
     display.background[1] = linearToSrgb(g);
     display.background[2] = linearToSrgb(b);
@@ -102,7 +103,6 @@ export function createFrameComposer(
   const passesOf = (backend: RenderBackend, wanted: boolean) => {
     if (!composed) return NONE;
     const passes = composed.chain.stage('before-tone-mapping');
-    // An emptied chain gives its targets back; one kept aside for a capture keeps them.
     if (!passes.length) effects?.release();
     if (!passes.length || !wanted || !composed.shown()) return NONE;
     effects ??= families.effects.get()?.createWebglEffects(gl); // arrived: the frame waited for it
@@ -125,8 +125,7 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const moved = anyMoving(particles);
-    // Made by the first pool, then run with none left too: it frees a released pool's targets.
-    if (particles.length) stepped ??= webglParticleStep(gl, layers.particlesRefused);
+    if (particles.length) compose.particleStep();
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn,
@@ -146,8 +145,6 @@ export function createFrameComposer(
       return;
     }
     if (!backend.drawHostGeometry) throw new Error(`HOST_DRAW_UNSUPPORTED:${backend.id}`);
-    // The display chain, one rule for every engine and destination: an unlit scene composes by
-    // identity (P6); a light brings exposure and the filmic curve back, last links (P4).
     output.toneMapped = backend.sceneLit?.() !== false;
     output.toneMapping = backend.sceneToneMapping?.() ?? DEFAULT_TONE_MAPPING;
     const passes = passesOf(backend, chained);
@@ -159,9 +156,9 @@ export function createFrameComposer(
     output.width = width;
     output.height = height;
     encode(backend.scene.background as SceneColour);
-    // Drawn below the display, the image is resampled over all of it: only its target is cleared.
-    const clear = linear ? undefined : display.background;
-    if (!scaled.begin(backend, output, scale, clear) && clear) clearWebglTarget(gl, clear);
+    const clear = linear || layers.transparent ? undefined : display.background;
+    if (!scaled.begin(backend, output, scale, clear) && (clear || layers.transparent))
+      clearWebglTarget(gl, clear);
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
     stepped?.draw(particles, drawCamera, output);
     scaled.end(output);
@@ -169,7 +166,6 @@ export function createFrameComposer(
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
       effects!.end(passes, target, display);
-      // The guides land where the chain drew, over the depth it carried.
       output.framebuffer = target?.framebuffer ?? null;
     }
     if (layers.guides) {
@@ -185,16 +181,20 @@ export function createFrameComposer(
     keptParticles = moved;
     scaled.keep();
   };
-  /** Bytes of the chain's targets, the particles' depth copy and the target an image drawn below
-   *  the display is drawn in, on this context. */
-  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0) + scaled.bytes();
+  /** Bytes of the chain, particle depth copy and scaled target. */
+  compose.effectBytes = () =>
+    (effects?.bytes ?? 0) + (layers.particleStep ? 0 : (stepped?.bytes() ?? 0)) + scaled.bytes();
   compose.dispose = () => {
     present.dispose();
     scaled.dispose();
     heldFrame.dispose();
     effects?.dispose();
     guideDraw?.dispose();
-    stepped?.dispose();
+    if (!layers.particleStep) stepped?.dispose();
   };
+  compose.particleStep = () =>
+    (stepped ??= layers.particleStep
+      ? layers.particleStep()
+      : webglParticleStep(gl, layers.particlesRefused));
   return compose;
 }

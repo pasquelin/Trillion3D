@@ -1,9 +1,10 @@
+import * as immersive from '../xr/world.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { cameraAdopter } from './worldLink.ts';
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
-import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
+import { worldRecovered } from './worldDevice.ts';
 import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
@@ -25,6 +26,7 @@ import { worldMaterialMethods } from './worldMaterialMethods.ts';
  * @example const world = createWorld('viewer', { controls: 'orbit' });
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
+  options = immersive.xrWorldOptions(options);
   if (options.controls === 'vehicle') throw noVehicle();
   const { canvas, release: releaseCanvas } = resolveWorldTarget(target);
   const frames = createWorldFrames();
@@ -35,7 +37,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     pixelError: number | undefined,
     animating = false,
     disposed = false;
-  const device = holdWorldDevice(canvas, options.renderer, (lostAt) =>
+  const device = immersive.holdXrWorldDevice(canvas, options, (lostAt) =>
     worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
   );
   const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
@@ -61,6 +63,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
           if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
         },
       }),
+    closing: () => xrOwner.closing(),
     opened(explorer) {
       device.renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2';
       diagnostic.apply(explorer);
@@ -80,7 +83,9 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     if (disposed) throw new Error('World disposed');
     return runtime.explorer;
   };
+  const xrOwner = immersive.worldXr(runtime, device, () => ahead(null), diagnostic.failed);
   const world = {
+    /** Immersive sessions, inputs, reference space and AR hit tests. */ xr: xrOwner.xr,
     /** The canvas the world draws into. */ canvas,
     /** A promise that settles once the world knows how it will draw. */ ready: device.ready,
     /** The scene: everything added to it is drawn. */ scene,
@@ -128,9 +133,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     set bounce(on: boolean) {
       switches.bounce = on;
     },
-    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
-     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
-     *  image carries: false on WebGL2, and while the program compiles after it was turned on. */
+    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it takes effect at the next frame, history dropped, no session reopened. Read, it is what the image carries: false on WebGL2, and while the program compiles after it was turned on. */
     get temporalAntialiasing() {
       return switches.temporalAntialiasing;
     },
@@ -147,21 +150,16 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
-    /** The world's memory pools, read and set in bytes, and the physics envelopes. */
-    budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
+    /** The world's memory pools, read and set in bytes, and the physics envelopes. */ budget:
+      worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
     /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
     ...worldMaterialMethods(live, invalidate),
-    /** The object a canvas point or a world ray meets, and a node reached by its name
-     *  (`worldSceneMethods`): the world's methods over the nodes of its scene. */
+    /** The object a canvas point or a world ray meets, and a node reached by its name (`worldSceneMethods`): the world's methods over the nodes of its scene. */
     ...worldSceneMethods(scene, () => camera, canvas, physics.session, runtime),
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
-    /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
-     * A frame runs: the camera's controller (unless `controls.autoUpdate` is false or the host
-     * leads, `render()`), the clips, the physics, these hooks in their order, the draw, then the
-     * `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this
-     * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
+    /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover. A frame runs: the camera's controller (unless `controls.autoUpdate` is false or the host leads, `render()`), the clips, the physics, these hooks in their order, the draw, then the `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
@@ -176,24 +174,27 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     ...worldTelemetry(live),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`).
-     *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
+     * @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
     awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>
       awaitViewPages(runtime, live, options?.onProgress),
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
-      for (const part of [controls, physics, runtime]) part.dispose();
-      pools.pageCache.clear();
+      for (const part of [controls, physics]) part.dispose();
       diagnostic.close();
       frames.clear();
-      device.dispose();
-      releaseCanvas();
+      runtime.stop();
+      xrOwner.release(() => {
+        runtime.dispose();
+        pools.pageCache.clear();
+        device.dispose();
+        releaseCanvas();
+      });
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
   return world;
 }
-
 /** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
 export type { FrameInfo, BeforeFrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };

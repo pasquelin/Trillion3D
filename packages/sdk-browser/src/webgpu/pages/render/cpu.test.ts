@@ -72,6 +72,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
     cpuHizCounted: false,
   };
   const rt = {
+    context: {},
     run,
     // The main view alone.
     views: {},

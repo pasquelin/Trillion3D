@@ -60,6 +60,12 @@
     "banner": {
       "close": "Schließen",
       "waiting": "Wartet auf die Engine (#{issue})"
+    },
+    "xr": {
+      "checking": "XR-Unterstützung wird geprüft…",
+      "enterVR": "VR starten",
+      "enterAR": "AR starten",
+      "unavailable": "XR ist auf diesem Browser oder Gerät nicht verfügbar"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "Verwenden Sie ein kompatibles Headset und starten Sie XR."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "Wählen Sie ein 360°-Bild und starten Sie VR."
+  },
+  "vr-composition-layers": {
+    "banner": "Verwenden Sie ein kompatibles Headset und starten Sie XR."
+  },
+  "hands-in-vr": {
+    "banner": "Verwenden Sie ein kompatibles Headset und starten Sie XR."
+  },
+  "teleport-in-vr": {
+    "banner": "Drücken Sie den Controller-Auslöser, um einen Meter vorwärts zu springen."
+  },
+  "controllers-in-vr": {
+    "banner": "Verwenden Sie ein kompatibles Headset und starten Sie XR."
+  },
+  "ar-on-the-table": {
+    "banner": "Richten Sie das Gerät auf einen Tisch, um den Würfel zu platzieren."
   }
 }

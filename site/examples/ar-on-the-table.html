@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ar On The Table</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101729;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, object, geometry, material, light } from '../runtime/engine.js';
+      import { xrControls } from '../runtime/kit.js';
+      const world = createWorld('view', { xr: true, controls: 'orbit', renderScale: 1 });
+      world.camera.position.set(0, 1.6, 3);
+      world.camera.lookAt(0, 1.2, -2);
+      world.scene.add(
+        light.ambient({ intensity: 1.5 }),
+        light.directional({ intensity: 2, position: [2, 5, 3] }),
+      );
+      const marker = object.mesh(
+        geometry.box(0.12, 0.12, 0.12),
+        material.meshStandard({ color: '#ffb347' }),
+      );
+      marker.visible = false;
+      world.scene.add(marker);
+      await xrControls(world, true, async () => {
+        await world.xr.hitTest((hits) => {
+          marker.visible = hits.length > 0;
+          const p = hits[0]?.position;
+          if (p) marker.position.set(p.x, p.y + 0.06, p.z);
+        });
+      });
+    </script>
+  </body>
+</html>

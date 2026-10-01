@@ -60,6 +60,12 @@
     "banner": {
       "close": "Chiudi",
       "waiting": "In attesa del motore (#{issue})"
+    },
+    "xr": {
+      "checking": "Verifica del supporto XR…",
+      "enterVR": "Entra in VR",
+      "enterAR": "Entra in AR",
+      "unavailable": "XR non disponibile su questo browser o dispositivo"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "Posa"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "Usa un visore compatibile ed entra in XR per esplorare."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "Scegli un’immagine a 360°, poi entra in VR."
+  },
+  "vr-composition-layers": {
+    "banner": "Usa un visore compatibile ed entra in XR per esplorare."
+  },
+  "hands-in-vr": {
+    "banner": "Usa un visore compatibile ed entra in XR per esplorare."
+  },
+  "teleport-in-vr": {
+    "banner": "Premi il grilletto per avanzare di un metro."
+  },
+  "controllers-in-vr": {
+    "banner": "Usa un visore compatibile ed entra in XR per esplorare."
+  },
+  "ar-on-the-table": {
+    "banner": "Punta il dispositivo verso un tavolo per posizionare il cubo."
   }
 }

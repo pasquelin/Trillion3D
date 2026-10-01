@@ -477,14 +477,7 @@
       "sort-and-reduce": "GPU hesaplama API'si",
       "a-software-rasteriser": "GPU hesaplama API'si",
       "sound-from-the-gpu": "GPU hesaplama API'si",
-      "breaking-things": "bir fizik motoru entegrasyonu",
-      "a-room-in-vr": "WebXR oturumu",
-      "a-360-photo-in-vr": "WebXR oturumu",
-      "vr-composition-layers": "WebXR oturumu: katmanlar",
-      "hands-in-vr": "WebXR oturumu: el takibi",
-      "teleport-in-vr": "WebXR oturumu",
-      "controllers-in-vr": "WebXR oturumu",
-      "ar-on-the-table": "WebXR oturumu: artırılmış gerçeklik"
+      "breaking-things": "bir fizik motoru entegrasyonu"
     }
   },
   "api": {

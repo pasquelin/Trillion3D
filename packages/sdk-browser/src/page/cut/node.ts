@@ -9,6 +9,6 @@ export function subtreeDecision<T extends PageRecord>(
   exact: boolean,
 ) {
   // Rest-space subtree error bounds cannot settle a deformed cut. Refine through the same walk.
-  if (s.flatReach > 0) return 0;
+  if (s.lenses || s.flatReach > 0) return 0;
   return exact ? nodeDecisionAtZero(values, at) : nodeDecision(s, values, at);
 }

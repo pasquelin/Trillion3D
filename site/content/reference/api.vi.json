@@ -4411,7 +4411,8 @@
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
       "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "xr": "Chuẩn bị XR trước khi tạo ngữ cảnh; không có liên kết GPU XR thì chế độ tự động chọn WebGL2."
     }
   },
   "RenderScale": {
@@ -5069,7 +5070,8 @@
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
       "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "options.xr": "Chuẩn bị XR trước khi tạo ngữ cảnh; không có liên kết GPU XR thì chế độ tự động chọn WebGL2."
     }
   },
   "crossVector3": {
@@ -8307,5 +8309,24 @@
   "validateImpostorSection": {
     "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
     "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ, như trước. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
+  },
+  "world.xr": {
+    "summary": "Phiên nhập vai, đầu vào, không gian tham chiếu và kiểm tra va chạm AR.",
+    "members": {
+      "supported": "Trình duyệt có thể cấp chế độ nhập vai được yêu cầu hay không.",
+      "inputs": "Các nút được theo dõi nằm trong không gian tham chiếu; thêm lưới làm nút con.",
+      "setReferenceSpace": "Thay đồng thời không gian của tư thế, đầu vào và kiểm tra va chạm.",
+      "teleport": "Dịch gốc tương đối với không gian tham chiếu; góc xoay tính bằng radian.",
+      "hitTest": "Va chạm tia nhìn AR trong cùng không gian với mắt và đầu vào.",
+      "createLayer": "Tạo lớp ảnh do trình duyệt tổng hợp và phiên đang hoạt động sở hữu.",
+      "enter": "Vào chế độ nhập vai được yêu cầu từ thao tác người dùng.",
+      "enterVR": "Vào VR nhập vai từ thao tác người dùng.",
+      "enterAR": "Vào AR nhập vai với môi trường trong suốt từ thao tác người dùng.",
+      "timing": "Thời gian CPU đo được và ngân sách gốc của kính; thời gian GPU chưa biết giữ giá trị null.",
+      "session": "Phiên XR gốc đang hoạt động, hoặc null khi không hoạt động.",
+      "referenceSpace": "Không gian chung cho kính, đầu vào và phép thử va chạm, hoặc null.",
+      "exit": "Thoát nhập vai và chờ giải phóng mọi tài nguyên mắt được mượn.",
+      "dispose": "Ngừng vĩnh viễn việc vào XR và giải phóng tài nguyên khi hủy thế giới."
+    }
   }
 }

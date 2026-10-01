@@ -1666,14 +1666,7 @@
       "sort-and-reduce": "API compute GPU",
       "a-software-rasteriser": "API compute GPU",
       "sound-from-the-gpu": "API compute GPU",
-      "breaking-things": "integrasi fisika",
-      "a-room-in-vr": "sesi WebXR",
-      "a-360-photo-in-vr": "sesi WebXR",
-      "vr-composition-layers": "sesi WebXR: layer",
-      "hands-in-vr": "sesi WebXR: input tangan",
-      "teleport-in-vr": "sesi WebXR",
-      "controllers-in-vr": "sesi WebXR",
-      "ar-on-the-table": "sesi WebXR: AR"
+      "breaking-things": "integrasi fisika"
     }
   }
 }

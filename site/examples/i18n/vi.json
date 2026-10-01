@@ -60,6 +60,12 @@
     "banner": {
       "close": "Đóng",
       "waiting": "Đang chờ engine (#{issue})"
+    },
+    "xr": {
+      "checking": "Đang kiểm tra hỗ trợ XR…",
+      "enterVR": "Vào VR",
+      "enterAR": "Vào AR",
+      "unavailable": "XR không khả dụng trên trình duyệt hoặc thiết bị này"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "Tư thế"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "Dùng kính tương thích và vào XR để khám phá."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "Chọn ảnh 360° rồi vào VR."
+  },
+  "vr-composition-layers": {
+    "banner": "Dùng kính tương thích và vào XR để khám phá."
+  },
+  "hands-in-vr": {
+    "banner": "Dùng kính tương thích và vào XR để khám phá."
+  },
+  "teleport-in-vr": {
+    "banner": "Nhấn cò điều khiển để dịch chuyển về phía trước một mét."
+  },
+  "controllers-in-vr": {
+    "banner": "Dùng kính tương thích và vào XR để khám phá."
+  },
+  "ar-on-the-table": {
+    "banner": "Hướng thiết bị vào bàn để đặt khối lập phương."
   }
 }

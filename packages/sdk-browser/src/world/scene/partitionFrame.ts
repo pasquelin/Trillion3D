@@ -8,6 +8,7 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
+import { xrCellReach } from '../xr/reach.ts';
 import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
@@ -92,7 +93,8 @@ type Inputs = {
    *  from it before the arrival drain and the engine's row records spend the rest. */
   budget: FrameBudget;
   /** What the session opened on (`partitionMounts.ts`). */
-  opened?: Parameters<typeof createPartitionMounts>[0]['opened'];
+  opened?: Parameters<typeof createPartitionMounts>[0]['opened'] &
+    Pick<import('../../backend/types.ts').BackendContext, 'stereo'>;
   /** Asked once the camera's view, or a parent's stretch, outgrew the rows sized at open on an
    *  engine that grows no buffer in place, or a mesh the view read cannot be mounted in place
    *  (`partitionMounts.ts`): the owner opens the session again. Absent, a cell past those rows
@@ -153,9 +155,11 @@ export function createPartitionFrame(inputs: Inputs) {
       },
       outgrown: renew,
       // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
-      lens: lensOf(backend, camera),
+      lens: inputs.opened?.stereo ? undefined : lensOf(backend, camera),
     };
-    const { eye, reach } = viewOf(camera);
+    const { eye, reach } = inputs.opened?.stereo
+      ? xrCellReach(inputs.opened.stereo.views)
+      : viewOf(camera);
     later = false;
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later;
   };

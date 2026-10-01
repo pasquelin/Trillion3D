@@ -105,7 +105,14 @@ export function createAutonomousRender(options: {
     onDiagnostic: context.onDiagnostic,
     redraw: () => gate.resourcesChanged(),
   });
+  let stereo: BackendContext['stereo'],
+    stereoRevision = -1;
   const frame = (camera: HostCamera) => {
+    if (stereo !== context.stereo || stereoRevision !== (context.stereo?.revision ?? -1)) {
+      stereo = context.stereo;
+      stereoRevision = stereo?.revision ?? -1;
+      gate.resourcesChanged();
+    }
     // The allocations the context refused since the last frame, answered first (`refusals.ts`).
     answerRefusals();
     // Records the next image rewrites — a clip, a morph weight, a wave — break the hold.

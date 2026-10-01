@@ -29,7 +29,7 @@ import { drawnViewChanged } from '../state/view.ts';
 function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run } = rt;
   rt.services.syncResidency();
-  const selected = selectVisiblePages(
+  const selected = (rt.context.stereo?.select ?? selectVisiblePages)(
     rt.setup.roots,
     cam,
     {

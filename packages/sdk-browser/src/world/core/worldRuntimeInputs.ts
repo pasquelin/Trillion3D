@@ -15,6 +15,8 @@ export type WorldRuntimeInputs = {
   options: () => MeasuredWorldOptions;
   /** Runs on every new session, before its first frame: diagnostic mode, pools. */
   opened: (explorer: MeasuredWorld) => void;
+  /** Releases consumers of the old renderer before that renderer is disposed. */
+  closing?: () => void | Promise<void>;
   frame: (metrics: FrameMetrics) => void;
   /** What the page set: exposure, curve and fog; the lights add their irradiance. */
   display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog };

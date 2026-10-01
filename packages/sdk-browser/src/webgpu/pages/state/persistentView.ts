@@ -1,3 +1,4 @@
+import { viewRectangle } from '../../../backend/view.ts';
 import type { HostCamera } from '../../../camera/world.ts';
 import { rigViewTemporal } from '../../../taa/prepare.ts';
 import { releaseSettledCapture } from '../io/captureAside.ts';
@@ -39,13 +40,21 @@ export async function addWebgpuView(rt: WebgpuPagesRuntime, rect: PresentRect) {
 
 /** Draws `view` from `camera` at its rectangle's shape, then the main view is drawn again; the
  *  frame counts as held only when the main view's and this one's both are. */
-export function renderWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView, camera: HostCamera) {
+export function renderWebgpuView(
+  rt: WebgpuPagesRuntime,
+  view: WebgpuView,
+  camera: HostCamera,
+  compose?: () => void,
+) {
   const { run, capture } = rt,
     rect = view.rect;
   if (!rect || !rt.views.persistent.includes(view)) throw new Error('VIEW_RELEASED');
   if (capture.capturing) throw new Error('SURFACE_CAPTURE_BUSY');
   const mainHeld = run.frameHeld;
-  onView(rt, view, () => renderWebgpuPages(rt, camera, rect.width / rect.height));
+  onView(rt, view, () => {
+    renderWebgpuPages(rt, camera, rect.width / rect.height);
+    compose?.();
+  });
   run.frameHeld &&= mainHeld;
 }
 
@@ -56,4 +65,12 @@ export async function removeWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView)
   if (at < 0) return;
   rt.views.persistent.splice(at, 1);
   await releaseSettledCapture(rt, view);
+}
+
+/** Changes a live view's size in place; its next frame grants targets at the new dimensions. */
+export function resizeWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView, rect: PresentRect) {
+  if (!rt.views.persistent.includes(view)) throw new Error('VIEW_RELEASED');
+  view.rect = viewRectangle(rect);
+  view.viewport![0] = view.rect.width;
+  view.viewport![1] = view.rect.height;
 }

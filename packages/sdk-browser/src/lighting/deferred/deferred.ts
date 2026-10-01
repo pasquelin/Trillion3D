@@ -81,6 +81,7 @@ export async function createDeferredLighting(
         diagnostic: boolean,
         direct: ArrayLike<number> = ZERO_DIRECT,
         sampledRank = 0,
+        transparent = false,
       ) {
         const raw = diagnostic || rawOutput;
         drawn[0] = width;
@@ -94,6 +95,7 @@ export async function createDeferredLighting(
           raw,
           direct,
           sampledRank,
+          transparent,
         );
       },
       /** Select and lazily compile the active lighting program. */

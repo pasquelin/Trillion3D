@@ -64,7 +64,11 @@ function harness(options: {
     profiler: { record: () => {} } as never,
     pageIdByUrl: new Map(),
     streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
-    compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
+    compose: Object.assign(() => {}, {
+      dispose() {},
+      effectBytes: () => 0,
+      particleStep: () => undefined,
+    }),
   });
   return { render, metricsScratch };
 }

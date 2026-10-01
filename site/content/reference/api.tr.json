@@ -4455,7 +4455,8 @@
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir.",
+      "xr": "Bağlam oluşturulmadan XR hazırlar; XR GPU bağlantısı yoksa otomatik mod WebGL2 seçer."
     }
   },
   "RenderScale": {
@@ -5099,7 +5100,8 @@
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir.",
+      "options.xr": "Bağlam oluşturulmadan XR hazırlar; XR GPU bağlantısı yoksa otomatik mod WebGL2 seçer."
     }
   },
   "crossVector3": {
@@ -8306,5 +8308,24 @@
   "validateImpostorSection": {
     "summary": "Bölümün kullanılamamasının kısa nedeni ya da `null`.",
     "description": "Olmayan bölüm hata değildir: ondan önceki bir önbellek her mesh'i eskisi gibi tam çizer. Var olan bölüm, sürümü bilinmediğinde ya da bir `baked` girdisi geçişinin ve kartının ihtiyaç duyduğu sayıları kaçırdığında bir bütün olarak reddedilir."
+  },
+  "world.xr": {
+    "summary": "Sürükleyici oturumlar, girdiler, referans uzayı ve AR isabet testleri.",
+    "members": {
+      "supported": "Tarayıcının istenen sürükleyici modu sağlayıp sağlayamadığı.",
+      "inputs": "İzlenen düğümler referans uzayındadır; ağları alt düğüm olarak ekleyin.",
+      "setReferenceSpace": "Pozların, girdilerin ve isabet testlerinin uzayını birlikte değiştirir.",
+      "teleport": "Referans uzayına göre başlangıç noktasını taşır; sapma açısı radyan cinsindendir.",
+      "hitTest": "Gözler ve girdilerle aynı uzayda AR bakış ışını isabetleri.",
+      "createLayer": "Tarayıcının birleştirdiği ve etkin oturumun sahip olduğu bir görüntü katmanı oluşturur.",
+      "enter": "Kullanıcı eylemiyle istenen sürükleyici moda girer.",
+      "enterVR": "Kullanıcı eylemiyle sürükleyici VR moduna girer.",
+      "enterAR": "Kullanıcı eylemiyle saydam çevreli sürükleyici AR moduna girer.",
+      "timing": "Ölçülen CPU süresi ve başlığın doğal bütçesi; bilinmeyen GPU süreleri null kalır.",
+      "session": "Etkin yerel XR oturumu veya etkin değilken null.",
+      "referenceSpace": "Başlık, girişler ve isabet testlerinin ortak alanı veya null.",
+      "exit": "Sürükleyici moddan çıkar ve ödünç alınan tüm göz kaynaklarının bırakılmasını bekler.",
+      "dispose": "XR girişini kalıcı olarak durdurur ve dünya yok edilirken kaynakları bırakır."
+    }
   }
 }

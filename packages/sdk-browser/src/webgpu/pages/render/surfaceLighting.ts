@@ -34,7 +34,9 @@ export function encodeSurfaceLighting(
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
-    clear = clearValueOf(run.clearColor);
+    clear = rt.context.stereo?.transparent
+      ? { r: 0, g: 0, b: 0, a: 0 }
+      : clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
   // The impostor cards complete the opaque surfaces before anything reads them.
@@ -68,6 +70,7 @@ export function encodeSurfaceLighting(
     raw,
     direct,
     taaSampledRank(rt),
+    rt.context.stereo?.transparent,
   );
   updateScreenReflection(rt, viewProj, gpu.deferred.usesContract && !raw);
   run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);

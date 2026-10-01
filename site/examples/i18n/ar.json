@@ -60,6 +60,12 @@
     "banner": {
       "close": "إغلاق",
       "waiting": "بانتظار المحرك (#{issue})"
+    },
+    "xr": {
+      "checking": "جارٍ التحقق من دعم XR…",
+      "enterVR": "دخول VR",
+      "enterAR": "دخول AR",
+      "unavailable": "XR غير متاح في هذا المتصفح أو الجهاز"
     }
   },
   "a-city-from-rules": {
@@ -2417,5 +2423,26 @@
     "readouts": {
       "pose": "الوضع"
     }
+  },
+  "a-room-in-vr": {
+    "banner": "استخدم نظارة متوافقة وادخل XR للاستكشاف."
+  },
+  "a-360-photo-in-vr": {
+    "banner": "اختر صورة بزاوية 360° ثم ادخل VR."
+  },
+  "vr-composition-layers": {
+    "banner": "استخدم نظارة متوافقة وادخل XR للاستكشاف."
+  },
+  "hands-in-vr": {
+    "banner": "استخدم نظارة متوافقة وادخل XR للاستكشاف."
+  },
+  "teleport-in-vr": {
+    "banner": "اضغط زناد وحدة التحكم للانتقال مترًا إلى الأمام."
+  },
+  "controllers-in-vr": {
+    "banner": "استخدم نظارة متوافقة وادخل XR للاستكشاف."
+  },
+  "ar-on-the-table": {
+    "banner": "وجّه الجهاز نحو طاولة لوضع المكعب."
   }
 }
