@@ -1,8 +1,7 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { detectCapabilities } from '../../measurement/capabilities.ts';
+import { detectCapabilities } from '../capability/capabilities.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
-import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import type { ExplorerSession } from './session.ts';
 
 /** What the machine offers, read before the scene: the backend choice depends on it, and the
@@ -13,7 +12,7 @@ export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>
  *  autonomous path, and either named no backend or named the WebGPU page raster among them. */
 function wantsWebgpu(options: ExplorerSession['options']) {
   if (explorerSwitch(options, 'autonomousGeometry') || options.renderer === 'webgl2') return false;
-  return !options.backends || options.backends.includes(webgpuPagesBackend);
+  return !options.backends || options.backends.some(({ renderer }) => renderer === 'webgpu');
 }
 
 /** WebGL2 is the floor: a machine without it renders nothing here, and says so by name. A

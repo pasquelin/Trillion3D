@@ -63,7 +63,6 @@ export type {
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts';
-export { detectCapabilities } from '../../sdk-browser/src/measurement/capabilities.ts';
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts';
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts';
@@ -77,8 +76,11 @@ export type {
   TableGrowthReport,
 } from '../../sdk-browser/src/residency/pools.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/passTable.ts';
-export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
-export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
+export {
+  gpuPassBlockOf,
+  gpuPassBlockTotals,
+  gpuPassStageOf,
+} from '../../sdk-browser/src/diagnostic/gpuPasses.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';

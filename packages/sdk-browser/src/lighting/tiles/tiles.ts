@@ -7,8 +7,7 @@ import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 import { createTileLightPool } from './pool.ts';
 import { buildComputePipeline } from '../deferred/fullscreen.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
-/** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
-export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
+import { LIGHT_TILES_PASS } from '../../stage/passLabels.ts';
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
 const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));

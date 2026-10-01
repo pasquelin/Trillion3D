@@ -1,8 +1,4 @@
-import {
-  LIGHT_SETTINGS,
-  MAX_SHADOW_SLICES,
-  SHADOW_RECORD_FLOATS,
-} from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import {
   SHADOW_RECORD_FRAME,
   SHADOW_RECORD_INFO,
@@ -16,12 +12,10 @@ import {
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { SHADOW_FACE_READ_WORDS } from './faceReadWords.ts';
+import { MAX_SHADOW_REGIONS } from './sizes.ts';
 
-/** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
- *  marks, in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`). */
-export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
-/** Regions at most in a batch: a page draws its static layer and its moving casters, two at most. */
-export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
+export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './sizes.ts';
+
 export const SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
 /** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
 const FACE_EMITTER = 20;

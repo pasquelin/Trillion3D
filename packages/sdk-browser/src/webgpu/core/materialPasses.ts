@@ -3,10 +3,8 @@ import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import { rowsUnread } from '../row/dirty.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { type PresentClasses, markPresentClasses } from './presentClasses.ts';
+import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts';
 
-/** Labels of the two resolve passes, as the profile and the pass blocks read them. */
-export const MATERIAL_DEPTH_PASS = 'Trillion3D material depth';
-export const MATERIAL_SURFACES_PASS = 'Trillion3D material surfaces v1';
 export const createPresentClasses = (): PresentClasses => ({
   stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
   keys: [],

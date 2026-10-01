@@ -7,8 +7,9 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
-import { PARTICLE_DRAW_PASS as P, encodeParticles } from './webgpuParticleFrame.ts';
+import { encodeParticles } from './webgpuParticleFrame.ts';
 import { families } from '../host/families.ts';
+import { PARTICLE_DRAW_PASS as P } from '../stage/passLabels.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 

@@ -1003,7 +1003,7 @@
       "VERTICES_NOT_LOADED": "Các đỉnh của một mô hình đã nạp bị đọc trước `await geometry.loadVertices()`: phiên đọc chúng khi cần lần đầu, không bao giờ đọc trước.",
       "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
-      "FAMILY_LOAD_FAILED": "Một họ tùy chọn của engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) không tải được, sau khi việc nhập của nó đã được thử lại trước (`T3D-E090`): `details.family` gọi tên nó, trên `world.diagnostic.error`. Các khung hình vẽ bằng nó sẽ chờ nó, và nó được yêu cầu lại ở lần dùng tiếp theo.",
+      "FAMILY_LOAD_FAILED": "Một họ tùy chọn của engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) không tải được, sau khi việc nhập của nó đã được thử lại trước (`T3D-E090`): `details.family` gọi tên nó, trên `world.diagnostic.error`. Các khung hình vẽ bằng nó sẽ chờ nó, và nó được yêu cầu lại ở lần dùng tiếp theo.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`), hoặc tư thế hay các đỉnh của một vật trở thành không hữu hạn và vật rời khỏi mô phỏng (`PHYSICS_DIVERGED`): trên `world.physics.error`.",
@@ -1020,6 +1020,7 @@
   },
   "EngineProfiler": {
     "summary": "Theo dõi từng khung hình một và cho biết bộ máy chạy mượt đến đâu, và điều gì làm nó chậm lại.",
+    "description": "Như một bản dựng phát hành loại bỏ các công cụ thống kê của nó (#1353), lõi chỉ giữ mặt tiền này: mã của nó là phần đo lường (`FrameProfile`, `../host/families.ts`), được tải ngay khi chế độ gỡ lỗi bật hoặc khi trình phân tích được dùng lần đầu. Trước khi nó đến, không khung hình nào được đếm và báo cáo nói rằng nó đang chờ (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Các khoảng được giữ lại, từ cũ nhất đến mới nhất: những gì `frameStatistics` nhận được.",
       "setMetadata": "Cho nó biết mô hình nào đang được tải.",
@@ -1027,7 +1028,7 @@
       "getReport": "Một bản tóm tắt các khung hình gần đây.",
       "formatReport": "Bản tóm tắt đó dưới dạng văn bản.",
       "printReport": "In bản tóm tắt đó ra console.",
-      "startAutoLog": "In nó ra mỗi vài giây; trả về một hàm để dừng lại.",
+      "startAutoLog": "In nó ra mỗi vài giây, trong chế độ gỡ lỗi, chế độ duy nhất ghi vào báo cáo; trả về một hàm để dừng lại.",
       "stopAutoLog": "Dừng việc in ra.",
       "dispose": "Dừng lại và quên mọi thứ."
     }
@@ -4404,7 +4405,8 @@
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
       "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "debug": "Chế độ gỡ lỗi, công cụ của bản dựng phát triển so với bản dựng phát hành: các khung hình chỉ được ghi vào hồ sơ các bước CPU (`world.cpuSteps`) và báo cáo khung hình trong chế độ này. Nó thuộc về trang, như `?profile` trong địa chỉ của trang bật nó; `world.diagnostic.debug` đổi nó sau đó."
     }
   },
   "RenderScale": {
@@ -5063,7 +5065,8 @@
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
       "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "options.debug": "Chế độ gỡ lỗi, công cụ của bản dựng phát triển so với bản dựng phát hành: các khung hình chỉ được ghi vào hồ sơ các bước CPU (`world.cpuSteps`) và báo cáo khung hình trong chế độ này. Nó thuộc về trang, như `?profile` trong địa chỉ của trang bật nó; `world.diagnostic.debug` đổi nó sau đó."
     }
   },
   "crossVector3": {
@@ -5409,8 +5412,8 @@
     "description": "Không xác định là `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Thời lượng GPU của mỗi khối trong một mẫu (`../../stage/mapping.ts` cho biết cái nào là cái nào).",
-    "description": "`null` ở khắp mọi nơi cho một mẫu bị thiếu hoặc bị cắt cụt, và `null` cho một khối mà lượt của nó không có thời lượng dùng được: một tổng bộ phận sẽ được coi như một phép đo. `null` cũng dành cho một khối mà khung hình chưa bao giờ chạy — số không sẽ được đọc là \"đã đo được bằng không\". Ba khối cộng lại bằng `totalMs` của mẫu khi cả ba đều được đo, và không bao giờ được cộng vào một thời lượng CPU."
+    "summary": "Thời lượng GPU của mỗi khối trong một mẫu (`../stage/mapping.ts` cho biết cái nào là cái nào).",
+    "description": "`null` ở khắp mọi nơi cho một mẫu bị thiếu hoặc bị cắt cụt, và `null` cho một khối mà lượt của nó không có thời lượng dùng được: một tổng bộ phận sẽ được coi như một phép đo. `null` cũng dành cho một khối mà khung hình chưa bao giờ chạy — số không sẽ được đọc là \"đã đo được bằng không\". Ba khối cộng lại bằng `totalMs` của mẫu khi cả ba đều được đo, và không bao giờ được cộng vào một thời lượng CPU. Cho đến khi bảng lượt vẽ đến, mọi khối đều là `null`, như với một mẫu không đo được gì."
   },
   "gpuPassStageOf": {
     "summary": "Giai đoạn của một lượt, theo nhãn của nó.",
@@ -7216,7 +7219,8 @@
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
       "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị; `FAMILY_LOAD_FAILED` khi một họ tùy chọn không tải được, cả lúc đó), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
-      "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
+      "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp.",
+      "debug": "Chế độ gỡ lỗi của trang (`WorldOptions.debug`): các khung hình chỉ được ghi vào hồ sơ các bước CPU và báo cáo khung hình trong chế độ này, từ khung hình kế tiếp."
     }
   },
   "world.materials": {

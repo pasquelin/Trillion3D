@@ -2,10 +2,10 @@
 // A GPU timing names a pass by its label: without one it read `beginRenderPass`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFERRED_LIGHTING_PASS } from './deferred.ts';
 import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import { contractLighting } from './contractLighting.fixture.ts';
+import { DEFERRED_LIGHTING_PASS } from '../../stage/passLabels.ts';
 
 /** A screen reflection as the lighting sees it: `kept` hears each keep of the source's depth;
  *  `group`, the source's bind group, none before an image gave its inputs. */

@@ -7,34 +7,8 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
 import { shadowEntryMask } from './entryMask.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './allocLayout.ts';
 
-/** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
- *  it maps (−1 free), the frame it was last asked in and which draw its entry's depth came from
- *  (`DRAWN_*`) first, the words a snapshot reads back (#831). */
-export const POOL_FIELDS = [
-  'owner',
-  'requested',
-  'drawnBy',
-  'rank',
-  'view',
-  'x',
-  'y',
-  'generation',
-] as const;
-/** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
- *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
- *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
- *  pairs the latest GPU page draws counted (`sealShadowPages`), a diagnostic of the list the pool
- *  fixes (`pairRows.ts`). */
-export const POOL_COUNTS = [
-  'needs',
-  'candidates',
-  'allocated',
-  'refused',
-  'drawn',
-  'listings',
-  'pairs',
-] as const;
 /** The counts each frame's allocation starts from zero (`allocWgsl.ts`): all but `listings`. */
 export const POOL_FRAME_COUNTS = POOL_COUNTS.indexOf('listings');
 /** The index of each field and count of the pool (`POOL_FIELDS`, `POOL_COUNTS`), in the WGSL. */

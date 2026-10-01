@@ -9,9 +9,6 @@ import { SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
 
 /** Invocations of a workgroup of the table words pass. */
 export const WORDS_GROUP = 64;
-/** Words of the header of the words the host sends: their count, the pool's pages, the frame, and
- *  1 when every page the GPU drew itself is withdrawn (`every`, a list too short for the marks). */
-export const WORDS_HEADER = 4;
 
 /** The word the host sends for `entry`: its table's, marked `PAGE_WITHDRAWN` when the plan
  *  withdrew it whoever drew it (`table.withdraw`) and no host draw has landed since. */

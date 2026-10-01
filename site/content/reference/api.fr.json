@@ -1272,7 +1272,8 @@
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "options.debug": "Le mode débogage, les outils d’une version de développement face à une version publiée : les images ne sont rangées dans le profil des étapes CPU (`world.cpuSteps`) et dans le rapport d’images que dans ce mode. Il appartient à la page, comme `?profile` dans son adresse l’allume ; `world.diagnostic.debug` le change ensuite."
     }
   },
   "crossVector3": {
@@ -1637,7 +1638,7 @@
       "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
-      "FAMILY_LOAD_FAILED": "Une famille facultative du moteur (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors) ne s’est pas chargée, son import retenté d’abord (`T3D-E090`) : `details.family` la nomme, sur `world.diagnostic.error`. Les images qui dessinent avec elle l’attendent, et elle est redemandée au prochain usage.",
+      "FAMILY_LOAD_FAILED": "Une famille facultative du moteur (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) ne s’est pas chargée, son import retenté d’abord (`T3D-E090`) : `details.family` la nomme, sur `world.diagnostic.error`. Les images qui dessinent avec elle l’attendent, et elle est redemandée au prochain usage.",
       "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
@@ -1657,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Regarde image après image et dit avec quelle fluidité tourne le moteur, et ce qui le ralentit.",
+    "description": "Comme une version de production retire ses outils de statistiques (#1353), le cœur ne contient que cette façade : son code est le morceau de la mesure (`FrameProfile`, `../host/families.ts`), téléchargé dès que le mode débogage s’active ou au premier usage du profileur. Tant qu’il n’est pas arrivé, une image n’est pas comptée et le rapport dit qu’il attend (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalles gardés, du plus ancien au plus récent : ce que reçoit `frameStatistics`.",
       "setMetadata": "Lui dit quel modèle est chargé.",
@@ -1664,7 +1666,7 @@
       "getReport": "Un résumé des dernières images.",
       "formatReport": "Ce résumé en texte.",
       "printReport": "Affiche ce résumé dans la console.",
-      "startAutoLog": "L’affiche toutes les quelques secondes ; renvoie une fonction qui arrête.",
+      "startAutoLog": "L’affiche toutes les quelques secondes, en mode débogage, le seul qui remplit le rapport ; renvoie une fonction qui arrête.",
       "stopAutoLog": "Arrête l’affichage.",
       "dispose": "Arrête et oublie tout."
     }
@@ -2220,8 +2222,8 @@
     "description": "Inconnu vaut `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durée GPU de chaque bloc d’une mesure (`../../stage/mapping.ts` dit lequel est lequel).",
-    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU."
+    "summary": "Durée GPU de chaque bloc d’une mesure (`../stage/mapping.ts` dit lequel est lequel).",
+    "description": "`null` partout pour une mesure absente ou tronquée, et `null` pour un bloc dont la passe n’a pas de durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que l’image n’a jamais fait tourner — un zéro se lirait comme « mesuré à zéro ». Les trois blocs s’additionnent au `totalMs` de la mesure quand les trois sont mesurés, et ne sont jamais ajoutés à une durée CPU. Tant que la table des passes n’est pas arrivée, chaque bloc vaut `null`, comme pour une mesure qui n’a rien mesuré."
   },
   "GpuPassBlockTotals": {
     "summary": "Temps GPU d’une image en trois blocs : visibilité, matériaux, le reste.",
@@ -6850,7 +6852,8 @@
       "mode": "Le mode de vue : `'beauty'` pour l’image normale, ou un mode qui montre comment travaille le moteur.",
       "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel.",
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
-      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil; `FAMILY_LOAD_FAILED` quand une famille facultative ne s’est pas chargée, alors aussi), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
+      "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil; `FAMILY_LOAD_FAILED` quand une famille facultative ne s’est pas chargée, alors aussi), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté.",
+      "debug": "Le mode débogage de la page (`WorldOptions.debug`) : les images ne sont rangées dans le profil des étapes CPU et dans le rapport d’images que dans ce mode, dès l’image suivante."
     }
   },
   "world.materials": {
@@ -7086,7 +7089,8 @@
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`.",
+      "debug": "Le mode débogage, les outils d’une version de développement face à une version publiée : les images ne sont rangées dans le profil des étapes CPU (`world.cpuSteps`) et dans le rapport d’images que dans ce mode. Il appartient à la page, comme `?profile` dans son adresse l’allume ; `world.diagnostic.debug` le change ensuite."
     }
   },
   "RenderScale": {

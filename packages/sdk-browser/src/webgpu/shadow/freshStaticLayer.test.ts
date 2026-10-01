@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts';
-import { FRESH_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
+import { FRESH_LAYER_PASS } from '../../stage/passLabels.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from './freshDrawsWgsl.ts';
 import { FRESH_ARG, FRESH_CASTERS, FRESH_CLEAR, FRESH_MOVING } from './freshLayout.ts';
 import { FRESH_PARAMS, FRESH_STILL, freshArgWords, freshDrawWord } from './freshLayout.ts';

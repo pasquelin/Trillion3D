@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { createPageStreamer } from './pageStreamer.ts';
-import { sha256Hex } from '../measurement/sha256Hex.ts';
+import { sha256Hex } from './sha256Hex.ts';
 
 const ENCODINGS = {
   br: brotliCompressSync,
