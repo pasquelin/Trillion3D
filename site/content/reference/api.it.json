@@ -367,7 +367,6 @@
       "cascadeShares": "Quota di budget per livello, dal più fine al più grossolano. Il livello più fine circonda la camera e riceve la quota maggiore dei raggi.",
       "raysPerProbe": "Raggi tracciati per sonda a ogni aggiornamento. Budget fisso regolabile.",
       "raysPerFrame": "Raggi di sonde al massimo per fotogramma: limite fisso che vincola la dimensione del calcolo avviato.",
-      "lightsPerRay": "Luci testate per cella della cache di superficie.",
       "surfaceTexelsPerFrame": "Limite di celle della cache di superficie aggiornate per fotogramma.",
       "budgetMs": "Durata mirata del passaggio di rimbalzo sulla GPU per fotogramma, in millisecondi.",
       "budgetSmoothing": "Quota della correzione di errore mantenuta a ogni misurazione, per evitare oscillazioni.",

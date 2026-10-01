@@ -69,7 +69,6 @@
       "cascadeShares": "Tỉ lệ ngân sách mỗi tầng, từ mịn nhất đến thô nhất. Tầng mịn nhất bao quanh camera và nhận tỉ lệ phân bổ tia lớn nhất.",
       "raysPerProbe": "Số tia được truy theo mỗi đầu dò mỗi lần cập nhật. Ngân sách cố định có thể cấu hình.",
       "raysPerFrame": "Số tia đầu dò tối đa mỗi khung hình: trần tĩnh giới hạn kích thước dispatch compute.",
-      "lightsPerRay": "Số nguồn sáng được kiểm tra mỗi ô nhớ đệm bề mặt.",
       "surfaceTexelsPerFrame": "Trần số ô nhớ đệm bề mặt được cập nhật mỗi khung hình.",
       "budgetMs": "Thời lượng mục tiêu của chặng dội lại trên GPU mỗi khung hình, tính bằng mili giây.",
       "budgetSmoothing": "Tỉ lệ sửa lỗi được giữ lại mỗi mẫu để tránh dao động.",
