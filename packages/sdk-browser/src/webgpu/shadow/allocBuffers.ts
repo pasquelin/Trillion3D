@@ -168,7 +168,10 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
           if (pool.owner[page] >= 0) send(pool.owner[page]);
         table.eachWithdrawn((entry) => void (!(table.words[entry] & PAGE_MAPPED) && send(entry)));
       });
-      words.set([count, pages, frame, every]);
+      words[0] = count;
+      words[1] = pages;
+      words[2] = frame;
+      words[3] = every;
       if (count || every)
         device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
       return every ? Math.max(count, pages) : count;

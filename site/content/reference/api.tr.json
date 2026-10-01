@@ -1670,7 +1670,7 @@
       "shadowNearFraction": "Bir kesitin yakın düzlemi: menzilin bir payı, asla bu tabandan az değil.",
       "shadowNearMin": "En yakın gölge mesafesi.",
       "shadowNormalOffsetTexels": "Örnek noktasının normal boyunca ötelemesi, okunan haritanın tekselleri cinsinden: yarım teksel, alıcının düzlemi olmayan şeyin payı — bir teksel içindeki eğriliği, iki derinliğin yuvarlanması. Alıcının eğimini, PCF'nin erimi boyunca bir derinlik payı, 45°'nin ötesinde de ek bir öteleme aynı tekseller cinsinden karşılar (`shadowDepthMargin`, `shadowNormalTexels`): hiçbir sapma sahnenin bir uzunluğu değildir.",
-      "shadowPagesPerBatch": "Bir GPU partisinin çizdiği gölge sayfaları: bir partinin arabelleklerinin boyutu. Bir kare işaretlediği sayfaları gerektiği kadar partide çizer, kare başına en çok sekiz parti; geri kalanlar sonraki karelerde çizilir ve o zamana kadar daha kaba düzeyde okunur.",
+      "shadowPagesPerBatch": "Bir GPU partisinin çizdiği gölge sayfaları: bir partinin arabelleklerinin boyutu. Bir kare işaretlediği sayfaları gerektiği kadar partide çizer, kare başına en çok havuzun bir katmanının sayfaları; geri kalanlar sonraki karelerde çizilir ve o zamana kadar daha kaba düzeyde okunur.",
       "lampFaceSize": "Bir lamba yüzünün en ince mip düzeyinin kenarı, texel olarak: 128’lik 32 × 32 sayfa (havuz: `shadowPoolSize`).",
       "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
       "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
