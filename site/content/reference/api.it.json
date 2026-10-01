@@ -1658,6 +1658,7 @@
   },
   "EngineProfiler": {
     "summary": "Osserva fotogramma dopo fotogramma e dice con quale fluidità gira il motore, e cosa lo rallenta.",
+    "description": "Come una build di produzione toglie i suoi strumenti di statistica (#1353), il nucleo contiene solo questa facciata: il suo codice è il blocco della misura (`FrameProfile`, `../host/families.ts`), scaricato appena la modalità di debug si attiva o al primo uso del profiler. Finché non è arrivato, un fotogramma non è contato e il rapporto dice che attende (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalli mantenuti, dal più vecchio al più recente: ciò che riceve `frameStatistics`.",
       "setMetadata": "Le dice quale modello è caricato.",
@@ -1665,7 +1666,7 @@
       "getReport": "Un riepilogo degli ultimi fotogrammi.",
       "formatReport": "Quel riepilogo in testo.",
       "printReport": "Mostra quel riepilogo nella console.",
-      "startAutoLog": "Lo mostra ogni pochi secondi; restituisce una funzione che lo ferma.",
+      "startAutoLog": "Lo mostra ogni pochi secondi, in modalità di debug, l’unica che riempie il rapporto; restituisce una funzione che lo ferma.",
       "stopAutoLog": "Ferma la visualizzazione.",
       "dispose": "Ferma e dimentica tutto."
     }
@@ -2213,8 +2214,8 @@
     "description": "Sconosciuto vale `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Durata GPU di ogni blocco di una misura (`../../stage/mapping.ts` dice quale è quale).",
-    "description": "`null` ovunque per una misura assente o troncata, e `null` per un blocco il cui pass non ha una durata utilizzabile: una somma parziale passerebbe per una misura. `null` anche per un blocco che l'immagine non ha mai eseguito — uno zero si leggerebbe come «misurato a zero». I tre blocchi si sommano al `totalMs` della misura quando tutti e tre sono misurati, e non vengono mai sommati a una durata CPU."
+    "summary": "Durata GPU di ogni blocco di una misura (`../stage/mapping.ts` dice quale è quale).",
+    "description": "`null` ovunque per una misura assente o troncata, e `null` per un blocco il cui pass non ha una durata utilizzabile: una somma parziale passerebbe per una misura. `null` anche per un blocco che l'immagine non ha mai eseguito — uno zero si leggerebbe come «misurato a zero». I tre blocchi si sommano al `totalMs` della misura quando tutti e tre sono misurati, e non vengono mai sommati a una durata CPU. Finché la tabella dei passaggi non è arrivata, ogni blocco è `null`, come per una misura che non ha misurato nulla."
   },
   "GpuPassBlockTotals": {
     "summary": "Tempo GPU di un fotogramma in tre blocchi: visibilità, materiali, il resto.",

@@ -1013,6 +1013,7 @@
   },
   "EngineProfiler": {
     "summary": "Observa quadro após quadro e diz o quão suavemente o motor roda, e o que o deixa lento.",
+    "description": "Como uma build de produção remove as suas ferramentas de estatísticas (#1353), o núcleo contém apenas esta fachada: o seu código é o bloco da medição (`FrameProfile`, `../host/families.ts`), baixado assim que o modo de depuração é ativado ou no primeiro uso do profiler. Até ele chegar, nenhum quadro é contado e o relatório diz que espera (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalos mantidos, do mais antigo ao mais recente: o que `frameStatistics` recebe.",
       "setMetadata": "Diz a ele qual modelo está carregado.",
@@ -1020,7 +1021,7 @@
       "getReport": "Um resumo dos quadros recentes.",
       "formatReport": "Esse resumo como texto.",
       "printReport": "Imprime esse resumo no console.",
-      "startAutoLog": "Imprime a cada poucos segundos; devolve uma função que interrompe.",
+      "startAutoLog": "Imprime a cada poucos segundos, no modo de depuração, o único que preenche o relatório; devolve uma função que interrompe.",
       "stopAutoLog": "Para de imprimir.",
       "dispose": "Interrompe e esquece tudo."
     }
@@ -5441,8 +5442,8 @@
     "description": "Desconhecido é `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Duração de GPU de cada bloco em uma amostra (`../../stage/mapping.ts` diz qual é qual).",
-    "description": "`null` em todo lugar para uma amostra ausente ou truncada, e `null` para um bloco cujo passo não tem duração utilizável: uma soma parcial passaria por uma medição. `null` também para um bloco que o quadro nunca rodou — um zero seria lido como \"medido em zero\". Os três blocos somam o `totalMs` da amostra quando os três são medidos, e nunca são somados a uma duração de CPU."
+    "summary": "Duração de GPU de cada bloco em uma amostra (`../stage/mapping.ts` diz qual é qual).",
+    "description": "`null` em todo lugar para uma amostra ausente ou truncada, e `null` para um bloco cujo passo não tem duração utilizável: uma soma parcial passaria por uma medição. `null` também para um bloco que o quadro nunca rodou — um zero seria lido como \"medido em zero\". Os três blocos somam o `totalMs` da amostra quando os três são medidos, e nunca são somados a uma duração de CPU. Até a tabela de passes chegar, cada bloco é `null`, como numa amostra que nada mediu."
   },
   "gpuPassStageOf": {
     "summary": "Etapa de um passo, por seu rótulo.",

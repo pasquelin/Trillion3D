@@ -95,7 +95,6 @@ export class EngineProfiler {
   startAutoLog(intervalSeconds = 2): () => void {
     setDebugMode(true);
     this.stopAutoLog();
-    this.code();
     this.autoLogTimer = setInterval(
       () => this.printReport(),
       Math.max(0.5, intervalSeconds) * 1000,

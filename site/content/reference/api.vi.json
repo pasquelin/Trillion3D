@@ -1020,6 +1020,7 @@
   },
   "EngineProfiler": {
     "summary": "Theo dõi từng khung hình một và cho biết bộ máy chạy mượt đến đâu, và điều gì làm nó chậm lại.",
+    "description": "Như một bản dựng phát hành loại bỏ các công cụ thống kê của nó (#1353), lõi chỉ giữ mặt tiền này: mã của nó là phần đo lường (`FrameProfile`, `../host/families.ts`), được tải ngay khi chế độ gỡ lỗi bật hoặc khi trình phân tích được dùng lần đầu. Trước khi nó đến, không khung hình nào được đếm và báo cáo nói rằng nó đang chờ (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Các khoảng được giữ lại, từ cũ nhất đến mới nhất: những gì `frameStatistics` nhận được.",
       "setMetadata": "Cho nó biết mô hình nào đang được tải.",
@@ -1027,7 +1028,7 @@
       "getReport": "Một bản tóm tắt các khung hình gần đây.",
       "formatReport": "Bản tóm tắt đó dưới dạng văn bản.",
       "printReport": "In bản tóm tắt đó ra console.",
-      "startAutoLog": "In nó ra mỗi vài giây; trả về một hàm để dừng lại.",
+      "startAutoLog": "In nó ra mỗi vài giây, trong chế độ gỡ lỗi, chế độ duy nhất ghi vào báo cáo; trả về một hàm để dừng lại.",
       "stopAutoLog": "Dừng việc in ra.",
       "dispose": "Dừng lại và quên mọi thứ."
     }
@@ -5410,8 +5411,8 @@
     "description": "Không xác định là `other`."
   },
   "gpuPassBlockTotals": {
-    "summary": "Thời lượng GPU của mỗi khối trong một mẫu (`../../stage/mapping.ts` cho biết cái nào là cái nào).",
-    "description": "`null` ở khắp mọi nơi cho một mẫu bị thiếu hoặc bị cắt cụt, và `null` cho một khối mà lượt của nó không có thời lượng dùng được: một tổng bộ phận sẽ được coi như một phép đo. `null` cũng dành cho một khối mà khung hình chưa bao giờ chạy — số không sẽ được đọc là \"đã đo được bằng không\". Ba khối cộng lại bằng `totalMs` của mẫu khi cả ba đều được đo, và không bao giờ được cộng vào một thời lượng CPU."
+    "summary": "Thời lượng GPU của mỗi khối trong một mẫu (`../stage/mapping.ts` cho biết cái nào là cái nào).",
+    "description": "`null` ở khắp mọi nơi cho một mẫu bị thiếu hoặc bị cắt cụt, và `null` cho một khối mà lượt của nó không có thời lượng dùng được: một tổng bộ phận sẽ được coi như một phép đo. `null` cũng dành cho một khối mà khung hình chưa bao giờ chạy — số không sẽ được đọc là \"đã đo được bằng không\". Ba khối cộng lại bằng `totalMs` của mẫu khi cả ba đều được đo, và không bao giờ được cộng vào một thời lượng CPU. Cho đến khi bảng lượt vẽ đến, mọi khối đều là `null`, như với một mẫu không đo được gì."
   },
   "gpuPassStageOf": {
     "summary": "Giai đoạn của một lượt, theo nhãn của nó.",

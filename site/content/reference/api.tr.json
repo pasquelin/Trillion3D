@@ -1013,6 +1013,7 @@
   },
   "EngineProfiler": {
     "summary": "Kare kareyi izler ve motorun ne kadar pürüzsüz çalıştığını, ve onu neyin yavaşlattığını söyler.",
+    "description": "Bir yayın derlemesinin istatistik araçlarını çıkarması gibi (#1353), çekirdek yalnızca bu cepheyi tutar: kodu ölçümün parçasıdır (`FrameProfile`, `../host/families.ts`), hata ayıklama modu açılır açılmaz ya da profil aracı ilk kullanıldığında indirilir. O gelene kadar hiçbir kare sayılmaz ve rapor beklediğini söyler (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "En eskiden en yeniye, tutulan aralıklar: `frameStatistics`'in aldığı şey.",
       "setMetadata": "Ona hangi modelin yüklü olduğunu söyler.",
@@ -1020,7 +1021,7 @@
       "getReport": "Son karelerin bir özeti.",
       "formatReport": "O özet, metin olarak.",
       "printReport": "O özeti konsola yazdırır.",
-      "startAutoLog": "Her birkaç saniyede bir yazdırır; durduran bir fonksiyon döndürür.",
+      "startAutoLog": "Her birkaç saniyede bir yazdırır, raporu yalnızca onun doldurduğu hata ayıklama modunda; durduran bir fonksiyon döndürür.",
       "stopAutoLog": "Yazdırmayı durdurur.",
       "dispose": "Durdurur ve her şeyi unutur."
     }
@@ -5441,8 +5442,8 @@
     "description": "Bilinmeyen `other`'dır."
   },
   "gpuPassBlockTotals": {
-    "summary": "Bir örnekte her bloğun GPU süresi (`../../stage/mapping.ts` hangisinin hangisi olduğunu söyler).",
-    "description": "Eksik ya da kesilmiş bir örnek için her yerde `null`, ve geçişinin kullanılabilir bir süresi olmayan bir blok için `null`: kısmi bir toplam bir ölçüm gibi geçerdi. Karenin hiç çalıştırmadığı bir blok için de `null` — bir sıfır \"sıfırda ölçüldü\" olarak okunurdu. Üçü de ölçüldüğünde üç blok örneğin `totalMs`'sinde toplanır, ve asla bir CPU süresine eklenmez."
+    "summary": "Bir örnekte her bloğun GPU süresi (`../stage/mapping.ts` hangisinin hangisi olduğunu söyler).",
+    "description": "Eksik ya da kesilmiş bir örnek için her yerde `null`, ve geçişinin kullanılabilir bir süresi olmayan bir blok için `null`: kısmi bir toplam bir ölçüm gibi geçerdi. Karenin hiç çalıştırmadığı bir blok için de `null` — bir sıfır \"sıfırda ölçüldü\" olarak okunurdu. Üçü de ölçüldüğünde üç blok örneğin `totalMs`'sinde toplanır, ve asla bir CPU süresine eklenmez. Geçiş tablosu gelene kadar her blok `null` olur, hiçbir şey ölçmemiş bir örnekteki gibi."
   },
   "gpuPassStageOf": {
     "summary": "Etiketine göre, bir geçişin aşaması.",
