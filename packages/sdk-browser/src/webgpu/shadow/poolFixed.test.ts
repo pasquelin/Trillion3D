@@ -12,6 +12,8 @@ import {
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SCREEN, session } from './poolSession.fixture.ts';
 import { shadowPoolShapeOf } from './poolSize.ts';
+import { shadowPoolHeld } from './memoryGrant.ts';
+import { takeStaticLayerTexture } from './staticReserve.ts';
 
 /** The pages the maintainer's screen reads by default: 2 520, a pool of 51². */
 const SCREEN_POOL = 51 * 51;
@@ -80,4 +82,14 @@ test("the default pool is the display's whole screen, or the canvas if wider", (
   } finally {
     delete (globalThis as { screen?: unknown }).screen;
   }
+});
+
+// The bytes shown are the setting's from the first frame (#831): the static layer was made at the
+// first move, so the same pool read 188 MB on a-field-of-pebbles and 359 MB once the car moved.
+test('the static layer is made with the pool: its bytes held before anything moves', async () => {
+  const s = await session();
+  const layer = shadowAtlasBytes(51);
+  assert.equal(shadowPoolHeld(s.lights) - (s.lights.pageRequests?.bytes ?? 0), layer);
+  assert.ok(takeStaticLayerTexture(s.lights), 'its texture made');
+  assert.equal(takeStaticLayerTexture(s.lights), undefined, 'handed once, to the first move');
 });
