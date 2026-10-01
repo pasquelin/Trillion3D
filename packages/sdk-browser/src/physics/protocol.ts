@@ -1,10 +1,9 @@
 import {
   EVENT_WORDS,
-  MAX_CATCH_UP_STEPS,
   PHYSICS_LAYOUT_VERSION,
   POSE_WORDS,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts';
+} from '../../../sdk-core/src/physics/layout.ts';
+import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts';
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import type { JoltThreadStart } from './joltThreads.ts';
 import type { CharacterReport } from './characterDriver.ts';

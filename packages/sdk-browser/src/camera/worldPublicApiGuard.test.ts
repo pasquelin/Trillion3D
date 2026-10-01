@@ -41,7 +41,6 @@ function pageTriangle(): VisPage {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
-    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }

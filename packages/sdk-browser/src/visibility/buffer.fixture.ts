@@ -30,14 +30,12 @@ export function quadPages(
     {
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
       clusterId: '0/0/0',
     },
     {
       array: new Uint32Array([0, 2, 3]),
       attributes: geometry.attributes,
-      placementIndex: 0,
       material: surfaceOf(material),
       clusterId: '0/0/1',
     },

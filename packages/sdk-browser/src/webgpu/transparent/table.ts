@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
-import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
@@ -63,7 +63,7 @@ function visitOrder(root: ClusterRoot<PageRec>) {
  */
 export function createTransparentTable(
   roots: ReadonlyArray<ClusterRoot<PageRec>>,
-  packedPages: readonly PageRec[],
+  packedPages: PageList,
   items: readonly BlendGpuItem[],
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */

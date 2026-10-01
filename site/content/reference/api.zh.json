@@ -997,7 +997,7 @@
       "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
-      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
+      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
@@ -1305,6 +1305,7 @@
     "members": {
       "name": "该通道的名称。",
       "gpuMs": "该通道的 GPU 耗时。",
+      "ownMs": "其时间减去更早开始的通道已覆盖的部分（WebGPU）。",
       "reason": "未能测量的原因。"
     }
   },

@@ -25,7 +25,6 @@ function scatteredScene() {
     (_, i) =>
       ({
         url: `p${i}`,
-        placementIndex: 0,
         min: [0, 0, 0],
         max: [1, 1, 1],
       }) as unknown as PageRec,

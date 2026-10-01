@@ -59,7 +59,6 @@ if (import.meta.main) {
     const page = {
       array: new Uint32Array([0, 1, 2]),
       attributes: geometrie.attributes,
-      placementIndex: 0,
       material: surfaceOf(materiau),
     };
     const garde = (rang: number) => {

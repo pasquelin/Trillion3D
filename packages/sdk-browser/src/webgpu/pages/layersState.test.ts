@@ -60,7 +60,6 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull');
   const rec = {
     material: G.basicSurface(),
-    placementIndex: 0,
     depthLayer: 1,
   } as unknown as PageRec;
   assert.equal(

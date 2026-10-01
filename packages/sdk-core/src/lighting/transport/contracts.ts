@@ -1,6 +1,13 @@
 /** Experimental, diffuse-only transport. These versions describe data and algorithms separately. */
 export const LIGHTING_TRANSPORT_FORMAT_VERSION = 1;
 export const LIGHTING_TRANSPORT_ALGORITHM_VERSION = 'cosine-first-hit-v1';
+/** The budgets of a transport whose options leave them out (`TransportOptions`). */
+export const TRANSPORT_DEFAULTS = {
+  raysPerPatch: 64,
+  maxIterations: 256,
+  tolerance: 1e-7,
+  maxBytes: 256 * 1024 * 1024,
+} as const;
 
 /** How far the light-bounce solver has got. */
 export interface TransportProgress {
