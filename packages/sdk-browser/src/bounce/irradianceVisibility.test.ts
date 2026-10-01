@@ -7,32 +7,37 @@ import { shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 
 type Light = { height: number; energy: number; casts?: boolean };
+type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[];
 
 /** The cell at the origin, facing up, lit by point lights straight above it at `height`; a wall
  *  fills the plane y = `wall`. Falloff and incidence are 1, so the result is the sum of the
- *  energies that reach the cell. */
+ *  energies that reach the cell. `rays` counts the shadow rays traced. */
+const scene = { wall: 0, rays: 0 };
+const directLights = { count: 0, items: [] as Items };
+const { directIrradiance } = shaderRun<{
+  directIrradiance: (P: Vec, N: Vec, reach: number) => Vec;
+}>(SURFACE_IRRADIANCE_WGSL, ['directIrradiance'], {
+  directLights,
+  isRect: () => false,
+  isSun: () => false,
+  rectIrradiance: () => [0, 0, 0, 0],
+  directIncidence: () => [0, 1, 0, 1],
+  proxyBlocked: (origin: Vec, direction: Vec, span: number) => {
+    scene.rays++;
+    const hit = (scene.wall - Number(origin[1])) / Number(direction[1]);
+    return hit > 0 && hit < span;
+  },
+});
+
 function irradiance(lights: Light[], wall: number) {
-  const items = lights.map(({ height, energy, casts = true }) => ({
+  directLights.items = lights.map(({ height, energy, casts = true }) => ({
     params: [0, 0, casts ? 1 : 0, 0],
     positionRange: [0, height, 0, 100],
     colorIntensity: [energy, energy, energy, 1],
   }));
-  const run = shaderRun<{ directIrradiance: (P: Vec, N: Vec, reach: number) => Vec }>(
-    SURFACE_IRRADIANCE_WGSL,
-    ['directIrradiance'],
-    {
-      directLights: { count: items.length, items },
-      isRect: () => false,
-      isSun: () => false,
-      rectIrradiance: () => [0, 0, 0, 0],
-      directIncidence: () => [0, 1, 0, 1],
-      proxyBlocked: (origin: Vec, direction: Vec, span: number) => {
-        const hit = (wall - Number(origin[1])) / Number(direction[1]);
-        return hit > 0 && hit < span;
-      },
-    },
-  );
-  return run.directIrradiance([0, 0, 0], [0, 1, 0], 100)[0];
+  directLights.count = lights.length;
+  Object.assign(scene, { wall, rays: 0 });
+  return directIrradiance([0, 0, 0], [0, 1, 0], 100)[0];
 }
 
 const SIX = [2, 3, 4, 5, 6, 7].map((height, i) => ({ height, energy: 2 ** i }));
@@ -48,4 +53,9 @@ test('no shadow-casting light shines through a wall, however many lights come be
 test('a light that casts no shadow still lights the cell through the wall, as it always did', () => {
   const lights = [...SIX, { height: 9, energy: 64, casts: false }];
   assert.equal(irradiance(lights, 1), 64);
+});
+
+test('a light that adds nothing at the cell traces no shadow ray', () => {
+  assert.equal(irradiance([...SIX, { height: 3, energy: 0 }], 10), 63);
+  assert.equal(scene.rays, SIX.length);
 });
