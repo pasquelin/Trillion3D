@@ -37,7 +37,7 @@ const released = new WeakSet<object>();
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, roots, allPages, byUrl, draws, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
-  const held = createHeldResidency({}, draws.livePlacement);
+  const held = createHeldResidency({}, draws.placement);
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. Every
    *  instance of the record hears of the flip — one record serves all its primitive's placements. */
   const setArray = (rec: PageRec, array: Uint32Array | undefined) => {
