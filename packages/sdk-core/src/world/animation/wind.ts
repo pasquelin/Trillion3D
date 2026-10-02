@@ -4,7 +4,7 @@ import {
   rotateByQuaternion,
 } from '../../math/matrix/quaternion.ts';
 import type { Object3D } from '../object/object3d.ts';
-import type { Clip, Track } from './index.ts';
+import type { Clip, Track } from './clip.ts';
 
 /** Keys per sway: the arc between two keys leaves the sine it follows by under one percent of
  *  the sway (`1 − cos(π / 24)`). */

@@ -11,7 +11,7 @@ import {
   object,
   type World,
 } from '../packages/sdk-browser/src/index.ts';
-import { advanceMixers } from '../packages/sdk-core/src/world/animation/index.ts';
+import { advanceMixers } from '../packages/sdk-core/src/world/animation/mixer.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';

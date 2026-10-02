@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { animation } from '../../../../sdk-core/src/world/animation/index.ts';
+import { animation } from '../../../../sdk-core/src/world/animation/family.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';

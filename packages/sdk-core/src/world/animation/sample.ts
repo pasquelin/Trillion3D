@@ -1,6 +1,6 @@
 import { multiplyQuaternion, normalizeQuaternion } from '../../math/matrix/quaternion.ts';
 import { Quaternion } from '../math/quaternion.ts';
-import type { Track, TrackBinding } from './index.ts';
+import type { Track, TrackBinding } from './clip.ts';
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
  *  a straight line (quaternions on the arc), the earlier key held (`step`), or glTF's cubic

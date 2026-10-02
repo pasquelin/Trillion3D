@@ -4,7 +4,7 @@ import { windClip } from './wind.ts';
 import { Object3D } from '../object/object3d.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { Vector3 } from '../math/vector3.ts';
-import type { Track } from './index.ts';
+import type { Track } from './clip.ts';
 
 /** Each key of a quaternion track. */
 const keys = (track: Track) =>

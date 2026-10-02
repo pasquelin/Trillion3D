@@ -3,7 +3,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import type { Clip } from '../../../../sdk-core/src/world/animation/index.ts';
+import type { Clip } from '../../../../sdk-core/src/world/animation/clip.ts';
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { loadImportedLights } from '../../lighting/importedLights.ts';
 import { plannedFiles, SCENE_FILE } from './modelFiles.ts';
