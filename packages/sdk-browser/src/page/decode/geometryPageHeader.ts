@@ -5,6 +5,8 @@ import {
   skinWords,
   validateRawDeformation,
 } from './geometryPageDeform.ts';
+import { bitsFor } from '../../../../page-codec/pageGrids.ts';
+import { field } from '../../../../page-codec/bits.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
@@ -24,16 +26,6 @@ import {
   WIDTH_BITS,
 } from '../../cluster/format.ts';
 
-/** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
-export function field(words: Uint32Array, at: number, bits: number) {
-  if (!bits) return 0;
-  const shift = at % 32,
-    index = at >>> 5;
-  let value = words[index] >>> shift;
-  if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
-  return value & ((1 << bits) - 1);
-}
-
 /** The widths of a page's corner code (`CornerCode`, `triangles.rs`). */
 type CornerCode = { indexBits: number; prefixBits: number; recordBits: number };
 
@@ -51,9 +43,6 @@ export function blockRecord(words: Uint32Array, table: number, corners: CornerCo
 
 /** A vector attribute's grid: its minima, its power-of-two step and its per-component widths. */
 export type Quant = { min: number[]; exponent: number; bits: number[] };
-
-/** Bits that hold every value of `0..=range`; none for a constant field. */
-const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
 function record(word: number, min: number[]): Quant | null {
