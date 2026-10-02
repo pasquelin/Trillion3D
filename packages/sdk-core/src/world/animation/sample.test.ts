@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sample, difference } from './sample.ts';
-import type { Track } from './index.ts';
+import type { Track } from './clip.ts';
 import { Quaternion } from '../math/quaternion.ts';
 import { Vector3 } from '../math/vector3.ts';
 

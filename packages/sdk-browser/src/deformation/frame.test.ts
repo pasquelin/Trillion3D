@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDeformationFrame } from './frame.ts';
 import { deformedOf } from './source.ts';
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, recordLayout } from './layout.ts';
-import { animation } from '../../../sdk-core/src/world/animation/index.ts';
+import { animation } from '../../../sdk-core/src/world/animation/family.ts';
 import { object } from '../../../sdk-core/src/world/object/index.ts';
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
 

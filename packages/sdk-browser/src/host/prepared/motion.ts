@@ -6,7 +6,7 @@
  */
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableChannel } from '../../../../sdk-core/src/scene/core/tableMotion.ts';
-import type { Clip, Track, TrackKind } from '../../../../sdk-core/src/world/animation/index.ts';
+import type { Clip, Track, TrackKind } from '../../../../sdk-core/src/world/animation/clip.ts';
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { Skeleton } from '../../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';

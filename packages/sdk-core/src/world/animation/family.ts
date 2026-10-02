@@ -1,5 +1,6 @@
 import type { Object3D } from '../object/object3d.ts';
-import { Mixer, type Clip, type Track, type TrackKind } from './index.ts';
+import type { Clip, Track, TrackKind } from './clip.ts';
+import { Mixer } from './mixer.ts';
 import { Skeleton } from './skeleton.ts';
 import { solveTwoBoneIK } from './ik.ts';
 import { windClip } from './wind.ts';

@@ -1,6 +1,6 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts';
+import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts';
 
 /** What the loop steps ahead of a frame: `world.controls`. */
 type Stepped = { autoUpdate: boolean; update(delta: number): void };

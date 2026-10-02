@@ -16,8 +16,9 @@
 // tree is ESM.
 //
 //   --baseline   read the rings to allow from `scripts/check-cycles-baseline.json`, a ratchet: the
-//                eight rings the tree holds today are named there, and a ninth fails. The file is
-//                written by `--write-baseline` once the eight are broken, and shrinks with each.
+//                six groups the tree holds today are named there, and a seventh fails. The file is
+//                written by hand as groups are broken; `--write-baseline` prints the ones the tree
+//                holds, for that shrinking, and a name the tree no longer has is reported too.
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
@@ -98,7 +99,7 @@ export function runtimeImportsOf(files: Map<string, string>): Map<string, Set<st
  * Not the rings. A group of `n` mutually reachable modules holds exponentially many simple rings, and
  * the tree's largest group is 259 modules: enumerating rings took thirty minutes and named 190 of
  * them, all but eight of which the type rule had already removed. The component is the defect — the
- * load order inside it is whatever the bundler happened to emit — and there are 41 of them, which is
+ * load order inside it is whatever the bundler happened to emit — and there are six of them, which is
  * a number a person can hold.
  *
  * A module that reaches itself through a barrel is a component of one, and is reported.
