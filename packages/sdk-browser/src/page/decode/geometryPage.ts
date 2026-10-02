@@ -7,9 +7,10 @@ import {
   FLAG_UV1,
   BLOCK_CORNERS,
 } from '../../cluster/format.ts';
-import { blockRecord, field, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
+import { blockRecord, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
 import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
+import { field } from '../../../../page-codec/bits.ts';
 import { octDecode } from '../../../../page-codec/pageGrids.ts';
 
 /**
