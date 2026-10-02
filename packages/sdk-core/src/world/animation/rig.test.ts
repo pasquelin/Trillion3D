@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { animation } from './index.ts';
+import { animation } from './family.ts';
 import { paletteReach, PALETTE_FLOATS } from './skeleton.ts';
 import { object } from '../object/index.ts';
 import { geometry } from '../geometry/index.ts';

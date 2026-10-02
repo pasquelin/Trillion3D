@@ -8,7 +8,7 @@ import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDoc
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { animation } from '../../../../sdk-core/src/world/animation/index.ts';
+import { animation } from '../../../../sdk-core/src/world/animation/family.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { preparedGraph } from './graph.ts';
 
