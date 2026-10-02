@@ -1,9 +1,9 @@
 /**
  * WHICH RINGS THE GATE ALLOWS, and how it says so.
  *
- * The tree holds six groups of modules that reach each other in the emitted JavaScript. A gate that
+ * The tree holds five groups of modules that reach each other in the emitted JavaScript. A gate that
  * failed on them would be red on the day it was written, and a gate that is red is not a gate — so the
- * six are named here, and a group this file does not name fails.
+ * five are named here, and a group this file does not name fails.
  *
  * A name the tree no longer holds is a group that was broken: it is reported, so the file shrinks
  * with every fix and a group of the same modules cannot come back under a line nobody removed.
