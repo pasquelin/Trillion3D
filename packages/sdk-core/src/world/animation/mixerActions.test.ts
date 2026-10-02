@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceMixers, animation, Mixer } from './index.ts';
+import { animation } from './family.ts';
+import { advanceMixers, Mixer } from './mixer.ts';
 import { Object3D } from '../object/object3d.ts';
 
 const ramp = (name = '.renderOrder', duration = 4) =>

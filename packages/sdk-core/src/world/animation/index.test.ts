@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+// The one reader in the tree that takes the folder's names through the barrel on purpose: every
+// other consumer imports from the module that defines what it uses, and this file is what proves
+// this barrel re-exports them rather than assuming it.
 import { advanceMixers, animation } from './index.ts';
 import { object } from '../object/index.ts';
 import { material } from '../material/index.ts';

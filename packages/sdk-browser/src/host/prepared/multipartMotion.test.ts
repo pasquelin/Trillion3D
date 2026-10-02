@@ -4,7 +4,7 @@ import { preparedGraph } from './graph.ts';
 import { uniqueNames } from './nodes.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { animation } from '../../../../sdk-core/src/world/animation/index.ts';
+import { animation } from '../../../../sdk-core/src/world/animation/family.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type {
