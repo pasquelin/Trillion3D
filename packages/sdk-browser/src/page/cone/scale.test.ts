@@ -3,7 +3,7 @@
 // anisotropic deformation. The first test retakes the trigger case of
 // `tests/gpu/dag/cone-non-uniform-scale.gpu.ts`; the following cover degenerate 3×3s, then
 // confirm that reject remains possible for any uniform scale and rotation, as before this batch.
-import { triangleCone } from '../../../../../tests/kit/cone.ts';
+import { triangleCone } from '../../../../../tests/kit/reference/cone.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';

@@ -5,7 +5,7 @@
 //! run time (`packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
 //!
 //! Two cones are built and the narrower kept (#929). The mean cone is `triangleCone`
-//! (`tests/kit/cone.ts`), which the prepare ran until #272, operation for operation in float64:
+//! (`tests/kit/reference/cone.ts`), which the prepare ran until #272, operation for operation in float64:
 //! its axis keeps its bits, `Math.hypot` to the bit (`math::hypot`). Its angle cannot: the
 //! JavaScript `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
 //! fdlibm), so it is fdlibm's (`acos.rs`, the same bits everywhere) raised by

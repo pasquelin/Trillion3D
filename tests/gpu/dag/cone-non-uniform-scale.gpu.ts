@@ -22,7 +22,7 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
-import { triangleCone } from '../../kit/cone.ts';
+import { triangleCone } from '../../kit/reference/cone.ts';
 import { project } from '../kit/cameraRig.ts';
 import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts';
 

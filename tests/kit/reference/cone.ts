@@ -3,7 +3,7 @@
 // (`packages/page-codec-wasm/src/normal_cone.rs`, `tests/integration/cooked-cones.test.ts`,
 // `packages/sdk-browser/src/world/page/cutCones.test.ts`) and the input the cone tests and probes
 // build from. No engine source calls it: the engine reads the cone `normal_cone.rs` built.
-import { OPEN_CONE, type NormalCone } from '../../packages/sdk-browser/src/page/cone/cone.ts';
+import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 
 /** Ulps a built angle may stand above this reference's: twice `ANGLE_MARGIN_ULPS` (4,
  *  `normal_cone.rs`). */

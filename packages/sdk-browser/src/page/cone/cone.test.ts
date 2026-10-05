@@ -1,5 +1,5 @@
 import test from 'node:test';
-import { triangleCone } from '../../../../../tests/kit/cone.ts';
+import { triangleCone } from '../../../../../tests/kit/reference/cone.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../surface.ts';

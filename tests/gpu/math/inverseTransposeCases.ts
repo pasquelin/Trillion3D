@@ -1,7 +1,7 @@
 // Defect 6's cases (`inverseTranspose3`, DAG selection kernel): geometry, camera, raw orientation
 // and CPU decision, shared by its proof, defect 10's (`pages/culled-face-reflection.gpu.ts`) and
 // the engine's own draw (`engineDraws.ts`).
-import { triangleCone } from '../../kit/cone.ts';
+import { triangleCone } from '../../kit/reference/cone.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import {
   frustumExcludesBox,
