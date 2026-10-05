@@ -18,11 +18,12 @@ import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 /**
  * THE SHADOW RECEIVER OF A PIXEL (#1410): its shading-point offset and its triangle's plane, the
  * one the shadow bias follows (#831), recomputed where they are read — the deferred lighting and
- * the shadow demand — from the visibility buffer, rather than carried from the resolve in a
- * 12 B/px target. It is the resolve's own arithmetic, its shared parts called, not copied
- * (`pixelTriangleWgsl.ts`): the pixel's triangle decoded by the page geometry, placed on the resolve's framebuffer by its
- * uniform, its perspective-correct barycentrics, its vertex normals through the world's inverse
- * transpose, turned to the side a two-sided surface is lit from, then the Phong projection
+ * the shadow demand — from the visibility buffer; only the virtual shadow maps' projection reads
+ * the copy the resolve writes (`receiverTargetWgsl.ts`, 8 B/px). It is the resolve's own
+ * arithmetic, its shared parts called, not copied (`pixelTriangleWgsl.ts`): the pixel's triangle
+ * decoded by the page geometry, placed on the resolve's framebuffer by its uniform, its
+ * perspective-correct barycentrics, its vertex normals through the world's inverse transpose,
+ * turned to the side a two-sided surface is lit from, then the Phong projection
  * (`shadingPointOffset`). Zero where the resolve kept the triangle's point: the background, a
  * triangle past its page, a row without vertex normals, a sprite or a line.
  */

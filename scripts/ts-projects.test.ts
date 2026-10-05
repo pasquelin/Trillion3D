@@ -25,17 +25,17 @@ export async function pair(page: Page, names: ${names}): Promise<string> {
 `;
 
 function errorsOf(names: string): string[] {
-  const file = resolve(ROOT, 'tests/browser/renders/pair.browser.ts');
+  const file = resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts');
   const tools = project('tsconfig.tools.json');
   return typeErrors(projectProgram(tools, [file], new Map([[file, proof(names)]])), ROOT);
 }
 
-test('the changed-files gate refuses a type error in a changed browser proof', () => {
+test('the changed-files gate refuses a type error in a changed GPU proof', () => {
   const errors = errorsOf('string[]');
   assert.equal(errors.length, 1, errors.join('\n'));
   assert.match(
     errors[0]!,
-    /^tests\/browser\/renders\/pair\.browser\.ts\(3,.*'string\[\]' is not assignable to type '\[string, string\]'/s,
+    /^tests\/gpu\/renders\/pair\.gpu\.ts\(3,.*'string\[\]' is not assignable to type '\[string, string\]'/s,
   );
   assert.deepEqual(errorsOf('[string, string]'), [], 'the same proof, typed right, passes');
 });
@@ -43,13 +43,13 @@ test('the changed-files gate refuses a type error in a changed browser proof', (
 test('a changed TypeScript file no project type-checks is an error, not a skip', () => {
   assert.deepEqual(changedTypeErrors(ROOT, [], [], refuse), []);
   assert.match(
-    changedTypeErrors(ROOT, [], ['tests/browser/renders/pair.browser.ts'], refuse).join(),
-    /pair\.browser\.ts: no tsconfig project type-checks it/,
+    changedTypeErrors(ROOT, [], ['tests/gpu/renders/pair.gpu.ts'], refuse).join(),
+    /pair\.gpu\.ts: no tsconfig project type-checks it/,
   );
   const tools = project('tsconfig.tools.json');
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts')));
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicNode.mts')));
-  assert.ok(!excludes(tools, resolve(ROOT, 'tests/browser/renders/pair.browser.ts')));
+  assert.ok(!excludes(tools, resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')));
   const build = project('tsconfig.json');
   assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');
   const fixture = resolve(ROOT, 'packages/sdk-browser/src/x.fixture.ts');

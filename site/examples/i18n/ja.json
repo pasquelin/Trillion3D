@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "FPS",
-      "FPS (held)": "FPS（停止中）",
       "triangles": "三角形",
       "triangles (scene)": "三角形（シーン）",
       "draw calls": "描画呼び出し",
       "pages": "ページ",
       "geometry pool": "ジオメトリ置き場",
       "lights": "ライト",
+      "GPU memory": "GPU メモリ",
+      "screen images": "画面イメージ",
+      "shadow memory": "影のメモリ",
+      "geometry memory": "ジオメトリのメモリ",
+      "texture memory": "テクスチャのメモリ",
+      "live textures": "使用中のテクスチャ",
+      "transmission backdrop": "透過の背景",
       "GPU frame": "GPUフレーム",
       "GPU frame (last)": "GPUフレーム（直近）",
       "CPU frame": "CPUフレーム",
       "page hooks": "ページのコード",
-      "engine CPU": "エンジンCPU"
+      "engine CPU": "エンジンCPU",
+      "Statistics": "統計",
+      "hint": "クリック: 縮小 · ドラッグ: 移動 · キー 半角/全角 / `",
+      "fps": "FPS",
+      "budget": "予算",
+      "held": "停止",
+      "last": "前回",
+      "others": "その他",
+      "Shadows": "影",
+      "Scene and memory": "シーンとメモリ",
+      "cut and culling": "カットとカリング",
+      "page preparation": "ページ準備",
+      "command encoding": "コマンドのエンコード",
+      "physics step": "物理ステップ",
+      "Cadence": "ケイデンス",
+      "{n}× refresh": "{n}× リフレッシュ",
+      "GPU idle": "GPU アイドル"
+    },
+    "shadows": {
+      "lights": "ライト",
+      "maps": "マップ",
+      "pagesRequested": "要求ページ",
+      "pagesAllocated": "割り当てページ",
+      "pagesCached": "キャッシュ済みページ",
+      "pagesRendered": "描画ページ",
+      "freePages": "空きページ",
+      "lodBias": "LOD バイアス",
+      "projectionPasses": "投影パス",
+      "invalidation": "無効化",
+      "marking": "マーキング",
+      "pageManagement": "ページ管理",
+      "render": "描画",
+      "projection": "投影",
+      "transmission": "透過"
+    },
+    "passes": {
+      "vsm projection": "VSM 投影",
+      "vsm marking": "VSM マーキング",
+      "vsm render": "VSM 描画",
+      "material surfaces": "マテリアル表面",
+      "temporal antialiasing": "テンポラルアンチエイリアス",
+      "HDR composition + present": "HDR 合成 + 表示",
+      "deferred lighting": "ディファードライティング",
+      "reflection source": "反射ソース",
+      "HiZ pyramid": "HiZ ピラミッド",
+      "light tiles": "ライトタイル",
+      "texture mips": "テクスチャ mip",
+      "reflection radiance mips": "反射ラジアンスの mip",
+      "reflection depth bounds mips": "反射深度境界の mip"
     },
     "failure": {
       "title": "この例はエラーで止まりました",
@@ -1363,7 +1417,8 @@
       "credit": "この例のためにコードで作ったつぼの並木道、CC0 — assets/examples/CREDITS.md を見てね"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "ドラッグして胸像のまわりを回ろう。木箱とガラス玉が回転台の上で回るよ。",
     "words": {
       "credit": "Marble Bust 01、作: Rico Cilliers、Poly Haven、CC0。木箱: W. Sitters、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "ポーズ"
     }
+  },
+  "choose-your-quality": {
+    "banner": "画質と解像度と視点を選ぼう。ひとつの設定をA、もうひとつをBにしまって、Cキーで切り替えよう。"
   }
 }

@@ -72,7 +72,7 @@ export function autonomousBootstrap(roots: ClusterRoot<PageRec>[]): PageRec[] {
 }
 
 /** The pages at `urls`, read and decoded off the main thread — the open's root cover, or a
- *  mount's (`mounts.ts`) —, the session's abort checked around each read; a `sourced` one read as
+ *  mount's (`../../world/scene/partitionMounts.ts`) —, the session's abort checked around each read; a `sourced` one read as
  *  its corners (`readSourcedPage`). */
 export const readPages = (
   context: BackendContext,

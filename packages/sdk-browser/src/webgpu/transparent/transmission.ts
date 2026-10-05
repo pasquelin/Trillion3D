@@ -3,9 +3,12 @@ import { refreshSurface } from '../../page/surface.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts';
+import { volumeAttenuation } from './volumeLaw.ts';
 
-/** `transmission`, `ior`, `thickness`, `attenuationDistance`, then aligned `attenuationColor`:
- *  one record per transmissive item, read by water rank in a storage buffer. */
+/** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
+ *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the fog word: one record per
+ *  transmissive item, read by water rank in a storage buffer. The per-volume terms are computed
+ *  here once, in f64, not per pixel in f32. */
 export const VOLUME_WORDS = 8;
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
@@ -64,20 +67,20 @@ export const waterRankOf = (flags: number) => flags >>> WATER_RANK_SHIFT;
  *  the composite reads through the water surface. Written with the rows, never per image. */
 export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
-    packed = blendState.volumePacked;
+    packed = blendState.volumePacked,
+    k = [0, 0, 0];
   if (!gpu.volumeBuffer || !blendState.transmissive) return;
   for (const item of blendState.blendGpu) {
     const rank = waterRankOf(item.flags);
     if (!rank) continue;
     const base = (rank - 1) * VOLUME_WORDS,
       mat = refreshSurface(item.surface);
+    const reflectance = (mat.ior - 1) / (mat.ior + 1);
     packed[base] = mat.transmission;
-    packed[base + 1] = mat.ior;
+    packed[base + 1] = 1 / Math.max(mat.ior, 1e-3);
     packed[base + 2] = mat.thickness;
-    packed[base + 3] = mat.attenuationDistance;
-    packed[base + 4] = mat.attenuationColor[0];
-    packed[base + 5] = mat.attenuationColor[1];
-    packed[base + 6] = mat.attenuationColor[2];
+    packed[base + 3] = reflectance * reflectance;
+    packed.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), base + 4);
     packed[base + 7] = mat.fog === false ? 1 : 0;
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Object3D } from './object3d.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 import { Vector3 } from '../math/vector3.ts';
+import { updateTransformTree } from '../../math/transform-tree/pass.ts';
 
 const translation = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z);
 
@@ -23,7 +24,7 @@ test('a local matrix written in place, recomposition cut, reaches the world matr
   assert.equal(child.matrixWorldNeedsUpdate, false, 'the update clears the mark');
 });
 
-test('under automatic update the pose overwrites a written matrix, as the reference does', () => {
+test('under automatic update the pose overwrites a written matrix, as a plain host node does', () => {
   const node = new Object3D();
   node.position.set(4, 0, 0);
   node.matrix.copy(translation(9, 9, 9));
@@ -122,4 +123,54 @@ test('a node posed by storage of its own reads its world against its tree as las
   assert.deepEqual([...leaf.matrixWorld.elements.slice(12, 15)], [0, 0, 0], 'nor the leaf');
   parent.updateMatrixWorld();
   assert.deepEqual([...leaf.matrixWorld.elements.slice(12, 15)], [9, 1, 0]);
+});
+
+test("a world read takes an ancestor's matrix storage of its own, as the ancestor's own read does", () => {
+  const parent = new Object3D(),
+    child = new Object3D();
+  parent.add(child);
+  child.position.set(1, 0, 0);
+  parent.matrixAutoUpdate = false;
+  const own = translation(0, 5, 0).elements;
+  parent.matrix.elements = own;
+  assert.deepEqual(child.getWorldPosition().toArray(), [1, 5, 0]);
+  own[13] = 7; // written in place, behind every getter
+  assert.deepEqual(child.getWorldPosition().toArray(), [1, 7, 0]);
+  child.updateWorldMatrix(true, false);
+  assert.equal(child.matrixWorld.elements[13], 7);
+});
+
+test('a node posed by storage of its own takes the matrix the engine sets, and reads list nothing', () => {
+  const parent = new Object3D(),
+    node = new Object3D();
+  parent.position.set(0, 2, 0);
+  node.matrixAutoUpdate = false;
+  const own = translation(1, 0, 0).elements;
+  node.matrix.elements = own;
+  parent.attach(node); // the engine sets the local matrix that keeps its world
+  assert.equal(own[13], -2, 'the storage holds it');
+  assert.deepEqual(node.getWorldPosition().toArray(), [1, 0, 0], 'no jump');
+  const tree = Object3D._treeOf(node);
+  node.updateWorldMatrix(true, false);
+  updateTransformTree(tree);
+  node.getWorldPosition();
+  assert.equal(updateTransformTree(tree), 0, 'a read of unchanged storage lists nothing');
+});
+
+test('storage of its own, plain or typed, is the pose once recomposition is cut, children included', () => {
+  const root = new Object3D(),
+    node = new Object3D(),
+    child = new Object3D();
+  root.add(node);
+  node.add(child);
+  child.position.set(0, 1, 0);
+  updateTransformTree(Object3D._treeOf(root));
+  node.matrix.elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 7, 0, 0, 1] as never;
+  node.matrixAutoUpdate = false; // the storage is the pose from now on
+  updateTransformTree(Object3D._treeOf(root));
+  assert.deepEqual([...child.matrixWorld.elements.slice(12, 15)], [7, 1, 0]);
+  const parent = new Object3D();
+  parent.position.set(0, 0, 3);
+  parent.attach(node); // a plain array takes the engine's matrix too
+  assert.deepEqual(node.getWorldPosition().toArray(), [7, 0, 0]);
 });

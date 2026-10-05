@@ -66,7 +66,11 @@ function harness(options: {
     profiler: { record: (metrics: unknown) => options.recorded?.push(metrics) } as never,
     pageIdByUrl: new Map(),
     streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
-    compose: Object.assign(() => {}, { dispose() {}, effectBytes: () => 0 }),
+    compose: Object.assign(() => {}, {
+      dispose() {},
+      effectBytes: () => 0,
+      renderSize: () => null,
+    }),
   });
   return { render, metricsScratch };
 }

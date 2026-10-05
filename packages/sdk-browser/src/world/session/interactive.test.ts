@@ -47,6 +47,7 @@ function start(
     pendingFrame: async () => false,
     landings: () => undefined,
     familiesPending: () => undefined,
+    measureFrame: () => false,
   };
   const invalidate = startInteractiveExplorer(
     explorer as never,
@@ -72,7 +73,7 @@ test('a frame that throws after the first stops the loop and says so on the cons
     },
     resize() {},
   };
-  // Reported as an uncaught error is, the page's own watcher names it: the example kit's card (#772).
+  // Reported as an uncaught error is, the page's own watcher names it (#772).
   const reportError = (error: unknown) => void reported.push(error);
   start(
     explorer,

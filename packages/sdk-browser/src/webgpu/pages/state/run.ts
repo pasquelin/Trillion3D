@@ -59,7 +59,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
-  cameraRows: number; // rows the CPU cut draws on screen; its light casters sit behind them
+  cameraRows: number; // rows the CPU cut draws on screen
   motion: CameraMotion;
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */

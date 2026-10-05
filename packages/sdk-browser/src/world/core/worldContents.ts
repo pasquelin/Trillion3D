@@ -126,6 +126,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     repainted: materials.takeRepainted,
     /** `parent`'s children changed: read at the next resolve. */
     changed: members.changed,
+    /** A node entered the scene (`SceneLink.entered`). */
+    entered: members.entered,
     reopenNeeded: () => batches.waiting() || !same(openedModels, members.models),
     mountable: batches.mountable,
     mounted: batches.mounted,

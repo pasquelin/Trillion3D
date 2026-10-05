@@ -9,11 +9,19 @@ import type { WebgpuPagesRuntime } from './runtime.ts';
  * room when a record took it since the open, the fallback draw's positions —, then stales its
  * shadow pages: no buffer allocated, no table rebuilt; false when the device bounds the pool, and
  * the owner opens the session again. A mount past the room the open left grows the pool in place
- * (#1293), so it never opens the session for it. `vertexBytes` weighs what that sends: each list
- * in the pool, a normal with its tangent, and the positions again for the fallback draw.
+ * (#1293), so it never opens the session for it. Its roots hold `reach`, how far a vertex moved from
+ * where its pages are bounded, and its pages' rows the box `boxes` gives each (`noteRewritten`).
+ * `vertexBytes` weighs what that sends: each list in the pool, a normal with its tangent, and the
+ * positions again for the fallback draw.
  */
 export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
-  updateVertices(attributes: HostAttributes, ranges: readonly VertexRange[], box: Float64Array) {
+  updateVertices(
+    attributes: HostAttributes,
+    ranges: readonly VertexRange[],
+    box: Float64Array,
+    reach: number,
+    boxes?: Float64Array,
+  ) {
     const { vis, gpu, run } = rt;
     if (!gpu.device || run.lost) return false;
     const pool = vis.vertexPool;
@@ -25,7 +33,7 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
       if (name === 'position' && positions && xyz instanceof Float32Array)
         gpu.device.queue.writeBuffer(positions, from * 12, xyz, from * 3, count * 3);
     }
-    noteRewritten(rt, attributes, box);
+    noteRewritten(rt, attributes, box, reach, boxes);
     // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
     // walks no world — the row table, its occluder history and its corners are kept. A host pose
     // write still unread stays owed (`engineWriting`) and is walked as before.

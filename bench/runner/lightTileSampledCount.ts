@@ -7,7 +7,7 @@
 //
 //   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
-import { DIRECT_LIGHTING_WGSL } from '../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
 import {
   shaderFunctions,
   wgslConstants,
@@ -17,6 +17,8 @@ import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
 import { walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
+
+const DIRECT_LIGHTING_WGSL = directLightingWgsl();
 
 const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 type Contract = (...args: unknown[]) => unknown;

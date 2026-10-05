@@ -16,7 +16,7 @@ fn deformation() -> Deformation {
     Deformation {
         influences: 4,
         skin: Some((joints, weights)),
-        soft_source: false,
+        soft_source: None,
         targets: vec![MorphTarget {
             position: lift.repeat(4),
             normal: None,
@@ -58,6 +58,9 @@ fn soft_ids_survive_welding_permutation_and_reduction_origins() {
     deformation
         .soft_source(&source, 0, &POSITIONS)
         .expect("soft mapping");
+    // The declared kind reaches the manifest: the runtime draws a cloth on both faces.
+    assert_eq!(deformation.soft_source, Some("cloth"));
+    assert_eq!(deformation.reach(&POSITIONS)["softKind"], "cloth");
     let mut positions = POSITIONS.to_vec();
     // A reduction's new point follows source vertex 2's displacement, not its absolute position.
     positions.extend([0.25, 1.0, 0.0]);
@@ -100,7 +103,7 @@ fn all_influences_and_float_weights_survive_large_joint_separation() {
             position: vec![0.12345679; 9],
             normal: None,
         }],
-        soft_source: false,
+        soft_source: None,
     };
     let page = encode_deformed(
         &[0, 1, 2],

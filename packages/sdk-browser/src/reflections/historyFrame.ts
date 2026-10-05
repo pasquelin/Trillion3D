@@ -32,8 +32,9 @@ export interface ReflectionHistoryFrame {
 
 /** The frames of its own weight a history may keep this image (`resolveWgsl.ts`):
  *  `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES` after a placement change the motion did
- *  not follow (#33), the still window otherwise. While its sources or camera move the window is
- *  kept whole and the history clipped to the image's neighbourhood instead (#831). */
+ *  not follow (#33) or a relight (#1342), the still window otherwise, and while `followed`: an
+ *  image the clip follows a relight on. While its sources or camera move the window is kept whole
+ *  and the history clipped to the image's neighbourhood instead (#831). */
 export function historyConfidence(followed: boolean, sinceChange: number) {
   if (!followed && sinceChange < REFLECTION_CHANGE_FRAMES) return REFLECTION_CHANGE_KEPT;
   return REFLECTION_STILL_FRAMES;

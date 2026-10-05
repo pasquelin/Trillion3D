@@ -141,7 +141,7 @@ test("a lamp's target moved under another node: the new parent is hooked, its la
   assert.equal(gate.revisions.scene, after + 1, 'a pose write rebuilt nothing and repeats nothing');
 });
 
-/** The Three engine with a lamp declared in the source graph, which the host will write directly. */
+/** The host-library engine with a lamp declared in the source graph, which the host will write directly. */
 function litEngine() {
   const { geometry, material, source, context } = quadRootsContext(true);
   const lampe = G.pointLight(0xffffff, 1);

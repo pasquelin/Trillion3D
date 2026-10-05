@@ -1,5 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts';
-import { grown } from '../../math/transform-tree/transformTree.ts';
+import { grown } from '../../math/transform-tree/storage.ts';
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
@@ -35,7 +35,8 @@ export function createSceneLightStore() {
   let environment: SceneEnvironment | undefined,
     view: SceneLightingView = 'auto',
     epoch = 1,
-    fogOnly = 0;
+    /** The epoch's bumps that moved no light transport: a fog alone, a shadow slice alone. */
+    notTransport = 0;
   /** Twice the room, content kept: N lights cost log N copies. */
   const grow = () => {
     capacity = Math.max(capacity * 2, 32);
@@ -80,10 +81,11 @@ export function createSceneLightStore() {
     get epoch() {
       return epoch;
     },
-    /** Bumped with the epoch, except by a change of the fog alone: fog is a view-ray term, not
-     *  light transport, so what caches transported light (the bounce probes) keeps it. */
+    /** Bumped with the epoch, except by a change of the fog alone or of a shadow slice alone: fog
+     *  is a view-ray term and a slice where a light's maps are addressed, neither light transport,
+     *  so what caches transported light (the bounce probes, the reflections' history) keeps it. */
     get transportEpoch() {
-      return epoch - fogOnly;
+      return epoch - notTransport;
     },
     /** The scene's environment. */
     get environment() {
@@ -183,17 +185,20 @@ export function createSceneLightStore() {
         environment &&
         sameSceneEnvironment({ ...environment, fog: undefined }, { ...validated, fog: undefined })
       )
-        fogOnly++;
+        notTransport++;
       environment = validated;
       packEnvironment(environment, environmentPacked);
       epoch++;
     },
     /** Records the atlas slice a light occupies, without touching the rest of its fields. The store
-     *  revision only rises if the slice actually changed: otherwise nothing is pushed to the GPU. */
+     *  revision only rises if the slice actually changed: otherwise nothing is pushed to the GPU.
+     *  Light transport stays as it was (`transportEpoch`): what the maps hold moves the shadows'
+     *  own version, never their addresses. */
     assignSlice(slot: number, slice: number) {
       if (sliceOf(slot) === slice) return;
       writeSlice(slot, slice);
       epoch++;
+      notTransport++;
     },
   };
   return store;

@@ -2,8 +2,8 @@
 // rank of a row that `sourceRowOf` made exact; F5 (state.ts) gives a catalogue page's rank as the
 // oracle's hash table does — read by pool address since #1235, one record serving every placement.
 // The oracles are the implementations from before lot F, copied as-is into
-// `oracles/lignes-dessinables.ts`. The comparison is on the full array state after a sequence of
-// images, not on a single image: that is where reused rows show.
+// `bench/oracles/browser/drawable-rows.ts`. The comparison is on the full array state after a
+// sequence of images, not on a single image: that is where reused rows show.
 //
 // What this comparison CANNOT prove: what lot F did not change. `sourceRowOf` is the same word for
 // word on both sides, so its anti-alias guard shows in no delta — it is `recycle.test.ts`

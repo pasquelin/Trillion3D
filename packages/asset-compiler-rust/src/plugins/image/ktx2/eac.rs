@@ -6,13 +6,12 @@
 //! truncation, and one value in eight comes out one step too low. It also reads the index
 //! field by `u64::from_le_bytes` where its own ETC2 alpha path, which follows the same write
 //! order, reads `from_be_bytes`: the sixteen texels of a block come out shuffled. Both
-//! defects fall with this decoder, written from the OpenGL ES 3.0 public specification
-//! ("ETC2/EAC Compressed Texture Image Formats").
+//! defects fall with this decoder, which follows the block layout of the format.
 //!
 //! The rest of the driver knows nothing of it: these two functions have the signature
 //! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
 
-/// The specification's sixteen sets of eight modifiers, named by the four low bits of the
+/// The format's sixteen sets of eight modifiers, named by the four low bits of the
 /// block's second byte.
 const MODIFIERS: [[i8; 8]; 16] = [
     [-3, -6, -9, -15, 2, 5, 8, 14],

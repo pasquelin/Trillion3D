@@ -20,8 +20,7 @@ type Inputs = {
 export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs) {
   const { signal, scope, emit, diagnose } = session;
   const { streamer, geometryUrls, backends, state, budget } = inputs;
-  let streamingError: string | null = null,
-    lastPrefetch = 0;
+  let streamingError: string | null = null;
   let streamingPromise: Promise<void> | null = null,
     backgroundFetchController: AbortController | undefined;
   // A `Set` rather than an array: insertion order is the same, membership no longer costs a
@@ -53,7 +52,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
       arrivals.queue(backend, url, cached);
     }
   };
-  const startFetch = (urls: string[], priority = PRIORITY_VISIBLE) => {
+  const startFetch = (urls: string[]) => {
     if (!urls.length || state.measuring) return;
     const controller = new AbortController();
     backgroundFetchController = controller;
@@ -80,7 +79,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
       if (array) for (const b of backends) arrivals.queue(b, url, array);
     };
     streamingPromise = streamer
-      .request(urls, { signal: controller.signal, priority, onPage: land })
+      .request(urls, { signal: controller.signal, priority: PRIORITY_VISIBLE, onPage: land })
       .catch((error) => {
         if (state.disposed || signal?.aborted || controller.signal.aborted) return;
         const detail = String(error);
@@ -153,12 +152,6 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     },
     get backgroundFetchController() {
       return backgroundFetchController;
-    },
-    get lastPrefetch() {
-      return lastPrefetch;
-    },
-    set lastPrefetch(value: number) {
-      lastPrefetch = value;
     },
   };
 }

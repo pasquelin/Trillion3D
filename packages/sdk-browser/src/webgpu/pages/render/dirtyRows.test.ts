@@ -2,7 +2,7 @@
 // draw path clears the marks too: a witness it skipped would keep another occupant's words once the
 // visibility pass comes back on the same targets (#198).
 //
-// The tree had no test for this module. `row/dirty.test.ts` covers the run walk and `row/dirty.ts` the
+// The tree had no test for this module. `../../row/dirty.ts` holds the run walk and the
 // marks; what nothing covered is the promise `uploadDirtyRows` makes to the frame — a row that did
 // not change is not uploaded, and the marks it did change are cleared exactly once, so the next image
 // uploads nothing. Without that promise every resting scene would rewrite its whole page table.

@@ -1,8 +1,5 @@
-//! WebP driver, **lossless only**. Read from the format's public specification — RIFF
-//! container ("WebP Container Specification", Google) and VP8L lossless stream ("WebP
-//! Lossless Bitstream Specification") — and decoded by the `webp` feature of the `image`
-//! 0.25.10 crate, which delegates to `image-webp`, a pure-Rust decoder (MIT or Apache-2.0,
-//! notices kept with the dependency). No vendor code or SDK, no re-encoding.
+//! WebP driver, **lossless only**. The RIFF container and the VP8L lossless stream are decoded
+//! by the `webp` feature of the `image` crate. No re-encoding.
 //!
 //! **Policy.** The repository's fidelity rule forbids adding loss; it therefore only admits
 //! lossless WebP. The driver reads the RIFF header itself and decides **before** decoding:

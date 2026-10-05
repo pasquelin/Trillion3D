@@ -102,7 +102,7 @@ test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it k
   // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, before
   // the verdict and the reject counters.
   assert.ok(noVerdict > 0 && kept > noVerdict);
-  assert.ok(kernel.indexOf(`atomicAdd(&state[${ST_REJECTED}u]`) > kept);
+  assert.ok(kernel.indexOf(`tallyAdd(${ST_REJECTED}u,`) > kept);
   assert.ok(HIZ_SHADER.includes('@group(1) @binding(0) var<storage, read> pages:array<PageInfo>;'));
   assert.equal(HIZ_TEST_PAGES_ENTRIES[0].buffer?.type, 'read-only-storage');
 });
@@ -125,6 +125,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
       table: { capacity: 34, pageOfEntry: Int32Array.from({ length: 34 }, (_, i) => i % 2) },
       occlusion,
       occlusionEpoch: -1,
+      occlusionMoved: { from: Infinity, to: -1 },
       occlusionCorners: new Float32Array(34 * 48),
     },
     layout: {

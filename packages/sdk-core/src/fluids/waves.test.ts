@@ -67,3 +67,48 @@ test('the drawn surface is the waves buoyancy reads: its points lie at its heigh
   assert.deepEqual(again.point(3, -4, new Float64Array(3)), surface.point(3, -4, p));
   assert.throws(() => new WaterSurface({ waves: [{ ...OCEAN[0], steepness: 2 }], level: 0 }));
 });
+
+test('a surface set again in place is the new water, a wrong wave leaving it as it was', () => {
+  const surface = new WaterSurface({ waves: OCEAN, level: 2 }).setTime(3);
+  const held = surface.waveModel;
+  surface._declare({ waves: OCEAN.slice(0, 2), level: 5 });
+  assert.equal(surface.level, 5);
+  assert.equal(surface.time, 0, 'its clock starts again, as the worker’s');
+  assert.equal(surface.waveModel.count, 2);
+  assert.notEqual(surface.waveModel, held);
+  const model = surface.waveModel;
+  assert.throws(() => surface._declare({ waves: [{ ...OCEAN[0], steepness: 2 }], level: 0 }));
+  assert.equal(surface.waveModel, model);
+  assert.equal(surface.level, 5);
+});
+
+test('every displacement of a rest rectangle lies in its displacement box, a point’s its own', () => {
+  const waves = new Waves(OCEAN);
+  waves.setTime(41.3);
+  const box = new Float64Array(6),
+    o = new Float64Array(3);
+  let seed = 422;
+  const next = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+  let widest = 0;
+  for (let trial = 0; trial < 300; trial++) {
+    const x0 = next() * 400 - 200,
+      z0 = next() * 400 - 200,
+      w = next() ** 3 * 40,
+      d = next() ** 3 * 40;
+    waves.displacementBox(x0, z0, x0 + w, z0 + d, box);
+    for (let s = 0; s < 400; s++) {
+      waves.offset(x0 + next() * w, z0 + next() * d, o);
+      for (let c = 0; c < 3; c++)
+        assert.ok(o[c] >= box[c] - 1e-12 && o[c] <= box[c + 3] + 1e-12, `${trial} axis ${c}`);
+    }
+    widest = Math.max(widest, box[4] - box[1]);
+  }
+  // No wider than the crest's span, which bounds every box.
+  assert.ok(widest <= 2 * waves.crest + 1e-12);
+  // A rectangle of no width is its point's displacement.
+  waves.displacementBox(3, -7, 3, -7, box);
+  waves.offset(3, -7, o);
+  for (let c = 0; c < 3; c++) {
+    assert.ok(Math.abs(box[c] - o[c]) < 1e-12 && Math.abs(box[c + 3] - o[c]) < 1e-12);
+  }
+});

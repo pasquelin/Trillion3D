@@ -1,4 +1,5 @@
 import { bumpResources, bumpScene, bumpView, createFrameRevisions } from './revisions.ts';
+import { trackViewCamera } from './viewCamera.ts';
 import { createViewHold, type ViewHold } from './viewRevision.ts';
 import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts';
 import {
@@ -40,15 +41,15 @@ export function createFrameGateCore(holdValues: number) {
     hostPosesOwed = false;
   const gate = {
     revisions,
+    /** Discontinuities belong to this view; continuous motion preserves image history. */
+    get temporalRevision() {
+      return own.temporalRevision;
+    },
     /** The drawn view's held-frame witness: each view keeps its own (`useViewHold`). */
     get hold() {
       return own.hold;
     },
-    /**
-     * Gives the gate `next`'s hold, a fresh one when it has none yet, and returns the one it held:
-     * the hold half of a view switch. The view revision travels with it; scene and resources stay
-     * shared, so what moves them reaches every view, and drawing a view resets no other's hold.
-     */
+    /** Switches this view's hold and revision; scene/resources remain shared across all views. */
     useViewHold(next: ViewHold | undefined) {
       const from = own;
       from.view = revisions.view;
@@ -56,8 +57,7 @@ export function createFrameGateCore(holdValues: number) {
       revisions.view = own.view;
       return from;
     },
-    /** Engine camera of the current frame, as `enterFrame` has just copied it: the drawn view's,
-     *  which a view switch replaces (`../webgpu/pages/state/viewSwitch.ts`). */
+    /** Copied engine camera of the drawn view (`../webgpu/pages/state/viewSwitch.ts`). */
     cam,
     /** Quality threshold `enterFrame` has just resolved for the current frame. */
     get pixelError() {
@@ -110,7 +110,8 @@ export function createFrameGateCore(holdValues: number) {
      * Declares the scene changed when the host wrote the source nodes directly — a pose, a
      * visibility, a light — without going through the engine. Call BEFORE `held()`: without
      * that the frame would be held on a stale scene. Nothing is walked up here: a pose write
-     * incremented the watch's revision itself, and the other fields are a few values per node.
+     * incremented the watch's revision itself, and the other fields are read only once the
+     * engine's write count moved — a still frame compares two pairs of integers.
      *
      * The watched node list is rebuilt after a scene change that may have reshaped it — one more
      * instance, a light set after the fact, a node reparented or a light retargeted by the host
@@ -130,9 +131,10 @@ export function createFrameGateCore(holdValues: number) {
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => own.hold.stable && own.hold.same(revisions),
-    /** Walks the hierarchy once per scene revision; returns true when it did. A frame nothing
-     *  has touched walks nothing: `readScene` is what knows if nothing moved. What is walked is
-     *  the engine index: the host scene is neither read nor written. */
+    /** Once per scene revision no engine move already took, brings the world matrices up to date
+     *  (the transform tree's pass, which walks only what was written since the last) and returns
+     *  true: a host write, whose moved nodes nobody named, is owed a whole rewrite of the rows. A
+     *  frame nothing announced runs no pass: what is listed waits for the next. */
     updateWorlds(worlds: HostWorldPlacements) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
@@ -144,19 +146,15 @@ export function createFrameGateCore(holdValues: number) {
      * To call before the engine writes a pose of its own, and before it announces the move: the
      * move settles the watch, so a host pose write still unread in the same task would be taken
      * as the engine's, and the roots it moved never named — their rows would keep the old world.
-     * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
-     * which walks the index and reports it, exactly as after a host write alone. One comparison
-     * of two integers when the host wrote nothing, which is every image a model moves.
-     * True when a pass on the moved subtree alone may not be exact: such a write is owed, one the
-     * scan reported is unread by any world pass, or the watch does not hook the current scene yet
-     * (first image, reshape), so a write went unseen.
+     * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next image its
+     * whole rewrite of the rows, exactly as after a host write alone. One comparison of two
+     * integers when the host wrote nothing, which is every image a model moves.
      */
     engineWriting() {
       if (sceneWatch.pending()) hostPosesOwed = true;
-      return hostPosesOwed || watchRevision !== revisions.scene;
     },
-    /** The hierarchy already carries the current revision's matrices: written by whoever just
-     *  walked them itself, on the only subtree it moved — unless a host write is owed. */
+    /** The rows already carry the current revision's matrices: written by the engine's own move,
+     *  on the only roots it moved — unless a host write is owed. */
     noteWorldsUpdated() {
       if (!hostPosesOwed) worldsRevision = revisions.scene;
     },
@@ -190,6 +188,8 @@ export function createFrameGateCore(holdValues: number) {
       aspect?: number,
     ) {
       readCameraWorld(gate.cam, camera, aspect);
+      if (trackViewCamera(own, camera, gate.cam, viewport?.[0] ?? -1, viewport?.[1] ?? -1))
+        bumpView(revisions);
       pixelError = resolvePixelError(context, gate.cam, motion);
       gate.viewChanged(gate.cam, viewport, pixelError);
       gate.readScene(source, drawn);

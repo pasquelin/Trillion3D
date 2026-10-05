@@ -16,7 +16,7 @@ import { sceneDocument } from '../../scene/tables.ts';
 import { bakedImages } from '../../texture/skip.ts';
 import type { HostTexture } from '../resources.ts';
 import { preparedGeometries } from './geometry.ts';
-import { preparedGraph } from './graph.ts';
+import { clothPrimitives, preparedGraph } from './graph.ts';
 import { preparedImages } from './images.ts';
 import { preparedMaterials } from './materials.ts';
 import { preparedTextures, type TextureRanks } from './textures.ts';
@@ -38,6 +38,9 @@ type Inputs = {
   track: <T>(resource: string, read: Promise<T>) => Promise<T>;
   /** Counts the bytes of each file read as they arrive; unset, nothing counts them. */
   meter?: ByteMeter;
+  /** Settles once `metadata.primitives` lists every primitive the scene draws: its mesh pages
+   *  held (#751); unset, the manifest was read whole. */
+  listed?: Promise<unknown>;
 };
 
 /** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
@@ -79,6 +82,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     ...(sceneFile === SOURCE_FILE ? {} : pagedSource(tables, base)),
     geometryOf: preparedGeometries(document, binary),
     materialOf: preparedMaterials(tables.materials, slot),
+    clothOf: clothPrimitives(metadata, inputs.listed ?? Promise.resolve()),
   }).finally(() => {
     building = false;
   });

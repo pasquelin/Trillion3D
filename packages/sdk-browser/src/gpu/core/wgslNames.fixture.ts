@@ -7,28 +7,28 @@
  * only: a member a structure lacks, a wrong type or a name declared twice passes it.
  */
 
-/** WGSL's own words: keywords, types, address spaces, access modes, texel formats, built-in
- *  functions. The only names a shader uses without declaring them. */
+/** WGSL's own words: keywords, the phony assignment's `_`, types, address spaces, access modes,
+ *  texel formats, built-in functions. The only names a shader uses without declaring them. */
 const WGSL_OWN = new Set(
   (
-    'alias array atomic bitcast bool break case const continue continuing default diagnostic ' +
+    '_ alias array atomic bitcast bool break case const continue continuing default diagnostic ' +
     'discard else enable f16 f32 false fn for function i32 if let loop mat2x2f mat3x3f mat3x4f mat4x4f ' +
     'override private ptr read read_write return sampler sampler_comparison storage struct ' +
     'switch true u32 uniform var vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
     'vec4u while workgroup write ' +
     'texture_2d texture_2d_array texture_3d texture_cube texture_depth_2d texture_depth_2d_array ' +
     'texture_storage_2d texture_storage_2d_array texture_multisampled_2d ' +
-    'r32float r32uint rg32float rgba8unorm rgba16float rgba32float rgba32uint ' +
-    'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicLoad ' +
+    'r32float r32uint rg32float rg32uint rgba8unorm rgba16float rgba32float rgba32uint ' +
+    'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicExchange atomicLoad ' +
     'atomicMax atomicMin atomicOr atomicStore atomicSub ceil clamp cos countLeadingZeros countOneBits cross ' +
     'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit firstTrailingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
-    'pack2x16float pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
-    'sign sin smoothstep sqrt step storageBarrier subgroupAny subgroupBroadcastFirst subgroupElect ' +
-    'subgroupMax subgroupMin tan tanh textureDimensions textureGather textureGatherCompare textureLoad ' +
-    'textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
+    'pack2x16float pack2x16snorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
+    'sign sin smoothstep sqrt step storageBarrier subgroupAny subgroupBallot subgroupBroadcastFirst ' +
+    'subgroupElect subgroupMax subgroupMin tan tanh textureDimensions textureGather textureGatherCompare ' +
+    'textureLoad textureNumLayers textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
-    'trunc unpack2x16float unpack4x8unorm workgroupBarrier workgroupUniformLoad'
+    'trunc unpack2x16float unpack2x16snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
 );
 
@@ -56,4 +56,63 @@ export function unresolvedNames(source: string) {
   const declared = declaredNames(code);
   const used = new Set([...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)/g)].map((m) => m[1]));
   return [...used].filter((name) => !declared.has(name) && !WGSL_OWN.has(name)).sort();
+}
+
+/** The words WGSL reserves for later use, which no name may be: a device refuses a module that
+ *  names one. */
+const WGSL_RESERVED = new Set(
+  (
+    'abstract active alignas alignof as asm asm_fragment async attribute auto await become cast ' +
+    'catch class co_await co_return co_yield coherent column_major common compile ' +
+    'compile_fragment concept const_cast consteval constexpr constinit crate debugger decltype ' +
+    'delete demote demote_to_helper do dynamic_cast enum explicit export extends extern ' +
+    'external fallthrough filter final finally friend from fxgroup get goto groupshared highp ' +
+    'impl implements import inline instanceof interface layout lowp macro macro_rules match ' +
+    'mediump meta mod module move mut mutable namespace new nil noexcept noinline ' +
+    'nointerpolation non_coherent noncoherent noperspective null nullptr of operator package ' +
+    'packoffset partition pass patch pixelfragment precise precision premerge priv protected ' +
+    'pub public readonly ref regardless register reinterpret_cast require resource restrict ' +
+    'self set shared sizeof smooth snorm static static_assert static_cast std subroutine super ' +
+    'target template this thread_local throw trait try type typedef typeid typename typeof ' +
+    'union unless unorm unsafe unsized use using varying virtual volatile wgsl where with ' +
+    'writeonly yield'
+  ).split(/\s+/),
+);
+
+/** The reserved words (`WGSL_RESERVED`) `source` takes as names, sorted: a device refuses the
+ *  module (`'from' is a reserved keyword`). Comments, directives and the arguments of built-in,
+ *  interpolation and diagnostic attributes are no names; a member after a dot is one. */
+export function reservedNames(source: string) {
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+    .replace(/\b(?:enable|requires)\s[^;]*;|^diagnostic\s*\([^()]*\);/gm, '')
+    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '');
+  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]));
+  return [...names].filter((name) => WGSL_RESERVED.has(name)).sort();
+}
+
+/** The words GLSL ES 3.00 reserves for future use, which a WebGL2 shader may not name: a compiler
+ *  refuses a shader that uses one. */
+const GLSL_ES_RESERVED = new Set(
+  (
+    'attribute varying coherent volatile restrict readonly writeonly resource atomic_uint ' +
+    'noperspective patch sample subroutine common partition active asm class union enum typedef ' +
+    'template this goto inline noinline public static extern external interface long short double ' +
+    'half fixed unsigned superp input output hvec2 hvec3 hvec4 dvec2 dvec3 dvec4 fvec2 fvec3 fvec4 ' +
+    'sampler3DRect filter image1D image2D image3D imageCube iimage1D iimage2D iimage3D iimageCube ' +
+    'uimage1D uimage2D uimage3D uimageCube image1DArray image2DArray iimage1DArray iimage2DArray ' +
+    'uimage1DArray uimage2DArray imageBuffer iimageBuffer uimageBuffer sampler1D sampler1DShadow ' +
+    'sampler1DArray sampler1DArrayShadow isampler1D isampler1DArray usampler1D usampler1DArray ' +
+    'sampler2DRect sampler2DRectShadow isampler2DRect usampler2DRect samplerBuffer isamplerBuffer ' +
+    'usamplerBuffer sampler2DMS isampler2DMS usampler2DMS sampler2DMSArray isampler2DMSArray ' +
+    'usampler2DMSArray sizeof cast namespace using'
+  ).split(/\s+/),
+);
+
+/** The reserved words (`GLSL_ES_RESERVED`) a GLSL text takes as names, sorted; comments and
+ *  preprocessor lines are none. */
+export function glslReservedNames(source: string) {
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|^\s*#.*$/gm, '');
+  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]));
+  return [...names].filter((name) => GLSL_ES_RESERVED.has(name)).sort();
 }

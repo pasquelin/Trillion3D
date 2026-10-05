@@ -1,5 +1,6 @@
 import { frustumExcludesBox } from '../../math/frustum/box.ts';
 import { frustumPlanesFromMatrix } from '../../math/frustum/frustum.ts';
+import { slabCut } from '../../math/primitives/slab.ts';
 import { Vector3 } from './vector3.ts';
 import type { Box3 } from './box3.ts';
 import type { Matrix4 } from './matrix4.ts';
@@ -79,6 +80,9 @@ export class Plane {
   }
 }
 
+/** The span of `t` a box test cuts (`slabCut`). */
+const span = new Float64Array(2);
+
 /** A half-line: origin and unit direction. */
 export class Ray {
   /** Always `true`: tells a ray apart from anything else. */
@@ -110,18 +114,12 @@ export class Ray {
   }
   /** Slab test; the entry point, or null when the ray misses the box. */
   intersectBox(box: Box3, out = new Vector3()) {
-    let near = -Infinity,
-      far = Infinity;
-    for (const axis of ['x', 'y', 'z'] as const) {
-      const inverse = 1 / this.direction[axis];
-      let t0 = (box.min[axis] - this.origin[axis]) * inverse,
-        t1 = (box.max[axis] - this.origin[axis]) * inverse;
-      if (t0 > t1) [t0, t1] = [t1, t0];
-      near = Math.max(near, t0);
-      far = Math.min(far, t1);
-    }
-    if (far < Math.max(near, 0)) return null;
-    return this.at(near >= 0 ? near : far, out);
+    const o = this.origin.elements,
+      d = this.direction.elements;
+    span[0] = -Infinity;
+    span[1] = Infinity;
+    if (!slabCut(span, box.min.elements, 0, box.max.elements, 0, o, d) || span[1] < 0) return null;
+    return this.at(span[0] >= 0 ? span[0] : span[1], out);
   }
   /** A new ray with the same start and direction. */
   clone() {

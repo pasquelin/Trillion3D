@@ -17,7 +17,7 @@ const file = { formatVersion: read[0], jolt: JOLT_COMMIT, colliders: [], instanc
 /** A version that is none of those read. */
 const unread = Math.max(...read) + 1;
 
-test('physics.json of each format read, cooked by this Jolt, is read as it is', () => {
+test('physics.json of each format read, cooked by this build, is read as it is', () => {
   for (const formatVersion of read) {
     const later = { ...file, formatVersion, softBodies: [], bodies: [] };
     assert.equal(readCookedPhysics(later), later, `format ${formatVersion}, pieces carried`);
@@ -44,7 +44,7 @@ test('another format, or none, is refused naming the version found and, one by o
   }
 });
 
-test('shapes cooked by another Jolt are refused naming both builds', () => {
+test('shapes cooked by another build are refused naming both builds', () => {
   for (const jolt of [undefined, '', '0'.repeat(40)])
     refuses(() => readCookedPhysics({ ...file, jolt }), 'PHYSICS_FORMAT', { jolt: jolt ?? null }, [
       String(jolt),

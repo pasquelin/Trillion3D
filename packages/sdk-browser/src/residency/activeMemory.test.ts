@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { geometryPoolFor } from './pools.ts';
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+  geometryPoolFor,
+} from './pools.ts';
 import { laneCounts, poolEncoding } from '../texture/blockFormats.ts';
 import { TILES_PER_LAYER } from '../texture/tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
-import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
+import { DEFAULT_CPU_BUDGET, defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts';
 import type { ActiveGpuMemory } from './activeMemory.ts';
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts';
@@ -34,7 +38,9 @@ const textureMinimum = texturePoolFor(
 ).allocatedBytes;
 const full: ActiveGpuMemory = {
   frameTargets: 1274573696,
+  frameShare: 1274573696,
   shadowPool: SHADOW_POOL_BYTES,
+  shadowReserve: 0,
   bounceProbes: BOUNCE_PROBE_BYTES,
   effectTargets: 22112160,
   geometryMinimum,
@@ -82,6 +88,33 @@ test('full 4K reservations expose the concrete tail-fixture shortfall instead of
     withoutHistory,
   );
   assert.ok(prior.texturePool >= textureMinimum);
+});
+
+test('the default total of those 4K reservations funds them, each pool at its default', () => {
+  const split = splitMemoryBudget(
+    defaultGpuBudget(undefined, full),
+    DEFAULT_CPU_BUDGET,
+    undefined,
+    full,
+  );
+  assert.equal(split.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET);
+  assert.equal(split.texturePool, DEFAULT_TEXTURE_POOL_BUDGET);
+});
+
+test("shadows still to be made take the pools' room, never under their floors", () => {
+  const active = { ...full, shadowPool: 0, effectTargets: 0, bounceProbes: 0 };
+  const total = active.frameTargets + geometryMinimum + textureMinimum + 64 * 2 ** 20;
+  const free = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, active);
+  const reserved = { ...active, shadowReserve: 16 * 2 ** 20 };
+  const less = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, reserved);
+  assert.equal(
+    free.geometryPool + free.texturePool - less.geometryPool - less.texturePool,
+    16 * 2 ** 20,
+  );
+  // More than the room: the pools at their floors, the frame never refused for it.
+  const short = { ...active, shadowReserve: 2 ** 30 };
+  const floors = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, short);
+  assert.deepEqual([floors.geometryPool, floors.texturePool], [geometryMinimum, textureMinimum]);
 });
 
 test('invalid reservations cannot create artificial space in the global budget', () => {

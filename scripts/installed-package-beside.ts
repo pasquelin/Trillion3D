@@ -19,11 +19,12 @@ export const PHYSICS_RULE: BesideRule = {
   beside: ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'],
 };
 
-/** The engine's modules, each fetched beside the chunk that names it: the page decoder's, and
- *  the physics'. */
+/** The engine's modules, each fetched beside the chunk that names it: the page decoder's, the
+ *  physics', and the animation worker the sampler starts (`besideModule('animationWorker', …)`). */
 const BESIDE_RULES: BesideRule[] = [
   { marker: 'pageCodec.wasm', beside: ['pageCodec.wasm'] },
   PHYSICS_RULE,
+  { marker: 'animationWorker', beside: ['animationWorker.js'] },
 ];
 
 /** Every rule's module found missing beside a chunk that names it, as one line each; a rule no

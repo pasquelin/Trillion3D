@@ -51,7 +51,7 @@ coat=vec3(0.0);vec3 C=positionRange.xyz,U=axis.xyz,W=normalize(cross(U,n))*axis.
 float window=rangeWindow(length(C-P),positionRange.w);
 vec3 a=C-U-W-P,b=C+U-W-P,c=C+U+W-P,d=C-U+W-P;vec4 F=polygonFormFactor(a,b,c,d,N);float E=colorIntensity.w*PI*F.w*window;
 if(physicalRead.z>0.0)coat=physicalRead.z*rectSpecular(a,b,c,d,coatNormal,V,vec3(0.04),physicalRead.w,0.0)*colorIntensity.w*window*colorIntensity.rgb;
-vec3 through=thinSubsurface*polygonFormFactor(a,b,c,d,-N).w*window*colorIntensity.w*colorIntensity.rgb;if(E<=0.0)return through;
+vec3 through=any(notEqual(thinSubsurface,vec3(0.0)))?thinSubsurface*polygonFormFactor(a,b,c,d,-N).w*window*colorIntensity.w*colorIntensity.rgb:vec3(0.0);if(E<=0.0)return through;
 if(surfaceModel==${SURFACE_MODEL.diffuse})return through+modelLight(base,metal,N,N,E,ao)*colorIntensity.rgb;
 if(surfaceModel==${SURFACE_MODEL.toon})return through+modelLight(base,metal,N,F.xyz,colorIntensity.w*PI*polygonFormFactor(a,b,c,d,F.xyz).w*window,ao)*colorIntensity.rgb;
 vec3 f0=mix(vec3(0.04),base,metal);

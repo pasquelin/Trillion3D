@@ -35,6 +35,22 @@ test('a value between two neighbouring halves is stored as the nearer one, on ei
   assert.deepEqual(wrong, []);
 });
 
+test('a value halfway between two halves takes the even one, a NaN stays a NaN', () => {
+  // Every float32 against IEEE 754 binary16 (`Float16Array`): 0 differences but NaN payloads.
+  const one = 0x3c00,
+    step = 2 ** -10;
+  assert.equal(toHalf(1 + step / 2), one, 'tie below an odd half: down to even');
+  assert.equal(toHalf(1 + (3 * step) / 2), one + 2, 'tie below an even half: up to even');
+  assert.equal(toHalf(-(1 + (3 * step) / 2)), (one + 2) | toHalf(-0));
+  assert.equal(toHalf(2 ** -25), 0, 'half the smallest half: down to zero');
+  assert.equal(toHalf(3 * 2 ** -25), 2, 'one and a half smallest halves: up to two');
+  assert.equal(toHalf(65520), HALF_INFINITY, 'halfway past the largest half: infinity');
+  // A float64 just off a tie that float32 rounds onto it: the side it lies on decides.
+  assert.equal(toHalf(1 + (3 * step) / 2 - 2 ** -40), one + 1);
+  assert.equal(toHalf(1 + step / 2 + 2 ** -40), one + 1);
+  assert.equal(toHalf(NaN), 0x7e00);
+});
+
 test('values past the largest half store as infinity and values far below the smallest as zero', () => {
   const largest = fromHalf(HALF_INFINITY - 1);
   for (const value of [largest * 2, largest * 1e3, Number.MAX_VALUE, Infinity]) {

@@ -73,8 +73,6 @@ export const VIEW_GPU_KEYS = [
 export const VIEW_VIS_KEYS = [
   'visTexture',
   'visView',
-  'materialDepthTexture',
-  'materialDepthView',
   'gpuRaster',
 ] as const satisfies readonly (keyof WebgpuVisState)[];
 

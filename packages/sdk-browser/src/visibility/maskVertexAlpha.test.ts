@@ -1,19 +1,20 @@
-// #347: the reference multiplies the diffuse alpha by the vertex colour's before its alpha test,
+// #347: the diffuse alpha is multiplied by the vertex colour's before the alpha test,
 // so a masked surface that reads its vertex colours is cut at base map alpha × vertex alpha. The
 // rasters did read the base map alone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { rasterVisibilityIds, unpackVisibilityId, VIS_SHADER } from './buffer.ts';
+import { VIS_SHADER } from './buffer.ts';
 import { camera, centerId, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './shader/pageGeometryWgsl.ts';
 import { rasterSource } from '../gpu/raster/shader.ts';
-import { SHADOW_DEPTH_SHADER } from '../gpu/shadow/shader.ts';
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
 function covered(options: {
@@ -92,7 +93,6 @@ test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shad
   assert.ok(small.includes('if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}'));
   assert.ok(small.includes('uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,'));
   assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'));
-  assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy)'));
 });
 
 test('WebGL2 cuts at the same product: vertex colour first, then the alpha test', () => {

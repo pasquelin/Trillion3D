@@ -5,12 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { rasterDepth, rasterVisibility } from './raster.ts';
+import { rasterDepth } from './raster.ts';
 import { camera, quadPages } from './buffer.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../camera/depthConvention.ts';
+import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 const SIZE: [number, number] = [32, 32];
 const cam = readCameraWorld(createEngineCamera(), camera());

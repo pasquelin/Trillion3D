@@ -1,4 +1,4 @@
-import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+import type { BatchPage } from './batchPage.ts';
 import { PrimitiveIndex, BatchGroup } from './batchPrimitive.ts';
 import {
   wholeMeshTriangles,
@@ -17,7 +17,7 @@ export {
   IndexRangeAllocator,
   DrawRanges,
 } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
-export type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+export type { BatchPage } from './batchPage.ts';
 
 export type ClusterBatchStats = {
   drawCalls: number;

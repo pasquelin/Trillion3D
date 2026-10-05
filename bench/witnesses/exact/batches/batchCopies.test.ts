@@ -4,7 +4,7 @@ import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixtur
 import { ClusterBatches, type ClusterDrawOwner } from './batches.ts';
 import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
 import { createHostDrawCamera } from '../../../../packages/sdk-browser/src/camera/world.ts';
-import { quad } from '../../../../tests/browser/support/webglClusterPixels.ts';
+import { quad } from './batches.fixture.ts';
 
 test('a copy of no graph is culled and drawn at its pose, the engine storage left as it is', () => {
   // The copy's matrix IS the engine's world storage (`createBlendCopy`): a move rewrites it.

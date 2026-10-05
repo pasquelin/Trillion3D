@@ -2,6 +2,7 @@ import { aimOf, isLightNode } from '../graph/kinds.ts';
 import type { WriteRevision } from './hookCore.ts';
 import { hookHostNode, unhookHostNode } from './hooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
+import { nodeWrites } from '../../../../sdk-core/src/scene/core/nodeEdits.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
@@ -47,9 +48,11 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
  * revisions would show a stale scene. What announces a POSE is the write itself: the position,
  * scale and rotation of the watched nodes are hooked (`hooks.ts`), and a write of
  * another value increments this watch's revision at that instant. The rest — visibility, parent,
- * a matrix set by hand, a light's numbers — are the node's own data fields, which the reference
- * writes on its walk and which no hook may touch without slowing that walk: they are compared
- * per frame, a few values per node (`scan.ts`).
+ * a matrix set by hand, a light's numbers and colours — are counted by the engine as they are
+ * written (`nodeWrites`): while that count stands, nothing is read; once it moves, the watched
+ * nodes are compared to what was last read (`scan.ts`), so a write of the value already held is
+ * still nothing. Numbers written straight into an array or a colour the node handed out are
+ * counted once announced: `matrixWorldNeedsUpdate = true`, a light's `needsUpdate = true`.
  *
  * What is watched is bounded twice. By SOURCE NODES first: a drawn entry names the node it
  * comes from, and several entries of the same node hook it once. By the LOCAL pose next: an
@@ -62,7 +65,9 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
 export function createHostSceneWatch() {
   const mark: WriteRevision = { revision: 1 };
   let watched: NodeState[] = [],
-    seen = 0;
+    seen = 0,
+    // The engine's write count the watched nodes were last read under.
+    writesRead = -1;
   return {
     /**
      * Sets the list of watched nodes: the source models of what the engine draws, the lights,
@@ -88,17 +93,22 @@ export function createHostSceneWatch() {
         hookHostNode(node, mark);
         watched.push(snapshot(node));
       }
+      writesRead = nodeWrites();
     },
-    /** Takes what the host wrote since the previous read: one integer for the hooked poses,
-     *  and the scan of the other fields. `reshaped` says the list is to be rebuilt. */
+    /** Takes what the host wrote since the previous read: one integer for the hooked poses, one
+     *  for the other fields, and the scan of those fields only when their count moved. The count
+     *  is read after the scan: a matrix the scan takes into the tree counts as a write of its own.
+     *  `reshaped` says the list is to be rebuilt. */
     take(): WatchVerdict {
       let verdict: WatchVerdict = seen === mark.revision ? 0 : 'moved';
       seen = mark.revision;
+      if (nodeWrites() === writesRead) return verdict;
       for (let i = 0; i < watched.length; i++) {
         const scanned = scan(watched[i]);
         if (scanned === 'reshaped') verdict = scanned;
         else if (scanned && !verdict) verdict = scanned;
       }
+      writesRead = nodeWrites();
       return verdict;
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing

@@ -22,7 +22,7 @@ const softHeads = (words: Uint32Array) =>
 /** A step's events as a set: `motion` holds what was sent, not the order it was sent in, so it is
  *  order-independent by design. Sorted for hashing alone — the accepted route (boss's yes,
  *  29 Sept.): these states match `develop`'s poses, soft words and event set, not its event order,
- *  which Jolt's own callback order decided and no public API exposes (#934). */
+ *  which the module's own callback order decided and no public API exposes (#934). */
 function sortedEvents(words: Uint32Array) {
   const rows = Array.from({ length: words.length / EVENT_WORDS }, (_, r) =>
     words.subarray(r * EVENT_WORDS, (r + 1) * EVENT_WORDS),
@@ -43,7 +43,7 @@ function sortedEvents(words: Uint32Array) {
  * of its poses, its events in the order the engine sent them and whole soft words.
  * `motion` proves the poses, the soft words and the event set equal `develop`'s, not its event
  * order: the canonical order of the records the threads merge is the accepted route (boss's yes,
- * 29 Sept.), Jolt's own callback order being unreachable through the public API (#934). Two modules
+ * 29 Sept.), the module's own callback order being unreachable through the public API (#934). Two modules
  * that simulate the scene alike give the same `motion`; `full` also holds the written-back vertices
  * bit for bit, which a change of their rounding alone moves (#975).
  */

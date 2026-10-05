@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 16;
+export const PHYSICS_LAYOUT_VERSION = 18;
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -76,7 +76,7 @@ export const HIT_WORDS = 8;
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
 export const MISS = 0xffffffff;
 
-/** Joint kinds of the JOINT command, each one of Jolt's two-body constraints. */
+/** Joint kinds of the JOINT command, each one of the module's two-body constraints. */
 export const JOINT = {
   fixed: 0,
   point: 1,
@@ -133,7 +133,7 @@ export const GENERATIONS = 128;
  */
 export const ADD_WORDS = 25;
 /** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
- *  body that sets none (Jolt's). */
+ *  body that sets none (the module's). */
 export const DAMPING = 0.05;
 
 /**

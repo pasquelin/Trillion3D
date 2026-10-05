@@ -3,7 +3,7 @@ import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts';
 import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts';
 
 /**
- * THE LIGHT GRID (#1369), the reference engine's: cells of `tileSize` pixels across and `gridSlices` slices of
+ * THE LIGHT GRID (#1369): cells of `tileSize` pixels across and `gridSlices` slices of
  * depth, a doubling of the view depth every `gridSlicesPerOctave` slices, each listing the lights
  * whose range meets it, and each pixel walking the list of the cell its depth falls in. The lights
  * are culled once per image against the cells' own bounds — never against the depths the image
@@ -34,7 +34,8 @@ var<workgroup> lightCount:u32;
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
  let column=gridColumn(cell.xy);
  if(lane==0u){lightCount=lights.count;cached=0u;resume=ALL_CACHED;}
- if(lane<2u){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);}
+ if(lane<2u){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
+ chunk[lane]=vec2u(0u,EMPTY_RUN);
  for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
   counts[slice]=0u;atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
  }
@@ -56,15 +57,19 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   }
   workgroupBarrier();
  }
- if(lane==0u){takeRoom();if(resume==ALL_CACHED){resume=count;}}
+ let span=laneRun(lane,GRID_SLICES);
+ let before=roomBefore(lane,span);
+ if(lane==0u){takeRoom();walked.y=cached;walked.z=select(resume,count,resume==ALL_CACHED);}
+ let walk=workgroupUniformLoad(&walked);
+ dealRoom(span,before,walk.w);
  workgroupBarrier();
  let base=(cell.y*u32(view.viewport.z)+cell.x)*GRID_SLICES*TILE_STRIDE;
  for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
   tiles[base+slice*TILE_STRIDE]=counts[slice];tiles[base+slice*TILE_STRIDE+1u]=cursor[slice];
  }
- if(workgroupUniformLoad(&room)==0u){return;}
+ if(walk.x==0u){return;}
  // Second walk: the cached runs, then the lights past them tested again, written slice by slice.
- let held=workgroupUniformLoad(&cached);
+ let held=walk.y;
  for(var at=0u;at<held;at+=LANES){
   var entry=vec2u(0u,EMPTY_RUN);
   if(at+lane<held){entry=cache[at+lane];}
@@ -73,7 +78,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   writeSlices(lane);
   workgroupBarrier();
  }
- for(var first=workgroupUniformLoad(&resume);first<count;first+=LANES){
+ for(var first=walk.z;first<count;first+=LANES){
   var entry=vec2u(first+lane,EMPTY_RUN);
   if(first+lane<count){entry=entryOf(column,first+lane);}
   markEntry(lane,entry);

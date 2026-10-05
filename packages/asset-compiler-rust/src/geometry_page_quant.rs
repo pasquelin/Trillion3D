@@ -79,12 +79,9 @@ fn quantize_cells<const N: usize>(
     let mut hi = [f64::NEG_INFINITY; N];
     let grid: Vec<[f64; N]> = (0..count)
         .map(|i| {
-            std::array::from_fn(|c| {
-                let cell = (f64::from(values[i * N + c]) / step).round();
-                lo[c] = lo[c].min(cell);
-                hi[c] = hi[c].max(cell);
-                cell
-            })
+            let cell = std::array::from_fn(|c| (f64::from(values[i * N + c]) / step).round());
+            crate::shared_math::extend_aabb(&mut lo, &mut hi, cell);
+            cell
         })
         .collect();
     let range = |c: usize| hi[c] - lo[c];
@@ -148,8 +145,8 @@ fn worst_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u3
 }
 
 /// Octahedral encoding of a normal into two bytes, `x` low and `y` high. Of the four roundings
-/// of the projected point, the one that decodes closest to the source is kept: the "precise"
-/// variant of the survey the format follows. A zero normal has no direction and takes `+z`.
+/// of the projected point, the one that decodes closest to the source is kept: the best of the four
+/// neighbouring cells, not the plain rounding. A zero normal has no direction and takes `+z`.
 pub fn oct_encode(normal: [f32; 3]) -> u32 {
     let [x, y, z] = normal;
     let sum = x.abs() + y.abs() + z.abs();

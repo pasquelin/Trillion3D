@@ -1,8 +1,8 @@
-//! The smallest ball enclosing a set of points, by Welzl's algorithm in its iterative form: one
-//! nested scan per support point, over a deterministic shuffle of the points (expected linear
-//! time, the same result on every host). The normal cone (`normal_cone.rs`) takes the ball of the
-//! unit face normals; it is the one smallest-ball solver, beside the box-centred sphere of
-//! `asset-compiler-rust/src/dag/bounds.rs`.
+//! The smallest ball enclosing a set of points, by randomised incremental construction in its
+//! iterative form: one nested scan per support point, over a deterministic shuffle of the points
+//! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
+//! takes the ball of the unit face normals; it is the one smallest-ball solver, beside the
+//! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`.
 use crate::vec3::{add, cross, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
@@ -12,10 +12,21 @@ pub type Ball = ([f64; 3], f64);
 /// inside despite the rounding of the circumcentre.
 const SLACK: f64 = 1e-12;
 
-/// Squared distances: no square root in the solver's innermost test.
-fn contains(ball: &Ball, p: [f64; 3]) -> bool {
-    let (d, r) = (sub(p, ball.0), ball.1 * (1.0 + SLACK));
-    dot(d, d) <= r * r + 1e-300
+/// A ball and the squared radius its containment test compares with, slack included: computed
+/// once per ball rather than once per test, the same operations on the same radius.
+struct Held(Ball, f64);
+
+impl Held {
+    fn new(ball: Ball) -> Self {
+        let r = ball.1 * (1.0 + SLACK);
+        Self(ball, r * r + 1e-300)
+    }
+
+    /// Squared distances: no square root in the solver's innermost test.
+    fn contains(&self, p: [f64; 3]) -> bool {
+        let d = sub(p, self.0 .0);
+        dot(d, d) <= self.1
+    }
 }
 
 /// The ball of which `a` and `b` are a diameter.
@@ -70,7 +81,7 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
 }
 
 /// Reorders `points` by a Fisher–Yates shuffle driven by a xorshift seeded with their count:
-/// the order Welzl's expected time needs, and the same order on every run.
+/// the order the expected linear time needs, and the same order on every run.
 fn shuffle(points: &mut [[f64; 3]]) {
     let mut state = 0x2545_f491_4f6c_dd1du64 ^ points.len() as u64;
     for i in (1..points.len()).rev() {
@@ -91,31 +102,31 @@ pub(crate) fn xorshift(state: &mut u64) -> u64 {
 pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
     shuffle(points);
     let p = &*points;
-    let mut ball = (*p.first()?, 0.0);
+    let mut ball = Held::new((*p.first()?, 0.0));
     for i in 1..p.len() {
-        if contains(&ball, p[i]) {
+        if ball.contains(p[i]) {
             continue;
         }
-        ball = (p[i], 0.0);
+        ball = Held::new((p[i], 0.0));
         for j in 0..i {
-            if contains(&ball, p[j]) {
+            if ball.contains(p[j]) {
                 continue;
             }
-            ball = diameter(p[i], p[j]);
+            ball = Held::new(diameter(p[i], p[j]));
             for k in 0..j {
-                if contains(&ball, p[k]) {
+                if ball.contains(p[k]) {
                     continue;
                 }
-                ball = circumscribed(&[p[i], p[j], p[k]]);
+                ball = Held::new(circumscribed(&[p[i], p[j], p[k]]));
                 for l in 0..k {
-                    if !contains(&ball, p[l]) {
-                        ball = circumscribed(&[p[i], p[j], p[k], p[l]]);
+                    if !ball.contains(p[l]) {
+                        ball = Held::new(circumscribed(&[p[i], p[j], p[k], p[l]]));
                     }
                 }
             }
         }
     }
-    Some(ball)
+    Some(ball.0)
 }
 
 #[cfg(test)]

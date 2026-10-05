@@ -146,8 +146,3 @@ export function decodeManifestBinary(
     texturePreviews: decodeTexturePreviews(previews),
   } as ClusterManifest;
 }
-
-/** Thumbnails alone, without materialising the pages: what an image review needs to read. */
-export function decodeManifestPreviews(slim: SlimClusterManifest, buffer: ArrayBuffer) {
-  return decodeTexturePreviews(readManifestColumns(slim, buffer).previews);
-}

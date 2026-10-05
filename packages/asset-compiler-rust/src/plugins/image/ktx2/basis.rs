@@ -1,6 +1,5 @@
 //! Basis Universal payloads of a KTX 2.0 — ETC1S under BasisLZ supercompression, UASTC LDR
-//! 4 × 4 — transcoded to RGBA8 by the `basisu` 0.1.0 crate (Apache-2.0, `marcogomez/basisu`),
-//! a pure-Rust port of Binomial's reference transcoder, verified byte for byte against it.
+//! 4 × 4 — transcoded to RGBA8 by the pure-Rust `basisu` crate.
 //!
 //! Such a container writes `VK_FORMAT_UNDEFINED` and describes its payload in its format
 //! descriptor: it is the transcoder that rereads that descriptor, not this driver. The driver

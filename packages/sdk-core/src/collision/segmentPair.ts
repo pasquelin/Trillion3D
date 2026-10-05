@@ -4,21 +4,27 @@
 type Numbers = ArrayLike<number>;
 
 // Stryker disable next-line EqualityOperator: at 0 and at 1 both branches return the value itself.
-export const unit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
+const unit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
 
 /** The squared distance of points `a[aAt..aAt+3]` and `b[bAt..bAt+3]`. */
-export function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
+function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
   const dx = a[aAt] - b[bAt],
     dy = a[aAt + 1] - b[bAt + 1],
     dz = a[aAt + 2] - b[bAt + 2];
   return dx * dx + dy * dy + dz * dz;
 }
 
+/** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
+const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, dz: number) =>
+  (first[3] - second[0]) * dx + (first[4] - second[1]) * dy + (first[5] - second[2]) * dz;
+
 /**
  * The closest points of segments `(p, q)` and `(r, s)` — six numbers each, start then end —
  * written to `out[0..3]` (on the first) and `out[3..6]` (on the second); returns the squared
  * distance. The unconstrained optimum is clamped to the first segment, the second's parameter
- * follows, and is itself clamped with the first recomputed once: the textbook closed form.
+ * follows, and is itself clamped with the first recomputed once: the closed form of the closest points of two segments. A
+ * clamped end is written as itself, never rebuilt as `start + 1·(end − start)`, and the second's
+ * parameter against the first's end is read from that end, not from `b·1 + f`.
  */
 export function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbers) {
   const d1x = first[3] - first[0],
@@ -43,7 +49,7 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
   else {
     const denominator = a * e - b * b;
     s = denominator > 0 ? unit((b * f - c * e) / denominator) : 0;
-    t = (b * s + f) / e;
+    t = s === 1 ? endParameter(first, second, d2x, d2y, d2z) / e : (b * s + f) / e;
     // At exactly 0 or 1, `s` already is its recomputation.
     // Stryker disable EqualityOperator: t exactly 0 or 1
     if (t < 0) [t, s] = [0, unit(-c / a)];
@@ -51,8 +57,8 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
     // Stryker restore EqualityOperator
   }
   for (let k = 0; k < 3; k++) {
-    out[k] = first[k] + s * (first[3 + k] - first[k]);
-    out[3 + k] = second[k] + t * (second[3 + k] - second[k]);
+    out[k] = s === 1 ? first[3 + k] : first[k] + s * (first[3 + k] - first[k]);
+    out[3 + k] = t === 1 ? second[3 + k] : second[k] + t * (second[3 + k] - second[k]);
   }
   return squaredGap(out, 0, out, 3);
 }

@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LIGHT_SETTINGS, type SceneLight } from './contracts.ts';
+import type { SceneLight } from './contracts.ts';
 import { validateSceneLight } from './validate.ts';
 import { createSceneLightStore } from './store.ts';
-import { shadowProjection } from '../light-shadow/math.ts';
-import { writeFace } from '../light-shadow/faces.ts';
 import { baseOf, LIGHT_FIELD } from './fields.ts';
 
 const lanterne = (emitterRadius?: number): SceneLight => ({
@@ -39,62 +37,6 @@ test('a directional light has no envelope, and the contract refuses to lend it o
       }),
     /emitterRadius/,
   );
-});
-
-test("a shadow map's near plane comes only from the light's range", () => {
-  // The 30 m range setting gives the near plane recorded by the checker: 0.15 m.
-  const sans = shadowProjection(Math.PI / 2, 30).near;
-  assert.equal(
-    sans,
-    Math.max(LIGHT_SETTINGS.shadowNearMin, 30 * LIGHT_SETTINGS.shadowNearFraction),
-  );
-  assert.equal(sans, 0.15);
-});
-
-test('the shadow face keeps this near plane, whether the light declares an envelope or not', () => {
-  const matrices = new Float32Array(16);
-  const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0).near;
-  const enveloppe = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne(0.25)), 0).near;
-  assert.equal(nu, 0.15);
-  // The envelope is no longer removed by a recorded near plane — which would remove a cube, up to √3
-  // times the radius on the diagonals — but by the distance to the light centre, where
-  // shadow depth is written. The projection itself does not move by a texel.
-  assert.equal(enveloppe, nu);
-});
-
-test("the audit's diagonal point passes the projection and falls outside the sphere, a closer point falls in", () => {
-  // Reproduction of repros.mts (audit VERIFICATION_STABILISATION_5896648): light at the origin,
-  // range 30 m, emitter radius 0.20 m. Point (0.19; 0.18; 0.17) is the one the old recorded
-  // near plane rejected from the six faces; it must now be accepted by at least one of them,
-  // since the projection now depends only on range.
-  const light = validateSceneLight(lanterne(0.2));
-  const point = [0.19, 0.18, 0.17] as const;
-  const accepted = Array.from({ length: 6 }, (_, face) => {
-    const matrices = new Float32Array(16);
-    writeFace(matrices, 0, null, 0, light, face);
-    const clip = Array.from(
-      { length: 4 },
-      (_, i) =>
-        matrices[i] * point[0] +
-        matrices[4 + i] * point[1] +
-        matrices[8 + i] * point[2] +
-        matrices[12 + i],
-    );
-    return (
-      clip[3] > 0 &&
-      Math.abs(clip[0]) <= clip[3] &&
-      Math.abs(clip[1]) <= clip[3] &&
-      clip[2] >= 0 &&
-      clip[2] <= clip[3]
-    );
-  });
-  assert.ok(accepted.some(Boolean), 'the point must belong to at least one face');
-  const distance = Math.hypot(...point);
-  assert.ok(distance > 0.2, `distance ${distance} should exceed radius 0.2`);
-  assert.ok(Math.abs(distance - 0.3121) < 1e-3);
-  // A point 0.19 m from the centre, for its part, falls in the sphere: that is the fragment the
-  // shadow shader discards (`packages/sdk-browser/src/gpu/shadow/shader.ts`), not the face that still accepts it.
-  assert.ok(Math.hypot(0.19, 0, 0) < 0.2);
 });
 
 test("setting the emitter radius alone does stale the light's shadow map", () => {

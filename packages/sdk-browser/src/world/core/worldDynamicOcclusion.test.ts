@@ -1,5 +1,5 @@
 // #573: a dynamic geometry is drawn by the paged clusters' own visibility and Hi-Z: occluded behind
-// an opaque wall, and — bounded by the box its vertices never leave — never culled in front.
+// an opaque wall, and — each page bounded by its corners grown by the reach — never culled in front.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { resolveObjectURL } from 'node:buffer';
@@ -8,14 +8,14 @@ import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { postPackedBases, type PageLocations } from '../../page/selection/placements.ts';
-import { rasterVisibilityIds } from '../../visibility/buffer.ts';
 import { buildHizPyramid } from '../../hiz/depth.ts';
 import { filterUnoccluded } from '../../hiz/unoccluded.ts';
-import { visibilityDepth } from '../../hiz/depth.ts';
+import { visibilityDepth } from '../../hiz/visibilityDepth.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
 import { dynamicWorld } from './worldDynamic.fixture.ts';
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 const SIZE: [number, number] = [64, 64];
 
@@ -59,7 +59,7 @@ function keptOf({ records, locations, locationOf }: Awaited<ReturnType<typeof re
 }
 
 /** A wall at z = 0 and a dynamic sheet at `z`, drawn once. The wall's centre is off the view's:
- *  the diagonal its two triangles share, where the reference raster leaves seam pixels, runs out
+ *  the diagonal its two triangles share, where a raster leaves seam pixels, runs out
  *  of sight. */
 async function wallAndSheet(z: number) {
   const world = dynamicWorld();
@@ -84,7 +84,7 @@ test('a dynamic sheet behind an opaque wall is occluded by the Hi-Z test the pag
   assert.equal(kept.length, 0, 'every cluster of it hidden');
 });
 
-test('a dynamic sheet in front is never culled, its rewritten vertices within the box that culls it', async () => {
+test('a dynamic sheet in front is never culled, its rewritten corners within their page box grown by the reach', async () => {
   const { world, sheet, collected } = await wallAndSheet(2);
   const position = sheet.attributes.position;
   for (let frame = 0; frame < 30; frame++) {
@@ -93,11 +93,15 @@ test('a dynamic sheet in front is never culled, its rewritten vertices within th
     await world.frame();
     const { dynamic, kept } = keptOf(collected);
     assert.equal(kept.length, dynamic.length, `frame ${frame}: every cluster kept`);
+    const reach = world.reaches.at(-1)!;
     for (const rec of dynamic) {
       const drawn = rec.attributes.position.array as Float32Array;
       assert.equal(drawn[2], Math.fround(position.getZ(0)), 'the pages read the written vertices');
-      for (let i = 0; i < drawn.length; i++)
-        assert.ok(drawn[i] >= rec.min[i % 3] && drawn[i] <= rec.max[i % 3], `frame ${frame}`);
+      for (const v of rec.array)
+        for (let a = 0; a < 3; a++) {
+          const at = drawn[v * 3 + a];
+          assert.ok(at >= rec.min[a] - reach && at <= rec.max[a] + reach, `frame ${frame}`);
+        }
     }
   }
   world.end();

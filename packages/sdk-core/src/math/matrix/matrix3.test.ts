@@ -21,7 +21,7 @@ test('normalMatrix3: rank-2 singular block yields the adjugate, the arrival-plan
   // span the XZ plane: the primitive is FLATTENED there, its faces keep an area, and their
   // world normal is ±Y. The adjugate writes it column by column — b × c = (0, −2, 0),
   // c × a = (0, 1, 0), a × b = 0 — and any local normal outside the kernel lands there once
-  // normalised. The reference returned nine zeros, hence a surface with no normal at all.
+  // normalised. The former rule returned nine zeros, hence a surface with no normal at all.
   const m = Float64Array.from([1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
   const out = normalMatrix3(new Float64Array(9).fill(9), m);
   assert.deepEqual([...out], [0, -2, 0, 0, 1, 0, 0, 0, 0]);
@@ -84,7 +84,7 @@ test('normalMatrix3: a non-zero raw determinant of degenerate shape yields the a
 test('normalMatrix3: a non-finite scale yields nine zeros, like the WGSL kernel', () => {
   // Zero, infinite or NaN scale: the normalised 3×3 is worthless, the WGSL kernel then replaces its
   // adjugate with zero, and the CPU does the same. This is an ASSUMED discrepancy with the
-  // reference library, which propagated NaNs; a non-finite pose is rejected at engine entry
+  // formulas that propagated NaNs; a non-finite pose is rejected at engine entry
   // (`packages/sdk-browser/src/host/world/matrices.ts`), and nothing non-finite must go back into lighting.
   for (const m of [
     Float64Array.from([NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),

@@ -3,6 +3,7 @@ import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldControls } from './worldCamera.ts';
 import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts';
 import type { RenderScale } from '../../frame/renderScaleOption.ts';
+import type { WorldQualityOptions } from './worldQuality.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
@@ -36,10 +37,13 @@ export interface WorldOptions {
   /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
    *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
    *  (`{ min, max }`, 0.5 and 1 by default; on WebGL2, which only resamples, `min` is 1 by
-   *  default), a number fixes it. On WebGPU a still image is drawn at that scale too and rebuilt
-   *  from its jitter phases; on WebGL2 it is drawn at the maximum. Changed later by
-   *  `world.renderScale`. @defaultValue 'auto' */
+   *  default), a number fixes it. On WebGPU a still image is drawn at that scale too, the budget's,
+   *  and held once whole cycles of its jitter phases are averaged; on WebGL2 it is drawn at the
+   *  maximum. Changed later by `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale;
+  /** The quality: a preset, groups at levels of their own, the resolution (`world.quality`).
+   *  @defaultValue every group at `'max'`, today's defaults; the native resolution, dynamic */
+  quality?: WorldQualityOptions;
   /** Debug mode, a development build's tools against a shipping build: the frames are filed
    *  into the CPU step profile (`world.cpuSteps`) and the frame report only in it. It is the
    *  page's, as `?profile` in its address turns it on; `world.diagnostic.debug` switches it later.

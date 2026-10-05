@@ -27,15 +27,28 @@ interface GpuDeviceLedgerSnapshot {
 export interface GpuDeviceLedger {
   snapshot(): GpuDeviceLedgerSnapshot;
   readonly bytes: number;
-  /** Terminal admission refusal: a session cannot present a fallback that omits the resource. */
+  /** Bytes the limit still admits beside `bytes` (negative past it, none when it is not finite);
+   *  unbounded without a limit. A caller with a smaller fallback asks no more than this, and its
+   *  allocation is never refused. */
+  readonly room: number;
+  /** Terminal admission refusal: a session cannot present a fallback that omits the resource. Its
+   *  message names the refused allocation by label, beside its bytes, the bytes held and the limit. */
   readonly refusal: Error | undefined;
-  observeAdmission(check: (bytes: number) => void): () => void;
+  /** `check` admits each allocation this ledger counts, by bytes; the label names it in a refusal,
+   *  and `tentative` says the allocation is made under `tentative`: a refusal of it is no session's. */
+  observeAdmission(check: Admission): () => void;
   releaseAdmission(): void;
+  /** Runs `build` — synchronous — for a caller with a smaller fallback: an allocation past the
+   *  limit throws as ever, but the session is not refused for it (`refusal` stays as it was). */
+  tentative<T>(build: () => T): T;
   transaction(): { commit(): void; rollback(): void };
 }
 
+/** A session budget's check of one allocation (`GpuDeviceLedger.observeAdmission`). */
+type Admission = (bytes: number, label: string, tentative: boolean) => void;
+
 /** Device subset the ledger observes: what a fake test device provides. */
-export type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>;
+type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>;
 
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
 
@@ -56,22 +69,28 @@ export function installGpuDeviceLedger(
   const live = new Map<object, { label: string; bytes: number }>();
   let unknownFormats = 0,
     liveBytes = 0;
-  let refusal: Error | undefined;
-  const admissions = new Set<(bytes: number) => void>();
+  let refusal: Error | undefined,
+    tentative = 0;
+  const admissions = new Set<Admission>();
   const transactions = new Set<Set<{ destroy(): void }>>();
-  const check = (bytes: number) => {
+  // The label is the descriptor's, as the engine wrote it: a shared allocation carries its own
+  // label to every session budget it crosses, and so does a tentative one its tentativeness — made
+  // under this ledger's `tentative`, or under its base's — so no budget it crosses is refused.
+  const check = (bytes: number, label: string, held = false) => {
+    const soft = held || tentative > 0;
     const total = liveBytes + (base?.bytes ?? 0) + bytes;
     const ceiling = limit?.();
     if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
-      refusal = new Error(
-        `GPU_BUDGET_EXCEEDED: requested=${bytes}, held=${total - bytes}, limit=${ceiling}`,
+      const error = new Error(
+        `GPU_BUDGET_EXCEEDED: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}`,
       );
-      throw refusal;
+      if (!soft) refusal = error;
+      throw error;
     }
     try {
-      for (const admission of admissions) admission(bytes);
+      for (const admission of admissions) admission(bytes, label, soft);
     } catch (error) {
-      refusal = error as Error;
+      if (!soft) refusal = error as Error;
       throw error;
     }
   };
@@ -99,24 +118,31 @@ export function installGpuDeviceLedger(
   device.createTexture = (descriptor) => {
     if (counts && !counts(descriptor.label)) return createTexture(descriptor);
     const bytes = textureBytesOf(descriptor);
+    const label = descriptor.label ?? LABEL_NONE;
     if (bytes === null && (limit || admissions.size)) {
       // Notify active session budgets too; no unknown shared allocation can bypass them.
-      check(Infinity);
+      check(Infinity, label);
       refusal = new Error('GPU_BUDGET_UNKNOWN_FORMAT');
       throw refusal;
     }
-    check(bytes ?? 0);
+    check(bytes ?? 0, label);
     if (bytes === null) unknownFormats++;
-    return track(createTexture(descriptor), descriptor.label ?? LABEL_NONE, bytes ?? 0);
+    return track(createTexture(descriptor), label, bytes ?? 0);
   };
   device.createBuffer = (descriptor) => {
     if (counts && !counts(descriptor.label)) return createBuffer(descriptor);
-    check(descriptor.size);
-    return track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
+    const label = descriptor.label ?? LABEL_NONE;
+    check(descriptor.size, label);
+    return track(createBuffer(descriptor), label, descriptor.size);
   };
   const ledger: GpuDeviceLedger = {
     get bytes() {
       return liveBytes + (base?.bytes ?? 0);
+    },
+    get room() {
+      const ceiling = limit?.();
+      if (ceiling === undefined) return Infinity;
+      return Number.isFinite(ceiling) ? ceiling - ledger.bytes : 0;
     },
     get refusal() {
       return refusal ?? base?.refusal;
@@ -130,6 +156,16 @@ export function installGpuDeviceLedger(
     },
     releaseAdmission() {
       unobserve?.();
+    },
+    tentative(build) {
+      tentative++;
+      try {
+        // The base's own admissions, other sessions' limits, are tentative too: the base hands its
+        // tentativeness to every budget it checks a shared allocation against (`check`).
+        return base ? base.tentative(build) : build();
+      } finally {
+        tentative--;
+      }
     },
     transaction() {
       const resources = new Set<{ destroy(): void }>();
@@ -174,3 +210,14 @@ export function installGpuDeviceLedger(
 /** A device's ledger, or `undefined` until one is installed on it. */
 export const gpuDeviceLedgerOf = (device: LedgerDevice | undefined) =>
   device ? ledgers.get(device) : undefined;
+
+/** Bytes the device's ledger still admits (`GpuDeviceLedger.room`): unbounded without a ledger. */
+export const ledgerRoom = (device: LedgerDevice | undefined) =>
+  gpuDeviceLedgerOf(device)?.room ?? Infinity;
+
+/** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
+ *  one. */
+export const ledgerTentative = <T>(device: LedgerDevice | undefined, build: () => T): T => {
+  const ledger = gpuDeviceLedgerOf(device);
+  return ledger ? ledger.tentative(build) : build();
+};

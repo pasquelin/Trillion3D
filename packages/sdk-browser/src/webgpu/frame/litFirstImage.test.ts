@@ -4,13 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
+import { FULL_CONTRACT } from '../../lighting/deferred/contractVariants.ts';
 import { UNLIT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { declaredBlendModes } from '../blend/stagePipelines.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { litPrograms } from '../pages/prepare/contractLight.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
-import { createLightRowMap, lightRowMapPipeline } from '../../gpu/draw/lightRows.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { settledRt, surface, view } from './hold.fixture.ts';
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
@@ -29,10 +29,10 @@ function recordingDevice() {
 
 test('the lit program starts compiling with prepare, before the first frame asks for it', async () => {
   const { device, compiled } = recordingDevice();
-  const lighting = await createDeferredLighting(device, undefined, undefined, {
+  const lighting = await createDeferredLighting(device, undefined, {
     precompile: true,
     bounce: false,
-    key: { narrow: true, unshadowed: false, rectless: false },
+    key: { ...FULL_CONTRACT, narrow: true },
   });
   // No frame has asked anything: prepare alone started and awaits them.
   await lighting.litReady;
@@ -121,25 +121,6 @@ test('prepare creates its pipelines together, off the thread, never one after an
   assert.equal(started, 3, 'all three compile before any has landed');
   release();
   assert.ok((await made).pipelineNone);
-});
-
-test("the light cut's row map compiles off the thread at prepare, never at the first light cut", async () => {
-  const { device } = fakeDevice();
-  let onThread = 0;
-  const compile = device.createComputePipeline.bind(device);
-  device.createComputePipeline = (descriptor) => (onThread++, compile(descriptor));
-  // What `../pages/prepare/lights.ts` starts for a scene the GPU draws.
-  await lightRowMapPipeline(device).pipeline.prepare();
-  const map = createLightRowMap(device, device.createBuffer({ size: 64, usage: 0 }), 16, []);
-  const set: string[] = [];
-  const pass = {
-    setPipeline: (pipeline: { entryPoint: string }) => set.push(pipeline.entryPoint),
-    setBindGroup() {},
-    dispatchWorkgroups() {},
-  } as unknown as GPUComputePassEncoder;
-  map.encode(pass, 4);
-  assert.deepEqual(set, ['mapRows'], 'the first light cut maps its rows');
-  assert.equal(onThread, 0, 'with the pipeline prepare compiled');
 });
 
 test('a pipeline the device refuses off the thread is a refusal, not a throw', async () => {

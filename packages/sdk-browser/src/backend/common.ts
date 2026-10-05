@@ -1,7 +1,7 @@
 /**
  * The frame constants every engine shares: sizes, budgets, batch ceilings. Nothing here builds or
  * reads a host object, so this module names no rendering library — the host-library objects a
- * witness publishes live in `../host/scene/objects.ts`.
+ * witness publishes live in the witness library.
  */
 import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts';
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
@@ -14,7 +14,6 @@ export const DEFAULT_FOV = 55,
   DEFAULT_WIDTH = 960,
   DEFAULT_HEIGHT = 540,
   DEFAULT_PAGE_WORKERS = 32,
-  PREFETCH_BATCH = 64,
   /** Addresses a frame issues at most, taken from the head of the priority-ordered list. */
   PAGE_REQUEST_BATCH = 256,
   /** Cache pages a frame queues at most in the arrival queue. */
@@ -43,7 +42,6 @@ export const DEFAULT_FOV = 55,
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
-  PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
 /**
@@ -63,19 +61,31 @@ export const prefetchHorizonMs = (roundTripMs?: number) =>
  */
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
-/** The adapter's own limits the session's device asks for: WebGPU grants the portable defaults
- *  otherwise — a shadow pool layer is as wide as `maxTextureDimension2D` (`shadow/poolSize.ts`),
- *  a cut's tables split past one binding bind each part at once (`gpu/dag/split.ts`), and the
- *  water surface stage writes more colour bytes per sample than the default 32; an adapter below
- *  what it needs refuses the pass by name (`water-pass-refused`). */
-export const WEBGPU_REQUIRED_LIMITS = [
-  'maxTextureDimension2D',
-  'maxTextureArrayLayers',
-  'maxStorageBufferBindingSize',
-  'maxBufferSize',
-  'maxStorageBuffersPerShaderStage',
-  'maxColorAttachmentBytesPerSample',
-] as const;
+/** The adapter's own limits the session's device asks for, each up to the ceiling beside it: WebGPU
+ *  grants the portable defaults otherwise.
+ *  - `Infinity`, all the adapter offers: a virtual shadow page pool is as wide as
+ *    `maxTextureDimension2D` (`../vsm/resources.ts`), a cut's tables split past one binding bind
+ *    each part at once (`gpu/dag/split.ts`), and the water surface stage writes more colour bytes
+ *    per sample than the default 32; an adapter below what it needs refuses the pass by name
+ *    (`water-pass-refused`).
+ *  - A count, the most bindings of that kind one stage of the engine's layouts holds: the device
+ *    asks no more than it binds, and a layout that outgrows the count fails its unit test
+ *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: the opaque
+ *    resolve with bounce, 14 in its own group (`deferredLayoutEntries`) and 4 in the reflection
+ *    group (`reflections/layout.ts`), two above the default 16. */
+export const WEBGPU_REQUIRED_LIMITS = {
+  maxTextureDimension2D: Infinity,
+  maxTextureArrayLayers: Infinity,
+  maxStorageBufferBindingSize: Infinity,
+  maxBufferSize: Infinity,
+  maxStorageBuffersPerShaderStage: Infinity,
+  maxColorAttachmentBytesPerSample: Infinity,
+  // The virtual shadow maps (`../vsm/`): workgroup votes and page lists, mask storage textures.
+  maxComputeWorkgroupStorageSize: Infinity,
+  maxComputeInvocationsPerWorkgroup: Infinity,
+  maxStorageTexturesPerShaderStage: Infinity,
+  maxSampledTexturesPerShaderStage: 18,
+} as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>;
 /**
  * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its
  * name — no failure is diagnosed, nothing falls back. An `AbortError` under a live signal is a

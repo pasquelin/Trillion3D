@@ -1,11 +1,32 @@
-import { exclusiveScan, packDrawIndirect } from '../../../../sdk-core/src/index.ts';
-import { BASE_SLOTS, slotCount } from './contract.ts';
+import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts';
+
+/** Exclusive prefix scan: each value's offset, then the total. */
+function exclusiveScan(values: readonly number[]): [number[], number] {
+  const result: number[] = [];
+  let total = 0;
+  for (const v of values) {
+    result.push(total);
+    total += v;
+  }
+  return [result, total];
+}
+
+/** One WebGPU `drawIndirect` (non-indexed) command: four u32 words, 16 bytes. */
+export function packDrawIndirect(vertexCount: number, instanceCount: number): Uint32Array {
+  const fit = (value: number, name: string) => {
+    if (!Number.isInteger(value) || value < 0 || value > 0xffffffff)
+      throw new Error(`${name} is not a u32`);
+    return value;
+  };
+  return Uint32Array.of(fit(vertexCount, 'vertexCount'), fit(instanceCount, 'instanceCount'), 0, 0);
+}
 
 /** A row of the draw's page table as the CPU mirror and the tests write it (`struct DrawItem`,
  *  `contract.ts`). */
 export type DrawItem = {
   pageIndex: number;
-  bin: 0 | 1 | 2;
+  /** Face mode, plus `CULL_BINS` on a cutout row (`contract.ts`). */
+  bin: number;
   rest: 0 | 1;
   selectionIndex?: number;
   layer?: number;
@@ -16,16 +37,16 @@ type CompactResult = {
   instances: Uint32Array; // compacted pageIndex in input order
   bins: Uint32Array; // compacted bin
   rests: Uint32Array; // compacted rest flag
-  counts: number[]; // (bin + 3*rest + 6*layer)
+  counts: number[]; // (bin + HALF_SLOTS*rest + BASE_SLOTS*layer)
   indirect: Uint32Array; // one drawIndirect per slot, four u32 each
   overflow: boolean;
 };
 
-/** A slot is a cull mode, an occluder/tested half and a coplanar layer, in that order.
+/** A slot is a bin, an occluder/tested half and a coplanar layer, in that order.
  *  CPU mirror of `slotOf` (shader.ts): same product, same sum, same layer cap.
  *  Two languages, two writings; `prefixEquivalence.test.ts` opposes them. */
 function slotOf(item: DrawItem, layerSlots: number) {
-  return item.rest * 3 + item.bin + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1);
+  return item.rest * HALF_SLOTS + item.bin + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1);
 }
 
 function emptyCompact(maxVertexCount: number, overflow: boolean, slots: number): CompactResult {
@@ -42,8 +63,8 @@ function emptyCompact(maxVertexCount: number, overflow: boolean, slots: number):
   };
 }
 
-/** Stable exclusive-scan compact into the (bin + 3*rest + 6*layer) drawIndirect slots. Overflow
- *  zeros instance counts. `layerSlots` is 1 for a scene with no stacked coplanar surface. */
+/** Stable exclusive-scan compact into the (bin + HALF_SLOTS*rest + BASE_SLOTS*layer) slots.
+ *  Overflow zeros instance counts. `layerSlots` is 1 for a scene with no stacked coplanar layer. */
 export function evaluateDrawCompact(
   items: DrawItem[],
   maxVertexCount: number,

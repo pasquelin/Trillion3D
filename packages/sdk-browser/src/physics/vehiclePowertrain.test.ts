@@ -53,7 +53,7 @@ function shiftSpeed(from: number, to: number) {
 }
 
 test('shiftUpRPM: shifting up at 3,000 rpm leaves first gear at about half the speed', async () => {
-  // Half throttle: at full, the rear wheels spin in first and Jolt holds the gear to the redline.
+  // Half throttle: at full, the rear wheels spin in first and the simulation holds the gear to the redline.
   const up = async (shiftUpRPM: number) => {
     const shift = shiftSpeed(1, 2);
     await drive({ shiftUpRPM, shiftDownRPM: 1000 }, { throttle: 0.5 }, 12, shift.watch);

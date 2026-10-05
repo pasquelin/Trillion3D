@@ -55,9 +55,9 @@ test('the water pass follows the blends: frozen backdrop, surfaces, then one com
   );
   assert.deepEqual(passes[0].drawn, [0, 2], 'blends draw the two non-transmissive items');
   assert.deepEqual(passes[1].drawn, [1], 'the surface stage draws the transmissive one');
-  assert.equal(counters.copies, 2, 'the lit image, and the opaque depth the surface stage tests');
+  assert.equal(counters.copies, 1, 'the lit image; the surface pass restores the opaque depth');
   assert.equal(rt.run.blendDrawCalls, 3, 'the surface draws count as transparent draws');
-  assert.equal(rt.run.gpuDrawCalls, 4, 'plus the composite');
+  assert.equal(rt.run.gpuDrawCalls, 5, 'plus the depth restore and the composite');
 });
 
 test('water keeps the surface flags temporal antialiasing and the composition read after it', async () => {

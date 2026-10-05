@@ -37,8 +37,8 @@ const scalar = (wgsl: string) =>
     .replace(/\blet /g, 'const ');
 
 const sample = bodyOf('sampleLevelField');
-const slot = sample.match(/let slot=probeSlotWrapped\(level,(.+)\);/);
-assert.ok(slot, 'sampleLevelField reads its slot through probeSlotWrapped');
+const slot = sample.match(/let probe=probeAddress\(level,(.+)\);/);
+assert.ok(slot, 'sampleLevelField reads its probe through probeAddress');
 
 /** The shader's remainder of one axis of a corner's neighbour: `probeWrap`, then the loop. */
 const shaderRemainder = new Function(
@@ -75,7 +75,7 @@ test('sampleLevelField wraps its corner once, outside the corner loop', () => {
   const loop = sample.slice(sample.indexOf('for(var index=0u'));
   assert.equal(loop.match(/probeWrap\(/g), null);
   assert.equal(sample.match(/probeWrap\(corner\)/g)?.length, 1);
-  assert.ok(!sample.includes('probeSlot('), 'no per-corner remainder is left in sampleLevelField');
+  assert.ok(!sample.includes('probeOf('), 'no per-corner remainder is left in sampleLevelField');
 });
 
 test('the hoisted remainder is the per-cell one on every side, near zero and at random', () => {

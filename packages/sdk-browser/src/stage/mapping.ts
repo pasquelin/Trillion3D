@@ -1,11 +1,14 @@
-import type { GpuPassTimings } from '../../../sdk-core/src/index.ts';
+import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts';
 import type { StageAdd } from './profiler.ts';
+import { VSM_PASS_PREFIX } from './passLabels.ts';
 import { type GpuPassBlock, PASSES, gpuShadowPartOf } from './passTable.ts';
 
 export type { GpuPassBlock } from './passTable.ts';
 
-/** Stage of a pass, by its label. Unknown is `geometry`. */
-export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
+/** Stage of a pass, by its label: the table's, or `shadows` for a virtual shadow map pass
+ *  (`VSM_PASS_PREFIX`). Unknown is `geometry`. */
+export const gpuPassStageOf = (name: string) =>
+  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry');
 /** Block of a pass, by its label. Unknown is `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 
@@ -29,7 +32,6 @@ export const WEBGPU_STAGES = [
   'coplanar',
   'shadows',
   'shadowCasters',
-  'sunFarShadows',
   'lightLists',
   'bounce',
   'lighting',
@@ -37,35 +39,37 @@ export const WEBGPU_STAGES = [
   'present',
 ] as const;
 
-/** Stages the WebGL2 engine can name. */
-export const WEBGL_STAGES = [
-  'physics',
-  'animations',
-  'lights',
-  'hierarchyCut',
-  'selection',
-  'uploads',
-  'residency',
-  'submit',
-  'frame',
-] as const;
+/**
+ * A pass's own share of the image, ms, or `null` unmeasured: its span less what a pass the queue
+ * ran before it already covered (`ownMs`, `../gpu/timing/sample.ts`). A device that overlaps passes
+ * — a tiled GPU starts a render pass's vertex stage ahead of the work submitted before it —
+ * reports each one's whole span, so spans added up count an overlap once per pass and a stage
+ * could pass the image itself; shares add up to the time the passes cover. A timer that times one
+ * pass at a time (WebGL2) gives no share: there the span is the share.
+ */
+export const passOwnMs = (pass: GpuPassTiming) =>
+  pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs);
 
 /**
- * GPU duration of a sample by pass group, in one walk, `classify` naming each pass's
- * group. `null` for a group whose one pass has no usable duration: a partial sum would
- * pass for a measurement. A truncated or missing sample yields no group, for the same reason.
+ * GPU duration of a sample by pass group, in one walk, `classify` naming each pass's group or none
+ * (the pass is left out): the passes' own shares (`passOwnMs`), so the groups together never pass
+ * the time the timed passes cover. `null` for a group whose one pass has no usable duration: a
+ * partial sum would pass for a measurement. A truncated or missing sample yields no group, for the
+ * same reason.
  */
 export function gpuTotalsBy<Group extends string>(
   sample: GpuPassTimings | null | undefined,
-  classify: (name: string) => Group,
+  classify: (name: string) => Group | undefined,
 ) {
   const totals = new Map<Group, number | null>();
   if (!sample || sample.truncated) return totals;
   for (const pass of sample.passes) {
     const group = classify(pass.name);
+    if (group === undefined) continue;
     const total = totals.get(group);
     if (total === null) continue;
-    totals.set(group, pass.gpuMs === null ? null : (total ?? 0) + pass.gpuMs);
+    const ms = passOwnMs(pass);
+    totals.set(group, ms === null ? null : (total ?? 0) + ms);
   }
   return totals;
 }

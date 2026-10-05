@@ -1,5 +1,4 @@
-//! GIF driver, read from the public specification "Graphics Interchange Format, Version 89a"
-//! (CompuServe, 1990) and decoded by the `gif` feature of the `image` 0.25.10 crate, which
+//! GIF driver (version 89a), decoded by the `gif` feature of the `image` 0.25.10 crate, which
 //! delegates to the `gif` 0.14 and `color_quant` crates — pure Rust, MIT or Apache-2.0, notices
 //! kept with the dependencies. No vendor code or SDK, no re-encoding.
 //!

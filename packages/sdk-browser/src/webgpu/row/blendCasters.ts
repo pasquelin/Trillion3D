@@ -10,16 +10,10 @@ import {
 import type { createWebgpuRowState } from './state.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
-import { NO_ROW } from './noRow.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
-
-/** Where the GPU light cut finds each page's row (`../../gpu/draw/lightRows.ts`). */
-export interface BlendRowMap {
-  pin(page: number, row: number): void;
-}
 
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
@@ -35,7 +29,7 @@ export interface BlendRowMap {
  * age moves — a pose or a material rewritten by the host — or the table itself is new (a lost
  * device). The pool bounds the rows: `blendSlots` covers every placement it can hold at once.
  * A table grown in place (`grow.ts`) moves the casters' rows behind its new visibility rows: every
- * caster gives its row back and takes one of the new range, and the light cut's map hears of each.
+ * caster gives its row back and takes one of the new range.
  *
  * A row the host's rewrite of a surface takes, gives back or writes with another coverage calls
  * `onCoverageChange`: the shadow pages under the cluster no longer describe it. A row that follows
@@ -54,19 +48,10 @@ export function createBlendCasterRows(
     freeCount = 0,
     /** Casters that found no row, each once: what the table grows by. */
     short = 0;
-  /** Pages whose row changed since the light cut's map last heard of them, each once. */
-  const changed: number[] = [],
-    marked = new Uint8Array(packedPages.length),
-    /** Casters waiting for a row, counted once however often they are followed (`short`). */
-    waiting = new Uint8Array(packedPages.length);
+  /** Casters waiting for a row, counted once however often they are followed (`short`). */
+  const waiting = new Uint8Array(packedPages.length);
   let table: Float32Array | undefined,
-    epoch = -1,
-    map: BlendRowMap | undefined;
-  const note = (page: number) => {
-    if (marked[page]) return;
-    marked[page] = 1;
-    changed.push(page);
-  };
+    epoch = -1;
   /** The rows `[blendFirst, casterSlots)` of the table as it stands, all free; a caster that held
    *  one of a smaller table gives it back. */
   const seat = () => {
@@ -80,10 +65,7 @@ export function createBlendCasterRows(
     for (let row = rows.casterSlots - 1; row >= first; row--) free[freeCount++] = row;
     if (held)
       for (let page = 0; page < rows.blendRowOf.length; page++)
-        if (rows.blendRowOf[page] >= 0) {
-          rows.blendRowOf[page] = -1;
-          note(page);
-        }
+        if (rows.blendRowOf[page] >= 0) rows.blendRowOf[page] = -1;
   };
   seat();
   /** Seats the rows again when the table grew since: before any row is taken or written. */
@@ -110,7 +92,6 @@ export function createBlendCasterRows(
     rows.pageTableInts![row * ROW_WORDS + ROW_INDEX_WORDS] = 0;
     rows.markRowDirty(row);
     free[freeCount++] = row;
-    note(page);
   };
   /**
    * Page `page`'s slot moved, arrived or left: its caster row follows. `restale` when the host
@@ -145,7 +126,6 @@ export function createBlendCasterRows(
     }
     const taken = free[--freeCount];
     rows.blendRowOf[page] = taken;
-    note(page);
     write(page, taken, false);
     if (restale) onCoverageChange(rec, page);
   };
@@ -161,18 +141,6 @@ export function createBlendCasterRows(
       epoch = rows.tableEpoch;
       if (!free.length) return;
       for (let page = 0; page < packedPages.length; page++) follow(page, restale);
-    },
-    /** Tells the light cut's map the rows that changed since — all of them, to a new map. */
-    pin(to: BlendRowMap) {
-      const { blendRowOf } = rows;
-      if (to !== map) {
-        map = to;
-        for (let page = 0; page < packedPages.length; page++)
-          if (blendRowOf[page] >= 0) to.pin(page, blendRowOf[page]);
-      } else
-        for (const page of changed) to.pin(page, blendRowOf[page] >= 0 ? blendRowOf[page] : NO_ROW);
-      for (const page of changed) marked[page] = 0;
-      changed.length = 0;
     },
     /** Caster rows in use: what a list of casters can hold beyond the visibility rows. */
     get used() {

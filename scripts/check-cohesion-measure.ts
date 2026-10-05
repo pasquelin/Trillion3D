@@ -20,9 +20,9 @@ const UNITS = [
   'packages/page-codec',
 ] as const;
 
-const TEST = /\.(?:test|fixture|perf|browser)\.m?ts$/;
+const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
 
-/** Whether `file` is a test, a fixture or a browser probe. */
+/** Whether `file` is a test, a fixture or a GPU proof. */
 export const isTestModule = (file: string) => TEST.test(file);
 
 /** The unit a maintained file belongs to, or null when it belongs to none: the gate reads the

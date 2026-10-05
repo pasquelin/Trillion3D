@@ -10,7 +10,11 @@ const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 export type MovedRootTarget = {
   layout: Pick<WebgpuPagesLayout, 'rows'>;
   run: Parameters<typeof invalidateTemporalPyramid>[0];
-  blendState: { occlusionEpoch: number };
+  blendState: {
+    occlusionEpoch: number;
+    occlusionMoved?: { from: number; to: number };
+    table?: { readonly entryOfPage: Int32Array };
+  };
 };
 
 /**
@@ -26,15 +30,57 @@ export type MovedRootTarget = {
  * and dropped the whole scene's occlusion history, each image a model moved (#358).
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
-  const { rows } = rt.layout,
-    floats = rows.pageTableFloats;
   // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
   if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run);
-  if (root.pages[0]?.transparent) rt.blendState.occlusionEpoch = -1;
-  let rewritten = 0;
   root.windingEpoch = undefined;
-  const base = root.packedBase ?? -1;
-  for (let page = 0; page < root.pages.length; page++) {
+  return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements);
+}
+
+/** A blended root's pages `from` to `to`, from packed rank `base`, moved: a pose sends every
+ *  transparent corner again; a page bounded elsewhere, its own entry's (`occlusionMoved`). */
+function reboundCorners(
+  rt: MovedRootTarget,
+  base: number,
+  from: number,
+  to: number,
+  pose: boolean,
+) {
+  const { blendState } = rt,
+    { table, occlusionMoved: moved } = blendState;
+  if (pose || !table || !moved || base < 0) {
+    blendState.occlusionEpoch = -1;
+    return;
+  }
+  for (let page = from; page <= to; page++) {
+    const entry = table.entryOfPage[base + page] ?? -1;
+    if (entry < 0) continue;
+    moved.from = Math.min(moved.from, entry);
+    moved.to = Math.max(moved.to, entry);
+  }
+}
+
+/**
+ * Declares the rows of `root`'s pages `from` to `to` dirty, each given `world` first when one is
+ * given: their table words, corners, shadow spheres and level-of-detail words travel again for them
+ * alone, and a blended root's transparent corners are sent again (`reboundCorners`). Without a
+ * `world`, the pages are
+ * bounded elsewhere and no pose moved (#573) — a dynamic page's vertices lie in another box
+ * (`PageRec.moved`), or its root holds another reach —: the temporal pyramid and the windings keep.
+ * Returns the rows marked.
+ */
+export function markRootRows(
+  rt: MovedRootTarget,
+  root: ClusterRoot<PageRec>,
+  from: number,
+  to: number,
+  world?: ArrayLike<number>,
+) {
+  const { rows } = rt.layout,
+    floats = rows.pageTableFloats,
+    base = root.packedBase ?? -1;
+  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to, !!world);
+  let rewritten = 0;
+  for (let page = from; page <= to; page++) {
     const index = base + page,
       transparent = !!root.pages[page].transparent;
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
@@ -42,7 +88,7 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
     if (!floats || row < 0) continue;
     // A rank the CPU cut left behind may name another page since: only a row that is this page's.
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue;
-    floats.set(root.world.elements, row * ROW_WORDS);
+    if (world) floats.set(world, row * ROW_WORDS);
     rows.markRowWords(row);
     rewritten++;
   }

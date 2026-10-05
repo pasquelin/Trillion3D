@@ -2,7 +2,6 @@ import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { Card } from '../ui/Card.tsx';
 import type { Locale } from '../../content/locale.ts';
-import { repositoryFileUrl } from '../../content/model.ts';
 
 interface ReferencesProps {
   locale: Locale;
@@ -36,9 +35,6 @@ export function References({ locale }: ReferencesProps) {
           ))}
         </tbody>
       </Table>
-      <a className="link" href={repositoryFileUrl('docs/REFERENCE.md')}>
-        {t('report.referenceLink')}
-      </a>
     </Card>
   );
 }

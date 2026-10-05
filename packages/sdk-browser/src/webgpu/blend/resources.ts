@@ -2,7 +2,8 @@ import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { createBlendExpand } from './expand.ts';
-import { EXPAND_PASSES, planWords, scratchWords } from './planLayout.ts';
+import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts';
+import { writeKeyRecords } from './keyRecords.ts';
 import { writeBlendExpansionCpu } from './expandCpu.ts';
 import { writeVolumeRecords } from '../transparent/transmission.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -59,12 +60,17 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   });
   blendState.argsBuffer = device.createBuffer({
     label: 'Trillion3D blend indirect arguments',
-    size: Math.max(16, entries * 16 * EXPAND_PASSES),
+    size: slotCapacity(entries) * 16 * EXPAND_PASSES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
   blendState.expand = await createBlendExpand(
     device,
-    { items: items.length, planWords: planWords(entries), scratchWords: scratchWords(entries) },
+    {
+      items: items.length,
+      entries,
+      planWords: planWords(entries),
+      scratchWords: scratchWords(entries),
+    },
     {
       counts: blendState.compaction?.indirectBuffer,
       clusters: blendState.compaction?.instanceBuffer,
@@ -106,17 +112,21 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed.byteLength,
   );
   refreshBlendPlan(blendState);
+  // A blending written on a surface starts its compile here, off the frame (`reach.ts`).
+  vis.blendPipelines?.reach({
+    modes: blendState.planModes,
+    filtered: blendState.filtersDisplay,
+  });
   writeVolumeRecords(rt, device);
 }
 
 /**
- * What the image asks of expansion: the frustum verdict, the order if it moved, then the two
- * kernel passes, chained in ONE compute pass.
+ * What the image asks of the kernels: the plan when it moved, the frustum verdict when it moved,
+ * the frame data, then for each pass its order and its expansion, chained in ONE compute pass.
  *
  * Dispatches of the same compute pass are ordered and see the previous writes: blend can therefore
  * hand its work memory back to transmission, whose instances and arguments live in their own
- * regions. Without a compute stage, the CPU writes exactly the same words
- * (`expandCpu.ts`).
+ * regions. Without a compute stage, the CPU writes exactly the same words (`expandCpu.ts`).
  */
 export function encodeBlendExpansion(
   rt: WebgpuPagesRuntime,
@@ -124,36 +134,42 @@ export function encodeBlendExpansion(
   encoder: GPUCommandEncoder,
 ) {
   const { blendState } = rt,
-    expand = blendState.expand;
+    expand = blendState.expand,
+    { runCount, seeds } = blendState;
   if (!expand) {
     writeBlendExpansionCpu(blendState, device);
     return;
+  }
+  // No slot to draw: a frame without an eye paints nothing (`order.ts`).
+  if (!runCount[0] && !runCount[1]) return;
+  if (blendState.planMoved) {
+    expand.uploadPlan({
+      passes: seeds.map((passSeeds, pass) => ({
+        seeds: passSeeds,
+        counts: {
+          entries: passSeeds.length,
+          runs: blendState.slotCounts[pass],
+          instanceBase: blendState.instanceBase[pass],
+        },
+        region: blendState.planRegions[pass],
+      })),
+      scene: blendState,
+      stepWords: blendState.orderStepWords,
+      keyWords: writeKeyRecords(blendState),
+    });
+    blendState.planMoved = false;
   }
   if (blendState.keepMoved) {
     expand.uploadKeep(blendState.keepPacked);
     blendState.keepMoved = false;
   }
-  const orders = blendState.orders;
-  const pass = encoder.beginComputePass({ label: 'Trillion3D blend expansion' });
-  for (let slice = 0; slice < orders.length; slice++) {
-    const order = orders[slice],
-      region = blendState.planRegions[slice];
-    if (!order.length) continue;
-    if (blendState.orderMoved[slice]) {
-      expand.uploadPlan(region, order, blendState.runs[slice], blendState.runCount[slice]);
-      blendState.orderMoved[slice] = false;
-    }
-    expand.encode(
-      pass,
-      slice,
-      region,
-      {
-        entries: order.length,
-        runs: blendState.runCount[slice],
-        instanceBase: blendState.instanceBase[slice],
-      },
-      blendState,
-    );
-  }
+  expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words);
+  const pass = encoder.beginComputePass({ label: 'Trillion3D blend order and expansion' });
+  for (let slice = 0; slice < seeds.length; slice++)
+    if (runCount[slice])
+      expand.encode(pass, slice, blendState.orderSteps[slice], {
+        entries: seeds[slice].length,
+        runs: runCount[slice],
+      });
   pass.end();
 }

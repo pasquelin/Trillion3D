@@ -34,7 +34,7 @@ test('orbit reads back the pose the host wrote, target included', () => {
   controls.update();
   assert.deepEqual(at(camera), [0, 0, 10]);
   assert.equal(round(camera.position.distanceTo(controls.target)), round(Math.hypot(3, 10)));
-  // And the host moves the eye, as the portal's zoom buttons do.
+  // And the host moves the eye itself, as a page's own zoom does.
   camera.position.set(0, 3, 4);
   controls.update();
   assert.deepEqual(at(camera), [0, 3, 4]);

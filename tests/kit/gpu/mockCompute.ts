@@ -3,19 +3,9 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 import { compactDrawnPages } from './globals.ts';
-import {
-  simulateBlendExpansion,
-  simulateTransparentCompaction,
-  words,
-} from './mockComputeBlend.ts';
-import {
-  SELECTION_HEADER_WORDS,
-  childBase,
-  selectionListCap,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
+import { TRANSPARENT_STAGES, words } from './mockComputeBlend.ts';
+import { childBase, selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
-import { runShadowPass } from '../../../packages/sdk-browser/src/webgpu/shadow/freshRun.fixture.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 import {
   residentFlags,
@@ -27,11 +17,20 @@ import {
   type DrawItem,
 } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts';
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts';
-const VIEW_FLAGS_WORD = viewWord('viewFlags');
+import {
+  keepSnapshot,
+  writeDifference,
+} from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts';
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
-const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
+const DAG_STAGES = new Set([
+  'dagMask',
+  'dagDrawScatter',
+  'dagSortRequests',
+  'dagListEvictions',
+  'dagCutDifference',
+  'dagCutKeep',
+]);
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -52,7 +51,6 @@ function readDagUniforms(data: Uint8Array) {
       cameraStretch: f32[51],
     },
     residentCut: !!u32[47],
-    light: (u32[VIEW_FLAGS_WORD] & VIEW_LIGHT) !== 0,
   };
 }
 
@@ -64,12 +62,8 @@ export function simulateComputeDispatch(
   offsets?: readonly number[],
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
-  // The GPU allocation of shadow pages, the host's table words and the GPU's own pages: run.
-  if (computeBind && runShadowPass(computePipeline?.entryPoint, computeBind)) return;
-  if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
-    return simulateTransparentCompaction(computeBind);
-  if (computePipeline?.entryPoint === 'writeBlendRuns' && computeBind)
-    return simulateBlendExpansion(computeBind, offsets);
+  const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? ''];
+  if (transparent && computeBind) return transparent(computeBind, offsets);
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
@@ -97,7 +91,7 @@ export function simulateComputeDispatch(
     for (let i = 0; i < n; i++)
       items.push({
         pageIndex: itemInts[i * DRAW_ITEM_U32],
-        bin: itemInts[i * DRAW_ITEM_U32 + 1] as 0 | 1 | 2,
+        bin: itemInts[i * DRAW_ITEM_U32 + 1],
         rest: restAt(i),
       });
     const source =
@@ -123,7 +117,7 @@ export function simulateComputeDispatch(
     );
     const offsets = byBinding.get(5)!.data;
     new Uint32Array(offsets.buffer).set(
-      Array.from({ length: 6 }, (_, slot) => result.indirect[slot * 4 + 3]),
+      result.counts.map((_, slot) => result.indirect[slot * 4 + 3]),
     );
     const instBytes = byBinding.get(2)!.data;
     new Uint32Array(instBytes.buffer, instBytes.byteOffset, instBytes.byteLength / 4).set(
@@ -145,6 +139,12 @@ export function simulateComputeDispatch(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, packed.pageCount);
+  // The difference against the snapshot kept, then this one kept, through the kernels' mirror.
+  if (stage === 'dagCutDifference' || stage === 'dagCutKeep')
+    return (stage === 'dagCutDifference' ? writeDifference : keepSnapshot)(
+      words(byBinding.get(DAG_BINDING.out)!.data),
+      selectionListCap(packed.pageCount),
+    );
   if (stage === 'dagListEvictions') return mockEvictions(byBinding, packed).list();
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
@@ -155,7 +155,7 @@ export function simulateComputeDispatch(
       packed.pageCount,
     );
   if (stage !== 'dagMask') return;
-  const { uniforms, residentCut, light } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
+  const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
   const cold = words(byBinding.get(DAG_BINDING.cold)!.data);
@@ -176,8 +176,7 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data);
   const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1]);
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
-  if (!light)
-    mockEvictions(byBinding, packed).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])]);
+  mockEvictions(byBinding, packed).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])]);
   // `dagMask` posts a draw flag for every page, resident cut or not: `dagDrawScatter` compacts them.
   const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
   flags.fill(0, packed.nodeCount, packed.nodeCount + packed.pageCount);
@@ -188,9 +187,7 @@ export function simulateComputeDispatch(
   ints[2] = result.lodLevel;
   writeTriangleTotals(ints, result);
   // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads.
-  const [list, at] = light
-    ? [result.pageIds, SELECTION_HEADER_WORDS]
-    : [result.requestWords, stagedRequestsWord(selectionListCap(packed.pageCount))];
+  const list = result.requestWords;
   ints[0] = list.length;
-  ints.set(list, at);
+  ints.set(list, stagedRequestsWord(selectionListCap(packed.pageCount)));
 }

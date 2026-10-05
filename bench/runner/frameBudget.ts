@@ -68,7 +68,7 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
     row('visibility', 'raster fragments × 3 (depth test, depth, id)', 3 * fragments),
     row('visibility', 'triangles', SPONZA_TRIANGLES, (SPONZA_TRIANGLES * r.trianglePs) / 1e9),
     row('visibility', 'Hi-Z pyramid texels', hiz),
-    row('materials', 'material depth and tile classification, 3 a pixel', 3 * N),
+    row('materials', 'tile classification, 1 a pixel', N),
     row('materials', 'class fragments tested', material.tiled * N),
     row('materials', `surface accesses, ${surface} a covered pixel`, surface * C),
     row('lighting', 'light grid pass (`lightingModel`)', grid.work.columnTests, model.tilePass),

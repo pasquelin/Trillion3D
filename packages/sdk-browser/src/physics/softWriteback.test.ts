@@ -37,7 +37,19 @@ function assertWriteback(actual: Uint32Array, expected: Uint32Array, label: stri
 }
 
 test('soft bodies scaled, turned, removed, hidden, remade and teleported write back as on develop', async () => {
-  // develop's module (cc7d59061) ran `writebackScene` and wrote these words (#975).
+  // develop's module before the write-back composed one matrix per body (cc7d590615, the per-vertex
+  // chain, #975) ran `writebackScene` and wrote these words: its scene made 20 m up, no floor
+  // contact in the kept steps, every teleport under 3 m (re-recorded on 4 Oct. 2026, when a soft
+  // body took a 1 cm thickness and a reset past 3 m). To record them again, extract
+  // `git archive dee054b7ff packages/sdk-core/src packages/sdk-browser/src` with the two
+  // `joltPhysics*.wasm` of `cc7d590615`, give its `softWriteback.fixture.ts` this scene's places,
+  // and run there: node --experimental-strip-types --input-type=module -e "const { startModule } =
+  // await import('./packages/sdk-browser/src/physics/module.fixture.ts'); const { writebackScene }
+  // = await import('./packages/sdk-browser/src/physics/softWriteback.fixture.ts'); const steps =
+  // writebackScene(await startModule()); const words = [steps.length, ...steps.flatMap((s) =>
+  // [s.length, ...s])]; (await import('node:fs')).writeFileSync('soft-writeback-develop.bin', new
+  // Uint8Array(Uint32Array.from(words).buffer));" (it gives the former file byte for byte from the
+  // former scene).
   const url = new URL(
     '../../../../tests/fixtures/physics/soft-writeback-develop.bin',
     import.meta.url,

@@ -3,19 +3,22 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { opaqueBackgroundRgba } from '../page/raster.fixture.ts';
 import {
-  packVisibilityId,
-  unpackVisibilityId,
-  rasterVisibilityIds,
-  shadeVisibility,
   VIS_MAX_PAGES,
   VIS_TRIANGLE_MASK,
   assertVisibilityPageTriangles,
   SHADE_SHADER,
 } from './buffer.ts';
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { camera, quadPages, centerId } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
-import { VIS_INVALID, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts';
+import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import {
+  VIS_INVALID,
+  packVisibilityId,
+  unpackVisibilityId,
+} from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 test('the WebGPU display buffer starts with the shared opaque scene background', () => {
   assert.deepEqual([...opaqueBackgroundRgba(2, 1)], [0x17, 0x1d, 0x28, 255, 0x17, 0x1d, 0x28, 255]);
@@ -27,11 +30,11 @@ test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL in
 });
 
 test('SHADE_SHADER early returns on an invalid triangle before texture sampling', () => {
-  // The background and the pages a class does not own never reach this stage: the material-depth
-  // test keeps them out (`shader/materialClass.ts`). What remains is a triangle beyond the
-  // page's index count, and it exits before any atlas read — `colorSample` and `dataSample` are
-  // declared before `shade_fs`, none is reached first.
-  const fs = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
+  // The background and the pages a class does not own never reach the resolve: the class reject
+  // keeps them out (`classAdmits`, `shader/materialClass.ts`). What remains is a triangle beyond
+  // the page's index count, and it exits before any atlas read — `colorSample` and `dataSample`
+  // are declared before `shadeSurface`, none is reached first.
+  const fs = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shadeSurface'));
   const firstReturn = fs.indexOf('return');
   const sampleAt = fs.indexOf('colorSample(');
   assert.ok(firstReturn >= 0 && sampleAt >= 0);

@@ -9,7 +9,7 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { jointRig, type Rig } from './joints.fixture.ts';
 import { flatRig, placeVehicle } from './vehicles.fixture.ts';
 
-/** Jolt's penetration slop (`PhysicsSettings::mPenetrationSlop`, m): the overlap its contacts
+/** The module's penetration slop (`PhysicsSettings::mPenetrationSlop`, m): the overlap its contacts
  *  leave by design, and all two bodies at rest against each other may share. */
 const SLOP = 0.02;
 const FULL = { throttle: 1, brake: 0, steer: 0, handbrake: false };
@@ -35,7 +35,7 @@ function depth(rig: Rig, a: Mesh, point: readonly number[], b: Mesh, [min, max]:
 
 /**
  * What a tank of `placeVehicle` fills as it is drawn: its hull, and under it, over its wheels'
- * footprint down to their lowest point, its running gear. Jolt only casts the wheels.
+ * footprint down to their lowest point, its running gear. The module only casts the wheels.
  */
 function drawn({ size, wheels, radius, width }: ReturnType<typeof placeVehicle>['machine']) {
   const [hx, hy, hz] = size.map((side) => side / 2);
@@ -100,7 +100,7 @@ async function carBehindTank(gap: number, slope = 0) {
 
 test('a car driven into a tank at full speed stops against it, not inside it', async () => {
   const { car, drive } = await carBehindTank(60);
-  // Contact within a step of its closing speed, then they share no more than Jolt's slop.
+  // Contact within a step of its closing speed, then they share no more than the module's slop.
   const hit = drive(6, 'hull');
   assert.ok(hit.fastest > 15, `it hits hard: ${hit.fastest} m/s`);
   assert.ok(hit.deepest < hit.fastest / 60, `within a step: ${hit.deepest}`);

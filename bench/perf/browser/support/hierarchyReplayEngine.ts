@@ -5,12 +5,12 @@ import {
   addTransformNode,
   createCameraFrame,
   createTransformTree,
+  decomposeMatrix4,
+  determinantMatrix4,
   lookAtNode,
   nodeWorldDirection,
-  nodeWorldMirrorsFaces,
   nodeWorldPosition,
   nodeWorldQuaternion,
-  nodeWorldScale,
   perspectiveProjection,
   removeTransformNode,
   reparentTransformNode,
@@ -24,6 +24,21 @@ import {
   updateNodeWorldMatrix,
 } from '../../../../packages/sdk-core/src/index.ts';
 import type { HierarchyOp, CameraSpec } from './hierarchyScenarios.ts';
+
+// Two reads the SDK does not export, written here on its own decomposition and
+// determinant, as `getWorldScale` and `matrixWorld.determinant() < 0` read them.
+const decomposed = { position: new Float64Array(3), quaternion: new Float64Array(4) };
+function nodeWorldScale(
+  out: Float64Array,
+  tree: ReturnType<typeof createTransformTree>,
+  node: number,
+) {
+  updateNodeWorldMatrix(tree, node, true, false);
+  decomposeMatrix4(tree.worldViews[node], decomposed.position, decomposed.quaternion, out);
+  return out;
+}
+const nodeWorldMirrorsFaces = (tree: ReturnType<typeof createTransformTree>, node: number) =>
+  determinantMatrix4(tree.worldViews[node]) < 0;
 
 interface CameraRuntime {
   spec: CameraSpec;

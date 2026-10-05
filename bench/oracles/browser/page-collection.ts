@@ -81,9 +81,9 @@ export function referenceCollectClusterPages(
       (Array.isArray(mesh.material)
         ? mesh.material.some((material) => material.transparent)
         : mesh.material.transparent);
-    const sourceOrder = transparent
-      ? primitive.pages.map((page, index) => page.start ?? index)
-      : undefined;
+    // The source rank is recorded for every class since 457b2df3ae (#846): a page may turn
+    // blended in the session, and then draws in that order.
+    const sourceOrder = primitive.pages.map((page, index) => page.start ?? index);
     const exactPages = primitive.pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
     const placement = streamPlacement(primitive.streams, primitive.pages);
     let sourceOffset = 0;
@@ -119,7 +119,7 @@ export function referenceCollectClusterPages(
         declaration: mesh.material,
         transparent,
         sourceMesh: mesh,
-        sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
+        sourceOrder: sourceOrder[pageIndex],
         matrix: mesh.matrixWorld,
         renderOrder: order,
         attached: false,

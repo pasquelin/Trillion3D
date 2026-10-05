@@ -158,7 +158,6 @@ fn node_bounds_merges_a_rejection_node_from_its_clusters() {
         parent_error,
         sphere: [0.0; 4],
         parent_sphere: sphere,
-        replacement: None,
         source_rank: 0,
         group: None,
         source: None,

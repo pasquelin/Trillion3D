@@ -1,6 +1,5 @@
 import { addCpuSteps } from '../../../stage/cpuSteps.ts';
 import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts';
-import { sunFarCounts } from '../prepare/sunFar.ts';
 import {
   frameCostAuditEnabled,
   gpuFrameCostSnapshot,
@@ -8,7 +7,6 @@ import {
 } from '../../../frame/costAudit.ts';
 import type { HostCpuStep } from '../../../host/cpuProfile.ts';
 import { debugMode } from '../../../host/debugMode.ts';
-import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */
@@ -32,49 +30,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
       cpu: 'no image feedback: no tile to serve',
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     });
-  // What the shadow pass actually did: counts, never durations. `pagesRequested` is what the image
-  // read, `pagesCached` what it read straight from the pool, `pagesInvalidated` what staled this
-  // image, `pagesVisited` what the invalidation examined to find them, `pagesRedrawn` what
-  // it drew, `pagesPending` what the budget left for later, and `maxWaitMs` the wait of the
-  // oldest page in that queue.
-  const { counts } = lights.plan;
-  // What the region culls kept, sampled on the device one frame in fifteen: the frame it
-  // describes is named, and until a sample has returned there is no count at all.
-  const culled = lights.cull?.counts.counts();
-  stages.setCounts('shadows', {
-    lightsRedrawn: lights.shadowsUpdated,
-    facesRedrawn: lights.shadowFaces,
-    drawCalls: lights.shadowDrawCalls,
-    renderPasses: lights.shadowRenderPasses,
-    sunsRedrawn: counts.sunLights,
-    pagesRequested: lights.plan.requests.counts.requested,
-    pagesCached: counts.cachedPages,
-    poolPages: counts.poolPages,
-    poolBytes: shadowPoolHeld(lights),
-    poolLayers: lights.plan.pool.layers,
-    pagesInvalidated: counts.invalidatedPages,
-    pagesVisited: counts.visitedPages,
-    pagesRedrawn: lights.shadowPages,
-    pagesPending: counts.pendingPages,
-    maxWaitMs: counts.waitedMs,
-    maxWaitFrames: counts.waitedFrames,
-    ...(culled
-      ? {
-          occludersKept: culled.kept,
-          regionsSampled: culled.regions,
-          sampledFrame: culled.frame,
-        }
-      : {}),
-  });
   stages.setCounts('lightLists', { activeLights: lights.lightsActive });
-  // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced
-  // in deferred resolve, so its milliseconds are those of the Lighting (resolve) stage — stating a
-  // duration here would count it a second time.
-  stages.setCounts('sunFarShadows', sunFarCounts(rt));
-  stages.setReason('sunFarShadows', {
-    cpu: 'no CPU work: the far ray is traced by deferred resolve',
-    gpu: rt.sunFar.reason ?? 'measured in the Lighting (resolve) stage, which traces the far ray',
-  });
   // What bounce actually did: probes and rays, never a duration. A still, converged scene encodes
   // no pass, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {

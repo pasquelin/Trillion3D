@@ -1,17 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import {
-  unpackVisibilityId,
-  rasterVisibilityIds,
-  shadeVisibility,
-  VIS_SHADER,
-  type VisPage,
-} from './buffer.ts';
+import { VIS_SHADER, type VisPage } from './buffer.ts';
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { camera, quadPages, centerId } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
   const metalMat = G.standardSurface({
@@ -96,8 +93,8 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
   map.dispose();
 });
 
-test('standard-material irradiance matches the Three.js linear capture without an invented environment', () => {
-  // Captured from Three r174 on the same quad/lights, before display tone mapping.
+test('standard-material irradiance matches the reference linear capture without an invented environment', () => {
+  // Captured from a reference render on the same quad/lights, before display tone mapping.
   for (const [color, metalness, roughness, expected] of [
     [0xffffff, 0, 1, [227, 228, 229]],
     [0x808080, 0, 1, [115, 115, 116]],

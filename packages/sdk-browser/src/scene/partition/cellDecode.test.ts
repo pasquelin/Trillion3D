@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
-import { hostLocalInto } from '../../host/world/matrices.ts';
 import { configurePageDecoders, patientTask, releasePageDecoders } from '../../page/decode/host.ts';
 import {
   NodeDomWorker,
@@ -22,7 +21,8 @@ test('a cell file is read into each node its ranks and the local matrix a host n
   nodes.forEach((node, at) => {
     const host = new Object3D();
     pose(host, node);
-    const local = [...hostLocalInto(new Float64Array(16), host)];
+    host.updateMatrix();
+    const local = [...host.matrix.elements];
     assert.deepEqual([...rows.locals.subarray(16 * at, 16 * at + 16)], local, `node ${at}`);
   });
   const stale = new TextEncoder().encode(JSON.stringify({ version: 1, nodes })).buffer;

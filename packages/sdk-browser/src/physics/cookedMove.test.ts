@@ -47,7 +47,7 @@ test('a declared dynamic body simulates, and its compiled node is drawn where it
   const posed = { ...bodies, retire() {} };
   const half = Math.SQRT1_2;
   poses.receive(poseRecord(id, [1, 0.5, 0, 0, half, 0, half]), 1, posed, 0);
-  poses.apply(posed);
+  poses.apply(posed, 1, false);
   assert.ok(close(node.position.elements, [0, 0.5, 0]), `${node.position.toArray()}`);
   assert.ok(close(node.quaternion.elements, [0, half, 0, half]), 'turned as simulated');
   assert.ok(close(node.scale.elements, [1, 1, 1]), 'its scale kept');
@@ -85,7 +85,7 @@ test('a model moved before its body’s tick is drawn carries its node, never ba
   model.updateMatrixWorld(true);
   tiles.moved(model);
   poses.follow(model);
-  poses.apply(posed);
+  poses.apply(posed, 1, false);
   assert.ok(close(node.position.elements, [0, 2, 0]), `${node.position.toArray()}`);
   node.updateWorldMatrix(true, false);
   assert.ok(close(node.matrixWorld.elements.slice(12), [3, 2, 0]), 'carried by its model');

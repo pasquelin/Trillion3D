@@ -8,7 +8,7 @@ use super::surface::coverage_cut;
 use serde_json::{json, Value};
 use std::f64::consts::PI;
 
-/// Frames a side: the reference's default capture, 12×12 = 144 views.
+/// Frames a side: the default capture, 12×12 = 144 views.
 pub(crate) const FRAMES: usize = 12;
 /// Smallest frame side, in texels: the probe that measures `c` captures at this side.
 pub(crate) const PROBE_SIDE: usize = 16;

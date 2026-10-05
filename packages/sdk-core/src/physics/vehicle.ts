@@ -26,7 +26,7 @@ export interface VehicleDriver {
   drive(input: Readonly<VehicleInput>): void;
 }
 
-/** The vehicles of the physics, each on Jolt's vehicle constraint. */
+/** The vehicles of the physics, each on the module's vehicle constraint. */
 export type VehicleKind = 'car' | 'motorcycle' | 'tracked';
 
 /** What `vehicle.*` accepts: the wheels, and any number of the machine's own (`VehicleSpec`). */
@@ -90,7 +90,7 @@ const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0));
 
 /**
- * A vehicle: a body carried on wheels by Jolt's vehicle constraint, with its engine, gearbox,
+ * A vehicle: a body carried on wheels by the module's vehicle constraint, with its engine, gearbox,
  * differentials, suspension and anti-roll bars, made by `vehicle.*` and added to the simulation
  * by `world.physics.add`. It is a `VehicleDriver`: `world.controls.vehicle = car` drives it.
  */

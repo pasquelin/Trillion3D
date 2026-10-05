@@ -7,7 +7,7 @@ import {
 } from '../../../sdk-core/src/index.ts';
 
 /**
- * THE CAMERA HALF OF THE RENDER FRAME (`sdk-core/mathRenderOrigin.ts` carries the rule and
+ * THE CAMERA HALF OF THE RENDER FRAME (`../../../sdk-core/src/math/primitives/renderOrigin.ts` carries the rule and
  * its why). The frame origin is the eye of the frame; the camera is therefore set at zero,
  * and its view is only its orientation. These three matrices are computed ONCE per frame, in
  * double precision, in the engine camera, at the same time as their absolute twins.

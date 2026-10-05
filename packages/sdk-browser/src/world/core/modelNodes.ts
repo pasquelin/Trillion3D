@@ -57,7 +57,7 @@ export function writeModelNode(node: Object3D) {
   graph.scale.set(node.scale.x, node.scale.y, node.scale.z);
   graph.visible = node.visible;
   graph.castShadow = node.castShadow;
-  if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node.matrix.elements);
+  if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node._matrixElements);
 }
 
 /** Each table of a model's nodes by source index (`graphSubtree`), the index of each node. */

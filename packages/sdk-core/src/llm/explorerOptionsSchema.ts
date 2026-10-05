@@ -74,24 +74,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       default: /* @__PURE__ */ explorerSwitchDefault('lodAdaptive'),
       description: 'Enables dynamic adaptation of LOD error threshold based on scene workload.',
     },
-    shadowPageInvalidation: {
-      type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('shadowPageInvalidation'),
-      description:
-        'Invalidation of shadow map pages per 128x128 page. false stales every page of each light a moving object touches.',
-    },
-    shadowLocalToClip: {
-      type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('shadowLocalToClip'),
-      description:
-        'Shadow casters placed by a LocalToClip matrix stored once per caster and light view, one matrix-vector product per vertex. Off by default: depths may differ by one ulp from the default path.',
-    },
-    shadowPoolPages: {
-      type: 'integer',
-      minimum: 1,
-      description:
-        'Physical pages of the shadow pool (128x128 texels, 64 KiB each), allocated once when a light first casts and never resized. By default the most pages whose held bytes fit the shadow pool setting (360 MB with its static layer, request buffers and pair lists), whatever the display: 2601 pages. Fewer may be asked, never more. A frame that reads more pages draws the coarser level past it.',
-    },
     bounce: {
       type: 'boolean',
       default: /* @__PURE__ */ explorerSwitchDefault('bounce'),

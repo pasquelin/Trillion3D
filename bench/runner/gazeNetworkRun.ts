@@ -63,7 +63,6 @@ export async function runGazeSeries(
       for (const side of sides) {
         const payload = measurePayload(
           side,
-          view,
           pixelError,
           poses[0],
           poses,

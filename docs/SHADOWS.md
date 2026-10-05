@@ -1,513 +1,191 @@
 # Shadows
 
-How the WebGPU engine draws cast shadows: virtual shadow maps whose pages exist only where the image
-reads them. Lights, tiles and the sampled resolve are [ENGINE.md](ENGINE.md#direct-lighting); the
-options a page sets (`castShadow`, `transparentShadow`) are [SDK.md](SDK.md#lights).
+How the WebGPU engine draws cast shadows: virtual shadow maps, whose pages exist in memory only
+where the image reads them. Lights, tiles and the sampled resolve are
+[ENGINE.md](ENGINE.md#direct-lighting); the options a page sets (`castShadow`, `transparentShadow`)
+are [SDK.md](SDK.md#lights). The code is `packages/sdk-browser/src/vsm/` (the passes and their
+shaders) and `packages/sdk-browser/src/webgpu/pages/render/vsm/` (the frame's plan, grant and
+encoding).
 
 ## Pages and the pool
 
-Every shadow light has a virtual map cut into pages of 128 texels, one page-table word per virtual
-page. Pages are drawn in a pool of physical pages allocated once, at the first frame a light casts
-(`webgpu/shadow/poolSize.ts`): a world without one pays neither its bytes nor its per-frame work.
+Every shadow map is virtual: a table of `128 × 128` pages of `128 × 128` texels, `16 384²` texels at
+its finest mip, down to a single page over `8` mips (`VSM_LEVEL0_PAGES`, `VSM_PAGE_TEXELS`,
+`VSM_MIPS`). A page-table word per page names the physical page that holds it, if any.
+Physical pages live in one pool of `2 048` pages (`VSM_POOL_PAGES`) of 32-bit depth texels,
+in two slices — a dynamic one and a static one (`VSM_POOL_SLICES`) —, `256 MiB` in all, kept in
+storage buffers split into parts of whole page rows when a slice exceeds the device's storage
+binding size (`vsm/resources.ts`).
 
-A pixel reads the level whose texel is at most its footprint and more than half of it, so a
-`64 × 64`-pixel tile on one surface reads at most the 2 × 2 pages it straddles, plus a third while
-coarser levels stand in for pages not drawn yet: a frame asks for at most
-`⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`shadowPoolSize`): a bound the memory budget reserves at
-3840 × 2160, never what the pool holds. A real frame reads far less — a one-cube scene a few
-hundred pages at 3456 × 2234, drive-a-car 600 to 800, falling-boxes up to 2 000. A lamp face's
-finest mip is 32 × 32 pages (`lampFaceSize`).
+These sizes are tuning values this engine declares, not derived from the device. A table of `128 ×
+128` pages is `16 384` virtual pages a mip-0 level, a `16 384²` map that is never allocated whole.
+Each pool slice holds `2 048 × 128² × 4` bytes = `128 MiB`, `256 MiB` for the two. The clipmap's 17
+levels (`VSM_SUN_FINEST_LEVEL` 6 to `VSM_SUN_COARSEST_LEVEL` 22) double their radius from 1.28 m
+to 83.9 km. More pages cost memory in proportion and lower the resolution bias under load; fewer
+raise it sooner (`vsm/constants.ts`).
 
-**The pool is fixed, as the reference engine's** (#831). Its setting is bytes, the hard cap of all the shadows
-hold — the pool, its static layer, its request and allocation buffers, the pairs' share of the kept
-lists (`SHADOW_POOL_SETTING_BYTES`, `webgpu/shadow/poolSetting.ts`): 360 088 288 bytes, what one
-shadowed light reads over the maintainer's screen — its smooth read and a third more while pages
-wait, `⁴⁄₃ · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`screenPoolPages`), 2 601 at 3456 × 2234, 163 MiB of
-depth, above falling-boxes' 2 000. The pages follow from it (`shadowPoolWithin`), whatever the
-display or the canvas, chosen once as the reference engine sets `a reference setting`, or fewer when
-the session's `shadowPoolPages` option asks fewer: a wider screen reads the pages past them at the
-coarser level, never grows the pool past its setting. The blended casters' transmittance layer, made
-only for a scene that has them, is held beside it (`transmittanceGrant.ts`); lights past the first share it. It lies in the fewest square layers the device's texture side holds
-(`shadowPoolShape`), within the memory budget's pool (`SHADOW_ATLAS_BYTES`). It is granted at the
-first frame that casts, before any report, so no first frame reads a coarser level for want of
-pages, and never resized after: a page keeps its place, its depth, its static layer and its table
-word for as long as it is mapped, and pages are evicted least recently read first. A pool that
-followed the demand (#1208, #1345) shrank and grew again under a moving view — every page copied,
-the static layer let go and every page then drawn whole, and the pages the GPU had mapped since the
-last report left with table words naming pages that held other entries after the copy: the dark
-page-shaped shards and the grain of drive-a-car (`poolFixed.test.ts`). A frame that asks more than
-the pool holds reads the coarser level past it, published as memory (`shadowPagesOverflow`, #542),
-and said once in the `shadow-pool` diagnostic (`ceiling`), as the reference engine warns of a physical page pool
-overflow (`webgpu/shadow/poolCeiling.ts`). While the pool holds less than two reports and the view
-rests, the GPU evicts none the view asked since it rested (`shadowKeptFrom`, the host's still cycle
-of #26): the jitter phases no longer map each other's pages out every frame, what they ask past the
-pool is refused, and the image rests (`ceilingHold.test.ts`).
+A light that casts takes no page of its own. The pixels the image shades mark the pages they will
+read, a pass allocates a physical page to each page marked and not yet held, and only those pages
+are drawn (see One frame). A page nobody marks is evicted, the least recently requested first, when
+a new one needs room.
+
+The set — the page tables, the pool and the buffers beside them — is made at the first lit frame
+that has a casting light, sized for the lights that cast: a sun takes `17` maps (its clipmap
+levels), a point light `6` (its faces), a spot light `1`, and the table has room for twice that, plus
+sixteen, for the entries the cache keeps ten frames after a light stops asking
+(`fullMapsFor`, `vsmGrant.ts`). A light added later that needs more maps grows the tables with the
+pool and its cache kept (`growEngineVsm`); when the room does not hold the new tables, the set is
+made again and the cache restarts.
 
 ## Memory
 
-The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest
-range a light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`), allocated up front at the session's window, as the reference engine allocates its page
-table and budgets only the physical page pool: a light added at any time finds its window held,
-its shadow in its first frame (`shadowTable.test.ts`). The GPU total's shadow share counts it with
-the pool
-(`SHADOW_POOL_BYTES`, 902 MiB); less the batches' 5.2 MiB reserve, that share is the shadows' one
-grant (`SHADOW_GRANT_BYTES`, 896 MiB: the largest pool, its static layer, its transmittance layer,
-the table and the page requests, `webgpu/shadow/memoryGrant.ts`). A late allocation — static or
-transmittance layer — is asked of the grant with what is held, then of the device under an
-out-of-memory check, never inside a frame (`webgpu/shadow/transmittanceGrant.ts`). A scene whose
-blended surfaces cast asks the transmittance layer with the pool; one turned casting later, by a
-rewrite of its values, asks it at that rewrite, the frame held until the layer lands, then draws
-every mapped page again with it: no frame is drawn without the layer.
+The set is made within the room the GPU budget leaves it once the frame's other shadow bytes are set
+aside: the page tables, the shadow mask (a layer of the projection's output per four casting
+lights, at the size of the screen), the raster's lists, the blended casters' atlas and the passes'
+own state (`vsmGrant.ts`, `bytesBeside`). The shadows' GPU total is `metric.frame(world)`'s
+`shadowPoolBytes`.
 
-Memory pressure never passes for performance: it lowers no page to meet a frame time, and each
-pressure is a named event in `shadowMemoryEvents`; `shadowPeakBytes` is the most the grant held.
+When the room does not hold the full pool, the pool is made with half the pages, then a quarter, down
+to an eighth of `2 048`: coarser shadows, said once by the `gpu-out-of-memory` diagnostic ("a smaller
+shadow page pool"). When not even an eighth fits, the lights read no shadow, by name — the same
+diagnostic, "no page pool fits the GPU budget" —, until the room holds the smallest pool or the lights
+change. A set the device refuses is undone whole, and asked again only for other lights. A pool made
+short grows back once the room holds a larger one, at most every ten frames
+(`VSM_PRESSURE_CALM_FRAMES`), in the same frame, its cache restarting: the diagnostic
+`shadow-pool-regrown` (`kind: 'info'`) says it.
 
-| Event                                                                   | Outcome                                                                                                |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `pool-shrunk`                                                           | a refused pool is drawn smaller, its halvings in `shadowResolutionBias` (0 normally)                   |
-| `pool-refused`                                                          | no pool: the `shadows-off` error                                                                       |
-| `static-layer-over-grant`, `static-layer-refused` (`gpu-out-of-memory`) | no static layer; every page is drawn whole, every caster at once: no shadow is lost                    |
-| `transmittance-over-grant`, `transmittance-refused`                     | no transmittance layer, never asked again: opaque shadows whole, blended casters cast nothing, by name |
+While the pool is full, the maps lower their own resolution: a page-management pass reads the
+fraction of the pool the frame allocated, and above `85 %` (`VSM_PRESSURE_LOAD`)
+a global bias raises the mip each pixel reads, by at most `2` levels (`VSM_PRESSURE_BIAS_MAX`),
+rising quickly (half the gap a frame) and decaying slowly (a tenth of it, after ten frames
+under the limit): `shadowVsmLodBias` publishes it, `shadowVsmFreePages` the free pages the pool had.
 
-The host mirror — the words, a change flag per word, the pool's page records and eviction bitset,
-the frame's page list (`admit.ts`) at the largest pool, and the batches' host lists
-(`SHADOW_BATCH_HOST_BYTES`) — is 25.9 MiB (`SHADOW_HOST_BYTES`, summed from
-`shadowTableHostBytes`, `shadowPoolHostBytes`, `shadowAdmissionHostBytes` and `batchBudget.ts`,
-checked by tests against real allocations), the CPU total's first share, before the decoded-page
-cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, `batchWrites.ts`):
+`shadowResolutionBias` says how far the shadows draw coarser than they ask because of the pool: the
+halvings the budget took off the full pool plus that bias (`vsmStats.ts`), `0` when the full pool
+draws every page at the level asked, `null` while no set is held. Above `0`, the reference mode
+refuses its capture (`REFERENCE_SHADOWS_REDUCED`). Decaying a tenth of the gap a frame in 32-bit
+floats, the bias alone would stop on a subnormal value; under `2^-56`
+(`VSM_PRESSURE_BIAS_FLOOR`), a quarter of the smallest bias that can move a level,
+it is `0`.
 
-| Buffer                                                                                                                                               | Size                                                                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| staging of every batch but the first, made at the first staged write at its frame's reserved capacity, remade once at most by a frame reserving more | at most 170 × 28 284 bytes, 4.59 MiB                                                                |
-| light cut's flag words, one per batch for 8 frames in flight (`SHADOW_FLAG_FRAMES`)                                                                  | 5 472 bytes                                                                                         |
-| CPU cut's commands for 4 104 faces                                                                                                                   | 65 664 bytes                                                                                        |
-| region commands a sampled frame copies (the cull's two lists, the occlusion count)                                                                   | 3 × 131 328 bytes                                                                                   |
-| **total**                                                                                                                                            | 5.03 MiB GPU in `SHADOW_POOL_BYTES`; 4.87 MiB host in `SHADOW_HOST_BYTES` (staging mirror included) |
+## Sun clipmaps and lamp maps
 
-## Sun clipmaps and lamp mips
+- **A sun is a clipmap.** Level `L` is an orthographic map of radius `2^(L+1)` centimetres around
+  the camera, snapped to whole pages so a camera step keeps every page still inside; `17` levels,
+  `6` to `22` (`VSM_SUN_FINEST_LEVEL`, `VSM_SUN_COARSEST_LEVEL`): from `1.28 m` to `84 km`. The levels
+  `15` to `18` are the coarse ones (`VSM_SUN_COARSE_FROM`, `VSM_SUN_COARSE_TO`),
+  marked as coarse pages. A level's depth range is `1 000` times its radius, and a cached level stays
+  valid while the camera's depth shift plus its radius is within `0.9` of the range it was drawn in
+  (`VSM_SUN_DEPTH_SPAN`, `VSM_SUN_DEPTH_KEEP`). The sun's resolution bias is `-1.5`, at
+  rest and moving; each unit below zero halves the texel.
+- **A point light is six maps** (one per face of a cube), **a spot light one**, each a full virtual
+  map with its mips; the near plane is `1 cm`, the far plane the light's range
+  (`VSM_LOCAL_NEAR_PLANE`). A local light's resolution bias is `0` at rest and `1` while it moves,
+  blended by the light's mobility factor, which falls from `1` to `0` over ten frames after the light
+  changes (`VSM_LOCAL_LEVEL_BIAS`, `updateLightMobility`).
+- **The mip is chosen per pixel** from its footprint, then raised by the light's and the global
+  resolution biases (`vsmLocalMipLevel`, the clipmap's level for a sun). A page not mapped hands the
+  point to the next coarser level that is.
 
-- **A sun is a clipmap.** Level `L` has texels of `2^L` metres; its window is 64 × 64 pages around
-  the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
-  every page still inside. Sixteen levels (`sunLevels`) start at the near plane's pixel footprint.
-  The depth range is the scene's box along the sun, snapped outward to its own power-of-two grid:
-  every caster lies inside, and a small growth changes nothing. A page is read in the range it was
-  drawn in — its word names one of the `SUN_DEPTH_RANGES` a sun keeps (`sunDepth.ts`) —, so a new
-  range (a walker crossing a grid line) redraws no page its box does not cover; once nothing moves,
-  older-range pages are redrawn in the current one, read meanwhile. The filter's taps keep to the
-  home page, never reading a neighbour page of another range.
-- **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, down to one page. Six faces for a
-  point, one for a spot.
-- **The bias follows the receiver's own triangle** (#831): the normal offset and the slope-scaled
-  depth margin, in texels of the level read, are taken along the plane of the triangle the pixel
-  shows (`shadowBiasNormal`, the plane `shadowReceiver` reads from the visibility buffer, handed to
-  the read with the receiver's offset), turned to the side
-  its shading normal lights, never along that smooth normal — over a coarse terrain it leans off
-  each triangle and under-biased one side of every edge, teeth along the triangles as the sun
-  grazed. The shading point is still moved off the triangle by its vertex normals (Phong
-  projection), and both stay bounded by the filter's reach: a caster a few texels away keeps its
-  contact shadow. The demand reads the same point, so it asks the pages the shading reads.
-- **A page a light cut drew from a coarse ancestor** — the fine cluster not resident yet — is drawn
-  again as soon as residency moves, the camera moving or not (#831, `redrawShortPages`), as the reference engine
-  redraws a cached page once cluster streams its finer clusters in: a drive no longer shows the
-  coarse triangles in its shadows until it stops. A camera that only moves, residency still,
-  redraws nothing.
-- **The level is chosen per pixel, from its footprint** (the world distance between two adjacent
-  pixels at the depth its centre holds without the TAA jitter, `pixelLevel`,
-  `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
-  footprint, a lamp the mip whose texel at the distance of the point that centre holds is. The depth
-  a jittered pixel holds is moved back along its receiver's plane, whose projected depth is affine
-  across the screen, its slope read on a side whose two pixels continue the surface — none across a
-  part one pixel wide, a wire or a bar on background —, so the level of a pixel is the same every
-  jitter phase, and the resolve and the demand pick the same one. A texel is never larger than a
-  pixel where the map offers one, so a caster's error in texels is one in pixels. A page not
-  readable — refused at the pool's ceiling, or left short by the pair list — hands the point to the
-  next coarser level; beyond a sun's last level, the far-shadow ray against the resident proxy
-  (`proxy.bin`) answers, deterministic and unaccumulated (`sun-far-shadow` publishes its bounds).
-  The PCF taps each find their own page: a tap within a texel of a seam compares the four texels of
-  its footprint in their own pages, weighted by hand — no seam, no guard band.
-- **Soft edges are smooth in one image and stable over time** (#1363). The PCF's sixteen taps and
-  a point lamp's PCSS disk are the same every image — no per-frame turn or noise left for the TAA
-  to hide, as the reference engine's filtered (PCF) virtual shadow map lookup; unlike its SMRT, whose per-frame
-  random rays TSR denoises, a deliberate difference —; the TAA's jitter moves the receiver's
-  sample over its pixel, and its history filters that, no second history. A PCSS filter tap is a
-  bilinear comparison, so a penumbra is a ramp, never sixteen steps. Each PCSS stage reads the mip
-  whose texel holds its disk within eight texels, never finer than the pixel's (`lampSoftMip`): the
-  search the mip of the lamp's whole disk, the filter that of the penumbra it found, as a
-  mipmapped filter reads the level of its kernel. Its taps then lie a few texels apart, and a tap
-  costs the same whatever the lamp's radius. A tap's receiver plane stops a disk's width past the
-  disk: at a curved receiver's terminator, where the plane holds the ray, the tap reads the map
-  there instead of flying across it or answering lit.
-- **The soft shadow's demand is bounded** (#1363). A pixel marks, from its own mip to its search's,
-  the pages under the box the disk's square projects to in each face it touches — at most two a
-  side under eight texels, one page a face at the last mip (`demandSoftLamp`): a mip chain's length
-  bounds it, whatever the lamp's radius or the pages its disk crosses, and it is the same every
-  image, so the pages a frame maps are the frame before's while nothing moves.
+## One frame
 
-## Demand, mapping and drawing in one frame
+The frame's shadow work is encoded in the direct-lighting step, after the visibility and material
+passes and before the lighting pass (`webgpu/pages/render/vsm/engineVsm.ts`, `vsmEncode.ts`):
 
-- **Receivers mark the pages.** A compute pass after the light lists marks, per pixel, the pages the
-  resolve will read — a pixel of a tile without a light loads no depth —, and the resolve records
-  each page it reads — a bit per table word, tested before the atomic, and a list —, read back once
-  per image like the texture feedback (`webgpu/shadow/demandPass.ts`, `pageRequests.ts`). Drawn
-  clusters' boxes do not name pages (#1209): a ring round a lamp bounds the lamp's whole map.
-- **The GPU maps what the frame marks, in that frame** (#1275). One workgroup reads the list — the
-  plan's floors, claimed at its head before the demand so pixels never push one out, then the
-  pixels' pages, deduplicated by the bitset — and maps each unmapped page from the free pages or the
-  page least recently asked for, the finest first among equals, by the keys the host sorts by too
-  (`pageKeys.ts`); a page this frame asks for is never evicted, and coarse levels are served first
-  (`webgpu/shadow/allocWgsl.ts`). It frees the pages of a light gone and of a sun level whose window
-  left them, and writes the table words, decoded by the shaders' shared page model
-  (`pageModel.ts`). The host keeps the buffers and the grant; its pool follows the GPU's snapshot in
-  each readback (`scene/light-shadow/mirror.ts`), and a word it sends is kept only for the page the
-  GPU says its entry owns (`wordsWgsl.ts`). Blend surfaces mark their own pages between the
-  pixels' demand and the mapping (#1411): their runs, expanded early, are drawn once more by a
-  depth-read-only stage with no colour target that calls the demand's own `demandLight`
-  (`webgpu/blend/marks.ts`), and reads of the material only the base colour's alpha its opacity
-  test needs — no lighting, no other map (`marksWgsl.ts`) —, so the blend pass reads its own level and keeps its early depth
-  reject. Water surfaces mark theirs in the same pass (#1412), by a second fragment stage of that
-  module (`markWaterShadows`): at the point, footprint and eye-facing normal the water composite
-  rebuilds from the depth through the deferred view (`webgpu/water/shadowReadWgsl.ts`, one text for
-  both), so a water pixel reads the level it asked for. Without the demand or allocation pipeline,
-  the readback's report maps the pages on the host, frames later.
-- **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps and
-  those mapped before that no draw has filled; the host's words list every page whose depth they
-  take (withdrawn on a light move, or overwritten for another entry). One workgroup composes the
-  listed pages into regions, every one of them, as the reference engine's virtual shadow maps draw every page a
-  frame marks (#1363) (`webgpu/shadow/freshWgsl.ts`) —, each view composed from its light's record
-  by the host's page view model (`pageViewModel.ts`: a lamp page is its face's clip cropped to it, a
-  sun page its view cropped by the orthography), its cull volume a lamp page's cone or a sun page's
-  box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
-  every resident page of every caster, whatever the camera or a light cut selected, so a caster the
-  camera does not see still shades a receiver it sees. Of a surface the residency holds at several
-  levels, each page keeps the one its own texels want, as the host's light cut picks a coarser
-  cluster for a coarser page (#831): the cut rule (`page/cut/rule.ts`) on each row's world errors —
-  its own and its parent's, at their spheres' centres, the residency folded in (`rowLods.ts`,
-  written on the rows the table rewrites and those whose readiness moves) — projected in the page's
-  texels (a sun page's per metre, a lamp page's focal over the distance), at the light cuts'
-  threshold. Every surface is drawn once, by one level: never a coarser one over the finer (that
-  lifted the depth above a compiled terrain and shaded it in triangles), and never a far page's
-  whole field at its finest (192 such pages took 150 to 180 ms on a-field-of-pebbles). Each kept
-  row is one `(region, row)` pair. It
-  counts each region's pairs first; one workgroup then scans the counts over its lanes (the shared
-  lane scan, as the tested half's compaction) and admits the longest prefix of whole regions the
-  list holds — the rest keep no pair and wait, unread, for the next frame —, then each admitted
-  region's pairs are laid, the still rows' from the list's start and the moving rows' from its end
-  down: no pair past the list, none drawn for a page left unread.
-  The list is the region cull's kept list, free once the host's batches are encoded, at a size
-  fixed by the pool and never grown after (#831), as the reference engine's culling buffers are
-  (`a reference setting`): `poolPairs` = the pages the GPU draws a frame at most
-  (`shadowPagesPerFrame`, the granted batches' pages, the pool's own when fewer) × `PAIRS_PER_PAGE` (a page's
-  128² texels over the 32 a kept cluster covers at least, 512), grown once to it by the tables' own
-  path (`growKeptList`, the occlusion test's list with it) — asked of the shadow grant, then of the
-  device under an out-of-memory scope, never past one storage binding (`pairGrowth.ts`) —, each
-  refusal a pressure by name (`pairs-over-grant`, `pairs-refused`). The pool's bytes a frame shows
-  (`shadowPoolBytes`) are thus the ones it was set to, whatever the frames count. The seal makes each admitted page
-  readable; each pool layer's pass clears its pages and draws every pair in two indirect draws,
-  casters placed on their page in the vertex stage and kept to it by the fragment, no viewport set
-  (`freshPass.ts`, `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for
-  blended casters. With a static layer, as the reference engine renders a new page's static casters into its
-  static cache and merges them under the dynamic ones (#831): the layer's pass clears the pages
-  and draws the still casters alone (`shadow_fresh_static_vs`, the list's start), then the pool's
-  pass restores each page from it and draws the moving casters alone over it, the list's end — each
-  draw walks its own pairs, never the other's (`freshPairAt`) — (`restore_fs`, `depthRestoreWgsl`, and `shadow_fresh_moving_vs`): the still
-  geometry is drawn once. A page is drawn once, as the reference engine draws it: the snapshot says which pages
-  the GPU's own draw holds (`drawnBy`), and the host adopts those current (`pool.keepDraw`), with
-  their static layer when every GPU draw since the snapshot before wrote it (`layeredFrom`) — never
-  drawn again until what they hold changes; a mover crossing one restores it from the layer
-  (`DRAW_DYNAMIC`): driving, a page's static geometry is not rasterized again
-  (`freshStaticLayer.test.ts`). What a page holds moving in the world, the host sends its word marked
-  withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw loses its depth as a host one
-  does; the mark never enters the table. A mover also withdraws, while the GPU maps, the entries
-  it covers that the host does not map yet (`invalidate.ts`): a page the GPU drew frames before the
-  host's snapshot came back is drawn again in this frame (`withdrawGpuDraw`, `wordsWgsl.ts`), so no
-  old silhouette of a moving car trails it, a page row each — once until a GPU page draw runs
-  again (`table.withdrawUnmapped`). A burst the changed list cannot hold uploads the table whole
-  with those marks (`eachWithdrawn`); past what the words hold, every page the GPU drew itself is
-  withdrawn (`every`). So a page read first in a
-  frame is drawn before anything samples it: no one-frame hole, whatever moves. A frame whose view,
-  world and lights hold, whose host took no page's depth, after a snapshot that listed none, runs
-  none of it: at rest it asks for the pages the frame before drew (`freshWanted`, `gpu.moved`). A
-  view is weighed in float32: a camera easing by less than a float32 step, far below any page's
-  texel, rests, and its frames run no GPU page pass, the static layer's none (#831).
+1. **Invalidation.** The world boxes of the scene's moves since the last frame — each mover's box
+   before and after its move — are sorted by light on the CPU
+   (`vsmInvalidationPhaseFromShadowBoxes`): kept for each light whose maps may hold cached pages
+   (not fully cached, uncached or invalidated), a moving box skipping the maps with a receiver
+   mask, a local light keeping the boxes within its range. One GPU dispatch then flags the
+   previous frame's pages each box touches, as dynamic for a moving box, else as static
+   (`vsm/invalidationPass.ts`).
+2. **The plan on the CPU.** The sun clipmaps, the local lights, the map ids and the projection data
+   (`planVirtualShadowFrame`, `vsm/frameSetup.ts`). A light that moved or changed its cache key is
+   set up uncached: its pages are drawn again.
+3. **Physical page address update**, which carries the pages of the last frame's maps to this
+   frame's ids and folds the invalidation into the page metadata.
+4. **Page marking** (`vsm/markingPass.ts`), one compute pass with the address update as its first
+   dispatch (its time, `shadowVsmMarkingMs`, holds the update's). The page tables and flags are cleared in one walk of each map's pages, the coarse pages
+   marked, then every pixel on a stride of `2` in x and y reads the engine's light grid and marks, in
+   each shadowed light's map, the page its point falls in (with a `5 %` dilation around the page's
+   edge, so the filter's taps read pages that exist); back-facing pixels are skipped.
+5. **Page allocation.** Pages marked and not held get a physical page from the free list, else the
+   least recently requested one; a page requested this frame is never evicted
+   (`encodeVsmPageMapping`).
+6. **The shadow raster** (`vsm/renderPass.ts`, `renderCullWgsl.ts`, `renderRasterWgsl.ts`). Every page
+   allocated and valid for rendering this frame is drawn this frame. The casters are the engine's
+   resident cluster rows, chosen by the camera's cut on the GPU; a cull makes one command per
+   `(map, mip)` the row's box meets and one `(row, page)` pair per page of that command's rectangle,
+   and one indirect draw per chunk draws the pairs into the pool. Chunks hold as many rows as the
+   lists' size allows in the worst case (`vsm/rowPageBound.ts`), so no list overflows and no page
+   waits for a later frame.
+7. **Post render**, then **the projection** (`vsm/projectionPass.ts`): for each shadowed light the
+   mask the lighting reads is traced from the pool (see Reading the shadow); the mask is an array
+   texture of one layer per four casting lights. Each 8 × 8 tile tests only the lights whose sphere
+   meets the box of its points, traces only those a pixel of it is in, and stores only their layers,
+   which its tile word names to the lighting: an empty tile traces and stores nothing.
+8. **The lighting pass** reads the mask. At the frame's end, a copy of the page counters and of the
+   pool's free-page count comes back a few frames late, and the frame's data becomes the previous
+   frame's (`vsmFrameEnd.ts`).
 
-## When a page is stale, withdrawn and drawn
+## Static and dynamic pages
 
-**Every stale page the image reads is drawn, at most a page budget a frame** (#489, #831): the host's
-batches and the GPU's own page draws each draw at most `shadowPagesPerFrame` pages a frame — the
-pages the granted batches hold (one pool layer), the pool's own when fewer —, derived from the grant
-and the pool, never from a scene. It is a safety net: each page draws its casters at the level its
-texels want, so a burst costs its pages' texels; one past it — a pool larger than a layer, all
-stale at once — is drawn over the next frames, the pixels reading the coarser level meanwhile, as
-the reference engine's virtual shadow maps read a page their frame did not render. The list goes coarsest first, each light's floor leading (#525),
-the oldest first once pages wait. Otherwise cost is held by caching — a page is
-redrawn only when what it holds changed —, never by showing a coarse or stale page as current. A
-page is drawn with its own projection into its physical page (viewport and scissor), touching no
-other.
+The pool has two slices, and a page holds a depth in each. A primitive is **dynamic** when it moved
+in the last `100` frames (`VSM_STILL_FRAMES`) and **static** otherwise; unknown ones are
+dynamic. A still scene draws nothing after its first frames: every page keeps its static depth. When
+a dynamic primitive has not been invalidated for a hundred frames, it becomes static and its pages
+are invalidated once, so it is drawn into the static slice; when a static one moves, only the pages
+its box covers are flagged and drawn again, into the dynamic slice, over the static depth.
 
-The table word's valid bit says whether a page is read. A page whose depth is wrong is withdrawn
-(`pool.withdraw`) until its redraw lands, the pixel reading the next coarser level; a page never
-drawn is not read. A page holds two validities: its static depth, in the static layer, and its
-moving depth, the moving casters drawn over it.
+The caches of lights not requested for ten frames are dropped (`VSM_LIGHT_KEEP_FRAMES`).
+A distant light whose pages are all mapped and drawn is refreshed one at a time, the oldest first.
 
-| Cause                                                                                                                                                        | Pages staled                                                                                                                                                                                                                                                                                                                               | Read until redrawn?                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices                                                                                                                                                                                                                                | no: their depth is the old projection's                           |
-| Intensity, colour or penumbra                                                                                                                                | none                                                                                                                                                                                                                                                                                                                                       | —                                                                 |
-| A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes                                               | the mapped pages its projected boxes, where it was and where it lands — each apart, never the pages between —, cover, at the levels where the box holds a texel's sample; redrawn whole, static casters into the layer                                                                                                                     | no: their static layer is wrong                                   |
-| An object already moving moves                                                                                                                               | the same boxes' pages; restored from the layer, moving casters drawn over                                                                                                                                                                                                                                                                  | yes: a static shadow never vanishes while something near it moves |
-| A mover at rest; a camera move (the clipmap scrolls, only entering pages drawn)                                                                              | none                                                                                                                                                                                                                                                                                                                                       | —                                                                 |
-| A representation change: hidden or shown, casting toggled, alpha mode, cutout texture or pages' residency, a blended caster's coverage                       | its pages once the camera rests — a residency change the cut reads at once (#831): a page kept with a superseded form of its caster shades the form the camera draws in dark patches cut along page edges — a still object's redrawn whole, a moving object's moving casters alone (the layer never held them), the two in separate unions | yes                                                               |
-| A cut-threshold change                                                                                                                                       | once the camera rests, the pages drawn at another threshold                                                                                                                                                                                                                                                                                | yes                                                               |
-| A stale page no report names                                                                                                                                 | —                                                                                                                                                                                                                                                                                                                                          | no, since blend and water read without asking                     |
+## Blended casters
 
-So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts`,
-`moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
-coarse level, lying between the depth texels' centres and the transmittance layer's, a sixteenth of
-a texel of slack aside — writes no texel there before or after it moves: that level's pages keep
-(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moving caster goes further: a sun level whose
-texel is wider than its sphere draws it into none of its pages (`underTexel`, `cullShader.ts`, the
-GPU pages' cull too), so a box of moving casters whose diagonal is under that texel stales none
-there, as the reference engine culls a caster too small for a clipmap level; a cluster's sphere spans at most the
-diagonal of a box that holds it, with a sixteenth of slack for the GPU's f32. Its shadow there would
-be under a pixel: the level is read where a texel is about a pixel's footprint
-(`moverUnderTexel.test.ts`, `underTexel.test.ts`, #831). A still caster is always drawn: the static
-layer keeps it. A moved root whose clusters are all it draws —
-every page a leaf, as a run-time primitive's — declares each cluster's box at both poses rather
-than its own box, which holds what lies between them: a ring turning in its plane stales the pages
-along it and keeps its hollow's, a gear the pages under its disc and teeth
-(`webgpu/pages/render/movedClusters.ts`, `movedClusters.test.ts`). A primitive with coarser levels
-declares its own box at each pose. A residency flag that drops and rises within a frame (rows follow the table
-epoch when a pose moves) is no change: only a flag differing from the last plan's restales its
-cluster's pages (`webgpu/shadow/residence.ts`).
+A surface that casts and lets light through (`transparentShadow`) is drawn into a **transmission
+atlas** made with the first such caster (`vsm/transmissionPass.ts`): after the opaque raster and
+before the projection, the pages whose slice is redrawn give their slots back and the blended
+rows are drawn multiplicatively into slots of the atlas, one per page and slice — the same
+static-or-dynamic rule, so a still scene redraws none —, then a resolve pass writes the stamped slots
+into the atlas the shadow reads. The slot pool starts small and doubles when a frame finds it short,
+read back a few frames late. A receiver behind a pane reads that pane's colour through it: a blended
+surface steps its own receiver toward the light past its layer, so a pane never shadows itself.
 
-**The floor is always current.** Every page a report names asks for its light's floor too — a sun's
-last clipmap level, a lamp face's one-page mip —: mapped first, never evicted while anything above
-it is read, drawn in the frame it goes stale. It needs no report: a sun asks every frame for the
-floor pages its view reaches, and a new, moved or reshaped lamp for each face's floor until a report
-written at its current pose returns (a past pose's report names only the faces its receivers read).
-So a pixel falling back past a withdrawn page reads a current floor.
+## Reading the shadow
 
-**Batches.** The frame draws its pages in as many batches as the per-batch buffers take
-(`shadowPagesPerBatch`, 24 pages, in the views one light cut runs at once), all in one command
-buffer, each batch's writes landing in command order (`gpu/shadow/batchWrites.ts`,
-`webgpu/pages/render/encodeShadowBatches.ts`). Their buffers are granted once
-([Memory](#memory)): one layer, 4 096 pages, in full batches of 24 is at most 171 batches a frame
-(`MAX_SHADOW_BATCHES`), 4 104 pages, each batch in at most 24 light views. A frame may draw the
-current pool's pages in batches of the fewer of 24 and the views one batch runs
-(`shadowBatchCapacity`), at most 171 and at most what the device's `maxBufferSize` stages — 109
-batches for the 2 601-page pool at 720p, 38 where buffers stop at 1 MiB. A bound, never a command: a
-frame encodes only the batches its pages fill, and a face with no casters encodes no cull pass. The
-shaders' arrays, strides and uniform layouts — light-cut views, region faces and commands,
-occlusion slots — are generated from those constants (`recordPack.ts`, `batchBudget.ts`), never a
-literal twin (`gpu/shadow/capacities.test.ts`).
-
-A list past capacity — a pool of more than 4 104 pages all stale at once, or a light cut that
-dropped work and cut its batches short — draws its capacity and leaves the rest pending, a declared
-limit counted in `shadowPagesPending` (otherwise 0 unless a batch could not be encoded). Pending
-pages go stale-longest first, so pages re-marked every frame cannot starve the others: a page that
-stays read is drawn within ⌈pool pages / batches⌉ + 1 frames, 34 at worst (`admit.ts`). A report
-naming more pages than the pool holds (`shadowRequestCap`) maps the coarsest, then by table entry,
-never in the GPU's append order; the rest read coarser, waiting for nothing, counted in
-`shadowPagesOverflow`. A still scene runs no resolve and asks for nothing; the image holds once a
-report proves it reads only drawn pages.
-
-## The static layer: moving objects redraw their own casters
-
-A placement turns moving the first time its pose or its row's flag actually changes
-(`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, a row inside a written range, or
-a pose that moves no corner of the caster's box by one float32 step at its reach (`poseHoldsBox`:
-a resting body's pose rounded again, which the GPU's float32 world cannot show, #831) is no move —
-and stays so. From then on the pool keeps a static layer, a second depth texture the
-pool's size. Its texture is made with the pool, in the same held frame, as the reference engine allocates its
-static page pool beside the dynamic one (`webgpu/shadow/staticReserve.ts`, #831): the pool's bytes
-are its setting's from the first frame, whatever moves; the layer itself, its pyramids and
-occlusion test, is built on it at that first move, so a scene where nothing moves pays no pass. A page drawn in full writes its static casters into the layer, restores itself from it and
-draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
-alone, split by one word per row in the page cull. Each page keeps, of the moving casters, only
-the clusters whose sphere meets its own light-space box (`keepCaster`, `gpu/shadow/cullShader.ts`):
-a car moved half a metre stales two pages a level, each drawing only its parts over it, never a
-parked car's (`movingCar.test.ts`). A mover never goes back into the layer (#993):
-staying moving costs its casters only in the pages another mover makes the frame redraw, while
-rejoining would cost two layer redraws per pause, static casters included, and a rest timer would be
-a scene-tuned constant; revisit only if falling boxes and a walker or car at 1728×1117 CSS, DPR 2,
-show a net gain beyond run spread, transition frames included.
-
-**Moving casters by group** (#1345, `webgpu/shadow/movingGroups.ts`). A restored page drew its
-moving casters in one draw of its own, in its page's viewport: 250 draws a frame for 35 turning
-antennas. the reference engine's virtual shadow maps draw all the pages of a light in one pass; so here every
-restored page of one pass whose lists are of one kind (the cull's, or the occlusion test's) is in
-a group: a sun page by its block of the layer — a square of the layer's largest power of two of
-texels, at its start or its end on each axis, which holds every page —, alone in it or not; a lamp
-page by its layer. After the cull and the occlusion test, a compute pass files each page's kept
-casters into its group's list and counts them into its two indirect commands, and the pass draws each group's opaque
-casters, then its cutout ones, in one instanced draw each; the transmittance layer's pass draws each
-group's blended casters, depth only then colour only, at half (`movingGroupDraws.ts`). A sun corner
-is carried from its page's viewport to the block's (`groupPlace`, `gpu/shadow/groupWgsl.ts`): the
-snapped sun corner and the power-of-two block make the rasterizer's f32 window position the one the
-page's own viewport gave, to the bit, at the pool's resolution and at half (`groupPlace.test.ts`).
-A lamp corner is carried onto its page's square of the layer in clip space by the GPU pages'
-`freshPlace` (`x·s + o·w`), each caster clipped to its page by four clip distances
-where the device has `clip-distances` — which only spares the overdraw: without them the fragment's
-`pageHolds` discards past the page all the same, and lamp pages are grouped on every device. After
-the f32 divide by `w`, its window position lies within one ulp of the one its page's viewport gave
-(one texel edge at most, `groupPlace.test.ts`) — class 2, against `develop`'s lamp shadows. The
-fragment keeps its page's texels alone, off a lamp's emitter envelope. Only a group whose pages keep
-a blended caster draws into the transmittance layer: the compute pass stretches the group's blended
-command over those pages' casters, and leaves it at no instance for a group of opaque casters alone.
-
-Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
-occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its
-own step (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`), except the draws of a blended
-caster prepare did not see, compiled at its first frame.
-
-On a code-built scene with one ball moving over a static ground, 1280×720, 4.4 pages a frame are
-redrawn (6 at most) with one light cut, against 224 pages on `develop`, and the frame after
-the motion is 0 px from a fresh render of the same pose.
-
-**Measured.** The layer costs the pool's bytes again and one restore draw per redrawn page. Paired
-A/B runs of `develop` by the acceptance session (Apple M2 Max, headless Chrome, 1728×1117 CSS at
-DPR 2, bodies moving: car driven, walker walking, loaded machine); a batch holds other merges, so a
-row is a batch's cost. Posted 28 Sept. 20:02 UTC as `measure ok` on #989 and #990, median GPU ms of
-five interleaved pairs, load 15–75, batch `884cde8b5` → `e36d93ea1` (capacity change #1045,
-static-survival change #1064):
-
-| Example (GPU p50 ms) | before | after | paired difference            |
-| -------------------- | ------ | ----- | ---------------------------- |
-| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
-| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
-| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
-| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
-
-CPU frame 1.4–2.3 ms both sides; every scene under 60 fps on the GPU (25–60 ms), so on 28 Sept. the
-120 fps target (#525) was not met. The no-demotion decision (#993, #1146): batch `3e58f044f` →
-`d5ec49069`, six pairs, load 25–60, posted on #993 on 28 Sept. 22:35 UTC — GPU p50 +0.13 ms
-(falling boxes), +0.24 (walker), −0.59 (car), +0.53 (astrolabe rotating), all within run spread
-(widest −1.5 to +2.0 ms), CPU p50 within 0.07 ms: no regression or gain resolved; resize and
-pause/resume not run. The astrolabe is the counterexample: every caster of its pages moves, so the
-layer restores almost nothing; a cache percentage is no measure of it. Physical pages are memory,
-not frame time: the pool past one layer (#818) left the falling boxes' GPU envelope unchanged and
-raised their peak memory by 118 MB (1 410 against 1 292 MB, #850's baseline; the walker 1 465, the
-car 1 417), its layer doubling with it. Since #831 the pool is fixed once at what the session's
-screen reads, its static layer as many, whatever the scene: 2 601 pages at 3456 × 2234, two
-170 MB textures, where the 4 096 pages declared before held drive-a-car's shadows at 555 MB. Later batches post their numbers on the issues they
-measure.
-
-## Casters: the light cut
-
-The pages of one light view — a sun level, a lamp face at one mip — form a run, and every run of the
-frame is selected by ONE traversal of the cluster cut: the camera's kernels, pipelines, clusters and
-residency bits, with flags, counters and output of its own (`gpu/dag/lightCut.ts`). Each work item
-(queued node, candidate page, live cluster) carries its view's index; each view has its own uniform
-block and per-primitive frustum planes, nothing carries over between frames, and the frame pays the
-waits between dispatches once, not per view. Each view's clusters land in their own range of one
-log, which the light compaction walks view by view. The budget is fixed: lists and queues are the
-camera cut's size whatever the view count (at most `shadowPagesPerBatch` views, and what the
-device's dispatch and binding limits hold, `gpu/dag/lightCutCapacity.ts`); work past them is
-dropped, the batch's pages drawn again, and the views per batch bisected between the most a batch
-drew whole and the fewest one dropped with — a bound on a batch, never on the frame
-(`shadowBatchCapacity`).
-
-A run's window is the square bounding its pages, cut in eight by eight cells of whole pages; a node
-or cluster covering no cell a drawn page lies in is dropped. Error is counted in the view's texels
-against the camera's pixel threshold, and the normal cone is off, since the shadow raster culls no
-face. The light's mask is compacted over the camera's draw items, and each page culls that list
-against its own box or cone. A caster the pool lacks is drawn through its nearest resident ancestor,
-by the camera's cut rule ([RESIDENCY.md](RESIDENCY.md#one-cut-rule-per-cluster)), with every page of
-that view: those pages alone are redrawn once residency changes. A batch whose requests were not
-read — no report readback free, or its list full — redraws them at once
-(`gpu/dag/lightCutRedraws.ts`, `light-cut-redraw`). A page is redrawn as it was drawn: a restored
-one redraws its moving casters alone over the kept layer.
-
-Every batch's cut appends its requests to one list (`VIEW_APPEND`), copied once after the last batch
-into one of two report slots (`gpu/dag/lightCutReports.ts`), so every batch's missing casters are
-asked for. Each frame's flag words ride in one slot sized for the most batches, eight made at
-creation (`SHADOW_FLAG_FRAMES`); a frame finding all eight still read draws no light-cut page, its
-pages staying stale and read, drawn by the next frame with a slot, never withdrawn on a guess
-(#1142). Light-cut requests are a second residency tier, loaded after the camera's pages into free
-slots, never pinned. The CPU cut does the same, reading the run's view as a camera
-(`webgpu/shadow/cpuCasters.ts`); its casters take rows behind its own (#10, #26). A view whose CPU
-list is empty marks its regions casterless: the page is still cleared or restored, with no bind
-group and no draw (`regions.casterless`, #1210).
-
-## Depth draws
-
-The depth's fragment stage writes nothing and only discards a cutout's hole or the emitter envelope;
-an opaque caster runs none unless its face carries an emitter envelope. The page cull files each region's casters in two lists of
-its slot (`KEPT_LISTS_WGSL`, `gpu/shadow/cullShader.ts`) by the cutout bit of the row's mobility
-word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK` in `webgpu/shadow/bounds.ts`): opaque ones
-from the start, counted by the region's first command, cutout ones from the end down, counted by its
-second. The opaque list is drawn by `shadow_depth_vs` with no fragment stage (early depth, no
-fragment invocation), or by `shadow_vs` with the fragment when the face carries an emitter envelope;
-the cutout list by `shadow_cutout_vs` with the fragment, only while some row is a cutout
-(`hasCutouts`). The three pipelines (`gpu/shadow/depthDraws.ts`) compile at the `shadow pipelines`
-step and place a corner through one `shadowVertex`, whose position is `@invariant`; a texel keeps
-the nearest depth whatever the draw order, so the page is develop's single draw to the bit, which
-`gpu/shadow/depthSplit.test.ts` checks against develop's corner on random casters and on NaN, ±0,
-±Inf, empty and full-slot inputs (the audit's OMB-01 harness, #965). The transmittance layer draws
-the first list alone, which holds the blended casters.
-
-Masked cut-outs are read at the mip the reading texel's footprint selects, in the visibility raster
-and the shadow pass alike, and the material resolution requests the tiles of the sun level each
-masked pixel's footprint reads. A colour tile's arrival invalidates the shadow pages of the masked
-surfaces that read its texture, and those alone. Known limit: a caster the camera never sees has no
-one to request its tiles; the shadow pass then reads the finest tile resident.
-
-## Blended casters: the transmittance layer
-
-A blended surface casts only with `transparentShadow: true`
-([SDK.md](SDK.md#a-see-through-surface-casts-no-shadow-unless-it-asks); `castsBlendShadow`,
-`gpu/shadow/transmittance.ts`); a cooked model's materials carry no such flag. A blended cluster is
-drawn by the blend pass and never enters the visibility tables: to cast, it takes a row of the page
-table _behind_ the visibility rows, read only by the shadow pass (`webgpu/row/blendCasters.ts`),
-taken when its slot arrives and given back when it leaves; the pool bounds how many exist, and a
-scene that blends nothing has none. The light cut finds it at that row (`gpu/draw/lightRows.ts`,
-pinned by the host), the CPU cut lists it there, and the same cull draws it.
-
-It never writes the pool's depth: it fills the **transmittance layer**, two textures at half the
-pool's resolution (one texel per 2 × 2 depth texels, same pages and table, texel / 2): the
-transmittance, `rgba8unorm`, whose RGB keeps `Π(1 − coverage)`, coverage being the material's
-opacity times its colour map's alpha, and the nearest translucent depth, `depth32float`.
-Transmittance is low-frequency; the same PCF filters it. Its own pass follows the pool's
-(`webgpu/pages/render/encodeShadowPass.ts`): each page the pool drew is cleared to full
-transmittance and far depth, then draws its list twice from one shader entry, only the blended rows
-surviving — depth only, depth-tested, for the nearest depth; then colour only, blended
-multiplicatively, without depth —, both discarding a fragment the opaque depth hides at all four of
-its texels. Once the last blended caster gives its row back, the layer stays and its pages are only
-cleared.
-
-The shadow read multiplies its filtered PCF result by the layer once, at the footprint's centre
-(`lighting/direct/shadowWgsl.ts`), since the sixteen taps lie within one texel of it: the four
-texels around it, kept within its page, each its transmittance where the receiver lies behind its
-translucent depth, filtered bilinearly. A pixel the opaque depth fully darkens reads nothing of it.
-A constant opacity gives a constant shadow, two panes multiply, a receiver in front of a pane keeps
-its light, and a receiver 2 m behind a pane at a 4 km sun range is attenuated: the depth is single
-precision. Blended rows count as moving, so the static layer keeps depth alone and a restored page
-starts from full transmittance. The layer exists from the first blended caster on, 8 bytes per 4
-page texels (`shadowTransmittanceBytes`, in `SHADOW_POOL_BYTES`); before, the passes and read are an
-opaque scene's, binding one-texel stand-ins never sampled. Limits: one nearest depth per texel, so a
-receiver between two stacked panes takes both; each product kept in 8 bits; opacity 0 takes no row,
-opacity 1 lets no light through. Additive and transmissive surfaces cast nothing yet: the tinted
-shadow of transmission is #33's, colouring the same RGB layer. An unpaged blended mesh casts
-nothing.
+- **Opaque surfaces** read the mask: the projection traces, for each pixel and light, at most `7` rays (the count adapts) of `8`
+  samples through the shadow map (`VSM_TRACE_RAYS_*`, `VSM_TRACE_STEPS_*`), starting a
+  small share of the screen along the ray (`VSM_SCREEN_RAY_SHARE`, `0.015`), the normal offset a
+  ratio of the camera distance (`VSM_NORMAL_BIAS`), with a spatio-temporal blue noise
+  (`vsm/blueNoise.ts`: three `64 × 64` void-and-cluster maps, `64` temporal slices).
+- **Blended surfaces and water** read the page table and the pool directly
+  (`lighting/direct/shadowWgsl.ts`), by the setting `translucentShadowFilter`
+  (`LIGHT_SETTINGS`): `0` one lookup, `1` (the default) sixteen taps a texel apart, each a bilinear
+  compare read in its own page, `2` the opaque projection's rays traced in the fragment. They need
+  the pool in one binding: a device that splits a slice into parts reads no shadow there.
+- **A page not drawn** hands its point to the next coarser level that is mapped; where no page holds
+  the point, it is lit.
 
 ## Metrics
 
-| Metric                                                                                                   | Meaning                                                                                                                                                        |
-| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`, `shadowPagesDrawn`, `shadowPagesPending` | the frame's page work                                                                                                                                          |
-| `shadowWaitMs`, `shadowWaitFrames` (direct-lighting diagnostic only)                                     | wait of the oldest stale page the image reads, while a report names it (#489)                                                                                  |
-| `shadowPagesRestored` / `shadowPagesRasterized`, `shadowRestoreCopies`                                   | pages restored from the static layer, moving casters alone rasterised / pages whose static casters were redrawn (#991, counted on the host, never in a shader) |
-| `shadowStaticDrawCalls` / `shadowMovingDrawCalls`, `shadowMovingCastersKept`                             | draw calls by caster kind; sampled clusters' moving casters kept                                                                                               |
-| `shadowBatches`, `shadowLayersDrawn`                                                                     | batches and pool layers drawn                                                                                                                                  |
-| `shadowPagesStaledBy`                                                                                    | pages staled by reason: light, still caster, moving casters, detail, cut threshold, depth range                                                                |
-| `shadowPoolBytes`, `shadowPeakBytes`                                                                     | allocated and peak bytes                                                                                                                                       |
-| `diagnostic.shadowAtlas(world)`                                                                          | the pool's raw depth hash                                                                                                                                      |
+| Metric                                                                       | Meaning                                                                            |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `shadowVsmLights`, `shadowVsmMaps`, `shadowVsmProjectionPasses`              | the frame's shadowed lights, the maps they take, the projection passes it ran      |
+| `shadowVsmPagesRequested`, `shadowVsmPagesAllocated`, `shadowVsmPagesCached` | the pages the pixels marked, the new ones the pool gave, the ones kept from before |
+| `shadowVsmPagesRendered`                                                     | pages cleared then drawn: read back a few frames late                              |
+| `shadowVsmFreePages`, `shadowVsmLodBias`                                     | the pool's free pages and the global bias its load sets                            |
+| `shadowVsmInvalidationMs`, `shadowVsmMarkingMs`, `shadowVsmPageManagementMs` | GPU time of the passes of that name (`vsm.` labels, timed with the Shadows stage)  |
+| `shadowVsmRenderMs`, `shadowVsmProjectionMs`, `shadowVsmTransmissionMs`      | GPU time of the raster, the projection and the transmission atlas                  |
+| `shadowPoolBytes`                                                            | GPU bytes the shadows hold: the set, the mask, the raster's lists, the atlas       |
+| `shadowResolutionBias`                                                       | the pool's halvings plus its load's bias: above `0`, no reference capture          |
+
+The page counters need the page-counter readback on (`countersOn`); the other `shadow*` fields of the
+public contract are kept for hosts that read them and are `null` here.
 
 ## WebGL2 has none
 
-WebGL2 has no shadow path, neither shadow atlas nor virtual pages: its lights reach every surface
-(`webgl/cluster/lights.ts`). `CONTRACT_LIGHTS_LIGHTING` publishes `shadows: false`, and the lights
-of the set that lights (the contract's, else the source graph's) that ask to cast are handed to
-`ContractShadows` at each change of that set. The world, or a session opened without one, names each
-as `shadows-refused` (`noticeShadowRefusal`).
+WebGL2 has no shadow path: its lights reach every surface (`webgl/cluster/lights.ts`).
+`CONTRACT_LIGHTS_LIGHTING` publishes `shadows: false`, and the lights of the set that lights (the
+contract's, else the source graph's) that ask to cast are handed to `ContractShadows` at each change
+of that set. The world, or a session opened without one, names each as `shadows-refused`
+(`noticeShadowRefusal`).

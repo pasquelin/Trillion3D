@@ -118,7 +118,7 @@ test('a transparent sprite is drawn in one pass: one plan entry, with no cull, a
         }) as unknown as BlendGpuItem,
     ),
   );
-  assert.deepEqual([...blendState.orders[0]].map(planCull), [0, 0, 0]);
+  assert.deepEqual([...blendState.seeds[0]].map(planCull), [0, 0, 0]);
   assert.deepEqual(drawPasses(mesh.material), [undefined]);
 });
 

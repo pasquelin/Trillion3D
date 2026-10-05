@@ -83,8 +83,8 @@ export async function runPageDecodeTask(
     if (request.op === 'cut') {
       // Loaded on the first cut alone: a worker that only decodes never reads the encoder.
       const cutter = await import('../../world/page/runtimeCut.ts');
-      const { drawn, cones, blended, recut } = cutter.unpackDrawn(request.source);
-      const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, recut);
+      const { drawn, cones, blended, recut, held } = cutter.unpackDrawn(request.source);
+      const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, { recut, held });
       const transfer = cut.pages.flatMap((page) => [page.index, page.geometry]);
       return done(request, started, { cut }, transfer);
     }

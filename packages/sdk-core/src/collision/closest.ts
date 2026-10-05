@@ -4,43 +4,30 @@
  * segment comes closer than `radius` to it.
  *
  * The closest pair of a segment and a triangle is one of three things: the point where the
- * segment pierces the triangle (distance zero), an end of the segment against the triangle, or
- * the segment against one of the triangle's three edges. Each is solved in closed form and the
- * nearest kept. A triangle is read from a flat list, nine numbers from `at`; every result is
+ * segment pierces the triangle (distance zero), an end of the segment against the inside of the
+ * triangle, or the segment against one of the triangle's three edges. Each is solved in closed
+ * form and the nearest kept. An end whose nearest triangle point is on an edge is that edge's
+ * pair with the segment already: the segment's closest point to the edge is at most as far. A triangle is read from a flat list, nine numbers from `at`; every result is
  * written into caller-owned arrays, so a query allocates nothing.
  */
 
-import { closestBetweenSegments, squaredGap, unit } from './segmentPair.ts';
+import { closestBetweenSegments } from './segmentPair.ts';
 
 type Numbers = ArrayLike<number>;
 
 const edge = new Float64Array(6),
-  onEdge = new Float64Array(3),
+  onPlane = new Float64Array(3),
   tail = new Float64Array(3),
   candidate = new Float64Array(6),
   normal = new Float64Array(3);
 
-// Equivalent at `closestSegmentTriangle`, whose edge pairs find the distance of a segment end to an
-// edge as well (the minimum of both is kept); only a tie's pair could differ.
-// Stryker disable all: redundant with the edge pairs
-/** The parameter in `[0, 1]` of the point of segment `(a, b)` closest to `p`, `a` for a point segment. */
-function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: number) {
-  const dx = b[bAt] - a[aAt],
-    dy = b[bAt + 1] - a[aAt + 1],
-    dz = b[bAt + 2] - a[aAt + 2];
-  const length = dx * dx + dy * dy + dz * dz;
-  if (length === 0) return 0;
-  const t = ((p[0] - a[aAt]) * dx + (p[1] - a[aAt + 1]) * dy + (p[2] - a[aAt + 2]) * dz) / length;
-  return unit(t);
-}
-// Stryker restore all
-
 /**
- * The point of triangle `v[at..at+9]` closest to `p`, written to `out`; returns the squared
- * distance, `normal` and `area` being what `triangleNormal` wrote for it. Inside its edges the
- * plane's projection is the answer; outside, the nearest point of the nearest edge.
+ * The projection of `p` on the plane of triangle `v[at..at+9]`, written to `out` with its squared
+ * distance returned when it lies inside the edges, `normal` and `area` being what `triangleNormal`
+ * wrote for it; `Infinity` otherwise (outside, or a flat triangle), as the nearest point is then on
+ * an edge, which `closestSegmentTriangle`'s edge pairs measure.
  */
-function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
+function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
   // Stryker disable next-line EqualityOperator,ConditionalExpression: flat: NaN height, never kept
   if (area > 0) {
     const h = planeSide(p, 0, v, at) / area;
@@ -48,21 +35,7 @@ function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number
     for (let k = 0; k < 3; k++) out[k] = p[k] - h * normal[k];
     if (insideTriangle(out[0], out[1], out[2], v, at, normal)) return h * h * area;
   }
-  // Stryker disable all: the edge distances `closestSegmentTriangle`'s edge pairs find (above)
-  let best = Infinity;
-  for (let e = 0; e < 3; e++) {
-    const from = at + 3 * e,
-      to = at + 3 * ((e + 1) % 3);
-    const t = segmentParameter(p, v, from, v, to);
-    for (let c = 0; c < 3; c++) candidate[c] = v[from + c] + t * (v[to + c] - v[from + c]);
-    const distance = squaredGap(p, 0, candidate, 0);
-    if (distance < best) {
-      best = distance;
-      out.set(candidate.subarray(0, 3));
-    }
-  }
-  return best;
-  // Stryker restore all
+  return Infinity;
 }
 
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
@@ -125,10 +98,10 @@ export function closestSegmentTriangle(
   let best = Infinity;
   for (let end = 0; end < 6; end += 3) {
     for (let k = 0; k < 3; k++) tail[k] = segment[end + k];
-    const distance = closestOnTriangle(onEdge, tail, v, at, area);
+    const distance = projectionInside(onPlane, tail, v, at, area);
     if (distance < best) {
       best = distance;
-      for (let k = 0; k < 3; k++) [out[k], out[3 + k]] = [tail[k], onEdge[k]];
+      for (let k = 0; k < 3; k++) [out[k], out[3 + k]] = [tail[k], onPlane[k]];
     }
   }
   for (let e = 0; e < 3; e++) {

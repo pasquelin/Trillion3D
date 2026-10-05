@@ -4,9 +4,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
+import { BIN_BACK, CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
 import type { GpuDraw } from '../../gpu/draw/draw.ts';
 import { createDrawItemWordsHold, refreshDrawItemWords, sendDrawItemWords } from './itemWords.ts';
+import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
+import { ROW_FLAGS_WORD } from '../row/pageRow.ts';
 import { createDirtyRows } from '../row/dirty.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -25,6 +27,7 @@ function runtime(n: number, drawLayerSlots: number) {
       packedCount: n,
       packedRecs,
       packedPageIndex: Int32Array.from({ length: n }, (_, i) => 100 + i),
+      pageTableInts: new Uint32Array((Math.max(1, n) * PAGE_INFO_STRIDE) / 4),
       dirtyMarks: dirty.marks,
       get dirtyFrom() {
         return dirty.span.from;
@@ -65,11 +68,11 @@ const pendingSpan = (hold: { pending: { span: { from: number; to: number } } }) 
   hold.pending.span.to,
 ];
 
-const cible = {} as GpuDraw;
+const noDraw = {} as GpuDraw;
 
 test('the first image writes the four words of each row and declares them all to send', () => {
   const a = runtime(4, 3);
-  const hold = a.image(2, cible);
+  const hold = a.image(2, noDraw);
   assert.deepEqual(pendingSpan(hold), [0, 3]);
   for (let row = 0; row < 4; row++) {
     const word = row * DRAW_ITEM_U32;
@@ -81,13 +84,13 @@ test('the first image writes the four words of each row and declares them all to
 
 test('only the dirty rows are rewritten: a row outside them keeps its words', () => {
   const a = runtime(8, 3);
-  a.image(2, cible);
+  a.image(2, noDraw);
   sendDrawItemWords(a.rt);
   // Row 5 changes occupant, and it alone: the table declares only that one.
   a.layout.rows.packedPageIndex[5] = 999;
   a.layout.rows.packedPageIndex[1] = 888;
   a.dirty.mark(5);
-  const hold = a.image(2, cible);
+  const hold = a.image(2, noDraw);
   assert.deepEqual(pendingSpan(hold), [5, 5], "the rows to send are the table's");
   assert.equal(a.layout.drawItemWords[5 * DRAW_ITEM_U32 + 2], 999, 'the dirty row is rewritten');
   assert.equal(a.layout.drawItemWords[1 * DRAW_ITEM_U32 + 2], 101, 'the clean row is not');
@@ -95,14 +98,14 @@ test('only the dirty rows are rewritten: a row outside them keeps its words', ()
 
 test('the rows to send accumulate until an image sends them, run by run', () => {
   const a = runtime(8, 3);
-  a.image(2, cible);
+  a.image(2, noDraw);
   sendDrawItemWords(a.rt);
   a.sent.length = 0;
   a.rt.timing.encodeCounts.itemsUploaded = 0;
   a.dirty.mark(6);
-  a.image(2, cible);
+  a.image(2, noDraw);
   a.dirty.mark(2);
-  const hold = a.image(2, cible);
+  const hold = a.image(2, noDraw);
   sendDrawItemWords(a.rt);
   assert.deepEqual(
     a.sent,
@@ -118,11 +121,11 @@ test('the rows to send accumulate until an image sends them, run by run', () => 
 
 test('a new layer ceiling, or a fresh compaction buffer, asks for the whole table again', () => {
   for (const [couches, tampon] of [
-    [1, cible],
+    [1, noDraw],
     [2, {} as GpuDraw],
   ] as const) {
     const a = runtime(6, 3);
-    a.image(2, cible);
+    a.image(2, noDraw);
     sendDrawItemWords(a.rt);
     const hold = a.image(couches, tampon);
     assert.deepEqual(pendingSpan(hold), [0, 5], 'the whole table leaves, with no dirty row');
@@ -131,13 +134,33 @@ test('a new layer ceiling, or a fresh compaction buffer, asks for the whole tabl
 
 test("a lower layer ceiling pinches each row's layer, like indirect draw", () => {
   const a = runtime(6, 3);
-  a.image(1, cible);
+  a.image(1, noDraw);
   for (let row = 0; row < 6; row++)
-    assert.ok(a.layout.drawItemWords[row * DRAW_ITEM_U32 + 3] <= 1, `ligne ${row} hors bornes`);
+    assert.ok(a.layout.drawItemWords[row * DRAW_ITEM_U32 + 3] <= 1, `row ${row} out of bounds`);
 });
 
 test('no row: nothing is written and nothing is to send', () => {
   const a = runtime(0, 3);
-  const hold = a.image(2, cible);
+  const hold = a.image(2, noDraw);
   assert.ok(hold.pending.span.to < hold.pending.span.from, 'no row');
+});
+
+test("a cutout row's bin word is its face mode's cutout bin, rewritten with the row", () => {
+  const a = runtime(6, 3);
+  const cut = (row: number, on: boolean) => {
+    a.layout.rows.pageTableInts[(row * PAGE_INFO_STRIDE) / 4 + ROW_FLAGS_WORD] = on ? FLAG_MASK : 0;
+    a.dirty.mark(row);
+  };
+  // Every other row's bin is its face mode: the partition and the compaction count and place the
+  // cutout rows in their own slots.
+  const bins = () =>
+    [0, 1, 2, 3, 4, 5].map((row) => a.layout.drawItemWords[row * DRAW_ITEM_U32 + 1]);
+  const cutBin = BIN_BACK + CULL_BINS;
+  cut(1, true);
+  cut(4, true);
+  a.image(2, noDraw);
+  assert.deepEqual(bins(), [BIN_BACK, cutBin, BIN_BACK, BIN_BACK, cutBin, BIN_BACK]);
+  cut(1, false);
+  a.image(2, noDraw);
+  assert.deepEqual(bins(), [BIN_BACK, BIN_BACK, BIN_BACK, BIN_BACK, cutBin, BIN_BACK]);
 });

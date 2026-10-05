@@ -73,7 +73,7 @@ pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Cow<'_, [u8]>> {
     Ok(Cow::Owned(out))
 }
 
-/// A Zstandard stream is a **sequence** of frames, and the specification admits skippable frames
+/// A Zstandard stream is a **sequence** of frames, and the format admits skippable frames
 /// there — Blender writes one, which carries its seek table. The decoder used only reads one
 /// frame at a time: they are therefore chained here, skipping a skippable frame at the length it
 /// announces. Nothing is trusted unbounded: the remaining ceiling limits each frame.

@@ -7,11 +7,11 @@ import {
   UNI_SCALARS,
   UNI_VIEW,
   UNI_VIEW_PROJ,
-  writeSplitDouble,
 } from './contract.ts';
 import { matrixAtRenderOrigin } from '../../../../sdk-core/src/index.ts';
+import { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts';
 
-/** What a frame tells the partition, and nothing more: two matrices, an anchor, seven integers. */
+/** What a frame tells the partition, and nothing more: two matrices, an anchor, eight integers. */
 export type PartitionFrame = {
   /** View and view-projection elements in double precision, in WORLD coordinates. */
   view: ArrayLike<number>;
@@ -37,6 +37,8 @@ export type PartitionFrame = {
   /** True when the view differs from the previous image's: rows the test kept while it stood
    *  still may be withdrawn from the occluders again. */
   viewMoved: boolean;
+  /** True on the frame whose counters are sampled (`countsDue`): the kernels count only then. */
+  counting: boolean;
 };
 
 /**
@@ -66,7 +68,8 @@ export function packPartitionUniform(
   words[UNI_SCALARS + 4] = frame.layerTop;
   words[UNI_SCALARS + 5] = frame.hasRest ? 1 : 0;
   words[UNI_SCALARS + 6] = frame.viewMoved ? 1 : 0;
-  words.fill(0, UNI_SCALARS + 7, UNI_LEVELS);
+  words[UNI_SCALARS + 7] = frame.counting ? 1 : 0;
+  words.fill(0, UNI_SCALARS + 8, UNI_LEVELS);
   for (let level = 0; level < MAX_HIZ_LEVELS; level++) {
     const mip = frame.levels[level];
     words[UNI_LEVELS + level] = mip ? mip.offset : 0;

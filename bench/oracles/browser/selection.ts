@@ -1,4 +1,4 @@
-// Pure A6 and A7 oracles, no side effects: `selection.bench.ts` measures them; unit tests
+// Pure A6 and A7 oracles, no side effects: the perf benches measure them; unit tests
 // import them as reference.
 
 /** `packages/sdk-browser/src/page/selection/math.ts:110-134` before batch A: one branch per plane and per vertex. */

@@ -5,6 +5,7 @@ import { createGpuPageLoader } from './load.ts';
 import { createGpuPagePins } from './pins.ts';
 import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
 import { evictResident } from './commit.ts';
+import { heldHomes, type PageHomes } from './homes.ts';
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
@@ -13,16 +14,23 @@ export type { ResidentPage } from './types.ts';
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
-  options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void },
+  options: {
+    pageBytes: number;
+    slots: number;
+    /** Each page's own place, taken while `slots` hold the whole catalogue (`homes.ts`). */
+    homes?: PageHomes;
+    onDiagnostic?: (d: BackendDiagnostic) => void;
+  },
 ) {
-  const { pageBytes, slots } = options;
+  const { pageBytes, slots, homes } = options;
   if (!Number.isSafeInteger(pageBytes) || pageBytes < 4 || pageBytes % 4)
     throw new Error('INVALID_PAGE_BUDGET');
-  const buffer = createPageBuffer(device, pageBufferBytes(device, pageBytes, slots));
+  const allocatedBytes = pageBufferBytes(device, pageBytes, slots, homes);
+  const buffer = createPageBuffer(device, allocatedBytes);
   const resident = new Map<string, ResidentPage>(),
     pins = new Set<string>(),
     held = new Set<string>(),
-    free = Array.from({ length: slots }, (_, i) => i),
+    free = Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
     abort = new AbortController();
   const fetches = new Map<string, Promise<Uint8Array>>();
   const state = {
@@ -43,7 +51,7 @@ export function createGpuPageCache(
     version: 1,
     pageBytes,
     slots,
-    allocatedBytes: pageBytes * slots,
+    allocatedBytes,
     source: 'host-page-source',
     drawDetached: false,
   }));
@@ -61,6 +69,7 @@ export function createGpuPageCache(
     device,
     pageBytes,
     slots,
+    homes,
     buffer,
     resident,
     pins,
@@ -147,7 +156,7 @@ export function createGpuPageCache(
     },
     stats() {
       return {
-        allocatedBytes: pageBytes * context.slots,
+        allocatedBytes: heldHomes(homes, context.slots)?.bytes ?? pageBytes * context.slots,
         slots: context.slots,
         residentPages: resident.size,
         bytesRead: state.bytesRead,

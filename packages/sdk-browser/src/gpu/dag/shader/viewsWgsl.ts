@@ -1,5 +1,5 @@
-import { MAX_SHADOW_PAGES } from '../../shadow/recordPack.ts';
 import { VIEW_BLOCK_WORDS } from '../viewLayout.ts';
+import { AHEAD_VIEW } from './aheadWgsl.ts';
 
 /**
  * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
@@ -19,10 +19,11 @@ import { VIEW_BLOCK_WORDS } from '../viewLayout.ts';
  * A camera is the one-view case: view 0, slot = primitive, entries equal to the bare indices. Its
  * text, its layout and its verdicts are those of before.
  *
- * The view count is bounded by what a batch can draw: every view a batch draws holds at least one
- * of its pages, and a batch draws at most `MAX_SHADOW_PAGES` pages — the one capacity both read.
+ * The array holds the views a cut runs: the camera's, and the view ahead of it (`AHEAD_VIEW`).
+ * `uniforms.ts` writes `viewCount` 1 and nothing else indexes a view; the shader still carries the
+ * entry's view bits, as the view ahead is the one view past the camera's.
  */
-export const DAG_MAX_VIEWS = MAX_SHADOW_PAGES;
+const DAG_MAX_VIEWS = AHEAD_VIEW + 1;
 /** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
 const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
@@ -32,32 +33,20 @@ if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
  * Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`).
  *
  * It is the field table's own size (`../viewLayout.ts`), so a field added to the block moves the
- * stride with it. It used to live in `../../shadow/sizes.ts` with the other shadow constants and
- * came back here as a re-export; a stride is a property of the layout, not of the shadow.
+ * stride with it.
  */
 export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
-/** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each: live count,
- *  live offset, drawn count; then one word, the most sixty-four-wide groups any view drew — the
- *  width of the shadow cull that reads every view's log in one dispatch (`dagWorkLayout`). */
+/** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each — live count,
+ *  live offset, drawn count —, then one word: zeroed by `dagPrepare`, read by no kernel since the
+ *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */
 export const VIEW_WORD_ROWS = 3;
 /**
- * Bit of the output's flag word set when a queue or a list was full and work was dropped. The
- * views of a light cut share the camera cut's capacities — each list holds the whole catalogue,
- * each queue every node and one root per slot —, a fixed budget whatever the view count: no view
- * alone can fill them, and several can only by together keeping more than the catalogue.
+ * Bit of the output's flag word set when a queue or a list was full and work was dropped: each
+ * list holds the whole catalogue, each queue every node and one root per slot.
  */
-export const WORK_DROPPED = 4;
-/** Bit of the same word set once the request list is full (`snapshotWgsl.ts`): what was appended
- *  past it was never copied. A later batch of the frame keeps it (`VIEW_APPEND`). */
-export const LIST_FULL = 1;
-/** Bit `COARSER_VIEWS + view` of the same word is set when light view `view` wanted a cluster that
- *  is not resident, and drew its nearest resident ancestor (`noteCoarser`): the pages of that view,
- *  and only those, wait for residency to change. */
-export const COARSER_VIEWS = 8;
-if (COARSER_VIEWS + DAG_MAX_VIEWS > 32)
-  throw new Error(`${DAG_MAX_VIEWS} views do not fit the flag word's coarser-view bits`);
+const WORK_DROPPED = 4;
 
 export const DAG_VIEWS_WGSL = `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
 const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
@@ -86,24 +75,4 @@ fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
-fn noteCoarser(){if(isLightCut()){atomicOr(&out.overflow,1u<<(${COARSER_VIEWS}u+vi));}}
-fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
-/** A drawn cluster of the current view, appended at its view's own range of the drawn log — the
- *  candidate list's words, free once \`dagWanted\` has read them. Opening a sixty-four slice
- *  raises the widest view's group count. */
-fn viewDrawnAppend(i:u32){
- let r=atomicAdd(&work[viewWord(2u,vi)],1u);
- setFlag(candBase()+atomicLoad(&work[viewWord(1u,vi)])+r,i);
- if((r&63u)==0u){atomicMax(&work[drawnGroupsMax()],(r>>6u)+1u);}
-}
-/** Each view's share of the drawn log starts at the live clusters of the views before it: a view
- *  draws at most what it keeps live, so the ranges never overlap and all fit the list. */
-@compute @workgroup_size(1)
-fn dagViewOffsets(){
- var at=0u;
- for(var v=0u;v<views[0u].viewCount;v++){
-  atomicStore(&work[viewWord(1u,v)],at);
-  at=at+atomicLoad(&work[viewWord(0u,v)]);
- }
-}
 `;

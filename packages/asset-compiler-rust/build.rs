@@ -5,14 +5,14 @@ use std::{
     process::Command,
 };
 
-/// The physics cook's C++ (`packages/physics-jolt-wasm`): Jolt from the pinned submodule and
+/// The physics cook's C++ (`packages/physics-jolt-wasm`): the physics engine from the pinned submodule and
 /// `cook/cook.cpp`, built by the same CMake file as the web module (`-DCOOK=ON`).
 const PHYSICS: &str = "../physics-jolt-wasm";
 
 /// The page codec (`packages/page-codec-wasm`), a path dependency built into the compiler.
 const CODEC: &str = "../page-codec-wasm";
 
-/// The repository's cargo configuration, which sets the C++ flags meshoptimizer is built with.
+/// The repository's cargo configuration, which sets the C++ flags the C++ simplifier is built with.
 const CARGO_CONFIG: &str = "../../.cargo/config.toml";
 
 fn run(command: &mut Command) {
@@ -22,8 +22,8 @@ fn run(command: &mut Command) {
     assert!(status.success(), "{command:?} failed");
 }
 
-/// Builds and links the native cook; returns the Jolt commit, which enters the compiler's
-/// fingerprint: a cache cooked with another Jolt is another product.
+/// Builds and links the native cook; returns the physics engine commit, which enters the compiler's
+/// fingerprint: a cache cooked with another engine build is another product.
 fn physics_cook(output: &Path) -> String {
     let jolt = Path::new(PHYSICS).join("JoltPhysics");
     assert!(
@@ -51,7 +51,7 @@ fn physics_cook(output: &Path) -> String {
         .to_string();
     assert_eq!(commit.len(), 40, "Jolt submodule has no commit");
     let build = output.join("physics-cook");
-    // The cook writes the same bytes on every platform (#1352): Jolt's cross-platform mode turns
+    // The cook writes the same bytes on every platform (#1352): the engine's cross-platform mode turns
     // off every fused multiply-add (`-ffp-contract=off`, `/fp:precise`), and an x86-64 build stays
     // on SSE 4.2, which every processor the compiler supports has, rather than assume AVX2. One
     // configuration, `Distribution`, named for the multi-configuration generator of Windows, whose
@@ -124,7 +124,7 @@ fn main() -> std::io::Result<()> {
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
         Path::new(CODEC).join("Cargo.toml"),
-        // The C++ flags of meshoptimizer: `-ffp-contract=off` changes the bytes it simplifies to.
+        // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);
     files.sort();

@@ -1,7 +1,7 @@
 // Batch F, F12: `deplaceInstance` (instancePose.ts) places each root from its base root, and the
 // meshes of its pages follow it (#1226: a page carries no pose; #1234: its draw state is a packed
 // table), instead of rebuilding a page → base-page hash table on every move. The oracle is the
-// reconstruction from before batch F, copied as-is into `oracles/cadre-vue.ts`.
+// reconstruction from before batch F, copied as-is into `bench/oracles/browser/view-frame.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -55,18 +55,14 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
   // The contract carries sixteen floats; the frozen oracle keeps the host matrix it was written with.
   deplaceInstance({ roots: a.instRoots }, a.baseRoots, transform.elements.slice(), draws);
   referenceUpdateInstance(
-    asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>({
-      pages: b.pages,
-      roots: b.instRoots,
-    }),
-    asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(b.basePages),
-    asHostLibrary<Parameters<typeof referenceUpdateInstance>[2]>(b.baseRoots),
-    asHostLibrary<Parameters<typeof referenceUpdateInstance>[3]>(transform),
+    asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>({ roots: b.instRoots }),
+    asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(b.baseRoots),
+    Float64Array.from(transform.elements),
   );
   for (let i = 0; i < n; i++) {
     assert.deepEqual(
       pose(a.instRoots[i % rootsCount].world).toArray(),
-      pose(b.pages[i].matrix).toArray(),
+      pose(b.instRoots[i % rootsCount].world).toArray(),
       `page ${i}`,
     );
     if (avecMesh)

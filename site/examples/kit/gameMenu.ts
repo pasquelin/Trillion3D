@@ -1,5 +1,6 @@
 import { foldPanels, overlay } from './overlay.ts';
 import { HUD_RULE, MENU_STYLE } from './gameMenuStyle.ts';
+import { make } from './statsDom.ts';
 import { exampleWord, kitWord, labelOf } from './words.ts';
 
 /**
@@ -54,13 +55,6 @@ export interface MenuView {
   /** Shows `screen`, with `note` under its title (a refused lock); `null` hides the menu. */
   show(screen: Screen, note?: string): void;
 }
-
-const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
-  const element = document.createElement(tag);
-  element.className = className;
-  element.textContent = text;
-  return element;
-};
 
 const button = (text: string, press: () => void, primary = false) => {
   const element = make(

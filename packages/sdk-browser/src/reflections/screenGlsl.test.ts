@@ -9,6 +9,9 @@ import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import { PROBE_ENVIRONMENT } from '../webgl/cluster/probeEnvironment.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
+import { SCREEN_REFLECTION_GLSL } from './screenGlsl.ts';
+import { WebglReflectionPyramid } from './pyramidGl.ts';
+import { glslReservedNames } from '../gpu/core/wgslNames.fixture.ts';
 
 const RESOLVED = [9, 9, 9];
 
@@ -92,4 +95,25 @@ test('the cluster program traces once in its resolve pass and shades the display
     CLUSTER_FRAGMENT,
     /if\(!fogFree&&!reflectionCapture&&!reflectionOutput\)rgb=fogged\(rgb\);/,
   );
+});
+
+test('no WebGL2 program the reflections write in names a word GLSL ES 3.00 reserves', () => {
+  // The cluster program holds the screen reflection; the bounds pyramid builds its own programs.
+  const sources: string[] = [];
+  const gl = new Proxy({} as Record<string, unknown>, {
+    get: (_, key) =>
+      key === 'shaderSource'
+        ? (_shader: unknown, source: string) => sources.push(source)
+        : typeof key === 'string' && /^[A-Z_0-9]+$/.test(key)
+          ? 1
+          : () => ({}),
+  });
+  const pyramid = new WebglReflectionPyramid(gl as unknown as WebGL2RenderingContext);
+  for (const rule of ['depth', 'bounds', 'radiance'] as const)
+    (pyramid as unknown as { program(rule: string): unknown }).program(rule);
+  assert.ok(sources.length >= 3);
+  for (const source of [CLUSTER_FRAGMENT, SCREEN_REFLECTION_GLSL, ...sources])
+    assert.deepEqual(glslReservedNames(source), []);
+  // The cone's coarse block, as it was first named.
+  assert.deepEqual(glslReservedNames('float half=0.5*exp2(float(coarse));'), ['half']);
 });

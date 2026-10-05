@@ -17,6 +17,7 @@ export function rowsRuntime(recs: PageRec[], forward: PageSurface[] = []) {
   rows.packedRecs.splice(0, recs.length, ...recs);
   const rt = {
     run: { diagnostic: 'beauty' },
+    gpu: {},
     layout: { rows },
     blendState: { blendGpu: forward.map((surface) => ({ surface })) },
   } as unknown as WebgpuPagesRuntime;

@@ -6,8 +6,8 @@
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { sameMatrixBits } from '../../host/world/pose.ts';
+import { keepNumbers } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import { resolveCameraWorld } from '../../camera/world.ts';
 import type { PlacedMesh, createTouchedRows } from './rows.ts';
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */
@@ -29,10 +29,10 @@ export function createPlacementWrites(touched: ReturnType<typeof createTouchedRo
   /** The world matrix each parent in use had when its rows were written. */
   const worlds = new Map<Object3D, Float64Array>();
   const stale = new Set<Object3D | PlacedMesh>();
-  const worldOf = (node: Object3D) =>
-    worlds.get(node) ?? worlds.set(node, hostWorldChainInto(new Float64Array(16), node)).get(node)!;
+  const heldWorld = (node: Object3D) =>
+    worlds.get(node) ?? worlds.set(node, resolveCameraWorld(node).worldMatrix.slice()).get(node)!;
   const write = ({ mesh, row, parent, local }: Placement) => {
-    multiplyMatrix4(product, worldOf(parent), local);
+    multiplyMatrix4(product, heldWorld(parent), local);
     mesh.links.forEach((link, at) => {
       const rows = link.placements!;
       rows.matrices.set(product, row * 16);
@@ -48,12 +48,8 @@ export function createPlacementWrites(touched: ReturnType<typeof createTouchedRo
     follow(meshes: Iterable<PlacedMesh>, held: Iterable<readonly Placement[]>) {
       stale.clear();
       for (const mesh of meshes) if (castsMoved(mesh)) stale.add(mesh);
-      for (const [node, world] of worlds) {
-        hostWorldChainInto(product, node);
-        if (sameMatrixBits(world, product)) continue;
-        world.set(product);
-        stale.add(node);
-      }
+      for (const [node, world] of worlds)
+        if (!keepNumbers(world, resolveCameraWorld(node).worldMatrix)) stale.add(node);
       if (!stale.size) return;
       for (const placements of held)
         for (const at of placements) if (stale.has(at.parent) || stale.has(at.mesh)) write(at);

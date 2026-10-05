@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "FPS",
-      "FPS (held)": "FPS (held)",
       "triangles": "triangles",
       "triangles (scene)": "triangles (scene)",
       "draw calls": "draw calls",
       "pages": "pages",
       "geometry pool": "geometry pool",
       "lights": "lights",
+      "GPU memory": "GPU memory",
+      "screen images": "screen images",
+      "shadow memory": "shadow memory",
+      "geometry memory": "geometry memory",
+      "texture memory": "texture memory",
+      "live textures": "live textures",
+      "transmission backdrop": "transmission backdrop",
       "GPU frame": "GPU frame",
       "GPU frame (last)": "GPU frame (last)",
       "CPU frame": "CPU frame",
       "page hooks": "page hooks",
-      "engine CPU": "engine CPU"
+      "engine CPU": "engine CPU",
+      "Statistics": "Statistics",
+      "hint": "Click: compact · drag: move · key ` / ²",
+      "fps": "FPS",
+      "budget": "budget",
+      "held": "held",
+      "last": "last",
+      "others": "others",
+      "Shadows": "Shadows",
+      "Scene and memory": "Scene and memory",
+      "cut and culling": "cut and culling",
+      "page preparation": "page preparation",
+      "command encoding": "command encoding",
+      "physics step": "physics step",
+      "Cadence": "Cadence",
+      "{n}× refresh": "{n}× refresh",
+      "GPU idle": "GPU idle"
+    },
+    "shadows": {
+      "lights": "lights",
+      "maps": "maps",
+      "pagesRequested": "pages requested",
+      "pagesAllocated": "pages allocated",
+      "pagesCached": "pages cached",
+      "pagesRendered": "pages rendered",
+      "freePages": "free pages",
+      "lodBias": "LOD bias",
+      "projectionPasses": "projection passes",
+      "invalidation": "invalidation",
+      "marking": "marking",
+      "pageManagement": "page management",
+      "render": "render",
+      "projection": "projection",
+      "transmission": "transmission"
+    },
+    "passes": {
+      "vsm projection": "VSM projection",
+      "vsm marking": "VSM marking",
+      "vsm render": "VSM render",
+      "material surfaces": "material surfaces",
+      "temporal antialiasing": "temporal antialiasing",
+      "HDR composition + present": "HDR composition + present",
+      "deferred lighting": "deferred lighting",
+      "reflection source": "reflection source",
+      "HiZ pyramid": "HiZ pyramid",
+      "light tiles": "light tiles",
+      "texture mips": "texture mips",
+      "reflection radiance mips": "reflection radiance mips",
+      "reflection depth bounds mips": "reflection depth bounds mips"
     },
     "failure": {
       "title": "This example stopped on an error",
@@ -1363,7 +1417,8 @@
       "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Drag to turn around the bust. The crate and the glass ball circle on their turntable.",
     "words": {
       "credit": "Marble Bust 01 by Rico Cilliers, Poly Haven, CC0; crate by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Pick a quality, a resolution and a view. Keep one setting as A, another as B, and press C to flip between them."
   }
 }

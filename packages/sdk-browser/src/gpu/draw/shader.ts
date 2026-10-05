@@ -1,11 +1,15 @@
 import { COMPUTE } from '../core/computeBindings.ts';
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
-import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
+import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts';
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
  *
- * A slot is a cull mode, an occluder/tested half and a coplanar depth layer. The layer is a property
+ * An item takes one instance per batch of its triangles (`batchesOf`, `drawBatches`), consecutive
+ * and in triangle order, so its row's triangles reach the raster as one instance per row drew them.
+ *
+ * A slot is a bin — a cull mode, or its cutout bin —, an occluder/tested half and a coplanar depth
+ * layer (`contract.ts`). The layer is a property
  * of the page-table row, not of the frame, so it travels with the item and never costs a branch per
  * pixel: the clusters of a layer are simply drawn by their own command, with the pipeline that
  * carries that layer's depth bias.
@@ -31,9 +35,9 @@ import { BASE_SLOTS, DRAW_ITEM_WGSL, slotCount } from './contract.ts';
  */
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
- * browser proof READ them here — none copies them, so none can lag behind the shader. That lag
- * is what turned `webgpu-draw.browser.ts` red: its copy stopped at `@binding(6)` while
- * `restBits` and `slotUsed` entered at 7 and 8.
+ * GPU proof READ them here — none copies them, so none can lag behind the shader. That lag is
+ * what turned the draw proof (`tests/gpu/draw/draw-compaction.gpu.ts`) red: its copy stopped at
+ * `@binding(6)` while `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
   const lecture = { type: 'read-only-storage' } as const;
@@ -55,7 +59,7 @@ export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots);
   const top = Math.max(0, Math.max(1, layerSlots) - 1);
   return `${DRAW_ITEM_WGSL}
-struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,pad0:u32,pad1:u32,}
+struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read_write> instances:array<u32>;
@@ -72,17 +76,23 @@ fn selected(item:DrawItem)->bool{
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
 }
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
-fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*3u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
+fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
- indirect[o]=uni.maxVertexCount;
+ indirect[o]=uni.corners;
  indirect[o+1u]=count;
  indirect[o+2u]=0u;
  indirect[o+3u]=0u;
 }
+/** Instances \`item\` draws as: its corners by batches of \`corners\`, at least one, at most the
+ *  \`perRow\` the instance list holds a row. */
+fn batchesOf(item:DrawItem)->u32{
+ return clamp((item.triangles*3u+uni.corners-1u)/uni.corners,1u,uni.perRow);
+}
 /** No slot: the lane is past the frame's items, or its item is not selected. */
 const NO_SLOT:u32=0xffffffffu;
 var<workgroup> laneSlots:array<u32,64>;
+var<workgroup> laneBatches:array<u32,64>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
 /** The slot item \`i\` draws in, or \`NO_SLOT\` when it lies at or past \`end\` or is not selected. */
 fn slotAt(i:u32,end:u32)->u32{
@@ -95,8 +105,9 @@ fn slotAt(i:u32,end:u32)->u32{
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let group=wg.x;
  // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
- let s=slotAt(group*64u+lane,min(uni.count,uni.slotCap));
- if(s!=NO_SLOT){atomicAdd(&slotTally[s],1u);}
+ let i=group*64u+lane;
+ let s=slotAt(i,min(uni.count,uni.slotCap));
+ if(s!=NO_SLOT){atomicAdd(&slotTally[s],batchesOf(items[i]));}
  workgroupBarrier();
  for(var slot=lane;slot<${slots}u;slot+=64u){
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
@@ -139,12 +150,18 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  // The rank is the count of EARLIER lanes of the group in the same slot: the item's place in
  // the group's stable order.
  let s=slotAt(i,uni.count);
+ var batches=0u;
+ if(s!=NO_SLOT){batches=batchesOf(items[i]);}
  laneSlots[lane]=s;
+ laneBatches[lane]=batches;
  workgroupBarrier();
  if(s==NO_SLOT){return;}
  var rank=0u;
- for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+1u;}}
- instances[groupOffsets[group*${slots}u+s]+rank]=items[i].pageIndex;
+ for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+laneBatches[j];}}
+ // A row's batches follow one another, so its triangles reach the raster in their page order.
+ let at=groupOffsets[group*${slots}u+s]+rank;let page=items[i].pageIndex;
+ let stride=uni.corners/3u;
+ for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
 `;
 };

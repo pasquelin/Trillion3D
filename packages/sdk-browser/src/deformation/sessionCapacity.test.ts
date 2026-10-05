@@ -25,7 +25,7 @@ test('a static batch reads its source capacities once and does not rescan them a
     world: mesh.matrixWorld,
     placement: { rows, index },
   })) as unknown as ClusterRoot<PageRec>[];
-  const session = createSessionDeformation(roots, { of: (mesh) => mesh.matrixWorld });
+  const session = createSessionDeformation(roots);
   assert.equal(reads, owners.length, 'one source read per owner, independent of row count');
   session.frame.bases.some = () => {
     throw new Error('draw rescanned static placement records');

@@ -3,117 +3,13 @@
 // present alone, and leaves intact the metrics of the cut it redisplays.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFrameGateCore } from '../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from './signature.ts';
-import { CPU_STEP, CPU_STEP_NAMES, SHADOW_CPU_STEPS } from '../pages/render/cpuStepTable.ts';
+import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
-import { createScaleControl } from '../../frame/scaleControl.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
-import { createShadowWork } from '../shadow/work.ts';
-import { STALE_REASONS } from '../../../../sdk-core/src/scene/light-shadow/counts.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-/** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
- *  lot: that is what hold must not republish. */
-function tenue() {
-  const staledBy = new Int32Array(STALE_REASONS.length);
-  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
-  gate.hold.keep(gate.revisions);
-  gate.hold.keep(gate.revisions);
-  const run = {
-    gate,
-    frameHeld: false,
-    frame: 5,
-    lost: false,
-    desired: [],
-    drawn: [],
-    gpuFrameActive: true,
-    gpuMetricsReady: true,
-    cutHeld: true,
-    overBudget: false,
-    coverageBudgetLimited: false,
-    noOccluderHistory: false,
-    deferredDrops: new Set(),
-    imageRevision: 3,
-    gpuDrawCalls: 42,
-    blendDrawCalls: 7,
-    submittedTriangles: 123456,
-    blendSubmittedTriangles: 99,
-    cpuSelectMs: 3.5,
-    // What the frame SHOWS: the cut, which does not move.
-    visible: 800,
-    selectedTriangles: 123456,
-    frustumRejected: 29987,
-    lodLevel: 2,
-    blendFrustumRejected: 11,
-    cpuHizCounted: false,
-  };
-  const timing = {
-    frameEncoder: undefined,
-    lastGpuPassMs: { frame: 4, totalMs: 9, passes: [], truncated: false },
-    lastGpuFrameMs: 9,
-    lastGpuHostGapMs: 2,
-    lastSubmitMs: 8,
-    cpuProfile: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
-    rowFilled: false,
-    cpuSample: { version: 1 },
-    partitionCounts: {},
-  };
-  const rt = {
-    run,
-    views: { active: {} },
-    timing,
-    context: {},
-    scale: createScaleControl(undefined),
-    gpu: {
-      presenter: { present: () => {} },
-      displayTexture: {},
-      targetSize: [4, 4],
-      allocatedSize: [4, 4],
-      displaySize: [4, 4],
-      cache: undefined,
-      vertexBytes: 0,
-      positionBuffers: new Map(),
-    },
-    vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
-    capture: { capturing: false, capturePending: undefined },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    services: {
-      bootstrapState: { ready: true },
-      residencySets: { keepCount: 0 },
-      residency: { busy: false },
-      // Count of cut pages still waiting for their bytes, held by the difference.
-      cutPending: { count: 0 },
-    },
-    layout: {
-      rows: {
-        rowsChanged: false,
-        dirtyFrom: 1,
-        dirtyTo: -1,
-        rowsEpoch: 1,
-        tableEpoch: 1,
-        candidateOverflow: false,
-      },
-    },
-    lights: {
-      plan: {
-        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0, staledBy },
-        pool: { refetched: 0 },
-        requests: { counts: { requested: 0 } },
-      },
-      shadowWork: createShadowWork(),
-      memory: { peakBytes: 0, bias: 0, events: [], pairBytes: 0 },
-    },
-    bounce: { probes: undefined },
-    blendState: { visibleBlend: [] },
-  } as unknown as WebgpuPagesRuntime;
-  const { device } = fakeDevice();
-  return { rt, run, timing, device };
-}
+import { heldFrame } from './holdMetrics.fixture.ts';
 
 test('a held frame counts only its present, not the last full render', () => {
-  const { rt, run, timing, device } = tenue();
+  const { rt, run, timing, device } = heldFrame();
   assert.equal(holdWebgpuFrame(rt, device), true, 'the frame should have been held');
   assert.equal(run.frameHeld, true);
   assert.equal(run.gpuDrawCalls, 1, 'the present is the only draw call');
@@ -125,7 +21,7 @@ test('a held frame counts only its present, not the last full render', () => {
 });
 
 test('step durations of a held frame describe only the present', () => {
-  const { rt, timing, device } = tenue();
+  const { rt, timing, device } = heldFrame();
   holdWebgpuFrame(rt, device);
   const row = timing.cpuProfile.row;
   const presentation = new Set([
@@ -134,7 +30,7 @@ test('step durations of a held frame describe only the present', () => {
     CPU_STEP.submitMs,
     CPU_STEP.totalMs,
   ]);
-  const unmeasured = new Set([CPU_STEP.tilesPumpMs, ...SHADOW_CPU_STEPS.map((s) => CPU_STEP[s])]);
+  const unmeasured = new Set([CPU_STEP.tilesPumpMs]);
   for (let i = 0; i < row.length; i++)
     if (unmeasured.has(i)) assert.ok(Number.isNaN(row[i]), `${CPU_STEP_NAMES[i]} not run`);
     else if (!presentation.has(i)) assert.equal(row[i], 0, `${CPU_STEP_NAMES[i]} not executed`);
@@ -143,7 +39,7 @@ test('step durations of a held frame describe only the present', () => {
 });
 
 test('metrics of the redisplayed cut do not move', () => {
-  const { rt, run, device } = tenue();
+  const { rt, run, device } = heldFrame();
   holdWebgpuFrame(rt, device);
   const metrics = metricsOf(rt);
   assert.equal(metrics.frameHeld, true);
@@ -153,48 +49,4 @@ test('metrics of the redisplayed cut do not move', () => {
   assert.equal(metrics.drawCalls, 1);
   assert.equal(metrics.submittedTriangles, 0);
   assert.equal(run.frame, 6, 'a frame was produced');
-});
-
-test('a cut page waiting for its bytes forbids holding the frame', () => {
-  const { rt, device } = tenue();
-  const pending = rt.services.cutPending as { count: number };
-  assert.equal(holdWebgpuFrame(rt, device), true, 'a fully arrived cut holds');
-  // The count is the one the cut difference holds: no list is reread here.
-  pending.count = 1;
-  assert.equal(holdWebgpuFrame(rt, device), false, 'a pending page can still open a hole');
-  assert.equal(rt.run.frameHeld, false);
-  pending.count = 0;
-  assert.equal(holdWebgpuFrame(rt, device), true);
-});
-
-test('the shadow counters of a frame are published under their public names', () => {
-  const { rt } = tenue();
-  const lights = rt.lights as unknown as Record<string, unknown> & {
-    plan: { counts: Record<string, number>; requests: { counts: Record<string, number> } };
-  };
-  lights.plan.requests.counts.requested = 211;
-  lights.plan.counts.cachedPages = 205;
-  lights.plan.counts.poolPages = 311;
-  lights.plan.counts.pendingPages = 6;
-  lights.shadowPages = 6;
-  lights.lightRuns = 2;
-  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77, moving: 0 }) } };
-  assert.deepEqual([metricsOf(rt).shadowPoolBytes, metricsOf(rt).shadowPoolLayers], [null, null]);
-  (lights.plan as unknown as { pool: object }).pool = { refetched: 0, layers: 2 };
-  lights.shadows = { texture: {}, allocationBytes: 700 };
-  lights.staticLayer = { bytes: 300 };
-  const metrics = metricsOf(rt);
-  assert.deepEqual([metrics.shadowPoolBytes, metrics.shadowPoolLayers], [1000, 2], 'once sized');
-  assert.deepEqual(
-    [
-      metrics.shadowPagesRequested,
-      metrics.shadowPagesCached,
-      metrics.shadowPoolPages,
-      metrics.shadowPagesDrawn,
-      metrics.shadowPagesPending,
-      metrics.shadowLightCuts,
-      metrics.shadowCastersKept,
-    ],
-    [211, 205, 311, 6, 6, 2, 77],
-  );
 });

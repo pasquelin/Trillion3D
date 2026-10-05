@@ -86,7 +86,7 @@ export function errorFloorAt(
   if (!(error > 0) || !(radius >= 0)) return 0;
   const far = clipWeight(perspective, depth + radius * stretch);
   if (!(far > 0)) return Infinity;
-  // The floor holds for both metrics: the external reference's EXPERIENCE variant
+  // The floor holds for both metrics: the plain projection (`screenError: 'reference'`)
   // yields `ε·stretch·f/depth`, which `ε_min·stretch·f/(farthest depth of the
   // bounding sphere)` underestimates just as much as the certified bound.
   return (error * stretch * focal) / far;

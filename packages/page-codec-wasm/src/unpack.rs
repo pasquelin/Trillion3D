@@ -2,7 +2,7 @@
 //! stream walked once by a `BitReader` (STR-01, #238): the same bits as develop's decoder, which
 //! reads every field at random (`unpack_reference.rs`), as the equivalence harness proves.
 
-use crate::bits::{dequant, le_words, oct_decode, BitReader, Quant};
+use crate::bits::{dequant, le_words, oct_decode_stream, BitReader, Quant};
 use crate::deform::{decode_morphs, decode_skin};
 use crate::{DecodedPage, Header, Layout, PageError};
 use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_UV, FLAG_UV1};
@@ -75,10 +75,7 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
         vector(positions, words, layout.position, &h.position);
     }
     if h.flags & FLAG_NORMAL != 0 {
-        let mut stream = BitReader::at(words, layout.normal * 32);
-        for normal in take(3).as_chunks_mut::<3>().0 {
-            *normal = oct_decode(stream.read(16)).map(f32::to_bits);
-        }
+        oct_decode_stream(&words[layout.normal..], take(3));
     }
     if h.flags & FLAG_UV != 0 {
         vector(take(2), words, layout.uv, &h.uv);

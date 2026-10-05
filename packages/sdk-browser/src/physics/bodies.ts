@@ -35,8 +35,9 @@ export function flagsOf(mesh: Pick<Bodied, 'physics' | 'visible'>) {
 }
 
 /**
- * The bodies of a world, by slot: which mesh holds each, and what they count against the budget.
- * Adding and removing write commands; nothing reaches the worker before the frame's flush.
+ * The bodies of a world, by slot: which mesh holds each, and what they count against the budget,
+ * simulated in fixed steps of `step` seconds. Adding and removing write commands; nothing reaches
+ * the worker before the frame's flush.
  */
 export function createPhysicsBodies(
   writer: CommandWriter,
@@ -44,6 +45,7 @@ export function createPhysicsBodies(
   host: PhysicsHost,
   root: Object3D,
   state: NonNullable<ObjectPhysics['_state']>,
+  step: number,
 ) {
   const slots = createBodySlots(budget.bodies);
   const { meshes, physicsAt } = slots;
@@ -79,7 +81,7 @@ export function createPhysicsBodies(
     if (isSoftType(p.type)) {
       owner.scale = [size.x, size.y, size.z];
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner);
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh)));
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh), step));
     }
     const matter = physicsMatterOf(mesh.material);
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name);

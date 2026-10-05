@@ -5,18 +5,17 @@ import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts';
-import { REST_COMPACT_PASS } from '../../stage/passLabels.ts';
-
-const REST_PASS = { label: REST_COMPACT_PASS } as const;
+import type { OpenPass } from '../core/lazyComputePass.ts';
 
 export type GpuRestCompact = {
   /**
    * Keeps, in each tested-half indirect command, only its surviving rows, in their order, and
-   * counts them. `rows` bounds the dispatch — a tested half cannot hold more rows than the table
-   * has drawable. The row table is passed every frame: it is allocated after this kernel is
-   * created.
+   * counts them, as dispatches of the frame's compute pass, after the Hi-Z test whose verdicts
+   * they read. `rows` bounds the dispatch — a tested half cannot hold more rows than the
+   * table has drawable. The row table is passed every frame: it is allocated after this kernel is
+   * created. True when it encoded the compaction: every row the tested half then draws survives.
    */
-  encode(encoder: GPUCommandEncoder, restSlots: number, rows: number, pages: GPUBuffer): void;
+  encode(open: OpenPass, restSlots: number, rows: number, pages: GPUBuffer): boolean;
   /** Reads `buffers` from now on: those of a draw compact and a Hi-Z test grown in place. */
   rebind(buffers: RestCompactSources): void;
   /** The work buffer a table of `rows` rows, `copyWords` instance words and `restSlots` tested
@@ -93,8 +92,8 @@ export async function createGpuRestCompact(
       bound: { pages: GPUBuffer; work: GPUBuffer } | undefined,
       bindGroup!: GPUBindGroup;
     return {
-      encode(encoder, restSlots, rows, pages) {
-        if (disposed || restSlots < 1 || rows < 1) return;
+      encode(open, restSlots, rows, pages) {
+        if (disposed || restSlots < 1 || rows < 1) return false;
         const tiles = Math.ceil(rows / REST_COMPACT_WORKGROUP);
         const words = workWords(copyWords, restSlots, rows);
         // The work buffer only grows: a frame with more rows or slots reallocates it once.
@@ -120,7 +119,7 @@ export async function createGpuRestCompact(
           uniData.set([restSlots, tiles, copyWords, 0]);
           device.queue.writeBuffer(uniforms, 0, uniData);
         }
-        const pass = encoder.beginComputePass(REST_PASS);
+        const pass = open.pass;
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
         pass.dispatchWorkgroups(tiles, restSlots);
@@ -128,7 +127,7 @@ export async function createGpuRestCompact(
         pass.dispatchWorkgroups(1);
         pass.setPipeline(scatterPipeline);
         pass.dispatchWorkgroups(tiles, restSlots);
-        pass.end();
+        return true;
       },
       get work() {
         return work;

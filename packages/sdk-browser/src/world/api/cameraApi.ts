@@ -18,7 +18,6 @@ type Inputs = {
   options: MeasuredWorldOptions;
   camera: HostCamera;
   center: HostCamera['position'];
-  homeOffset: HostCamera['position'];
   lookAtTarget: HostCamera['position'];
   radius: number;
   canvas: HTMLCanvasElement;
@@ -35,7 +34,6 @@ export function createExplorerCameraApi(inputs: Inputs) {
     options,
     camera,
     center,
-    homeOffset,
     lookAtTarget,
     radius,
     canvas,
@@ -67,17 +65,6 @@ export function createExplorerCameraApi(inputs: Inputs) {
           point && typeof point.id === 'string' && typeof point.label === 'string' && point.pose,
       );
       return [{ id: 'home', label: 'Home', pose: homePose() }, ...extras];
-    },
-    resetHome() {
-      check();
-      camera.position.set(
-        center.x + homeOffset.x,
-        center.y + homeOffset.y,
-        center.z + homeOffset.z,
-      );
-      lookAtTarget.copy(center);
-      camera.lookAt(center);
-      camera.updateMatrixWorld();
     },
     // Every frame binds its own destination: leaving the measurement surface is the flag alone.
     restoreAfterCampaign(id: string, saved: HostCamera) {

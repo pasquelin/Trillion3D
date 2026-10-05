@@ -11,8 +11,8 @@ type Bounded = {
 };
 
 /**
- * The depth a mesh is sorted by, the reference's: the normalised-device z of its bounding
- * sphere's centre (clip z over clip w, so a point behind the camera sorts as the reference sorts it) — the mesh's own sphere where it has one, the union of its placements' spheres for an
+ * The depth a mesh is sorted by: the normalised-device z of its bounding
+ * sphere's centre (clip z over clip w, so a point behind the camera sorts by the same number) — the mesh's own sphere where it has one, the union of its placements' spheres for an
  * instanced mesh, its geometry's otherwise — never its origin, which a mesh whose vertices carry
  * their pose sets at the scene's. `screen` is the projection times the view.
  */

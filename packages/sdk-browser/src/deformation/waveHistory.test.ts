@@ -105,11 +105,11 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
 
 test('WebGL wave records advance their upload version when only the world transform changes', () => {
   const water = surface(),
-    world = new Matrix4();
+    world = { elements: new Matrix4().elements };
   const roots = [
     { world, pages: [{ sourceMesh: { waves: water } }] },
   ] as unknown as ClusterRoot<PageRec>[];
-  const deformation = createWebglDeformation(roots, { of: () => world });
+  const deformation = createWebglDeformation(roots);
   const camera = { projection: new Matrix4().elements } as EngineCamera;
   deformation.update(camera, undefined, 0);
   const first = deformation.source()!.version;

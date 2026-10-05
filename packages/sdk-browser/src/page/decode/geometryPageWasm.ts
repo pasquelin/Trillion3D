@@ -43,6 +43,18 @@ export type SdkWasm = {
   arena_free(offset: number, bytes: number): void;
   math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void;
   math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void;
+  /** The animation sampler (`../../math/batchAnimation.ts`). */
+  anim_sample_tracks(
+    tracks: number,
+    n: number,
+    data: number,
+    dataLength: number,
+    keys: number,
+    arcs: number,
+    out: number,
+    outLength: number,
+    t: number,
+  ): void;
   math_hierarchy_update_batch(
     world: number,
     positions: number,

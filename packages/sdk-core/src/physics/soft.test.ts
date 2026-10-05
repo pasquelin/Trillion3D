@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { plane, sphere } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
 import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts';
 import { refuses } from '../contracts/cache.fixture.ts';
 import { near } from '../math/near.fixture.ts';
 import { one, positions } from './shape.fixture.ts';
-import { GRAVITY_PRESETS } from './options.ts';
+import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts';
 import {
   isSoftType,
   softOf,
@@ -22,7 +23,7 @@ import { softSettings } from './softSettings.ts';
 const masses = (vertices: Float32Array) => vertices.filter((_, i) => i % SOFT_VERTEX_WORDS === 3);
 const sum = (values: Float32Array) => values.reduce((a, b) => a + b, 0);
 const of = (options: SoftBodyOptions, scale = one, geometry = plane(2, 1, 4, 2)) =>
-  softBodyOf(geometry, scale, softSettings(options));
+  softBodyOf(geometry, scale, softSettings(options), PHYSICS_STEP);
 
 test('a cloth weighs its scaled area times the fabric’s, or the mass it is given, spread by area', () => {
   const cloth = of({ type: 'cloth' });
@@ -153,7 +154,47 @@ test('an open cloth holds no gas, even given a pressure', () => {
   const settings = softSettings({ type: 'cloth' });
   settings.pressure = 1;
   assert.throws(
-    () => softBodyOf(positions([0, 0, 0, 2, 0, 0, 0, 3, 0]), one, settings),
+    () => softBodyOf(positions([0, 0, 0, 2, 0, 0, 0, 3, 0]), one, settings, PHYSICS_STEP),
     RangeError,
   );
+});
+
+test("spread masses are develop's, byte for byte: cloth, volume and rope at four scales", () => {
+  // `spreadMass` runs on scratch vectors, not arrays made per triangle: the same operations in the
+  // same order. The digests are develop's (arrays per triangle, `Math.hypot`), refusals included.
+  const digest = (f: () => Float32Array) => {
+    try {
+      const v = f();
+      return createHash('sha256')
+        .update(new Uint8Array(v.buffer, v.byteOffset, v.byteLength))
+        .digest('hex')
+        .slice(0, 16);
+    } catch (error) {
+      return (error as Error).message.slice(0, 20);
+    }
+  };
+  const got = [
+    { x: 1, y: 1, z: 1 },
+    { x: 3, y: 0.5, z: 1e-3 },
+    { x: 1e20, y: 1e20, z: 1e20 },
+    { x: 1e-20, y: -0, z: 2 },
+  ].flatMap((scale) => [
+    digest(() => of({ type: 'cloth' }, scale, plane(2, 1, 63, 63)).vertices),
+    digest(() => of({ type: 'volume' }, scale, sphere(1, 24, 16)).vertices),
+    digest(() => of({ type: 'rope' }, scale, plane(5, 1, 40, 1)).vertices),
+  ]);
+  assert.deepEqual(got, [
+    '53ed10c9d0346d9b',
+    'cd9648599f01ad4c',
+    '7ecced90c81b30db',
+    'b5fd464c5af3f200',
+    '5de323c6db90d1d0',
+    '05e1afe23ec9f239',
+    'c307426d8d36f93b',
+    'd3f11e011b337175',
+    'eff525d56048fa56',
+    'A soft body has no a',
+    'c397ad3f2cebb16e',
+    'fe92baec50da47d2',
+  ]);
 });

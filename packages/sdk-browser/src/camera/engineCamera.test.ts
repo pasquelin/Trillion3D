@@ -1,5 +1,5 @@
 // The engine camera written without a host camera gives the bits `readCameraWorld` gives from
-// one: the default camera of the oracles and a posed test camera, both formerly built with Three.
+// one: the default camera of the oracles and a posed test camera, both formerly built from a host camera.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';

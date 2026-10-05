@@ -27,7 +27,12 @@ export async function addWebgpuView(rt: WebgpuPagesRuntime, rect: PresentRect) {
   view.rect = at;
   rt.views.persistent.push(view);
   try {
-    await rigViewTemporal(rt, view);
+    // What presents it at its rectangle, compiled before its first frame does; refused, its present
+    // asks it again and the device says why, as any refused pipeline.
+    await Promise.all([
+      rigViewTemporal(rt, view),
+      rt.gpu.presenter?.preparePlaced().catch(() => {}),
+    ]);
   } catch (error) {
     // Never handed to the caller, it would never leave: it leaves now.
     await removeWebgpuView(rt, view);

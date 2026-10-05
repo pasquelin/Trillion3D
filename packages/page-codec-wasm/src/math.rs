@@ -1,7 +1,7 @@
 //! Batch calculation kernels of the math foundation, in f64, to the bits of the JavaScript version.
 //!
 //! Each function reproduces term by term, parentheses included, the floating-point operation order
-//! of its counterpart in `packages/sdk-core/`: `packages/sdk-core/src/math/matrix/matrix4.ts::multiplyMatrix4` and
+//! of its counterpart in `packages/sdk-core/`: `packages/sdk-core/src/math/matrix/matrix4.ts::multiplyMatrix4` (`math_matrix.rs`) and
 //! `packages/sdk-core/src/math/primitives/box.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
 //!
 //! Equality is structural, not hoped for. WebAssembly has no fused multiply-add instruction:
@@ -13,7 +13,8 @@
 //!
 //! JavaScript's `Math.min` and `Math.max` are not Rust's `f64::min` and `f64::max`: the former
 //! propagate NaN where the latter discard it, and JavaScript distinguishes `-0` from `+0` where
-//! Rust does not promise to. Both are rewritten here.
+//! Rust does not promise to. Both are rewritten here, with `Math.hypot`, for every kernel of the
+//! crate that must give JavaScript's bits.
 
 /// Floats of a box laid out flat, like `BOX_VALUES` in `packages/sdk-core/src/math/primitives/box.ts`.
 pub const BOX_VALUES: usize = 6;
@@ -27,7 +28,7 @@ const CORNER_VALUES: usize = 24;
 /// and which `f64::minimum` will be once it leaves nightly. Meanwhile, the comparison first: on
 /// ordinary coordinates, one of the first two tests answers, and the rest costs nothing.
 #[inline]
-fn js_min(a: f64, b: f64) -> f64 {
+pub(crate) fn js_min(a: f64, b: f64) -> f64 {
     if a < b {
         a
     } else if b < a {
@@ -47,7 +48,7 @@ fn js_min(a: f64, b: f64) -> f64 {
 
 /// `Math.max`: NaN contaminates, and `+0` wins over `-0`. IEEE-754-2019 `maximum`.
 #[inline]
-fn js_max(a: f64, b: f64) -> f64 {
+pub(crate) fn js_max(a: f64, b: f64) -> f64 {
     if a > b {
         a
     } else if b > a {
@@ -63,75 +64,111 @@ fn js_max(a: f64, b: f64) -> f64 {
     }
 }
 
+/// The squares of `values` summed in order with Kahan compensation: each step takes back from the
+/// next square what the rounding of the running sum lost.
+#[inline]
+pub(crate) fn compensated_squares<const N: usize>(values: [f64; N]) -> f64 {
+    let (mut sum, mut compensation) = (0.0f64, 0.0f64);
+    for value in values {
+        let summand = value * value - compensation;
+        let preliminary = sum + summand;
+        compensation = (preliminary - sum) - summand;
+        sum = preliminary;
+    }
+    sum
+}
+
+/// `Math.hypot` of `values` to the bit (`hypot2`, `hypot3`, `hypot4` of
+/// `packages/sdk-core/src/math/primitives/hypot.ts`): every magnitude divided by the largest, the
+/// squares summed with compensation, the root scaled back; an infinity before a NaN. The
+/// specification leaves `Math.hypot` approximated; this is the rounding Chrome and Node return,
+/// where a plain `sqrt` of the squares differs in the last bit on a large share of inputs. The
+/// compensation's first step is exact, so two values are the plain sum of their two squares.
+pub(crate) fn hypot<const N: usize>(values: [f64; N]) -> f64 {
+    let magnitudes = values.map(f64::abs);
+    // `f64::max` passes over a NaN, as `Math.hypot` takes the largest of the others.
+    let max = magnitudes.into_iter().fold(0.0, f64::max);
+    if max == f64::INFINITY {
+        return f64::INFINITY;
+    }
+    if magnitudes.iter().any(|v| v.is_nan()) {
+        return f64::NAN;
+    }
+    if max == 0.0 {
+        return 0.0;
+    }
+    compensated_squares(magnitudes.map(|v| v / max)).sqrt() * max
+}
+
 /// `boxTransform` of one box: `out` and `boxes` hold six floats, `m` sixteen. An empty box —
 /// an upper bound below its lower bound — is copied as-is, bounds included.
 fn box_transform_one(out: &mut [f64], boxes: &[f64], m: &[f64]) {
-    let (min_x, min_y, min_z) = (boxes[0], boxes[1], boxes[2]);
-    let (max_x, max_y, max_z) = (boxes[3], boxes[4], boxes[5]);
-    if max_x < min_x || max_y < min_y || max_z < min_z {
-        out[0] = min_x;
-        out[1] = min_y;
-        out[2] = min_z;
-        out[3] = max_x;
-        out[4] = max_y;
-        out[5] = max_z;
+    let (lo, hi) = (
+        [boxes[0], boxes[1], boxes[2]],
+        [boxes[3], boxes[4], boxes[5]],
+    );
+    if hi[0] < lo[0] || hi[1] < lo[1] || hi[2] < lo[2] {
+        out[..BOX_VALUES].copy_from_slice(&boxes[..BOX_VALUES]);
         return;
     }
+    if !affine_box(out, lo, hi, m) {
+        corner_walk(out, lo, hi, m);
+    }
+}
+
+/// The eight corners `((m₀·x + m₄·y) + m₈·z) + m₁₂` (and the other rows), each divided by its `w`
+/// through `· (1 / w)`, then their smallest and largest coordinates in `Math.min` and `Math.max`.
+fn corner_walk(out: &mut [f64], lo: [f64; 3], hi: [f64; 3], m: &[f64]) {
     let mut corners = [0f64; CORNER_VALUES];
     for i in 0..8usize {
-        let lx = if i & 1 != 0 { max_x } else { min_x };
-        let ly = if i & 2 != 0 { max_y } else { min_y };
-        let lz = if i & 4 != 0 { max_z } else { min_z };
+        let lx = if i & 1 != 0 { hi[0] } else { lo[0] };
+        let ly = if i & 2 != 0 { hi[1] } else { lo[1] };
+        let lz = if i & 4 != 0 { hi[2] } else { lo[2] };
         let mw = 1.0 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15]);
         let at = i * 3;
         corners[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw;
         corners[at + 1] = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) * mw;
         corners[at + 2] = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) * mw;
     }
-    out[0] = f64::INFINITY;
-    out[1] = f64::INFINITY;
-    out[2] = f64::INFINITY;
-    out[3] = f64::NEG_INFINITY;
-    out[4] = f64::NEG_INFINITY;
-    out[5] = f64::NEG_INFINITY;
+    out[..3].fill(f64::INFINITY);
+    out[3..BOX_VALUES].fill(f64::NEG_INFINITY);
     for at in (0..CORNER_VALUES).step_by(3) {
-        out[0] = js_min(out[0], corners[at]);
-        out[1] = js_min(out[1], corners[at + 1]);
-        out[2] = js_min(out[2], corners[at + 2]);
-        out[3] = js_max(out[3], corners[at]);
-        out[4] = js_max(out[4], corners[at + 1]);
-        out[5] = js_max(out[5], corners[at + 2]);
+        for axis in 0..3 {
+            out[axis] = js_min(out[axis], corners[at + axis]);
+            out[3 + axis] = js_max(out[3 + axis], corners[at + axis]);
+        }
     }
 }
 
-/// `multiplyMatrix4` of a pair: the thirty-two inputs are read before the first write, and each
-/// term is the sum of four products with no initial zero — a sum started at `0` would change the
-/// sign of a negative zero.
-pub(crate) fn multiply_matrix4_one(out: &mut [f64], a: &[f64], b: &[f64]) {
-    let (a11, a12, a13, a14) = (a[0], a[4], a[8], a[12]);
-    let (a21, a22, a23, a24) = (a[1], a[5], a[9], a[13]);
-    let (a31, a32, a33, a34) = (a[2], a[6], a[10], a[14]);
-    let (a41, a42, a43, a44) = (a[3], a[7], a[11], a[15]);
-    let (b11, b12, b13, b14) = (b[0], b[4], b[8], b[12]);
-    let (b21, b22, b23, b24) = (b[1], b[5], b[9], b[13]);
-    let (b31, b32, b33, b34) = (b[2], b[6], b[10], b[14]);
-    let (b41, b42, b43, b44) = (b[3], b[7], b[11], b[15]);
-    out[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41;
-    out[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42;
-    out[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43;
-    out[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44;
-    out[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41;
-    out[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42;
-    out[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43;
-    out[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44;
-    out[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41;
-    out[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42;
-    out[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43;
-    out[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44;
-    out[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41;
-    out[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
-    out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
-    out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
+/// `corner_walk`'s result without its eight corners, when `m` is affine — last row `±0, ±0, ±0,
+/// 1` — and the nine products of its linear part by the box's bounds are finite (here
+/// exact, not a bound). Then `w = ((±0 + ±0) + ±0) + 1 = 1` and `x · (1 / 1) = x`; and a corner is
+/// `((a + b) + c) + d`, `a` one of the two products on x, `b` on y, `c` on z. A rounded sum is
+/// non-decreasing in each operand, so the corner of the smallest terms is the smallest corner and
+/// that of the largest the largest: the same floats, computed by the same operations. Signed
+/// zeros: a rounded sum is `-0` exactly when every operand is, so `Math.min` of the terms gives
+/// `-0` exactly when a corner is `-0`, and `Math.max` `+0` exactly when a corner is `+0`. Finite
+/// products also mean finite bounds — `0 · ∞` is NaN — and no `∞ − ∞`: no corner is NaN. `false`
+/// leaves `out` to the corner walk.
+fn affine_box(out: &mut [f64], lo: [f64; 3], hi: [f64; 3], m: &[f64]) -> bool {
+    if m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0 {
+        return false;
+    }
+    // `terms[axis][row]`: the products of the box's bounds on `axis` by column `axis` of `m`.
+    let terms =
+        [0, 1, 2].map(|axis| [0, 1, 2].map(|row| [lo, hi].map(|b| m[axis * 4 + row] * b[axis])));
+    if !terms.iter().flatten().flatten().all(|t| t.is_finite())
+        || !m[12..15].iter().all(|t| t.is_finite())
+    {
+        return false;
+    }
+    for row in 0..3 {
+        let [a, b, c] = [0, 1, 2].map(|axis| terms[axis][row]);
+        let d = m[12 + row];
+        out[row] = ((js_min(a[0], a[1]) + js_min(b[0], b[1])) + js_min(c[0], c[1])) + d;
+        out[3 + row] = ((js_max(a[0], a[1]) + js_max(b[0], b[1])) + js_max(c[0], c[1])) + d;
+    }
+    true
 }
 
 /// `n` boxes transformed by `n` matrices, the three buffers laid out flat and disjoint.
@@ -147,11 +184,6 @@ pub fn box_transform_batch(out: &mut [f64], boxes: &[f64], mats: &[f64], n: usiz
     }
 }
 
-/// `n` products `out[i] = a[i] · b[i]`, the three buffers laid out flat and disjoint.
-pub fn multiply_matrix4_batch(out: &mut [f64], a: &[f64], b: &[f64], n: usize) {
-    for i in 0..n {
-        let at = i * MATRIX_VALUES;
-        let (left, right) = (&a[at..at + MATRIX_VALUES], &b[at..at + MATRIX_VALUES]);
-        multiply_matrix4_one(&mut out[at..at + MATRIX_VALUES], left, right);
-    }
-}
+#[cfg(test)]
+#[path = "math_tests.rs"]
+mod tests;

@@ -1,6 +1,7 @@
 import type { SceneProxy } from '../contracts/proxy.ts';
 import { proxyTriangleBoxes } from '../scene/core/proxyBoxes.ts';
 import type { BounceCascades } from './cascades.ts';
+import { cellsOf, dilate, mark, reduce, repeats } from './occupancyCells.ts';
 
 /**
  * Where keeping a probe is worthwhile: cascade occupancy map.
@@ -35,67 +36,6 @@ export interface BounceOccupancy {
 
 type LevelMap = { map: Uint8Array; dims: number[]; origin: number[] };
 
-/** Marks a block of cells, bounds included, staying within map; returns the cells newly marked. */
-function mark(map: Uint8Array, dims: number[], low: number[], high: number[]) {
-  const x0 = Math.max(0, low[0]),
-    y0 = Math.max(0, low[1]),
-    z0 = Math.max(0, low[2]);
-  const x1 = Math.min(dims[0] - 1, high[0]),
-    y1 = Math.min(dims[1] - 1, high[1]),
-    z1 = Math.min(dims[2] - 1, high[2]);
-  let added = 0;
-  for (let z = z0; z <= z1; z++)
-    for (let y = y0; y <= y1; y++) {
-      const row = dims[0] * (y + dims[1] * z);
-      for (let x = x0; x <= x1; x++) {
-        added += 1 - map[row + x];
-        map[row + x] = 1;
-      }
-    }
-  return added;
-}
-
-/** Map reduction: a cell in the next level is marked if any of the eight sub-cells are marked. */
-function reduce(map: Uint8Array, dims: number[]) {
-  const next = dims.map((size) => Math.max(1, Math.ceil(size / 2)));
-  const out = new Uint8Array(next[0] * next[1] * next[2]);
-  for (let z = 0; z < dims[2]; z++)
-    for (let y = 0; y < dims[1]; y++)
-      for (let x = 0; x < dims[0]; x++) {
-        if (!map[x + dims[0] * (y + dims[1] * z)]) continue;
-        const half = [x >> 1, y >> 1, z >> 1];
-        out[half[0] + next[0] * (half[1] + next[1] * half[2])] = 1;
-      }
-  return { map: out, dims: next };
-}
-
-/** Dilates a map by one cell along three axes: required boundary for interpolation. */
-function dilate(map: Uint8Array, dims: number[]) {
-  const out = new Uint8Array(map.length);
-  for (let z = 0; z < dims[2]; z++)
-    for (let y = 0; y < dims[1]; y++)
-      for (let x = 0; x < dims[0]; x++) {
-        if (!map[x + dims[0] * (y + dims[1] * z)]) continue;
-        mark(out, dims, [x - 1, y - 1, z - 1], [x + 1, y + 1, z + 1]);
-      }
-  return out;
-}
-
-/** The cells, relative to `origin`, that box `at` of `boxes` (six bounds each) covers. */
-function cellsOf(
-  boxes: ArrayLike<number>,
-  at: number,
-  spacing: number,
-  origin: number[],
-  low: number[],
-  high: number[],
-) {
-  for (let axis = 0; axis < 3; axis++) {
-    low[axis] = Math.floor(boxes[at + axis] / spacing) - origin[axis];
-    high[axis] = Math.floor(boxes[at + 3 + axis] / spacing) - origin[axis];
-  }
-}
-
 /** Every level's map from triangle boxes (six bounds each) over an extent, on the current plan. */
 function build(cascades: BounceCascades, extent: readonly number[], boxes: ArrayLike<number>) {
   const spacing = cascades.levels[0].spacing;
@@ -113,10 +53,11 @@ function build(cascades: BounceCascades, extent: readonly number[], boxes: Array
   );
   const first = new Uint8Array(dims[0] * dims[1] * dims[2]);
   const low = [0, 0, 0],
-    high = [0, 0, 0];
+    high = [0, 0, 0],
+    last = [NaN, NaN, NaN, NaN, NaN, NaN];
   for (let at = 0; at + 6 <= boxes.length; at += 6) {
     cellsOf(boxes, at, spacing, origin, low, high);
-    mark(first, dims, low, high);
+    if (!repeats(low, high, last)) mark(first, dims, low, high);
   }
   const maps: LevelMap[] = [{ map: dilate(first, dims), dims, origin }];
   for (let level = 1; level < cascades.levels.length; level++) {
@@ -127,7 +68,9 @@ function build(cascades: BounceCascades, extent: readonly number[], boxes: Array
       origin: maps[level - 1].origin.map((value) => value / 2),
     });
   }
-  return { maps, spacing, marked: maps[0].map.reduce((sum, value) => sum + value, 0) };
+  let marked = 0;
+  for (let cell = 0; cell < maps[0].map.length; cell++) marked += maps[0].map[cell];
+  return { maps, spacing, marked };
 }
 
 /** Marks which probe cells hold geometry, so empty space gets no probe. */
@@ -145,13 +88,15 @@ export function createBounceOccupancy(
   /** Settles left before the rebuild: a frame that moved skips one, the next still one rebuilds. */
   let quiet = 0;
   const low = [0, 0, 0],
-    high = [0, 0, 0];
+    high = [0, 0, 0],
+    last = [NaN, NaN, NaN, NaN, NaN, NaN];
   const covers = () =>
     cascades.levels[0].spacing === state.spacing && cascades.levels.length === state.maps.length;
   /** Adds one box and the boundary each level's reduction and dilation would give it. */
   const add = (boxes: ArrayLike<number>, at: number) => {
     const { maps, spacing } = state;
     cellsOf(boxes, at, spacing, maps[0].origin, low, high);
+    if (repeats(low, high, last)) return true;
     for (let axis = 0; axis < 3; axis++)
       if (low[axis] < 0 || high[axis] >= maps[0].dims[axis]) return false;
     for (let level = 0; level < maps.length; level++) {
@@ -168,6 +113,7 @@ export function createBounceOccupancy(
     moved(boxes, changed) {
       quiet = 2;
       all ||= !covers();
+      last.fill(NaN);
       for (let t = 0; !all && t < changed.length; t++) if (changed[t]) all = !add(boxes, t * 6);
     },
     settle(boxes, extent) {

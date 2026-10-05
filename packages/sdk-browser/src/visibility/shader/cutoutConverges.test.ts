@@ -101,8 +101,9 @@ test('the hard cut, accumulated on a still camera, converges to the coverage of 
     const errors = crossed.map((i) => Math.abs(got[i]! - want[i]!));
     const worst = Math.max(...errors),
       mean = errors.reduce((a, b) => a + b, 0) / errors.length;
-    // Eight jitter positions: a pixel lands within a fifth of its coverage, on average a twentieth.
+    // Eleven jitter positions (the prime cycle): a pixel lands within a fifth of its coverage,
+    // on average about a twentieth.
     assert.ok(worst < 0.2, `${name}: worst pixel ${worst.toFixed(3)}`);
-    assert.ok(mean < 0.05, `${name}: mean ${mean.toFixed(4)}`);
+    assert.ok(mean < 0.055, `${name}: mean ${mean.toFixed(4)}`);
   }
 });

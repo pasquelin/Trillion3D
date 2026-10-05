@@ -18,7 +18,6 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
                 parent_error: f64::INFINITY,
                 sphere,
                 parent_sphere: sphere,
-                replacement: None,
                 source_rank: 0,
                 group: None,
                 source: None,

@@ -60,7 +60,7 @@ pub(crate) fn slot(info: Option<&Value>) -> Value {
 ///
 /// `derivative` says the primitive wearing it declares no tangent: the host then rebuilds the
 /// tangent frame from screen derivatives and flips the second normal factor to keep the same
-/// handedness (three.js issue 11438). One glTF material worn by a primitive with tangents and by
+/// handedness. One glTF material worn by a primitive with tangents and by
 /// one without is therefore two host materials, and two entries of this table.
 pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     let pbr = m.get("pbrMetallicRoughness");

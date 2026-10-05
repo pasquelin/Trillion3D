@@ -13,6 +13,9 @@ type State = () => {
   streamingError: string | null;
   /** Bytes of the effect chain's targets on the host context (`../render/compose.ts`). */
   effectBytes: number;
+  /** The size the host's composer drew the image at (`../render/renderScale.ts`), `null` where
+   *  it draws none. */
+  renderSize: readonly [number, number] | null;
   /** The last image the host's WebGL2 timer read (`../render/draw.ts`). */
   gpu: { frameMs: number | null; passes: FrameMetrics['gpuPassMs'] };
 };
@@ -36,6 +39,7 @@ export function createExplorerMetrics(
 ) {
   const metricsScratch: FrameMetrics = {
     rafIntervalMs: null,
+    displayRefreshMs: null,
     cpuFrameMs: 0,
     cpuSelectMs: null,
     cpuSelectNodesTested: null,
@@ -61,60 +65,38 @@ export function createExplorerMetrics(
     gpuPassMs: null,
     gpuFrameMs: null,
     gpuHostGapMs: null,
+    gpuIdleMs: null, // device idle between two images (#1451)
     gpuDeviceLost: null,
     uncoveredTriangles: null,
     drawnTriangles: null,
     lightsActive: null,
     lightsSampled: null,
-    shadowsUpdated: null,
-    shadowFacesDrawn: null,
-    shadowDrawCalls: null,
-    shadowRenderPasses: null,
-    shadowLightCuts: null,
-    shadowPagesRequested: null,
-    shadowPagesCached: null,
-    shadowPoolPages: null,
+    shadowVsmLights: null,
+    shadowVsmMaps: null,
+    shadowVsmPagesRequested: null,
+    shadowVsmPagesAllocated: null,
+    shadowVsmPagesCached: null,
+    shadowVsmPagesRendered: null,
+    shadowVsmFreePages: null,
+    shadowVsmLodBias: null,
+    shadowVsmProjectionPasses: null,
+    shadowVsmInvalidationMs: null,
+    shadowVsmMarkingMs: null,
+    shadowVsmPageManagementMs: null,
+    shadowVsmRenderMs: null,
+    shadowVsmProjectionMs: null,
+    shadowVsmTransmissionMs: null,
     shadowPoolBytes: null,
-    shadowPoolLayers: null,
-    shadowPeakBytes: null,
     shadowResolutionBias: null,
-    shadowMemoryEvents: null,
-    shadowPagesRefetched: null,
-    shadowCastersKept: null,
-    shadowCastersRejected: null,
     tileLightPoolReserved: null,
     tileLightPoolCapacity: null,
     tileLightPoolOverflowed: null,
     tileLightPoolGrowths: null,
-    shadowCastersHidden: null,
-    shadowPagesDrawn: null,
-    shadowPagesTotal: null,
-    shadowPagesPending: null,
-    shadowBatches: null,
-    shadowLayersDrawn: null,
-    shadowPagesRestored: null,
-    shadowPagesRasterized: null,
-    shadowRestoreCopies: null,
-    shadowStaticDrawCalls: null,
-    shadowMovingDrawCalls: null,
-    shadowMovingCastersKept: null,
-    shadowPagesStaledBy: null,
-    shadowWaitMs: null,
-    shadowCutDrops: null,
-    shadowCutWithdrawnPages: null,
-    shadowCutCoarsePages: null,
-    shadowCutViewLimit: null,
     gpuLightListsMs: null,
     gpuShadowsMs: null,
     gpuShadowCullMs: null,
     gpuShadowRasterMs: null,
     gpuLightingMs: null,
-    cpuShadowPlanMs: null,
-    cpuShadowRequestsMs: null,
-    cpuShadowAdmissionMs: null,
-    cpuShadowBatchesMs: null,
-    cpuShadowRegionsMs: null,
-    cpuShadowPassesMs: null,
     texturePoolBytes: null,
     texturePoolFormat: null,
     textureResidentBytes: null,
@@ -128,13 +110,25 @@ export function createExplorerMetrics(
   profiler.setMetadata(metadata);
   if (options.logInterval && options.logInterval > 0) profiler.startAutoLog(options.logInterval);
   const fillMetrics = (backend: RenderBackend) => {
-    const { loaded, pageBytesRead, streamingError, effectBytes, gpu } = state();
+    const { loaded, pageBytesRead, streamingError, effectBytes, gpu, renderSize } = state();
     const backendMetrics = backend.metrics() as FrameMetrics;
     const stream = streamer.stats();
     // Every measurement the engine publishes as-is, in contract order: `null` means "not
     // held by this engine", never "zero". The held-frame flag is part of that — without this
     // copy, `explorer.render()` published `null` while the engine had in fact held the frame.
     for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key);
+    // The display's cadence of an engine whose scale the host ticks (WebGL2, `../render/draw.ts`):
+    // the same clock WebGPU publishes from inside (`../../webgpu/pages/io/metrics.ts`).
+    const scale = backend.renderScaleControl;
+    if (scale) {
+      metricsScratch.rafIntervalMs = scale.frameIntervalMs;
+      metricsScratch.displayRefreshMs = scale.refreshMs;
+    }
+    // An engine the host composes (WebGL2): the size the composer drew its image at.
+    if (metricsScratch.renderWidth === null && renderSize) {
+      metricsScratch.renderWidth = renderSize[0];
+      metricsScratch.renderHeight = renderSize[1];
+    }
     // An engine that times no pass of its own: the image the host's WebGL2 timer read.
     if (metricsScratch.gpuPassMs === null && gpu.passes) {
       metricsScratch.gpuPassMs = gpu.passes;

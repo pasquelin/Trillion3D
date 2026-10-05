@@ -110,6 +110,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     }
     if (op == GRAVITY) {
       world.system->SetGravity(vec3(w + 1));
+      holdSofts();
       w += 4;
       continue;
     }
@@ -171,6 +172,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
         break;
       case GRAVITY_SCALE:
         bodies.SetGravityFactor(slot.id, f32(w + 2));
+        if (slot.soft) holdSoft(slot);
         break;
       case FLAGS:
         slot.flags = w[2];

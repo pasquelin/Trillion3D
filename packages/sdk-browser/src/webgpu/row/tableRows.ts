@@ -3,10 +3,9 @@ import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts';
 import { pageTableRows } from './pageTableRows.ts';
 
 /**
- * THE ROWS A VIEW IS GIVEN (#1232): cluster's fixed visible-cluster budget
- * (`a reference setting`). The page table is sized by what a view draws, never by the
- * world's placements: a scene asks at most `VIEW_ROWS` rows however many times its pages are
- * placed. A scene whose packed instances exceed them is cut on the CPU
+ * THE ROWS A VIEW IS GIVEN (#1232): a fixed visible-cluster budget. The page table is sized by
+ * what a view draws, never by the world's placements: a scene asks at most `VIEW_ROWS` rows however
+ * many times its pages are placed. A scene whose packed instances exceed them is cut on the CPU
  * (`../pages/prepare/preparePages.ts`), which claims a row for each cluster it selects and nothing
  * more: its table opens at `CUT_ROWS` and grows by what its cut selects (`viewRowsFor`).
  */

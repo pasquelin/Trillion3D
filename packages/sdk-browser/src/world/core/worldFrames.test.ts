@@ -24,7 +24,8 @@ test('the first frame after a pause spans at most two of the intervals the loop 
   now = 11532;
   assert.equal(frames.advance(), 0.032);
   frames.dispatch({ ...NOT_DRAWN });
-  assert.equal(deltas.at(-1), 0.032);
+  // The frame drawn is told what both steps since the last one integrated, each bounded.
+  assert.equal(deltas.at(-1), 0.064);
 });
 
 test('the controllers integrate from step to step, the render time included', (t) => {
@@ -85,6 +86,23 @@ test('a frame steps the controls, then the before hooks, then draws, then the af
   assert.deepEqual(order, []);
 });
 
+test('a frame sets the physics’ time before the controller moves, and runs the physics after', (t) => {
+  let now = 1000;
+  t.mock.method(performance, 'now', () => now);
+  const frames = createWorldFrames();
+  const order: string[] = [];
+  const controls = { autoUpdate: true, update: () => void order.push('controls') };
+  const physics = {
+    time: (seconds: number) => void order.push(`time ${seconds}`),
+    frame: () => (order.push('physics'), false),
+  };
+  frames.step(controls, new Object3D(), physics);
+  now = 1016;
+  frames.step(controls, new Object3D(), physics);
+  // The character the controller moves is drawn at the time the bodies then are.
+  assert.deepEqual(order, ['time 0', 'controls', 'physics', 'time 0.016', 'controls', 'physics']);
+});
+
 test('the GPU frame time the engine measured reaches the page hook; an unmeasured one reads null', () => {
   // The host's own path, without a browser: the engine's `metrics()`, copied key by key through
   // `BACKEND_METRIC_KEYS` into the host sample, dispatched to the world's frame hook.
@@ -109,6 +127,7 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       loaded: 0,
       pageBytesRead: 0,
       streamingError: null,
+      renderSize: null,
       effectBytes: 0,
       gpu: { frameMs: null, passes: null },
     }),

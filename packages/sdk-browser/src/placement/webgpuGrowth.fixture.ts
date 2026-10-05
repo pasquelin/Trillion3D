@@ -1,4 +1,5 @@
 import * as G from '../host/graph/graph.fixture.ts';
+import { createSceneLightStore, type SceneLight } from '../../../sdk-core/src/index.ts';
 import { MANIFEST_IDENTITY } from '../backend/pagesBackend.fixture.ts';
 import { dagRoots } from '../backend/pagesBackend.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
@@ -61,7 +62,7 @@ function placedScene(links: readonly RowLink[]) {
  * its catalogue out at open (#483).
  * The session is handed the partition's rows as a world hands them (`partitionFrame.ts`).
  */
-export async function placedSession(bindingRows: number) {
+export async function placedSession(bindingRows: number, light?: SceneLight) {
   installGpuGlobals();
   const partition = world(0, 0);
   const { cells, links, bytes } = partition;
@@ -78,8 +79,11 @@ export async function placedSession(bindingRows: number) {
     packed: packDagSelection(collected.roots),
     limits: { maxBufferSize: Math.max(1 << 20, binding), maxStorageBufferBindingSize: binding },
   });
+  const sceneLights = createSceneLightStore();
+  if (light) sceneLights.add(light);
   const rt = createWebgpuPagesRuntime({
     ...scene,
+    ...(light ? { sceneLights } : {}),
     gpuDevice: gpu.device,
     maxResidentPages: 3,
     viewport: [1, 1], // The intentionally tiny storage limit also bounds receiver offsets.

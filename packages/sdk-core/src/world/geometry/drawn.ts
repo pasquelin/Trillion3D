@@ -8,7 +8,7 @@ import { drawnSprite } from './drawnSprite.ts';
 import { POINT_VERTICES, points } from './drawnPoints.ts';
 import { flatten } from './drawnFlat.ts';
 import { deforms, drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
-import { readComponent, readPoints } from './bounds.ts';
+import { readPoints, readsStored } from './bounds.ts';
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
  *  quads carry their distance along the line in the first coordinate of `uvs`. */
@@ -93,10 +93,7 @@ export function readList(g: Geometry, name: string, width: number, n: number, ou
   const a = g.attributes[name];
   if (!a || a.count < n) return null;
   out ??= new Float32Array(n * width);
-  for (let v = 0; v < n; v++)
-    for (let c = 0; c < width; c++)
-      out[v * width + c] = c < a.itemSize ? readComponent(g, a, v, c) : 1;
-  return out;
+  return a.readInto(out, 0, width, 0, n, width, 1, readsStored(g, a));
 }
 
 /** The segments a line reading draws, as `[a, b]` corner pairs: each pair of `lineSegments`,

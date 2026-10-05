@@ -81,6 +81,10 @@ lines.push(
   await duel({
     name: 'Matrix4.compose',
     fichier: TRS,
+    // Measured 0.95× to 1.15× Three over five runs once the two sides alternate (Oct. 2026): a
+    // tie the old best-time gate hid, Three being always timed first, cold. Declared so a slowdown
+    // past it fails; the flat batch, `composeMatrix4Batch`, wins by 41 %.
+    slower: { atMost: 1.2, reason: 'measured tie, per element on four sub-views; the batch wins' },
     three: () => {
       for (let i = 0; i < N; i++)
         outThree[i].compose(position.three[i], rotation[i], scale.three[i]);

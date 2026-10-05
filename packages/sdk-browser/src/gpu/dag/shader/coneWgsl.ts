@@ -35,7 +35,7 @@ fn viewPoint()->vec4f{
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
  if(!conformalOf(w)){return false;}
- let world=worlds[rowOf(w)];
+ let world=worldPose(w);
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;

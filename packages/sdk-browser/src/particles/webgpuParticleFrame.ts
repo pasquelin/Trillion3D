@@ -3,6 +3,7 @@ import { anyMoving, refuseAll } from './poolStates.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
 import { routedFilter } from '../webgpu/blend/displayFilter.ts';
 import { particleCode } from './particleFamily.ts';
+import { opensDisplayFilter } from '../webgpu/pages/render/encodeDisplayFilter.ts';
 
 /** True while one of the world's pools moves: the image changes, and is not held. */
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
@@ -28,8 +29,19 @@ export function encodeParticles(
     rt.gpu.particles = undefined;
     return;
   }
-  // One step a frame, the main view's: a view drawn beside it draws the pools as they stand.
-  if (rt.views.active !== rt.views.main) return;
+  // One step a frame, the main view's: a view drawn beside it draws the pools as they stand. The
+  // step was made at the frame's entry (`askParticles`).
+  if (rt.views.active !== rt.views.main || !rt.gpu.particles) return;
+  rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
+}
+
+/** At a frame's entry (`../webgpu/frame/framePipelines.ts`): the world's pools' step, made by the
+ *  main view's first frame with a pool, its code arrived, its pipelines compiling from then; and
+ *  those routed through the display layers asked once the image can route a pool, the frame held
+ *  until they land. */
+export function askParticles(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (!rt.context.particles?.length || !rt.vis.visEnabled || rt.views.active !== rt.views.main)
+    return;
   if (!rt.gpu.particles) {
     // The step's code, which the frame waited for (`../host/families.ts`).
     const fail = (error: unknown) => rt.diag.diagnosticFailure('particles-unavailable', error);
@@ -37,7 +49,7 @@ export function encodeParticles(
     if (!code) return;
     rt.gpu.particles = code.createWebgpuParticles(device, fail);
   }
-  rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
+  if (drawsParticles(rt) && opensDisplayFilter(rt)) rt.gpu.particles.askRouted();
 }
 
 /** Whether this image draws the world's pools: it has some, and shows beauty. */

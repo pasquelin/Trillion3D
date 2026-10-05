@@ -1,26 +1,12 @@
 /**
  * The drawn poses of the listed slots, written into `position` (3 numbers a slot) and `quaternion`
- * (4 a slot) toward their targets (`target`, 7 a slot), before the placer commits them. Each turn
- * is normalised; the arithmetic is the drawn image's, so none of it may be reordered.
+ * (4 a slot) from the states the simulation delivered (7 numbers a slot), before the placer
+ * commits them. Each turn is normalised by the engine's one quaternion normalisation
+ * (`normalizeQuaternionAt`); the arithmetic is the drawn image's, so none of it may be reordered.
  */
+import { normalizeQuaternionAt, slerpOnArc } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 
-/** The turn (x, y, z, w) scaled to unit length, into `quaternion` from `q`. */
-function normalised(
-  quaternion: Float64Array,
-  q: number,
-  x: number,
-  y: number,
-  z: number,
-  w: number,
-) {
-  const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
-  quaternion[q] = x * n;
-  quaternion[q + 1] = y * n;
-  quaternion[q + 2] = z * n;
-  quaternion[q + 3] = w * n;
-}
-
-/** The `count` slots listed in `list` on their targets exactly. */
+/** The `count` slots listed in `list` on their newest states (`target`) exactly. */
 export function landAll(
   list: Int32Array,
   count: number,
@@ -35,13 +21,19 @@ export function landAll(
   }
 }
 
-/** The `count` slots listed in `list` the fraction `step` of the way from where they are drawn to
- *  their targets, each turn taken the shorter way round. */
+/**
+ * The `count` slots listed in `list` the fraction `alpha` of a step from their state a step before
+ * (`from`) to their state at its end (`to`): on the line between the two places, as a step moves
+ * a body (`x + v·h`), and on the arc between the two turns (`arcs`, `slerpArc`'s 3 numbers a
+ * slot), as a step turns it (about one axis at one rate, `Body::AddRotationStep`).
+ */
 export function interpolateAll(
   list: Int32Array,
   count: number,
-  target: Float32Array,
-  step: number,
+  from: Float32Array,
+  to: Float32Array,
+  arcs: Float64Array,
+  alpha: number,
   position: Float64Array,
   quaternion: Float64Array,
 ) {
@@ -50,26 +42,23 @@ export function interpolateAll(
       o = index * 7,
       p = index * 3,
       q = index * 4;
-    position[p] += (target[o] - position[p]) * step;
-    position[p + 1] += (target[o + 1] - position[p + 1]) * step;
-    position[p + 2] += (target[o + 2] - position[p + 2]) * step;
-    // A quaternion and its opposite are one rotation: the target on the drawn one's side.
-    const dot =
-      quaternion[q] * target[o + 3] +
-      quaternion[q + 1] * target[o + 4] +
-      quaternion[q + 2] * target[o + 5] +
-      quaternion[q + 3] * target[o + 6];
-    const s = dot < 0 ? -1 : 1;
-    const x = quaternion[q] + (s * target[o + 3] - quaternion[q]) * step,
-      y = quaternion[q + 1] + (s * target[o + 4] - quaternion[q + 1]) * step,
-      z = quaternion[q + 2] + (s * target[o + 5] - quaternion[q + 2]) * step,
-      w = quaternion[q + 3] + (s * target[o + 6] - quaternion[q + 3]) * step;
-    normalised(quaternion, q, x, y, z, w);
+    position[p] = from[o] + (to[o] - from[o]) * alpha;
+    position[p + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * alpha;
+    position[p + 2] = from[o + 2] + (to[o + 2] - from[o + 2]) * alpha;
+    slerpOnArc(quaternion, q, from, o + 3, to, o + 3, alpha, arcs, index * 3);
+    normalizeQuaternionAt(
+      quaternion,
+      q,
+      quaternion[q],
+      quaternion[q + 1],
+      quaternion[q + 2],
+      quaternion[q + 3],
+    );
   }
 }
 
-/** The `count` slots listed in `list` moved on from their targets by `ahead` simulated seconds
- *  of their velocities (`velocity`, 6 numbers a slot: linear, then angular). */
+/** The `count` slots listed in `list` moved on from their newest states (`target`) by `ahead`
+ *  simulated seconds of their velocities (`velocity`, 6 numbers a slot: linear, then angular). */
 export function extrapolateAll(
   list: Int32Array,
   count: number,
@@ -99,6 +88,6 @@ export function extrapolateAll(
       y = ty + h * (wy * tw + wz * tx - wx * tz),
       z = tz + h * (wz * tw + wx * ty - wy * tx),
       w = tw - h * (wx * tx + wy * ty + wz * tz);
-    normalised(quaternion, q, x, y, z, w);
+    normalizeQuaternionAt(quaternion, q, x, y, z, w);
   }
 }

@@ -5,6 +5,8 @@
 //! the GPU is the same 32-bit float as one decoded here.
 
 pub mod grid;
+mod oct;
+pub(crate) use oct::oct_decode_stream;
 
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
 pub const MAX_BITS: u32 = 24;

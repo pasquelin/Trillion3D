@@ -1,4 +1,5 @@
 import {
+  PHYSICS_STEP,
   ASLEEP_BIT,
   BODY_INDEX,
   CommandWriter,
@@ -21,11 +22,8 @@ import { physicsLink } from './physicsLink.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
 
-/**
- * A scene, its bodies, joints and vehicles as a session keeps them, stepped on the committed
- * module in place of the worker: the page's commands, the module's poses, broken joints and
- * vehicle states, nothing else.
- */
+/** A scene, its bodies, joints and vehicles as a session keeps them, stepped on the committed
+ *  module in place of the worker: commands, poses, broken joints, wheels drawn at each step. */
 export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]) {
   const scene = new Group();
   // Linked as a world's scene is, so a body taken out of it leaves the simulation.
@@ -33,7 +31,7 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
   const writer = new CommandWriter();
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64 };
   const state = createPhysicsPoses(budget.bodies, scene).state;
-  const bodies = createPhysicsBodies(writer, budget, {} as PhysicsHost, scene, state);
+  const bodies = createPhysicsBodies(writer, budget, {} as PhysicsHost, scene, state, PHYSICS_STEP);
   const joints = createPhysicsJoints(writer, bodies, () => {});
   const vehicles = createPhysicsVehicles(writer, bodies, () => {});
   const jolt = await startModule(budget);
@@ -76,7 +74,8 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         }
         const broken = jolt.broken();
         if (broken.length) joints.broke(broken);
-        vehicles.receive(jolt.vehicles().slice());
+        vehicles.receive({ words: jolt.vehicles().slice(), befores: null }, 1);
+        vehicles.apply(1, false);
       }
     },
     /** `world.raycast(ray, options)` against the bodies of the last step. */

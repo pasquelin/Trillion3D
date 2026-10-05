@@ -1,4 +1,4 @@
-// Oracle for batch 4: `packages/sdk-browser/src/visibility/shader/shadingNormal.ts` before refactoring to core, copied as is. The
+// Oracle for batch 4: `bench/oracles/browser/cpu-image/shadingNormal.ts` before refactoring to core, copied as is. The
 // tangent frame was assembled using host library `Matrix3` and `Vector3` —
 // `applyMatrix3`, `transformDirection`, `normalize`, `addScaledVector`, `crossVectors`,
 // `multiplyScalar`, `lengthSq`. It serves as bit-by-bit reference for new code. What previous
@@ -7,11 +7,8 @@
 import * as THREE from 'three';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/src/index.ts';
-import {
-  attr2,
-  sampleLinear,
-  triangleAt,
-} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { attr2, sampleLinear } from './cpu-image/math.ts';
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const normalScratch = new THREE.Matrix3();

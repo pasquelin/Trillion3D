@@ -1,4 +1,5 @@
 use super::*;
+use crate::join::Join;
 
 /// Surfaces grouped by the plane they really share.
 ///
@@ -17,14 +18,7 @@ pub fn plane_groups(surfaces: &[Surface], offset_quantum: f64) -> Vec<Vec<usize>
         .enumerate()
         .map(|(index, key)| (*key, index))
         .collect();
-    let mut parent: Vec<usize> = (0..keys.len()).collect();
-    fn root(parent: &mut [usize], mut node: usize) -> usize {
-        while parent[node] != node {
-            parent[node] = parent[parent[node]];
-            node = parent[node];
-        }
-        node
-    }
+    let mut join = Join::new(keys.len());
     for (index, key) in keys.iter().enumerate() {
         let mine = &surfaces[buckets[key][0]];
         for step in 0..81usize {
@@ -48,17 +42,13 @@ pub fn plane_groups(surfaces: &[Surface], offset_quantum: f64) -> Vec<Vec<usize>
             ) {
                 continue;
             }
-            let (a, b) = (root(&mut parent, index), root(&mut parent, other));
-            if a != b {
-                parent[a.max(b)] = a.min(b);
-            }
+            join.unite(index as u32, other as u32);
         }
     }
-    let mut merged: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    let mut merged: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
     for (index, key) in keys.iter().enumerate() {
-        let group = root(&mut parent, index);
         merged
-            .entry(group)
+            .entry(join.root(index as u32))
             .or_default()
             .extend(buckets[key].iter().copied());
     }

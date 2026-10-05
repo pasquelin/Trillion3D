@@ -3,8 +3,9 @@ import {
   HIZ_MAX_LEVELS,
   HIZ_PASS_LEVELS,
   HIZ_UNIFORM_BYTES as UNIFORM_BYTES,
-  writeHizTestUniforms,
+  hizTestSlot,
 } from './uniforms.ts';
+import { vsmWriteChanged } from '../../vsm/writeChanged.ts';
 import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts';
 import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
@@ -24,7 +25,6 @@ export async function createGpuHiz(
   // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
   const level0Usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
-  const testWords = new Uint32Array(UNIFORM_BYTES / 4);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
     // The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`).
@@ -38,10 +38,21 @@ export async function createGpuHiz(
     const { layout, buildPipeline, testPipeline } = pipelines;
     const pagesGroup = hizPagesGroup(device, pipelines.pagesLayout);
     const uniforms = device.createBuffer({
+      label: 'Trillion3D HiZ uniforms',
       // The deepest pyramid's build passes, then the test's slot.
       size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    // Every word the kernels read there: the drawn pyramid's build passes from word zero
+    // (`hizBuildWords`), the test's slot behind them (`hizTestSlot`). Only the words that changed
+    // go up: a frame of the same size and rows sends nothing.
+    const image = new Uint32Array(uniforms.size / 4);
+    // The test slot's dynamic offset, read by `setBindGroup` when it is called.
+    const testOffset = [0];
+    const sendBuild = (words: Uint32Array) => {
+      image.set(words, 0);
+      vsmWriteChanged(device, uniforms, image, 0, words.length);
+    };
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
     // until `attach`, the bind group points at this idle buffer, which nothing reads.
     const idle = device.createBuffer({
@@ -54,7 +65,7 @@ export async function createGpuHiz(
     const flagsFor = (rows: number) =>
       device.createBuffer({
         size: Math.max(4, rows * 4),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       });
     let flags = flagsFor(cap);
     buffers.push(uniforms, idle, flags);
@@ -82,7 +93,7 @@ export async function createGpuHiz(
       gpu.width = next?.width ?? 0;
       gpu.height = next?.height ?? 0;
       if (!next) return;
-      device.queue.writeBuffer(uniforms, 0, next.drawn.words);
+      sendBuild(next.drawn.words);
       gpu.level0 = next.level0;
       gpu.level0View = next.level0View;
     };
@@ -93,11 +104,10 @@ export async function createGpuHiz(
       level0: first.level0,
       level0View: first.level0View,
       flags,
-      // One compute pass builds the whole pyramid, four mips per dispatch (`buildHiz`).
-      encodePyramid(encoder) {
+      // The whole pyramid, four mips per dispatch (`buildHiz`), in the frame's compute pass.
+      encodePyramid(open) {
         if (disposed || !bindGroup || !at) return;
-        const { passes } = at.drawn;
-        encodeHizPyramid(encoder, 'Trillion3D HiZ pyramid', bindGroup, buildPipeline, passes);
+        encodeHizPyramid(open.pass, bindGroup, buildPipeline, at.drawn.passes, at.drawn.slots);
       },
       /** Tested boxes and the frame state come from the GPU partition, mounted after us. */
       attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
@@ -128,24 +138,25 @@ export async function createGpuHiz(
           h = Math.min(at.height, drawnHeight);
         if (at.drawn.width === w && at.drawn.height === h) return;
         at.drawn = pyramidLayout(w, h);
-        device.queue.writeBuffer(uniforms, 0, at.drawn.words);
+        sendBuild(at.drawn.words);
       },
       pyramidBuffer: () => (disposed ? undefined : at?.pyramid),
-      encodeTest(queueDevice, encoder, maxRows, flagRows, pages) {
+      encodeTest(queueDevice, open, maxRows, pages, counting) {
         if (disposed || !bindGroup || !at || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);
-        if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
         const { passes, width: w, height: h } = at.drawn,
           slot = passes.length * UNIFORM_BYTES;
-        writeHizTestUniforms(queueDevice, uniforms, testWords, slot, w, h, rows);
+        const word = slot / 4;
+        hizTestSlot(image, word, w, h, rows, counting);
+        vsmWriteChanged(queueDevice, uniforms, image, word, word + UNIFORM_BYTES / 4);
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
-        const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
+        const pass = open.pass;
+        testOffset[0] = slot;
         pass.setPipeline(testPipeline);
-        pass.setBindGroup(0, bindGroup, [slot]);
+        pass.setBindGroup(0, bindGroup, testOffset);
         pass.setBindGroup(1, pagesGroup(pages));
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));
-        pass.end();
         return rows;
       },
       resize(nextDevice, nextWidth, nextHeight) {

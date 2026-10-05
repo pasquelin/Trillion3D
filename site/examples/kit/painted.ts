@@ -35,7 +35,7 @@ export function leafTexture(engine: Families<'texture'>) {
 
 /** How a matcap ball looks: its colour, the rim light at its edge, the strength and tightness of
  *  its highlight, how much of the room it reflects as a metal, and how far its light wraps round. */
-export interface MatcapLook {
+interface MatcapLook {
   base: Vec3;
   rim?: Vec3;
   shine?: number;

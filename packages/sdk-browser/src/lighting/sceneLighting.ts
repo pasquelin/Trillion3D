@@ -59,7 +59,7 @@ function placeAt(into: AimNode, from: Object3D) {
 /**
  * Copy into the render scene the lights the source graph declares, and nothing else.
  *
- * No light without a declared source (P6): a source that carries none yields a scene without
+ * No light without a declared source: a source that carries none yields a scene without
  * a light, not an invented hemisphere and sun. Same rule as the contract path,
  * on every engine that draws a display graph.
  */

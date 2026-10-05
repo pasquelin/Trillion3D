@@ -19,13 +19,19 @@ import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
 import { dropVis, fallbackToCpuCut, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
-import { prepareWebgpuTextures } from './textures.ts';
+import { prepareWebgpuTextures, takeMaterialTextures } from './textures.ts';
+import { wantsFeedback } from './feedbackVariant.ts';
+import { wantsEmissiveAo } from './emissiveAoLayer.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights, prepareShadowPipelines } from './lights.ts';
 import { grantWebgpuPagesCache } from './cache.ts';
 import { litPrograms } from './contractLight.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 import { loadImpostorCode } from '../../../impostor/code.ts';
+import { pipelinesSettled } from '../../../lighting/deferred/fullscreen.ts';
+import { REFLECTION_MIP_KEYS, prepareMipPipelines } from '../../../texture/mips.ts';
+import { askFramePipelines } from '../../frame/framePipelines.ts';
+import { createShadeCensus } from '../../visibility/shadeCensus.ts';
 import * as impostorLent from '../../impostor/lent.ts';
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
@@ -41,6 +47,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   };
   // The impostor draw's code, on its way beside every step below, awaited before the first image.
   const impostorCode = loadImpostorCode(rt.context, impostorLent);
+  // The reflection pyramids' reductions, compiled off the thread beside every step below, before
+  // the frame targets that hold the pyramids are made (`../../../reflections/conePyramid.ts`); one
+  // refused is refused again where a pyramid is made, as it was.
+  const reflectionMips = prepareMipPipelines(gpuDevice, REFLECTION_MIP_KEYS).catch(() => {});
   const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store);
   rt.lights.buffer = lightBuffer;
   // No more light written into the scene: opaques and transparents read the same declared-light buffer.
@@ -57,12 +67,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   // new resource, or a held image would stay as it was. Both are awaited, each kept as built.
   const programs = await step('lighting and antialiasing programs', () =>
     Promise.allSettled([
-      createDeferredLighting(
-        gpuDevice,
-        () => run.gate.resourcesChanged(),
-        rt.lights.plan.sunWindow,
-        litPrograms(rt),
-      ),
+      createDeferredLighting(gpuDevice, () => run.gate.resourcesChanged(), litPrograms(rt)),
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );
@@ -88,11 +93,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     rows.pagePositions[i] = gpu.positionBuffers.get(rt.layout.recordOf(i)!.attributes);
   // Fresh position buffers: rank sync starts over from the catalogue.
   rows.rowsRevision++;
+  // 16 bytes: it also stands in for the cluster spans (`array<vec4u>`) of a scene without them.
   gpu.zeroUv = gpuDevice.createBuffer({
-    size: 8,
+    size: 16,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0]));
+  gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0, 0, 0]));
   blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene);
   await gpu.pipelineBlend!.precompile(declaredBlendModes(blendState.blendGpu));
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS);
@@ -127,6 +133,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     ? cards
     : undefined;
   await grantWebgpuPagesCache(rt, gpuDevice);
+  // The textures the scene wears, counted before its targets: one that wears none makes no feedback
+  // target, and its pipelines write none (`feedbackVariant.ts`).
+  const census = takeMaterialTextures(rt);
+  vis.writesFeedback = wantsFeedback(rt);
+  // Nor an emission-and-occlusion layer for a scene none of whose surfaces emits or occludes: the
+  // census of the surfaces its opaque pages wear, on their geometry, says (`shadeCensus.ts`).
+  vis.shadeCensus = createShadeCensus(allPages, vis.geometryBlocks, vis);
+  vis.writesEmissiveAo = wantsEmissiveAo(rt);
+  await reflectionMips;
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
   // A refused deformation import is a geometry failure, told below: no compute without its code.
@@ -137,7 +152,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
       : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;
-    await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
+    await step('textures', () => prepareWebgpuTextures(rt, gpuDevice, census));
     await step('blend resources', () => prepareBlendResources(rt, gpuDevice));
     await step('visibility programs', () => prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {
@@ -154,6 +169,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
+  // What the first frame binds, asked as a frame entry asks it (`askFramePipelines`): compiled
+  // beside the steps below, awaited at the end.
+  askFramePipelines(rt);
   await step('direct lights', () => prepareDirectLights(rt, gpuDevice));
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice));
   prepareCones(rt);
@@ -178,11 +196,13 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await step('coverage bootstrap', () => services.bootstrapState.ensure());
   // Last, the lit program of the first step; one that failed is said, and lets the unlit view by.
   await gpu.deferred?.litReady;
+  // And every compile the steps above started or asked: no first frame compiles one, nor is held.
+  await pipelinesSettled(gpuDevice);
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
     directLightTiles: !!rt.lights.tiles,
-    shadowAtlas: !!rt.lights.shadows,
+    shadowRaster: !!rt.lights.pageLayout,
     shadowUnavailable: rt.lights.shadowReason,
     bounceProxy: !!context.readSceneProxy,
     bounceWanted: rt.bounce.wanted,

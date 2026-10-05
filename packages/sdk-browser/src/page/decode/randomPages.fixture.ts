@@ -1,7 +1,4 @@
-import assert from 'node:assert/strict';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
-import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /** A geometry page of `vertices` random vertices — signed zeros among them — with normals and
  *  texture coordinates on one page in two, so attribute names travel too. */
@@ -24,29 +21,4 @@ export function randomPage(random: () => number, vertices: number) {
       : {}),
   });
   return data as Uint8Array;
-}
-
-/**
- * The edge cases the audit lists that a page can carry: signed zeros (in `randomPage`), the
- * smallest page — one triangle — and the maximal one, 65,535 vertices. NaN and ±Infinity never
- * reach a page: the encoder refuses them (`PAGE_ATTRIBUTE_NONFINITE`), which `nonFinite` holds.
- */
-export function edgePages(random: () => number) {
-  return [randomPage(random, 3), randomPage(random, 65535)];
-}
-export const nonFinite = [NaN, Infinity, -Infinity].map(
-  (value) => () =>
-    encodeGeometryPage([0, 1, 2], {
-      POSITION: { itemSize: 3, array: new Float32Array([value, 0, 0, 1, 0, 0, 0, 1, 0]) },
-    }),
-);
-
-/** Fails on the first difference between two decoded pages, value by value (`Object.is`). */
-export function assertSamePage(a: DecodedGeometryPage, b: DecodedGeometryPage, label: string) {
-  for (const key of ['vertexCount', 'flags', 'decodedBytes', 'quantizationError'] as const)
-    assert.ok(Object.is(a[key], b[key]), `${label} ${key}: ${a[key]} !== ${b[key]}`);
-  assert.deepEqual(Object.keys(a.attributes), Object.keys(b.attributes), `${label} names`);
-  assertBits(a.indices, b.indices, `${label} indices`);
-  for (const name of Object.keys(a.attributes))
-    assertBits(a.attributes[name], b.attributes[name], `${label} ${name}`);
 }

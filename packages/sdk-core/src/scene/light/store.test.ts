@@ -55,6 +55,22 @@ test('turning off via the shadow flag remains a change', () => {
   assert.equal(store.epoch, epoch + 1, 'reset twice, published once');
 });
 
+test('a shadow slice moved is pushed to the GPU, never a change of light transport', () => {
+  const store = createSceneLightStore();
+  const slot = store.add({ ...LAMPE });
+  const epoch = store.epoch,
+    transport = store.transportEpoch;
+  // A lamp leaving the view gives up its maps, the next one's are renumbered: addresses only.
+  store.assignSlice(slot, 8192 * 64);
+  store.assignSlice(slot, -1);
+  assert.equal(store.epoch, epoch + 2, 'the buffer is pushed');
+  assert.equal(store.transportEpoch, transport, 'bounce and reflections keep their history');
+  store.assignSlice(slot, -1);
+  assert.equal(store.epoch, epoch + 2, 'the same slice publishes nothing');
+  store.set('l0', { intensity: 5 });
+  assert.equal(store.transportEpoch, transport + 1);
+});
+
 test('the environment follows the same rule as the lights', () => {
   const store = createSceneLightStore();
   store.setEnvironment({ exposure: 1.5 });

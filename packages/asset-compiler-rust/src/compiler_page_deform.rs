@@ -88,6 +88,6 @@ pub(crate) fn page_deformation(
         skin,
         influences,
         targets,
-        soft_source: false,
+        soft_source: None,
     })
 }

@@ -4,10 +4,10 @@ import { adjugateFactor } from './singular.ts';
 /**
  * `out = transpose(inverse(3×3 block of m))`, column-major on nine numbers: the matrix that carries
  * the normals of a surface transformed by `m`, including shear and non-uniform scale.
- * The inverse is the reference one, cofactors and product order included, then transposed with
- * no floating-point operation.
+ * The inverse is built from cofactors divided by the determinant, then transposed by moving
+ * entries only, with no floating-point operation.
  *
- * SINGULAR MATRIX: the ADJUGATE, undivided, not the reference's zero matrix. What
+ * SINGULAR MATRIX: the ADJUGATE, undivided, not a zero matrix. What
  * decides singularity is the engine's single rule (`singular.ts`), the same one the
  * WGSL kernel applies — the determinant of the NORMALISED linear part, never the raw
  * determinant, which only judges scale. A regular matrix returns exactly the previous bits: the
@@ -20,8 +20,8 @@ import { adjugateFactor } from './singular.ts';
  * itself, and the normal comes out zero with no special case writing it. A zero, infinite
  * or NaN scale is the only case written apart: nine zeros, because a NaN term is not fixed
  * by multiplying it. This is the engine convention, the same as the WGSL kernel in
- * `packages/sdk-browser/src/math/inverseTransposeWgsl.ts`, where it is written in full; the reference
- * returns zero on every singular matrix and loses the surface.
+ * `packages/sdk-browser/src/math/inverseTransposeWgsl.ts`, where it is written in full; a zero matrix
+ * on every singular input would lose the surface.
  */
 export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>, outOffset = 0) {
   const n11 = m[0],

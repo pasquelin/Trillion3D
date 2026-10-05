@@ -4,7 +4,7 @@ import type { UpscaleFrame } from './upscaleRun.fixture.ts';
 
 const sinc = (x: number) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
 /** Lanczos-2 from its definition, `sinc(x)·sinc(x/2)` on `|x| < 2`. */
-export const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
+const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
 
 /**
  * What a display pixel is owed, from the definition: its place `r` in the render grid (texel
@@ -48,12 +48,4 @@ export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'ring
   return sum.map((s, i) =>
     bounds === 'none' ? s / total : Math.min(Math.max(s / total, lo[i]), hi[i]),
   );
-}
-
-const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
-/** The resolve's inverse-luminance blend of `now` and `then` at a current share `alpha`. */
-export function blend(now: number[], then: number[], alpha: number) {
-  const wc = alpha / (1 + luma(now)),
-    wh = (1 - alpha) / (1 + luma(then));
-  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
 }

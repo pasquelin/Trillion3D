@@ -4,7 +4,7 @@
  * of four surface points around it (`jolt_water_planes`); the step's BUOYANCY command carries the
  * water and every plane back to it, which pushes the bodies in one batched call.
  * A body floats on its own when its density is below the water's: the push is the water's weight
- * displaced, and Jolt measures the displaced volume exactly.
+ * displaced, and the physics module measures the displaced volume exactly.
  */
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts';
 import { Waves, type WaveSpec } from './waves.ts';
@@ -12,7 +12,8 @@ import { Waves, type WaveSpec } from './waves.ts';
 /** Fresh water, kg/m³. */
 const WATER_DENSITY = 1000;
 /**
- * Declared drags, Jolt's quadratic coefficients (`Body::ApplyBuoyancyImpulse`). The linear one is
+ * Declared drags, the quadratic coefficients of the water's resistance on a body's linear and
+ * angular speed. The linear one is
  * a drag coefficient: 0.5 is a sphere's (0.47), between a streamlined body (0.04) and a cube face
  * on (1.05). The angular one damps a body's turning in the water. Neither changes where a body
  * floats — the depth at rest follows from the densities alone — only how fast it settles there
@@ -30,7 +31,7 @@ const SAMPLES_PER_SLICE = 25;
 
 /** A body of water the bodies float in, as `world.physics.water` takes it. */
 export interface WaterSpec {
-  /** The Gerstner waves of the surface; none for still water. */
+  /** The trochoidal waves of the surface; none for still water. */
   waves: WaveSpec[];
   /** Height of the surface at rest, metres. */
   level: number;

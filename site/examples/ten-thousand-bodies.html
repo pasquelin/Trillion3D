@@ -61,7 +61,7 @@
       // Two clocks, never added: the worker's step and the page's share of each frame.
       physicsReadouts(world, ['bodies', 'awake', 'step', 'page']);
       // Under `?profile` only, the stats corner: each second's `physics` stage and worker step,
-      // p50 / p95, kept as `window.__profile` for the proof (`scripts/physics-stage.browser.ts`).
+      // p50 / p95.
       if (profiling()) stats(world);
     </script>
   </body>

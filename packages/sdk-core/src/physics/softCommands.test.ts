@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { plane } from '../world/geometry/basic.ts';
 import { CommandWriter } from './commands.ts';
 import { OP } from './layout.ts';
+import { PHYSICS_STEP } from './options.ts';
 import { softBodyOf } from './soft.ts';
 import { writeSoft } from './softCommands.ts';
 import { softSettings } from './softSettings.ts';
@@ -16,7 +17,7 @@ const counts = (words: Uint32Array) => [...words.subarray(SOFT_AT.counts, SOFT_W
 
 test('SOFT carries its fixed words at their layout offsets, then the vertices and corners', () => {
   const settings = softSettings({ type: 'volume', stretch: 0.25, bend: 0.5, pressure: 0.5 });
-  const record = softBodyOf(plane(1, 1, 1, 1), one, settings);
+  const record = softBodyOf(plane(1, 1, 1, 1), one, settings, PHYSICS_STEP);
   const writer = new CommandWriter();
   writeSoft(writer, {
     ...{ id: 9, position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [2, 3, 4] },

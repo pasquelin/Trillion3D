@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { CLASS_DEPTH_UNITS } from '../../visibility/shader/classWords.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import {
   MATERIAL_TILE_DRAW_WGSL,
   MATERIAL_TILE_SLOTS,
@@ -12,18 +13,18 @@ import {
 import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts';
 import { encodeMaterialPasses } from './materialPasses.ts';
 import { resolveFixture } from './materialPasses.fixture.ts';
-import { MATERIAL_TILES_PASS } from '../../stage/passLabels.ts';
+import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts';
 
 type Fn = (...args: number[]) => number;
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number };
 
-test('a pixel is marked for the one class whose depth the material depth writes it', () => {
+test('a pixel is marked for the one class its page holds', () => {
   const classSlots = new Uint32Array(8192).fill(MATERIAL_TILE_SLOTS);
   classSlots[4] = 0;
   classSlots[8] = 1;
-  const { pixelSlot, materialClassDepth } = shaderFunctions<Record<string, Fn>>(
+  const { pixelSlot, materialClassOf } = shaderFunctions<Record<string, Fn>>(
     MATERIAL_TILES_SHADER,
-    ['materialClassOf', 'materialClassDepth', 'pixelSlot'],
+    ['materialClassOf', 'pixelSlot'],
     {
       ...wgslConstants(MATERIAL_TILES_SHADER),
       uni: { pageCount: 3 },
@@ -38,10 +39,10 @@ test('a pixel is marked for the one class whose depth the material depth writes 
   );
   // The background, three pages (the third a class the image does not hold), one past the count.
   for (const id of [0, (1 << 8) | 7, 2 << 8, 3 << 8, 4 << 8]) {
-    const depth = materialClassDepth(id),
+    const classPlusOne = materialClassOf(id),
       slot = pixelSlot(id);
-    if (depth === 0) assert.equal(slot, MATERIAL_TILE_SLOTS, `id ${id}`);
-    else assert.equal(slot, classSlots[depth * CLASS_DEPTH_UNITS - 1], `id ${id}`);
+    if (classPlusOne === 0) assert.equal(slot, MATERIAL_TILE_SLOTS, `id ${id}`);
+    else assert.equal(slot, classSlots[classPlusOne - 1], `id ${id}`);
   }
   assert.equal(pixelSlot(1 << 8), 0);
   assert.equal(pixelSlot(2 << 8), 1);
@@ -69,8 +70,8 @@ test("a tile's two triangles are its square, corners on whole pixels its neighbo
   assert.deepEqual(materialTileCorner(5, 0, 3), materialTileCorner(4, 1, 3));
 });
 
-test('each class draws the tiles its slot lists, classified once after the material depth', () => {
-  const { rt, encoder, passes, tiles } = resolveFixture([5, 9, 5, 2], [5, 9, 2]);
+test('each class draws the tiles its slot lists, classified once before the surfaces pass', () => {
+  const { rt, encoder, passes, computePasses, tiles } = resolveFixture([5, 9, 5, 2], [5, 9, 2]);
   const groups: unknown[] = [];
   const begin = encoder.beginRenderPass.bind(encoder);
   encoder.beginRenderPass = ((desc: GPURenderPassDescriptor) => {
@@ -81,8 +82,9 @@ test('each class draws the tiles its slot lists, classified once after the mater
   encodeMaterialPasses(rt, encoder);
   assert.deepEqual(tiles.assigned, [[5, 9, 2]]);
   assert.equal(tiles.classified, 1);
+  assert.deepEqual(computePasses, [MATERIAL_COMPUTE_PASS], 'one compute pass, its own label');
   assert.deepEqual(tiles.slots, [0, 1, 2], 'class `at` of the keys draws slot `at`');
-  assert.equal(passes[1].draws, 3);
+  assert.equal(passes[0].draws, 3);
   assert.deepEqual(groups.slice(-2), [
     [0, 'bind group'],
     [1, 'tile group'],
@@ -92,6 +94,19 @@ test('each class draws the tiles its slot lists, classified once after the mater
   encodeMaterialPasses(one.rt, one.encoder);
   assert.equal(one.tiles.classified, 0);
   assert.deepEqual(one.tiles.slots, []);
+  assert.deepEqual(one.computePasses, [], 'no cache, no classification: no empty pass');
+});
+
+test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear did", () => {
+  const r = random(3),
+    tileDraws = Array.from({ length: MATERIAL_TILE_SLOTS * 4 }, () => Math.floor(r() * 2 ** 32));
+  const { clearTiles } = shaderRun<{ clearTiles: (slot: number) => void }>(
+    MATERIAL_TILES_SHADER,
+    ['clearTiles'],
+    { tileDraws },
+  );
+  for (let lane = 0; lane < MATERIAL_TILE_SLOTS; lane++) clearTiles(lane);
+  assert.deepEqual(tileDraws, new Array(MATERIAL_TILE_SLOTS * 4).fill(0));
 });
 
 test('the slots follow the classes held; a list is drawn indirectly, a class past them whole', async () => {
@@ -109,16 +124,12 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
   const many = Array.from({ length: MATERIAL_TILE_SLOTS + 1 }, (_, key) => key + 100);
   tiles.assign(many);
   assert.equal(table()[100 + MATERIAL_TILE_SLOTS], MATERIAL_TILE_SLOTS);
-  const passes: string[] = [];
   const encoder = device.createCommandEncoder();
-  const begin = encoder.beginComputePass.bind(encoder);
-  encoder.beginComputePass = ((desc: GPUComputePassDescriptor) => {
-    passes.push(desc.label!);
-    return begin(desc);
-  }) as typeof encoder.beginComputePass;
   const inputs = { vis: {}, pages: {}, uniform: {} } as never;
-  tiles.encode(encoder, 100, 40, inputs);
-  assert.deepEqual([passes, computes.at(-1)], [[MATERIAL_TILES_PASS], 'classify']);
+  tiles.layFor(100, 40);
+  // The draws cleared then the tiles classified: two dispatches of the frame's pass.
+  tiles.encode({ pass: encoder.beginComputePass() }, inputs);
+  assert.deepEqual(computes.slice(-2), ['clearTiles', 'classify']);
   const drawn: unknown[] = [];
   const pass = {
     drawIndirect: (_: unknown, offset: number) => drawn.push(['indirect', offset]),
@@ -142,7 +153,14 @@ test('a device that refuses the classification draws every class full screen', a
   }) as typeof device.createComputePipeline;
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device));
   tiles.assign([5, 9]);
-  tiles.encode(device.createCommandEncoder(), 64, 64, { vis: {}, pages: {}, uniform: {} } as never);
+  tiles.layFor(64, 64);
+  // The frame's pass is not even opened: the classification never asks for it.
+  const open = {
+    get pass(): GPUComputePassEncoder {
+      throw new Error('no dispatch, no pass');
+    },
+  };
+  tiles.encode(open, { vis: {}, pages: {}, uniform: {} } as never);
   assert.deepEqual(computes, []);
   const drawn: unknown[] = [];
   const pass = {

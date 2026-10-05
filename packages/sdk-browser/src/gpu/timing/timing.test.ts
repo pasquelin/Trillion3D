@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createGpuTiming } from './timing.ts';
 import { QUERY_COUNT } from './queries.ts';
 import { QUERY_SET_SIZE } from './querySetSize.ts';
+import { READBACKS } from './encoder.ts';
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
   const f = fixture(),
@@ -49,11 +50,13 @@ test('an image spanning two encoders yields one sample whose passes carry their 
     { part: 1, passes: 1, spanMs: 3 },
   ]);
   assert.equal(samples[0].hostGapMs, 1);
+  // No image before it was sampled: no idle to measure (#1451, `idleBetween.test.ts`).
+  assert.equal(samples[0].idleBetweenMs, null);
   timer.dispose();
   assert.equal(
     f.destroys(),
-    Math.ceil(QUERY_COUNT / QUERY_SET_SIZE) + 2,
-    'the sets and two buffers',
+    Math.ceil(QUERY_COUNT / QUERY_SET_SIZE) + 1 + READBACKS,
+    'the sets, the resolve buffer and the readbacks',
   );
 });
 test('unsupported timestamps allocate nothing and report no sample', () => {
@@ -98,7 +101,9 @@ test('missing or reversed timestamps invalidate only that pass and the next imag
   assert.equal(samples[0].passes[1].gpuMs, 3);
   assert.equal(samples[0].totalMs, null);
   assert.equal(timer.supported, true);
-  values[1] = 3000000n;
+  // The device runs the next image after the last, so its timestamps follow it.
+  values[0] = 8000000n;
+  values[1] = 10000000n;
   const next = timer.createEncoder(61);
   next.beginComputePass({ label: 'next' }).end();
   next.finish();
@@ -138,7 +143,7 @@ test('an unsubmitted part, a busy readback and a failed mapping each leave the t
   assert.equal(stats.skippedFrames.busy, 1);
   timer.dispose();
 });
-test('the sampling cadence bounds how many images are measured and an observer failure never stops it', async () => {
+test('the sampling cadence bounds how many images are measured, each with its neighbour, and an observer failure never stops it', async () => {
   const f = fixture(),
     samples: any[] = [];
   const timer = createGpuTiming(f.device, {
@@ -156,10 +161,14 @@ test('the sampling cadence bounds how many images are measured and an observer f
     await timer.flush();
   }
   const stats = timer.stats();
-  assert.equal(samples.length, 3);
-  assert.equal(stats.sampledFrames, 3);
-  assert.equal(stats.completedSamples, 3);
-  assert.equal(stats.skippedFrames.interval, 6);
+  // Images 0, 3 and 6 at the cadence, and 1, 4 and 7 after them for the idle between (#1451).
+  assert.deepEqual(
+    samples.map((sample) => sample.frame),
+    [0, 1, 3, 4, 6, 7],
+  );
+  assert.equal(stats.sampledFrames, 6);
+  assert.equal(stats.completedSamples, 6);
+  assert.equal(stats.skippedFrames.interval, 3);
   assert.equal(stats.pending, 0);
   timer.dispose();
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { createPageRowWriter, ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from '../../visibility/buffer.ts';
-import { sceneMaterialClasses } from '../row/pageRowMaterial.ts';
+import { createShadeCensus } from '../visibility/shadeCensus.ts';
 import { createPresentClasses } from './materialPasses.ts';
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { createWebgpuRowState } from '../row/state.ts';
@@ -33,7 +33,13 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
     ints = new Uint32Array(floats.buffer);
   const writeRow = createPageRowWriter(
-    { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map(), asIsShown: false },
+    {
+      geometryBlocks: new Map(),
+      mapLayer: new Map(),
+      dataLayer: new Map(),
+      asIsShown: false,
+      emissiveAoShown: false,
+    },
     () => {},
     collected.roots,
     (packed) => packed,
@@ -68,7 +74,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
   );
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
   const writeRow = createPageRowWriter(
-    { geometryBlocks, ...layers, asIsShown: false },
+    { geometryBlocks, ...layers, asIsShown: false, emissiveAoShown: false },
     () => {},
     collected.roots,
     (packed) => packed,
@@ -87,7 +93,9 @@ test('a row carries its resolve class, the census of the scene knows it before a
   // The census reads the same fields the rows will carry, for the pages that take a row: the
   // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
   // is compiled at preparation.
-  assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [cutout]);
+  const census = createShadeCensus(collected.allPages, geometryBlocks, layers);
+  assert.deepEqual(census.keys, [cutout]);
+  assert.equal(census.emits, false, 'no surface emits or occludes');
   // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
   const present = createPresentClasses();
   assert.deepEqual(markPresentClasses(ints, 2, present, 0), [cutout, HAS_VERTEX_NORMAL]);
@@ -102,7 +110,7 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer);
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
-    vis = { ...layers, asIsShown: false };
+    vis = { ...layers, asIsShown: false, emissiveAoShown: false };
   const writeRow = createPageRowWriter(
     vis,
     () => {},

@@ -24,8 +24,9 @@ export {
  * holds that nobody else turns one into an engine camera.
  *
  * THE FACT. The engine does not own the camera: the host hands it over every frame, and it
- * may be the child of a rig that belongs to no prepared scene. `updateWorlds` only walks
- * the scene, so no one but the host walks that rig, and the host is not required to. Reading
+ * may be the child of a rig that belongs to no prepared scene. The frame's world pass runs only
+ * on a scene revision, so nothing has to bring that rig up to date before the frame reads it, and
+ * the host is not required to. Reading
  * `position`, `quaternion` or `matrixWorld` without having resolved the ancestor chain then
  * describes a different camera from the one the frame is drawn from.
  *
@@ -68,17 +69,19 @@ export type { CameraMotion } from './motion.ts';
  * controls, the view a measurement came from — which the explorer performs on the host's behalf
  * at the boundary; a frame never touches them.
  *
- * `updateWorldMatrix` is asked to make the world matrix current, ancestors included. Any host
- * object of this shape satisfies the contract, whatever library it comes from.
+ * The host's world-matrix update is asked to make the world matrix current, ancestors included. Any host
+ * object of this shape satisfies the contract, whatever class it comes from.
  *
- * WHY `lookAt` TAKES A `ControlVector` AND NOT THREE READ-ONLY NUMBERS. A host library aims a
+ * WHY `lookAt` TAKES A `ControlVector` AND NOT THREE READ-ONLY NUMBERS. A camera class of the application aims a
  * camera through a vector of its own and tells it apart from a triple of numbers by a flag of
  * its own; handed a plain `{ x, y, z }` literal it reads the object as the first number and
  * composes a world matrix of `NaN`. Asking for the whole vector vocabulary — which no literal
- * satisfies and every host point of this package already offers (`hostGraphObjects.hostPoint`) —
+ * satisfies and every point class of this package already offers (`hostGraphObjects.hostPoint`) —
  * puts that back under the compiler without naming any library.
  */
 export type HostCamera = {
+  /** Incremented by the host when a discontinuous pose must discard temporal history. */
+  temporalRevision?: number;
   /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
   readonly position: ControlVector;
   /** How it is turned. */ readonly quaternion: HostRotation;

@@ -11,8 +11,8 @@ type PrimitivePage = { readonly placements: number[]; readonly offset: number };
 /**
  * The packed ranks of each pool address, stored per PRIMITIVE page (#1235): one entry per page of
  * a primitive, whatever the number of its placements, and each rank derived from a placement's
- * packed base plus the page's offset — cluster's instance, which stores nothing per page, its
- * clusters being its primitive's page range read from the instance's base.
+ * packed base plus the page's offset: an instance stores nothing per page, its clusters being its
+ * primitive's page range read from the instance's base.
  */
 export type PackedInstances = ReturnType<typeof createPackedInstances>;
 

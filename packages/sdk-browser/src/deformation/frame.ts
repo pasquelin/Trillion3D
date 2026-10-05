@@ -1,12 +1,9 @@
-import {
-  paletteReach,
-  paletteStretch,
-  PALETTE_FLOATS,
-} from '../../../sdk-core/src/world/animation/skeleton.ts';
+import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
-import { wavesChanged, writeWaves } from './waveFrame.ts';
+import { wavesChanged, writeWaves, WAVE_STRETCH_FLOATS } from './waveFrame.ts';
 import { writeSoftSource, type SoftSource } from './softSource.ts';
+import { createSkinPalettes, differs } from './skinPalettes.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import {
   KIND_MORPH,
@@ -30,18 +27,10 @@ export type DeformedMesh = {
  *  each source can move a vertex from its rest pose (`primitives[].deformation`). */
 export type Deformed = {
   world: MatrixElements;
-  /** The skeleton's bones' world matrices, as the reader of `world` holds them: the engine's. */
-  boneWorlds?: readonly MatrixElements[];
   mesh: DeformedMesh;
   shape: RecordShape;
   reach: { joints: ArrayLike<number>; targets: ArrayLike<number> };
 };
-
-/** True when the `size` floats at `a` and at `b` of `block` differ. */
-function differs(block: Float32Array, a: number, b: number, size: number) {
-  for (let k = 0; k < size; k++) if (block[a + k] !== block[b + k]) return true;
-  return false;
-}
 
 /**
  * The deformation records of a session's placements, one block (`layout.ts`): `bases[i]` is
@@ -49,8 +38,8 @@ function differs(block: Float32Array, a: number, b: number, size: number) {
  * (`update`) keeps the last frame's values beside this one's — the temporal pass reprojects each
  * vertex from where it was — and measures how far each placement can move a vertex (`reach`, in
  * the placement's units), which the cuts grow its bounds by. A placement whose `skipped` says its
- * reach projects below the error drawn is drawn at rest, its reach zero. Nothing is allocated
- * after it is made.
+ * reach projects below the error drawn is drawn at rest, its reach zero. A palette is written only
+ * when an input it reads changed (`skinPalettes.ts`). Nothing is allocated after it is made.
  */
 export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   const bases = new Uint32Array(placed.length),
@@ -78,7 +67,12 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     words[at + 4] = entry.shape.waves;
     words[at + 5] = entry.shape.soft ?? 0;
   });
-  const owners: (object | null | undefined)[] = new Array(placed.length);
+  // The least stretch of each wave placement's world matrix, and the matrix it was read for.
+  const waveStretch = placed.map((entry) =>
+    entry?.shape.waves ? new Float64Array(WAVE_STRETCH_FLOATS) : null,
+  );
+  const owners: (object | null | undefined)[] = new Array(placed.length),
+    skins = createSkinPalettes(placed, block);
   let first = true,
     revision = 0;
   /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
@@ -91,17 +85,15 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       joints = shape.joints * PALETTE_FLOATS,
       palette = at + layout.palette,
       weights = at + layout.weights;
-    block.copyWithin(palette + joints, palette, palette + joints);
+    skins.keep(i, palette, joints);
     block.copyWithin(weights + shape.targets, weights, weights + shape.targets);
     words[at + 1] = words[at];
     let kinds = 0,
       most = 0,
       moved = !cold && stale(i, entry);
     if (shape.joints && mesh.skeleton) {
-      mesh.skeleton.palette(entry.world.elements, block, palette, entry.boneWorlds);
-      most = paletteReach(block, palette, shape.joints, entry.reach.joints);
-      if (cold) block.copyWithin(palette + joints, palette, palette + joints);
-      moved ||= differs(block, palette, palette + joints, joints);
+      moved = skins.write(i, entry, palette, joints, cold, moved);
+      most = skins.reachOf(i);
       kinds |= KIND_SKIN;
     }
     if (shape.targets && mesh.morphTargetInfluences) {
@@ -117,7 +109,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       kinds |= KIND_MORPH;
     }
     if (shape.waves && mesh.waves) {
-      most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold);
+      most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold, waveStretch[i]!);
       kinds |= KIND_WAVE;
     }
     const soft = mesh.softSource;
@@ -157,6 +149,19 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     reach,
     moving,
     dirty,
+    /** For placement `i` whose record holds waves alone — no joint, target or soft source —, the
+     *  waves that carry it this frame, or `null` while it is drawn at rest; `undefined` for any
+     *  other placement (`wavePages.ts`). */
+    wavesAlone(i: number) {
+      const entry = placed[i],
+        shape = entry?.shape;
+      if (!shape?.waves || shape.joints || shape.targets || shape.soft) return undefined;
+      return words[bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null;
+    },
+    /** How many waves placement `i`'s record draws: its count when the session opened. */
+    drawnWaves(i: number) {
+      return placed[i]?.shape.waves ?? 0;
+    },
     /** Whether the next frame's records differ from this one's, or this one moved from the last:
      *  a frame that cannot be held, nor count as quiet. */
     pending() {
@@ -187,3 +192,6 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     },
   };
 }
+
+/** A session's deformation records, one block (`createDeformationFrame`). */
+export type DeformationFrame = ReturnType<typeof createDeformationFrame>;

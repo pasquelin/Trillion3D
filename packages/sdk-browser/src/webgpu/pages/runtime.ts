@@ -1,7 +1,6 @@
+import type { ComposeState } from '../../placement/gpuCompose.ts';
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
-import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { shadowPoolShapeOf } from '../shadow/poolSize.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -14,13 +13,12 @@ import { createWebgpuGpuState, type WebgpuGpuState } from './state/gpu.ts';
 import { createWebgpuVisState, type WebgpuVisState } from './state/vis.ts';
 import { createWebgpuLightState, type WebgpuLightState } from './state/lights.ts';
 import { createWebgpuBounceState, type WebgpuBounceState } from './state/bounce.ts';
-import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.ts';
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
 import type { PresentRect } from '../../gpu/core/presentAt.ts';
-import type { HostCamera } from '../../camera/world.ts';
+import type { EngineCamera, HostCamera } from '../../camera/world.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -29,7 +27,18 @@ import {
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
 import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
+import type { VisPage } from '../../visibility/types.ts';
+import type { PageLocations } from '../../page/selection/placements.ts';
 import { type SpatialFeedback } from './diagnostic/spatialCounts.ts';
+
+export type RasterView = {
+  pages: VisPage[];
+  locations: PageLocations;
+  cam: EngineCamera;
+  size: [number, number];
+  pixelRatio: number;
+  clearColor: number;
+};
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
@@ -38,12 +47,12 @@ export type WebgpuPagesBackend = RenderBackend &
     feedbackAbResidency(): Promise<ResidencyIdentity>;
     captureFeedbackAb(): Promise<Uint8Array>;
     feedbackAbSpatial(): Promise<SpatialFeedback>;
-    rasterRgba(): Uint8Array;
+    /** What the CPU raster oracles read of the last image (`io/hostApi.ts`). */
+    rasterView(): RasterView;
     selectedPageIds(): string[];
     /** The drawn clusters as `mesh/primitive/page`: unique where two clusters share one index
      *  page, whose URL `selectedPageIds` returns for both. */
     selectedClusterIds(): string[];
-    visibilityIds(): Uint32Array;
     /** Internal: a texture taken by the atlas after open (`io/appendTexture.ts`); its slot. */
     appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>;
     /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
@@ -78,12 +87,10 @@ export interface WebgpuPagesRuntime {
   layout: WebgpuPagesLayout;
   gpu: WebgpuGpuState;
   vis: WebgpuVisState;
-  /** Contract lights, their per-tile lists and their shadow atlas. */
+  /** Contract lights, their per-tile lists and their shadow maps. */
   lights: WebgpuLightState;
   /** Resident proxy and probe grid of bouncing light. */
   bounce: WebgpuBounceState;
-  /** The sun's shadow beyond the last clipmap level, traced against the resident proxy. */
-  sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
   /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
@@ -98,6 +105,8 @@ export interface WebgpuPagesRuntime {
   watchedSources: () => unknown[];
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices;
+  /** POC: placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
+  compose?: ComposeState;
 }
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
@@ -120,14 +129,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
-  // The shadow pool's shape, its setting's: the first frame that casts grants it, before any page
-  // exists, and it keeps that size (`../shadow/poolSize.ts`).
-  // The sun clipmap window: the ordinary constant, raised for a reference session so every pixel
-  // reads the finest level (`referenceMode.ts`); the plan, the table, the atlas and the shadow
-  // shader all follow it.
-  const sunWindow = context.sunWindow ?? SUN_WINDOW;
-  const pool = shadowPoolShapeOf(context, context.gpuDevice?.limits);
-  const lights = createWebgpuLightState(pool.side, context.sceneLights, sunWindow, pool.layers);
+  const lights = createWebgpuLightState(context.sceneLights);
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,
@@ -168,7 +170,6 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       explorerSwitch(context, 'bounce'),
       context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
     ),
-    sunFar: createWebgpuSunFarState(),
     run,
     capture: createWebgpuCaptureState(),
     views: createWebgpuViews({ run, gpu, vis, setup }),

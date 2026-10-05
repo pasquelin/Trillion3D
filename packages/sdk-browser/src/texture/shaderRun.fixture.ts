@@ -2,13 +2,14 @@
 // `shaderFunctions` (`shaderRule.fixture.ts`) takes scalar ones. The shipped text is parsed, not
 // matched: an edit of the shader is what the test runs.
 import { functionsOf } from './shaderRule.fixture.ts';
-import { builtins } from './shaderRunBuiltins.fixture.ts';
+import { assigned, builtins } from './shaderRunBuiltins.fixture.ts';
+import { structZero, zeroOf } from './shaderRunStructs.fixture.ts';
 
 export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts';
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
 /** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =
-  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^~(){}[\];,.:@])/giy;
+  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%|&^]=|->|[-+*/%<>=!&|^~(){}[\];,.:@])/giy;
 const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with']);
 /** Each binary operator's precedence, the loosest first. */
 const BINARY: Record<string, number> = Object.fromEntries(
@@ -16,13 +17,6 @@ const BINARY: Record<string, number> = Object.fromEntries(
     ops.split(' ').map((op) => [op, i + 1]),
   ),
 );
-
-/** WGSL's zero of a type declared with no value (`var c:array<vec3f,3>;`): `[]`, `[0,0]`, `0`. */
-function zeroOf(type: string[]) {
-  if (type[0] === 'array') return '[]';
-  const size = /^vec([234])/.exec(type[0] ?? '')?.[1];
-  return size ? `[${Array(Number(size)).fill(0)}]` : '0';
-}
 
 function tokens(text: string) {
   const out: string[] = [];
@@ -62,7 +56,9 @@ class Translator {
     while (this.peek() !== ')') {
       while (this.peek() === '@') this.attribute();
       params.push(this.next());
-      while (this.peek() !== ',' && this.peek() !== ')') this.next();
+      // A type's own commas, `ptr<function,u32>`, are inside its angle brackets.
+      for (let depth = 0; depth || (this.peek() !== ',' && this.peek() !== ')');)
+        depth += ({ '<': 1, '>': -1, '>>': -2 } as Record<string, number>)[this.next()] ?? 0;
       if (this.peek() === ',') this.next();
     }
     while (this.peek() !== '{') this.next();
@@ -113,15 +109,15 @@ class Translator {
         type: string[] = [];
       while (this.peek() !== '=' && this.peek() !== end) type.push(this.next());
       if (this.peek() === end) text = `let ${name}=${zeroOf(type.slice(1))}`;
-      else text = (this.next(), `let ${name}=${this.expression()}`);
+      else text = (this.next(), `let ${name}=$cp(${this.expression()})`);
     } else {
       const target = this.expression(),
         op = this.peek();
-      if (op === '=') text = (this.next(), `${target}=${this.expression()}`);
+      if (op === '=') text = (this.next(), assigned(target, `$cp(${this.expression()})`));
       else if (op.length === 2 && op[1] === '=' && op[0] in BINARY)
-        text = (this.next(), `${target}=$b("${op[0]}",${target},${this.expression()})`);
+        text = (this.next(), assigned(target, `$b("${op[0]}",${target},${this.expression()})`));
       else if (op === '++' || op === '--')
-        text = (this.next(), `${target}=$b("${op[0]}",${target},1)`);
+        text = (this.next(), assigned(target, `$b("${op[0]}",${target},1)`));
       else text = target;
     }
     this.eat(end);
@@ -140,11 +136,12 @@ class Translator {
     const token = this.peek();
     if (token === '-') return (this.next(), `$b("-",0,${this.unary()})`);
     if (token === '!') return (this.next(), `(!${this.unary()})`);
+    if (token === '*') return (this.next(), `$deref(${this.unary()})`);
     // `~` flips a `u32`'s bits; `&` hands an atomic its pointer, through `$ref`.
     if (token === '~') return (this.next(), `$b("^",${this.unary()},0xffffffff)`);
     if (token === '&') {
       const target = (this.next(), this.postfix(this.primary()));
-      return `$ref(()=>${target},(v)=>{${target}=v;})`;
+      return `$ref(()=>${target},(v)=>{${assigned(target, 'v')};})`;
     }
     return this.postfix(this.primary());
   }
@@ -195,6 +192,6 @@ export function shaderRun<T>(source: string, names: string[], scope: object): T 
       new Translator(tokens(text.slice(header.index, all[i + 1]?.index))).functionText(),
     )
     .join('\n');
-  const all: Record<string, unknown> = { ...builtins, ...scope };
+  const all: Record<string, unknown> = { ...builtins, $zero: structZero(source), ...scope };
   return new Function(...Object.keys(all), `${js};return {${names}};`)(...Object.values(all));
 }

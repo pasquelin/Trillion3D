@@ -1,5 +1,5 @@
 /**
- * Nelder–Mead (1965, "A simplex method for function minimization") on three parameters from
+ * A simplex search (reflect, expand, contract, shrink the worst point) on three parameters from
  * `start`, the first simplex `step` wide, until the simplex's values agree to the float
  * resolution of the smallest, or two hundred steps: the minimum it found.
  */

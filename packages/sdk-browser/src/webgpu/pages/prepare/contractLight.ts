@@ -3,6 +3,12 @@ import type { DirectLightResources } from '../../../lighting/deferred/program.ts
 import type { ContractKey, LitPrograms } from '../../../lighting/deferred/contractVariants.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { receiverResources } from '../../visibility/receiver.ts';
+import {
+  vsmConsumerResources,
+  vsmShadowMask,
+  vsmShadowMaskTiles,
+  vsmTransmissionView,
+} from '../render/vsm/vsmConsumers.ts';
 import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
 
 /**
@@ -34,27 +40,49 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   unboundedReflections: rt.context.unboundedReflections === true,
 });
 
+/** What the blend and water programs are built with (`createWebgpuBlendPipelines`): the session's
+ *  context, and the key a first frame asks for, as the lit programs' (`createForwardVariants`); a
+ *  failed variant is said, the program with every code path lighting in its place. */
+export const blendContext = (rt: WebgpuPagesRuntime) => ({
+  ...rt.context,
+  lit: {
+    precompile: wantsContractLighting(rt),
+    key: contractKey(rt.lights.store, true, {}),
+    onFailure: (error: unknown) =>
+      rt.diag.diagnosticFailure('forward-lighting-program-failed', error),
+  },
+});
+
 /**
  * The contract program a frame lights with, keyed on stable state alone, the store walked once
  * (#1362): narrow while the scene's lights fit a tile list (#849); shadow code while a light
- * declares a shadow and `atlas` holds one (#1249); rectangle code while a light is a rectangle
- * (#1369). Never on a slot held this frame: a lamp that moves, a page that comes and goes, asks no
- * other program. Written into `key`, which a frame reuses from one image to the next.
+ * declares a shadow and `shadowed`, the shadow raster is fitted (#1249), the read of a kind of
+ * light (a sun's, a local light's) while a light of that kind declares one (`ShadowKinds`);
+ * rectangle code while a light is a rectangle (#1369). Never on a slot held this frame: a lamp that
+ * moves, a page that comes and goes, asks no other program. Written into `key`, which a frame
+ * reuses from one image to the next.
  */
 function contractKey(
   store: WebgpuPagesRuntime['lights']['store'],
-  atlas: boolean,
+  shadowed: boolean,
   key: Partial<ContractKey>,
 ) {
-  let caster = false,
+  let sun = false,
+    local = false,
     rect = false;
-  for (let slot = 0; slot < store.count && !(caster && rect); slot++) {
-    caster ||= castsShadow(store, slot);
-    rect ||= store.kindOf(slot) === LIGHT_KIND.rect;
+  for (let slot = 0; slot < store.count && !(sun && local && rect); slot++) {
+    const kind = store.kindOf(slot);
+    if (castsShadow(store, slot)) {
+      if (kind === LIGHT_KIND.directional) sun = true;
+      else local = true;
+    }
+    rect ||= kind === LIGHT_KIND.rect;
   }
   key.narrow = store.count <= LIGHT_SETTINGS.tileLights;
-  key.unshadowed = !atlas || !caster;
+  key.unshadowed = !shadowed || !(sun || local);
   key.rectless = !rect;
+  key.sunless = !key.unshadowed && !sun;
+  key.localless = !key.unshadowed && !local;
   return key as ContractKey;
 }
 
@@ -84,23 +112,25 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
   // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
   if (active) {
-    contractKey(lights.store, !!lights.shadows, contractResources);
+    contractKey(lights.store, !!lights.pageLayout || !!lights.vsm, contractResources);
     contractResources.narrow &&= !!lights.tiles;
   } else
-    contractResources.narrow = contractResources.unshadowed = contractResources.rectless = false;
-  contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
-  contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
-  contractResources.atlas = active ? lights.shadows?.view : undefined;
-  contractResources.transmittance = active ? lights.shadows?.transmittance : undefined;
+    contractResources.narrow =
+      contractResources.unshadowed =
+      contractResources.rectless =
+      contractResources.sunless =
+      contractResources.localless =
+        false;
+  contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined;
+  contractResources.vsmMaskTiles = active ? vsmShadowMaskTiles(rt) : undefined;
+  contractResources.vsmTransmission = active ? vsmTransmissionView(rt) : undefined;
+  contractResources.vsm = active ? vsmConsumerResources(rt) : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   contractResources.surfaceCache = bounce?.surface.view;
-  // Far-shadow proxy: bound only if it exists, else the far surface is lit unshadowed. Both
-  // lighting passes read this resolve, so they bind the same buffer and trace the same ray.
-  contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
   contractResources.receiver = active ? receiverResources(rt) : undefined;
   return contractResources;

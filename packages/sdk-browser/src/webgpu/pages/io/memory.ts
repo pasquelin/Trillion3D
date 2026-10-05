@@ -39,18 +39,17 @@ export const textureBytesBeside = (rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu'>) 
   (rt.vis.textures?.sources.liveBytes ?? 0) + (rt.gpu.impostors?.pass.feed.bytes ?? 0);
 
 /** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
- *  plus the bounce and far-sun proxies (the far sun's, when borrowed from bounce, once). */
+ *  plus the bounce proxy. */
 export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
-  const { services, bounce, sunFar } = rt;
-  const sunBytes = sunFar.borrowed ? 0 : (sunFar.gpu?.proxy?.hostBytes ?? 0);
-  return services.hostTableBytes() + (bounce.probes?.proxy.hostBytes ?? 0) + sunBytes;
+  const { services, bounce } = rt;
+  return services.hostTableBytes() + (bounce.probes?.proxy.hostBytes ?? 0);
 }
 
 /**
- * Changes memory pools mid-session, like the reference's variables — but without emptying what they
- * hold: pages and tiles that fit in the new pool are copied there on the GPU, only those that no
- * longer fit leave, and the image stays complete throughout the setting. A value that cannot be held
- * is brought back to what can, and the report says why (`clamp`). A geometry pool above the
+ * Changes memory pools mid-session without emptying what they hold: pages and tiles that fit in
+ * the new pool are copied there on the GPU, only those that no longer fit leave, and the image
+ * stays complete throughout the setting. A value that cannot be held is brought back to what can,
+ * and the report says why (`clamp`). A geometry pool above the
  * drawable-page tables — past the ceiling the host named (`geometryPoolCeilingBytes`) — grows
  * them in place first (`growTables.ts`, `tables` in the report); tables the device refuses keep
  * the pool in place. A pool the device refuses is drawn smaller, and one it refuses even at its

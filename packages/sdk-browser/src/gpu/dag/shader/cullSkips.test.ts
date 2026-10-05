@@ -10,12 +10,8 @@ import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
 import { cameraSelectionUniforms } from '../../core/selection.ts';
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts';
-import {
-  HALF_PI,
-  boxConeRejects,
-  frustumExcludesBox,
-  frustumPlanesToLocal,
-} from '../../../../../sdk-core/src/index.ts';
+import { HALF_PI, boxConeRejects, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
+import { frustumPlanesToLocal } from '../oracle/math.fixture.ts';
 
 /** The end of `coneRejectsBox`, with `sin` given: before and after the early exit. */
 const before = (d: number, total: number, sin: (x: number) => number) =>

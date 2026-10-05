@@ -1,4 +1,4 @@
-//! Seam-locked groups coarsen with solved vertices (Hoppe 1999; docs/COMPILER.md).
+//! Seam-locked groups coarsen with solved vertices (docs/COMPILER.md).
 //!
 //! A group the diagnosis names `seam-locked` (`diagnosis.rs`) is retried with the solve
 //! (`qem_solve`): its locks kept, its seams unprotected, each surviving position moved to the

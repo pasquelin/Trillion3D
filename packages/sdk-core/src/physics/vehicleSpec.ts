@@ -2,67 +2,67 @@
  * THE VEHICLES A BODY STARTS AS: three real machines, every number read from them or declared as
  * a game's choice, never tuned on a scene. The engine's torque is given per kilogram of the body
  * and the brakes' from its weight, so a body of any mass drives as the machine does. The tyre slip
- * curves and the wheels' inertia are Jolt's own defaults.
+ * curves and the wheels' inertia are the physics module's defaults.
  *
- * - CAR, a Chevrolet Corvette C5 (1997–2004), rear-wheel drive: LS1 engine, 475 N·m peak at 4,400
+ * - CAR, a Chevrolet Corvette C5, rear-wheel drive: LS1 engine, 475 N·m peak at 4,400
  *   rpm of a 6,000 rpm redline, peak power at 5,600 rpm, idling at 700 rpm; 1,470 kg at the kerb,
  *   so 0.32 N·m per kilogram. Its torque stays within 80 % of the peak from idle to the redline
- *   (the LS1's published dyno curve). Tremec T-56 six-speed: 2.66, 1.78, 1.30, 1.00, 0.74, 0.50,
+ *   (the LS1's dyno curve). Tremec T-56 six-speed: 2.66, 1.78, 1.30, 1.00, 0.74, 0.50,
  *   reverse 2.90, final drive 3.42.
- * - MOTORCYCLE, a Yamaha XJ900 (the machine Jolt's own motorcycle sample is drawn from): 84 N·m
+ * - MOTORCYCLE, a Yamaha XJ900: 84 N·m
  *   at 7,000 rpm of a 9,500 rpm redline, peak power at 9,000, idling at 1,100; 239 kg dry and a
  *   rider of 80 kg (`HUMAN_BODY.mass`), so 0.26 N·m per kilogram. Six-speed ratios, primary and
- *   final drive (1.93 × 40 / 16) as Jolt's sample reads them from the bike's gear table.
+ *   final drive (1.93 × 40 / 16), read from the bike's gear table.
  * - TRACKED, an M1 Abrams: an AGT1500 gas turbine, 5,090 N·m for 61.3 t, so 0.083 N·m per
  *   kilogram; a free turbine's torque is highest at stall and about halves by its rated speed.
- *   Four forward gears and the track's final drive of 6, as Jolt's own tracked controller
- *   estimates them from the Abrams.
- * - ENGINE inertia: Jolt's own engine is 0.5 kg·m² for 500 N·m; an engine's rotating mass, and
+ *   Four forward gears and the track's final drive of 6, estimated
+ *   from the Abrams.
+ * - ENGINE inertia: the physics module's default engine is 0.5 kg·m² for 500 N·m; an engine's rotating mass, and
  *   the friction its damping stands for, grow with its size, so the inertia is scaled by the
  *   engine's torque. Left at 0.5, a motorcycle's damping alone ate half its torque.
  * - SHIFTS: an automatic gearbox at full throttle shifts up at the engine's peak power, or at 90 %
  *   of the redline when the power peaks there (the turbine), since the governor stops the engine
  *   at it; and down below the speed the largest ratio step lands at, less a tenth, so a shift
- *   never hunts back. Jolt shifts up only while no driven wheel spins.
- * - CLUTCH, Jolt's own sample values: 10 for the car, 2 for the motorcycle. A tracked hull has
- *   none: Jolt's tracked controller couples its engine to the tracks without reading one.
+ *   never hunts back. The module shifts up only while no driven wheel spins.
+ * - CLUTCH, the physics module's default values: 10 for the car, 2 for the motorcycle. A tracked hull has
+ *   none: the tracked controller couples its engine to the tracks without reading one.
  * - AN OPTION A KIND NEVER READS is refused on it (`vehicle.ts` IGNORED), never silently dropped:
  *   a tracked vehicle's clutch, drive, turnRadius, antiRoll and maxLean; a motorcycle's drive,
  *   trackTurn and antiRoll; a car's trackTurn and maxLean.
  * - SUSPENSION: ride frequencies of 1.5 Hz for a sports car, 2 Hz for a motorcycle, 1 Hz for a
  *   heavy tracked hull; a damping ratio of 0.5, between ride comfort's 0.25 and the 0.7 of a race
- *   car (Milliken and Milliken, "Race Car Vehicle Dynamics", 1995). Wheel travel 0.2 m for a car
+ *   car. Wheel travel 0.2 m for a car
  *   (150 to 250 mm), 0.13 m for a motorcycle's fork, 0.3 m for a tracked hull's torsion bars.
- *   Jolt makes each spring as stiff as its frequency asks of the body's mass felt at that wheel,
+ *   The module makes each spring as stiff as its frequency asks of the body's mass felt at that wheel,
  *   and the suspension is hung so that under the body's weight each wheel rests where the page
- *   placed it. A travel within the sag its frequency asks, `g / (2π f)²` (the textbook static
+ *   placed it. A travel within the sag its frequency asks, `g / (2π f)²` (the static
  *   deflection), is refused: the wheel would rest past full bump, the body on its bump stops.
- * - ANTI-ROLL 1: a road car's bars range from a third of its axle's spring stiffness to twice it
- *   (Gillespie, "Fundamentals of Vehicle Dynamics", 1992); a bar as stiff as its springs is within
+ * - ANTI-ROLL 1: a road car's bars range from a third of its axle's spring stiffness to twice it;
+ *   a bar as stiff as its springs is within
  *   it. Each bar pushes with that stiffness in N/m (`vehicles.cpp` setBars). Sensitivity, on the
  *   Corvette of the tests at 0.84 g: 2.6° of roll with no bar, 1.1° at 0.5, 0.7° at 1, 0.4° at 2.
  * - STEERING: a road car turns in a 10 to 12 m kerb-to-kerb circle, a radius of 5.5 m; a road
  *   motorcycle's full lock fits a 5.5 m circle too. The steered wheels' lock is the angle that
  *   radius asks of the vehicle's own wheelbase, `asin(wheelbase / radius)`. A hand turns the wheel
- *   from centre to lock in 0.25 s (a step steer ramps in 0.1 to 0.2 s, ISO 7401); keys are all or
+ *   from centre to lock in 0.25 s (a step steer ramps in 0.1 to 0.2 s); keys are all or
  *   nothing, and a motorcycle steered at once falls.
  * - BRAKES: a road vehicle's brakes lock its wheels on dry asphalt, whose peak friction is about 1
  *   (0.8 to 1.0): each wheel brakes with the torque that locks it under its share of the weight,
  *   on Earth. The handbrake holds the rear wheels with twice that: it locks them outright.
- * - LEAN 45°: what a road tyre's shoulder allows a street motorcycle (45 to 50°). Jolt's lean
- *   controller leans the body towards the tyres' force at its own sample's natural frequency and
+ * - LEAN 45°: what a road tyre's shoulder allows a street motorcycle (45 to 50°). The lean
+ *   controller leans the body towards the tyres' force at the module's default natural frequency and
  *   damping ratio (12.5 rad/s, 1.25), whatever the body's roll inertia; the tyre is rounded across
- *   as in that sample. In a steady turn it leans to 0.7 to 0.8 of `atan(v² / (r g))`: the
+ *   likewise. In a steady turn it leans to 0.7 to 0.8 of `atan(v² / (r g))`: the
  *   controller's own righting impulse carries the rest of the turn.
  * - TRACKS grip their ground with a friction of 1 along and 0.5 across, the tractive and lateral
- *   resistance coefficients of a track on firm ground (Wong, "Theory of Ground Vehicles").
+ *   resistance coefficients of a track on firm ground.
  * - TRACK MASS 0.05, a game's choice, declared: each track and its road wheels spin as a twentieth
  *   of the vehicle's mass at the sprocket's radius (`vehicles.cpp` TRACK_MASS), an inertia of
  *   0.05 m r². Seen from the ground, that inertia adds 0.05 m to the mass the sprocket drives, so
  *   the hull's pull-away and a pivot turn's spin-up take 1 / 1.05 of the engine's force per
  *   kilogram. Sensitivity: doubled to 0.1 they are 4.5 % slower (1.05 / 1.10), halved to 0.025
  *   2.4 % faster (1.05 / 1.025); top speed and the pivot's final rate do not change.
- * - TRACK TURN 0.6, a game's choice, declared (Jolt's tank sample): steering slows the inner track
+ * - TRACK TURN 0.6, a game's choice, declared: steering slows the inner track
  *   to 0.6 of the outer; below 1 m/s the tracks turn opposite ways, a pivot turn.
  */
 
@@ -80,7 +80,7 @@ export interface VehicleSpec {
   /** The gearbox shifts up past this, rpm. */ shiftUpRPM: number;
   /** And down below this, rpm. */ shiftDownRPM: number;
   /** Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked
-   *  vehicle: its engine drives its tracks without a clutch (Jolt's tracked controller). */
+   *  vehicle: its engine drives its tracks without a clutch (the tracked controller). */
   clutch: number;
   /** Ride frequency, Hz. */ suspensionFrequency: number;
   /** Damping ratio, 0 (none) to 1 (critical). */ suspensionDamping: number;

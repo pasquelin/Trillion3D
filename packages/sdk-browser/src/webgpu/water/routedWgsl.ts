@@ -1,13 +1,15 @@
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
 import { waterCompositeShader } from './compositeWgsl.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
 
 /** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
- *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. */
+ *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. The
+ *  composite's light code is the one `key` leaves in. */
 export const waterRoutedShader = (
-  pages?: number,
   unbounded = false,
-) => `${waterCompositeShader(pages, unbounded)}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
+  key: Partial<ContractKey> = {},
+) => `${waterCompositeShader(unbounded, key)}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
 struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
 struct RoutedReactive{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,@location(3) reactive:vec4f,}
 fn waterRoute(pixel:vec4f,c:vec4f)->Route{

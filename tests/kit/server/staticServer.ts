@@ -32,7 +32,7 @@ const page = (imports: Record<string, string>) =>
 `;
 
 /** `source`, the TypeScript module read from `file`, as the ES module a browser runs. */
-export function stripTypes(source: string, file: string): string {
+function stripTypes(source: string, file: string): string {
   return transformSync(source, { loader: 'ts', format: 'esm', target: 'es2022', sourcefile: file })
     .code;
 }

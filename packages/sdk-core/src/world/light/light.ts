@@ -1,7 +1,9 @@
+import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts';
 import { Object3D } from '../object/object3d.ts';
 import { Color, type ColorInput } from '../math/color.ts';
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
 import { listen, unlisten } from '../math/observed.ts';
+import { noteNodeWrite } from '../../scene/core/nodeEdits.ts';
 
 /** What a page may pass to a light member. */
 export interface LightParameters {
@@ -31,6 +33,8 @@ export interface LightParameters {
   height?: number;
   /** Radius of the emitting sphere of a point or spot light: its soft shadow's size. */
   radius?: number;
+  /** Directional source angular radius, in radians. */
+  angularRadius?: number;
   /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients in the band
    *  order of `scene/core/environment.ts`, scaled by `intensity`. Absent, the probe is uniform. */
   sh?: ArrayLike<number>;
@@ -46,6 +50,7 @@ const NUMBERS = [
   'width',
   'height',
   'radius',
+  'angularRadius',
 ] as const;
 type LightNumber = (typeof NUMBERS)[number];
 /** The kinds placed by a direction: a sky's is its position seen from the origin. */
@@ -62,7 +67,8 @@ export class Light extends Object3D {
   get isLight(): true {
     return true;
   }
-  /** The light's colour; change it in place with `set`. */
+  /** The light's colour; change it in place with `set`, or announce channels written straight
+   *  with `needsUpdate = true`. */
   readonly color: Color;
   /** A hemisphere light's colour from below. */
   readonly groundColor: Color;
@@ -87,6 +93,9 @@ export class Light extends Object3D {
   declare height: number;
   /** Radius of the emitting sphere; `emitterRadius` in the engine's store. */
   declare radius: number;
+  /** Angular radius of a directional light's disk, in radians: its soft shadow's size; 0 gives hard
+   *  shadows. A sun defaults to the solar disk (`LIGHT_SETTINGS.sunAngularRadius`). */
+  declare angularRadius: number;
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string;
@@ -98,6 +107,9 @@ export class Light extends Object3D {
     this.type = `${kind}Light`;
     this.color = new Color(p.color ?? 0xffffff);
     this.groundColor = new Color(p.groundColor ?? 0x000000);
+    // A colour written is counted, in a world or not: a watch reads the count, not the colour.
+    listen(this.color, noteNodeWrite);
+    listen(this.groundColor, noteNodeWrite);
     this._values = {
       intensity: p.intensity ?? 1,
       distance: p.distance ?? 0,
@@ -107,6 +119,8 @@ export class Light extends Object3D {
       width: p.width ?? 10,
       height: p.height ?? 10,
       radius: p.radius ?? 0,
+      angularRadius:
+        p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
     };
     if (p.position) this.position.set(...readVec3(p.position));
     else if (AIMED.has(kind)) this.position.set(0, 1, 0);
@@ -141,8 +155,10 @@ export class Light extends Object3D {
     this._link?.content(this);
     return this;
   }
-  /** `light.needsUpdate = true` after writing `sh` in place: the world reads it again. */
+  /** `light.needsUpdate = true` after writing `sh` in place, or a colour's `r`, `g`, `b` straight:
+   *  the write is counted (`nodeWrites`), and the world and the scene watch read it again. */
   set needsUpdate(_value: boolean) {
+    noteNodeWrite();
     this._link?.content(this);
   }
   get needsUpdate() {
@@ -166,6 +182,7 @@ for (const name of NUMBERS)
     },
     set(this: Light, value: number) {
       this._values[name] = value;
+      noteNodeWrite();
       this._link?.content(this);
     },
   });

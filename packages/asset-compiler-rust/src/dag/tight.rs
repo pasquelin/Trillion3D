@@ -16,7 +16,7 @@ use crate::shared_math::{length, merge_aabb, point, sub};
 use rayon::prelude::*;
 use trillion3d_page_codec::min_ball::min_ball;
 
-/// Iterations of the Bădoiu–Clarkson walk toward the farthest ball.
+/// Iterations of the centre pull toward the farthest ball, with a shrinking step.
 const WALK_STEPS: usize = 64;
 /// Relative margin a tightened sphere is inflated by, of its coordinates' magnitude: containment
 /// then survives the float64 rounding of any re-check (8.5e-14 m outside without it at 1 km).
@@ -55,8 +55,8 @@ fn radius_for(c: [f64; 3], spheres: &[[f64; 4]]) -> f64 {
 
 /// A sphere enclosing `spheres` (those of negative radius are absent), never larger than
 /// [`enclosing_sphere`]'s: the smallest of that merge's centre, the centre of the spheres' box
-/// and the steps of a Bădoiu–Clarkson walk, each radius recomputed as `max |c_i - C| + r_i`, the
-/// rule the runtime's containment proof reads.
+/// and the steps of a centre pull toward the far point of the farthest ball. Each radius is
+/// recomputed as `max |c_i - C| + r_i`, the rule the runtime's containment proof reads.
 pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
     let merged = enclosing_sphere(spheres);
     let live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
@@ -80,7 +80,7 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
         merge_aabb(&mut lo, &mut hi, low, high);
     }
     consider([0, 1, 2].map(|a| (lo[a] + hi[a]) * 0.5), &mut best);
-    // Bădoiu–Clarkson on balls: each step moves toward the far point of the farthest ball.
+    // Pull the centre toward the far point of the farthest ball, by 1/(k + 1) of the way at step k.
     let mut c = [best[0], best[1], best[2]];
     for k in 1..=WALK_STEPS {
         let far = live

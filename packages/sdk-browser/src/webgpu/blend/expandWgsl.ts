@@ -1,10 +1,5 @@
 import { DRAW_UNPAGED } from './plan.ts';
-import {
-  PLAN_PIPELINE_MASK,
-  PLAN_SHARED_BIT,
-  PLAN_SHIFT,
-  PLAN_VERTEX_CULL_BIT,
-} from './planEntry.ts';
+import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts';
 import { INSTANCE_CULL_SHIFT } from './runs.ts';
 import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
 import { expandUniformWgsl } from './expandUniform.ts';
@@ -36,16 +31,16 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
 /**
  * EXPANSION OF THE SORTED PLAN, ON THE GPU.
  *
- * The CPU now gives only one thing per frame: the paint order, its runs and the frustum verdict,
- * one bit per item. The rest — how many instances each entry carries, where each goes in the
- * list, and each run's indirect argument — is computed here, from the counts transparent
- * compaction has just written in the same submission.
+ * The paint order and the runs of its slots are the order kernel's (`orderWgsl.ts`), the frustum
+ * verdict, one bit per item, the CPU's. The rest — how many instances each entry carries, where
+ * each goes in the list, and each run's indirect argument — is computed here, from the counts
+ * transparent compaction has just written in the same submission.
  *
  * Four dispatches: one thread group per entry packet, which counts and scans the packet locally;
  * the running sum over packets, at two levels; each entry's absolute place followed by writing
  * its instances; then each run's argument. No thread recounts what another has just computed.
  * The reference semantics is that of `expandCpu.ts`, which the CPU fallback follows,
- * and the `transparents-ordres.bench.ts` bench compares both outputs word for word.
+ * and the `transparent-orders.perf.ts` bench compares both outputs word for word.
  *
  * `scratch` holds each entry's place then each packet's, in that order. The two passes — blend
  * then transmission — chain in the same compute pass and hand it back to each other, since their
@@ -129,19 +124,22 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let at=uni.runsBase+r*${RUN_WORDS}u;
  let first=plan[at];
  let entries=plan[at+1u];
+ let o=uni.argsBase+r*4u;
+ // An empty slot (\`runs.ts\`): a draw of no instance.
+ if(entries==0u){
+  args[o]=uni.maxVertexWords;
+  args[o+1u]=0u;
+  args[o+2u]=0u;
+  args[o+3u]=0u;
+  return;
+ }
  let last=first+entries-1u;
  let base=scratch[first];
- // A merging run draws clusters, at the table stride; a run of one unpaged item draws what ITS
- // item carries. The first entry decides: a double-sided paged item, which runOwner names,
- // is paged, so the table stride holds for it as on the CPU.
- let entry=plan[uni.orderBase+first];
- let fusionne=entries>1u&&(entry&${PLAN_SHARED_BIT}u)!=0u;
+ // A run of several entries draws shared clusters, at the table stride; a run of one unpaged item
+ // draws what ITS item carries — one read of its sixteen-byte draw description.
+ let described=draws[plan[uni.orderBase+first]>>${PLAN_SHIFT}u];
  var vertexCount=uni.maxVertexWords;
- // One read of the draw description: it is sixteen bytes, and the two fields read come out of it
- // together.
- let dessin=draws[entry>>${PLAN_SHIFT}u];
- if(!fusionne&&dessin.x==${DRAW_UNPAGED}u){vertexCount=dessin.w;}
- let o=uni.argsBase+r*4u;
+ if(entries==1u&&described.x==${DRAW_UNPAGED}u){vertexCount=described.w;}
  args[o]=vertexCount;
  args[o+1u]=scratch[last]+instancesOf(last)-base;
  args[o+2u]=base<<uni.vertexShift;

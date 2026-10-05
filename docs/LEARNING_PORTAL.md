@@ -8,16 +8,16 @@ repository documentation only.
 
 ## Source layout
 
-| Folder | Owns |
-| --- | --- |
-| `site/app/` | the portal, in three layers (below) |
-| `site/i18n/<language>.json` | every word of the portal ([Languages](#languages)) |
-| `site/content/` | what no language changes: `entries/*.ts` (guide entries and written notes completing a generated API entry, without words), `reference/` (the generated API reference and its translations, [below](#the-api-reference)), `model.ts` (entry shape, sections), `i18n/` (dictionary helpers; `localizeEntries()` gives an entry its words, keeping technical fields), `gallery-roadmap.json` (the examples list) |
-| `site/examples/` | one standalone HTML file per example ([Examples](#examples)) |
-| `site/demos/` | pure per-entry demo models: `kit.ts` declares controls and result views, `registry.ts` maps entry ids to demos, `engine.ts` is the one list of what demos import from the engine, so every demo runs the engine itself |
-| `site/reports/` | the report contract (`contract.ts`), metric semantics, comparison eligibility, bilingual labels, beside the records it reads (`index.json`, one folder per campaign) |
-| `site/styles/` | `tailwind.css`, and `portal.css` with only the design tokens and the primitives' rules |
-| `site/assets/`, `site/data/`, `site/index.html` | served as they are |
+| Folder                                          | Owns                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `site/app/`                                     | the portal, in three layers (below)                                                                                                                                                                                                                                                                                                                                                                            |
+| `site/i18n/<language>.json`                     | every word of the portal ([Languages](#languages))                                                                                                                                                                                                                                                                                                                                                             |
+| `site/content/`                                 | what no language changes: `entries/*.ts` (guide entries and written notes completing a generated API entry, without words), `reference/` (the generated API reference and its translations, [below](#the-api-reference)), `model.ts` (entry shape, sections), `i18n/` (dictionary helpers; `localizeEntries()` gives an entry its words, keeping technical fields), `gallery-roadmap.json` (the examples list) |
+| `site/examples/`                                | one standalone HTML file per example ([Examples](#examples))                                                                                                                                                                                                                                                                                                                                                   |
+| `site/demos/`                                   | pure per-entry demo models: `kit.ts` declares controls and result views, `registry.ts` maps entry ids to demos, `engine.ts` is the one list of what demos import from the engine, so every demo runs the engine itself                                                                                                                                                                                         |
+| `site/reports/`                                 | the report contract (`contract.ts`), metric semantics, comparison eligibility, bilingual labels, beside the records it reads (`index.json`, one folder per campaign)                                                                                                                                                                                                                                           |
+| `site/styles/`                                  | `tailwind.css`, and `portal.css` with only the design tokens and the primitives' rules                                                                                                                                                                                                                                                                                                                         |
+| `site/assets/`, `site/data/`, `site/index.html` | served as they are                                                                                                                                                                                                                                                                                                                                                                                             |
 
 `site/app/` has three layers and nothing outside them:
 
@@ -33,20 +33,20 @@ repository documentation only.
 - **pages**, composed only from layouts and primitives: no class of their own, no inline style, no
   hand-written DOM. A page needing something new adds a primitive.
 
-`App.tsx` reads the route (`hooks/useRoute.ts`), localizes the entries and hands both to the shell
-through `layout/PortalContext.ts`; theme, drawer and search shortcut are the hooks `useTheme`,
-`useDrawer`, `useSearchShortcut`. Strings come from `t()`, imported where used. `portal/routes.ts`
+`App.tsx` reads the route (`site/app/hooks/useRoute.ts`), localizes the entries and hands both to the shell
+through `site/app/layout/PortalContext.ts`; theme, drawer and search shortcut are the hooks `useTheme`,
+`useDrawer`, `useSearchShortcut`. Strings come from `t()`, imported where used. `site/app/portal/routes.ts`
 alone turns URLs into page kinds: every link carries the locale (`#/en/...`, `#/fr/...`); the areas
 are Learn, Try it live (the sandbox, `#/<locale>/sandbox/<example>`: an example's source edited
 beside its render, run in a `srcdoc` frame whose `<base>` is the example's file, kept in the
 browser), Examples, API reference and Measurements; a hash without a locale opens the home page.
-`portal/data.ts` gathers the content entries, `portal/searchIndex.ts` builds the site search's index
+`site/app/portal/data.ts` gathers the content entries, `site/app/portal/searchIndex.ts` builds the site search's index
 (every guide, API entry and ready example in the current language), `layout/SearchModal.tsx` shows
 it (header button, `/` or ⌘K; arrows and Enter). `Entry.tsx` renders API entries, `ApiDemo.tsx` the
 pure demo models.
 
-Types are declared where the data is — entry shape in `content/model.ts`, demo model in
-`demos/kit.ts`, report in `reports/contract.ts`; components declare their props inline.
+Types are declared where the data is — entry shape in `site/content/model.ts`, demo model in
+`site/demos/kit.ts`, report in `site/reports/contract.ts`; components declare their props inline.
 `tsconfig.site.json` checks the folder with `strict` and `allowJs` off (`check:site-types`);
 `check:no-js` refuses any JavaScript source under `site/`.
 
@@ -120,14 +120,14 @@ the proofs' production-path server. `pnpm docs:dev` (`scripts/docs-dev.ts`) buil
 `dist/site/` through the same server and headers, and follows `site/` and `packages/`: a change git
 does not ignore reruns only the `buildSite()` steps that read it or an earlier step's output (the
 list `SITE_STEPS` in `scripts/docs/site.ts`), then every open page reloads. The reload script is
-added by that server, never written into `dist/site/` (`scripts/docs-dev.test.ts`). A new language's
+added by that server, never written into `dist/site/`. A new language's
 flag needs a restart: languages load once per process.
 
 ### Build products: never committed, built by CI
 
 Nothing built is committed — the site, the API files, the scene caches. `dist/site/` is tracked on
-no branch: `docs:serve` and the browser proofs under `scripts/` and `tests/browser/renders/` build
-the whole tree; unit tests import the sources directly, the demos through `site/demos/engine.ts`, so
+no branch: `docs:serve` builds the whole tree; unit tests import the sources directly, the demos
+through `site/demos/engine.ts`, so
 no runner builds anything. `check:docs-bundles` in `validate`
 (`node scripts/docs-build.ts --untracked`) fails when git tracks any file of it. A release
 (`develop` → `main`) publishes the site built from the merged sources.
@@ -187,8 +187,8 @@ packages; none stays external or comes from a CDN.
    2. **Stats**: given the world last (`controls({ … }, onChange, world)` or
       `controls({ … }, world)`) it also opens the stats corner, bottom left — frames drawn per
       second (`held` while the image stands still), the last frame's measured counters, and where
-      the frame's time went as the reference engine's `stat unit`: the CPU frame, its stages (cut and culling,
-      page preparation, shadow planning, command encoding, physics step) and the costliest GPU
+      the frame's time went: the CPU frame, its stages (cut and culling,
+      page preparation, command encoding, physics step) and the costliest GPU
       passes, a line left out when the engine did not measure it; hidden, it reads no CPU time;
       `stats(world)` opens it alone.
    3. **Readouts**: `readout(key)`, declared after it, adds a live line and returns the function
@@ -214,8 +214,6 @@ packages; none stays external or comes from a CDN.
    them in one "Thumbnail only" pull request. A scene too heavy to cook here lives in its own
    repository, published beside the portal outside this gallery: the open world (#332),
    https://github.com/pasquelin/Trillion3D-openworld, served at `/openworld/` (#426).
-5. **Check**: `node --test scripts/docs-examples.test.ts`, then the browser proofs
-   `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 
 ## Example words
 
@@ -238,8 +236,7 @@ portal's language; the kit loads it before the example's script runs.
   goes through `const say = words();` then `say('key', { n: 3 })` (`{n}` blanks), or
   `data-words="key"` on a page element, which the kit fills.
 - **The checks.** `pnpm run check:i18n` refuses a language whose keys or `{blanks}` differ from
-  English's; `scripts/docs-examples-words.test.ts` refuses a written key an example uses that
-  English lacks.
+  English's.
 
 ## The API reference
 

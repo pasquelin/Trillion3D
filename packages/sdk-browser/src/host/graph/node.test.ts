@@ -1,7 +1,7 @@
 /**
  * A group and a bare node of the graph are the core's own: a copy of a subtree keeps each node's
  * class — the core's group, the engine's mesh — its pose and its flags, and shares the mesh's
- * surface, as the reference's copy does.
+ * surface: a copy keeps the same surface.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

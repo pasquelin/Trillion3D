@@ -1,3 +1,4 @@
+import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts';
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -83,7 +84,7 @@ ${rasterKernels(capacity)}`;
 export const RESOLVE = `${VIS_UNIFORMS_WGSL}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
-@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}
+@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY_WGSL},0.0,1.0);}
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
 struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}

@@ -6,8 +6,8 @@
  * roots below only once it no longer does. A cell's objects are therefore needed exactly where the
  * cut would descend past its super-roots: where the largest error they replace its object roots at
  * — their `parentError` — projects past the target. The plan reads that choice here, on the cut's
- * own uniforms and its own certified bound (`projectedErrorAt`), as World Partition shows a cell's
- * HLOD past its loading range, and cluster streams a page only where the cut wants it.
+ * own uniforms and its own certified bound (`projectedErrorAt`): a cell's coarse stand-in shows
+ * past its loading range, and a page streams only where the cut wants it.
  *
  * The plan sees no view direction (`plan.ts`): the bound is taken where it is largest for a point
  * the frustum shows — on its diagonal (`cellReach`), at the nearest point of the sphere bounding

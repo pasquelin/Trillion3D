@@ -18,7 +18,6 @@ fn cluster(
         },
         sphere: [0.0; 4],
         parent_sphere: [0.0; 4],
-        replacement: None,
         source_rank: 0,
         group,
         source,

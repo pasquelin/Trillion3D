@@ -2,14 +2,24 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 import type { Recut } from './runtimeCut.ts';
 
 /** The words before the arrays: five lengths, whether the pages keep a cone, whether a blended
- *  material wears them, the length of a recut's `ends`, then its two inputs as 64-bit floats. */
+ *  material wears them, the length of a recut's `ends`, its two inputs as 64-bit floats, a
+ *  deformation's influences and targets, then whether the triangles are held (#573). */
 const HEADER_WORDS = 16;
 const drawnCones = (d: DrawnTriangles) => !d.lines && d.spriteRadius === undefined;
+
+/** How a cut takes drawn triangles beside their content: the compiled primitive they `recut`, or
+ *  `held`, faces that move after the cut — a dynamic geometry's (#573), a mesh the waves carry
+ *  (#357) —, cut in compact runs when blended (`cutDrawnTriangles`). */
+export type CutWay = { recut?: Recut; held?: boolean };
 
 /** Drawn triangles as one buffer: its header (`HEADER_WORDS`), then the five arrays and a recut's
  *  `ends`, every one four-byte wide. `blended` is part of the content: its pages sit on a finer
  *  grid. A recut keeps no cone: its pages keep the compiled ones. */
-export function packDrawn(drawn: DrawnTriangles, blended: boolean, recut?: Recut): ArrayBuffer {
+export function packDrawn(
+  drawn: DrawnTriangles,
+  blended: boolean,
+  { recut, held = false }: CutWay = {},
+): ArrayBuffer {
   const parts = [drawn.positions, drawn.normals, drawn.uvs, drawn.colors, drawn.indices];
   parts.push(recut?.ends ?? null);
   const deformation = drawn.deformation;
@@ -22,6 +32,7 @@ export function packDrawn(drawn: DrawnTriangles, blended: boolean, recut?: Recut
   packed[7] = lengths[5];
   packed[12] = deformation?.joints && deformation.weights ? (deformation.influences ?? 4) : 0;
   packed[13] = deformation?.targets.length ?? 0;
+  packed[14] = Number(held);
   new Float64Array(packed.buffer, 32, 2).set([recut?.finestError ?? 0, recut?.scale ?? 0]);
   let at = HEADER_WORDS;
   for (const part of parts)
@@ -33,16 +44,18 @@ export function packDrawn(drawn: DrawnTriangles, blended: boolean, recut?: Recut
 }
 
 /** The triangles `packDrawn` wrote, as views on its buffer, whether their pages keep a cone,
- *  whether a blended material wears them, and the recut they are, if any. */
+ *  whether a blended material wears them, whether they are held, and the recut they are, if any. */
 export function unpackDrawn(buffer: ArrayBuffer): {
   drawn: DrawnTriangles;
   cones: boolean;
   blended: boolean;
+  held: boolean;
   recut?: Recut;
 } {
   const header = new Uint32Array(buffer, 0, HEADER_WORDS),
     cones = header[5] === 1,
-    blended = header[6] === 1;
+    blended = header[6] === 1,
+    held = header[14] === 1;
   let at = header.byteLength;
   const take = <T>(make: (b: ArrayBuffer, offset: number, length: number) => T, i: number) => {
     const view = header[i] ? make(buffer, at, header[i]) : null;
@@ -82,7 +95,7 @@ export function unpackDrawn(buffer: ArrayBuffer): {
         normals: list(vertices * 3),
       })),
     };
-  if (!ends) return { drawn, cones, blended };
+  if (!ends) return { drawn, cones, blended, held };
   const [finestError, scale] = new Float64Array(buffer, 32, 2);
-  return { drawn, cones, blended, recut: { ends, finestError, scale } };
+  return { drawn, cones, blended, held, recut: { ends, finestError, scale } };
 }

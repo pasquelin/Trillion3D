@@ -56,7 +56,7 @@ test('a kinematic body inside a dynamic body’s subtree follows its moving pare
   const posed = { ...bodies, retire() {} };
   const half = Math.SQRT1_2;
   poses.receive(poseRecord(id, [0, 1, 0, 0, half, 0, half]), 1, posed, 0);
-  poses.apply(posed);
+  poses.apply(posed, 1, false);
   tiles.update([0, 0, 0], 1000);
   const [op, slot, ...at] = pose(writer.take());
   assert.deepEqual([op, slot], [OP.moveKinematic, 1], 'the lid driven, pushing what it meets');

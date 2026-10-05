@@ -1,6 +1,15 @@
 /** What a mock buffer's mapping meets: a refusal, or a gate the test opens when it chooses. */
 export type MapFaults = { failMap?: boolean; mapGate?: Promise<void> };
 
+/** One `queue.writeBuffer` as the device double saw it, `seq` its rank among writes and submits. */
+export type MockWrite = {
+  offset: number;
+  bytes: Uint8Array;
+  label?: string;
+  size?: number;
+  seq: number;
+};
+
 type MockBuffer = {
   label?: string;
   size: number;

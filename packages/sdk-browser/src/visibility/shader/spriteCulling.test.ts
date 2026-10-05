@@ -59,7 +59,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   assert.deepEqual(Array.from(dag.mark), [3]);
   const frames = new Uint32Array(primitiveFrameWords(dag).buffer);
   assert.equal(frames[primitiveWordAt(0) + 3], 3);
-  assert.ok(DAG_SELECTION_SHADER.includes('let open=!isLightCut()&&unculledOf(w);'));
+  assert.ok(DAG_SELECTION_SHADER.includes('let open=unculledOf(w);'));
   assert.ok(
     DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'),
   );

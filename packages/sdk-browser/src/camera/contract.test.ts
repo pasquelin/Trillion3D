@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { enginePose, holdCameraWorld, resolveCameraWorld } from './world.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { resolvePixelError } from '../page/selection/requests.ts';
@@ -17,7 +18,7 @@ import {
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/browser/probes/cameraRig.ts';
+} from '../../../../tests/gpu/kit/cameraRig.ts';
 import { cameraMoteur } from './camera.fixture.ts';
 import { createEngineCamera, type CameraMotion } from './world.ts';
 
@@ -53,6 +54,29 @@ test('contract: the pose resolved under a moved and rotated parent is the world 
   assert.notDeepEqual(G.xyz(camera.position), [...cameraMoteur(aplatie).eye]);
 });
 
+/** Root, parent, node, child of the engine's own graph; the parent and the node moved, unwalked. */
+function unwalkedChain() {
+  const chain = [0, 1, 2, 3].map(() => new Object3D());
+  chain.reduce((above, node) => (above.add(node), node));
+  chain[0].updateMatrixWorld();
+  chain[1].position.set(5, 0, 0);
+  chain[1].rotation.y = 0.6;
+  chain[2].position.set(0, 2, 0);
+  chain[3].position.set(1, 0, 0);
+  return chain;
+}
+
+test("contract: a scene node resolved by the contract holds its own update's bits, children left", () => {
+  const [read, twin] = [unwalkedChain(), unwalkedChain()];
+  assert.equal(resolveCameraWorld(read[2]), read[2], 'the node itself comes back, to read on');
+  twin[2].updateWorldMatrix(true, false);
+  const state = (chain: Object3D[]) => chain.map((n) => [n._worldVersion, ...n.worldMatrix]);
+  assert.deepEqual(state(read), state(twin), 'same bits, same nodes recomputed, bit for bit');
+  // The test discriminates: the parent's unwalked move is seen, the child is not walked.
+  assert.deepEqual([...read[2].worldMatrix.slice(12, 15)], [5, 2, 0]);
+  assert.deepEqual([...read[3].worldMatrix.slice(12, 15)], [0, 0, 0]);
+});
+
 test('contract: the published pose is the world pose, never the local pose', () => {
   const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
   assert.deepEqual(enginePose(cameraMoteur(camera)), enginePose(cameraMoteur(aplatie)));
@@ -64,7 +88,7 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
   const source = new G.Object3D();
   const rig = creeRig();
   const viewport: [number, number] = [800, 600];
-  /** A frame of a Three-rendered engine, reduced to what pose decides there. */
+  /** A frame of a host-library-rendered engine, reduced to what pose decides there. */
   const image = () => {
     resolveCameraWorld(rig.camera);
     gate.viewChanged(cameraMoteur(rig.camera), viewport, 1);

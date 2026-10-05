@@ -2,8 +2,7 @@
 //! contents are routed like any other source, and this driver yields whatever the retained scene
 //! driver yields. Nothing is re-encoded — a ZIP is wrapping, extraction is lossless.
 //!
-//! Provenance: open format (APPNOTE 6.3.10, PKWARE), read by `archive/zip_reader.rs`, the ZIP
-//! reader shared with the `usdz` container.
+//! The archive is read by `archive/zip_reader.rs`, the ZIP reader shared with the `usdz` container.
 use super::*;
 
 pub(super) static ZIP: Zip = Zip;

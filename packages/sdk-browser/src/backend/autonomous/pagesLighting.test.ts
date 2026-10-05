@@ -102,7 +102,7 @@ test('every casting contract light on the WebGL2 path is named once, never silen
     spot: new Light('spot', { castShadow: true, position: [0, 4, 0], target: [0, 0, 0] }),
     bulb: new Light('point', { position: [2, 2, 0], distance: 8 }),
   };
-  const record = (id: keyof typeof page) => lampRecord(page[id], id, 10)!;
+  const record = (id: keyof typeof page) => lampRecord(page[id], id, () => 10)!;
   for (const id of Object.keys(page) as (keyof typeof page)[]) sceneLights.add(record(id));
   const { backend, heard, close } = webgl2(new G.Group(), sceneLights);
   const apply = () => backend.refreshSceneLights!();
@@ -142,7 +142,7 @@ test('a casting source-graph light on the WebGL2 path is named, until the contra
     sun.castShadow = true;
     assert.deepEqual(await heard(copy), ['shadows-refused sun'], 'casting anew, named anew');
     const lamp = new Light('point', { castShadow: true, distance: 8 });
-    sceneLights.add(lampRecord(lamp, 'lamp', 10)!);
+    sceneLights.add(lampRecord(lamp, 'lamp', () => 10)!);
     const governed = await heard(() => backend.refreshSceneLights!());
     assert.deepEqual(governed, ['shadows-refused lamp'], 'the source graph no longer lights');
   } finally {

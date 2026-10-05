@@ -1,17 +1,27 @@
-// The transparent kernels a fake device replays: compaction of the paged items, then expansion
-// of the sorted plan, each through the CPU oracle the shader implements.
+// The transparent kernels a fake device replays: compaction of the paged items, the paint order,
+// then expansion of the sorted plan, each through the CPU oracle the shader implements.
 import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts';
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts';
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
+import {
+  KEY_HAS_BOX,
+  KEY_RECORD_WORDS,
+  NOT_OWN,
+  ORDER_BINDING,
+  ORDER_UNI,
+} from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts';
+import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts';
+import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
+import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/sortPlan.ts';
 import type { ComputeBind } from './mockCompute.ts';
 
 export const words = (bytes: Uint8Array) =>
   new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
-export function simulateTransparentCompaction(bind: ComputeBind) {
+function simulateTransparentCompaction(bind: ComputeBind) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
   const uni = words(byBinding.get(1)!.data);
   const mask = words(byBinding.get(2)!.data);
@@ -32,7 +42,7 @@ export function simulateTransparentCompaction(bind: ComputeBind) {
  * both paths (`webgpu/blend/expandCpu.ts`). The double replays it at the last of the four kernels,
  * when every input the GPU would read is there.
  */
-export function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
+function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
   const uniBytes = byBinding.get(EXPAND_BINDING.uni)!.data;
   const uni = words(uniBytes).subarray((offsets?.[0] ?? 0) / 4);
@@ -59,3 +69,72 @@ export function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly num
     args: words(byBinding.get(EXPAND_BINDING.args)!.data),
   });
 }
+
+const cell = new Float64Array(1),
+  cellWords = new Uint32Array(cell.buffer);
+/** The double whose bits sit at `at`, low word first: the GPU's NaN, all ones, reads as a NaN. */
+const doubleAt = (source: Uint32Array, at: number) => (
+  (cellWords[0] = source[at]),
+  (cellWords[1] = source[at + 1]),
+  cell[0]
+);
+
+/**
+ * Replays the order of one pass at its last dispatch (`placeBlendSlots`), when the plan, key
+ * records and frame data it reads are there: every seed keyed as `itemKey` keys it — the CPU's
+ * doubles, which the kernel's emulated ones equal to the bit (`orderWgsl.test.ts`) —, ranked by
+ * `precedes`, its sorted entries, places and slot runs written where the kernel writes them.
+ */
+function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
+  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
+  const uni = words(byBinding.get(ORDER_BINDING.uni)!.data).subarray((offsets?.[0] ?? 0) / 4);
+  const plan = words(byBinding.get(ORDER_BINDING.plan)!.data),
+    keyed = words(byBinding.get(ORDER_BINDING.keyed)!.data),
+    frame = words(byBinding.get(ORDER_BINDING.frame)!.data),
+    placed = words(byBinding.get(ORDER_BINDING.placed)!.data);
+  const entries = uni[ORDER_UNI.entryCount],
+    seeds = plan.subarray(uni[ORDER_UNI.seedBase], uni[ORDER_UNI.seedBase] + entries);
+  const eye = [0, 2, 4].map((at) => doubleAt(frame, at));
+  const keyOf = (seed: number) => {
+    const at = (seeds[seed] >>> PLAN_SHIFT) * KEY_RECORD_WORDS,
+      own = keyed[at + 13];
+    if (own !== NOT_OWN) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2);
+    const box = (keyed[at + 12] & KEY_HAS_BOX) !== 0;
+    let key = 0;
+    for (let axis = 0; axis < 3; axis++) {
+      const low = doubleAt(keyed, at + axis * 2),
+        gap = box
+          ? (low - eye[axis] + (doubleAt(keyed, at + 6 + axis * 2) - eye[axis])) / 2
+          : low - eye[axis];
+      key += gap * gap;
+    }
+    return key;
+  };
+  const keys = Array.from(seeds, (_, seed) => keyOf(seed));
+  const order = Array.from(seeds.keys()).sort((a, b) =>
+    precedes(keys[a], a, keys[b], b) ? 1 : precedes(keys[b], b, keys[a], a) ? -1 : 0,
+  );
+  order.forEach((seed, at) => {
+    plan[uni[ORDER_UNI.orderBase] + at] = seeds[seed];
+    placed[seed] = at;
+  });
+  const own = (base: number) => frame.subarray(uni[base], uni[base] + uni[ORDER_UNI.ownCount]);
+  placeBlendSlots(
+    plan.subarray(uni[ORDER_UNI.runsBase]),
+    placed,
+    { seeds: own(ORDER_UNI.ownSeedBase), slots: own(ORDER_UNI.ownSlotBase) },
+    entries,
+    uni[ORDER_UNI.gaps] !== 0,
+  );
+}
+
+/** The transparent kernels the double replays, by the entry point of their last dispatch: each
+ *  replay runs once everything that kernel reads is there. */
+export const TRANSPARENT_STAGES: Record<
+  string,
+  ((bind: ComputeBind, offsets?: readonly number[]) => void) | undefined
+> = {
+  scatterTransparentGroups: simulateTransparentCompaction,
+  placeBlendSlots: simulateBlendOrder,
+  writeBlendRuns: simulateBlendExpansion,
+};

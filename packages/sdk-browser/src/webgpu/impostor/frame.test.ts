@@ -12,12 +12,13 @@ import { frontCamera } from '../../page/selection/dag.fixture.ts';
 import { impostorCardCorners } from '../../impostor/card.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { CARD_FLOATS } from '../../impostor/cards.ts';
+import { viewProj } from '../pages/helpers.ts';
+import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts';
 import { planWebgpuImpostors } from './frame.ts';
 import { recordingEncoder } from './recorder.fixture.ts';
 import { IMPOSTOR_PASS, prepareImpostorPipelines } from './pipelines.ts';
-import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
-import { castsNoShadow } from '../../page/cut/select.ts';
+import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
 import {
   ATLAS_URLS,
   MESH,
@@ -88,7 +89,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(roots[0].mark, CARD_ROOT);
   assert.deepEqual(marked, [[0, CARD_ROOT]], 'the GPU cut leaves it to its card, same image');
   assert.deepEqual(cut(roots, 200).shown, [], 'the CPU cut skips it');
-  assert.equal(castsNoShadow(roots[0].mark, {}), false, 'its light cuts keep its shadow');
+  assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'it keeps its shadow');
   const state = rt.gpu.impostors!;
   assert.equal(state.count, 1);
   // The card's corners are the shared sprite basis at the root's pivot, half-extent R.
@@ -99,6 +100,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
       assert.ok(Math.abs(state.records[i * 4 + k] - corners[i * 3 + k]) < 1e-5, `corner ${i}`);
   const { encoder, open, passes } = recordingEncoder();
   // Visibility: identifier 0, depth and the pyramid's level 0, before the pyramid is built.
+  viewProj.set(toClip);
   assert.equal(drawImpostorVisibility(rt, gpu.device, open('primary'), true), true);
   const vis = passes[0].pipeline as GPURenderPipelineDescriptor;
   assert.equal(vis.fragment?.entryPoint, 'card_vis_hiz_fs');
@@ -107,6 +109,9 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(vis.depthStencil?.depthWriteEnabled, true);
   const written = gpu.writes.find((write) => write.buffer.label === 'Trillion3D impostor cards');
   assert.equal(written?.size, CARD_FLOATS, 'the one card record goes up');
+  // Its world composed with the render view-projection in double, rounded once.
+  const composed = multiplyMatrix4(new Float64Array(16), viewProj, state.worlds[0]);
+  assert.deepEqual(state.records.subarray(16, 32), Float32Array.from(composed));
   // Surfaces: where the depth is the card's own.
   encodeImpostorCards(rt, encoder);
   const surfaces = passes[1];

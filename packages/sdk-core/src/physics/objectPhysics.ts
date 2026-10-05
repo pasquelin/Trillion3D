@@ -3,7 +3,7 @@ import { listen } from '../world/math/observed.ts';
 import type { Object3D } from '../world/object/object3d.ts';
 import { DAMPING } from './layout.ts';
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts';
-import { softOf, type SoftBodyType, type SoftSettings } from './soft.ts';
+import { SOFT_DAMPING, softOf, type SoftBodyType, type SoftSettings } from './soft.ts';
 
 /** What a contact hands its listeners: the other object, the impulse and where it touched. */
 export interface ContactEvent {
@@ -50,7 +50,8 @@ export class ObjectPhysics {
   /** Whether the body only reports contacts. */ readonly sensor: boolean;
   /** Whether continuous collision is on. */ readonly ccd: boolean;
   /** Whether the body is decorative debris. */ readonly decorative: boolean;
-  /** The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`). */
+  /** The share of its speed lost per second by itself, linear and angular (`dv/dt = −c·v`); a
+   *  soft body that declares none, `SOFT_DAMPING`. */
   readonly damping: { readonly linear: number; readonly angular: number };
   private readonly _velocity = new Vector3();
   private _asleep = false;
@@ -82,7 +83,8 @@ export class ObjectPhysics {
     this.sensor = o.sensor ?? false;
     this.ccd = o.ccd ?? false;
     this.decorative = o.decorative ?? false;
-    const { linear = DAMPING, angular = DAMPING } = o.damping ?? {};
+    const still = this.soft ? SOFT_DAMPING : DAMPING;
+    const { linear = still, angular = DAMPING } = o.damping ?? {};
     if (!(linear >= 0 && angular >= 0))
       throw new RangeError(`A body's damping is 0 and up: ${linear} linear, ${angular} angular.`);
     this.damping = { linear, angular };

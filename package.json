@@ -70,12 +70,15 @@
     "build:native": "node scripts/heavy-step.ts build:native cargo build --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.ts",
     "build:physics": "node scripts/build-physics-wasm.ts",
+    "bench:gpu": "node bench/dawn/run.ts",
+    "bench:gpu:suite": "node bench/dawn/suite.ts",
     "bench:physics": "node scripts/bench-physics.ts",
     "bench:fluids": "node scripts/bench-fluids.ts",
     "test": "node scripts/test-unit.ts",
     "test:docs": "node scripts/docs-tests.ts",
     "test:mutation": "node scripts/test-mutation.ts",
-    "test:gpu": "node tests/browser/test-gpu.ts",
+    "test:gpu": "node bench/dawn/proofs.ts",
+    "test:chrome": "node bench/dawn/proofs.ts --chrome",
     "check:changed": "node scripts/check-changed.ts",
     "test:watch": "node --experimental-strip-types --test --watch \"packages/*/src/**/*.test.ts\" \"tests/integration/*.test.ts\"",
     "test:native": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
@@ -135,9 +138,6 @@
       "site/assets/**"
     ]
   },
-  "dependencies": {
-    "meshoptimizer": "~0.18.1"
-  },
   "optionalDependencies": {
     "@trillion3d/compiler-darwin-arm64": "workspace:*",
     "@trillion3d/compiler-darwin-x64": "workspace:*",
@@ -171,6 +171,7 @@
     "i18next-browser-languagedetector": "^8.2.1",
     "jscpd": "^5.2.0",
     "knip": "^6.35.1",
+    "meshoptimizer": "~0.18.1",
     "playwright": "^1.63.0",
     "prettier": "^3.9.6",
     "react": "^19.3.0",
@@ -179,7 +180,8 @@
     "tailwindcss": "^4.3.3",
     "three": "^0.174.0",
     "typescript": "^5.8.0",
-    "typescript-eslint": "^8.70.0"
+    "typescript-eslint": "^8.70.0",
+    "webgpu": "0.6.2"
   },
   "engines": {
     "node": ">=22.18"

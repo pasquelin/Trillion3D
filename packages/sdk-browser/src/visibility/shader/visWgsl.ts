@@ -1,5 +1,5 @@
 import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, UV_READ } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -12,7 +12,7 @@ import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts';
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
- * reference's share (`uni.computeSpan`), it leaves to the compute raster the triangles that
+ * compute share (`uni.computeSpan`), it leaves to the compute raster the triangles that
  * one takes — the same predicate, read on the same vertices — and draws all the others; at
  * zero, it draws the whole cut without reading one more vertex.
  */
@@ -57,40 +57,40 @@ fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
 }
 @vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
- let pageIndex=drawPage(instanceIndex);
+ let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
- if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let h=pageHeader(page);
- let id=hardwareCorner(page,h,vertexIndex);
+ if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let h=pageHeaderFor(page,pageSurfaceRead(page));
+ let id=hardwareCorner(page,h,corner);
  if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
- out.id=page.packedBase|((vertexIndex/3u)&0xffu);
- if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
+ out.id=page.packedBase|((corner/3u)&0xffu);
+ if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
  return out;
 }
 @vertex fn vis_hiz_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
- let pageIndex=drawPage(instanceIndex);
+ let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
  if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let h=pageHeader(page);
- let id=hardwareCorner(page,h,vertexIndex);
+ if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let h=pageHeaderFor(page,pageSurfaceRead(page));
+ let id=hardwareCorner(page,h,corner);
  if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
  if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
  if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
- out.id=page.packedBase|((vertexIndex/3u)&0xffu);
- if((page.flags&4u)!=0u){out.tc=vec3f(pageUv(page,h,id),0.0);}
+ out.id=page.packedBase|((corner/3u)&0xffu);
+ if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
  return out;
 }
@@ -106,4 +106,9 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
  if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
  return in.id;
 }
+// The two stages above for a slot that holds no cutout row (no \`FLAG_MASK\`): \`maskKeep\` keeps
+// every pixel of such a row, so these write the same words without reading its page or discarding,
+// and a tile GPU's hidden-surface removal resolves their overdraw before they run (#831).
+@fragment fn vis_hiz_opaque_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
+@fragment fn vis_opaque_fs(in:VSOut)->@location(0) u32{return in.id;}
 `;

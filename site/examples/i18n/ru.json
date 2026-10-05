@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Кадров/с",
-      "FPS (held)": "Кадров/с (стоп)",
       "triangles": "треугольники",
       "triangles (scene)": "треугольники (сцена)",
       "draw calls": "вызовы отрисовки",
       "pages": "страницы",
       "geometry pool": "запас геометрии",
       "lights": "источники света",
+      "GPU memory": "память GPU",
+      "screen images": "экранные изображения",
+      "shadow memory": "память теней",
+      "geometry memory": "память геометрии",
+      "texture memory": "память текстур",
+      "live textures": "активные текстуры",
+      "transmission backdrop": "фон пропускания",
       "GPU frame": "кадр GPU",
       "GPU frame (last)": "кадр GPU (последний)",
       "CPU frame": "кадр CPU",
       "page hooks": "код страницы",
-      "engine CPU": "CPU движка"
+      "engine CPU": "CPU движка",
+      "Statistics": "Статистика",
+      "hint": "Клик: компактно · перетащить: переместить · клавиша Ё / `",
+      "fps": "к/с",
+      "budget": "бюджет",
+      "held": "стоп-кадр",
+      "last": "последнее",
+      "others": "прочее",
+      "Shadows": "Тени",
+      "Scene and memory": "Сцена и память",
+      "cut and culling": "отсечение",
+      "page preparation": "подготовка страниц",
+      "command encoding": "кодирование команд",
+      "physics step": "шаг физики",
+      "Cadence": "Ритм",
+      "{n}× refresh": "{n}× обновление",
+      "GPU idle": "простой GPU"
+    },
+    "shadows": {
+      "lights": "источники света",
+      "maps": "карты",
+      "pagesRequested": "запрошено страниц",
+      "pagesAllocated": "выделено страниц",
+      "pagesCached": "страниц в кэше",
+      "pagesRendered": "отрисовано страниц",
+      "freePages": "свободные страницы",
+      "lodBias": "смещение LOD",
+      "projectionPasses": "проходы проекции",
+      "invalidation": "инвалидация",
+      "marking": "разметка",
+      "pageManagement": "управление страницами",
+      "render": "отрисовка",
+      "projection": "проекция",
+      "transmission": "пропускание"
+    },
+    "passes": {
+      "vsm projection": "проекция VSM",
+      "vsm marking": "разметка VSM",
+      "vsm render": "отрисовка VSM",
+      "material surfaces": "поверхности материалов",
+      "temporal antialiasing": "временное сглаживание",
+      "HDR composition + present": "композиция HDR + вывод",
+      "deferred lighting": "отложенное освещение",
+      "reflection source": "источник отражений",
+      "HiZ pyramid": "пирамида HiZ",
+      "light tiles": "тайлы света",
+      "texture mips": "мипы текстур",
+      "reflection radiance mips": "MIP-уровни яркости отражений",
+      "reflection depth bounds mips": "MIP-уровни границ глубины отражений"
     },
     "failure": {
       "title": "Этот пример остановился из-за ошибки",
@@ -1363,7 +1417,8 @@
       "credit": "Аллея урн смоделирована в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Тяни, чтобы облететь бюст. Ящик и стеклянный шар кружат на своей подставке.",
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; ящик: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Поза"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Выбери качество, разрешение и вид. Запомни одну настройку как A, другую как B и нажми C, чтобы переключаться между ними."
   }
 }

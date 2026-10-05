@@ -1,7 +1,7 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
-import { dagNodeFloor, dagNodeVerdict } from './math.fixture.ts';
+import { dagNodeFloor, dagNodeVerdict } from './nodeVerdict.fixture.ts';
 import { NODE_FIRST_CHILD } from '../nodeLayout.ts';
-import { castsNoShadow, drawsCard } from '../../../page/cut/select.ts';
+import { drawsCard } from '../../../page/cut/select.ts';
 import type { DagViewFrames } from './math.fixture.ts';
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
@@ -35,7 +35,7 @@ export function dagOracleDescent(
     worldCount: number;
     nodes: Float32Array;
     rootNodes: Uint32Array;
-    mark?: Uint8Array;
+    mark?: Uint32Array;
   },
   frames: DagViewFrames,
   ahead?: DagViewFrames,
@@ -45,13 +45,10 @@ export function dagOracleDescent(
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
   /** Pairs: the node, then whether it is the view ahead's alone. */
   const frontier: number[] = [];
-  // A light's cut opens no descent on a root that casts no shadow, a camera's none on one its
-  // impostor card draws (`castsNoShadow`, `drawsCard`, `markOf`).
-  for (let w = 0; w < packed.worldCount; w++) {
-    const mark = packed.mark?.[w];
-    if (packed.rootNodes[w] === 0xffffffff || castsNoShadow(mark, frames.light)) continue;
-    if (!drawsCard(mark, frames.light)) frontier.push(packed.rootNodes[w], 0);
-  }
+  // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
+  for (let w = 0; w < packed.worldCount; w++)
+    if (packed.rootNodes[w] !== 0xffffffff && !drawsCard(packed.mark?.[w]))
+      frontier.push(packed.rootNodes[w], 0);
   while (frontier.length) {
     let aheadOnly = frontier.pop() as number;
     const n = frontier.pop() as number;

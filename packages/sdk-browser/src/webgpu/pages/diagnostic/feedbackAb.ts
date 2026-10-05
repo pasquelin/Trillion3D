@@ -1,27 +1,23 @@
-import { makeFeedbackTarget } from '../prepare/targets.ts';
+import { syncFeedbackTarget, type FeedbackPipelines } from '../prepare/feedbackVariant.ts';
 import { sha256Hex } from '../../../streaming/sha256Hex.ts';
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts';
 import { blendWritesShare } from '../prepare/asIsShareTarget.ts';
+import { blendContext } from '../prepare/contractLight.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-type Pipelines = Pick<WebgpuPagesRuntime['vis'], (typeof VIS_PIPELINES)[number]> &
-  Pick<WebgpuPagesRuntime['blendState'], 'water'>;
-const VIS_PIPELINES = [
-  'shadePipelineFor',
-  'shadePipelines',
-  'singleShadePipelines',
-  'blendPipelines',
-] as const;
-const pipelinesOf = (vis: Omit<Pipelines, 'water'>, water: Pipelines['water']) =>
-  ({ ...Object.fromEntries(VIS_PIPELINES.map((key) => [key, vis[key]])), water }) as Pipelines;
+/** The pipelines one arm binds: the resolve's classes and the blends of `vis`, and `water`. */
+const pipelinesOf = (
+  { shadeClasses, blendPipelines }: Omit<FeedbackPipelines, 'water'>,
+  water: FeedbackPipelines['water'],
+): FeedbackPipelines => ({ shadeClasses, blendPipelines, water });
 
 export type FeedbackAbState = {
   target: boolean;
   force: boolean;
-  on: Pipelines;
-  off: Pipelines;
+  on: FeedbackPipelines;
+  off: FeedbackPipelines;
 };
 
 export type ResidencyIdentity = {
@@ -79,6 +75,8 @@ export async function prepareFeedbackAb(
     undefined,
     false,
     rt.vis.shadeBindGroupLayout,
+    rt.vis.writesEmissiveAo,
+    rt.vis.shadeCache?.constants,
   );
   const blend = await createWebgpuBlendPipelines(
     device,
@@ -87,7 +85,7 @@ export async function prepareFeedbackAb(
     false,
     rt.vis.blendBindGroupLayout,
     blendWritesShare(rt),
-    rt.context,
+    blendContext(rt),
   );
   if (blend.waterRefused) throw blend.waterRefused;
   if (rt.blendState.transmissive > 0 && !rt.blendState.water)
@@ -119,18 +117,13 @@ export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolea
   await device.queue.onSubmittedWorkDone();
   await rt.vis.textures?.settled();
   if (state.target !== target) {
-    const [width, height] = rt.gpu.targetSize;
-    if (!width || !height) throw new Error('FEEDBACK_AB_TARGETS_MISSING');
-    if (target) makeFeedbackTarget(rt, device, width, height);
-    else {
-      rt.gpu.feedbackTexture?.destroy();
-      rt.gpu.feedbackTexture = rt.gpu.feedbackView = undefined;
-    }
-    rt.gpu.targetBytes += (target ? 1 : -1) * width * height * 4;
+    if (!rt.gpu.hdrTexture) throw new Error('FEEDBACK_AB_TARGETS_MISSING');
     const selected = target ? state.on : state.off;
-    for (const key of VIS_PIPELINES) Object.assign(rt.vis, { [key]: selected[key] });
+    rt.vis.shadeClasses = selected.shadeClasses;
+    rt.vis.blendPipelines = selected.blendPipelines;
     rt.blendState.water = selected.water;
-    state.target = target;
+    rt.vis.writesFeedback = state.target = target;
+    syncFeedbackTarget(rt, device);
   }
   state.force = true;
 }

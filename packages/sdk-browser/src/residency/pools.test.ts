@@ -4,7 +4,7 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts';
 
 const MIB = 1024 * 1024;
 
-test('the geometry pool is a fixed byte reservoir, 512 MiB by default like the reference', () => {
+test('the geometry pool is a fixed byte reservoir, 512 MiB by default', () => {
   assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB);
   const pool = geometryPoolFor({
     budgetBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
@@ -43,7 +43,7 @@ test('the pool shrinks to the scene or the page cap, and rises to root coverage'
   });
   assert.deepEqual([ceiled.slots, ceiled.clamp], [300, 'ceiling']);
   // An 8 MiB budget on 1,500-byte pages makes 5,592 slots: under 6,000 roots it is
-  // raised to them — roots are always resident, as they are outside the pool in the reference.
+  // raised to them — roots are always resident, as they are outside the pool.
   const roots = geometryPoolFor({
     budgetBytes: 8 * MIB,
     pageBytes: 1500,
@@ -78,4 +78,35 @@ test('only the device limit bounds the pool, and it refuses only when even the r
       }),
     /GEOMETRY_POOL_DEVICE_LIMIT/,
   );
+  // A root cover past the device's slots of the widest page, every page at its own size within
+  // it: the pool holds them so, at any budget; refused only when even that does not fit.
+  const cover = (budgetBytes: number, homeBytes: number) =>
+    geometryPoolFor({
+      budgetBytes,
+      pageBytes: 1024,
+      uniquePages: 3000,
+      rootPages: 2000,
+      homeBytes,
+      limits,
+    });
+  const held = (pool: ReturnType<typeof cover>) => [pool.slots, pool.allocatedBytes, pool.clamp];
+  assert.deepEqual(held(cover(512 * MIB, MIB / 2)), [3000, MIB / 2, 'scene']);
+  assert.deepEqual(held(cover(MIB, MIB / 2)), [3000, MIB / 2, 'device-limit']);
+  assert.throws(() => cover(MIB, MIB + 4), /GEOMETRY_POOL_DEVICE_LIMIT/);
+});
+
+test('a pool that holds the whole catalogue holds its pages at their own sizes, and no more', () => {
+  const pool = (budgetBytes: number) =>
+    geometryPoolFor({
+      budgetBytes,
+      pageBytes: 1500,
+      uniquePages: 10,
+      rootPages: 2,
+      homeBytes: 4000,
+    });
+  assert.deepEqual([pool(512 * MIB).slots, pool(512 * MIB).allocatedBytes], [10, 4000]);
+  // Nine slots for ten pages: fixed slots, as before.
+  assert.deepEqual([pool(9 * 1500).slots, pool(9 * 1500).allocatedBytes], [9, 9 * 1500]);
+  // Exactly the scene in slots of the widest page: the homes.
+  assert.equal(pool(10 * 1500).allocatedBytes, 4000);
 });

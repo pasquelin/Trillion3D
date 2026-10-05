@@ -4,7 +4,7 @@ import { ms } from './statUnit.ts';
 
 /** The physics lines a page may show, by readout key: what each prints of `world.physics.stats`
  *  — the bodies held, those awake, the worker's step and the page's share of the frame. */
-export const PHYSICS_LINES = {
+const PHYSICS_LINES = {
   bodies: ({ bodies }: PhysicsStats) => String(bodies),
   awake: ({ active }: PhysicsStats) => String(active),
   step: ({ stepMs }: PhysicsStats) => ms(stepMs),

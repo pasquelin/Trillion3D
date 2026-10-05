@@ -54,5 +54,5 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   GUIDE_CEILING:
     'A `world.guides` call would hold more vertices than `GUIDE_VERTEX_CEILING`; nothing of it was added.',
   REFERENCE_SHADOWS_REDUCED:
-    'The reference image was refused: the shadow pool runs below its full size (`REFERENCE_SHADOWS_REDUCED`). Reference mode was asked on an interactive session, whose resize would drop its supersampling (`REFERENCE_INTERACTIVE`).',
+    'The reference image was refused: its shadows draw coarser than they ask, their page pool short (`REFERENCE_SHADOWS_REDUCED`). Reference mode was asked on an interactive session, whose resize would drop its supersampling (`REFERENCE_INTERACTIVE`).',
 };

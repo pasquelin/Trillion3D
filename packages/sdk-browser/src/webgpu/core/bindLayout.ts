@@ -56,6 +56,10 @@ export const SHADE_BINDINGS = {
   uniform: 11,
   data: atlas(12),
   subsurface: 17,
+  /** The shadow receiver target the resolve writes (`receiverTargetWgsl.ts`). */
+  receiver: 18,
+  /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
+  shadeCache: 19,
 };
 
 export const BLEND_BINDINGS = {
@@ -74,7 +78,7 @@ export const BLEND_BINDINGS = {
    *  and what it draws (`../blend/expandWgsl.ts`). */
   planInstances: 16,
   clusterSpans: 17,
-  /** Shadow records and page table, the pool and the comparison sampler that reads it. */
+  /** The virtual shadow maps' page table, projection data and uniforms (`BLEND_VSM_BINDINGS`). */
   shadowData: 18,
   shadowAtlas: 19,
   shadowSampler: 20,
@@ -84,15 +88,14 @@ export const BLEND_BINDINGS = {
   /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
    *  depth slice there, from the near plane to the opaque background. */
   tileLights: 23,
-  /** Resident proxy, the very one the opaque resolve traces: the sun shadow beyond the last
-   *  clipmap level is taken here by the same ray, on a single binding. */
+  /** Resident proxy, the very one the opaque resolve binds, on a single binding. */
   proxy: 24,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a
    *  dynamic offset or a bind group of its own. */
   items: 25,
-  /** The shadow pool's transmittance layer: what the translucent casters let through, and the
-   *  nearest of their depths. */
+  /** The translucent casters' transmission atlas, then the virtual shadow maps' pool
+   *  (`BLEND_VSM_BINDINGS`). */
   shadowTransmittance: 26,
   shadowTranslucentDepth: 27,
   /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
@@ -115,4 +118,13 @@ export const SMALL_BINDINGS = {
   sampler: 10,
   work: 11,
   selectionMask: 12,
+};
+
+/** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the old records', atlas,
+ *  sampler and translucent depth numbers. */
+export const BLEND_VSM_BINDINGS = {
+  pageTable: BLEND_BINDINGS.shadowData,
+  projectionData: BLEND_BINDINGS.shadowAtlas,
+  uniforms: BLEND_BINDINGS.shadowSampler,
+  pool: BLEND_BINDINGS.shadowTranslucentDepth,
 };

@@ -12,13 +12,15 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   installGpuGlobals();
   let destroyed = 0,
     created = 0;
+  const made: GPUExtent3D[] = [];
   const destroy = () => void destroyed++;
-  const on = { shadePipelines: new Map(), blendPipelines: {} };
-  const off = { shadePipelines: new Map([[1, 'off']]), blendPipelines: {} };
+  const on = { shadeClasses: { name: 'on' }, blendPipelines: {} };
+  const off = { shadeClasses: { name: 'off' }, blendPipelines: {} };
   const device = {
     queue: { onSubmittedWorkDone: async () => {} },
-    createTexture: () => {
+    createTexture: ({ size }: GPUTextureDescriptor) => {
       created++;
+      made.push(size);
       return { createView: () => ({ name: 'feedback' }), destroy };
     },
   };
@@ -28,12 +30,16 @@ test('same-device toggle changes only feedback allocation and selected pipelines
     feedbackAB: { target: true, force: false, on, off },
     gpu: {
       device,
-      targetSize: [20, 10],
+      hdrTexture: {},
+      // The target is the others' size, the one they were made at, below which an image draws.
+      targetSize: [10, 5],
+      allocatedSize: [20, 10],
       targetBytes: 20_000,
       feedbackTexture: { destroy },
       feedbackView: {},
     },
     vis: {
+      writesFeedback: true,
       textures: {
         metrics: () => ({
           textureTilesPending: 0,
@@ -53,13 +59,14 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   assert.equal(destroyed, 1);
   assert.equal(rt.gpu.feedbackTexture, undefined);
   assert.equal(rt.gpu.targetBytes, 20_000 - 20 * 10 * 4);
-  assert.equal(rt.vis.shadePipelines, off.shadePipelines);
+  assert.equal(rt.vis.shadeClasses, off.shadeClasses);
   assert.equal(rt.vis.blendPipelines, off.blendPipelines);
   assert.equal(rt.feedbackAB?.force, true);
   await setFeedbackTargetAb(rt, true);
   assert.equal(created, 1);
+  assert.deepEqual(made, [{ width: 20, height: 10 }], 'at the size of the targets beside it');
   assert.equal(rt.gpu.targetBytes, 20_000);
-  assert.equal(rt.vis.shadePipelines, on.shadePipelines);
+  assert.equal(rt.vis.shadeClasses, on.shadeClasses);
   assert.equal(rt.vis.blendPipelines, on.blendPipelines);
 });
 

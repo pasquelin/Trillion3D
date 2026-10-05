@@ -109,7 +109,8 @@ export function createWebgpuCutPublication(
   });
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   // Read here and not retained: this publication's lifetime is that of the engine, and a list that
-  // only serves bootstrap has no reason to stay hooked on it.
+  // only serves bootstrap has no reason to stay hooked on it. No GPU snapshot ever held it: the
+  // first readback claims no rank in it (`../../gpu/dag/differenceChain.ts`).
   cutDelta.adoptRecords(rt.layout.gpuWanted, rankOf);
   publishCut(cutDelta);
   /** Adopts the readback and says whether the IMAGE changed: a readback republishing the same

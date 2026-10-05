@@ -92,7 +92,7 @@ test('a test, a fixture and a browser probe are never reported', () => {
   assert.ok(isTestModule('packages/sdk-core/src/a.test.ts'));
   assert.ok(isTestModule('packages/sdk-core/src/a.fixture.ts'));
   assert.ok(isTestModule('packages/sdk-core/src/a.perf.ts'));
-  assert.ok(isTestModule('packages/sdk-core/src/a.browser.ts'));
+  assert.ok(isTestModule('packages/sdk-core/src/a.gpu.ts'));
   assert.equal(isTestModule('packages/sdk-core/src/a.ts'), false);
   assert.deepEqual(overBound(inPackage('wide.test.ts', long(MAX_FUNCTION_LINES + 5)), bound), []);
 });

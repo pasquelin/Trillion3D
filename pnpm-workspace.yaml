@@ -5,5 +5,8 @@ packages:
 
 # esbuild's install script only checks its native binary, which it finds in its platform package
 # anyway; allowing it avoids pnpm's warning on each install. It is the only allowed dependency script.
+# webgpu (Dawn for Node, the GPU bench's device, `bench/dawn/`) ships its binaries built; its script
+# only lifts a quarantine attribute a package install never sets.
 allowBuilds:
   esbuild: true
+  webgpu: false

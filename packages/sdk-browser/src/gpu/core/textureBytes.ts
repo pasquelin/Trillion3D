@@ -72,6 +72,17 @@ export function textureBytesOf(
   return bytes * (descriptor.sampleCount ?? 1);
 }
 
+/** Bytes of a texture already made, from what it says of itself (`textureBytesOf`); 0 for a
+ *  format outside the table, which the ledger counts as zero too. */
+export const madeTextureBytes = (texture: GPUTexture) =>
+  textureBytesOf({
+    size: [texture.width, texture.height, texture.depthOrArrayLayers],
+    format: texture.format,
+    mipLevelCount: texture.mipLevelCount,
+    sampleCount: texture.sampleCount,
+    dimension: texture.dimension,
+  }) ?? 0;
+
 /** Bytes of levels 1 and up of a `levels`-level chain: the mips beside a level 0 held elsewhere. */
 export function mipTailBytes(
   width: number,

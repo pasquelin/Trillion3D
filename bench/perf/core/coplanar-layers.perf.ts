@@ -1,10 +1,7 @@
-// coplanar layer units and the depth bias they apply on a f32.
-import { biasedDepthBits, depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
+// coplanar layer units against their oracle.
+import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
 import { graine, mesure, rapport } from '../../core/index.ts';
-import {
-  referenceBiasedDepthBits,
-  referenceDepthLayerUnits,
-} from '../../oracles/core/coplanar-layers.ts';
+import { referenceDepthLayerUnits } from '../../oracles/core/coplanar-layers.ts';
 
 const alea = graine(107);
 
@@ -38,41 +35,4 @@ const mesureUnites = await mesure({
   attendu: unites(referenceDepthLayerUnits),
 });
 
-const paires = (nombre: number, fixe?: number) => ({
-  bits: Uint32Array.from({ length: nombre }, () => Math.floor(alea() * 0x3f800000)),
-  layers: Array.from({ length: nombre }, fixe === undefined ? couche : () => fixe),
-  output: new Float64Array(nombre),
-});
-const biaise =
-  (calcule: (bits: number, layer: number | undefined) => number) =>
-  ({ bits, layers, output }: { bits: Uint32Array; layers: Couche[]; output: Float64Array }) => {
-    for (let i = 0; i < bits.length; i++)
-      output[i] = calcule(bits[i], layers[i] as number | undefined);
-    return output;
-  };
-
-const mesureBits = await mesure({
-  name: 'biased depth bits',
-  fichier: 'packages/sdk-core/src/lod/depthLayer.ts',
-  cas: [
-    { name: '50 000 pairs', size: 50000, input: paires(50000) },
-    { name: 'layer 0', size: 10000, input: paires(10000, 0) },
-    {
-      name: 'saturated bits',
-      size: 2,
-      input: {
-        bits: Uint32Array.of(0xffffffff, 0x3f800000),
-        layers: [3, 15],
-        output: new Float64Array(2),
-      },
-    },
-  ],
-  calcul: biaise(biasedDepthBits),
-  attendu: biaise(referenceBiasedDepthBits),
-});
-
-rapport(
-  'couches-coplanaires',
-  [mesureUnites, mesureBits],
-  'layer units and biased bits return the same values',
-);
+rapport('couches-coplanaires', [mesureUnites], 'layer units return the same values');

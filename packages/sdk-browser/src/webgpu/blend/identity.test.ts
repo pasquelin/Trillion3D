@@ -14,7 +14,7 @@ test('blend identity follows translucent depth independently of transmittance', 
   blendState.pagedGroup = group;
   voidStaleBlendGroups(rt, lighting);
   assert.equal(blendState.pagedGroup, group);
-  lighting.shadowTranslucentDepth = {} as GPUTextureView;
+  lighting.shadowTranslucentDepth = {} as typeof lighting.shadowTranslucentDepth;
   voidStaleBlendGroups(rt, lighting);
   assert.equal(blendState.pagedGroup, undefined);
 });

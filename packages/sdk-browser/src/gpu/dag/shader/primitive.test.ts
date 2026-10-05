@@ -1,6 +1,6 @@
 // What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`, #979): the same
 // expressions the visited nodes and pages computed, read back where they computed them. The GPU
-// run against the per-site form is `tests/browser/probes/dag-prepare-gpu.ts`; here, the layout that
+// run against the per-site form is `tests/gpu/dag/prepare.gpu.ts`; here, the layout that
 // holds them, the sites that read them, and the one verdict that changed form — a never-culled
 // primitive's planes ahead — on every box.
 import test from 'node:test';
@@ -53,13 +53,8 @@ test('one primitive holds its row and its prepared values', () => {
   assert.equal(framesBytes(1), (FRAME_VEC4 + PRIMITIVE_VEC4) * 16);
 });
 
-test('every site reads the prepared values; only a light view still multiplies', () => {
-  const products = DAG_SELECTION_SHADER.match(/views\[vi\]\.view\*worlds\[rowOf\(w\)\]/g) ?? [];
-  assert.equal(products.length, 1, 'one product left, in `viewWorld`');
-  assert.match(
-    DAG_PRIMITIVE_WGSL,
-    /if\(isLightCut\(\)\)\{return views\[vi\]\.view\*worlds\[rowOf\(w\)\];\}/,
-  );
+test('camera sites read their prepared values', () => {
+  assert.ok(!DAG_PRIMITIVE_WGSL.includes('views[vi].view*'));
   const box = DAG_CONE_WGSL.slice(DAG_CONE_WGSL.indexOf('fn coneRejectsBox'));
   assert.ok(!box.includes('isConformal(') && !box.includes('inverseTranspose3('));
   assert.ok(box.includes('conformalOf(w)') && box.includes('invTranspose3Apply(normalOf(w),'));
@@ -67,7 +62,9 @@ test('every site reads the prepared values; only a light view still multiplies',
     DAG_SELECTION_SHADER,
     /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(aheadPlanes\(w\),/,
   );
-  assert.ok(DAG_SELECTION_SHADER.includes('if(!isLightCut()){preparePrimitive(w,pose,m,open);}'));
+  assert.ok(
+    DAG_SELECTION_SHADER.includes('putPlanes(base,m,vi,open);preparePrimitive(w,pose,m,open);'),
+  );
 });
 
 test("a never-culled primitive's open planes ahead keep every box, as its early exit did", () => {

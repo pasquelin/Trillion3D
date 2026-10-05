@@ -59,9 +59,4 @@ export const diagnostic = {
    * @param world - The world to check.
    */
   transparentOcclusion: (world: object) => sessionOf(world).transparentOcclusionAudit(),
-  /**
-   * A summary of what the shadow atlas holds this frame.
-   * @param world - The world to check.
-   */
-  shadowAtlas: (world: object) => sessionOf(world).shadowAtlasDigest(),
 };

@@ -27,6 +27,19 @@ struct Wave {
 std::vector<Wave> waves;
 std::vector<uint32_t> planes;
 
+#ifdef __EMSCRIPTEN__
+/// musl's `sincos`: the argument reduction and kernels of its `sin` and `cos`, so both values are
+/// theirs bit for bit, for one reduction instead of two. Declared under another name: clang splits
+/// a call it knows as `sincos` back into `sin` and `cos`.
+extern "C" void muslSinCos(double x, double *s, double *c) __asm__("sincos");
+void sinCos(double x, double &s, double &c) { muslSinCos(x, &s, &c); }
+#else
+void sinCos(double x, double &s, double &c) {
+  s = std::sin(x);
+  c = std::cos(x);
+}
+#endif
+
 /// `surface.ts` `waveRest`: the rest point the waves carry to the world position `(x, z)`.
 void restPoint(uint32_t count, double x, double z, double &px, double &pz) {
   px = x;
@@ -36,7 +49,9 @@ void restPoint(uint32_t count, double x, double z, double &px, double &pz) {
     for (uint32_t i = 0; i < count; i++) {
       const Wave &w = waves[i];
       double f = w.k * (w.dx * px + w.dz * pz) - w.phase;
-      double c = std::cos(f), qs = w.lateral * w.k * std::sin(f);
+      double s, c;
+      sinCos(f, s, c);
+      double qs = w.lateral * w.k * s;
       fx += w.lateral * w.dx * c;
       fz += w.lateral * w.dz * c;
       sxx += qs * w.dx * w.dx;
@@ -62,9 +77,10 @@ double patch(uint32_t count, double px, double pz, double hx, double hz, double 
   for (uint32_t i = 0; i < count; i++) {
     const Wave &w = waves[i];
     double f = w.k * (w.dx * px + w.dz * pz) - w.phase;
-    double s = std::sin(f), c = std::cos(f);
-    double sa = std::sin(w.k * w.dx * hx), ca = std::cos(w.k * w.dx * hx);
-    double sb = std::sin(w.k * w.dz * hz), cb = std::cos(w.k * w.dz * hz);
+    double s, c, sa, ca, sb, cb;
+    sinCos(f, s, c);
+    sinCos(w.k * w.dx * hx, sa, ca);
+    sinCos(w.k * w.dz * hz, sb, cb);
     y += w.amplitude * s;
     for (int corner = 0; corner < 4; corner++) {
       double sx = corner & 1 ? 1 : -1, sz = corner & 2 ? 1 : -1;

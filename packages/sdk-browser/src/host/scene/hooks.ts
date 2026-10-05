@@ -35,7 +35,7 @@ function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) 
  * `revision` among what its writes bump: a write of another value costs the host one comparison
  * and one increment, and a frame that reads nothing else knows the node did not move. The other
  * fields the contract lets the host write are the node's own data fields, which no hook may
- * touch without slowing the reference's walk: `scan.ts` compares them per frame.
+ * touch without slowing the host's walk: `scan.ts` compares them per frame.
  */
 export function hookHostNode(node: Object3D, revision: WriteRevision) {
   const known = hooks.get(node);

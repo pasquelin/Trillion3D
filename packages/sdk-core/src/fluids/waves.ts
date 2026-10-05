@@ -1,9 +1,9 @@
 import { hypot2, hypot3 } from '../math/primitives/hypot.ts';
 
 /**
- * The one wave model of the engine: a sum of Gerstner waves. Buoyancy reads it on the CPU (the
+ * The one wave model of the engine: a sum of trochoidal waves. Buoyancy reads it on the CPU (the
  * physics worker); the water surface's shader code will be generated from the same numbers
- * (#422), so nothing about a wave is written twice. A Gerstner wave moves a
+ * (#422), so nothing about a wave is written twice. A trochoidal wave moves a
  * point of the rest plane both up and sideways, towards the crest, so the height above a world
  * position is found by iterating on the rest position (`surface.ts`). The previous
  * frame's surface is the same formula at `t - dt`: nothing is stored.
@@ -27,12 +27,41 @@ export interface WaveSpec {
 const WAVE_GRAVITY = 9.81;
 const TAU = Math.PI * 2;
 
+const QUARTER = Math.PI / 2;
+
+/**
+ * The least and greatest of the cosine, then of the sine, over the angles `[a, b]`, into `out`:
+ * their ends', or −1 and 1 where the span holds a trough or a crest — the quarter turns `jπ/2` it
+ * holds, the cosine's crest at `j ≡ 0 (mod 4)` and trough at 2, the sine's at 1 and 3.
+ */
+function trigSpan(a: number, b: number, out: Float64Array) {
+  const ca = Math.cos(a),
+    cb = Math.cos(b),
+    sa = Math.sin(a),
+    sb = Math.sin(b);
+  out[0] = Math.min(ca, cb);
+  out[1] = Math.max(ca, cb);
+  out[2] = Math.min(sa, sb);
+  out[3] = Math.max(sa, sb);
+  const first = Math.ceil(a / QUARTER),
+    last = Math.min(Math.floor(b / QUARTER), first + 3);
+  for (let j = first; j <= last; j++) {
+    const turn = ((j % 4) + 4) % 4;
+    if (turn === 0) out[1] = 1;
+    else if (turn === 1) out[3] = 1;
+    else if (turn === 2) out[0] = -1;
+    else out[2] = -1;
+  }
+}
+/** A cosine's least and greatest then a sine's, rewritten by each wave of `displacementBox`. */
+const spans = new Float64Array(4);
+
 /** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
  *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
 export const WAVE_DOUBLES = 6;
 
 /**
- * A set of Gerstner waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
+ * A set of trochoidal waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
  * number `k`, its amplitude `A` and its lateral amplitude `Q·A`, where the steepnesses are scaled
  * so that `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` (crests never loop over).
  */
@@ -123,6 +152,43 @@ export class Waves {
     out[0] = ox;
     out[1] = oy;
     out[2] = oz;
+    return out;
+  }
+
+  /**
+   * The box every displacement of a rest point of the rectangle `[x0, x1] × [z0, z1]` lies in, its
+   * least corner then its greatest, into `out`: per wave, its phase spans the rectangle's reach
+   * along its direction, over which its sine and cosine keep within the least and greatest of their
+   * ends and of the crests and troughs the span holds; the sum of the waves' boxes holds the sum.
+   * `count` waves are summed, the first ones: what a record sized for fewer draws.
+   */
+  displacementBox(
+    x0: number,
+    z0: number,
+    x1: number,
+    z1: number,
+    out: Float64Array | number[],
+    count = this.count,
+  ) {
+    out.fill(0, 0, 6);
+    for (let i = 0; i < Math.min(count, this.count); i++) {
+      const dx = this.dirX[i],
+        dz = this.dirZ[i],
+        k = this.k[i],
+        lateral = this.lateral[i];
+      const near = Math.min(dx * x0, dx * x1) + Math.min(dz * z0, dz * z1),
+        far = Math.max(dx * x0, dx * x1) + Math.max(dz * z0, dz * z1);
+      trigSpan(k * near - this.phase[i], k * far - this.phase[i], spans);
+      const across = lateral * dx,
+        along = lateral * dz,
+        up = this.amplitude[i];
+      out[0] += Math.min(across * spans[0], across * spans[1]);
+      out[3] += Math.max(across * spans[0], across * spans[1]);
+      out[2] += Math.min(along * spans[0], along * spans[1]);
+      out[5] += Math.max(along * spans[0], along * spans[1]);
+      out[1] += up * spans[2];
+      out[4] += up * spans[3];
+    }
     return out;
   }
 

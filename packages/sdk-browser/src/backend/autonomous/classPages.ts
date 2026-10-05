@@ -106,7 +106,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
     const grown = await withPlaced(carried, { indices, ends }, pages, read);
     const recut = { ends, finestError: finestError(primitive), scale };
-    const cut = await cutPagesOffThread(packDrawn(grown, blended, recut));
+    const cut = await cutPagesOffThread(packDrawn(grown, blended, { recut }));
     return new Map(
       primitive.pages.map((page, k) => [page.id, new Uint8Array(cut.pages[k].geometry)]),
     );

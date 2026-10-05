@@ -10,6 +10,7 @@ import { servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
 import type { WorldNotices } from '../diagnostic/worldNotices.ts';
 import { changedRanges, copyRanges, LISTS, type VertexUploads } from './worldDynamicRanges.ts';
+import { createPageMotion, type PageMotion } from './pageMotion.ts';
 import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts';
 import type { Cut } from './worldCuts.ts';
 
@@ -18,9 +19,17 @@ import type { Cut } from './worldCuts.ts';
  *  derived from a scene: 4 MiB, a 60 × 60 m sea at 15 cm, 480 MB/s at 120 Hz. */
 export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 
-/** What a dynamic resource holds beside its pages: the box that culls it, the cut that serves them
- *  again in a larger one, and the geometry version read into its lists (`Reading`). */
-export type DynamicHeld = Reading & { box: HeldBox; cut: PageCutPayload; version: number };
+/** What a dynamic resource holds beside its pages: the box its vertices never leave, the cut that
+ *  serves them again in a larger one, the geometry version read into its lists (`Reading`), where
+ *  each page has its vertices (`motion`, its pages bounded where they were cut) and the farthest
+ *  any vertex lies on an axis from there (`reach`), which every cut grows those bounds by. */
+export type DynamicHeld = Reading & {
+  box: HeldBox;
+  cut: PageCutPayload;
+  version: number;
+  motion: PageMotion;
+  reach: number;
+};
 type Options = NonNullable<Parameters<typeof drawnTriangles>[2]>;
 type Made = (cut: Cut) => void;
 
@@ -42,7 +51,10 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     /** How each resource leaves its geometry's reading, once released. */
     leaves = new WeakMap<Cut, () => void>(),
     /** The resources whose read vertices wait for an upload, in the order they changed. */
-    dirty = new Set<Cut>();
+    dirty = new Set<Cut>(),
+    /** The resources whose vertices lie away from where their pages are bounded: a new session
+     *  hears where. */
+    reaching = new Set<Cut>();
   const dynamicOf = (cut: Cut) => cut.dynamic!;
   /** `cut`'s lists read at its geometry's `version`: they wait for the next `upload`. */
   const pend = (cut: Cut, version: number) => {
@@ -62,6 +74,8 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       changes.set(geometry, { version: geometry.version, frame: seen ? frame : -Infinity });
     if (!declared && !detected) return false;
     dynamic.add(geometry);
+    // Said dynamic from now on, as a declared one: what reads `usage` (the water's carry) sees it.
+    geometry.usage = 'dynamic';
     const name = mesh.name || `(unnamed ${mesh.type})`;
     notices?.say(
       'geometry-dynamic',
@@ -82,10 +96,21 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     // Its corners unchanged, a larger box serves the same pages again: nothing is cut.
     const again = held && fits(before.drawn, drawn, box);
     if (!again) counts.cuts++;
-    const cut = again ? held.cut : await cutPagesOffThread(packDrawn(drawn, blended));
-    const runtime = servePrimitive(cut, drawn, box);
+    const cut = again
+      ? held.cut
+      : await cutPagesOffThread(packDrawn(drawn, blended, { held: true }));
+    // Each page bounded by its own corners where they are now: a rewrite measures them again.
+    const motion = createPageMotion(cut, new Float32Array(drawn.positions));
+    const runtime = servePrimitive(cut, drawn, motion.boxes);
     const [key, users, version] = [`dynamic:${serial++}`, new Set<Mesh>(), geometry.version];
-    const state: DynamicHeld = { ...readingOf(geometry, drawn), box, cut, version };
+    const state: DynamicHeld = {
+      ...readingOf(geometry, drawn),
+      box,
+      cut,
+      version,
+      motion,
+      reach: 0,
+    };
     return { key, drawn, runtime, users, held: false, dynamic: state } satisfies Cut;
   };
   return {
@@ -131,6 +156,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     /** A resource released, its pages no longer served: a later read makes another. */
     forget(cut: Cut) {
       dirty.delete(cut);
+      reaching.delete(cut);
       leaves.get(cut)?.();
     },
     /** Writes the read vertices of the resources that changed, in order, until the next would
@@ -138,13 +164,20 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
      *  Returns the bytes sent. Nothing is allocated. */
     upload(budget: number, uploads: VertexUploads) {
       let spent = 0;
+      // A new session's roots start at rest: each resource that moved tells them its reach.
+      if (uploads.renewed()) for (const cut of reaching) dirty.add(cut);
       for (const cut of dirty) {
         const held = dynamicOf(cut),
           changed = changedRanges(cut.drawn, held.next),
           bytes = uploads.weigh(cut, changed.ranges, changed.bytes);
         if (spent && spent + bytes > budget) break;
         copyRanges(cut.drawn, held.next, changed.ranges);
-        if (!uploads.write(cut, changed.ranges, changed.box)) continue;
+        // Each page where its vertices are now, the reach the farthest of them this frame.
+        held.reach = held.motion.measure(cut.drawn.positions, changed.ranges);
+        if (held.reach > 0) reaching.add(cut);
+        else reaching.delete(cut);
+        if (!uploads.write(cut, changed.ranges, changed.box, held.reach, held.motion.boxes))
+          continue;
         spent += bytes;
         dirty.delete(cut);
       }

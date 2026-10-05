@@ -23,9 +23,10 @@ export function sessionOf(world: object): MeasuredWorld {
   return session;
 }
 
-/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's loop,
- *  which draws on while the pool moves: the measurement entry's way in (#420) until particles
- *  have a public face (#423). Returns the remover. A pool is attached once, to a made world. */
+/** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's frames:
+ *  the world's own loop draws on while the pool moves, a world its page leads at each `render()`.
+ *  The measurement entry's way in (#420) until particles have a public face (#423). Returns the
+ *  remover. A pool is attached once, to a made world. */
 export function attachParticles(world: World, pool: ParticlePool) {
   const pools = worlds.get(world)?.particles;
   if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world');

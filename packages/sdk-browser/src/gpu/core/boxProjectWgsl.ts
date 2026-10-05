@@ -1,9 +1,8 @@
-import { DEPTH_GROW, ERR_K, INPUT_K, SCREEN_SLACK_K, wgslFloat } from '../partition/margins.ts';
+import { PROJECTION_SLACK_WGSL } from './projectionSlackWgsl.ts';
+import { DEPTH_GROW, SCREEN_SLACK_K, wgslFloat } from '../partition/margins.ts';
 import { CORNER_VALUES, FLAG_CLIP } from '../partition/contract.ts';
 
-const K = wgslFloat(ERR_K),
-  IN = wgslFloat(INPUT_K),
-  SLACK = wgslFloat(SCREEN_SLACK_K),
+const SLACK = wgslFloat(SCREEN_SLACK_K),
   GROW = wgslFloat(DEPTH_GROW);
 
 /**
@@ -18,7 +17,7 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  anchorHigh:vec3f,near:f32,
  anchorLow:vec3f,pad1:f32,
  rows:u32,width:u32,height:u32,levels:u32,
- layerTop:u32,hasRest:u32,viewMoved:u32,pad2:u32,
+ layerTop:u32,hasRest:u32,viewMoved:u32,counting:u32,
  pad3:u32,pad4:u32,pad5:u32,pad6:u32,
  levelOffset:array<vec4u,4>,
  levelWidth:array<vec4u,4>,
@@ -52,24 +51,7 @@ export const BOX_PROJECT_WGSL = `
 /** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
  *  that forbids any rejection. */
 struct BoxProj{rect:vec4i,nearest:f32,clips:u32,}
-/**
- * A four-term dot product on an anchored point, and enough to bound its error: the value, the
- * sum of absolute values of the terms, and the share of input rounding —
- * \`Σ|m_i| · 3u|d_i|\`, where \`d\` is the corner's offset from the anchor.
- */
-fn dot4(a0:f32,a1:f32,a2:f32,a3:f32,d:vec3f,mag:vec3f)->vec3f{
- let p=vec3f(a0*d.x,a1*d.y,a2*d.z);
- return vec3f(
-  p.x+p.y+p.z+a3,
-  abs(p.x)+abs(p.y)+abs(p.z)+abs(a3),
-  abs(a0)*mag.x+abs(a1)*mag.y+abs(a2)*mag.z);
-}
-/** Upper slack of a dot product: compute rounding and input rounding together. */
-fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
-/** Upper slack of a quotient whose numerator and denominator each carry their own. */
-fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
- return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
-}
+${PROJECTION_SLACK_WGSL}
 /** Coplanar layer bias on the bits of a depth: mirror of \`biasedDepthBits\`.
  *  Reversed depth: moving closer to the eye is ADDING units, capped at the bits of 1. */
 fn biasedDepth(value:f32,layer:u32)->f32{

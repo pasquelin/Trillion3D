@@ -4,7 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chargeBaseline, cleDeLigne, ecartRelatif } from './baseline.ts';
+import {
+  SEUIL_ECHEC,
+  chargeBaseline,
+  cleDeLigne,
+  compareBaseline,
+  ecartRelatif,
+} from './baseline.ts';
 import { FRAGMENTS, RACINE, cheminFragment } from './paths.ts';
 import { ligneMd } from './table.ts';
 import type { Measurement } from '../../site/examples/kit/measureTypes.ts';
@@ -31,16 +37,40 @@ function verifieFichiers(mesures: Measurement[]) {
  * pair: two benchmarks touching the same source file no longer overwrite each other. Nothing is mutated —
  * what goes to disk is not what the benchmark still holds.
  */
-function confronteBaseline(domaine: string, mesures: Measurement[]): Measurement[] {
+function confronteBaseline(domaine: string, mesures: Measurement[]) {
   const baseline = chargeBaseline(domaine);
   const connus = new Map((baseline?.resultats ?? []).map((r) => [r.cle, r] as const));
-  return mesures.map((m) => ({
+  const confrontees = mesures.map((m) => ({
     ...m,
     resultats: m.resultats.map((r) => {
       const base = connus.get(cleDeLigne(m.name, r.name));
       return { ...r, ecartBaseline: ecartRelatif(r.medianeMs, base?.medianeMs) };
     }),
   }));
+  return { baseline: baseline !== null, mesures: confrontees };
+}
+
+/**
+ * The regression gate: on a machine that recorded the domain's baseline (`npm run perf:baseline`),
+ * a case whose median moved past `SEUIL_ECHEC` fails the benchmark. Without one it cannot fire, and
+ * says so on the console rather than reading as "nothing slowed down".
+ */
+function garde(domaine: string, baseline: boolean, mesures: Measurement[]) {
+  if (!baseline) {
+    console.log(`# ${domaine}: no baseline on this machine, the regression gate is off`);
+    return;
+  }
+  test(`${domaine}: no case slower than its baseline by more than ${SEUIL_ECHEC * 100} %`, () => {
+    const lignes = mesures.flatMap((m) =>
+      m.resultats.map((r) => ({
+        name: `${m.name} | ${r.name}`,
+        ecartBaseline: r.ecartBaseline ?? null,
+      })),
+    );
+    const { regressions } = compareBaseline(lignes);
+    const texte = regressions.map((r) => `${r.name}: +${((r.ecart ?? 0) * 100).toFixed(1)} %`);
+    assert.equal(regressions.length, 0, texte.join('\n'));
+  });
 }
 
 /**
@@ -54,8 +84,9 @@ export function rapport(
 ): void {
   const brutes = Array.isArray(mesures) ? mesures : [mesures];
   verifieFichiers(brutes);
-  const tous = confronteBaseline(domaine, brutes);
+  const { baseline, mesures: tous } = confronteBaseline(domaine, brutes);
   const lignes = tous.flatMap((m) => m.resultats);
+  garde(domaine, baseline, tous);
 
   if (intitule)
     test(intitule, () => {

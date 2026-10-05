@@ -16,7 +16,7 @@ export const CLASSES = 6;
  * The rates, each from a measured number:
  * - `texelPs`: the lighting model's texel rate (`LIGHTING_RATES`), MODELLED: every per-pixel access.
  * - `trianglePs`: a triangle drawn into the visibility buffer, UE5's Nanite raster on PS5 — main and
- *   post pass, 1,148 + 183 µs for 25 million triangles (docs/REFERENCE.md) —: a reference's rate.
+ *   post pass, 1,148 + 183 µs for 25 million triangles —: a reference's rate.
  * - `shadedPs`, `weightPs`: a light shaded, and a light weighed or listed out of range, in the
  *   resolve's program with shadow code, timed on develop's resolve (docs/ENGINE.md, #1326): 42.3
  *   and 28.1 ps a pixel.
@@ -37,8 +37,8 @@ export const SURFACE_ACCESSES = { visibility: 1, page: 1, vertex: 12, maps: 3, t
 export const SETUP_TEXELS = 8 + 7;
 /** The PCF's depth gathers a shadow read: its taps (`PCF_TAPS_WGSL`). */
 export const PCF_GATHERS = LIGHT_SETTINGS.pcfTaps;
-/** Page-table accesses the demand pass spends a light it marks: its home page and the PCF's
- *  neighbours across a page edge (`demandWgsl.ts`). */
+/** Page-table accesses the marking pass spends a light it marks: its home page and the PCF's
+ *  neighbours across a page edge (`vsm/markingWgsl.ts`). */
 export const DEMAND_MARKS = 4;
 
 export const UNCOUNTED = [

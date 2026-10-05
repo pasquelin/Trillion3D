@@ -3,14 +3,13 @@ import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
 
 /**
- * Material tiles: cluster's material classification (#1369). Each class pass drew a full-screen
- * triangle the material depth test refused everywhere but on its pixels, so an image of `K`
- * classes rasterised and depth-tested every pixel `K` times. A compute pass now reads the
- * visibility buffer once, marks in each screen tile the classes its pixels hold
- * (`materialClassOf`, the answer the material depth writes), and appends the tile to the list of
- * each; a class then draws, through one indirect draw, a quad per tile of its list only. The
- * fragments that pass the depth test are the same, shaded by the same code: only the pixels of
- * tiles a class has none of are no longer rasterised for it.
+ * Material tiles: the material classification (#1369). Each class pass drew a full-screen
+ * triangle whose fragments kept its pixels only, so an image of `K` classes rasterised every
+ * pixel `K` times. A compute pass now reads the visibility buffer once, marks in each screen tile
+ * the classes its pixels hold (`materialClassOf`), and appends the tile to the list of each; a
+ * class then draws, through one indirect draw, a quad per tile of its list only. The fragments
+ * its stage keeps (`classAdmits`) are the same, shaded by the same code: only the pixels of tiles
+ * a class has none of are no longer rasterised for it.
  *
  * A class with no list — past the first `MATERIAL_TILE_SLOTS` held, or not held at all — has
  * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle, as
@@ -49,13 +48,14 @@ fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
  let slot=classSlots[CLASS_KEY];
  if(slot>=MATERIAL_TILE_SLOTS){return classTriangle(i);}
  let pixel=vec2f(materialTileCorner(classTiles[tileListStart(slot)+n],i,materialTilesX(vec2u(uni.viewport))));
- return vec4f(pixel.x/uni.viewport.x*2.0-1.0,1.0-pixel.y/uni.viewport.y*2.0,CLASS_DEPTH,1.0);
+ return vec4f(pixel.x/uni.viewport.x*2.0-1.0,1.0-pixel.y/uni.viewport.y*2.0,0.0,1.0);
 }`;
 
 /**
  * The classification, one workgroup per tile: each lane marks the slots of its pixels in two
  * words, the group ors them, then lane `s` appends the tile to slot `s`'s list when the tile holds
- * it. The first append of a slot writes its draw's vertex count; the pass's clear left the rest 0.
+ * it. The first append of a slot writes its draw's vertex count; \`clearTiles\`, the dispatch before,
+ * left the rest 0.
  * A pixel off the image is skipped by a branch, never by leaving the loop: a lane leaving it early
  * would put the barrier in non-uniform control flow, which WGSL refuses to compile.
  */
@@ -76,6 +76,10 @@ fn pixelSlot(id:u32)->u32{
  let key=materialClassOf(id);
  if(key==0u){return MATERIAL_TILE_SLOTS;}
  return classSlots[key-1u];
+}
+/** Every slot's indirect draw zeroed, one lane per slot: the classification counts from there. */
+@compute @workgroup_size(${MATERIAL_TILE_SLOTS}) fn clearTiles(@builtin(local_invocation_index) slot:u32){
+ for(var w=0u;w<4u;w++){atomicStore(&tileDraws[slot*4u+w],0u);}
 }
 @compute @workgroup_size(${LANES},${LANES}) fn classify(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(local_invocation_index) index:u32){
  let size=vec2u(uni.viewport);

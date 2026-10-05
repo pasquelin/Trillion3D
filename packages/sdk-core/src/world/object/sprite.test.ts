@@ -1,4 +1,4 @@
-// #364: a sprite is the reference's `Sprite` — a unit square every raster turns to the camera, its
+// #364: a sprite is a unit square every raster turns to the camera, its
 // picture placed on its origin by `center`, its material a see-through picture with `rotation`
 // and `sizeAttenuation`.
 import test from 'node:test';
@@ -17,7 +17,7 @@ test('object.sprite is a Sprite centred on its origin, in a see-through sprite m
   const matter = material.sprite();
   assert.equal(matter.rotation, 0);
   assert.equal(matter.sizeAttenuation, true);
-  assert.equal(matter.transparent, true, "the reference's SpriteMaterial is transparent");
+  assert.equal(matter.transparent, true, 'a sprite material is transparent');
   assert.equal(material.sprite({ transparent: false }).transparent, false);
 });
 
@@ -53,7 +53,7 @@ test('a moved centre reaches the world, and a clone keeps it', () => {
   }
 });
 
-test('a sprite wears only a sprite material, as the reference Sprite takes a SpriteMaterial', () => {
+test('a sprite wears only a sprite material', () => {
   const kind = /A sprite wears a material\.sprite, not material\.meshStandard\./;
   assert.throws(() => object.sprite(material.meshStandard()), kind);
   const sprite = object.sprite();

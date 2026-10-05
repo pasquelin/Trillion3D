@@ -10,11 +10,11 @@ import { flushWebgpuPages } from './flush.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** A minimal flush state: no GPU, no texture, no in-flight residency. */
-function vidange(adopte?: () => boolean, arme = true) {
+function flushState(adopts?: () => boolean, armed = true) {
   const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
   const { hold: frameHold, revisions } = gate;
   // Two identical consecutive images: the witness is armed and stable, as after two renders.
-  if (arme) {
+  if (armed) {
     frameHold.keep(revisions);
     frameHold.keep(revisions);
   }
@@ -35,8 +35,8 @@ function vidange(adopte?: () => boolean, arme = true) {
     blendDrawCalls: 0,
     blendSubmittedTriangles: 0,
     imageRevision: 0,
-    gpuFrameActive: !!adopte,
-    gpuSelection: adopte ? { flush: async () => {}, failed: () => false } : undefined,
+    gpuFrameActive: !!adopts,
+    gpuSelection: adopts ? { flush: async () => {}, failed: () => false } : undefined,
     lastCamera: undefined,
   };
   const rt = {
@@ -54,18 +54,18 @@ function vidange(adopte?: () => boolean, arme = true) {
     services: {
       bootstrapState: { ready: true, ensure: async () => {} },
       residency: { pending: Promise.resolve() },
-      adoptGpuCut: adopte ?? (() => false),
+      adoptGpuCut: adopts ?? (() => false),
     },
     setup: { bootstrap: [] },
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [] },
-    lights: { plan: { counts: { pendingPages: 0 } } },
+    lights: { changes: { deferred: () => false } },
   } as unknown as WebgpuPagesRuntime;
   return { rt, gate, frameHold, revisions };
 }
 
 test('a flush that drains nothing leaves the held-image witness standing', async () => {
-  const { rt, gate, revisions } = vidange();
+  const { rt, gate, revisions } = flushState();
   assert.equal(gate.held(), true, 'the witness starts armed');
   await flushWebgpuPages(rt);
   await flushWebgpuPages(rt);
@@ -74,13 +74,13 @@ test('a flush that drains nothing leaves the held-image witness standing', async
 });
 
 test('a flush whose adoption changes the cut drops the witness', async () => {
-  const { rt, gate } = vidange(() => true);
+  const { rt, gate } = flushState(() => true);
   await flushWebgpuPages(rt);
   assert.equal(gate.held(), false, 'the cut changed under the held image');
 });
 
 test('a flush whose adoption changes nothing leaves the witness standing', async () => {
-  const { rt, gate } = vidange(() => false);
+  const { rt, gate } = flushState(() => false);
   await flushWebgpuPages(rt);
   assert.equal(gate.held(), true, 'no list rewritten, no reason to redo the image');
 });
@@ -89,7 +89,7 @@ test('three images and three flushes with no write: the third is held', async ()
   // What a host that flushes per image does — the harness: render, flush, repeat. The GPU
   // returns one sample per image, identical at a still pose, so adoption rewrites nothing.
   let adoptions = 0;
-  const { rt, gate, frameHold, revisions } = vidange(() => (adoptions++, false), false);
+  const { rt, gate, frameHold, revisions } = flushState(() => (adoptions++, false), false);
   let tenues = 0;
   for (let image = 0; image < 3; image++) {
     // A complete image: it is stored with the signature of what it produced.
@@ -103,7 +103,7 @@ test('three images and three flushes with no write: the third is held', async ()
 });
 
 test('a flush under image: false settles the pages and reads no image back (#408)', async () => {
-  const { rt } = vidange(undefined, false);
+  const { rt } = flushState(undefined, false);
   let touched = 0;
   const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) });
   Object.assign(rt.gpu, { device, displayTexture: {} });

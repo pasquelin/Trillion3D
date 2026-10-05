@@ -50,8 +50,8 @@ function baseOf(
  * reads no page.
  *
  * Residency belongs to the record, which every placement of a primitive shares (#1235): so does
- * the readiness, one state per primitive however many of its placements the view holds, as
- * cluster's streaming state is its resource's and never an instance's (#1232). A primitive is read
+ * the readiness, one state per primitive however many of its placements the view holds, a
+ * streaming state is its resource's and never an instance's (#1232). A primitive is read
  * whole when it enters — first seen, or its DAG or hierarchy changed. A move is routed by the
  * packed base both layouts post on each root (`postPackedBases`, #1235), against the placements
  * `track` last named; a layout that changes calls `track` again, and the primitives that stay keep

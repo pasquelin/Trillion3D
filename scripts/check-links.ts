@@ -5,7 +5,7 @@ import { decodeLinkComponent as decode } from '../site/content/uri.ts';
 // real file, and that a fragment into another Markdown file names a real
 // heading anchor or an explicit id/name. Runtime routes (/api/...) are
 // reported separately, never checked. Same behavior as the retired
-// scripts/check-links.py, ported so `pnpm run check:links` needs no Python.
+// scripts/check-links.py, so `pnpm run check:links` needs no Python.
 import { repositoryFiles } from './repository-files.ts';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';

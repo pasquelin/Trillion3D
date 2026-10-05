@@ -3,11 +3,9 @@ import type { PageRec } from '../../../page/selection/selection.ts';
 import type { Placements } from '../../../page/selection/placements.ts';
 import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
 import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
-import { followPairBytes } from '../../shadow/pairGrowth.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -48,7 +46,7 @@ export function shadowsFollowTextures(
 ) {
   if (!lights.store.count) return;
   if (slots === -1) {
-    lights.plan.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+    lights.changes.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
     return;
   }
   const ints = rows.pageTableInts;
@@ -112,22 +110,8 @@ function shadowsFollowRows(
     }
   for (const moving of [false, true]) {
     const { box, min, max } = changeBoxes[+moving];
-    if (!boxIsEmpty(box, 0)) lights.plan[change](min, max, moving);
+    if (!boxIsEmpty(box, 0)) lights.changes[change](min, max, moving);
   }
-}
-
-/**
- * The threshold the light cuts select casters at: the camera's, in the render frame of the eye
- * `origin`. The plan keeps the ones each page was drawn at, and redraws, once the camera rests,
- * only the pages drawn at another (`thresholds.ts`). Returns the threshold.
- */
-export function followLightThreshold(
-  lights: WebgpuLightState,
-  pixelError: number,
-  origin: ArrayLike<number>,
-) {
-  lights.plan.setThreshold(pixelError, origin);
-  return pixelError;
 }
 
 /**
@@ -149,12 +133,3 @@ export {
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts';
-
-/** An occlusion test made while a growth was granted holds the cull's old lists: it follows, to
- *  the rows the cull's hold — the pairs' share of both counted again (`followPairBytes`). */
-export function followOcclusion(rt: WebgpuPagesRuntime) {
-  const { cull, occlusion } = rt.lights;
-  if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
-    occlusion.grow(cull.capacity).commit();
-  followPairBytes(rt);
-}

@@ -56,7 +56,12 @@ function send(entry: ReturnType<typeof image>, cam: EngineCamera) {
   assert.equal(entry.sends.length, before + 1, 'the image sent its worlds');
   const sent = entry.sends[before],
     full = new Float32Array(entry.selectionRoots.length * 16);
-  rootWorldsToRenderOrigin(full, entry.selectionRoots, cam.eye);
+  rootWorldsToRenderOrigin(
+    full,
+    entry.selectionRoots,
+    cam.eye,
+    new Float64Array(entry.selectionRoots.length * 3),
+  );
   assert.deepEqual(sent.bits, new Uint32Array(full.buffer), 'the bits of a full rebase');
   return sent;
 }

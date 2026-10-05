@@ -1,9 +1,14 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts';
+import { lendAnimationSampler } from '../../math/batchAnimation.ts';
+import { frameStart } from '../../frame/scheduling.ts';
+import { createFrameGrid } from './worldFrameGrid.ts';
 
 /** What the loop steps ahead of a frame: `world.controls`. */
 type Stepped = { autoUpdate: boolean; update(delta: number): void };
+/** The world's physics as a frame runs it (`worldPhysics.ts`): its time set, then its frame. */
+type Physics = { time(seconds: number): void; frame(): boolean };
 
 /** A frame's metrics as the host copied them from the engine, and one a page reads composed from
  *  them; `null` where the path does not count. */
@@ -15,9 +20,10 @@ export type WorldFrameMetrics = FrameMetrics & {
 /** What a frame hook receives: seconds since the last frame and since the world began. The
  *  world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export interface FrameInfo {
-  /** Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first. */
+  /** Seconds the world advanced since the previous frame — what its clips and controllers
+   *  integrated —, at most two frame intervals after a pause; 0 on the first. */
   delta: number;
-  /** Seconds since the world began. */
+  /** Seconds since the world began, at the frame's time (`worldFrameGrid.ts`). */
   time: number;
   /** How many frames the world has drawn. */
   frame: number;
@@ -77,12 +83,14 @@ const LATE_FRAMES = 2;
  */
 function boundedDelta() {
   let interval: number | null = null;
-  return {
-    /** The seconds from `previous` to `now` a frame integrates; `first` for the world's first. */
-    read: (now: number, previous: number, first: boolean) => {
-      if (first) return 0;
-      const raw = (now - previous) / 1000;
-      return interval === null ? raw : Math.min(raw, LATE_FRAMES * interval);
+  const pace = {
+    /** Whether the last `read` was bounded: a pause, not an interval the loop ran. */
+    paused: false,
+    /** The seconds a frame `ms` after the last integrates; `first` for the world's first. */
+    read: (ms: number, first: boolean) => {
+      const raw = first ? 0 : ms / 1000;
+      pace.paused = interval !== null && raw > LATE_FRAMES * interval;
+      return pace.paused ? LATE_FRAMES * interval! : raw;
     },
     /** A frame drew with `delta`: it is the interval the next pause is bounded by. Two frames
      *  within one clock tick measure nothing, and a zero bound would never grow again. */
@@ -90,6 +98,7 @@ function boundedDelta() {
       if (delta > 0) interval = delta;
     },
   };
+  return pace;
 }
 
 /** Adds `hook` to `hooks`; returns the function that removes it. */
@@ -103,35 +112,44 @@ function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
 /** The per-frame hooks of a world, in the order they were added: `before` ones ahead of each
  *  drawn frame, the others after it. */
 export function createWorldFrames() {
+  // The mixers sample through the WebAssembly sampler once the module is there.
+  void lendAnimationSampler();
   const hooks = new Set<(frame: FrameInfo) => void>(),
     early = new Set<(frame: BeforeFrameInfo) => void>();
-  const start = performance.now();
-  let previous = start,
-    frame = 0,
+  // The world's time is its frames' (`frameStart`), on the display's grid while it holds one.
+  const grid = createFrameGrid(),
+    start = frameStart();
+  let frame = 0,
     last: WorldFrameMetrics | null = null;
   const pace = boundedDelta();
   const info: FrameInfo = { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN };
   const ahead: BeforeFrameInfo = { delta: 0, time: 0 };
+  /** Whether no step was taken yet, whether one was since the last frame drawn, and the seconds
+   *  integrated since then: what that frame's hooks are told, whatever the steps were. */
+  const steps = { first: true, taken: false, since: 0 };
   // The controllers integrate from one step to the next, so each frame's render time is lived.
-  let stepped: number | null = null;
   const advance = () => {
-    const now = performance.now(),
-      seconds = pace.read(now, stepped ?? now, stepped === null);
-    stepped = now;
+    grid.frame(frameStart());
+    const seconds = pace.read(grid.delta, steps.first);
+    if (pace.paused) grid.restart();
+    steps.first = false;
+    steps.taken = true;
+    steps.since += seconds;
     return seconds;
   };
   /** A frame is about to be drawn, `seconds` after the last: the early hooks run. */
   const prepare = (seconds: number) => {
     ahead.delta = seconds;
-    ahead.time = (performance.now() - start) / 1000;
+    ahead.time = (grid.time - start) / 1000;
     for (const hook of early) hook(ahead);
   };
   return {
     get last() {
       return last;
     },
-    /** Seconds since the last step ahead of a frame, bounded after a pause: what a controller
-     *  integrates; the step is taken now. */
+    /** Seconds since the last step ahead of a frame, on the display's grid while it holds one
+     *  (`worldFrameGrid.ts`), bounded after a pause: what a controller integrates; the step is
+     *  taken now. A display frame stepped again advances nothing. */
     advance,
     /**
      * Adds a function to run after every drawn frame.
@@ -146,28 +164,35 @@ export function createWorldFrames() {
      */
     before: (hook: (frame: BeforeFrameInfo) => void) => member(early, hook),
     /**
-     * The work ahead of a frame, whoever leads it, in this order: the controller steps the camera
-     * unless the page took the step or leads the frame (`null`), the scene's clips advance, the
-     * physics runs and draws its bodies, the early hooks run. What they move is written to the
-     * renderer after them, so it is drawn in this frame.
+     * The work ahead of a frame, whoever leads it, in this order: the physics' time is set to the
+     * frame's, the controller steps the camera unless the page took the step or leads the frame
+     * (`null`) — a character it moves is drawn at that time —, the scene's clips advance, the
+     * physics draws its bodies and is owed the same seconds, the early hooks run. What they move
+     * is written to the renderer after them, so it is drawn in this frame.
      * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
      */
-    step(controls: Stepped | null, scene: Object3D, physics: () => boolean = () => false) {
+    step(controls: Stepped | null, scene: Object3D, physics: Physics | null = null) {
       const seconds = advance();
+      physics?.time(seconds);
       if (controls?.autoUpdate) controls.update(seconds);
       const playing = advanceMixers(scene, seconds);
-      const moving = physics();
+      const moving = physics?.frame() ?? false;
       prepare(seconds);
       return playing || moving;
     },
+    /** A frame was drawn: its hooks are told the seconds the steps since the last one
+     *  integrated — a frame drawn without a step takes one now — and the display's refresh the
+     *  frame measured places the next on the grid. */
     dispatch(metrics: FrameMetrics) {
-      const now = performance.now();
-      info.delta = pace.read(now, previous, frame === 0);
+      if (!steps.taken) advance();
+      info.delta = steps.since;
       pace.drawn(info.delta);
-      info.time = (now - start) / 1000;
+      steps.taken = false;
+      steps.since = 0;
+      info.time = (grid.time - start) / 1000;
       info.frame = frame++;
       info.metrics = last = named(metrics);
-      previous = now;
+      grid.refreshed(metrics.displayRefreshMs);
       for (const hook of hooks) hook(info);
     },
     clear() {

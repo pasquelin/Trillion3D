@@ -87,7 +87,7 @@ test('a mesh moved out of a world under a group none hears leaves it, and the wo
   scene.add(aside);
   told.length = 0;
   scene.attach(mesh);
-  assert.deepEqual(told, [scene], 'moved within one world: told once');
+  assert.deepEqual(told, [aside, scene], 'moved within one world: both parents told, once each');
 });
 
 test('mesh primitive and shadow defaults survive a shallow clone', () => {

@@ -1,5 +1,4 @@
 import { REQUEST_PRIORITY_MAX } from '../request.ts';
-import { EVICTION_BURST } from '../layout.ts';
 
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
@@ -21,18 +20,18 @@ import { EVICTION_BURST } from '../layout.ts';
  * the order the threads won the counter, and the view ahead's behind them, on their own counter;
  * `dagSortRequests` then writes both into the snapshot by `requestRank`, highest first: the
  * camera's whole, then as many ahead as the cap leaves (`OUT_AHEAD_PLACED`, `../layout.ts`). The
- * host reads them in that order and ranks nothing. A light cut writes its own list straight into its snapshot (`../lightCutReports.ts`).
+ * host reads them in that order and ranks nothing.
  */
 export const DAG_RELEVE_WGSL = `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
  *  is truncated. */
 fn emitOne(page:u32,pixels:f32){
  let slot=atomicAdd(&out.count,1u);
  if(slot>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
- out.pages[select(stagedAt(slot),slot,isLightCut())]=packRequest(page,quantizePriority(pixels));
+ out.pages[stagedAt(slot)]=packRequest(page,quantizePriority(pixels));
 }
-/** Where the camera's request \`s\` waits for the sort: behind the eviction queue and its header
+/** Where the camera's request \`s\` waits for the sort: behind the cut's two lists' differences
  *  (\`stagedRequestsWord\`, \`../layout.ts\`, less \`out\`'s header: an index of \`out.pages\`). */
-fn stagedAt(s:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+s;}
+fn stagedAt(s:u32)->u32{return differenceAt(2u*views[0u].listCap+s);}
 /** The requests ahead one sample stages (\`aheadRequestCap\`, \`../layout.ts\`), and where the
  *  request ahead \`s\` waits: behind the camera's whole staged region, which it never enters. */
 fn aheadCap()->u32{return views[0u].listCap/2u;}
@@ -56,7 +55,7 @@ const SORT_LANES:u32=256u;
 var<workgroup> rankPlace:array<atomic<u32>,RANKS>;
 /** Counting sort of the staged requests into the snapshot, one workgroup: count each rank, give
  *  each rank its first place from the highest down, then scatter. Within a rank the order is the
- *  threads', as it was the counter's: the rank alone orders, as on the reference. */
+ *  threads', as it was the counter's: the rank alone orders. */
 @compute @workgroup_size(SORT_LANES)
 fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
  let cap=views[0u].listCap;let n=min(atomicLoad(&out.count),cap);let total=n+min(atomicLoad(&out.ahead),aheadCap());

@@ -1,4 +1,4 @@
-//! The texture deviation a group reduction certifies (#977, Cohen, Olano & Manocha 1998).
+//! The texture deviation a group reduction certifies (#977).
 //!
 //! A coarse triangle draws each texel where its interpolated texture coordinate falls, while the
 //! source drew that texel on the surface point carrying the same coordinate. Their distance, in
@@ -11,15 +11,15 @@
 //! the lookup can never answer with another brick metres away. Each coarse triangle is sampled at
 //! its corners, its edge midpoints and its centroid, as the geometric distance is (`measured.rs`).
 use super::measured::Surface;
+use crate::shared_math::WordMap;
 use lookup::Lookup;
 use rayon::prelude::*;
-use std::collections::HashMap;
 
 mod lookup;
 
 /// The island of every texture copy (`weld_seam` key) the live triangles use: copies joined by a
 /// live triangle are one island (`vanished::joined`, keyed by texture copy instead of position).
-pub(super) fn copy_islands(weld_seam: &[u32], live: &[u32]) -> HashMap<u32, u32> {
+pub(super) fn copy_islands(weld_seam: &[u32], live: &[u32]) -> WordMap<u32, u32> {
     let (local, _, mut join) = super::vanished::joined(live, weld_seam);
     local
         .into_iter()

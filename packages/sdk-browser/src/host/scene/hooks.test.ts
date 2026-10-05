@@ -1,7 +1,7 @@
 // The pose writes the contract lets the host make on a node each increment the revision of
 // the watch that hooked it, at the instant of the write; a write of the value already held
 // increments nothing. The hook redefines no field of an existing object: the node and its
-// vectors keep the fast shape the reference's matrix walk relies on.
+// vectors keep the fast shape the host's matrix walk relies on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

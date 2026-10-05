@@ -19,7 +19,7 @@ export type ReceiverResources = [
 
 /** How each receiver binding is declared: the visibility buffer's words, the uniform, three
  *  read-only buffers, then the normals' float atlas. */
-export const RECEIVER_BINDING_TYPES: readonly ComputeBinding[] = RECEIVER_BINDINGS.map((name) =>
+const RECEIVER_BINDING_TYPES: readonly ComputeBinding[] = RECEIVER_BINDINGS.map((name) =>
   name === 'vis'
     ? { texture: 'uint' }
     : name === 'normals'

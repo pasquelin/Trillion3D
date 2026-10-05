@@ -1,7 +1,7 @@
 import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
 
 /**
- * Engine memory budgets, as in the reference: FIXED-size pools, set by the host and never read off
+ * Engine memory budgets: FIXED-size pools, set by the host and never read off
  * the machine — free memory changes every instant, a budget read at startup would be wrong five
  * minutes later. What a view asks beyond the pool renders coarser; nothing is refused, nothing
  * stops. A value that cannot be held as-is is brought back to what can, and the reason is published
@@ -16,7 +16,7 @@ export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
  *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables
- *  (`../gpu/dag/lightCutCapacity.ts`, `../gpu/dag/frameRanges.ts`). */
+ *  (`../gpu/dag/frameRanges.ts`). */
 export const storageBufferCap = (limits?: {
   maxBufferSize?: number;
   maxStorageBufferBindingSize?: number;
@@ -52,13 +52,16 @@ export const checkGeometryPoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_GEOMETRY_POOL_BUDGET');
 
 /**
- * Geometry page-pool slots for a budget in bytes — `a reference setting
- * StreamingPoolSize` in the reference, 512 MB by default. Root coverage always fits, like its
- * resident root pages outside the pool: a budget smaller than that cover is raised to it, by name.
+ * Geometry page-pool slots for a budget in bytes, 512 MB by default. Root coverage always fits, its
+ * resident root pages being outside the pool: a budget smaller than that cover is raised to it, by name.
  * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
  * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
- * drawable-page tables have sized) on an engine whose tables do not grow. Only the DEVICE limit
- * can refuse, when even root coverage does not fit.
+ * drawable-page tables have sized) on an engine whose tables do not grow. A pool that holds the
+ * whole catalogue (`slots` at `uniquePages`) and knows its pages' own sizes (`homeBytes`,
+ * `../gpu/page/homes.ts`) holds those bytes alone, not a slot of the widest page for each. The
+ * DEVICE limit weighs the pool as it is held: past it, the pool keeps the slots the device holds;
+ * a root cover no device's slots hold is held with every page at its own size when those fit, and
+ * only a catalogue that fits no buffer at all is refused.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number;
@@ -66,6 +69,8 @@ export function geometryPoolFor(options: {
   /** Resident geometry records outside page slots, included in this same budget. */
   fixedBytes?: number;
   uniquePages: number;
+  /** The whole catalogue at its pages' own sizes, when the engine places it so. */
+  homeBytes?: number;
   rootPages: number;
   maxResidentPages?: number;
   ceilingSlots?: number;
@@ -93,17 +98,22 @@ export function geometryPoolFor(options: {
     slots = floor;
     clamp = 'root-cover';
   }
+  const { homeBytes } = options;
+  /** Bytes a pool of `n` slots holds: every page at its own size when it holds the catalogue. */
+  const held = (n: number) =>
+    (homeBytes !== undefined && n >= uniquePages ? homeBytes : n * pageBytes) + fixedBytes;
   const deviceBytes = storageBufferCap(limits);
-  const deviceSlots = Math.floor((deviceBytes - fixedBytes) / pageBytes);
-  if (deviceSlots < slots) {
-    if (deviceSlots < floor)
+  if (held(slots) > deviceBytes) {
+    const deviceSlots = Math.floor((deviceBytes - fixedBytes) / pageBytes);
+    if (deviceSlots >= floor) slots = deviceSlots;
+    else if (held(uniquePages) <= deviceBytes) slots = uniquePages;
+    else
       throw new Error(
         `GEOMETRY_POOL_DEVICE_LIMIT: ${floor} root pages of ${pageBytes} bytes, device allows ${deviceBytes}`,
       );
-    slots = deviceSlots;
     clamp = 'device-limit';
   }
-  return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes + fixedBytes, clamp };
+  return { budgetBytes, slots, pageBytes, allocatedBytes: held(slots), clamp };
 }
 
 /** What a host can change mid-session; a missing field keeps its value. */

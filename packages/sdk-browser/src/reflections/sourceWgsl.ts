@@ -33,7 +33,7 @@ ${taaReprojectWgsl(false)}
 ${PREVIOUS_DEPTH_WGSL}
 @fragment fn reprojectReflectionSource(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let at=vec2i(pixel.xy);let z=textureLoad(depth,at,0);let id=textureLoad(ids,at,0).r;
- let expected=previousDepthOf(pixel.xy,z,id);
+ let expected=previousDepthOf(vec2i(pixel.xy),z,id);
  if(view.params.x==0.0||z==0.0){return vec4f(0.0);}
  let uv=previousUv(at,z,id);
  if(uv.z==0.0){return vec4f(0.0);}

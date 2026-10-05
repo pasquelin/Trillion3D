@@ -13,6 +13,7 @@ import { encodeTransparentInstances } from '../../transparent/draw.ts';
 import { boundWaterPass, encodeWaterPass } from '../../water/pass.ts';
 import { encodeParticles } from '../../../particles/webgpuParticleFrame.ts';
 import { blendLightResources } from '../../blend/lighting.ts';
+import { directLightResources } from '../prepare/lightResources.ts';
 import { voidStaleBlendGroups } from '../../blend/identity.ts';
 import { viewProj } from '../helpers.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
@@ -24,8 +25,7 @@ const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.ca
 /**
  * The transparents of an image, selected, ordered and expanded ahead of anything that draws them:
  * `undefined` without the pass's resources, else whether the blend runs draw them (`true`) or the
- * fallback pass does — the runs mark the shadow pages they read before any page is mapped
- * (`../../blend/marks.ts`, #1411). The compaction reads the mask this very frame's cluster cut
+ * fallback pass does. The compaction reads the mask this very frame's cluster cut
  * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from.
  */
 export function prepareBlend(
@@ -38,7 +38,9 @@ export function prepareBlend(
   if (
     !gpu.pipelineBlend ||
     !blendState.blendGpu.length ||
-    !gpu.colorView ||
+    // The target the pass draws into (`drawBlendPass`): the visibility path's lighting, the
+    // fallback's colour.
+    !(vis.visEnabled ? gpu.hdrView : gpu.colorView) ||
     !gpu.depthView ||
     !gpu.uniformBuffer
   )
@@ -61,11 +63,12 @@ export function prepareBlend(
   const cpuStart = performance.now();
   encodeTransparentInstances(rt, encoder);
   if (textured) {
-    // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
-    // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
+    // The frustum verdict — one bit per item to the GPU, THE image's reject count, water's bounds
+    // — and the few own entries' order on the CPU; the GPU sorts the rest far to near (a blend
+    // writes no depth).
     boundWaterPass(rt, composes, viewProj);
     run.blendFrustumRejected = orderBlendPasses(blendState, blendEye(rt));
-    // The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU.
+    // The GPU orders and expands the plan (instances, one indirect argument per slot), else the CPU.
     encodeBlendExpansion(rt, device, encoder);
   }
   const elapsed = performance.now() - cpuStart;
@@ -89,6 +92,9 @@ export function encodeBlend(
   if (textured === undefined) return;
   const cpuStart = performance.now();
   if (!textured) {
+    // The untextured pass draws into the display colour: one the visibility path apart does not
+    // make wrote nothing shown (`ownsDisplayColor`).
+    if (!rt.gpu.colorView) return;
     run.blendFrustumRejected = selectWebgpuBlend(
       blendState,
       run.gpuFrameActive
@@ -112,16 +118,18 @@ export function encodeBlend(
     return;
   }
   writeBlendView(rt, device);
-  // Resolve lighting resources once; a real resource voids a placeholder's bind group.
-  voidStaleBlendGroups(rt, blendLightResources(rt));
+  // Resolve lighting resources once; a real resource voids a placeholder's bind group. Their key
+  // picks the blend and water programs (`createForwardVariants`).
+  const contract = directLightResources(rt);
+  voidStaleBlendGroups(rt, blendLightResources(rt, contract));
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
-  drawBlendPass(rt, device, encoder);
+  drawBlendPass(rt, device, encoder, false, contract);
   // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
   // Without the pass — a diagnostic view or variant, a second-camera capture, an image no
   // composition follows — the slice draws as one more blend.
-  if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes))
-    drawBlendPass(rt, device, encoder, true);
+  if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes, contract))
+    drawBlendPass(rt, device, encoder, true, contract);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;
@@ -139,7 +147,7 @@ export function encodeBlend(
         submittedTriangles: run.blendSubmittedTriangles,
         transmissiveMeshes: blendState.transmissive,
         encodeMs: timing.transparentEncodeMs,
-        passes: blendState.orders[1].length ? 2 : 1,
+        passes: blendState.seeds[1].length ? 2 : 1,
       }),
     );
 }

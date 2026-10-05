@@ -3,8 +3,8 @@ import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { stagedOutputBytes } from './layout.ts';
-import { FRAME_VEC4, type PackedDag } from './types.ts';
-import { ELEMENT_BYTES, dagSplit, flagPartWords, type DagSplit } from './split.ts';
+import { type PackedDag } from './types.ts';
+import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts';
 import { type TableSplit } from './splitFlags.ts';
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
@@ -101,11 +101,7 @@ export function cameraCutBuffers(
       ...namedParts('nodes', parts.nodes),
       ...namedParts('pageCones', parts.pageCones),
       ...namedParts('flags', parts.flags),
-      work: {
-        label: 'Trillion3D DAG work',
-        size: Math.max(8, workLayout.words * 4),
-        copySource: true,
-      },
+      work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
     } satisfies Record<string, DagBufferRow>,
   };
 }
@@ -133,55 +129,6 @@ export const readoutRow = (listCap: number): DagBufferRow => ({
   size: stagedOutputBytes(listCap),
   copySource: true,
 });
-
-/** What a scene's DAG makes a light cut carry per view. */
-export type LightCutShape = {
-  worldCount: number;
-  nodeCount: number;
-  pageCount: number;
-  blockCount: number;
-  levelSizes: ArrayLike<number>;
-  /** The camera's `frames` ranges: the light cut's per-view rows split in them (`frameRanges.ts`). */
-  frames: { per: number };
-  /** The flag sections the camera cut's `flags` parts start at: the light cut's cut at the same
-   *  ones, the kernel's text being one (`split.ts`). None: whole. */
-  split?: Pick<DagSplit, 'flagCuts'>;
-};
-
-/** Each descent queue: every node, or one root per slot when the slots outnumber the nodes. */
-const lightQueueCap = (shape: LightCutShape, views: number) =>
-  Math.max(shape.nodeCount, shape.worldCount * views);
-
-/**
- * THE BUFFERS OF A LIGHT CUT of `views` views, as `createDagLightCut` makes them (`lightCut.ts`),
- * and as `lightCutCapacity` judges them: its flags, in the camera's parts, its work, and
- * `frames(count)`, one range's per-view rows — the largest, `shape.frames.per`, is the one the
- * device must hold.
- */
-export function lightCutBuffers(shape: LightCutShape, views: number) {
-  const queueCap = lightQueueCap(shape, views),
-    workLayout = dagWorkLayout(shape.blockCount, views);
-  const flags = flagRows(
-    'Trillion3D light cut flags',
-    shape.split?.flagCuts ?? [],
-    queueCap,
-    shape.pageCount,
-    dagFlagsWords(queueCap, shape.pageCount, false),
-  );
-  return {
-    queueCap,
-    workLayout,
-    flags,
-    rows: {
-      ...namedParts('flags', flags),
-      work: { label: 'Trillion3D light cut work', size: workLayout.words * 4, copySource: true },
-    } satisfies Record<string, DagBufferRow>,
-    frames: (count: number): DagBufferRow => ({
-      label: 'Trillion3D light cut frames',
-      size: views * count * FRAME_VEC4 * 16,
-    }),
-  };
-}
 
 /** THE ONE FIT RULE of a cut's buffers: the first of `rows` past one storage binding of this
  *  device, by name, or `undefined` when the device holds them all. */

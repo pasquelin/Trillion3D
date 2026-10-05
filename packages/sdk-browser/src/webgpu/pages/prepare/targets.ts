@@ -6,13 +6,14 @@ import {
   createSurfaceBuffer,
 } from '../../../scene/surfaceBuffer.ts';
 import { dropGpuHiz } from '../io/drops.ts';
-import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
+import { createBackdrop } from '../../transparent/transmission.ts';
+import { dropAside, releaseSet } from './targetsSet.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
-import { MATERIAL_DEPTH_PASS } from '../../../stage/passLabels.ts';
+import { pyramidHeldBytes } from '../../../gpu/hiz/pyramid.ts';
+import { ownsDisplayColor } from './targetAllocation.ts';
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
@@ -20,7 +21,8 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     plan = reflectionPlan(rt),
     pyramid = gpu.reflection?.pyramid;
   return (
-    !!gpu.colorTexture &&
+    !!gpu.hdrTexture &&
+    !!gpu.colorTexture === ownsDisplayColor(rt, size) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
@@ -28,13 +30,12 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
     gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
-    !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     // Judged by the plan the targets were made from (`makeTargets`): a fit that asked otherwise
     // would remake them every image, and a prepare would never settle.
     gpu.reflection?.active === plan.active &&
     !!gpu.reflection?.history === plan.rough &&
     !!pyramid === plan.pyramid &&
-    !!gpu.reflection?.water === plan.water &&
+    !!gpu.reflection?.mirror === plan.mirror &&
     !!pyramid?.radiance === plan.cone &&
     (!vis.visEnabled || !!vis.visTexture)
   );
@@ -42,35 +43,19 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
  *  The view's temporal history goes with them — a capture draws in a view of its own —, unless
- *  `keepHistory`: the display's size stays, only the render size changes (#1343). */
+ *  `keepHistory`: the display's size stays, only the render size changes (#1343). Targets made
+ *  aside for this view go too (`targetsAside.ts`): those in place are what they were to replace. */
 export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
   const { gpu, vis, capture } = rt;
-  const textures = [gpu.colorTexture, gpu.depthTexture, gpu.hdrTexture, gpu.feedbackTexture];
-  if (gpu.displayTexture !== gpu.colorTexture) textures.push(gpu.displayTexture);
-  for (const texture of [...textures, vis.visTexture, vis.materialDepthTexture]) texture?.destroy();
-  gpu.colorTexture = gpu.depthTexture = gpu.hdrTexture = gpu.feedbackTexture = undefined;
-  gpu.colorView = gpu.depthView = gpu.hdrView = gpu.feedbackView = undefined;
-  gpu.displayTexture = gpu.displayView = undefined;
-  gpu.targetBytes = 0;
-  vis.visTexture = vis.materialDepthTexture = undefined;
-  vis.visView = vis.materialDepthView = undefined;
-  disposeBackdrop(gpu);
-  gpu.reflection?.dispose();
-  gpu.reflection = undefined;
-  gpu.surfaces?.dispose();
-  gpu.surfaces = undefined;
-  gpu.asIsShare?.dispose();
-  gpu.asIsShare = undefined;
-  gpu.displayFilter?.dispose();
-  gpu.displayFilter = undefined;
-  vis.gpuRaster?.dispose();
-  vis.gpuRaster = undefined;
+  dropAside(rt);
+  releaseSet(gpu, vis);
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
   if (!keepHistory) gpu.temporal?.release();
 }
 
-/** The texture-feedback target; only the A/B diagnostic copies it out. */
+/** The texture-feedback target, made while the pipelines write it (`./feedbackVariant.ts`, which
+ *  makes and releases it in place); only the A/B diagnostic copies it out. */
 export function makeFeedbackTarget(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -91,12 +76,9 @@ export function makeFeedbackTarget(
 
 /**
  * Makes the frame targets of `size`, of `targetBytes` before the history: what `targetGrant.ts`
- * runs under the device's out-of-memory check, the targets in place released first. Every pass
- * up to the temporal resolve draws at the render size, the targets' or below it; the history and
- * the display colour are the display's. A new render size at the same display size, the render
- * scale crossing an eighth (`ScaleControl.allocated`), keeps the temporal history, which is the
- * display's: the image goes on accumulating rather than restarting. Returns what releases them
- * again, and what they cost (`frame-allocation`).
+ * runs under the device's out-of-memory check, the targets in place released first, the view's
+ * Hi-Z pyramid brought to the render size. Returns what releases them again, and what they cost
+ * (`frame-allocation`).
  */
 export function makeTargets(
   rt: WebgpuPagesRuntime,
@@ -104,12 +86,45 @@ export function makeTargets(
   size: FrameSize,
   targetBytes: number,
 ) {
-  const { gpu, vis, run, capture, blendState } = rt,
+  const { gpu, vis } = rt,
     { renderWidth: width, renderHeight: height } = size;
   releaseTargets(
     rt,
-    !!gpu.colorTexture && gpu.displaySize[0] === size.width && gpu.displaySize[1] === size.height,
+    !!gpu.hdrTexture && gpu.displaySize[0] === size.width && gpu.displaySize[1] === size.height,
   );
+  buildTargets(rt, device, size, targetBytes);
+  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) {
+    dropGpuHiz(rt);
+    gpu.targetBytes -= pyramidHeldBytes(width, height);
+  }
+  return { allocation: targetAllocationOf(rt), destroy: () => releaseTargets(rt) };
+}
+
+/** What the drawn view's targets cost, as `frame-allocation` says it. */
+export const targetAllocationOf = (rt: WebgpuPagesRuntime) => ({
+  frame: rt.run.frame,
+  width: rt.gpu.allocatedSize[0],
+  height: rt.gpu.allocatedSize[1],
+  allocationBytes: rt.gpu.targetBytes,
+  captureAllocationBytes: rt.capture.captureAllocationBytes,
+  physicalVramBytes: null,
+  surfaceVersion: 1,
+});
+
+/**
+ * Makes the frame targets of `size` in the runtime's groups, which hold none: every pass up to the
+ * temporal resolve draws at the render size, the targets' or below it; the history and the display
+ * colour are the display's. A new render size at the same display size keeps the temporal history,
+ * which is the display's: the image goes on accumulating rather than restarting.
+ */
+export function buildTargets(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  size: FrameSize,
+  targetBytes: number,
+) {
+  const { gpu, vis, blendState } = rt,
+    { renderWidth: width, renderHeight: height } = size;
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC;
   const target = (
@@ -118,24 +133,41 @@ export function makeTargets(
     targetUsage = usage,
     extent: GPUExtent3DDict = { width, height },
   ) => device.createTexture({ label, size: extent, format, usage: targetUsage });
-  gpu.colorTexture = target('Trillion3D display color', DISPLAY_FORMAT);
+  gpu.colorTexture = ownsDisplayColor(rt, size)
+    ? target('Trillion3D display color', DISPLAY_FORMAT)
+    : undefined;
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
     'depth32float',
     usage | GPUTextureUsage.COPY_DST,
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
-  if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
-  gpu.surfaces = createSurfaceBuffer(device, width, height, wantsSubsurface(rt));
+  if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height);
+  gpu.surfaces = createSurfaceBuffer(
+    device,
+    width,
+    height,
+    wantsSubsurface(rt),
+    vis.writesEmissiveAo,
+  );
   if (wantsAsIsShare(rt)) makeAsIsShare(rt, device, width, height);
-  gpu.colorView = gpu.colorTexture.createView();
   gpu.displayTexture = size.apart
     ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
         width: size.width,
         height: size.height,
       })
-    : gpu.colorTexture;
-  gpu.displayView = size.apart ? gpu.displayTexture.createView() : gpu.colorView;
+    : gpu.colorTexture!;
+  gpu.displayView = gpu.displayTexture.createView();
+  // Apart, the water's word alone draws into a display colour: its own below the display's size,
+  // the display's at it — the view shared, never the texture, which would make the targets the
+  // display's (`displayApart`) —, none without water (`ownsDisplayColor`).
+  gpu.colorView = gpu.colorTexture
+    ? size.apart
+      ? gpu.colorTexture.createView()
+      : gpu.displayView
+    : blendState.transmissive > 0
+      ? gpu.displayView
+      : undefined;
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
   const plan = reflectionPlan(rt);
@@ -147,7 +179,7 @@ export function makeTargets(
     plan.active,
     plan.rough,
     plan.cone,
-    plan.water,
+    plan.mirror,
   );
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // Temporal history follows the display size.
@@ -160,22 +192,4 @@ export function makeTargets(
   // Visibility targets too: one the device cannot make refuses the set, the mode kept.
   vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled | GPUTextureUsage.COPY_SRC);
   vis.visView = vis.visTexture.createView();
-  // Each pixel's material class, as the depth every class pass tests against.
-  vis.materialDepthTexture = target(
-    MATERIAL_DEPTH_PASS,
-    MATERIAL_DEPTH_FORMAT,
-    GPUTextureUsage.RENDER_ATTACHMENT,
-  );
-  vis.materialDepthView = vis.materialDepthTexture.createView();
-  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) dropGpuHiz(rt);
-  const allocation = {
-    frame: run.frame,
-    width,
-    height,
-    allocationBytes,
-    captureAllocationBytes: capture.captureAllocationBytes,
-    physicalVramBytes: null,
-    surfaceVersion: 1,
-  };
-  return { allocation, destroy: () => releaseTargets(rt) };
 }

@@ -4,18 +4,13 @@ import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts';
 import { computeRasterReady } from '../pages/render/encodeVisSetup.ts';
 import type { WebgpuVisState } from '../pages/state/vis.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import {
-  DEPTH_RAMP_WORD,
-  SHADE_UNIFORM_BYTES,
-  writeSunSlice,
-} from '../../visibility/shader/request.ts';
+import { DEPTH_RAMP_WORD, SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
-import { pixelFootprintOf } from '../../streaming/priority.ts';
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import { SHADE_MODE } from '../../visibility/shader/shadeMode.ts';
 
 /** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
- *  count: with no layer, it is exactly the previous buffer. */
+ *  count: with no layer, one layer's `BASE_SLOTS`. */
 export const visUniformSlots = (vis: WebgpuVisState) => slotCount(vis.drawLayerSlots) + 1;
 
 /** Highest coplanar layer an indirect slot names. The slot count is `1 + min(deepest layer,
@@ -78,15 +73,9 @@ export function writeWebgpuVisibilityUniforms(
   shadeInts[20] = tableRows;
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
-  // The sun's clipmap, and the pixel scale that picks its level, so resolve asks for the tiles a
-  // foliage shadow reads; with no sun to shadow, a header of zeros, and nothing is asked.
-  shadeUniPacked[23] = run.lastCamera
-    ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.displaySize[1])
-    : 0;
   // The depth material's ramp: white at the near plane, black at the far one (#365).
   const { near, far, perspective } = run.gate.cam;
   writeDepthRamp(shadeUniPacked, DEPTH_RAMP_WORD, near, far, perspective);
-  writeSunSlice(rt.lights, shadeUniPacked);
   shadeInts[21] = SHADE_MODE[diagnostic] ?? 0;
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked);
 }

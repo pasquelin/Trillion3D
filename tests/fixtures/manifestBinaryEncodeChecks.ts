@@ -11,7 +11,7 @@ import type { SlimPrimitiveBinary } from '../../packages/sdk-core/src/manifest/b
 import { MAX_DEPTH_LAYER } from '../../packages/sdk-core/src/lod/depthLayer.ts';
 import {
   previewBlockBytes,
-  previewPixelBytes,
+  previewGeometry,
 } from '../../packages/sdk-core/src/texture/previewLevels.ts';
 
 /** A cluster's coplanar depth layer, refused unless it fits the four bits the cache gives it. */
@@ -78,7 +78,7 @@ export function countManifest(manifest: ClusterManifest): Counts {
     bundleDependencies: 0,
     previews: previews.length,
     previewBytes: previews.reduce(
-      (bytes, preview) => bytes + previewPixelBytes(preview.width, preview.height),
+      (bytes, preview) => bytes + previewGeometry(preview.width, preview.height).pixelBytes,
       0,
     ),
     previewBlockBytes: { bc7: 0, astc: 0 },

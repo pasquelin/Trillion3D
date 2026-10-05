@@ -108,14 +108,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const liveTuning = await mesure.reglerReservoirs(explorer, pose, options.livePools);
   const cpuFrameMs: number[] = [],
     cpuSelectMs: number[] = [],
-    gpuFrameMs: number[] = [],
     rafIntervalMs: number[] = [];
+  const gpu = mesure.gpuReadings();
   const gpuPassSamples: GpuPassTimings[] = [];
-  const shadowCounters = mesure.shadowCountersPerFrame();
   const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last: ReturnType<typeof explorer.render> | null = null,
-    previousRaf: number | null = null,
-    gpuFrameOf: number | null = null;
+    previousRaf: number | null = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
     const now = await new Promise<number>((done) => requestAnimationFrame(done));
@@ -124,15 +122,10 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     moveLight(i);
     moveNode(i);
     last = explorer.render(poseAt(i));
-    shadowCounters.push(last);
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
     const sample = last.gpuPassMs;
-    // The device is sampled every few images: one GPU frame time per sampled image, not per render.
-    if (typeof last.gpuFrameMs === 'number' && sample && sample.frame !== gpuFrameOf) {
-      gpuFrameMs.push(last.gpuFrameMs);
-      gpuFrameOf = sample.frame;
-    }
+    gpu.push(last);
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }
@@ -150,10 +143,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // drain and the calm below file images of their own. A dist older than #80 has no such function.
   const cpuBounds =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
-  // The shadow-page queue is drained before any atlas read: see `drainShadowAtlas`.
-  const shadowAtlas = options.shadowDigest
-    ? await mesure.drainShadowAtlas(explorer, capturePose)
-    : null;
   // The capture is that of a HELD pose (`measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
   const settleFrames = await mesure.poseCalme(explorer, capturePose);
@@ -174,11 +163,11 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   return {
     cpuFrameMs,
     cpuSelectMs,
-    gpuFrameMs,
+    gpuFrameMs: gpu.gpuFrameMs,
+    gpuIdleMs: gpu.gpuIdleMs,
     rafIntervalMs,
     importedLights,
     witnessLights,
-    shadowAtlas,
     movingNode,
     stageProfile,
     gpuPassSamples,
@@ -188,7 +177,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     network,
     settleFrames,
     liveTuning,
-    shadowCounters: shadowCounters.summary(),
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,

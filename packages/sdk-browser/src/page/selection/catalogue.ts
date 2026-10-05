@@ -3,8 +3,8 @@ import type { PlacementIndex } from './placements.ts';
 
 /**
  * The packed instances of a layout, stored as nothing per instance (#1235): a rank is resolved
- * through the placement tables to its root and the root's shared `pages`, the way an instance of
- * the reference engine's cluster resolves a cluster as its primitive's page offset plus the instance's base.
+ * through the placement tables to its root and the root's shared `pages`, a cluster being its
+ * primitive's page offset plus the instance's base.
  */
 export type PackedPages = {
   readonly length: number;

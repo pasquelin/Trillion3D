@@ -1,4 +1,5 @@
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts';
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import type { Model } from '../physics/tilePlace.ts';
@@ -42,7 +43,8 @@ export function cookedSoftSource(model: Model, soft: CookedSoftBody): SoftSource
   return source;
 }
 
-/** Copy Jolt's simulation result; normals and reach are simulation writeback (#573). */
+/** Copy the physics module's simulation result; normals and reach are simulation writeback
+ *  (#573). */
 export function receiveSoftSource(source: SoftSource, positions: Float32Array) {
   if (positions.length !== source.positions.length) return false;
   source.positions.set(positions);
@@ -51,7 +53,7 @@ export function receiveSoftSource(source: SoftSource, positions: Float32Array) {
   for (let i = 0; i < positions.length; i += 3)
     reach = Math.max(
       reach,
-      Math.hypot(
+      hypot3(
         positions[i] - source.rest[i],
         positions[i + 1] - source.rest[i + 1],
         positions[i + 2] - source.rest[i + 2],

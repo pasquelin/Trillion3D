@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createDeformationFrame } from './frame.ts';
 import { deformedOf } from './source.ts';
 import { updateWebgpuDeformation } from './webgpuFrame.ts';
-import { packClusterSpheres, growClusterBox } from '../webgpu/shadow/bounds.ts';
+import { growClusterBox } from '../webgpu/shadow/bounds.ts';
+import { packClusterSpheres } from '../webgpu/shadow/spheres.ts';
 import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
@@ -30,13 +31,15 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
     localBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
     worldBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
   };
-  const lights = createWebgpuLightState(2);
+  const lights = createWebgpuLightState();
   lights.mobility.ensure(1, 2, () => world.elements);
   const dirty: number[] = [],
     changed: number[][] = [];
-  lights.plan.worldChanged = (min, max) => {
-    changed.push([...Array.from(min), ...Array.from(max)]);
-  };
+  Object.assign(lights.changes, {
+    worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>) => {
+      changed.push([...Array.from(min), ...Array.from(max)]);
+    },
+  });
   const rt = {
     // A zero pixel error skips no placement (`screen.ts`).
     vis: {
@@ -66,7 +69,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
   weights[0] = 1;
   updateWebgpuDeformation(rt, camera);
   assert.deepEqual(dirty, [0], 'the unrelated caster is left alone');
-  const sphere = packClusterSpheres([rec], [root], new Float32Array(4), 0, 0, () => 0);
+  const sphere = packClusterSpheres([rec], [root], new Float32Array(8), 0, 0, () => 0);
   assert.ok(sphere[3] >= 101, 'the GPU cull and shadow occlusion sphere contains maximum reach');
   const box = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
   growClusterBox(rec, [root], box, 0);

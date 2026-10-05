@@ -64,11 +64,7 @@ test('page-authored placement uploads its own morph weights and resets history o
     placement: { rows, index: 0 },
     deformation: measured,
   } as unknown as ClusterRoot<PageRec>;
-  const session = createSessionDeformation([root], {
-    of() {
-      throw new Error('authored bones are not host nodes');
-    },
-  });
+  const session = createSessionDeformation([root]);
   assert.equal(session.any, true);
   session.frame.update(() => false);
   const at = recordLayout({ joints: 0, targets: 1, waves: 0 }).weights;

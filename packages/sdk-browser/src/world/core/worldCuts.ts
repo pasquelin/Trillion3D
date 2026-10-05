@@ -9,6 +9,7 @@ import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
+import type { CutWay } from '../page/runtimePack.ts';
 import { composesWithBackground } from '../../scene/materialBlending.ts';
 import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts';
 import type { WorldNotices } from '../diagnostic/worldNotices.ts';
@@ -36,8 +37,10 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
  * dashed line's kind, whose quads carry their distance along the line, and a sprite's centre,
  * which moves its quad about its origin. A line's width and its dash lengths are not among them:
  * the rasters widen its quads on screen and cut its dashes; nor a sprite's rotation, which the
- * rasters apply. Whether it blends sets the grid its pages sit on (`cutDrawnTriangles`). Two
- * meshes equal on these draw the same pages, whatever else they wear.
+ * rasters apply. Whether it blends sets the grid its pages sit on (`cutDrawnTriangles`), and
+ * whether the waves carry it (`mesh.waves`, #357) holds its faces as a rewritten geometry's are —
+ * they move after the cut: blended, they are cut in compact runs, and keep no cone. Two meshes
+ * equal on these draw the same pages, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
   const material = firstMaterial(mesh.material);
@@ -52,20 +55,28 @@ function readingOf(mesh: Mesh) {
   // Drawn blended as its surface is (`worldSurface.ts`): a mode that composes with the background
   // blends whatever `transparent` says.
   const blended = material.transparent === true || composesWithBackground(material.blending);
-  const key = [mesh.primitive, blended, ...Object.values(options)].join('|');
-  return { key, options, blended };
+  const cut: CutWay = { held: !!mesh.waves };
+  const key = [mesh.primitive, blended, cut.held, ...Object.values(options)].join('|');
+  return { key, options, blended, cut };
 }
 
 /** Drawn triangles, packed once (`packDrawn`): the digest of that buffer is their content key,
  *  and the buffer itself is what the cut is handed — then yielded, and dropped here. */
-type Content = { key: string; drawn: DrawnTriangles; blended: boolean; packed: ArrayBuffer | null };
+type Content = {
+  key: string;
+  drawn: DrawnTriangles;
+  blended: boolean;
+  /** How the cut takes them beside their content (`CutWay`). */
+  cut: CutWay;
+  packed: ArrayBuffer | null;
+};
 
-async function readContent(drawn: DrawnTriangles, blended: boolean): Promise<Content> {
-  const packed = packDrawn(drawn, blended);
+async function readContent(drawn: DrawnTriangles, blended: boolean, cut: CutWay): Promise<Content> {
+  const packed = packDrawn(drawn, blended, cut);
   // Line quads are drawn widened and a sprite's quad turned to the camera: neither shares a
   // resource with the same bytes read as faces.
   const kind = drawn.lines ? 'lines:' : drawn.spriteRadius !== undefined ? 'sprite:' : '';
-  return { key: kind + (await sha256Hex(packed)), drawn, blended, packed };
+  return { key: kind + (await sha256Hex(packed)), drawn, blended, cut, packed };
 }
 
 type Reading = { version: number; read: Promise<Content | null> };
@@ -99,7 +110,7 @@ export function createWorldCuts(notices?: WorldNotices) {
   /** The resource of a content, cut when the table holds none; a geometry object that is not
    *  the first to bring this content is counted as folded. */
   const resourceOf = (content: Content, fresh: boolean) => {
-    const { key, drawn, blended } = content,
+    const { key, drawn, blended, cut } = content,
       packed = content.packed;
     content.packed = null;
     let pending = byKey.get(key);
@@ -109,7 +120,7 @@ export function createWorldCuts(notices?: WorldNotices) {
     }
     // A content read again after its resource was released packs its triangles again.
     counts.cuts++;
-    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended), drawn).then(
+    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended, cut), drawn).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
       // A failed cut leaves no trace: the next mesh with this content tries again.
       () => {
@@ -134,7 +145,7 @@ export function createWorldCuts(notices?: WorldNotices) {
     /** The resource `mesh` draws, cut if no resource of its content exists; null when it draws
      *  no triangle. The mesh is counted among its users until it leaves. */
     async of(mesh: Mesh): Promise<Cut | null> {
-      const { key: way, options, blended } = readingOf(mesh);
+      const { key: way, options, blended, cut } = readingOf(mesh);
       if (dynamic.wants(mesh))
         return wear(mesh, await dynamic.of(mesh, way, options, blended, made));
       const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>();
@@ -143,7 +154,7 @@ export function createWorldCuts(notices?: WorldNotices) {
       const fresh = !reading || reading.version !== mesh.geometry.version;
       if (fresh) {
         const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options);
-        const read = drawn ? readContent(drawn, blended) : Promise.resolve(null);
+        const read = drawn ? readContent(drawn, blended, cut) : Promise.resolve(null);
         reading = { version: mesh.geometry.version, read };
         ways.set(way, reading);
         // A read that failed (no digest on this origin) is forgotten: the next asks again.

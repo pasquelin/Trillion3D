@@ -10,7 +10,9 @@ import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
-test('a host-led frame waits for a family on its way: nothing steps nor draws, then it does (#1353)', async () => {
+const turn = () => new Promise((wake) => setImmediate(wake));
+
+test('a host-led frame waits for a family on its way: nothing steps nor draws, then it draws once (#1353)', async () => {
   const ready = Promise.resolve();
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
   const { session } = sessionStandIn();
@@ -36,10 +38,17 @@ test('a host-led frame waits for a family on its way: nothing steps nor draws, t
     null,
     'the frame waits for the chain',
   );
-  assert.deepEqual([stepped, drawn], [0, 0]);
+  assert.equal(
+    runtime.render(() => stepped++),
+    null,
+    'and so does the next one asked',
+  );
+  assert.deepEqual([stepped, drawn], [0, 0], 'nothing steps ahead of the frame that waits');
   await runtime.settled(); // which waits for a family on its way too
+  await turn();
   assert.equal(families.effects.arrived, true);
+  assert.deepEqual([stepped, drawn, failures], [1, 1, []], 'drawn once on arrival, stepped first');
   assert.ok(runtime.render(() => stepped++));
-  assert.deepEqual([stepped, drawn, failures], [1, 1, []], 'drawn once arrived, stepped first');
+  assert.deepEqual([stepped, drawn], [2, 2], 'then a frame asked draws at once');
   runtime.dispose();
 });

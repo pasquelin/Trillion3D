@@ -46,7 +46,7 @@ test('the root cover is the first thing a cold explorer asks for, and the only t
   scene.material.dispose();
 });
 
-test('the ring a prefetch pulls is the next finer level, and only once nothing visible is missing', () => {
+test('an eight-pixel budget asks for the mid level alone, and nothing once it lands', () => {
   const scene = fixture();
   const backend = exactPagesBackend({
     source: scene.source,
@@ -62,11 +62,10 @@ test('the ring a prefetch pulls is the next finer level, and only once nothing v
   // Eight pixels of budget put the cut on the mid clusters; half of it reaches the leaves. The
   // certified bound of defect 3 announces more than the old under-estimate for the same
   // spheres, so the same intent needs a wider budget than the four pixels this test used.
-  assert.deepEqual(backend.pendingUrls?.(), ['bundle-mid'], 'the cut comes before any ring');
+  assert.deepEqual(backend.pendingUrls?.(), ['bundle-mid'], 'the cut stops at the mid level');
   backend.acceptPage?.('bundle-mid', new Uint32Array([0, 1, 2, 3, 4, 5]));
   backend.render(camera());
   assert.deepEqual(backend.pendingUrls?.(), [], 'nothing visible is missing');
-  assert.deepEqual(backend.prefetchUrls?.(), ['bundle-leaves'], 'the ring is the next finer level');
   backend.dispose();
   scene.geometry.dispose();
   scene.material.dispose();

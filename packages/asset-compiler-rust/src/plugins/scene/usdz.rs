@@ -3,8 +3,7 @@
 //! place, never to shrink them. This driver extracts it under the cache, then yields to the
 //! router what it extracted; it reads no geometry and re-encodes nothing.
 //!
-//! Provenance: AOUSD *OpenUSD Core Specification* for the package layout, PKWARE APPNOTE
-//! 6.3.10 for the container, read by `archive/zip_reader.rs`, shared with the `zip` driver.
+//! The container is read by `archive/zip_reader.rs`, shared with the `zip` driver.
 //!
 //! The extracted directory carries the layer and the images beside it: the router recognises
 //! the `usd` driver there, which resolves image URIs against that same directory. An archive

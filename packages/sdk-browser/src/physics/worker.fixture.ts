@@ -1,5 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { DEFAULT_PHYSICS_BUDGET, POSE_WORDS } from '../../../sdk-core/src/physics/index.ts';
+import {
+  DEFAULT_PHYSICS_BUDGET,
+  PHYSICS_STEP,
+  POSE_WORDS,
+  type PhysicsBudget,
+} from '../../../sdk-core/src/physics/index.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import {
@@ -46,8 +51,8 @@ export const loaded = () =>
 /** A tick from the worker that moves nothing; a test spreads what it sends over it. */
 export const idleTick: PhysicsResults = {
   ...{ type: 'results', buffer: new ArrayBuffer(0), poses: 0, events: 0, dropped: 0, steps: 0 },
-  ...{ seconds: 0, water: 0, waterEpoch: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
-  ...{ character: null, vehicles: null, soft: null, spent: [] },
+  ...{ step: 0, resting: false, heard: 0, stepMs: 0, stepMaxMs: 0, active: 0 },
+  ...{ character: null, feet: null, vehicles: null, soft: null, spent: [] },
 };
 
 /** One pose record for engine id `id`: position and quaternion, velocities zero. */
@@ -72,15 +77,16 @@ export async function fakePhysicsWorld() {
 }
 
 /**
- * The physics worker's own code run in this thread on `clock`, sent its start on an 8-body budget
- * for `threads` threads, its module fetched as `answer` has it; `ready` resolves when it says so. From then its ticks wait in `ticks`
- * (with the delay asked) until the test runs them; its messages are kept in `sent`, each buffer
+ * The physics worker's own code run in this thread on `clock` (what it times its steps by), sent
+ * its start on an 8-body budget (over `limits`) for `threads` threads, its module fetched as
+ * `answer` has it; `ready` resolves when it says so. Its messages are kept in `sent`, each buffer
  * copied as it was sent. The globals it replaces stay replaced.
  */
 export async function launchedWorker(
   clock: () => number,
   threads = 1,
   answer = (bytes: Buffer<ArrayBuffer>) => new Response(bytes),
+  limits: Partial<PhysicsBudget> = {},
 ) {
   Object.defineProperty(performance, 'now', { value: clock, configurable: true });
   const scope = globalThis as unknown as Record<string, unknown>;
@@ -88,7 +94,6 @@ export async function launchedWorker(
   const bytes = await readFile(new URL(file, import.meta.url));
   scope.fetch = async () => answer(bytes);
   scope.location = { href: import.meta.url };
-  const ticks: [() => void, number][] = [];
   const sent: FromPhysics[] = [];
   let onReady = () => {};
   const ready = new Promise<void>((resolve) => (onReady = resolve));
@@ -96,23 +101,21 @@ export async function launchedWorker(
     sent.push(
       message.type === 'results' ? { ...message, buffer: message.buffer.slice(0) } : message,
     );
-    if (message.type === 'ready') {
-      scope.setTimeout = (tick: () => void, ms: number) => ticks.push([tick, ms]);
-      onReady();
-    }
+    if (message.type === 'ready') onReady();
   };
   await import('./physicsWorker.ts');
   const receive = (data: ToPhysics) =>
     (scope.onmessage as (event: { data: ToPhysics }) => void)({ data });
-  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, memoryBytes: 64 << 20 };
+  const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, memoryBytes: 64 << 20, ...limits };
   const buffers = [0, 1].map(() => new ArrayBuffer(resultWords(budget) * 4));
-  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads, buffers });
-  return { ticks, sent, receive, budget, ready };
+  const step = PHYSICS_STEP;
+  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads, step, buffers });
+  return { sent, receive, budget, ready };
 }
 
-/** `launchedWorker` on one thread, once ready. */
-export async function startedWorker(clock: () => number) {
-  const { ready, ...worker } = await launchedWorker(clock);
+/** `launchedWorker` on one thread over `limits`, once ready. */
+export async function startedWorker(clock: () => number, limits: Partial<PhysicsBudget> = {}) {
+  const { ready, ...worker } = await launchedWorker(clock, 1, undefined, limits);
   await ready;
   return worker;
 }

@@ -13,7 +13,7 @@
 // - `shadows`: shadow reads, at most the shaded lights holding a slot that reach the pixel, each
 //   the PCF's sixteen depth gathers on both sides.
 // - `demand`: the lights holding a slot that reach the pixel, each marked by the shadow demand pass
-//   (`demandWgsl.ts`), whatever the draw shades.
+//   (`vsm/markingWgsl.ts`), whatever the draw shades.
 //
 //   node bench/runner/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { parseArgs } from 'node:util';

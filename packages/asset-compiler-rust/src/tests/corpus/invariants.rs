@@ -1,7 +1,7 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
 use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
@@ -72,6 +72,13 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
     let used: HashSet<u32> = indices.iter().copied().collect();
     let vertices = case.vertex_count() as u32;
     let grown = (built.positions.len() / 3) as u32;
+    // Each group's outputs, by the `source` link the runtime reads beside `group`.
+    let mut outputs: HashMap<usize, Vec<&DagCluster>> = HashMap::new();
+    for cluster in &built.dag {
+        if let Some(group) = cluster.source {
+            outputs.entry(group).or_default().push(cluster);
+        }
+    }
     for cluster in &built.dag {
         assert!(
             cluster.lod_error.is_finite() && cluster.lod_error >= 0.0,
@@ -82,17 +89,17 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
             cluster.lod_error <= cluster.parent_error,
             "{label}: errors climb"
         );
-        match cluster.replacement {
-            Some(parent) => {
-                assert_eq!(
-                    built.dag[parent].lod_error, cluster.parent_error,
-                    "{label}: parent error"
-                );
-                assert_eq!(
-                    built.dag[parent].level,
-                    cluster.level + 1,
-                    "{label}: parent level"
-                );
+        match cluster.group {
+            Some(group) => {
+                let parents = outputs.get(&group).map_or(&[][..], Vec::as_slice);
+                assert!(!parents.is_empty(), "{label}: a group has outputs");
+                for parent in parents {
+                    assert_eq!(
+                        parent.lod_error, cluster.parent_error,
+                        "{label}: parent error"
+                    );
+                    assert_eq!(parent.level, cluster.level + 1, "{label}: parent level");
+                }
             }
             None => assert!(cluster.is_root(), "{label}: unreplaced means root"),
         }

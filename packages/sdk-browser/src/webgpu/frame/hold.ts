@@ -1,15 +1,14 @@
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
-import { forgetShadowCpuSteps } from '../shadow/cpuSteps.ts';
-import { beginTaaFrame, restartTaaOnShadowLanding, taaSettled } from '../../taa/frame.ts';
+import { beginTaaFrame, restartTaaOnSettle, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
 import { particlesMoved } from '../../particles/webgpuParticleFrame.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
+import { asidePending, swapAsideTargets } from '../pages/prepare/targetsAside.ts';
 import { deviceAnswering } from './deviceAnswer.ts';
-
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
   'lost',
@@ -38,7 +37,6 @@ const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << inde
 >;
 export const TEXTURES_PENDING = BIT.texturesPending,
   SHADOWS_PENDING = BIT.shadowsPending;
-
 /**
  * Pending work that can change the frame. Read without allocation by hold and the barrier.
  */
@@ -94,7 +92,6 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>
   REASONS.filter((reason) => (mask & BIT[reason]) !== 0);
-
 /**
  * What a held frame actually did, published as such.
  *
@@ -116,11 +113,10 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastGpuPassMs = null;
   timing.lastGpuFrameMs = null;
   timing.lastGpuHostGapMs = null;
+  timing.lastGpuIdleMs = null;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps.fill(0);
-  // Nor did it plan or encode a shadow: those steps did not run, they read `NaN`.
-  forgetShadowCpuSteps(steps);
   // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
   steps[CPU_STEP.tilesPumpMs] = NaN;
   steps[CPU_STEP.queueSubmitMs] = submitMs;
@@ -131,12 +127,10 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   // The detailed sample describes an encoded frame; this one is not, and does not republish one.
   timing.cpuSample = undefined;
 }
-
 /**
- * A frame that casts a shadow while the device still answers for its shadow pool (`poolSize.ts`)
- * would be drawn without it, an incomplete image (#483): it is held instead, showing the previous
- * image or nothing yet, and `pendingWebgpuFrame` asks the next frame once the device answered. So
- * is a frame whose targets the device has not granted (`targetGrant.ts`), and a lit frame whose
+ * A frame whose targets the device has not granted (`targetGrant.ts`) would be drawn without
+ * them, an incomplete image (#483): it is held instead, showing the previous image or nothing yet,
+ * and `pendingWebgpuFrame` asks the next frame once the device answered. So is a lit frame whose
  * lit program still compiles (#1362): never the unlit stand-in. A capture is never held: it waited
  * for those answers before it began (`deviceAnswering`).
  *
@@ -144,7 +138,9 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * target IS this frame, to the bit, since nothing it depends on has moved: it is redisplayed.
  *
  * Replaying render bundles alone omits the frame's compute passes and copies.
- * Redisplaying the intact target yields it exactly, and that is the only command encoded.
+ * Redisplaying the intact target yields it exactly, and that is the only command encoded — none
+ * when the canvas still holds it whole (`holds`): a canvas keeps the image last presented into it.
+ * A view placed at a rectangle presents as before: the canvas around it is the main view's.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt,
@@ -154,8 +150,12 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // Reflection refinement delays holding, but a still source keeps the full TAA scale/lights.
     const unsettled = unsettledMask(rt);
     const quiet = run.gate.held() && (unsettled & ~BIT.reflections) === 0;
+    // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
+    // into them, never held on a display colour they never had. Its stillness is the scene's.
+    const swapped = !awaited && answered && swapAsideTargets(rt, device);
     // Guides and effects may still require drawing this quiet source.
     if (
+      swapped ||
       !quiet ||
       unsettled & BIT.reflections ||
       !taaSettled(rt) ||
@@ -164,22 +164,32 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       particlesMoved(rt)
     ) {
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
+      restartTaaOnSettle(rt, (unsettled & BIT.reflections) !== 0);
       beginTaaFrame(rt, run.gate.cam, quiet);
       run.frameHeld = false;
       return false;
     }
   }
   // Held on an answer still in flight is not the still frame the page waits for (`frameHeld`):
-  // that answer asks the next frame, and nothing it holds is this frame.
-  run.frameHeld = answered;
+  // that answer asks the next frame, and nothing it holds is this frame. Nor is one held while
+  // targets are made aside: the frame that swaps them in is drawn.
+  run.frameHeld = answered && !asidePending(rt);
   run.frame++;
   const start = performance.now();
   let presented = false;
   // Nothing drawn yet, or targets not granted: nothing is shown.
-  if (gpu.presenter && gpu.displayTexture && run.imageRevision > 0 && !awaited) {
+  const { presenter, displayTexture } = gpu,
+    [width, height] = gpu.displaySize,
+    at = rt.views.active.rect;
+  if (
+    presenter &&
+    displayTexture &&
+    run.imageRevision > 0 &&
+    !awaited &&
+    (at || !presenter.holds(displayTexture, width, height))
+  ) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
-    const [width, height] = gpu.displaySize;
-    gpu.presenter.present(encoder, gpu.displayTexture, width, height, rt.views.active.rect);
+    presenter.present(encoder, displayTexture, width, height, at);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
     presented = true;
@@ -194,7 +204,6 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
   if (textureConverging || rt.feedbackAB?.force) return;
-  restartTaaOnShadowLanding(rt);
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }

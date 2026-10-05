@@ -1,5 +1,7 @@
-//! The octahedral mapping of the impostor atlas (#817): direction to grid and back, the plane of
-//! each captured frame, and the three frames a view blends. Object space, +Y up, pivot at the
+//! The octahedral mapping of the impostor atlas (#817): a direction is projected onto the
+//! octahedron `|x| + |y| + |z| = 1`, the lower half folded over the upper one so the sphere fills a
+//! square; this module maps direction to grid and back, gives the plane of each
+//! captured frame, and picks the three frames a view blends. Object space, +Y up, pivot at the
 //! bounding-sphere centre. The runtime card (#483) reads the atlas through the same formulas.
 use crate::proxy::tracer::normalise as unit;
 use crate::shared_math::cross;

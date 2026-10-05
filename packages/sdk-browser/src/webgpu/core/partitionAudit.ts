@@ -72,13 +72,11 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     if (!rec) continue;
     // The corners the GPU read are these, rounded to single precision for transport: the reference
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
-    pageCornersInto(
-      corners,
-      row * BOX_CORNER_VALUES,
-      rec,
-      rootOf(rt.layout.selectionRoots, rt.layout.placement.rootOfPacked[table.packedPageIndex[row]])
-        .world,
+    const root = rootOf(
+      rt.layout.selectionRoots,
+      rt.layout.placement.rootOfPacked[table.packedPageIndex[row]],
     );
+    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec, root.world, root.reach);
   }
   return {
     rows,

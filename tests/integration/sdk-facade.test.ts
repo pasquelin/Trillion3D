@@ -98,13 +98,16 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 789);
+  // 737 since the cleanup waves: the old shadow atlas, the CPU transport experiment, the nested
+  // Hi-Z oracles and the example-only helpers left the public API (789 before).
+  assert.equal(inventory.exports.length, 737);
   assert.deepEqual(inventory.collisions, []);
   // The page words of the world families shadow the engine contracts of the same name in the
-  // browser condition; the inventory names every such pair.
+  // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
+  // the CPU transport experiment).
   assert.deepEqual(
     inventory.shadowed.map((entry) => entry.name),
-    ['CameraPose', 'Material', 'Primitive', 'Scene', 'Side', 'Texture'],
+    ['CameraPose', 'Material', 'Primitive', 'Side', 'Texture'],
   );
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
@@ -163,10 +166,11 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs);
   assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')));
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
-  // 4 396 since #29: `BOUNCE_SETTINGS` lost `lightsPerRay:4,` (15 bytes); no code is added.
-  assert.equal(baseline.outputFiles[0].contents.length, 4_396);
-  assert.equal(proposed.outputFiles[0].contents.length, 1_725);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_344);
+  // The engine entry shrank with the retired exports (4 396 to 3 868); the two others grew with the
+  // machine-independent quaternion normalisation and arc trigonometry (determinism).
+  assert.equal(baseline.outputFiles[0].contents.length, 3_868);
+  assert.equal(proposed.outputFiles[0].contents.length, 2_141);
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821);
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   );

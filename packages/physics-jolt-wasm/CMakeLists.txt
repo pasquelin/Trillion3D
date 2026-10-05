@@ -17,7 +17,7 @@ if (PROFILE)
   set(PROFILER_IN_DISTRIBUTION ON CACHE BOOL "" FORCE)
   set(JPH_USE_EXTERNAL_PROFILE ON CACHE BOOL "" FORCE)
   set(PROFILE_SOURCES bench/profile.cpp)
-  set(PROFILE_EXPORTS ",'_jolt_profile_name','_jolt_profile_ms','_jolt_profile_calls','_jolt_profile_reset'")
+  set(PROFILE_EXPORTS ",'_jolt_profile_name','_jolt_profile_ms','_jolt_profile_reset'")
 endif ()
 if (THREADS)
   # Every object, Jolt's included, must carry the atomics and bulk-memory features.
@@ -60,20 +60,20 @@ endif ()
 if (NOT EMSCRIPTEN)
   # The native bench (`bench/native.cpp`), for comparison with the web module; never shipped.
   add_executable(joltBench bench/native.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-    src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp
+    src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
   target_compile_options(joltBench PRIVATE -O3)
   # Its buoyancy share (`bench/water.cpp`, `scripts/bench-fluids.ts`).
   add_executable(joltWaterBench bench/water.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp
-    src/report.cpp src/restore.cpp src/character.cpp src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp)
+    src/report.cpp src/restore.cpp src/character.cpp src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp)
   target_link_libraries(joltWaterBench PRIVATE Jolt)
   target_compile_options(joltWaterBench PRIVATE -O3)
   return()
 endif ()
 
 add_executable(${NAME} src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-  src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp ${SOURCES} ${PROFILE_SOURCES})
+  src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp ${SOURCES} ${PROFILE_SOURCES})
 target_link_libraries(${NAME} PRIVATE Jolt)
 set_target_properties(${NAME} PROPERTIES SUFFIX ".wasm")
 target_compile_options(${NAME} PRIVATE -O3 -msimd128)
@@ -82,4 +82,4 @@ target_link_options(${NAME} PRIVATE
   -sSTANDALONE_WASM=1 -sIMPORTED_MEMORY=1 -sALLOW_MEMORY_GROWTH=1
   -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=4294967296 -sSTACK_SIZE=1048576
   -sFILESYSTEM=0 -sASSERTIONS=0 -sERROR_ON_UNDEFINED_SYMBOLS=1
-  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_diverged_count','_jolt_diverged','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast','_jolt_character','_jolt_water_query','_jolt_water_pieces','_jolt_broken_count','_jolt_broken','_jolt_link_visits','_jolt_path_visits','_jolt_break_visits','_jolt_place_visits','_jolt_vehicles','_jolt_vehicle_words','_jolt_soft','_jolt_soft_words','_jolt_concurrency','_jolt_wave_buffer','_jolt_water_planes'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")
+  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_diverged_count','_jolt_diverged','_jolt_recovered_count','_jolt_recovered','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast','_jolt_character','_jolt_water_query','_jolt_water_pieces','_jolt_broken_count','_jolt_broken','_jolt_link_visits','_jolt_path_visits','_jolt_break_visits','_jolt_place_visits','_jolt_vehicles','_jolt_vehicle_words','_jolt_soft','_jolt_soft_words','_jolt_concurrency','_jolt_wave_buffer','_jolt_water_planes'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")

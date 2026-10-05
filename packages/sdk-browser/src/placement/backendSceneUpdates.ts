@@ -77,6 +77,15 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** Rows `from` to `to` of an instance buffer the session was opened with were written — a pose,
    *  a row taken or parked: the roots that read them follow at the next frame, no table rebuilt. */
   updatePlacements?(rows: PlacementRows, from: number, to: number): void;
+  /** POC: rows `links` follow `parent`, whose world is `world`; the engine composes them on the
+   *  GPU. `whole`: they are every row that follows it, none unlinks it; otherwise rows it holds,
+   *  at a new local matrix. False when it cannot: the owner writes the rows itself. */
+  composePlacements?(
+    parent: object,
+    world: ArrayLike<number>,
+    links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
+    whole: boolean,
+  ): boolean;
   /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
    *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
   worldCut?(): SelectionUniforms | undefined;
@@ -86,13 +95,18 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   mountPlacements?(mount: PlacementMount): Promise<void>;
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
    *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
-   *  they were and where they go): the engine writes those vertices into the buffers it holds and
-   *  stales what they shadowed, no table rebuilt. True when taken; absent, the owner opens the
-   *  session again. */
+   *  they were and where they go), each vertex at most `reach` from where its page is bounded on
+   *  an axis (`world/page/runtimePrimitive.ts`), each page's vertices within its box of `boxes`
+   *  (`world/core/pageMotion.ts`), when given: the engine writes those vertices into the buffers
+   *  it holds, grows every cut of their roots by `reach` as a deformation's, bounds each page's
+   *  row by its box, and stales what they shadowed, no table rebuilt. True when taken; absent, the
+   *  owner opens the session again. */
   updateVertices?(
     attributes: HostAttributes,
     ranges: readonly VertexRange[],
     box: Float64Array,
+    reach: number,
+    boxes?: Float64Array,
   ): boolean;
   /** The bytes `updateVertices` sends the GPU for `ranges`; absent, the lists' own (#573). */
   vertexBytes?(attributes: HostAttributes, ranges: readonly VertexRange[]): number;

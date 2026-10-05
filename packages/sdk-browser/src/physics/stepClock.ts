@@ -1,60 +1,79 @@
 import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { addressParam, heldOnce } from '../host/addressFlag.ts';
+
+/** `trillion3dPhysicsHz=<n>`: a temporary switch for a measure, the fixed step `1/n` s rather than
+ *  `PHYSICS_STEP`; read once, and the page and its worker share the answer (`start.step`). */
+const physicsHzAsked = heldOnce(
+  addressParam((params) => Number(params.get('trillion3dPhysicsHz') ?? Number.NaN), Number.NaN),
+);
+
+/** Seconds of one fixed step: `PHYSICS_STEP`, or the address switch's `1/n` when it names a
+ *  rate above 0. */
+export function physicsStep() {
+  const hz = physicsHzAsked();
+  return hz > 0 && hz < Infinity ? 1 / hz : PHYSICS_STEP;
+}
 
 /**
- * The physics worker's clock: the simulated time the page's clock let pass since the last tick is
- * owed in fixed steps, a ceiling of catch-up steps; at rest — no tick due, `resting` — it runs the
- * water's waves on instead, so a world asleep still has moving water and the bodies it wakes meet
- * the waves drawn. Paused, nothing is owed and the waves stand still.
+ * THE SIMULATION'S CLOCK IS THE FRAMES'. Each frame the world draws, the seconds it advanced
+ * (`FrameInfo.delta`: on the display's grid, bounded after a pause), times `timeScale` and none
+ * while paused, are owed to the simulation in fixed steps of `step` seconds; one frame owes
+ * `MAX_CATCH_UP_STEPS` at most, the time past them dropped (slow motion, never a spiral). The
+ * worker is asked for a whole count of steps (`steps`), so the same frames owe the same steps,
+ * whatever the worker's speed, short of a `limit` the page sets while it waits on a slower one.
+ * A frame whose clock stepped back owes nothing: time never runs backwards.
+ *
+ * A frame is drawn where the frame before left the clock, one step behind (`drawn`): the worker
+ * steps a frame's time once that frame has sent it, so the newest state a frame can hold is the
+ * one the frame before asked for, and one step behind it the two states that bracket the drawn
+ * time are both there whenever the worker keeps up. The clock moves at the frame's start, before
+ * the controller (`worldFrames.ts`): everything the frame draws, the character the controller
+ * moves first included, reads that one time.
  */
-export function createStepClock(water: { rest(seconds: number): void }) {
-  let last = 0,
+export function createStepClock(step: number) {
+  let steps = 0,
     owed = 0;
-  const since = (now: number) => ((now - last) / 1000) * clock.timeScale;
-  /** The clock starts again at `now`; at rest, the time since the last tick ran the waves on. */
-  const restart = (now: number, resting: boolean) => {
-    if (resting && !clock.paused) water.rest(since(now));
-    last = now;
-  };
+  /** The time the frame draws: `owed` seconds past the page's step `step`. */
+  const drawn = { step: -1, owed: 0 };
   const clock = {
     paused: false,
     timeScale: 1,
-    /** Simulated seconds owed and not yet stepped. */
-    get owed() {
-      return owed;
+    /** Fixed steps owed since the clock began: the page's step the worker is asked to reach. */
+    get steps() {
+      return steps;
     },
-    /** The simulation starts at `now`: nothing owed before it. */
-    start(now: number) {
-      last = now;
+    drawn: drawn as DrawnTime,
+    /** A frame `seconds` after the last: it is drawn where the clock stood, and its simulated time
+     *  is owed, the clock never past the page's step `limit`: there it waits, the time beyond
+     *  dropped. Returns the steps it adds. */
+    frame(seconds: number, limit = Infinity) {
+      [drawn.step, drawn.owed] = [steps - 1, owed];
+      if (clock.paused || !(seconds > 0) || steps >= limit) return 0;
+      owed = Math.min(owed + seconds * clock.timeScale, MAX_CATCH_UP_STEPS * step);
+      let taken = 0;
+      for (; owed >= step; taken++) owed -= step;
+      if (steps + taken >= limit) [taken, owed] = [limit - steps, 0];
+      steps += taken;
+      return taken;
     },
-    /** A tick runs at `now`: the time since the last one is owed. */
-    tick(now: number) {
-      if (!clock.paused) owed = Math.min(owed + since(now), MAX_CATCH_UP_STEPS * PHYSICS_STEP);
-      last = now;
-    },
-    /** Whether one step is owed; if so, it is taken. */
-    step() {
-      if (clock.paused || owed < PHYSICS_STEP) return false;
-      owed -= PHYSICS_STEP;
-      return true;
-    },
-    /** Milliseconds until the next step is owed. */
-    delay: () => Math.max(1, ((PHYSICS_STEP - owed) * 1000) / clock.timeScale),
-    /** What the page just sent is owed now: a resting world steps at once, not a frame later. */
-    wake(now: number, resting: boolean) {
-      if (!resting) return;
-      restart(now, true);
-      if (!clock.paused) owed = Math.max(owed, PHYSICS_STEP);
-    },
-    /** The page's clock changes at `now`: the time so far passed at the old rate. */
-    set(now: number, resting: boolean, paused: boolean, timeScale: number) {
-      restart(now, resting);
-      Object.assign(clock, { paused, timeScale });
-    },
-    /** New water, its waves at 0 s: the rest time of a resting world passed before it, and is
-     *  never stepped on it. */
-    water(now: number, resting: boolean) {
-      if (resting) last = now;
-    },
+    /** Simulated seconds from the page's step `from` to the time drawn, 0 before it. */
+    since: (from: number) => Math.max(0, (drawn.step - from) * step + drawn.owed),
   };
   return clock;
+}
+
+/** The time a frame draws: `owed` simulated seconds past the page's step `step`. */
+export type DrawnTime = Readonly<{ step: number; owed: number }>;
+
+/**
+ * Where the time `time` stands between two simulated states a step apart, as everything the
+ * physics draws reads it (bodies, wheels, soft bodies, the character): 0 at the earlier, never
+ * before it, 1 at the newer, the newest the worker delivered, at the page's step `reached`. Past
+ * 1, the state at `time` is not delivered yet: while the page waits for it (`waiting`), it is
+ * drawn moved on from the newest, a ceiling of catch-up steps at most; else held on it, 1.
+ */
+export function along(time: DrawnTime, reached: number, step: number, waiting: boolean) {
+  const alpha = time.step - reached + 1 + time.owed / step;
+  if (alpha < 1) return Math.max(0, alpha);
+  return waiting ? Math.min(alpha, 1 + MAX_CATCH_UP_STEPS) : 1;
 }

@@ -41,7 +41,7 @@ export type HostRotation = {
 };
 
 /** A node that bounds itself, or whose geometry does: the two boxes the bounds rule reads
- *  (`../world/bounds.ts`), the node's own winning over its geometry's as the reference does. */
+ *  (`../world/bounds.ts`), the node's own winning over its geometry's. */
 export type HostBoundedNode = Object3D & {
   readonly geometry?: Geometry;
   boundingBox?: HostBox | null;

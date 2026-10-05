@@ -119,8 +119,11 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   sharded; it is the CI's, not a local gate. A documentation-only pull request skips its code jobs,
   runs the tests that read documentation in `quick`, and still reports `validate`.
 - **Everything in English**: comments, docstrings, documentation, commit messages, test names.
-- Every maintained JS/TS/Rust source file, variants included, fits 200 physical lines, no legacy
-  exception; split by responsibility, keep public contracts (`pnpm run check:lines`).
+- Tests, fixtures, scripts, the site, the bench and the Rust crates fit 200 physical lines a file,
+  no legacy exception (`pnpm run check:lines`). The runtime TypeScript modules (`sdk-core`,
+  `sdk-browser`, `sdk-node`, `page-codec`) answer instead to `pnpm run check:cohesion`: no function
+  of a touched module over 60 lines or a complexity of 20. Split by responsibility, keep public
+  contracts.
 - `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across TS/TSX/Rust,
   `pnpm run check:helpers` a small helper copied (name, signature, body) into a second module of the
   same package or crate. Resolve every finding; share logic only for identical behaviour.

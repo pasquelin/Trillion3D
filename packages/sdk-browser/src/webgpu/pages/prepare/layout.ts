@@ -90,8 +90,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // belongs to. Every reader finds a page's world, row and winding through `placement`, never on
   // the shared record.
   // No list holds one entry per instance: a rank resolves through `placement` to its root and the
-  // root's shared `pages` (`createPackedPages`), as a cluster instance reads its primitive's pages
-  // from its own base.
+  // root's shared `pages` (`createPackedPages`): an instance reads the pages of its geometry from
+  // its own base.
   const placement = postPackedBases(selectionRoots);
   const packedPages = createPackedPages(selectionRoots, placement);
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);

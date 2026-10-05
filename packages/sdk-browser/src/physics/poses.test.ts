@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  PHYSICS_STEP,
   ASLEEP_BIT,
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
@@ -13,10 +14,14 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
+import { slerpArc } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import { interpolateAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { poseRecord } from './worker.fixture.ts';
+
+/** A frame drawn on the newest states (`along` 1), with no worker to wait for. */
+const ON_NEWEST = 1;
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
 const lone = (mesh: Bodied) => ({
@@ -30,10 +35,10 @@ test('a pose sent again unchanged moves nothing and asks for no frame', () => {
   crate.physics = new ObjectPhysics('dynamic');
   const words = poseRecord(0, [0, 2, 0, 0, 0, 0, 1]);
   assert.equal(poses.receive(words, 1, lone(crate), 0), 1);
-  assert.equal(poses.apply(lone(crate)), false);
+  assert.equal(poses.apply(lone(crate), ON_NEWEST, false), false);
   assert.equal(crate.position.y, 2);
   assert.equal(poses.receive(words, 1, lone(crate), 0), 0);
-  assert.equal(poses.apply(lone(crate)), false);
+  assert.equal(poses.apply(lone(crate), ON_NEWEST, false), false);
 });
 
 test('a pose drawn by the batch leaves position, quaternion and angles coherent', () => {
@@ -42,7 +47,7 @@ test('a pose drawn by the batch leaves position, quaternion and angles coherent'
   crate.physics = new ObjectPhysics('dynamic');
   const half = Math.SQRT1_2;
   poses.receive(poseRecord(0, [1, 2, 3, 0, half, 0, half]), 1, lone(crate), 0);
-  poses.apply(lone(crate));
+  poses.apply(lone(crate), ON_NEWEST, false);
   assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [1, 2, 3]);
   assert.ok(
     Math.abs(crate.rotation.y - Math.PI / 2) < 1e-3,
@@ -73,7 +78,7 @@ test('a seated body is drawn straight into its row, the world told the span once
   const poses = createPhysicsPoses(4, scene);
   poses.receive(poseRecord(0, [1, 2, 3, 0, 0, 0, 1]), 1, lone(crate), 0);
   told.length = 0;
-  poses.apply(lone(crate));
+  poses.apply(lone(crate), ON_NEWEST, false);
   assert.deepEqual(told, [[true, 2, 2]]);
   crate.updateWorldMatrix(true, false);
   assert.deepEqual(batch.rows.matrices.subarray(32, 48), crate.matrixWorld.elements);
@@ -89,6 +94,7 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
     {} as PhysicsHost,
     scene,
     poses.state,
+    PHYSICS_STEP,
   );
   const mesh = new Mesh(box(), new Material('meshStandard'));
   mesh.physics = { decorative: true };
@@ -96,7 +102,7 @@ test('a decorative body asleep is placed, taken out, and never added again', () 
   scene.add(chip);
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
   const id = chip.physics._index | (bodies.generation[chip.physics._index] << GENERATION_SHIFT);
-  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 1);
   assert.equal(chip.position.y, 0.5);
   assert.equal(chip.physics.asleep, true, 'kept once out of the simulation');
   assert.equal(bodies.count.decorative, 0);
@@ -114,6 +120,7 @@ test('a record of a body that left its slot moves neither it nor the body in its
     {} as PhysicsHost,
     scene,
     poses.state,
+    PHYSICS_STEP,
   );
   const crate = new Mesh(box(), new Material('meshStandard')) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
@@ -140,16 +147,16 @@ test('a turn is drawn the shorter way round, whichever sign its quaternion comes
   placer.place(0, [0, 0, 0, 0, 0, 0, 1], 0);
   // A quarter turn about y, sent as its opposite quaternion: halfway is an eighth, not 3/8.
   const half = Math.SQRT1_2;
-  const target = new Float32Array([0, 0, 0, 0, -half, 0, -half]);
-  interpolateAll(new Int32Array([0]), 1, target, 0.5, placer.position, placer.quaternion);
+  const from = new Float32Array([0, 0, 0, 0, 0, 0, 1]),
+    to = new Float32Array([0, 0, 0, 0, -half, 0, -half]);
+  const arcs = slerpArc(new Float64Array(3), 0, from, 3, to, 3);
+  interpolateAll(new Int32Array([0]), 1, from, to, arcs, 0.5, placer.position, placer.quaternion);
   placer.commit(new Int32Array([0]), 1);
   placer.end();
   assert.ok(Math.abs(crate.rotation.y - Math.PI / 4) < 1e-3, `an eighth turn, ${crate.rotation.y}`);
 });
 
-test('a slot retired and taken again before a frame is drawn once, not twice', (t) => {
-  let clock = 0;
-  t.mock.method(performance, 'now', () => clock);
+test('a slot retired and taken again before a frame is drawn once, not twice', () => {
   const scene = new Group();
   const poses = createPhysicsPoses(2, scene);
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 2 };
@@ -159,6 +166,7 @@ test('a slot retired and taken again before a frame is drawn once, not twice', (
     {} as PhysicsHost,
     scene,
     poses.state,
+    PHYSICS_STEP,
   );
   const add = (mesh: Bodied) => {
     scene.add(mesh);
@@ -169,17 +177,14 @@ test('a slot retired and taken again before a frame is drawn once, not twice', (
   chip.physics = new ObjectPhysics({ decorative: true });
   const id = add(chip);
   // Listed while it falls, then asleep and out before any frame drew it.
-  poses.receive(poseRecord(id, [0, 1, 0, 0, 0, 0, 1]), 1, bodies, 16);
-  clock += 16;
-  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 16);
+  poses.receive(poseRecord(id, [0, 1, 0, 0, 0, 0, 1]), 1, bodies, 1);
+  poses.receive(poseRecord(id | ASLEEP_BIT, [0, 0.5, 0, 0, 0, 0, 1]), 1, bodies, 1);
   const crate = new Mesh(box(), new Material('meshStandard')) as Bodied;
   crate.physics = new ObjectPhysics('dynamic');
   const next = add(crate);
   assert.equal(crate.physics._index, 0, 'the slot is taken again');
-  clock += 16;
-  poses.receive(poseRecord(next, [0, 2, 0, 0, 0, 0, 1]), 1, bodies, 16);
-  // Halfway through the tick: halfway to the target, from where it stood.
-  clock += 8;
-  poses.apply(bodies);
+  poses.receive(poseRecord(next, [0, 2, 0, 0, 0, 0, 1]), 1, bodies, 1);
+  // Halfway through its step: halfway there, from where it stood.
+  poses.apply(bodies, 0.5, false);
   assert.equal(crate.position.y, 1);
 });

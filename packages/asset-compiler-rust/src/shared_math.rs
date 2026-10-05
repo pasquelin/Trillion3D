@@ -111,8 +111,10 @@ pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f
     usable(length).then(|| scale(v, 1.0 / length))
 }
 
-/// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values) and the
-/// Hausdorff grid's cell lookups (#977). Neither iterates its map, so no output reads the hash.
+/// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values), the
+/// Hausdorff grid's cell lookups (#977) and the DAG builder's maps. Its order is the same on every
+/// run; an output still never follows it — a map is read by key, counted, or its entries sorted
+/// before they are written.
 #[derive(Default, Clone, Copy)]
 pub(crate) struct WordHasher(u64);
 impl WordHasher {
@@ -136,12 +138,21 @@ impl std::hash::Hasher for WordHasher {
 /// A map hashed by [`WordHasher`].
 pub(crate) type WordMap<K, V> =
     std::collections::HashMap<K, V, std::hash::BuildHasherDefault<WordHasher>>;
+/// An empty [`WordMap`] with room for `capacity` entries.
+pub(crate) fn word_map<K, V>(capacity: usize) -> WordMap<K, V> {
+    WordMap::with_capacity_and_hasher(capacity, Default::default())
+}
+/// A set hashed by [`WordHasher`].
+pub(crate) type WordSet<T> =
+    std::collections::HashSet<T, std::hash::BuildHasherDefault<WordHasher>>;
 
-/// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
+/// The step between two draws: the golden ratio's fractional part, as a 64-bit odd integer, so
+/// successive multiples of a counter spread evenly over the 64-bit range. A declared choice, not a
+/// tuned one: any odd multiplier with well-spread bits would serve.
 pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 
-/// `x` mixed by SplitMix64's finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64 would
-/// round up to 1 near `u64::MAX`).
+/// `x` mixed by a 64-bit avalanche finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64
+/// would round up to 1 near `u64::MAX`). Its shifts and multipliers are declared, not tuned.
 pub(crate) fn splitmix_unit(x: u64) -> f64 {
     let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);

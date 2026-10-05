@@ -43,7 +43,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
   const ambient = numbered(new Light('ambient', { color: [1, 1, 1], intensity: UNLIT_IRRADIANCE }));
   // The environment's irradiance (`packages/sdk-core/src/scene/core/environment.ts`): the probe
   // carries the same nine coefficients, in the same band order, read with the same cosine-lobe
-  // factors (`../../webgl/cluster/probe.ts`).
+  // factors (`../webgl/cluster/probe.ts`).
   const probe = numbered(new Light('probe'));
   ambient.visible = probe.visible = false;
   group.add(ambient, probe);
@@ -130,7 +130,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
     get casting() {
       return casting;
     },
-    /** True when the image comes out in real light: then goes through the display curve (P6). */
+    /** True when the image comes out in real light: then goes through the display curve. */
     get lit() {
       return governs && !!store && !store.unlit;
     },

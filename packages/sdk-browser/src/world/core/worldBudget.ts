@@ -37,37 +37,70 @@ export type Pools = {
 /** A world's pools, none asked yet, and its page cache at its share of the default CPU total. */
 export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CACHED_BYTES) });
 
-/** The GPU total as asked, else the default total of the declared canvas. */
-const gpuOf = (pools: Pools) => pools.gpu ?? defaultGpuBudget(pools.canvas);
+/** The GPU total as asked, else the default total of the declared canvas beside what the session
+ *  holds (`defaultGpuBudget`): its frame at full resolution funded before the pools. */
+const gpuOf = (pools: Pools, canvas = pools.canvas, active = pools.activeGpu) =>
+  pools.gpu ?? defaultGpuBudget(canvas, active);
 /** The split of the totals as asked, the defaults for those not set. */
 const splitOf = (pools: Pools, gpu = gpuOf(pools), canvas = pools.canvas) =>
   splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CPU_BUDGET, canvas, pools.activeGpu);
 
-/** What a session opens with: the pools as asked, and the world's page cache. */
-export const sessionPools = (pools: Pools) => ({
-  geometryPoolBytes: pools.geometryPool,
-  texturePoolBytes: pools.texturePool,
-  pageCache: pools.pageCache,
-  admitGpuMemory: Object.assign(
-    (active: ActiveGpuMemory) => {
-      const split = splitMemoryBudget(
-        gpuOf(pools),
-        pools.cpu ?? DEFAULT_CPU_BUDGET,
-        pools.canvas,
-        active,
-      );
-      pools.activeGpu = { ...active };
-      // A ceiling over the pool asked, never grown past it: prepare's tables are its (768 KiB on
-      // memory-on-a-budget), and growing it refused the frame targets (#831).
-      const under = (asked: number | undefined, share: number) => Math.min(asked ?? share, share);
-      return {
-        geometryPoolBytes: under(pools.geometryPool, split.geometryPool),
-        texturePoolBytes: under(pools.texturePool, split.texturePool),
-      };
-    },
-    { limit: () => gpuOf(pools) },
-  ),
-});
+/**
+ * What a session opens with: the pools as asked, and the world's page cache. Its admission
+ * (`admitGpuMemory`) splits the total beside what the session holds, read anew from this session's
+ * first admission. Under a total the page set, the pools the session is granted first are its own,
+ * frozen: a byte the frame frees later stays free, never handed to a pool — they shrink when the
+ * room runs short, never under their floors, and come back up to that grant; only a pool the page
+ * asks (`world.budget`) may pass it. The default total needs no such hold: it funds the frame at
+ * full resolution before the pools (`defaultGpuBudget`), which stay at their defaults.
+ */
+export function sessionPools(pools: Pools) {
+  let granted: { geometryPoolBytes: number; texturePoolBytes: number } | undefined;
+  // What another session held says nothing of this one.
+  pools.activeGpu = undefined;
+  return {
+    geometryPoolBytes: pools.geometryPool,
+    texturePoolBytes: pools.texturePool,
+    pageCache: pools.pageCache,
+    admitGpuMemory: Object.assign(
+      (active: ActiveGpuMemory) => {
+        const split = splitMemoryBudget(
+          gpuOf(pools, pools.canvas, active),
+          pools.cpu ?? DEFAULT_CPU_BUDGET,
+          pools.canvas,
+          active,
+        );
+        pools.activeGpu = { ...active };
+        // A ceiling over the pool asked, never grown past it: prepare's tables are its (768 KiB on
+        // memory-on-a-budget), and growing it refused the frame targets (#831). The grant held is
+        // a ceiling too, never under the floor the split keeps.
+        const under = (
+          asked: number | undefined,
+          held: number | undefined,
+          share: number,
+          floor: number,
+        ) => Math.min(asked ?? Math.max(held ?? share, floor), share);
+        const admitted = {
+          geometryPoolBytes: under(
+            pools.geometryPool,
+            granted?.geometryPoolBytes,
+            split.geometryPool,
+            active.geometryMinimum,
+          ),
+          texturePoolBytes: under(
+            pools.texturePool,
+            granted?.texturePoolBytes,
+            split.texturePool,
+            active.textureMinimum,
+          ),
+        };
+        if (pools.gpu !== undefined) granted ??= admitted;
+        return admitted;
+      },
+      { limit: () => gpuOf(pools) },
+    ),
+  };
+}
 
 /**
  * `world.budget`: one GPU total and one CPU total, split across the pools by a fixed rule
@@ -118,7 +151,10 @@ export function worldBudget(
     /** Bytes of GPU memory the world may hold, all pools together; set it to redraw every pool
      *  by the split rule (`split`). A total under the three fixed shares — the shadow pool, the
      *  bounce probes and the effect targets — is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`). Never
-     *  read from the machine. */
+     *  read from the machine. Unset, the default total (`defaultGpuBudget`): the fixed shares, the
+     *  frame's targets at full resolution on the canvas drawn once a session holds them, then the
+     *  two pools at their defaults — the frame at rest is never drawn below the display for want
+     *  of memory. Set, the page's total holds: past it, the frame is drawn one eighth lower. */
     get gpu() {
       return gpuOf(pools);
     },
@@ -128,22 +164,20 @@ export function worldBudget(
     },
     /** The largest canvas the world declares, in pixels of the drawing buffer: the effect chain's
      *  targets are reserved at its size (`split.effectTargets`); 3840 × 2160 by default, and the
-     *  default `gpu` grows by that reserve only. Set it to redraw every pool by the split. A canvas
-     *  drawn larger still renders whole: the diagnostics say `effect targets over budget` with the
-     *  bytes past the reserve. */
+     *  default `gpu` grows by that reserve. Set it to redraw every pool by the split. A canvas
+     *  drawn larger still renders whole — the default `gpu` funds a chain's bytes past the
+     *  reserve —: the diagnostics say `effect targets over budget` with those bytes. */
     get canvas(): BudgetCanvas {
       return pools.canvas ?? DEFAULT_BUDGET_CANVAS;
     },
     set canvas({ width, height }: BudgetCanvas) {
       const canvas = Object.freeze({ width, height });
-      redraw(pools.gpu ?? defaultGpuBudget(canvas), canvas);
+      redraw(gpuOf(pools, canvas), canvas);
       pools.canvas = canvas;
     },
-    /** Bytes of CPU memory the world may hold: the shadow page table's host mirror, then the
-     *  decoded pages, their manifest tables, their transfer queue and the engine's cut tables
-     *  together. A change applies at once: pages leave by last use until they fit. A total not
-     *  above the mirror is refused (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Never read from the
-     *  machine. */
+    /** Bytes of CPU memory the world may hold: the decoded pages, their manifest tables, their
+     *  transfer queue and the engine's cut tables together. A change applies at once: pages leave
+     *  by last use until they fit. Never read from the machine. */
     get cpu() {
       return pools.cpu ?? DEFAULT_CPU_BUDGET;
     },
@@ -154,7 +188,7 @@ export function worldBudget(
     },
     /** How the two totals are shared: the shadow pool and the bounce probes at their largest, the
      *  effect chain's targets on the declared `canvas`, then half each to the geometry and texture
-     *  pools, capped at their ceilings; the shadow table's host mirror, then the decoded-page cache takes the whole rest of the CPU total,
+     *  pools, capped at their ceilings; the decoded-page cache takes the whole CPU total,
      *  within which the session in place reserves its manifest tables, its transfer queue and the
      *  engine's cut tables. What the rule gives, before a pool set on its own. */
     get split() {

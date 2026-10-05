@@ -1,6 +1,7 @@
 // Defect 2: `setTransform` reduced the requested matrix to a translation-rotation-scale product,
-// and `updateMatrixWorld` recomposed over the matrix that was set. Not every matrix being such a
-// product, the engine then drew another transform than the one requested. These tests hold the
+// and the next recomposition of the world matrices recomposed over the matrix that was set. Not
+// every matrix being such a product, the engine then drew another transform than the one
+// requested. These tests hold the
 // effective world matrix — the one that leaves for the GPU through `root.world.elements` —
 // against the requested one, on sheared matrices, under a parent, and on conformal cases that
 // must not move. The world checked is the one THE ENGINE holds (`../../host/world/placements.ts`): since

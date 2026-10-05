@@ -8,7 +8,7 @@ import { fits, rescaledSoft } from './softBodies.ts';
 /**
  * The page moved or hid `node`: each body of it that `bodies` hold goes where the page put it — a
  * kinematic one driven there over a step, any other teleported, a soft one with its vertices and
- * its simulation kept —; hidden, no pose. Jolt scales no soft body once made: one placed at
+ * its simulation kept —; hidden, no pose. The module scales no soft body once made: one placed at
  * another scale than it was made at is taken out and refused by name (`failed`), as a cooked one
  * is, and made again once back at it. Returns whether the bodies must be reconciled.
  */

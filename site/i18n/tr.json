@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Alfa ile kesilmiş yapraklar",
       "a-colour-ramp-in-linear-light": "Doğrusal renk geçişi",
       "the-material-family": "Malzeme ailesi",
+      "page-materials": "Malzemeleri canlı düzenlemek",
+      "a-bust-a-crate-and-a-glass-ball": "Bir büst, bir sandık, bir cam top",
       "a-texture-turned-and-tiled": "Döndürülmüş, döşenmiş doku",
       "texture-filters-compared": "Doku filtreleri",
       "every-image-format": "Her görüntü formatı",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Ton eşlemeyi karşılaştırmak",
       "a-first-post-effect": "İlk bir son işlem efekti",
       "a-glow-around-lights": "Işıkların etrafında parıltı",
+      "choose-your-quality": "Kaliteyi seçmek",
       "glow-on-chosen-objects": "Seçici parıltı",
       "depth-of-field": "Alan derinliği",
       "motion-blur": "Hareket bulanıklığı",
@@ -743,7 +746,6 @@
     "protocol": "Kaydedilen koşullar",
     "references": "Yayımlanmış referans noktaları",
     "referenceNote": "Yayımlanmış masaüstü motor rakamları kendi donanımlarını, sahnelerini ve protokollerini kullanır. Yukarıdaki karşılaştırmalara dahil değildirler.",
-    "referenceLink": "Kaynakları ve sınırlamaları oku",
     "commit": "Depo commit'i",
     "date": "Ölçüm tarihi",
     "browser": "Tarayıcı",
@@ -1250,7 +1252,7 @@
       "description": "Bir kamera karesinin matrisleri, bir kez tahsis edilir ve her karede yeniden yazılır: `view` (kameranın dünya matrisinin tersi), `viewProjection`, ve bu frustum'un altı normalize edilmiş düzlemi olan `planes`."
     },
     "updateCameraFrame": {
-      "description": "Kareyi yeniden yazar: view = `world`'ün tersi (referanstaki gibi, tekil bir dünya matrisi için sıfır), view-projection = `projection · view`, ve bu frustum'un altı düzlemi. Tek bir derinlik kuralı üçünden de geçer. `far`, **host tarafından bildirilen** düzlemdir: izdüşümün hiçbiri yoktur — sonsuzdur, ters derinliğin bütün amacı da budur — ama frustum onu korur, aksi halde bir kare aniden kameranın göstermediği her nesneyi kazanırdı. Atlanmışsa ya da sonlu değilse, uzak düzlem sınırsız kalır."
+      "description": "Kareyi yeniden yazar: view = `world`'ün tersi (tekil bir dünya matrisi için sıfır), view-projection = `projection · view`, ve bu frustum'un altı düzlemi. Tek bir derinlik kuralı üçünden de geçer. `far`, **host tarafından bildirilen** düzlemdir: izdüşümün hiçbiri yoktur — sonsuzdur, ters derinliğin bütün amacı da budur — ama frustum onu korur, aksi halde bir kare aniden kameranın göstermediği her nesneyi kazanırdı. Atlanmışsa ya da sonlu değilse, uzak düzlem sınırsız kalır."
     },
     "worldToRenderOrigin": {
       "description": "`world`'ü, öteleme değeri `origin`'e geri getirilmiş olarak yazar. Çıkarma, girdilerin hassasiyetinde — motorun dünya matrislerinin double'ında — gerçekleşir, ve tek hassasiyetli bir tampona yazmak bunun **ardından**, asla öncesinde yuvarlar: keskin bir görsel ile titreyen bir görseli ayıran tek şey budur. `at`, yazılan on altı sayının ilkinin konumudur, böylece birçok matris tutan bir tampon, her karede matris başına bir görünüm dilimlenmeden doldurulur."
@@ -1283,10 +1285,10 @@
       "description": "`out = a · b`. Otuz iki girdinin tümü ilk yazımdan önce okunur, bu yüzden `out`, `a` ya da `b` olabilir. Her terim, başlangıç sıfırı olmayan dört çarpımın toplamıdır — `0`'dan başlayan bir toplam, negatif bir sıfırın işaretini değiştirirdi. **Girdide ve çıktıda tek bir tampon türü, `Float64Array`**: sıradan bir dizi geçiren bir çağıran, kırk sekiz erişim noktasını polimorfik yapardı, ve her sıcak döngü bunu öderdi, bu yüzden bir host matrisinden başlayan bir çağıran önce onu kopyalar."
     },
     "invertMatrix4": {
-      "description": "Kofaktörlerle `out = m⁻¹`. Tam olarak sıfır bir determinant, referanstaki gibi sıfır matrisini verir — bu durumu ayırt etmesi gereken bir çağıran, çıktıyı değil determinantı test eder. Bu eşik, motorun tekillik kuralıyla değil, referansla eşliktir; o kural yalnızca bir normalin taşındığı yerde geçerlidir. On altı girdinin tümü ilk yazımdan önce okunur, bu yüzden `out`, `m` olabilir."
+      "description": "Kofaktörlerle `out = m⁻¹`. Tam olarak sıfır bir determinant sıfır matrisini verir — bu durumu ayırt etmesi gereken bir çağıran, çıktıyı değil determinantı test eder. Bu eşik motorun tekillik kuralı değil, tam sıfırdır; o kural yalnızca bir normalin taşındığı yerde geçerlidir. On altı girdinin tümü ilk yazımdan önce okunur, bu yüzden `out`, `m` olabilir."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, kuaterniyon `(x, y, z, w)` sırasıyla. Son satır tam olarak `(0, 0, 0, 1)` yazılır; kuaterniyon çarpımları, referanstaki gibi, ikiyle çarpılarak değil, toplamayla (`x + x`) ikiye katlanır."
+      "description": "`out = T · R · S`, kuaterniyon `(x, y, z, w)` sırasıyla. Son satır tam olarak `(0, 0, 0, 1)` yazılır; kuaterniyon çarpımları ikiyle çarpılarak değil, toplamayla (`x + x`) ikiye katlanır."
     },
     "decomposeMatrix4": {
       "description": "Tersi: bir sütunun ölçeği kendi uzunluğudur, ve negatif bir determinant, kaynakta hangi eksen ters çevrilmiş olursa olsun, yalnızca `x` ekseni tarafından taşınır. Kesilmiş (shear) bir matrisin böyle bir ayrıştırması yoktur — döndürülen döndürme, o zaman sütunları normalize edilmiş matrisinkidir, ve yeniden birleştirmek artık `m`'i vermez; bu, referansınkiyle özdeş ve bench tarafından ölçülmüş bir farktır."
@@ -1349,7 +1351,7 @@
       "description": "Bir kesim matrisinin frustum'unun altı düzlemi — bir view-projection, ya da kamera uzayındaki düzlemler için yalnızca bir izdüşüm. Birincisi bunları normalize eder, bu yüzden `a·x + b·y + c·z + d` işaretli bir mesafedir; ikincisi, yalnızca işaretin karar verdiği, karekök ya da bölme olmadan satırların ham toplamlarını ve farklarını bırakır: normalize etmenin yuvarlamayı kaydıracağı, tam kesim testinin biçimi. Bozulmuş bir matris, hata fırlatmadan NaN ya da sonsuz düzlemler verir."
     },
     "frustumFarPlane": {
-      "description": "İzdüşümünün hiçbirine sahip olmadığı bir frustum'un uzak düzlemi. Motorun izdüşümü sonsuzdur: derinlik satırı artık hiçbir şeyi sınırlamaz, bu yüzden uzak düzlem, üçüncü satırı kamera uzayındaki derinliği veren **view** matrisinden okunur — bir nokta `far + z >= 0` olduğunda içeridedir. Sonlu olmayan bir `far`, yerinde sıfır düzlemi, gerçekten sınırsız bir uzak düzlem bırakır. `frustumPlanesToLocal`, düzlemleri bir dönüşümün yerel uzayına taşır, böylece yerel bir kutu dönüştürülmeden test edilir."
+      "description": "İzdüşümünün hiçbirine sahip olmadığı bir frustum'un uzak düzlemi. Motorun izdüşümü sonsuzdur: derinlik satırı artık hiçbir şeyi sınırlamaz, bu yüzden uzak düzlem, üçüncü satırı kamera uzayındaki derinliği veren **view** matrisinden okunur — bir nokta `far + z >= 0` olduğunda içeridedir. Sonlu olmayan bir `far`, yerinde sıfır düzlemi, gerçekten sınırsız bir uzak düzlem bırakır."
     },
     "frustumExcludesBox": {
       "description": "Kutu frustum'a karşı: birincisi, bir düzlem sekiz köşenin tümünü arkasında bıraktığında doğrudur. İkincisi üç durum döndürür — 0 dışarıda, 1 üzerinde, 2 tamamen içeride — iki geçişte, birincisi yalnızca eler, ikincisi \"üzerinde\"yi \"içeride\"den ayırmak için en geride kalan köşeyi okur. Tamamen içeride olan bir alt ağaç, altındaki her kutu için bir testten tasarruf sağlar."
@@ -1373,7 +1375,7 @@
       "description": "Dünya matrisinden okumalar: öteleme sütunu; negatif bir determinantın yalnızca `x` tarafından taşındığı, kendi ayrıştırmasından dönüş ve ölçek; `cameraForward` olduğunda ters çevrilen, bir yön olarak normalize edilmiş üçüncü sütun — bir kamera ve bir ışık kendi `−z`'lerine doğru bakar. `nodeWorldMirrorsFaces`, dünya matrisi yönelimi ters çevirdiğinde doğrudur, ve çizim o zaman ön ve arka yüzlerini değiştirir; olduğu gibi okur, güncellemeden, ve sıfır ya da NaN bir determinant hiçbir şeyi ters çevirmez."
     },
     "lookAtNode": {
-      "description": "`node`'u dünya noktası `(x, y, z)`'ye doğru çevirir. `viewer`, kendi `−z`'sine doğru bakan bir kamera ya da ışık için doğrudur, kendi `+z`'sini sunan bir nesne için yanlıştır. `up`, referansta `(0, 1, 0)` olan düğümün yukarısıdır. Atalar ve düğüm önce güncellenir."
+      "description": "`node`'u dünya noktası `(x, y, z)`'ye doğru çevirir. `viewer`, kendi `−z`'sine doğru bakan bir kamera ya da ışık için doğrudur, kendi `+z`'sini sunan bir nesne için yanlıştır. `up`, varsayılanı `(0, 1, 0)` olan düğümün yukarısıdır. Atalar ve düğüm önce güncellenir."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` çarpım `out[i] = a[i] · b[i]`, üç taraf da on altı sayılık alt görünümler olarak verilir. Alt görünümler bir kez oluşturulur, asla kare başına değil; bir WebAssembly çekirdeği aynı formülü terim terim tekrarlar, ve regülatör hangi yolun daha hızlı ölçüldüğünü seçer."
@@ -1673,7 +1675,7 @@
       "nodes": "düğümler"
     },
     "patterns": {
-      "singular": "determinant {{value}}: referanstaki gibi on altı sıfır — determinantı test edin, asla çıktıyı değil"
+      "singular": "determinant {{value}}: on altı sıfır — determinantı test edin, asla çıktıyı değil"
     }
   }
 }

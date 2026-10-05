@@ -4,7 +4,7 @@ import type { SceneLight } from '../../../sdk-core/src/index.ts';
 import { createLight, writeLight } from './lightWrite.ts';
 
 // Issue #275: a spotlight closed to a zero cone has a penumbra, never NaN — the limit of the
-// softened edge as the cone closes — so the program draws the reference's closed cone, not NaN.
+// softened edge as the cone closes — so the program draws a closed cone, not NaN.
 test('a spotlight of zero cone writes a finite penumbra', () => {
   const source = {
     kind: 'spot',

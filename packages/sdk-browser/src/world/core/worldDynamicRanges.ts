@@ -63,28 +63,52 @@ export function copyRanges(held: DrawnTriangles, next: DrawnTriangles, ranges: V
 
 type Attributes = Geometry['attributes'];
 type Session = {
-  updateVertices(attributes: Attributes, ranges: VertexRange[], box: Float64Array): boolean;
+  updateVertices(
+    attributes: Attributes,
+    ranges: VertexRange[],
+    box: Float64Array,
+    reach: number,
+    boxes?: Float64Array,
+  ): boolean;
   vertexBytes?(attributes: Attributes, ranges: VertexRange[]): number | undefined;
 };
 /** Where `upload` hands a resource's rewritten ranges (#573), made once: `weigh` says the bytes
  *  they send the GPU, the session's count else the lists' own; `write` marks its host geometry and
- *  hands them to the session — false while none draws it, `refused` when it cannot take them. */
+ *  hands them, with the resource's `reach` and its pages' `boxes` (`pageMotion.ts`), to the
+ *  session — false while none draws it, `refused` when it cannot take them; `renewed` says a
+ *  session opened or roots mounted since. */
 export const vertexUploads = (
   session: () => Session | null,
   geometryOf: (cut: Cut) => Geometry | undefined,
   refused: () => void,
-) => ({
-  weigh(cut: Cut, ranges: VertexRange[], bytes: number) {
-    const attributes = geometryOf(cut)?.attributes;
-    return (attributes && session()?.vertexBytes?.(attributes, ranges)) ?? bytes;
-  },
-  write(cut: Cut, ranges: VertexRange[], box: Float64Array) {
-    const geometry = geometryOf(cut),
-      open = session();
-    if (!geometry || !open) return false;
-    markRewritten(geometry, ranges);
-    if (!open.updateVertices(geometry.attributes, ranges, box)) refused();
-    return true;
-  },
-});
+) => {
+  let told: object | null = null;
+  return {
+    /** The session holds roots that never heard the reach: ones mounted in place since. */
+    replay() {
+      told = null;
+    },
+    /** True once for each session opened, or `replay` asked, since the last call: it holds roots
+     *  that never heard the reach and boxes of the resources it was opened on, which their next
+     *  `write` tells it. */
+    renewed() {
+      const open = session();
+      if (!open || open === told) return false;
+      told = open;
+      return true;
+    },
+    weigh(cut: Cut, ranges: VertexRange[], bytes: number) {
+      const attributes = geometryOf(cut)?.attributes;
+      return (attributes && session()?.vertexBytes?.(attributes, ranges)) ?? bytes;
+    },
+    write(cut: Cut, ranges: VertexRange[], box: Float64Array, reach: number, boxes?: Float64Array) {
+      const geometry = geometryOf(cut),
+        open = session();
+      if (!geometry || !open) return false;
+      markRewritten(geometry, ranges);
+      if (!open.updateVertices(geometry.attributes, ranges, box, reach, boxes)) refused();
+      return true;
+    },
+  };
+};
 export type VertexUploads = ReturnType<typeof vertexUploads>;

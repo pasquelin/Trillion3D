@@ -1,4 +1,4 @@
-// Pure A11 oracles, no side effects: `residence.bench.ts` measures them; unit tests import
+// Pure A11 oracles, no side effects: `residency.perf.ts` measures them; unit tests import
 // them as reference.
 const CONE_FLOATS = 12,
   FLAG = 11;

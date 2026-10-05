@@ -25,8 +25,10 @@ import {
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts';
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts';
-import { DIRECT_LIGHTING_WGSL } from '../direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
+
+const DIRECT_LIGHTING_WGSL = directLightingWgsl();
 
 type Light = { centre: Vec3; radius: number };
 const CELL = LIGHT_SETTINGS.tileSize;

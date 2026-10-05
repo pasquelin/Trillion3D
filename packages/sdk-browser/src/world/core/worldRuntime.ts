@@ -16,6 +16,7 @@ import { namedMove } from './worldSceneMethods.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
+import { askedFrame } from './worldAskedFrame.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
@@ -24,7 +25,7 @@ import { vertexUploads } from './worldDynamicRanges.ts';
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera, open = openMeasuredWorld } = inputs;
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
-    lights = createWorldLights(),
+    lights = createWorldLights(scene),
     background = createWorldBackground(scene);
   const { poses, cuts } = contents;
   const placeCamera = followPageCamera(camera, canvas);
@@ -84,7 +85,8 @@ export function createWorldRuntime(inputs: Inputs) {
       return track.none();
     }
     if (disposed) return explorer.dispose();
-    // Lit and a frame asked before the page's own settings: the first image had no lights.
+    // Lit before the page's own settings: the first image had no lights. A session's own loop is
+    // asked a frame; a world its page leads draws the frame it asks (`worldAskedFrame.ts`).
     explorer.setLightingView('lit');
     invalidate();
     inputs.opened(explorer);
@@ -112,13 +114,19 @@ export function createWorldRuntime(inputs: Inputs) {
     structureChanged = true;
     resolving ??= inputs.ready().then(resolve, resolve);
   };
-  const mounts = createWorldMounts(contents, () => explorer, schedule, track.asks('mount-refused'));
-  const backgroundRefused = track.asks('background');
   const uploads = vertexUploads(
     () => explorer,
     (cut) => mirror?.geometryOf(cut),
     track.asks('vertices-refused'),
   );
+  // Roots mounted in place start at rest like a new session's: the next upload tells them the reach.
+  const mounts = createWorldMounts(
+    contents,
+    () => explorer,
+    () => (uploads.replay(), schedule()),
+    track.asks('mount-refused'),
+  );
+  const backgroundRefused = track.asks('background');
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
     const session = explorer;
@@ -136,11 +144,22 @@ export function createWorldRuntime(inputs: Inputs) {
     if (!session || explorer !== session) return;
     cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
     if (poses.pending)
-      poses.apply(scene, contents.seats, twins, (rows, from, to) =>
-        session.updatePlacements(rows, from, to),
+      poses.apply(
+        scene,
+        contents.seats,
+        twins,
+        (rows, from, to) => session.updatePlacements(rows, from, to),
+        session.composesPlacements?.()
+          ? {
+              key: session,
+              epoch: contents.seatEpoch,
+              link: (parent, world, links, whole) =>
+                session.composePlacements(parent, world, links, whole),
+            }
+          : undefined,
       );
     if (lightsChanged)
-      session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(scene, session) });
+      session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(session) });
     lightsChanged = false;
     background.write(session, backgroundRefused);
   };
@@ -150,6 +169,18 @@ export function createWorldRuntime(inputs: Inputs) {
     if (!explorer) return;
     fit.apply(explorer);
     placeCamera(explorer.camera);
+  };
+  /** The frame `render` draws: `ahead` steps, every change since the last frame is applied. */
+  const draw = (ahead?: () => void) => {
+    if (!explorer) return null;
+    ahead?.();
+    beforeFrame(); // what it applies may close the session: that frame has no image
+    if (!explorer) return null;
+    const metrics = explorer.render();
+    cuts.dynamic.drew(metrics);
+    track.drew();
+    inputs.frame(metrics);
+    return metrics;
   };
   // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
@@ -176,18 +207,18 @@ export function createWorldRuntime(inputs: Inputs) {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
       await explorer?.familiesPending(); // a family on its way: a change not drawn yet
     },
-    /** A frame, `ahead` stepping first; one waiting for a family (`familyUse.ts`) does neither. */
-    render(ahead?: () => void) {
-      if (!explorer || explorer.familiesPending()) return null;
-      ahead?.();
-      beforeFrame(); // what it applies may close the session: that frame has no image
-      if (!explorer) return null;
-      const metrics = explorer.render();
-      cuts.dynamic.drew(metrics);
-      track.drew();
-      inputs.frame(metrics);
-      return metrics;
-    },
+    /** A frame, `ahead` stepping first: drawn now, or once the world can (`worldAskedFrame.ts`). */
+    render: askedFrame({
+      // The session opening, or the families the frame draws with on their way (`familyUse.ts`).
+      waits: () => (explorer ? explorer.familiesPending() : (resolving ?? reopens.running)),
+      draw,
+      closed: () => disposed,
+      // Drawn past the page's call: said, and reported as an uncaught error is (`interactive.ts`).
+      failed(error) {
+        console.error('[trillion3d] A frame asked by world.render() failed', error);
+        canvas.ownerDocument?.defaultView?.reportError?.(error);
+      },
+    }),
     dispose() {
       disposed = true;
       explorer?.dispose();

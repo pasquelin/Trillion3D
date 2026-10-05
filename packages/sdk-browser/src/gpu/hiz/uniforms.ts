@@ -1,21 +1,24 @@
+/** Word of the test slot that says the frame's counters are sampled (`counting` in `shader.ts`). */
+const TEST_COUNTING_WORD = 5;
+
 /**
- * The test slot at `byteOffset`: `[width, height, rows, depth bias]`, the rest zero. `words` is the
- * caller's, zeroed at creation and reused every frame; only the first three words ever change, the
- * bias staying +0 (its bits, 0) — no array is allocated per frame.
+ * The test slot at word `at` of `image`, the uniform buffer's words: `[width, height, rows]`, then
+ * 1 at `counting` on a sampled frame, the rest of the slot zero — a pyramid of another depth may
+ * have left its build words there.
  */
-export function writeHizTestUniforms(
-  device: GPUDevice,
-  buffer: GPUBuffer,
-  words: Uint32Array<ArrayBuffer>,
-  byteOffset: number,
+export function hizTestSlot(
+  image: Uint32Array,
+  at: number,
   width: number,
   height: number,
   rows: number,
+  counting: boolean,
 ) {
-  words[0] = width;
-  words[1] = height;
-  words[2] = rows;
-  device.queue.writeBuffer(buffer, byteOffset, words);
+  image.fill(0, at, at + HIZ_UNIFORM_BYTES / 4);
+  image[at] = width;
+  image[at + 1] = height;
+  image[at + 2] = rows;
+  image[at + TEST_COUNTING_WORD] = counting ? 1 : 0;
 }
 
 /** Bytes of one uniform slot, and the deepest pyramid the camera builds. */
@@ -48,6 +51,11 @@ export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_M
   } while ((source += HIZ_PASS_LEVELS) < last);
   return passes;
 }
+
+/** The dynamic offset of each build pass's uniform slot, one array a pass so that encoding a frame
+ *  allocates none: pass `i` binds slot `i`. */
+export const hizBuildSlots = (passes: HizBuildPass[]) =>
+  passes.map((_, i) => [i * HIZ_UNIFORM_BYTES]);
 
 /**
  * Every pass's source and destinations are a function of the target size alone, so the whole

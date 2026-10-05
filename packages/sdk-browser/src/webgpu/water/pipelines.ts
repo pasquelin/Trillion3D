@@ -2,13 +2,15 @@ import { reflectionLayout } from '../../reflections/layout.ts';
 import { waterSurfaceTargets } from './surfaceTargets.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
-import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { blendStagePipelines } from '../blend/stagePipelines.ts';
 import { WATER_BINDINGS, waterCompositeShader } from './compositeWgsl.ts';
 import { waterRoutedShader } from './routedWgsl.ts';
 import { displayMaskLayout } from '../blend/displayFilter.ts';
 import { waterCompositeTargets } from './compositeTargets.ts';
+import { createReach, type Reach } from '../blend/reach.ts';
+import { variantLabel, type ContractKey } from '../../lighting/deferred/contractVariants.ts';
 
 /**
  * Surface stage: the blend module's vertex stage and `fsWater`, on the blend bind group layout —
@@ -43,7 +45,7 @@ export function createWaterCompositeLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     label: 'Trillion3D water composite',
     entries: [
-      ...deferredLayoutEntries(true, true, readOnly, false).map((entry) =>
+      ...deferredLayoutEntries(true, true, false).map((entry) =>
         entry.binding === b.word ? { ...entry, texture: word } : entry,
       ),
       { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
@@ -66,44 +68,38 @@ const COMPOSE_ENTRIES = [
  * The composite pipelines of one pass: a fullscreen triangle into the HDR target, blended exactly
  * as the forward transmission pass was — source alpha over what the frame already holds, which at a
  * water pixel is the frozen backdrop itself; a pixel with no water discards, and the target keeps
- * its value. The plain composite is compiled here; compiled on the first image that asks, the one
- * routed through the display layers (`waterRoutedShader`: the tint and the added value of a
- * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output. A scene
- * with no share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
- * A reference session's (`unbounded`) walk the mirror ray whole (`waterCompositeShader`).
+ * its value. What the scene reaches (`reach`) is compiled here, off the frame: the plain composite,
+ * the one routed through the display layers (`waterRoutedShader`: the tint and the added value of a
+ * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output; one that
+ * appears later starts its compile at the change, and a frame that gets there first makes it.
+ * A reference session's (`unbounded`) walk the mirror ray whole (`waterCompositeShader`). The
+ * light code is the one `key` leaves in, as the opaque resolve's (`createLitVariants`, `frame.ts`).
  */
 export async function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
-  sunWindow?: number,
   unbounded = false,
+  key: Partial<ContractKey> = {},
+  reach: Reach = createReach({ modes: [], share: false, filtered: false }),
 ) {
-  const suffix = unbounded ? '_UNBOUNDED' : '';
+  const suffix = `${unbounded ? '_UNBOUNDED' : ''}${variantLabel(key)}`;
   const module = await createCheckedShaderModule(
     device,
-    waterCompositeShader(sunWindow, unbounded),
+    waterCompositeShader(unbounded, key),
     `WATER_COMPOSITE${suffix}`,
   );
   const layouts = [layout, reflectionLayout(device)];
-  const base = await makeFullscreenPipeline(
-    device,
-    module,
-    layouts,
-    COMPOSE_ENTRIES[0],
-    waterCompositeTargets(false),
-  );
   const routedLabel = `WATER_ROUTED${suffix}`;
   let routedModule: GPUShaderModule | undefined;
-  const made: (GPURenderPipeline | undefined)[] = [base, undefined, undefined, undefined];
-  const build = (filtered: boolean, share: boolean, entryPoint: string) => {
+  const describe = (filtered: boolean, share: boolean, entryPoint: string) => {
     const code = filtered
       ? (routedModule ??= device.createShaderModule({
           label: routedLabel,
-          code: waterRoutedShader(sunWindow, unbounded),
+          code: waterRoutedShader(unbounded, key),
         }))
       : module;
     const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts;
-    return device.createRenderPipeline({
+    return {
       layout: device.createPipelineLayout({ bindGroupLayouts }),
       vertex: { module: code, entryPoint: 'fullscreen' },
       fragment: {
@@ -113,12 +109,25 @@ export async function createWaterComposites(
         targets: waterCompositeTargets(share, filtered),
       },
       primitive: { topology: 'triangle-list' },
-    });
+    } satisfies GPURenderPipelineDescriptor;
   };
   // The display route is the low bit, the share the one above: 0 base, 1 routed, 2 share, 3 both.
-  const at = (filtered: boolean, share: boolean) => {
-    const slot = +filtered + 2 * +share;
-    return (made[slot] ??= build(filtered, share, COMPOSE_ENTRIES[slot]));
+  const slots: ReturnType<typeof preparedPipeline>[] = [];
+  const slotOf = (slot: number) =>
+    (slots[slot] ??= preparedPipeline(
+      device,
+      describe(!!(slot & 1), !!(slot & 2), COMPOSE_ENTRIES[slot]),
+    ));
+  /** Compiles off the frame the composites the scene reaches (`reach.ts`): the shares in play,
+   *  with the display layers when they can be on. A frame that finds one missing makes it itself. */
+  const catchUp = () => {
+    const { shares, filtered } = reach.state;
+    const wanted = [...shares].flatMap((share) =>
+      (filtered ? [false, true] : [false]).map((layers) => +layers + 2 * +share),
+    );
+    return Promise.all(wanted.map((slot) => slotOf(slot).prepare()));
   };
-  return { at };
+  reach.onChange(catchUp);
+  await catchUp();
+  return { at: (filtered: boolean, share: boolean) => slotOf(+filtered + 2 * +share).get() };
 }

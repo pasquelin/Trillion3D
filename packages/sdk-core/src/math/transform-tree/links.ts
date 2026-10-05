@@ -6,10 +6,12 @@ import type { TransformTree } from './transformTree.ts';
  * many other nodes share the tree.
  */
 
-/** Hangs a parentless `node` last under `parent` (`-1`: stays a root). */
+/** Hangs a parentless `node` last under `parent` (`-1`: stays a root), its subtree's depths
+ *  following it (`hangDepths`). */
 export function linkTransformNode(tree: TransformTree, node: number, parent: number) {
   tree.parent[node] = parent;
   tree.nextSibling[node] = -1;
+  hangDepths(tree, node);
   if (parent < 0) return void (tree.previousSibling[node] = -1);
   const last = tree.lastChild[parent];
   tree.previousSibling[node] = last;
@@ -41,4 +43,13 @@ export function nextInSubtree(tree: TransformTree, node: number, top: number) {
     node = tree.parent[node];
   }
   return -1;
+}
+
+/** The depths of `node`'s subtree, from its parent's: each node one deeper than its parent, what
+ *  the frame pass orders parents before children by. */
+export function hangDepths(tree: TransformTree, node: number) {
+  const { depth, parent } = tree;
+  depth[node] = parent[node] < 0 ? 0 : depth[parent[node]] + 1;
+  for (let j = nextInSubtree(tree, node, node); j >= 0; j = nextInSubtree(tree, j, node))
+    depth[j] = depth[parent[j]] + 1;
 }

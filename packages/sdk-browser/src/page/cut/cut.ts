@@ -1,6 +1,6 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
-import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { castsNoShadow, drawsCard, openToCamera, selectFlat } from './select.ts';
+import { drawsCard, selectFlat } from './select.ts';
+import { openMark } from './openRoot.ts';
 import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
@@ -35,8 +35,6 @@ export function selectVisiblePages<T extends PageRecord>(
     held?: HeldResidency;
     wanted?: T[];
     result?: SelectionResult<T>;
-    /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
-    light?: LightPages;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -61,7 +59,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.shown = shown;
   state.wantedPacked = result.wantedPacked;
   state.shownPacked = result.shownPacked;
-  state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(cam.view);
@@ -83,16 +80,15 @@ export function selectVisiblePages<T extends PageRecord>(
   state.complete = true;
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank];
-    // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
-    // light's cut takes no root that casts no shadow, a camera's none its impostor card draws.
-    const { mark } = root;
-    if (root.parked || castsNoShadow(mark, state.light) || drawsCard(mark, state.light)) continue;
+    // A parked instance-buffer row places nothing: its root waits in the tables, untested. The cut
+    // takes no root its impostor card draws.
+    if (root.parked || drawsCard(root.mark)) continue;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;
     if (
       box &&
-      !openToCamera(state, root) &&
+      !openMark(root.mark) &&
       frustumExcludesBox(
         worldPlanes,
         box[0] - g,
@@ -135,10 +131,9 @@ export function selectVisiblePages<T extends PageRecord>(
   result.uncoveredTriangles = state.uncoveredTriangles;
   result.pixelError = state.pixelError;
   // An image's cut lets go of the readiness of the roots no cut saw since the previous one.
-  if (!options.light) held?.endImage();
+  held?.endImage();
   // The reused state keeps no hold on this image's scene.
   state.held = undefined;
-  state.light = undefined;
   state.flatHeld = undefined;
   return result;
 }

@@ -1,13 +1,8 @@
-import { serialOf } from '../host/graph/serial.ts';
-import { hashId } from './colors.ts';
-import { materialSide } from '../scene/materialSide.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
-  HostDiagnosticMesh,
   HostDisposable,
 } from '../host/resources.ts';
-import type { DiagnosticMode } from '../../../sdk-core/src/index.ts';
 
 /**
  * The per-triangle view, computed here and nowhere else: one colour per submitted triangle, from
@@ -71,33 +66,6 @@ export function triangleGeometry(
     overlays?.push({ dispose: () => disposeTriangleGeometry(geometry) });
   }
   return copy;
-}
-
-/**
- * Give a copy back its original geometry and material, kept in `userData`, then, in wireframe
- * mode, set its per-triangle colouring. The created material and copy go into `overlays`, to discard
- * with the mode.
- */
-export function applyMeshDiagnostic(
-  mesh: HostDiagnosticMesh,
-  mode: DiagnosticMode,
-  overlays: HostDisposable[],
-  host: HostDiagnosticFactory,
-) {
-  const sourceGeometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
-  const sourceMaterial = mesh.userData.sourceMaterial as HostDiagnosticMesh['material'];
-  mesh.geometry = sourceGeometry;
-  mesh.material = sourceMaterial;
-  if (mode !== 'wireframe') return;
-  mesh.geometry = triangleGeometry(
-    sourceGeometry,
-    host,
-    hashId(String(serialOf(mesh) ?? mesh.id)),
-    overlays,
-  );
-  const material = host.triangleMaterial(materialSide(sourceMaterial));
-  overlays.push(material);
-  mesh.material = material;
 }
 
 export function disposeTriangleGeometry(geometry: HostDiagnosticGeometry) {

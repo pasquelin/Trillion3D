@@ -5,6 +5,8 @@ import type { BlendPipelines } from '../blend/stagePipelines.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
 import { createWaterFrame, type WaterFrame } from './frame.ts';
 import { createWaterSurfacePipelines } from './pipelines.ts';
+import type { Reach } from '../blend/reach.ts';
+import type { ForwardLit } from '../../lighting/deferred/contractVariants.ts';
 
 /** The water pass of a scene: its surface pipelines and its frame side, built at prepare. */
 export interface WaterPass {
@@ -26,19 +28,21 @@ export function waterWithoutFeedback(code: string) {
 /**
  * Builds the pass for a scene that carries a transmissive item. `module` and `layout` are the
  * blend pass's: the surface stage is one more fragment entry of the same module, on the same bind
- * groups.
+ * groups. `lit`: the key the composite's first frame asks for (`createForwardVariants`); `reach`, what
+ * the composite must be ready to draw (`../blend/reach.ts`).
  */
 export async function createWaterPass(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   feedback = true,
-  sunWindow?: number,
   unboundedReflections = false,
+  lit?: ForwardLit,
+  reach?: Reach,
 ): Promise<WaterPass> {
   const [surfaces, frame] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout, feedback),
-    createWaterFrame(device, sunWindow, unboundedReflections),
+    createWaterFrame(device, unboundedReflections, feedback, lit, reach),
   ]);
   return { surfaces, frame };
 }

@@ -14,11 +14,16 @@ vec2 reflectionSize(){return vec2(textureSize(reflectionColor,0));}
 float reflectionDepthAt(ivec2 p){return texelFetch(reflectionDepth,p,0).r;}
 float reflectionClearDepth(){return 1.0;}
 vec4 reflectionHitAt(ivec2 p){return vec4(texelFetch(reflectionColor,p,0).rgb,1.0);}
+// The walk reads the depth bounds below: GLSL reads top to bottom.
+vec2 reflectionBoundsAt(ivec2 p,int level);
+int reflectionBoundsLevels();
 ${screenTraceShader('glsl')}
 ${mirrorWeightShader('glsl')}
 float reflectionLastMip(){return floor(log2(max(reflectionSize().x,reflectionSize().y)));}
+// The bounds hold the levels above the pixels, the pyramid's last the whole image (\`pyramidGl.ts\`).
+int reflectionBoundsLevels(){return int(reflectionLastMip());}
 vec2 reflectionBoundsAt(ivec2 p,int level){
- if(level==0){float z=reflectionDepthAt(p);return z==1.0?vec2(1.0,0.0):vec2(z);}
+ if(level==0)return reflectionPixelBounds(p);
  ivec2 size=textureSize(reflectionBounds,level-1);
  return uintBitsToFloat(texelFetch(reflectionBounds,clamp(p,ivec2(0),size-1),level-1).rg);
 }

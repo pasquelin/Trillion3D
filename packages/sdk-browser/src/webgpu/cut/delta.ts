@@ -1,6 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
+import type { HeldList } from './heldList.ts';
+import { applyHashed } from './hashedDifference.ts';
+import { applyClaimed } from './claimedDifference.ts';
 
 /**
  * Published difference, and what can be asked of it.
@@ -37,8 +40,11 @@ export type CutDelta = {
   hold(): void;
   /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. The
    *  packed cut passes its reused `Int32Array` whole (`webgpu/pages/render/cpu.ts`): `count` is the
-   *  record list's length, so only the live ranks are read and no stale tail is walked. */
-  apply(ids: ArrayLike<number>, count?: number): void;
+   *  record list's length, so only the live ranks are read and no stale tail is walked. The GPU
+   *  cut passes the ranks its readback claims for them in the last list it applied (`claims`,
+   *  `./claimedDifference.ts`); a list without them is marked id by id (`./hashedDifference.ts`).
+   *  The same difference either way. */
+  apply(ids: ArrayLike<number>, count?: number, claims?: Uint32Array): void;
   /**
    * The same difference, published by a cut that names its records instead of their ranks — the
    * CPU cut. `rankOf` resolves each record's first packed rank; a record it does not hold yields
@@ -51,7 +57,7 @@ export type CutDelta = {
 export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'exitedCount' | 'has'>;
 
 /**
- * The opaque cut as a set that outlives the image: given the page ids the GPU published, it names the
+ * The opaque cut as a set that outlives the image: given the page ids a cut published, it names the
  * pages that entered and left since the previous cut, so every consumer downstream reads a difference
  * instead of a list.
  *
@@ -61,116 +67,89 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * length.
  *
  * Every table follows the cut, never the catalogue (#483 rule 6): membership is an epoch mark held
- * in a sparse map (`../../page/cut/sparseInts.ts`) for the ids the cut holds — the shown-list epoch
- * for dedup, that of the previous shown list for entry —, an id that leaves loses its mark, and the
- * lists grow to the longest cut seen, then are rewritten in place. Exits are read on the previously
- * held list, and a frame that adopts the shown list it already holds writes nothing at all.
+ * in a sparse map (`../../page/cut/sparseInts.ts`) for the ids the cut holds, an id that leaves
+ * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
+ * that adopts the shown list it already holds writes nothing at all.
  *
- * The GPU cut arrives there by its ids (`apply`), the CPU cut by its records (`adoptRecords`): one
- * contract, and readers do not know which one decides.
+ * The GPU cut arrives there by its ids and the ranks its readback claims for them (`apply` with
+ * claims), the CPU cut by its ids or records alone (`apply`, `adoptRecords`): one contract, and
+ * readers do not know which one decides.
  */
 export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDelta {
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
-  const { recordOf } = createPageCatalogue(packedPages);
-  /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
-  const mark = createSparseInts();
-  /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
-   *  never shrunk, because exits are read on the old one while the new one is written. */
-  let kept = new Int32Array(8),
-    keptNext = new Int32Array(8);
-  /** Id sequence the last shown list published, to compare it as-is. */
-  let published = new Int32Array(8);
-  // Epochs start at 1: an id without a mark reads 0, never a current or previous epoch.
-  let epoch = 1,
-    keptCount = 0,
-    publishedCount = -1;
   /**
    * True when `ids` is exactly the sequence the last applied shown list published. One integer
    * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
    * the held list, nor the records — when a new shown list republishes the same cut.
    */
   const samePublished = (ids: ArrayLike<number>, count: number) => {
-    if (count !== publishedCount) return false;
+    if (count !== delta.publishedCount) return false;
+    const published = delta.published;
     for (let i = 0; i < count; i++) if (published[i] !== ids[i]) return false;
     return true;
   };
-  /** Held shown list: no difference is published, and the list is already the one it describes. */
-  const hold = () => {
-    state.changed = false;
-    state.enteredCount = 0;
-    state.exitedCount = 0;
+  /** Every list long enough for a cut of `count` after the one held: either difference grows them
+   *  alike, so the bytes they weigh do not depend on which one ran. */
+  const growFor = (count: number) => {
+    if (delta.published.length < count) delta.published = grown(delta.published, count);
+    if (delta.next.length < count) delta.next = grown(delta.next, count);
+    if (delta.entered.length < count) delta.entered = grown(delta.entered, count);
+    if (delta.exited.length < delta.count) delta.exited = grown(delta.exited, delta.count);
   };
   /** Page ranks of a record list. Emptied then filled by push, never grown by its length: an array
    *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
    *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = [];
-  const apply = (ids: ArrayLike<number>, count = ids.length) => {
+  /** Held shown list: no difference is published, and the list is already the one it describes. */
+  const hold = () => {
+    delta.changed = false;
+    delta.enteredCount = 0;
+    delta.exitedCount = 0;
+  };
+  const apply = (ids: ArrayLike<number>, count = ids.length, claims?: Uint32Array) => {
     // A new shown list that republishes the same sequence describes the cut already held: it is
     // held, and not one of the fifteen thousand records is rewritten.
     if (samePublished(ids, count)) return hold();
-    const previous = epoch;
-    epoch++;
-    if (published.length < count) published = grown(published, count);
-    if (keptNext.length < count) keptNext = grown(keptNext, count);
-    if (state.entered.length < count) state.entered = grown(state.entered, count);
-    if (state.exited.length < keptCount) state.exited = grown(state.exited, keptCount);
-    const { entered, exited } = state;
-    let enteredCount = 0,
-      exitedCount = 0;
-    let same = count === publishedCount;
-    publishedCount = count;
-    let keptNow = 0;
-    for (let i = 0; i < count; i++) {
-      const id = ids[i];
-      if (published[i] !== id) {
-        published[i] = id;
-        same = false;
-      }
-      const rec = recordOf(id);
-      if (!rec) continue;
-      const seen = mark.set(id, epoch);
-      if (seen === epoch) continue;
-      if (pages) pages[keptNow] = rec;
-      keptNext[keptNow++] = id;
-      if (seen !== previous) entered[enteredCount++] = id;
-    }
-    if (pages) pages.length = keptNow;
-    for (let i = 0; i < keptCount; i++) {
-      const id = kept[i];
-      if (mark.get(id) !== epoch) {
-        exited[exitedCount++] = id;
-        mark.set(id, 0);
-      }
-    }
-    const swap = kept;
-    kept = keptNext;
-    keptNext = swap;
-    keptCount = keptNow;
-    state.enteredCount = enteredCount;
-    state.exitedCount = exitedCount;
-    state.count = keptNow;
-    state.changed = !same;
+    growFor(count);
+    const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count);
+    delta.publishedCount = count;
+    // The next list becomes the held one.
+    const swap = delta.ids;
+    delta.ids = delta.next;
+    delta.next = swap;
+    delta.count = next;
+    delta.changed = true;
   };
-  const state = {
-    entered: new Int32Array(8),
-    exited: new Int32Array(8),
-    enteredCount: 0,
-    exitedCount: 0,
+  const delta: HeldList & CutDelta = {
+    recordOf: createPageCatalogue(packedPages).recordOf,
+    mark: createSparseInts(),
+    pages,
+    // Epochs start at 1: an id without a mark reads 0, never a current or previous epoch.
+    epoch: 1,
+    ids: new Int32Array(8),
     count: 0,
+    next: new Int32Array(8),
+    published: new Int32Array(8),
+    publishedCount: -1,
+    rawRank: new Uint32Array(0),
+    rawToHeld: false,
+    entered: new Int32Array(8),
+    enteredCount: 0,
+    exited: new Int32Array(8),
+    exitedCount: 0,
     changed: true,
-    has: (id: number) => mark.get(id) === epoch,
-    get ids() {
-      return kept;
-    },
+    named: new Uint32Array(8),
+    before: [],
+    has: (id: number) => delta.mark.get(id) === delta.epoch,
     /** Bytes of the marks and the lists, all sized by the longest cut seen. */
     get hostBytes() {
       return (
-        mark.byteLength +
-        kept.byteLength +
-        keptNext.byteLength +
-        published.byteLength +
-        state.entered.byteLength +
-        state.exited.byteLength
+        delta.mark.byteLength +
+        delta.ids.byteLength +
+        delta.next.byteLength +
+        delta.published.byteLength +
+        delta.rawRank.byteLength +
+        delta.entered.byteLength +
+        delta.exited.byteLength
       );
     },
     hold,
@@ -184,5 +163,5 @@ export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDel
       apply(recordIds);
     },
   };
-  return state;
+  return delta;
 }

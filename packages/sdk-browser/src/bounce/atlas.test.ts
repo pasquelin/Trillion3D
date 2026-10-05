@@ -14,38 +14,49 @@ import { PROBE_TEXELS, atlasBytes, atlasExtent, probeAtlasExtent } from './atlas
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 
-/** A simulated atlas: `textureDimensions`, `textureLoad` and `textureStore` over a texel map. A
- *  WGSL `u32` division truncates; the run is in doubles, so the layer is truncated here. */
+/** A simulated atlas: `textureDimensions`, `textureLoad` and `textureStore` over a texel map, every
+ *  texel asked of it inside its extent. */
 function atlas([width, height, layers]: number[]) {
   const texels = new Map<string, Vec>();
   const key = ([x, y]: Vec, layer: number) => {
-    assert.ok(
-      Number(x) < width && Number(y) < height && Math.trunc(layer) < layers,
-      'in the atlas',
-    );
-    return `${x},${y},${Math.trunc(layer)}`;
+    assert.ok(Number(x) < width && Number(y) < height && layer < layers, 'in the atlas');
+    return `${x},${y},${layer}`;
   };
   const scope = {
     probes: {},
     probesOut: {},
-    textureDimensions: () => [width, height],
     textureLoad: (_: object, at: Vec, layer: number) => texels.get(key(at, layer)) ?? [0, 0, 0, 0],
     textureStore: (_: object, at: Vec, layer: number, value: Vec) =>
       void texels.set(key(at, layer), value),
   };
   return { texels, scope };
 }
-type Probe = { probeAt: (i: number) => Vec; probeStore: (i: number, value: Vec) => void };
+type Probe = {
+  probeAddress: (level: number, wrapped: Vec) => Vec;
+  probeAt: (probe: Vec, k: number) => Vec;
+  probeStore: (probe: Vec, k: number, value: Vec) => void;
+};
 
 test('every probe vector has a texel of its own, read back bit for bit where it was written', () => {
-  const extent = probeAtlasExtent(3, 2);
-  const { texels, scope } = atlas(extent);
-  const run = shaderRun<Probe>(BOUNCE_PROBE_SHADER, ['probeAt', 'probeStore'], scope);
-  const vectors = 2 * 3 ** 3 * PROBE_TEXELS;
+  const [side, levels] = [3, 2];
+  const { texels, scope } = atlas(probeAtlasExtent(side, levels));
+  const bounce = { counts: [side, levels, side ** 3, 1] };
+  const run = shaderRun<Probe>(BOUNCE_PROBE_SHADER, ['probeAddress', 'probeAt', 'probeStore'], {
+    ...scope,
+    bounce,
+    PROBE_VECTORS: PROBE_TEXELS,
+  });
+  const vectors: [Vec, number][] = [];
+  for (let level = 0; level < levels; level++)
+    for (let z = 0; z < side; z++)
+      for (let y = 0; y < side; y++)
+        for (let x = 0; x < side; x++)
+          for (let k = 0; k < PROBE_TEXELS; k++)
+            vectors.push([run.probeAddress(level, [x, y, z]), k]);
   const value = (i: number) => [i, Math.fround(i / 3), -i, Math.fround(Math.PI * i)];
-  for (let i = 0; i < vectors; i++) run.probeStore(i, value(i));
-  assert.equal(texels.size, vectors, 'no two vectors share a texel');
-  for (let i = 0; i < vectors; i++) assert.deepEqual(run.probeAt(i), value(i), `vector ${i}`);
+  vectors.forEach(([probe, k], i) => run.probeStore(probe, k, value(i)));
+  assert.equal(texels.size, levels * side ** 3 * PROBE_TEXELS, 'no two vectors share a texel');
+  vectors.forEach(([probe, k], i) => assert.deepEqual(run.probeAt(probe, k), value(i), `${i}`));
 });
 
 test('the probe atlas holds a level per layer and weighs what the buffer did', () => {

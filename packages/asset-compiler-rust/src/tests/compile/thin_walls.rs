@@ -82,8 +82,8 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
 const CHALET_COOK: &str = "b3de9602cd78325ad82a8d0f94c36e4bcc6bda1a89fab28c775682b55a014041";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
-/// it. A different digest on one platform alone is a cook that is not portable (the C++ of
-/// meshoptimizer fused into FMA on arm64 cooked three faces apart from x86_64; the platform's
+/// it. A different digest on one platform alone is a cook that is not portable (the simplifier's
+/// C++, fused into FMA on arm64, cooked three faces apart from x86_64; the platform's
 /// `acos` published a normal deviation one bit apart on macOS and glibc); a different digest
 /// everywhere is a cook that changed, and the constant follows it.
 #[test]

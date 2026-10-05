@@ -4,8 +4,8 @@ The on-disk contract: what the compiler writes and the SDK reads.
 
 ## Layout
 
-| Pointer | Payload |
-| --- | --- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`; SHA-addressed objects `native/objects/<digest>.bin`, one per index page, geometry page or streaming bundle; baked texture levels `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, a lossless PNG per mip level above the sidecar's tail, plus the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected
@@ -32,12 +32,12 @@ rule is needed, and the manifest names each object in full, so the reader depend
 and 10 (`FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION`) and refuses every other whole, by its
 number, before any field is read; SDK, compiler and cache versions are independent.
 
-| Version | What changed | Why an older folder is refused |
-| --- | --- | --- |
-| 10 | `formatVersion: 10`, in this pointer and the metadata, required by a cache containing `clustered-blend`; every other cache is 9 | An older reader refuses it instead of treating transparent pages as opaque |
-| 9 | Format 9 pages the manifest | An earlier manifest is not paged |
-| 7 | `selectedNodes` a count (7 and 8) where 5 and 6 wrote a list | A list gives no count to read |
-| 5 | Added the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from | An earlier folder has no tables to give; the tables carry a version of their own, refused by name when it is not the one the reader builds from |
+| Version | What changed                                                                                                                    | Why an older folder is refused                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10      | `formatVersion: 10`, in this pointer and the metadata, required by a cache containing `clustered-blend`; every other cache is 9 | An older reader refuses it instead of treating transparent pages as opaque                                                                      |
+| 9       | Format 9 pages the manifest                                                                                                     | An earlier manifest is not paged                                                                                                                |
+| 7       | `selectedNodes` a count (7 and 8) where 5 and 6 wrote a list                                                                    | A list gives no count to read                                                                                                                   |
+| 5       | Added the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from                                 | An earlier folder has no tables to give; the tables carry a version of their own, refused by name when it is not the one the reader builds from |
 
 ## `clusters.json`
 
@@ -68,7 +68,7 @@ Required fields of the merged manifest, read by the browser adapter:
 - `selectedTriangles`, `selectedNodes` — counts of triangles and nodes kept, not lists, so they do
   not grow with the placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams,
-  dag, topology }`
+dag, topology }`
   - `pass`: `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry,
     `shared-blend` for unsplit transmissive geometry (`KHR_materials_transmission` with
     `transmissionFactor > 0`).
@@ -85,14 +85,14 @@ Required fields of the merged manifest, read by the browser adapter:
   - `simplification`: `true` when compiled with `qem-endpoints`.
 - `worstStalls[]` — the stall table, ranked by the compiler: at most ten primitives whose stalled
   group kept level-0 triangles as roots, most `rootTriangles` first, ties in manifest order, each `{
-  index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }` (manifest
+index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }` (manifest
   rank and `dag` summary). A primitive whose only stall is its coarsest group, above levels that
   climbed, keeps no level-0 root and is not listed (its `dag.stalls[]` names it). The CLI's `stall`
   events and the bench's `resume.md` print it as is
 - `worldRoots` — the [world super-roots](#world-super-roots) report, pinned top bytes included; not
   read by the browser.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews,
-  texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, a page's [column
+texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, a page's [column
   file](#column-files) descriptor.
 
 For the compiler alone: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of
@@ -137,7 +137,7 @@ once since coarsening swaps whole groups.
 - `role` — `exact` at level 0, `coarse` above
 - `level` — DAG level, 0 for the source triangles
 - `lodError` / `sphere` — object-space error of the group that produced the cluster, and the `[x,
-  y, z, radius]` sphere it is projected through: at level 0 the smallest ball of its vertices, above
+y, z, radius]` sphere it is projected through: at level 0 the smallest ball of its vertices, above
   it a ball holding every child's sphere, never larger than the box-centre sphere or sequential
   merge it replaces
 - `parentError` / `parentSphere` — the same pair for the replacing group; `null` on a root, never
@@ -150,7 +150,7 @@ once since coarsening swaps whole groups.
 - `cone` — `{ axis: [x, y, z], angle }`, the normal cone: every non-degenerate face normal lies
   within `angle` radians of `axis`, `angle` never wider than the runtime's reference `triangleCone`
   on the same triangles by more than a few ulps (`normal_cone.rs` says how and why); `{ axis: [0, 0,
-  1], angle: π }`, rejecting nothing, when no face is left or the normals give no axis. Every
+1], angle: π }`, rejecting nothing, when no face is left or the normals give no axis. Every
   cluster has one, and the WebGPU prepare reads no vertex for it. In a column file it is `pageCone`,
   four `f64` per page; sidecar version 9 added it, and a version-8 reader refuses the file
 
@@ -238,28 +238,28 @@ version. Index pages stay available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
-The published cluster format — positions on an object grid, octahedral normals, integer texture
+The cluster format — positions on an object grid, octahedral normals, integer texture
 coordinates, colours on a grid, local indices delta-coded in blocks of triangles, no tangent —
-rebuilt from the literature for the web: twenty-five little-endian `u32` header words, then
+built for the web: twenty-five little-endian `u32` header words, then
 word-aligned bit streams, nothing else. No field spans more than two words, so a shader reads any
 vertex or corner of a resident page in place, in O(1)
 (`packages/sdk-browser/src/cluster/decodeWgsl.ts`); the JavaScript and WebAssembly decoders unpack
 the same bytes to floats for the autonomous backend.
 
-| Word | Content |
-| --- | --- |
-| 0, 1 | magic `WGP3` (`0x33504757`), version `7` |
-| 2, 3 | vertex count (1 to 65,535), index count (a positive multiple of 3) |
-| 4 | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
-| 5–8 | position record and minimum: one `f32` per axis |
-| 9–11 | TEXCOORD_0 record and minimum |
-| 12–14 | TEXCOORD_1 record and minimum |
-| 15–19 | COLOR_0 record and minimum, four channels |
-| 20 | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
-| 21 | bits of the corner stream |
-| 22 | stored positions: 1 to the vertex count |
-| 23 | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29 |
-| 24 | skin influences per vertex (0 without skin; 1 to 65,536 with skin) |
+| Word  | Content                                                                                                                                             |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0, 1  | magic `WGP3` (`0x33504757`), version `7`                                                                                                            |
+| 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                                                                  |
+| 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
+| 5–8   | position record and minimum: one `f32` per axis                                                                                                     |
+| 9–11  | TEXCOORD_0 record and minimum                                                                                                                       |
+| 12–14 | TEXCOORD_1 record and minimum                                                                                                                       |
+| 15–19 | COLOR_0 record and minimum, four channels                                                                                                           |
+| 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units                                     |
+| 21    | bits of the corner stream                                                                                                                           |
+| 22    | stored positions: 1 to the vertex count                                                                                                             |
+| 23    | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29                                                           |
+| 24    | skin influences per vertex (0 without skin; 1 to 65,536 with skin)                                                                                  |
 
 A record word holds each component's width in six-bit fields from bit 0 (0 to 24) and the grid
 exponent as a signed top byte; a zero-width component is constant, with no stream. Streams follow in
@@ -283,7 +283,7 @@ distance to it (5 bits, 0 to 16) and `prefix`, the sum of earlier blocks' widths
 / 24)` bits), each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`;
 the corner stream holds `corner − base` for corner `k` at bit `24 × prefix + k × w`. A corner is one
 record and one field away, O(1) in a shader, and lossless. Vertices numbered by first use keep
-blocks narrow: Sponza's pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 %
+blocks narrow: Sponza's (licence: [see ASSET_LICENSE_AUDIT](ASSET_LICENSE_AUDIT.md#licence-table-of-every-asset)) pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 %
 (building) to 6.7 % (sphere) less, every page decoding to the same triangles.
 
 Every offset follows from the counts, widths and words 21 and 22, so the header stores no other and
@@ -298,7 +298,7 @@ before any float is produced.
 Decoding is one multiply and one add per component in 32-bit floats: `value = min + q × 2^exponent`,
 the product exact (a power-of-two step), the sum rounded once, so the three decoders
 (`geometryPage.ts` through `Math.fround`, the Rust codec, the WGSL routines) agree, bit for bit on
-the graphics card (`tests/browser/probes/cluster-decoding-gpu.ts`). A normal is two bytes, `x` low
+the graphics card (`tests/gpu/cluster/cluster-decoding.gpu.ts`). A normal is two bytes, `x` low
 and `y` high, `(q × 2/255 − 1)` each, the lower hemisphere folded (`z < 0`) then normalized, `2/255`
 rounded to the nearest `f32` in each language. `-0` lands on the cell of `0`.
 
@@ -352,7 +352,7 @@ corners: Whisperwind's FBX import, 2.6 vertices per triangle, comes down to its 
 triangles unchanged. Tangents are never written: every lighting pass rebuilds a cotangent frame from
 a triangle's normal, two edges and their texture deltas (`cotangentFrame`, in WGSL beside the decode
 routines and GLSL for the WebGL2 renderer; a raster passes the edges, a fragment stage its screen
-derivatives), as the reference does. A texture coordinate set no texture of the material names in
+derivatives). A texture coordinate set no texture of the material names in
 `texCoord` is not written either — residency follows what the frame reads —, while the DAG still
 welds along it, so clusters do not depend on what a material samples.
 
@@ -509,7 +509,7 @@ value is read from the `source.gltf` the same compilation publishes (and, for it
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
 - `nodes[]` — every node the partition's cells do not place, in glTF order, renumbered without them
   (all nodes at their glTF rank when `partition` is `null`): `{ name, children, mesh, light, camera,
-  weights, matrix, translation, rotation, scale, visible }`. `weights` overrides the mesh's morph
+weights, matrix, translation, rotation, scale, visible }`. `weights` overrides the mesh's morph
   weights; `visible` is `false` under `KHR_node_visibility` `visible: false`, hiding the node and
   its subtree until a page shows it, and such a node stays in this table, not a cell (node table
   version 4). The pose is the LOCAL one as declared, each part `null` when silent, so the runtime
@@ -519,7 +519,7 @@ value is read from the `source.gltf` the same compilation publishes (and, for it
   once (version 5, #751): what a runtime holding the manifest by the view reads before its first
   frame, the cells' region pages naming the rest.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
-  range, innerConeAngle, outerConeAngle }`, silent fields `null` (the specification's default).
+range, innerConeAngle, outerConeAngle }`, silent fields `null` (the specification's default).
   `lights.json` stays the radiometric product the engine lights with.
 - `cameras[]` — `{ name, type, yfov, aspectRatio, xmag, ymag, znear, zfar }`, silent fields `null`.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
@@ -537,11 +537,11 @@ value is read from the `source.gltf` the same compilation publishes (and, for it
   entry's `normalScaleY` turned as the other variant writes it, whichever document it opened. A
   primitive with no material wears an entry holding glTF's default.
 - `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
-  minFilter }`, `image` the source `EXT_texture_webp` then `EXT_texture_avif` names before the core
+minFilter }`, `image` the source `EXT_texture_webp` then `EXT_texture_avif` names before the core
   `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`,
   `linear-mip-linear`…), the specification's defaults where the sampler is silent; `sampler` the
   glTF sampler rank, which with the image's source decides which textures are one. A map slot is `{
-  texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled (the
+texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled (the
   `KHR_texture_transform`'s when it names one), `slotTexCoord` the slot's own, deciding whether the
   host reads the glTF texture or a copy and so the rank kept, and `transform` the declared
   `KHR_texture_transform` — `{ offset, rotation, scale }`, each `null` when silent — or `null`; the
@@ -549,9 +549,9 @@ value is read from the `source.gltf` the same compilation publishes (and, for it
 - `documents` — each published document's geometry layout, keyed by file name (`source.gltf`, and
   `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`. `buffer` names its one
   binary; a view is `{ offset, length, stride }` into it; an accessor `{ view, offset,
-  componentType, normalized, count, type, min, max, sparse }`, `sparse` being `{ count, indices: {
-  view, offset, componentType }, values: { view, offset } }` or `null`; a mesh `{ name, weights,
-  primitives }`, a primitive `{ attributes, targets, indices, material }` — accessor ranks by glTF
+componentType, normalized, count, type, min, max, sparse }`, `sparse` being `{ count, indices: {
+view, offset, componentType }, values: { view, offset } }` or `null`; a mesh `{ name, weights,
+primitives }`, a primitive `{ attributes, targets, indices, material }` — accessor ranks by glTF
   semantic, morph targets (sets of accessor ranks, `null` for none), and its surface's rank in
   `materials[]` for that document's tangent variant; an image `{ name, uri, view, mimeType }`, an
   address relative to the document or a view of its binary.
@@ -629,8 +629,7 @@ WebGPU world reads the whole manifest until its session grows in place (#216).
 
 **Reading the cells.** Each placed mesh is one host mesh per primitive, its instance buffer filled
 by the cells (`packages/sdk-browser/src/scene/partition/`): a placement takes a row at the world
-matrix the engine composes for a child of its parent — a host node's bits, proven against the host
-loader on `site/assets/examples/ten-thousand-objects` (`host/prepared/partition.test.ts`) — and
+matrix the engine composes for a child of its parent — a host node's bits — and
 parks it when its cell leaves. A page may move a core parent (`getObjectByName`): its rows are
 rewritten, and the cell's boxes are its parents' boxes under their current matrices (`boxes.ts`), so
 a cell is read where its placements stand, at its nearest box's distance. A cell is read while the
@@ -767,12 +766,12 @@ recompile the model) — format 1 had another bodies shape and no matter on an i
 are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 `jolt` names that commit, and the engine refuses another's. `stage` names the stage and its version.
 
-| Field | Content |
-| --- | --- |
-| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles` |
-| `tiles` | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame); every triangle is of the collider's `material`, which an exact hit reports. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
-| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A shearing node matrix is no body pose: counted in `report.unplaced` |
-| `report` | Counts, the largest tolerance and measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error), drawn without a collider; a refusal never fails the compile |
+| Field       | Content                                                                                                                                                                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                                                      |
+| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame); every triangle is of the collider's `material`, which an exact hit reports. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
+| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A shearing node matrix is no body pose: counted in `report.unplaced`                                                      |
+| `report`    | Counts, the largest tolerance and measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error), drawn without a collider; a refusal never fails the compile                                                                                                 |
 
 The manifest's `physics` names the file, format, Jolt commit, report and every object cited
 (`objects[].sha256`), so a prune keeps them.

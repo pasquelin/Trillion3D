@@ -20,7 +20,6 @@ export function proveInstalledBrowser({
 } & CacheUrls): Promise<InstalledBrowserProof> {
   const imports = {
     [packageName]: `/node_modules/${packageName}/${browserEntry}`,
-    meshoptimizer: '/node_modules/meshoptimizer/index.module.js',
   };
   return runInstalledBrowser({
     root: fixture,

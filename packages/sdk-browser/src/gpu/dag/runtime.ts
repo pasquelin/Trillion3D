@@ -9,6 +9,7 @@ import { refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
+import { createDifferenceChain } from './differenceChain.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
 import { MASK_SECTION, flagLocation } from './split.ts';
 import type { createDagResources } from './resources.ts';
@@ -48,10 +49,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   };
   // A dead selection dispatches and drains nothing more.
   const fail = () => ((state.dead = true), voidCuts());
-  const previousWorlds = packed.worlds.slice();
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
-  const dispatch = createDagDispatch(resources, state, fail);
+  const chain = createDifferenceChain();
+  const dispatch = createDagDispatch(resources, state, fail, chain);
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
   // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
   // before #1333, and the rows' flags go up as they are.
@@ -62,13 +63,13 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
    *  the new word no longer lets through, or lacks some it does: another cut from here. */
   const writeFrameWord = (w: number, slot: number, value: number) => {
     frames.writeWord(w, slot, value);
-    resources.frameWrites.count++;
     voidCuts();
   };
   const selection: GpuSelection = {
     residentCut,
     get hostBytes() {
       return (
+        frames.originBytes +
         (uploadResidency?.hostBytes ?? 0) +
         (poolList?.entries.byteLength ?? 0) +
         (mirror?.hostBytes ?? 0)
@@ -77,6 +78,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     maskBuffer: resources.flagParts[mask.part],
     maskOffset: mask.word,
     pageCount,
+    worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision;
@@ -85,22 +87,27 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (state.disposed || state.dead) return false;
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
-      if (!worldsChanged(previousWorlds, next)) return false;
+      const originChanged = posesMoved && frames.writeWorldOrigins();
+      // `packed.worlds` is what this selection last received, and only this method writes it:
+      // the worlds the next send is compared with, without a second copy of them beside it.
+      if (!worldsChanged(packed.worlds, next)) {
+        if (originChanged) state.worldRevision++;
+        return originChanged;
+      }
       // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
       // Only translations rewritten, the scan could find no linear part that moved: skipped.
       const stretched = translationsOnly
         ? 0
-        : refreshWorldStretch(previousWorlds, next, packed, frameData);
-      previousWorlds.set(next);
+        : refreshWorldStretch(packed.worlds, next, packed, frameData);
       packed.worlds.set(next);
       frames.writeWorlds(next);
-      if (stretched) {
-        frames.writeRows();
-        resources.frameWrites.count++;
-      }
+      if (stretched) frames.writeRows();
       // Cuts in hand and in flight keep their revision and still name what to stream (#358).
       if (posesMoved) state.worldRevision++;
       return true;
+    },
+    worldsMovedOnGpu() {
+      if (!state.disposed && !state.dead) state.worldRevision++;
     },
     parkWorld(w, parked) {
       if (state.disposed || state.dead) return;
@@ -137,6 +144,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     },
     peek() {
       return state.dead ? null : state.last;
+    },
+    adopt(cut) {
+      return !state.dead && cut === state.last ? chain.adopt() : undefined;
     },
     failed() {
       return state.dead;

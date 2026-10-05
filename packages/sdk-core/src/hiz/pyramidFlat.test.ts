@@ -6,14 +6,8 @@
 // arithmetic operation that could round differently.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  hizBuildPyramid,
-  hizFootprintFar,
-  hizBuildFlat,
-  hizFootprintFarFlat,
-  type HizFlat,
-} from '../index.ts';
-import { hizFlatLayout } from './pyramidFlat.ts';
+import { hizBuildPyramid, hizFootprintFar, hizFootprintFarFlat } from './oracles.fixture.ts';
+import { hizBuildFlat, hizFlatLayout, type HizFlat } from './pyramidFlat.ts';
 
 /** Expected nested levels, compared value by value with the flat buffer. */
 function assertSamePyramid(flat: HizFlat, nested: number[][][], message: string) {

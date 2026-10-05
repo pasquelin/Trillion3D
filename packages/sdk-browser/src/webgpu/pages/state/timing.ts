@@ -3,7 +3,6 @@ import type { createGpuTiming } from '../../../gpu/timing/timing.ts';
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts';
 import { createCpuStepProfile } from '../../../stage/cpuProfile.ts';
 import { CPU_STEP_NAMES } from '../render/cpuStepTable.ts';
-import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
 import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts';
 import { WEBGPU_STAGES } from '../../../stage/mapping.ts';
 
@@ -33,7 +32,12 @@ export interface WebgpuTimingState {
   lastGpuPassMs: GpuPassTimings | null;
   lastGpuFrameMs: number | null;
   lastGpuHostGapMs: number | null;
+  /** The last sample's device idle since the image before it (`idleBetweenMs`, #1451); `null`
+   *  when that sample had no neighbour to measure from. */
+  lastGpuIdleMs: number | null;
   lastSubmitMs: number | null;
+  /** The GPU log's per-image feed (`prepare/gpuLog.ts`); absent until the timer is prepared. */
+  logFrame: ((cpuMs: number, rafMs: number | null) => void) | undefined;
   /** Duration of the image's only `queue.submit`: encode does not carry it. */
   lastQueueSubmitMs: number;
   /** Per-stage profile published by `stageProfile()`; absent when the host has not asked for it. */
@@ -93,12 +97,6 @@ export interface WebgpuTimingState {
    */
   frameEncoder: GPUCommandEncoder | undefined;
   frameSelection: SelectionSubmission | undefined;
-  /** Settlement of the light cuts' request readback, carried by the command buffer that copied it. */
-  shadowRequests: SelectionSubmission | undefined;
-  /** The light cut's flag word, copied with the frame's pages (`lightCutRedraws.ts`). */
-  shadowRedraws: SelectionSubmission | undefined;
-  /** Settlement of the shadow pages the resolve asked for, carried by the same command buffer. */
-  shadowPageRequests: SelectionSubmission | undefined;
 }
 
 /** Per-stage profile of the WebGPU engine, mounted only when the host has asked for it. */
@@ -120,13 +118,14 @@ export function createWebgpuTimingState(
   roots: () => number = () => 0,
 ): WebgpuTimingState {
   const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
-  forgetShadowCpuSteps(cpuProfile.row);
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
     lastGpuFrameMs: null,
     lastGpuHostGapMs: null,
+    lastGpuIdleMs: null,
     lastSubmitMs: null,
+    logFrame: undefined,
     lastQueueSubmitMs: 0,
     stages,
     lastPartitionMs: 0,
@@ -182,8 +181,5 @@ export function createWebgpuTimingState(
     transparentSpanUploadBytes: 0,
     frameEncoder: undefined,
     frameSelection: undefined,
-    shadowRequests: undefined,
-    shadowRedraws: undefined,
-    shadowPageRequests: undefined,
   };
 }

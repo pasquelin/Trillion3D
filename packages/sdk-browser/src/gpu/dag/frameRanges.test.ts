@@ -1,6 +1,6 @@
 // A camera cut's `frames` past what one storage buffer binds (#979): the host side of the split —
 // ranges, buffers, bind groups, stages, writes, copies and dispatches. That the split cuts as the
-// whole table is the GPU's to prove (`tests/browser/probes/frame-ranges-gpu.ts`).
+// whole table is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { framesBytes } from './frameRanges.ts';
@@ -86,10 +86,6 @@ test("the host's rows and words land in their range, at their row there", async 
   assert.equal(word.buffer, frames.buffers[1]);
   assert.equal(word.offset, (primitiveWordAt(5) + 1) * 4);
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7);
-  const targets = [{}, {}, {}] as GPUBuffer[];
-  frames.copyRows(fake.device.createCommandEncoder(), targets);
-  const copies = fake.copies.map((c) => `${at(c.from)}>${targets.indexOf(c.to)}+${c.size / 112}`);
-  assert.equal(copies.join(' '), '0>0+20 1>1+20 2>2+8');
 });
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {

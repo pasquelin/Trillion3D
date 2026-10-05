@@ -146,7 +146,7 @@ fn huge_flat_plane(seed: u64) -> Case {
 }
 
 /// A sphere: curvature everywhere, a wrap column written twice, and at each pole a fan whose apex
-/// is written once per segment. Under meshoptimizer 0.22 the last group stalled on the seam
+/// is written once per segment. Under the simplifier's older version the last group stalled on the seam
 /// positions left at the poles and the wrap column; 0.25 slides past them and the sphere climbs to
 /// one root.
 fn high_curvature(seed: u64) -> Case {

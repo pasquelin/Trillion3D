@@ -1,14 +1,11 @@
 //! `ma` (Maya ASCII) scene driver: a MEL command file becomes an intermediate glTF scene.
 //! **No command is executed**: the file is read as data.
 //!
-//! **Provenance and licence, written here as in `docs/COMPILER.md` § "Input formats".** This reader is written in this
-//! repository from Autodesk's public documentation: the form of a `.ma` — a sequence of MEL
-//! commands ended by `;` —, the commands `requires`, `currentUnit`, `createNode`, `setAttr`,
+//! **Scope.** The form of a `.ma` is a sequence of MEL commands ended by `;`. This reader
+//! understands the commands `requires`, `currentUnit`, `createNode`, `setAttr`,
 //! `connectAttr`, `parent` and `fileInfo`, and the attribute names of `transform`, `mesh`,
 //! `lambert`, `phong`, `blinn`, `standardSurface`, `file`, `place2dTexture`, `bump2d` and
-//! `shadingEngine` nodes. **No Autodesk code or SDK is reused**, no crate is added to the
-//! repository for this format, nothing is deciphered or circumvented. The licence of the
-//! imported scene remains that of its author.
+//! `shadingEngine` nodes. Nothing is deciphered or circumvented.
 //!
 //! **Safety.** A `.ma` is a program: it can carry scripts. This driver is not an interpreter.
 //! It only recognizes the commands of the subset above and **counts all the others by their

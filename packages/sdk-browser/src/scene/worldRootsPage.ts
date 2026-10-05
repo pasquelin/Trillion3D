@@ -15,11 +15,11 @@
  *    (`PageSource.read`), and the world-space positions as the `HostAttributes` the WebGPU float
  *    pool packs.
  *
- * As cluster's streamer does, a page is addressed by its place in the bulk data (its bundle and its
- * byte offset), and a bundle is streamed once: its read serves every caller and both WebGPU views
- * of each page (`read` and `attributes`), whatever their order; what stays resident is the
- * caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold, as World
- * Partition keeps a loaded cell's data) and the GPU page pool's, never a second cache here.
+ * A page is addressed by its place in the bulk data (its bundle and its byte offset), and a bundle
+ * is streamed once: its read serves every caller and both WebGPU views of each page (`read` and
+ * `attributes`), whatever their order; what stays resident is the caller's (`openWorldRoots`: the
+ * pinned top and the bundles the placed cells hold, like a loaded cell's data) and the GPU page
+ * pool's, never a second cache here.
  *
  * The world matrix stays the identity: the positions are already in world space, so a page is
  * bound and drawn as it was cooked, never placed by a per-cluster pose.

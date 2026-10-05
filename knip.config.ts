@@ -1,6 +1,7 @@
-// The SDK's source entries are public; browser probes are launched by the host, outside pnpm test.
+// The SDK's source entries are public; the GPU proofs run on the bench, outside pnpm test.
 // `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
-// integration lane load them by URL, never by import; so does `physicsWorker.ts`, the physics session.
+// integration lane load them by URL, never by import; so do `physicsWorker.ts`, the physics session,
+// and `animationWorker.ts`, the animation samples taken ahead.
 import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
@@ -14,6 +15,7 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
+        'packages/sdk-browser/src/math/animationWorker.ts',
         // The public API's source (`scripts/sdk-api-model.ts`, `ENTRIES`): the facade below is
         // generated from these three entries, so every name they export is public.
         'packages/sdk-core/src/index.ts',
@@ -24,10 +26,9 @@ const config: KnipConfig = {
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
         'packages/**/*.test.ts',
-        // The scripts `package.json` and the workflows run are found by knip itself; the tests and
-        // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.
+        // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
+        // by `node --test`, are entries by rule. Any other script is dead.
         'scripts/*.test.ts',
-        'scripts/*.browser.ts',
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).
@@ -41,6 +42,9 @@ const config: KnipConfig = {
         // Run by git through the one-line shims of `.githooks/`.
         'scripts/hooks/{delegate,pre-commit,pre-push}.ts',
         'bench/runner/bench.ts',
+        // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
+        // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
+        'bench/dawn/{run,suite,recorder,workerBoot}.ts',
         'bench/runner/feedbackTargetAb.ts',
         'bench/runner/trajectory.ts',
         'bench/runner/reference.ts',
@@ -75,19 +79,19 @@ const config: KnipConfig = {
         'bench/runner/oracle.ts',
         'bench/runner/lampFixture.ts',
         'bench/runner/anisotropyCost.ts',
+        // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',
         'bench/runner/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
-        // Tests by rule: unit and integration tests, the browser proof runners (render proofs and
-        // kebab-case probes), the pages and modules they serve by URL, and the public-API fixtures
+        // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case
+        // probes), the page modules they load by path, and the public-API fixtures
         // the type-check test compiles by path. Kit, support and fixture helpers are not entries: an
         // export no test imports is reported.
         'tests/**/*.test.ts',
-        'tests/browser/renders/*.browser.ts',
-        'tests/browser/probes/*-*.ts',
-        'tests/browser/**/*Page.ts',
-        'tests/browser/support/drawRun.ts',
+        'tests/gpu/**/*.gpu.ts',
+        'tests/gpu/**/*.chrome.ts',
+        'tests/gpu/**/*Page.ts',
         'tests/fixtures/public*.{ts,mts}',
       ],
       project: [
@@ -108,7 +112,9 @@ const config: KnipConfig = {
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
       // The tap runner is a Stryker plugin, loaded by name (`scripts/test-mutation.ts`).
       ignoreDependencies: ['daisyui', 'flag-icons', '@stryker-mutator/tap-runner'],
-      ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/],
+      // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
+      // and decodes the images its pages load.
+      ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/, 'ioreg', 'sips'],
     },
   },
 };

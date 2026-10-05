@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import {
+  PHYSICS_STEP,
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
   type CookedBody,
@@ -102,7 +103,7 @@ export function modelStreamer(
   const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
   const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
   const { state } = createPhysicsPoses(limits.bodies, scene);
-  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state);
+  const bodies = createPhysicsBodies(writer, limits, {} as PhysicsHost, scene, state, PHYSICS_STEP);
   let wake = () => {};
   const heard = () => new Promise<void>((resolve) => (wake = resolve));
   const tiles = createTileStreamer(

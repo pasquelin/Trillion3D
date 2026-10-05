@@ -83,6 +83,52 @@ test('a spline passes through its points and bends as Catmull–Rom', () => {
   assert.ok(Math.abs(line.getLength() - 2) < 1e-9, 'its length: the points run along x');
 });
 
+test('a length, a tangent and the sampled points keep every bit they had', () => {
+  const corners: [number, number, number][] = [
+    [-83, 83.1, -30.1],
+    [86.9, 28, 42.1],
+    [42.3, -76.3, 6.3],
+    [69, 35.4, -15.8],
+  ];
+  // Strict equality is `Object.is`: each number below is the double the curve gave, to the bit.
+  const vectors = corners.map((p) => new Vector3(...p));
+  const open = new SplineCurve(vectors);
+  assert.equal(open.getLength(), 439.30853986027296);
+  assert.equal(open.getLength(7), 423.23983459233142);
+  const into = new Vector3(7, -7, 7);
+  assert.equal(open.getTangent(0.3, into), into, 'written into the vector given');
+  assert.deepEqual(xyz(into), [0.80073396312404332, -0.5162147615205096, 0.30388721639448191]);
+  assert.deepEqual(
+    xyz(open.getTangent(1)),
+    [0.2283492733853526, 0.95509312710456062, -0.18882194761736054],
+  );
+  const closed = new SplineCurve(vectors, true);
+  assert.equal(closed.getLength(), 606.62332552444354);
+  assert.equal(closed.getLength(7), 566.15580890457932);
+  assert.deepEqual(
+    xyz(closed.getTangent(0.3)),
+    [-0.15598585014345628, -0.97514730294883456, -0.1573408786890341],
+  );
+  assert.deepEqual(
+    closed.getPoints(3).map(xyz).flat(),
+    [
+      -83, 83.099999999999994, -30.100000000000001, 85.281481481481478, -11.122222222222206,
+      37.659259259259265, 70.696296296296282, -5.0925925925926094, -9.518518518518519,
+      -82.999999999999972, 83.099999999999994, -30.100000000000001,
+    ],
+  );
+  const path = new Path(corners);
+  assert.equal(path.getLength(), 426.83363959426737);
+  assert.equal(path.getLength(9), 391.34958815422078);
+  assert.deepEqual(
+    xyz(path.getTangent(0.4)),
+    [0.88190024959842195, -0.28600767364853713, 0.37476867581535311],
+  );
+  // A lone corner at −0, read into a new vector, comes out +0, and so does its tangent whatever
+  // `out` held: the far point written into `out` would have left a −0 there.
+  assert.deepEqual(xyz(new Path([[-0, 0, 0]]).getTangent(0.5, new Vector3(1, 1, 1))), [0, 0, 0]);
+});
+
 test('a shape samples its lines, curves and arcs, and drops a closing repeat', () => {
   const square = new Shape([
     [0, 0],

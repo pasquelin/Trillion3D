@@ -1,8 +1,8 @@
 /**
- * Bounds written back into a page geometry, as the reference computes them: a box from its two
+ * Bounds written back into a page geometry, as the engine computes them: a box from its two
  * corners and the sphere around it. No computation here: the sphere comes from
  * `packages/sdk-core/src/math/primitives/sphere.ts`, the box and the sphere are the core's own
- * (`Box3`, `Sphere`), and reading a host box needs no library at all (`boxBounds.ts`).
+ * (box and sphere), and reading a host box needs no library at all (`boxBounds.ts`).
  */
 import { sphereFromBounds } from '../../../sdk-core/src/index.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';

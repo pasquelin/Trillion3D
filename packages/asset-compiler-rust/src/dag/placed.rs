@@ -72,7 +72,7 @@ impl<'r> Local<'r> {
             rows.chain(placed).flatten().copied().collect()
         });
         let mut weld = first_copies(&region.remap, input.weld);
-        let mut seen: HashMap<[u32; 3], u32> = HashMap::new();
+        let mut seen: WordMap<[u32; 3], u32> = WordMap::default();
         for (k, &o) in origin.iter().enumerate() {
             let key = position_key(&positions, (n + k) as u32);
             weld.push(match key == position_key(&positions, o) {
@@ -157,7 +157,7 @@ impl Local<'_> {
 
 /// Per region vertex of `remap`, the region's first copy of it under the level's `weld`.
 fn first_copies(remap: &[u32], weld: &[u32]) -> Vec<u32> {
-    let mut first: HashMap<u32, u32> = HashMap::new();
+    let mut first: WordMap<u32, u32> = WordMap::default();
     let copies = remap.iter().enumerate();
     copies
         .map(|(i, &v)| *first.entry(weld[v as usize]).or_insert(i as u32))

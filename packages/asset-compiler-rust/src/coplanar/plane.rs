@@ -7,7 +7,7 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use crate::shared_math::{cross, dot, length, scale, sub};
+use crate::shared_math::{cross, dot, extend_aabb, length, scale, sub};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.
@@ -44,8 +44,6 @@ pub fn plane_of_triangles(
             ]
         })
     };
-    // Bounding box accumulates here without using `shared_math::extend_aabb`: summation order
-    // of this function decides coplanar surfaces, and nothing is moved.
     let mut accumulated = [0.0f64; 3];
     let mut area = 0.0f64;
     let mut low = [f64::INFINITY; 3];
@@ -58,10 +56,7 @@ pub fn plane_of_triangles(
             corner(triangle[2])?,
         );
         for point in [a, b, c] {
-            for axis in 0..3 {
-                low[axis] = low[axis].min(point[axis]);
-                high[axis] = high[axis].max(point[axis]);
-            }
+            extend_aabb(&mut low, &mut high, point);
         }
         let normal = cross(sub(b, a), sub(c, a));
         let double_area = length(normal);

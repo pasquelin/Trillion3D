@@ -31,7 +31,7 @@ export const contentType = (extension: string): string =>
 export type Mount = { prefix: string; dir: string };
 
 /** The file the URL-encoded `path` names under `dir`, or `null` when it leaves `dir`. */
-export function fileUnder(dir: string, path: string): string | null {
+function fileUnder(dir: string, path: string): string | null {
   const base = resolve(dir);
   const file = resolve(base, `./${decodeURIComponent(path)}`);
   return file === base || file.startsWith(base + sep) ? file : null;
@@ -60,7 +60,7 @@ export interface StaticOptions {
 }
 
 /** Whether an `Accept-Encoding` header accepts brotli: named, and not with a zero weight. */
-export function acceptsBrotli(header: string | undefined) {
+function acceptsBrotli(header: string | undefined) {
   return (header ?? '').split(',').some((entry) => {
     const [name, ...parameters] = entry.split(';').map((part) => part.trim().toLowerCase());
     return name === 'br' && !parameters.some((p) => /^q=0(\.0*)?$/.test(p));

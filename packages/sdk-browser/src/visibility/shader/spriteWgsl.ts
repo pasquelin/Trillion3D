@@ -4,7 +4,7 @@ import { SHADOWLESS_ROOT } from './shadowlessRoot.ts';
 
 /**
  * THE SPRITE: where a corner of a sprite's quad (`drawnSprite`, sdk-core `drawnSprite.ts`) stands
- * once turned to face the camera, as the reference's `Sprite` places it.
+ * once turned to face the camera.
  *
  * `place` takes the sprite's local space to the space `toClip` projects: the sprite's world matrix
  * under the WebGPU paths and the CPU raster, which project world space; its model-view matrix
@@ -12,10 +12,10 @@ import { SHADOWLESS_ROOT } from './shadowlessRoot.ts';
  * sprite's centre — are scaled by the lengths of `place`'s first two axes, the sprite's own scale;
  * a sprite that keeps its size on screen (`sprite.y` below zero) scales them again by the clip `w`
  * of its origin, the view depth under a perspective camera and one under an orthographic one, as
- * the reference multiplies by `−mvPosition.z` there alone. They then turn by `sprite.x` radians
+ * the view depth of the origin alone multiplies them there. They then turn by `sprite.x` radians
  * and lie in the image plane about the origin, along the camera's right and up: the first two rows
  * of `toClip`, whose directions they are for any projection the engine composes. The corner keeps
- * the origin's depth, as the reference keeps `mvPosition.z`.
+ * the origin's view depth.
  *
  * `sprite` is `(rotation, mode)`: mode 1 for a sprite that shrinks with distance, −1 for one that
  * keeps its size on screen, 0 for every surface that is no sprite — which no raster moves.
@@ -64,15 +64,16 @@ export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   surface?.sprite?.sizeAttenuation === false;
 
 /** The root mark's bit on every sprite (`ClusterRoot.mark`): a sprite casts no shadow, so the
- *  CPU and GPU light cuts open no descent on it and the sun's scene box leaves it out. */
-export const SPRITE_ROOT = 1;
+ *  shadow raster leaves its rows out and the sun's scene box leaves it out. */
+const SPRITE_ROOT = 1;
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2;
-/** The bits of a root that casts no shadow: what every light cut tests (`castsNoShadow`). */
+/** The bits of a root that casts no shadow: what the shadow raster's rows test
+ *  (`../../webgpu/shadow/bounds.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
 /** The root mark's bit on a root the camera draws as its impostor card (#1335): every camera cut
- *  leaves its clusters to the card (`drawsCard`), every light cut still walks them, so the card's
- *  object casts its whole mesh's shadow, as an impostor or HLOD proxy keeps its source's. */
+ *  leaves its clusters to the card (`drawsCard`), the shadow raster still draws them, so the card's
+ *  object casts its whole mesh's shadow. */
 export const CARD_ROOT = 8;
 /** Sets or clears `root`'s card bit; true when its mark changed. */
 export function markCard(root: { mark?: number }, card: boolean) {

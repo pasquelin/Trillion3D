@@ -78,7 +78,6 @@ export {
   clipPlanesFromMatrix,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-  frustumPlanesToLocal,
 } from './frustum/frustum.ts';
 export { frustumClipBox, frustumExcludesBox } from './frustum/box.ts';
 export {
@@ -109,10 +108,8 @@ export {
 } from './transform-tree/update.ts';
 export {
   nodeWorldDirection,
-  nodeWorldMirrorsFaces,
   nodeWorldPosition,
   nodeWorldQuaternion,
-  nodeWorldScale,
 } from './transform-tree/read.ts';
 export { lookAtNode } from './transform-tree/lookAt.ts';
 export {

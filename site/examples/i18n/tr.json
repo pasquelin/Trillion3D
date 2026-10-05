@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Kare/sn",
-      "FPS (held)": "Kare/sn (durdu)",
       "triangles": "üçgen",
       "triangles (scene)": "üçgen (sahne)",
       "draw calls": "çizim çağrısı",
       "pages": "sayfa",
       "geometry pool": "geometri deposu",
       "lights": "ışık",
+      "GPU memory": "GPU belleği",
+      "screen images": "ekran görüntüleri",
+      "shadow memory": "gölge belleği",
+      "geometry memory": "geometri belleği",
+      "texture memory": "doku belleği",
+      "live textures": "etkin dokular",
+      "transmission backdrop": "geçirgenlik arka planı",
       "GPU frame": "GPU karesi",
       "GPU frame (last)": "GPU karesi (son)",
       "CPU frame": "CPU karesi",
       "page hooks": "sayfa kodu",
-      "engine CPU": "motor CPU"
+      "engine CPU": "motor CPU",
+      "Statistics": "İstatistikler",
+      "hint": "Tıkla: sıkıştır · sürükle: taşı · tuş \" / `",
+      "fps": "FPS",
+      "budget": "bütçe",
+      "held": "donmuş",
+      "last": "son",
+      "others": "diğerleri",
+      "Shadows": "Gölgeler",
+      "Scene and memory": "Sahne ve bellek",
+      "cut and culling": "kesme ve ayıklama",
+      "page preparation": "sayfa hazırlığı",
+      "command encoding": "komut kodlama",
+      "physics step": "fizik adımı",
+      "Cadence": "Kadans",
+      "{n}× refresh": "{n}× yenileme",
+      "GPU idle": "GPU boşta"
+    },
+    "shadows": {
+      "lights": "ışıklar",
+      "maps": "haritalar",
+      "pagesRequested": "istenen sayfalar",
+      "pagesAllocated": "ayrılan sayfalar",
+      "pagesCached": "önbellekteki sayfalar",
+      "pagesRendered": "çizilen sayfalar",
+      "freePages": "boş sayfalar",
+      "lodBias": "LOD sapması",
+      "projectionPasses": "izdüşüm geçişleri",
+      "invalidation": "geçersiz kılma",
+      "marking": "işaretleme",
+      "pageManagement": "sayfa yönetimi",
+      "render": "çizim",
+      "projection": "izdüşüm",
+      "transmission": "geçirgenlik"
+    },
+    "passes": {
+      "vsm projection": "VSM izdüşümü",
+      "vsm marking": "VSM işaretleme",
+      "vsm render": "VSM çizimi",
+      "material surfaces": "malzeme yüzeyleri",
+      "temporal antialiasing": "zamansal kenar yumuşatma",
+      "HDR composition + present": "HDR birleştirme + sunum",
+      "deferred lighting": "ertelenmiş aydınlatma",
+      "reflection source": "yansıma kaynağı",
+      "HiZ pyramid": "HiZ piramidi",
+      "light tiles": "ışık karoları",
+      "texture mips": "doku mipleri",
+      "reflection radiance mips": "yansıma parlaklık mipleri",
+      "reflection depth bounds mips": "yansıma derinlik sınırı mipleri"
     },
     "failure": {
       "title": "Bu örnek bir hata yüzünden durdu",
@@ -1363,7 +1417,8 @@
       "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Büstün etrafında dönmek için sürükle. Sandık ve cam top döner tablalarında döner.",
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Duruş"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Bir kalite, bir çözünürlük ve bir görünüm seç. Bir ayarı A, diğerini B olarak sakla ve aralarında geçiş yapmak için C'ye bas."
   }
 }

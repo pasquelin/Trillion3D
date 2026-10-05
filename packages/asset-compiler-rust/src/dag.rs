@@ -12,15 +12,15 @@
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
+use crate::shared_math::{word_map, WordMap, WordSet};
 use crate::{invalid, Result};
 use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
-/// meshopt caps a meshlet at 255 vertices; a 128 triangle cluster never needs more.
+/// Vertex limit of a cluster; a 128 triangle cluster never needs more.
 pub const DAG_CLUSTER_VERTICES: usize = 255;
-/// Group floor of the reference; the DAG warnings and the stall report read it. Grouping keeps it
+/// Fewest clusters a group holds, short of its level's only group; the DAG warnings and the stall report read it. Grouping keeps it
 /// with no merge pass (audit CMP-17, #977): it splits only above `DAG_GROUP_MAX`, each half keeping
 /// 3/8 of 33 clusters or more (`refine_bisection`), so a smaller group is its level's only one.
 pub const DAG_GROUP_MIN: usize = 8;
@@ -36,7 +36,7 @@ pub enum DagStrategy {
     /// `none`: level zero only, exact partition of source triangles. No group
     /// reduced, no cluster replaced, each stays root.
     ExactClusters,
-    /// `qem-endpoints`: coarse levels, each group reduced by QEM locked border.
+    /// `qem-endpoints`: coarse levels, each group simplified by the linked `meshopt` simplifier, border locked.
     QemEndpoints,
 }
 impl DagStrategy {
@@ -64,8 +64,6 @@ pub struct DagCluster {
     pub sphere: [f64; 4],
     /// Bounds of the group that replaces this cluster, used to project `parent_error`.
     pub parent_sphere: [f64; 4],
-    /// One cluster of the group that replaces this one. `None` for a root. Builder bookkeeping only.
-    pub replacement: Option<usize>,
     /// Earliest source triangle this cluster descends from. Keeps a transparent draw order close to
     /// the source order, which spatial clustering would otherwise scramble.
     pub source_rank: u32,

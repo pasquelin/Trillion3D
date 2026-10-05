@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Bilder/s",
-      "FPS (held)": "Bilder/s (angehalten)",
       "triangles": "Dreiecke",
       "triangles (scene)": "Dreiecke (Szene)",
       "draw calls": "Zeichenaufrufe",
       "pages": "Seiten",
-      "geometry pool": "Geometriespeicher",
+      "geometry pool": "Geometrie-Reserve",
       "lights": "Lichter",
+      "GPU memory": "GPU-Speicher",
+      "screen images": "Bildschirmbilder",
+      "shadow memory": "Schattenspeicher",
+      "geometry memory": "Geometriespeicher",
+      "texture memory": "Texturspeicher",
+      "live textures": "aktive Texturen",
+      "transmission backdrop": "Transmissionshintergrund",
       "GPU frame": "GPU-Bild",
       "GPU frame (last)": "GPU-Bild (letztes)",
       "CPU frame": "CPU-Bild",
       "page hooks": "Code der Seite",
-      "engine CPU": "Engine-CPU"
+      "engine CPU": "Engine-CPU",
+      "Statistics": "Statistik",
+      "hint": "Klick: kompakt · ziehen: verschieben · Taste ^ / `",
+      "fps": "B/s",
+      "budget": "Budget",
+      "held": "eingefroren",
+      "last": "zuletzt",
+      "others": "andere",
+      "Shadows": "Schatten",
+      "Scene and memory": "Szene und Speicher",
+      "cut and culling": "Schnitt und Culling",
+      "page preparation": "Seitenvorbereitung",
+      "command encoding": "Befehlskodierung",
+      "physics step": "Physikschritt",
+      "Cadence": "Takt",
+      "{n}× refresh": "{n}× Bildwechsel",
+      "GPU idle": "GPU-Leerlauf"
+    },
+    "shadows": {
+      "lights": "Lichter",
+      "maps": "Maps",
+      "pagesRequested": "Seiten angefragt",
+      "pagesAllocated": "Seiten belegt",
+      "pagesCached": "Seiten im Cache",
+      "pagesRendered": "Seiten gerendert",
+      "freePages": "freie Seiten",
+      "lodBias": "LOD-Bias",
+      "projectionPasses": "Projektionsdurchläufe",
+      "invalidation": "Invalidierung",
+      "marking": "Markierung",
+      "pageManagement": "Seitenverwaltung",
+      "render": "Rendern",
+      "projection": "Projektion",
+      "transmission": "Transmission"
+    },
+    "passes": {
+      "vsm projection": "VSM-Projektion",
+      "vsm marking": "VSM-Markierung",
+      "vsm render": "VSM-Rendern",
+      "material surfaces": "Materialoberflächen",
+      "temporal antialiasing": "temporales Antialiasing",
+      "HDR composition + present": "HDR-Komposition + Ausgabe",
+      "deferred lighting": "verzögerte Beleuchtung",
+      "reflection source": "Reflexionsquelle",
+      "HiZ pyramid": "HiZ-Pyramide",
+      "light tiles": "Licht-Kacheln",
+      "texture mips": "Textur-Mips",
+      "reflection radiance mips": "Reflexions-Radianz-Mips",
+      "reflection depth bounds mips": "Reflexions-Tiefengrenzen-Mips"
     },
     "failure": {
       "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben",
@@ -1238,7 +1292,7 @@
     "banner": "Ziehe, um über den Platz zu gehen. Wähle einen Moment, von Mittag bis Mondlicht.",
     "controls": {
       "moment": "Moment",
-      "lampLumens": "Lampen-reference-GI",
+      "lampLumens": "Lampen-Lumen",
       "autoExposure": "Automatische Belichtung",
       "exposureValue": "Lichtwert",
       "turning": "Drehen"
@@ -1363,7 +1417,8 @@
       "credit": "Urnenallee für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Ziehe, um die Büste zu umkreisen. Die Kiste und die Glaskugel drehen sich auf ihrem Drehteller.",
     "words": {
       "credit": "Marble Bust 01 von Rico Cilliers, Poly Haven, CC0; Kiste von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Wähle eine Qualität, eine Auflösung und eine Ansicht. Behalte eine Einstellung als A, eine andere als B, und drücke C, um zwischen ihnen zu wechseln."
   }
 }

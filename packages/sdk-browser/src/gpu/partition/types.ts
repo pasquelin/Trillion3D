@@ -1,6 +1,7 @@
 import type { PartitionFrame } from './uniform.ts';
 import type { PartitionCountsFrame } from './counters.ts';
 import type { PendingGrowth } from '../core/tableGrowth.ts';
+import type { OpenPass } from '../core/lazyComputePass.ts';
 
 /** Buffers the partition uses but does not own: those of the draw compact, the Hi-Z test's
  *  verdict buffer, which it rereads to feed the occluder history, and the pyramid the previous
@@ -47,14 +48,24 @@ export type GpuPartition = {
    *  described the page or the place that left, and the next image reads them as never projected.
    *  Called once per run: rows scattered across the table forget nothing between them. */
   forgetRows(from: number, to: number): void;
-  encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
+  /**
+   * The frame's work before its compute pass: the rows forgotten since the last frame cleared —
+   * encoder commands, which no open pass allows —, the uniform written.
+   */
+  beginFrame(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
+  /** The frame `beginFrame` prepared, as dispatches of the frame's compute pass: what it counts
+   *  cleared, then each row projected, then classified. None on a frame without a pyramid. */
+  encode(open: OpenPass): void;
+  /** Whether the last encoded frame counts (`PartitionFrame.counting`): its kernels and the
+   *  occlusion test it feeds keep the counters, and `encodeCounts` copies them. */
+  readonly counting: boolean;
   /** Row buffers for `rows` rows, made now; `commit` puts them in place, reading what `sources`
    *  then gives — the grown draw compact's and Hi-Z test's — from then on. Every row reads as
    *  never projected. */
   grow(rows: number, sources: () => Omit<PartitionSources, 'pyramid'>): PendingGrowth;
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean;
-  /** Encodes the copy of the counters this frame just wrote. */
+  /** Encodes the copy of the counters this frame just wrote, on a frame that counts. */
   encodeCounts(encoder: GPUCommandEncoder, frame: number): void;
   /** Requests mapping of the encoded copy, once the frame is submitted. */
   countsSubmitted(): void;

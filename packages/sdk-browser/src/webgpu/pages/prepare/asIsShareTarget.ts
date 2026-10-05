@@ -57,6 +57,6 @@ export function seedAsIsShare(
     gpu.targetBytes += width * height * AS_IS_SHARE_BYTES;
     makeAsIsShare(rt, device, width, height);
   }
-  gpu.asIsShare!.seed(encoder);
+  gpu.asIsShare!.seed(encoder, readsAsIs(rt));
   return gpu.asIsShare;
 }

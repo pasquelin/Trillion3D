@@ -3,6 +3,7 @@ import { grownCapacity, growPlacementRows, type PlacementRows } from '../../plac
 import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
+import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts';
 /**
  * A drawn resource: one geometry resource worn with one material entry. Its placements are the
  * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
@@ -12,6 +13,8 @@ export type Batch = {
   readonly key: string;
   readonly cut: Cut;
   readonly entry: MaterialEntry;
+  /** Its meshes are cloths (`drawnTwoSided`): their surface is drawn on both faces. */
+  readonly twoSided: boolean;
   rows: PlacementRows | null;
   readonly owners: (Mesh | null)[];
   readonly free: number[];
@@ -44,12 +47,22 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     emptied = new Set<Batch>(),
     mounting = new Set<Batch>();
   const batchOf = (cut: Cut, entry: MaterialEntry, mesh: Mesh) => {
-    const key = `${cut.key}/${entry.id}/${mesh.skeleton?.bones.length ?? 0}/${mesh.waves?.waveModel.count ?? 0}`;
+    const twoSided = drawnTwoSided(mesh.physics?.soft?.type);
+    const key = `${cut.key}/${entry.id}/${mesh.skeleton?.bones.length ?? 0}/${mesh.waves?.waveModel.count ?? 0}/${+twoSided}`;
     let batch = batches.get(key);
     if (!batch)
       batches.set(
         key,
-        (batch = { key, cut, entry, rows: null, owners: [], free: [], wearers: new Set() }),
+        (batch = {
+          key,
+          cut,
+          entry,
+          twoSided,
+          rows: null,
+          owners: [],
+          free: [],
+          wearers: new Set(),
+        }),
       );
     return batch;
   };

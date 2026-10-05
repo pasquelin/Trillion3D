@@ -1,6 +1,6 @@
 /**
  * What every vertex attribute shares, owning its storage or viewing one slice of an interleaved
- * buffer: reading and writing a vertex by component. The rule is the reference's, number for
+ * buffer: reading and writing a vertex by component. The rule, number for
  * number: an integer attribute declared normalised reads as its value over the largest of its type.
  */
 /** The typed arrays a buffer holds. */
@@ -68,6 +68,39 @@ export abstract class VertexElements {
     if (component >= this.itemSize) return 0;
     const value = this.stored(index, component);
     return this.normalized ? denormalize(value, this.array) : value;
+  }
+  /**
+   * Numbers `0` to `width − 1` of vertices `from` to `from + n − 1` into `out`, `stride` apart from
+   * `at`: each the number `getComponent` reads, or the one stored with `stored` (a normalised list
+   * read as its stored numbers), `pad` past the vertex's own. A list whose stored numbers are the
+   * ones read, laid one vertex after the other at the width read, is copied whole.
+   */
+  readInto(
+    out: Float32Array,
+    at: number,
+    stride: number,
+    from: number,
+    n: number,
+    width: number,
+    pad: number,
+    stored = false,
+  ) {
+    const numbers = this.array,
+      size = this.itemSize,
+      raw = stored || !this.normalized,
+      first = this.at(from);
+    if (raw && size === width && stride === width && this.at(from + 1) - first === size) {
+      out.set(numbers.subarray(first, first + n * width), at);
+      return out;
+    }
+    for (let i = 0; i < n; i++) {
+      const base = this.at(from + i),
+        to = at + i * stride;
+      for (let c = 0; c < width; c++)
+        out[to + c] =
+          c >= size ? pad : raw ? numbers[base + c] : denormalize(numbers[base + c], numbers);
+    }
+    return out;
   }
   /** Writes number `component` of vertex `index`. */
   setComponent(index: number, component: number, value: number) {

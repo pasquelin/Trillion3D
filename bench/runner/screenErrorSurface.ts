@@ -1,7 +1,7 @@
 // The two surfaces the screen-error measure compares, as world-space triangles (nine numbers
 // each): the source glTF at full precision, the reference, and the pages a WebGPU cut drew,
 // decoded by the engine's page decoder. The WGSL decode is that decoder bit for bit
-// (`tests/browser/probes/cluster-decoding-gpu.ts`); WebGL2 hands its drawn triangles back itself.
+// (`tests/gpu/cluster/cluster-decoding.gpu.ts`); WebGL2 hands its drawn triangles back itself.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCacheManifest } from './cacheManifest.ts';

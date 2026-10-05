@@ -22,7 +22,7 @@ function plan(
       paged,
     } as unknown as BlendGpuItem,
   ]);
-  return [...blendState.orders[transmissive ? 1 : 0]];
+  return [...blendState.seeds[transmissive ? 1 : 0]];
 }
 
 test('an item that declares no material plans the host default side: one front entry, not a crash', () => {

@@ -8,7 +8,8 @@ import { ensureWebgpuVisibilityBindings } from '../visibility/bindings.ts';
 import { ensureWebgpuShadeBindings } from './shadeBindings.ts';
 import { drawBlendPass } from '../blend/draw.ts';
 import { blendLightResources } from '../blend/lighting.ts';
-import { buildBlendStatics } from '../blend/plan.ts';
+import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts';
+import { surfaceOf } from '../../page/surface.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
 import { createWebgpuVisState } from '../pages/state/vis.ts';
@@ -48,6 +49,7 @@ function stubVis(layouts: Record<string, unknown>) {
     pageTable: { size: 3 * PAGE_INFO_STRIDE } as GPUBuffer,
     visUniform: token(),
     shadeUniform: token(),
+    shadeCache: { buffer: token() },
     zeroFlags: token(),
     visView: {} as GPUTextureView,
     textures: stubTextures(),
@@ -80,7 +82,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     uv: {} as GPUBuffer,
     normal: {} as GPUBuffer,
     diagnosticBuffer: {} as GPUBuffer,
-    material: G.basicSurface(),
+    surface: surfaceOf(G.basicSurface()),
     matrix: new G.Matrix4(),
     count: 3,
     group: undefined,
@@ -89,14 +91,14 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
   buildBlendStatics(blendState);
-  blendState.orders[0] = Uint32Array.from([1]);
+  refreshBlendPlan(blendState);
   orderBlendPasses(blendState, [0, 0, 0]);
   Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} });
   const rt = {
     vis,
     gpu: {
       cache: { buffer: {} },
-      surfaces: { subsurfaceView: {} },
+      surfaces: { subsurfaceView: {}, receiverView: {} },
       uniformBuffer: {},
       zeroUv: {},
       targetSize: [4, 4],
@@ -110,10 +112,9 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       },
       gpuDrawCalls: 0,
     },
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
-    sunFar: { gpu: undefined },
     blendState,
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime;
@@ -181,7 +182,6 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   };
   raster.encodeOccluders(smallEncoder, rasterInput);
   raster.encodeIds(smallEncoder, rasterInput);
-
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length]);
   assert.equal(counted.length, 7, 'the six constructors ran, the resolver included');
   for (const [built, expected] of counted)

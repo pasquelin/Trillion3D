@@ -9,7 +9,6 @@ import { createPageStreamerWith } from '../streaming/pageStreamer.ts';
 import { servedPages } from '../streaming/servedPages.fixture.ts';
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts';
-import { SHADOW_HOST_BYTES } from '../residency/shadowBudgetBytes.ts';
 
 const MiB = 1024 * 1024;
 const BASE = 'https://host/cache/full/clusters.json';
@@ -125,7 +124,7 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
   await ask(0);
   await ask(1);
   assert.equal(levels.bytes, 2 * fileBytes(1024));
-  handle.cpu = SHADOW_HOST_BYTES + 2 * MiB;
+  handle.cpu = 2 * MiB;
   const cap = (3 * 2 * MiB) / 4;
   assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap]);
   assert.equal(levels.bytes, fileBytes(1024), 'the level read first left');

@@ -38,6 +38,13 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
   return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[];
 }
 
+/** POC: the rank of the root that reads row `index` of `rows`, or -1 when none does. */
+export const rootRankOfRow = <T>(
+  roots: readonly ClusterRoot<T>[],
+  rows: PlacementRows,
+  index: number,
+) => rowRoots(roots, rows)[index]?.rank ?? -1;
+
 /** A root list's rows were rebound or extended (`growth.ts`): its index is built again
  *  at the next follow. */
 export const forgetRowRoots = (roots: readonly object[]) => {
@@ -54,12 +61,14 @@ const moved = new Float64Array(BOX_VALUES),
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
  * box, reprojected from its local box, its parked flag and its shadowless bit (`ClusterRoot.mark`),
  * which `flip` hands to a GPU cut when the engine has one. `posed` hears the rank of every root the
- * rows pose, with the pose it now has and whether its row was taken or parked — a move whatever its
- * pose —, and says whether it moved (`MOVE_*`). A root that began or stopped casting stales its box,
- * static casters included unless it moves as it flips, and is not made a moving caster for it.
+ * rows pose, with the pose it now has — never forced: a row taken or parked where it stands is
+ * shown or hidden, not moved —, and says whether it moved (`MOVE_*`). A root that began or stopped
+ * casting stales its box, static casters included unless it moves as it flips, and is not made a
+ * moving caster for it.
  * `follow` names each root that reads a written row. `touched` hears, root by root, the box each
- * moved or flipped root left and entered, whether it was moving already, its rank, and whether it
- * only moved — neither taken, parked nor turned to cast or not (`movedClusters.ts`): a row of the range
+ * moved or flipped root left and entered, whether it was moving already, its rank, whether it
+ * only moved — neither taken, parked nor turned to cast or not (`movedClusters.ts`) — and what its
+ * pose did (`MOVE_*`, a first move being one of a root that was static up to now): a row of the range
  * left where it stands — a pose written again unchanged, a row between two written ones — touches
  * nothing, and two roots far apart are two boxes, never the room between them (as far as the
  * plan's box list holds them apart, `changes.ts`). Returns whether a drawn root moved: a still
@@ -71,7 +80,7 @@ export function followPlacementRows<T>(
   from: number,
   to: number,
   flip?: (rank: number, root: ClusterRoot<T>) => void,
-  posed?: (rank: number, world: ArrayLike<number>, forced: boolean) => number,
+  posed?: (rank: number, world: ArrayLike<number>) => number,
   follow?: (rank: number) => void,
   touched?: (
     min: ArrayLike<number>,
@@ -79,6 +88,7 @@ export function followPlacementRows<T>(
     movingOnly: boolean,
     rank: number,
     moveOnly: boolean,
+    move: number,
   ) => void,
 ) {
   const list = rowRoots(roots, rows);
@@ -91,8 +101,10 @@ export function followPlacementRows<T>(
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked,
       cast = markShadowless(root, rows.shadowless[index] === 1);
-    // A row taken or parked moved, whatever its pose; otherwise its pose says whether it moved.
-    const move = posed ? posed(rank, root.world.elements, flipped) : MOVE_PROMOTED;
+    // Its pose alone says whether it moved: a row taken or parked where it stands is shown or
+    // hidden, not moved — the primitive is removed or added and its pages invalidated once,
+    // without caching it as dynamic (only a transform update does).
+    const move = posed ? posed(rank, root.world.elements) : MOVE_PROMOTED;
     boxEmpty(moved, 0);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     if (flipped || cast) {
@@ -103,11 +115,12 @@ export function followPlacementRows<T>(
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
-    // Its rows and box follow the row all the same; only a move or a change of casting stales
-    // shadow pages. One that moves as it flips is out of the static layer (`mobility.ts`).
-    if ((move === MOVE_NONE && !cast) || boxIsEmpty(moved, 0)) continue;
+    // Its rows and box follow the row all the same; only a move, a show or hide, or a change of
+    // casting stales shadow pages. One that moves as it flips is out of the static layer
+    // (`mobility.ts`).
+    if ((move === MOVE_NONE && !cast && !flipped) || boxIsEmpty(moved, 0)) continue;
     any = true;
-    touched?.(movedMin, movedMax, move === MOVE_MOVING, rank, !flipped && !cast);
+    touched?.(movedMin, movedMax, move === MOVE_MOVING, rank, !flipped && !cast, move);
   }
   return any;
 }

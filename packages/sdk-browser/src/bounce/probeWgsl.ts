@@ -1,14 +1,35 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
-import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
+import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
 import { residentProxyWgsl } from './nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
+import { PROBE_TEXELS } from './atlas.ts';
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
+
+/**
+ * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
+ * rank in the level, the cell that rank carries — the inverse of toroidal storage, in
+ * `[base, base + side)` —, the probe's first texel, and whether the level exists. One text, so the
+ * texels the snapshot copies are the ones the update wrote.
+ */
+const QUEUED_PROBE_WGSL = `struct QueuedProbe{level:u32,rank:u32,cell:vec3i,probe:vec3u,valid:bool,}
+fn queuedProbe(entry:u32)->QueuedProbe{
+ let packed=probeQueue[entry];
+ let perLevel=max(bounce.counts.z,1u);
+ let level=packed/perLevel;
+ if(level>=bounce.counts.y){return QueuedProbe(level,0u,vec3i(0),vec3u(0u),false);}
+ let rank=packed%perLevel;
+ let side=i32(bounce.counts.x);
+ let base=vec3i(bounce.levels[level].base.xyz);
+ let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
+ let cell=base+(((ranked-base)%side)+side)%side;
+ return QueuedProbe(level,rank,cell,probeOf(level,cell),true);
+}`;
 
 /**
  * Update of the cascade irradiance probes.
@@ -28,9 +49,10 @@ const BOUNCE_WORKGROUP = 64;
  *
  * Damping is adaptive: a probe whose estimate jumps converges fast, a stable probe barely
  * moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
- * writes exactly zero (P6). The grid is read from a snapshot frozen before the pass and
+ * writes exactly zero (P6). The grid is read from a snapshot frozen before the update and
  * written elsewhere: an update never sees a neighbour half-written, and the steady-state
- * frame does not depend on the order in which the GPU scheduled its threads.
+ * frame does not depend on the order in which the GPU scheduled its threads. The snapshot then
+ * takes, by the pass's next dispatch, the texels the update wrote (`BOUNCE_SNAPSHOT_SHADER`).
  */
 export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
@@ -43,6 +65,7 @@ ${residentProxyWgsl(1)}
 ${DIRECT_LIGHT_WGSL}
 ${INVERSE_PI_WGSL}
 ${BOUNCE_GRID_WGSL}
+${QUEUED_PROBE_WGSL}
 ${BOUNCE_TRACE_WGSL}
 const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
 const WORKGROUP:u32=${BOUNCE_WORKGROUP}u;
@@ -52,10 +75,9 @@ const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 const GOLDEN_ANGLE:f32=2.39996323;
-/** Writes the probe vector \`i\`, where \`probeAt\` reads it (\`atlas.ts\`). */
-fn probeStore(i:u32,value:vec4f){
- let size=textureDimensions(probesOut);let perLayer=size.x*size.y;let local=i%perLayer;
- textureStore(probesOut,vec2u(local%size.x,local/size.x),i/perLayer,value);
+/** Writes vector \`k\` of the probe whose first texel is \`probe\`, where \`probeAt\` reads it (\`atlas.ts\`). */
+fn probeStore(probe:vec3u,k:u32,value:vec4f){
+ textureStore(probesOut,vec2u(probe.x+k,probe.y),probe.z,value);
 }
 ${HASH_UNIT_WGSL}
 /** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
@@ -75,21 +97,13 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
  // The queue says, rank by rank, which probe of which level works: the scheduler filled
  // it by skipping the cells the occupancy map declares of no interest.
- let packed=probeQueue[group.x];
- let perLevel=max(bounce.counts.z,1u);
- let level=packed/perLevel;
- if(level>=bounce.counts.y){return;}
- let rank=packed%perLevel;
- let side=i32(bounce.counts.x);
- let base=vec3i(bounce.levels[level].base.xyz);
- let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
- // The cell this rank carries in this level: the inverse of toroidal storage, in [base,base+side).
- let cell=base+(((ranked-base)%side)+side)%side;
- let slot=probeSlot(level,cell);
- let held=all(probeCell(slot)==cell);
+ let queued=queuedProbe(group.x);
+ if(!queued.valid){return;}
+ let level=queued.level;let rank=queued.rank;let cell=queued.cell;let probe=queued.probe;
+ let held=all(probeCell(probe)==cell);
  // A sleeping probe — buried in a surface or lost in open sky — fires no ray
  // as long as its cell does not change and no light has moved.
- if(held&&probeAt(slot+PROBE_IDLE).w==f32(bounce.frame.x)){return;}
+ if(held&&probeAt(probe,PROBE_IDLE).w==f32(bounce.frame.x)){return;}
  let spacing=bounce.levels[level].originSpacing.w;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
@@ -135,8 +149,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let usable=select(1.0,0.0,buried);
  // Monte-Carlo estimator over the whole sphere: 4π divided by the ray count.
  let scale=12.5663706/f32(RAYS_PER_PROBE);
- let updates=select(0.0,probeAt(slot).w,held);
- let previous=select(vec3f(0.0),probeAt(slot).xyz,held);
+ let updates=select(0.0,probeAt(probe,0u).w,held);
+ let previous=select(vec3f(0.0),probeAt(probe,0u).xyz,held);
  let fresh=sums[0]*scale;
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
  // Adaptive hysteresis. A new probe, or one that just changed cell, takes everything; a
@@ -152,13 +166,42 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  state[PROBE_CELL]=f32(cell.x);state[PROBE_CELL+1u]=f32(cell.y);state[PROBE_CELL+2u]=f32(cell.z);
  state[PROBE_IDLE]=select(0.0,f32(bounce.frame.x),asleep);
  for(var k=0u;k<9u;k++){
-  let kept=select(vec3f(0.0),probeAt(slot+k).xyz,held);
-  probeStore(slot+k,vec4f(mix(kept,sums[k]*scale*usable,blend),state[k]));
+  let kept=select(vec3f(0.0),probeAt(probe,k).xyz,held);
+  probeStore(probe,k,vec4f(mix(kept,sums[k]*scale*usable,blend),state[k]));
  }
  let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
  let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));
- let keptPositive=select(vec3f(0.0),probeAt(slot+PROBE_DISTANCE_POSITIVE).xyz,held);
- let keptNegative=select(vec3f(0.0),probeAt(slot+PROBE_DISTANCE_NEGATIVE).xyz,held);
- probeStore(slot+PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
- probeStore(slot+PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
+ let keptPositive=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_POSITIVE).xyz,held);
+ let keptNegative=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz,held);
+ probeStore(probe,PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
+ probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`;
+
+/**
+ * The snapshot's follow-up, in the bounce pass after the update: every texel the update may have
+ * written — the `PROBE_VECTORS` texels of each probe its queue names — copied from the probes'
+ * atlas to the snapshot, one thread per texel. The two atlases were equal before the update
+ * (zeroed together, cleared together), so they are equal after it, and the next update reads its
+ * frozen grid without the copy of the whole atlas each image paid (#1410). A probe the update
+ * skipped — asleep — copies the texels it holds already.
+ */
+export const BOUNCE_SNAPSHOT_SHADER = `
+@group(0) @binding(0) var<uniform> bounce:BounceGrid;
+@group(0) @binding(1) var<storage,read> probeQueue:array<u32>;
+@group(0) @binding(2) var probes:texture_2d_array<f32>;
+@group(0) @binding(3) var snapshotOut:texture_storage_2d_array<rgba32float,write>;
+${BOUNCE_GRID_HEAD_WGSL}
+${QUEUED_PROBE_WGSL}
+@compute @workgroup_size(${BOUNCE_WORKGROUP})
+fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
+ let entry=id.x/PROBE_VECTORS;
+ if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
+ let queued=queuedProbe(entry);
+ if(!queued.valid){return;}
+ let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
+ textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
+}`;
+
+/** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
+export const snapshotGroups = (entries: number) =>
+  Math.ceil((entries * PROBE_TEXELS) / BOUNCE_WORKGROUP);

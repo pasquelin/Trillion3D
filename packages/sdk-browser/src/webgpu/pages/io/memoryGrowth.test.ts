@@ -19,7 +19,14 @@ test('a live setMemoryBudgets above the old ceiling grows the pool and the table
       [4, 4, false],
     );
     assert.ok(report.tables!.bytes > 0 && report.tables!.durationMs >= 0);
-    assert.equal(report.transientBytes, 6 * rt.setup.pageBytes, 'the old pool beside the new');
+    // The whole catalogue now fits: the new pool holds each page at its own size.
+    assert.equal(report.geometryPool.allocatedBytes, rt.setup.homes!.bytes);
+    assert.ok(rt.setup.homes!.bytes < 4 * rt.setup.pageBytes);
+    assert.equal(
+      report.transientBytes,
+      2 * rt.setup.pageBytes + rt.setup.homes!.bytes,
+      'the old pool beside the new',
+    );
     // The same session: its pool resized, its tables grown, nothing prepared again.
     assert.equal(rt.gpu.cache, cache);
     assert.deepEqual([rt.setup.cap, layout.drawSlots], [4, 4]);
@@ -44,7 +51,6 @@ test('an allocation refusal during a grow leaves the pool and every table in pla
       items: vis.gpuDraw?.itemsBuffer,
       flags: vis.gpuHiz?.flags,
       work: vis.gpuRestCompact?.work,
-      kept: lights.cull?.kept,
       spheres: lights.spheres?.buffer,
       mobility: lights.mobilityRows,
       corners: layout.cornerPacked,

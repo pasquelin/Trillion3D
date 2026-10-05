@@ -1,6 +1,6 @@
-// Batch M3a, update.ts: `updateMatrixWorld(force)` (clean node not recalculated,
-// dirty parent that propagates, `matrixAutoUpdate` false that freezes a node until `force` reaches
-// it) and `updateWorldMatrix(updateParents, updateChildren)`. Allocation: views are the same objects
+// Batch M3a, update.ts: the world update with `force` (clean node not recalculated,
+// dirty parent that propagates, automatic update off that freezes a node until `force` reaches
+// it) and the update with `updateParents` and `updateChildren`. Allocation: views are the same objects
 // before and after a hot update.
 import test from 'node:test';
 import assert from 'node:assert/strict';

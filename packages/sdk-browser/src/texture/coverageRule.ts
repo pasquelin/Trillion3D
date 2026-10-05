@@ -12,15 +12,28 @@
  * in, coverage measured on the filtered cut, not on the texels —, searched between the square's
  * lowest and highest corners: a corner reaches `C` exactly when `t` is at most its byte.
  */
+
+/** The two middle values of four, `v.x` to `v.w`: the lower of the pair maxima and the higher of
+ *  the pair minima, whose sum is the four's sum less their maximum and minimum. WGSL and GLSL spell
+ *  it alike, so the median of the byte chain and the alpha of a blended reader's chain are one
+ *  text in both languages. */
+const middles = (v: string) =>
+  [
+    `min(max(${v}.x,${v}.y),max(${v}.z,${v}.w))`,
+    `max(min(${v}.x,${v}.y),min(${v}.z,${v}.w))`,
+  ] as const;
+const [U_BYTE, V_BYTE] = middles('b');
+const [U_ALPHA, V_ALPHA] = middles('a');
+
 export const COVERAGE_SCALE_WGSL = `
 fn toByte(x:f32)->u32{return u32(round(x*255.0));}
 fn median(a:vec4f)->u32{
  let b=vec4u(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
- return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;
+ return (${U_BYTE}+${V_BYTE}+1u)>>1u;
 }
 fn scaled(a:u32,c:u32,t:u32)->u32{return min(255u,u32((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}
 fn reducedAlpha(a:vec4f,c:u32,t:u32)->f32{
- if(c==0u){let u=min(max(a.x,a.y),max(a.z,a.w));let v=max(min(a.x,a.y),min(a.z,a.w));return (u+v)*0.5;}
+ if(c==0u){let u=${U_ALPHA};let v=${V_ALPHA};return (u+v)*0.5;}
  return f32(scaled(median(a),c,t))/255.0;
 }`;
 export const COVERAGE_PICK_WGSL = `
@@ -63,11 +76,11 @@ export const COVERAGE_SCALE_GLSL = `
 uint toByte(float x){return uint(round(x*255.));}
 uint median(vec4 a){
  uvec4 b=uvec4(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
- return (min(max(b.x,b.y),max(b.z,b.w))+max(min(b.x,b.y),min(b.z,b.w))+1u)>>1u;
+ return (${U_BYTE}+${V_BYTE}+1u)>>1u;
 }
 uint scaled(uint a,uint c,uint t){return min(255u,uint((2u*a*(2u*c-1u)+2u*t-1u)/(4u*t-2u)));}
 float reducedAlpha(vec4 a,uint c,uint t){
- if(c==0u){float u=min(max(a.x,a.y),max(a.z,a.w));float v=max(min(a.x,a.y),min(a.z,a.w));return (u+v)*0.5;}
+ if(c==0u){float u=${U_ALPHA};float v=${V_ALPHA};return (u+v)*0.5;}
  return float(scaled(median(a),c,t))/255.;
 }`;
 export const COVERAGE_PICK_GLSL = `

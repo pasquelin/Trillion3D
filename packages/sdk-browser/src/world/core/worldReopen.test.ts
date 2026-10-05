@@ -56,13 +56,14 @@ function said(phase: string) {
   return { heard, stop };
 }
 
-test('a lost device reopens the session, and every frame between shows the last image', async (t) => {
+test('a lost device reopens the session, every frame between shows the last image, then one is drawn', async (t) => {
   t.mock.method(console, 'error', () => {});
   const frames = displayFrames(),
     reopens = said('session-reopen');
   const { canvas, seen, encoder } = watchedCanvas();
   const { device } = fakeDevice();
   let opened = 0,
+    redrawn = 0, // frames of the session opened after the loss
     grant = Promise.resolve();
   const lost: Array<() => void> = [];
   const open = (async (on: HTMLCanvasElement) => {
@@ -73,7 +74,11 @@ test('a lost device reopens the session, and every frame between shows the last 
     lost.push(() => markWebgpuLost(rt as never, { reason: 'unknown', message: 'reset' }));
     const { session } = sessionStandIn();
     const image = { createView: () => ({}) } as GPUTexture;
-    session.render = () => (presenter.present(encoder(label), image, 1, 1), {});
+    session.render = () => {
+      if (label === 'session 2') redrawn++;
+      presenter.present(encoder(label), image, 1, 1);
+      return {};
+    };
     session.dispose = () => presenter.dispose();
     return session;
   }) as unknown as Open;
@@ -102,9 +107,10 @@ test('a lost device reopens the session, and every frame between shows the last 
   }
   release();
   await runtime.settled();
-  assert.equal(seen.shown, 'session 1', 'opened, the next session has not drawn yet');
-  runtime.render();
+  await new Promise(setImmediate);
+  // The frames asked while it opened are one frame, drawn by the session opened.
   assert.deepEqual([seen.shown, seen.blanks], ['session 2', blanks + 1], 'blank only in its task');
+  assert.equal(redrawn, 1, 'drawn once, however many frames were asked meanwhile');
   frames.run();
   await new Promise(setImmediate);
   runtime.dispose();

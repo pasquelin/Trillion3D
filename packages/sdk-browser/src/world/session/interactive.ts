@@ -43,13 +43,15 @@ export function startInteractiveExplorer(
     render: () => {
       // A frame that waits for a family on its way (`familyUse.ts`) is not drawn, nor stepped.
       if (capturing || runtime.familiesPending()) return;
+      // Before its first image, a frame the engine holds to measure the display draws nothing.
+      if (runtime.measureFrame()) return;
       original.beforeFrame?.();
       const metrics = explorer.render();
       pageLoads = metrics.pageLoads;
       original.onFrame?.(metrics);
     },
-    // A page landing is the image still arriving: those frames spend none of the settle limit. The
-    // engine's own count of the pages it made resident, else the pages fetched.
+    // A page landing, or a still image an unfinished average takes, is the image still arriving:
+    // those frames spend none of the settle limit. The engine's own count, else the pages fetched.
     progress: () => runtime.landings() ?? pageLoads,
     pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
     error: reportFailure,

@@ -2,7 +2,7 @@
 type Xyz = { x: number; y: number; z: number };
 
 /** The world as far as pointing goes: its canvas and its camera. */
-export interface PointerWorld {
+interface PointerWorld {
   canvas: { getBoundingClientRect(): { left: number; top: number; width: number; height: number } };
   camera: { rayThrough(x: number, y: number, aspect: number): { origin: Xyz; direction: Xyz } };
 }

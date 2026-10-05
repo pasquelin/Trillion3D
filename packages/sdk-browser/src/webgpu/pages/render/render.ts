@@ -6,9 +6,6 @@ import { renderCpuCut } from './cpu.ts';
 import { uploadWorlds } from './worldUpload.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
-import { sizeShadowPool } from '../../shadow/poolSize.ts';
-import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
-import { followShadowCeiling } from '../../shadow/poolCeiling.ts';
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
 import { deviceAnswering } from '../../frame/deviceAnswer.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
@@ -16,8 +13,11 @@ import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
-import { beginTaaFrame, restartTaaOnLanding } from '../../../taa/frame.ts';
+import { followFeedback } from '../prepare/feedbackVariant.ts';
+import { beginTaaFrame } from '../../../taa/frame.ts';
+import { restartTaaOnLanding } from '../../../taa/landing.ts';
 import { frameStart } from '../../../frame/scheduling.ts';
+import { askFramePipelines } from '../../frame/framePipelines.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -50,8 +50,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     rt.watchedSources,
     aspect,
   );
-  sizeShadowPool(rt);
-  followShadowCeiling(rt);
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice);
   const pixelError = run.gate.pixelError,
@@ -62,9 +60,15 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again.
   if (vis.textures?.followSampling()) {
     rows.tableEpoch++;
+    vis.shadeCensus?.moved();
     refreshBlendScene(rt, gpuDevice);
   }
   followLiveTextures(rt);
+  // Textures that came or went switch the pipelines' feedback output, the target following.
+  followFeedback(rt, gpuDevice);
+  // What entered the scene since has its pipelines asked, compiled off the thread: the frame is
+  // held on them below (`deviceAnswering`), never compiles one.
+  askFramePipelines(rt);
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   // A frame the device still answers for (targets, shadow pool) is held even when forced.
@@ -73,6 +77,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     beginTaaFrame(rt, run.gate.cam, true);
     run.frameHeld = false;
   } else if (holdWebgpuFrame(rt, gpuDevice)) return;
+  // This frame is drawn: the canvas holds its display colour only once the frame presents it.
+  gpu.presenter?.forget();
   run.diagnosticPixelError = pixelError;
   // Nothing is held by default: only adoption of an already-read readback declares it, and every
   // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.
@@ -119,7 +125,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
-  forgetShadowCpuSteps(rt.timing.cpuProfile.row);
   run.feedbackWritten = false;
   run.gpuFrameActive = false;
   run.hizPyramidFresh = false;

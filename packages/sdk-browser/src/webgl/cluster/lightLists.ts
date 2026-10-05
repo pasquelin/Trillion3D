@@ -6,7 +6,7 @@ import {
   boxPointDistance,
   boxUnion,
 } from '../../../../sdk-core/src/math/primitives/box.ts';
-import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import { grown } from '../../../../sdk-core/src/math/transform-tree/storage.ts';
 import { invertMatrix4 } from '../../../../sdk-core/src/math/matrix/matrix4Inverse.ts';
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { uniformScaleMatrix4 } from '../../../../sdk-core/src/math/matrix/matrix4Trs.ts';

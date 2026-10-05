@@ -1,9 +1,7 @@
-//! Radiance HDR (RGBE) driver, reader written here from the format's public specification:
-//! Greg Ward's "Real Pixels" (Graphics Gems II, 1991), which defines the RGBE encoding and its
-//! run-length compression, and the Radiance manual (Lawrence Berkeley National Laboratory),
-//! which defines the header, its variables and its resolution line. No vendor SDK or code, no
-//! third-party decoder: the `image` crate only recognizes the `#?RADIANCE` signature and does
-//! not let what it refuses be named, two things this driver must do.
+//! Radiance HDR (RGBE) driver: it reads the RGBE encoding and its run-length compression, and the
+//! header, its variables and its resolution line. No vendor SDK or code, no third-party decoder:
+//! the `image` crate only recognizes the `#?RADIANCE` signature and does not let what it refuses
+//! be named, two things this driver must do.
 //!
 //! **No extra loss is added.** An RGBE carries three eight-bit mantissas and a shared exponent;
 //! the mantissa multiplied by `2^(e - 136)` is exactly the float the file describes, and `f32`

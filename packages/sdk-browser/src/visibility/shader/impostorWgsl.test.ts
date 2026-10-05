@@ -1,5 +1,5 @@
 // #1335, #1336: the card both GPU paths draw reads the octahedral atlas with ONE arithmetic, on the
-// CPU (`sdk-core/src/impostor/octahedron.ts`, the compiler's `octahedron.rs` oracle), in the shipped
+// CPU (`sdk-core/src/impostor/octahedron.fixture.ts`, the compiler's `octahedron.rs` oracle), in the shipped
 // WGSL (`impostorWgsl.ts`) and in its GLSL twin (`impostorGlsl.ts`). The tests run each shader text
 // itself through the software shader harness. Fails on develop: neither text is there.
 import test from 'node:test';
@@ -8,7 +8,11 @@ import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts';
 import { IMPOSTOR_VIEW_CARD_GLSL } from './impostorGlsl.ts';
 import { runShaderText } from './shaderText.fixture.ts';
 import { functionsOf } from '../../texture/shaderRule.fixture.ts';
-import { cellWeights, octDecode, octEncode } from '../../../../sdk-core/src/impostor/octahedron.ts';
+import {
+  cellWeights,
+  octDecode,
+  octEncode,
+} from '../../../../sdk-core/src/impostor/octahedron.fixture.ts';
 
 /** The functions of one shipped shader text, as the software harness runs them. */
 function runnersOf(text: string) {

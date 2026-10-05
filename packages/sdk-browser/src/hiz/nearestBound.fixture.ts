@@ -1,4 +1,4 @@
-import { biasedDepthBits } from '../../../sdk-core/src/lod/depthLayer.ts';
+import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts';
 
 const scratch = new Float32Array(1),
   scratchWords = new Uint32Array(scratch.buffer);
@@ -23,8 +23,8 @@ const GROW = 1 + 2 ** -24;
  * Two gaps separate the box's nearest corner, computed in double, from the depth the GPU will
  * write. The first is transport rounding, corrected by `GROW`. The second is the **coplanar
  * layer bias**: a non-zero-layer cluster is drawn sixteen hardware units per layer closer to the
- * eye, hence nearer than its own corner; `biasedDepthBits` — the function the software raster
- * already applies to its key — adds exactly those units to the bound's bits. With these two
+ * eye, hence nearer than its own corner; `biasedDepthBits` — the bias `gpu/core/boxProjectWgsl.ts` applies
+ * on the GPU — adds exactly those units to the bound's bits. With these two
  * corrections, `nearest < far` implies the cluster is behind everything the pyramid saw,
  * whatever its layer.
  *

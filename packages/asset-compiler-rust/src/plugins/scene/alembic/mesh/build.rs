@@ -7,6 +7,7 @@ use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
 use crate::plugins::scene::{cancel, ngon::Ngon};
+use crate::shared_math::extend_aabb_f32;
 use crate::{CompilerError, Result};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 
@@ -93,14 +94,11 @@ impl Builder {
     /// Writes the values of a new vertex, and tracks the position extent.
     fn push(&mut self, geometry: &Geometry, vertex: usize, normal: u32, uv: u32) {
         let position = &geometry.positions[vertex * 3..vertex * 3 + 3];
-        for (axis, value) in position.iter().enumerate() {
-            if !self.started {
-                self.min[axis] = *value;
-                self.max[axis] = *value;
-            }
-            self.min[axis] = self.min[axis].min(*value);
-            self.max[axis] = self.max[axis].max(*value);
+        let point = [position[0], position[1], position[2]];
+        if !self.started {
+            (self.min, self.max) = (point, point);
         }
+        extend_aabb_f32(&mut self.min, &mut self.max, point);
         self.started = true;
         self.positions.extend_from_slice(position);
         if let Some(values) = geometry.normals.as_ref().and_then(|p| p.value(normal)) {

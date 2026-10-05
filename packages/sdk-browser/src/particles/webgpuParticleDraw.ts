@@ -1,6 +1,10 @@
 import { PARTICLE_BLENDS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { buildRenderPipeline } from '../lighting/deferred/fullscreen.ts';
+import {
+  buildRenderPipeline,
+  preparedPipeline,
+  preparedPipelines,
+} from '../lighting/deferred/fullscreen.ts';
 import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
 import { usedSlots } from './poolStates.ts';
 import { displayMaskLayout, type DisplayFilter } from '../webgpu/blend/displayFilter.ts';
@@ -17,8 +21,10 @@ export type DrawState = {
 };
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool, the
- *  opaque depth read for the soft edge. `fail` hears a pipeline not made; the step then refuses
- *  the pools (`refused`). */
+ *  opaque depth read for the soft edge. Its pipelines compile in the background, a pool drawn once
+ *  its blend's has arrived; those routed through the display layers are asked by the frame entry
+ *  that can route a pool (`askRouted`), the frame held until they land. `fail` hears a pipeline not
+ *  made; the step then refuses the pools (`refused`). */
 export function createWebgpuParticleDraw(
   device: GPUDevice,
   stateOf: (pool: ParticlePool) => DrawState | undefined,
@@ -35,26 +41,28 @@ export function createWebgpuParticleDraw(
   });
   const pipelines: Partial<Record<ParticlePool['blend'], GPURenderPipeline>> = {};
   let failed = false,
-    routed: Record<ParticlePool['blend'], GPURenderPipeline> | undefined;
-  /** The routed pipelines, made by the first image with display layers. */
-  const routedPipelines = () => {
-    const module = device.createShaderModule({ code: PARTICLE_ROUTED_WGSL });
-    const bindGroupLayouts = [layout, displayMaskLayout(device)];
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts });
-    const made = (blend: ParticlePool['blend']) =>
-      device.createRenderPipeline({
-        label: `${PARTICLE_DRAW_PASS} ${blend} routed`,
-        layout: pipelineLayout,
-        vertex: { module, entryPoint: 'vs' },
-        fragment: {
-          module,
-          entryPoint: 'fsRouted',
-          constants: { DISPLAY_ROUTE: 1 },
-          targets: particleTargets(blend, true),
-        },
-      });
-    return { additive: made('additive'), premultiplied: made('premultiplied') };
-  };
+    routedProgram: { module: GPUShaderModule; layout: GPUPipelineLayout } | undefined;
+  /** The routed pipeline of each blend, its module and layout made by the first one asked. */
+  const routed = preparedPipelines((blend: ParticlePool['blend']) => {
+    routedProgram ??= {
+      module: device.createShaderModule({ code: PARTICLE_ROUTED_WGSL }),
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [layout, displayMaskLayout(device)],
+      }),
+    };
+    const { module } = routedProgram;
+    return preparedPipeline(device, {
+      label: `${PARTICLE_DRAW_PASS} ${blend} routed`,
+      layout: routedProgram.layout,
+      vertex: { module, entryPoint: 'vs' },
+      fragment: {
+        module,
+        entryPoint: 'fsRouted',
+        constants: { DISPLAY_ROUTE: 1 },
+        targets: particleTargets(blend, true),
+      },
+    });
+  });
   createCheckedShaderModule(device, PARTICLE_DRAW_WGSL, 'PARTICLE_DRAW')
     .then((module) => {
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
@@ -103,9 +111,7 @@ export function createWebgpuParticleDraw(
       let pass: GPURenderPassEncoder | undefined,
         draws = 0;
       for (const pool of drawOrder(pools, eye, order)) {
-        const pipeline = filter
-            ? (routed ??= routedPipelines())[pool.blend]
-            : pipelines[pool.blend],
+        const pipeline = filter ? routed.of(pool.blend).get() : pipelines[pool.blend],
           kept = stateOf(pool);
         if (!pipeline || !kept) continue;
         writeDrawWords(words, pool, viewProj, eye);
@@ -134,5 +140,10 @@ export function createWebgpuParticleDraw(
       return draws;
     },
     refused: () => failed,
+    /** Asks the routed pipelines off the frame: the frame entry's, before an image routes a pool
+     *  through the display layers. */
+    askRouted() {
+      for (const blend of PARTICLE_BLENDS) routed.of(blend).ask();
+    },
   };
 }

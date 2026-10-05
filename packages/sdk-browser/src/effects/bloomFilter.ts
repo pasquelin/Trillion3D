@@ -1,6 +1,5 @@
 /**
- * The physically based bloom of Jimenez, "Next Generation Post Processing in Call of Duty:
- * Advanced Warfare" (SIGGRAPH 2014), one definition for the WGSL and GLSL programs: the image is
+ * The physically based bloom, one definition for the WGSL and GLSL programs: the image is
  * filtered down a chain of half-size levels, then back up, each level adding the one below it.
  * Every filter is normalised and taken with bilinear taps, so each level carries the mean
  * radiance of the image, and the chain's sum divided by its level count is the image's energy,
@@ -15,7 +14,7 @@ import { BLOOM_LEVELS } from './bloomLevels.ts';
 export type BloomTap = readonly [x: number, y: number, weight: number];
 
 /**
- * The 13-tap downsample (Jimenez 2014), offsets in texels of the level read: five
+ * The 13-tap downsample, offsets in texels of the level read: five
  * overlapping 2×2 boxes, the centre one weighted 0.5 and the four corner ones 0.125 each, which
  * removes the flicker a single box shows on moving highlights.
  */
@@ -35,8 +34,10 @@ export const BLOOM_DOWN_TAPS: readonly BloomTap[] = [
   [1, -1, 0.125],
 ];
 
-/** The 3×3 tent upsample (Jimenez 2014), offsets in texels of the level read, scaled
- *  by the bloom's `radius`. */
+/** The 3×3 tent upsample, offsets in texels of the level read, scaled
+ *  by the bloom's `radius`. The WebGPU programs read it in four bilinear taps at radius 1, the same
+ *  kernel (`tent4`, `bloomLevel.ts`, proved against this table in `bloomTent.test.ts`); the WebGL
+ *  program reads the nine. */
 export const BLOOM_UP_TAPS: readonly BloomTap[] = [
   [-1, 1, 1 / 16],
   [0, 1, 2 / 16],

@@ -1,15 +1,9 @@
 // A cut's tables past one binding split in parts bound at once (#974): every section of `flags`
-// stays whole in one part, so the draw mask and the drawn log keep one buffer and one offset, and
+// stays whole in one part, so the draw mask keeps one buffer and one offset, and
 // a host write lands in the part that holds each of its bytes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  CANDIDATE_SECTION,
-  MASK_SECTION,
-  flagLocation,
-  flagPartWords,
-  writeParts,
-} from './split.ts';
+import { MASK_SECTION, flagLocation, flagPartWords, writeParts } from './split.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { flagCuts, flagSectionStart, splitTable } from './splitFlags.ts';
@@ -25,7 +19,6 @@ test("the sections are the kernel's: queue 0, four page sections, the queues, th
   const [queueCap, pageCount] = [7, 100];
   assert.equal(FLAG_SECTIONS, 1 + 4 + LEVEL_QUEUES);
   assert.equal(flagSectionStart(MASK_SECTION, queueCap, pageCount), queueCap, 'the draw mask');
-  assert.equal(flagSectionStart(CANDIDATE_SECTION, queueCap, pageCount), queueCap + 3 * pageCount);
   assert.equal(
     flagSectionStart(FLAG_SECTIONS - 1, queueCap, pageCount),
     queueCap * LEVEL_QUEUES + 4 * pageCount,
@@ -47,8 +40,6 @@ test('flags cut between whole sections, each part within the binding, all words 
   assert.deepEqual(flagCuts(queueCap, pageCount, words * 4), [], 'held whole: no cut');
   const mask = flagLocation(cuts, MASK_SECTION, queueCap, pageCount);
   assert.deepEqual(mask, { part: 0, word: queueCap }, 'the mask: one part, one offset');
-  const log = flagLocation(cuts, CANDIDATE_SECTION, queueCap, pageCount);
-  assert.deepEqual(log, { part: 3, word: 0 }, 'the drawn log: the start of its part');
 });
 
 test('a host write spanning two parts lands in each at its own offset', () => {

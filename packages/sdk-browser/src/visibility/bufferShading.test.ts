@@ -3,12 +3,8 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterPages } from '../page/raster.fixture.ts';
-import {
-  unpackVisibilityId,
-  rasterVisibilityIds,
-  shadeVisibility,
-  type VisPage,
-} from './buffer.ts';
+import { type VisPage } from './buffer.ts';
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import {
   camera,
   quadPages,
@@ -19,7 +15,11 @@ import {
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
-import { VIS_INVALID } from './visWords.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import {
+  VIS_INVALID,
+  unpackVisibilityId,
+} from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
   const geometry = new G.Geometry();

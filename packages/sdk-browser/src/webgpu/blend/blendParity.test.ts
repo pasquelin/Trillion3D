@@ -1,9 +1,9 @@
 // #558, measure ko: on WebGPU a multiplied surface over an opaque one let the background show
-// through, `#20222a × (1 − alpha)`, where the witness (three@0.174) shows `d·s` alone. The lit
-// target's alpha is the coverage the composition lays the background under; the witness draws
+// through, `#20222a × (1 − alpha)`, where the reference display shows `d·s` alone. The lit
+// target's alpha is the coverage the composition lays the background under; the reference display draws
 // over a canvas that already holds it. This follows one pixel through the transparent pass's own
 // blend state (`blendTargets`) and the composition's weighting. Multiply and subtractive colours
-// are the witness's in display space, after the tone curve (`displayFilter.ts`).
+// are the reference display's, in display space, after the tone curve (`displayFilter.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blend, close, display, shown, srgb, written, type Rgba } from './blendModel.fixture.ts';
@@ -22,7 +22,7 @@ const blended = (mode: Blending, src: Rgba, dst: Rgba) =>
 const composed = ([r, g, b, a]: Rgba, background: Rgba) =>
   [r, g, b].map((value, c) => (value / a) * a + background[c] * (1 - a));
 
-/** What the witness shows on its opaque canvas: the mode's colour equation over `dst`. */
+/** What the reference display shows on its opaque canvas: the mode's colour equation over `dst`. */
 const WITNESS: Record<'normal' | 'subtractive' | 'multiply', (s: Rgba, d: Rgba) => number[]> = {
   normal: (s, d) => [0, 1, 2].map((c) => s[c] * s[3] + d[c] * (1 - s[3])),
   subtractive: (s, d) => [0, 1, 2].map((c) => d[c] * (1 - s[c])),
@@ -91,7 +91,7 @@ test('a layer routes by its pipeline: nothing, where masked, or always', () => {
 
 test('subtractive and multiply over paper show the witness in display space', () => {
   // A red ink disc over paper, both lit, in linear light: ACES mixes the channels, so the linear
-  // equation left R = 132 where the witness shows 0 on the measured scene.
+  // equation left R = 132 where the reference display shows 0 on the measured scene.
   const paper: Rgba = [0.89, 0.85, 0.78, 1];
   const ink: Rgba = [4, 0.02, 0.02, 0.8];
   for (const mode of ['subtractive', 'multiply'] as const) {

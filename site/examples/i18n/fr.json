@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Images/s",
-      "FPS (held)": "Images/s (figé)",
       "triangles": "triangles",
       "triangles (scene)": "triangles (scène)",
       "draw calls": "appels de dessin",
       "pages": "pages",
       "geometry pool": "réserve de géométrie",
       "lights": "lumières",
+      "GPU memory": "mémoire GPU",
+      "screen images": "images d’écran",
+      "shadow memory": "mémoire des ombres",
+      "geometry memory": "mémoire de géométrie",
+      "texture memory": "mémoire des textures",
+      "live textures": "textures actives",
+      "transmission backdrop": "fond de transmission",
       "GPU frame": "image GPU",
       "GPU frame (last)": "image GPU (dernière)",
       "CPU frame": "image CPU",
       "page hooks": "code de la page",
-      "engine CPU": "moteur CPU"
+      "engine CPU": "moteur CPU",
+      "Statistics": "Statistiques",
+      "hint": "Clic : compact · glisser : déplacer · touche ² / `",
+      "fps": "i/s",
+      "budget": "budget",
+      "held": "figé",
+      "last": "dernière",
+      "others": "autres",
+      "Shadows": "Ombres",
+      "Scene and memory": "Scène et mémoire",
+      "cut and culling": "découpe et tri",
+      "page preparation": "préparation des pages",
+      "command encoding": "encodage des commandes",
+      "physics step": "pas de physique",
+      "Cadence": "Cadence",
+      "{n}× refresh": "{n}× rafraîchissement",
+      "GPU idle": "GPU inactif"
+    },
+    "shadows": {
+      "lights": "lumières",
+      "maps": "cartes",
+      "pagesRequested": "pages demandées",
+      "pagesAllocated": "pages allouées",
+      "pagesCached": "pages en cache",
+      "pagesRendered": "pages rendues",
+      "freePages": "pages libres",
+      "lodBias": "biais de LOD",
+      "projectionPasses": "passes de projection",
+      "invalidation": "invalidation",
+      "marking": "marquage",
+      "pageManagement": "gestion des pages",
+      "render": "rendu",
+      "projection": "projection",
+      "transmission": "transmission"
+    },
+    "passes": {
+      "vsm projection": "projection VSM",
+      "vsm marking": "marquage VSM",
+      "vsm render": "rendu VSM",
+      "material surfaces": "surfaces des matériaux",
+      "temporal antialiasing": "anticrénelage temporel",
+      "HDR composition + present": "composition HDR + affichage",
+      "deferred lighting": "éclairage différé",
+      "reflection source": "source des reflets",
+      "HiZ pyramid": "pyramide HiZ",
+      "light tiles": "tuiles de lumière",
+      "texture mips": "mips des textures",
+      "reflection radiance mips": "mips de la radiance des reflets",
+      "reflection depth bounds mips": "mips des bornes de profondeur des reflets"
     },
     "failure": {
       "title": "Cet exemple s'est arrêté sur une erreur",
@@ -1363,7 +1417,8 @@
       "credit": "Avenue d’urnes modelée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Glisse pour tourner autour du buste. La caisse et la boule de verre tournent sur leur plateau.",
     "words": {
       "credit": "Marble Bust 01 par Rico Cilliers, Poly Haven, CC0 ; caisse par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Choisis une qualité, une résolution et une vue. Garde un réglage en A, un autre en B, et appuie sur C pour passer de l'un à l'autre."
   }
 }

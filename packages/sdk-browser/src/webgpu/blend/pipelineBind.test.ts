@@ -63,7 +63,12 @@ function joue(items: ReturnType<typeof item>[]) {
   const rt = {
     vis: {
       visEnabled: true,
-      blendPipelines: [TEXTURED, FRONT, BACK],
+      blendPipelines: Object.assign([TEXTURED, FRONT, BACK], {
+        lit() {
+          return this;
+        },
+        reach: () => undefined,
+      }),
       blendBindGroupLayout: {},
       textures: {
         color: { views: [{}, {}, {}], pages: { buffer: {} } },
@@ -90,7 +95,6 @@ function joue(items: ReturnType<typeof item>[]) {
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
-    sunFar: { gpu: undefined },
     blendState,
     run: {
       gpuDrawCalls: 0,

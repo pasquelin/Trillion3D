@@ -1,6 +1,7 @@
 import type { GuideSet } from './guideSet.ts';
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts';
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts';
+import { preparedPipeline } from '../lighting/deferred/fullscreen.ts';
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
 const GUIDE_PASS = 'Trillion3D guides';
@@ -8,69 +9,61 @@ const GUIDE_PASS = 'Trillion3D guides';
 const STRIDE = GUIDE_INSTANCE_FLOATS * 4;
 
 /**
- * The WebGPU guide pass. Nothing — pipeline, buffers — exists until the first frame that shows a
- * guide: a session whose page drew none never builds it. It draws on the display colour target,
- * AFTER temporal accumulation and composition, with the camera's unjittered view-projection: the
- * guides never enter the history the next image reprojects, so a moving camera cannot smear
- * them, and a still one does not make them shimmer. It reads the opaque depth as a texture and
- * tests against it in the shader, allowing the depth the image's jitter moved
- * (`jitterDepthSlack`): the scene was drawn jittered, the guides are not.
+ * The WebGPU guide pass. Nothing exists until a guide is shown: the frame entry that first finds
+ * one makes the pass (`../webgpu/frame/framePipelines.ts`), whose pipeline compiles off the frame
+ * from then, the frame held on it; its buffers are made by the first image it draws. It draws on
+ * the display colour target, AFTER temporal accumulation and composition, with the camera's
+ * unjittered view-projection: the guides never enter the history the next image reprojects, so a
+ * moving camera cannot smear them, and a still one does not make them shimmer. It reads the opaque
+ * depth as a texture and tests against it in the shader, allowing the depth the image's jitter
+ * moved (`jitterDepthSlack`): the scene was drawn jittered, the guides are not.
  */
 export function createWebgpuGuidePass(device: GPUDevice) {
-  let pipeline: GPURenderPipeline | undefined,
-    uniform: GPUBuffer | undefined,
+  const module = device.createShaderModule({ label: GUIDE_PASS, code: GUIDE_WGSL });
+  const layout = device.createBindGroupLayout({
+    label: GUIDE_PASS,
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' },
+      },
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+    ],
+  });
+  const pipeline = preparedPipeline(device, {
+    label: GUIDE_PASS,
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    vertex: {
+      module,
+      entryPoint: 'vertexMain',
+      buffers: [
+        {
+          arrayStride: STRIDE,
+          stepMode: 'instance',
+          attributes: [
+            { shaderLocation: 0, offset: 0, format: 'float32x3' },
+            { shaderLocation: 1, offset: 12, format: 'float32x3' },
+            { shaderLocation: 2, offset: 24, format: 'unorm8x4' },
+            { shaderLocation: 3, offset: 28, format: 'float32' },
+          ],
+        },
+      ],
+    },
+    fragment: { module, entryPoint: 'fragmentMain', targets: [{ format: 'rgba8unorm' }] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+  }).ask();
+  let uniform: GPUBuffer | undefined,
     instances: GPUBuffer | undefined,
-    layout: GPUBindGroupLayout | undefined,
     group: GPUBindGroup | undefined,
     boundDepth: GPUTextureView | undefined,
     uploaded: unknown;
   const view = new Float32Array(GUIDE_UNIFORM_FLOATS);
-  const build = () => {
-    const module = device.createShaderModule({ label: GUIDE_PASS, code: GUIDE_WGSL });
-    layout = device.createBindGroupLayout({
-      label: GUIDE_PASS,
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-          buffer: { type: 'uniform' },
-        },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-      ],
-    });
-    pipeline = device.createRenderPipeline({
-      label: GUIDE_PASS,
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: {
-        module,
-        entryPoint: 'vertexMain',
-        buffers: [
-          {
-            arrayStride: STRIDE,
-            stepMode: 'instance',
-            attributes: [
-              { shaderLocation: 0, offset: 0, format: 'float32x3' },
-              { shaderLocation: 1, offset: 12, format: 'float32x3' },
-              { shaderLocation: 2, offset: 24, format: 'unorm8x4' },
-              { shaderLocation: 3, offset: 28, format: 'float32' },
-            ],
-          },
-        ],
-      },
-      fragment: { module, entryPoint: 'fragmentMain', targets: [{ format: 'rgba8unorm' }] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-    });
-    uniform = device.createBuffer({
-      label: GUIDE_PASS,
-      size: GUIDE_UNIFORM_FLOATS * 4,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-  };
   /** The group binds the depth target, made again when a resize gave it a new view. */
   const bind = (depth: GPUTextureView) => {
     if (boundDepth === depth) return;
     group = device.createBindGroup({
-      layout: layout!,
+      layout,
       entries: [
         { binding: 0, resource: { buffer: uniform! } },
         { binding: 1, resource: depth },
@@ -113,7 +106,11 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     ) {
       const packed = guides.pack();
       if (!packed.count) return false;
-      if (!pipeline) build();
+      uniform ??= device.createBuffer({
+        label: GUIDE_PASS,
+        size: GUIDE_UNIFORM_FLOATS * 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
       upload(packed);
       bind(depth);
       const { anchor } = packed;
@@ -123,7 +120,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
         label: GUIDE_PASS,
         colorAttachments: [{ view: color, loadOp: 'load', storeOp: 'store' }],
       });
-      pass.setPipeline(pipeline!);
+      pass.setPipeline(pipeline.get());
       pass.setBindGroup(0, group!);
       pass.setVertexBuffer(0, instances!);
       pass.draw(6, packed.count);
@@ -133,7 +130,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     dispose() {
       uniform?.destroy();
       instances?.destroy();
-      pipeline = layout = uniform = instances = group = boundDepth = uploaded = undefined;
+      uniform = instances = group = boundDepth = uploaded = undefined;
     },
   };
 }

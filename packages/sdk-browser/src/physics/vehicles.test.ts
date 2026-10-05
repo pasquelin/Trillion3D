@@ -97,7 +97,7 @@ test('motorcycle: in a steady turn it leans as the turn asks, atan(v² / (r g))'
   rig.hold({ throttle: 1 }, 2);
   rig.turning({ throttle: 0.15, steer: 0.4 }, 2);
   const asked = rig.turning({ throttle: 0.15, steer: 0.4 }, 1);
-  // Jolt's lean controller aims at the tyres' force, and its own righting impulse carries a share
+  // The module's lean controller aims at the tyres' force, and its own righting impulse carries a share
   // of the turn: the lean falls short of the ideal by up to 30 %.
   assert.ok(asked > 0.4, `a real turn: ${asked}`);
   assert.ok(rig.tilt() > 0.7 * asked && rig.tilt() < 1.1 * asked, `lean ${rig.tilt()} of ${asked}`);

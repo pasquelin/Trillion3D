@@ -1,5 +1,6 @@
 import {
   LIGHT_KIND,
+  LIGHT_SETTINGS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
   type SceneLight,
@@ -36,6 +37,8 @@ export const LIGHT_FIELD = {
   halfHeight: 19,
   /** A point or spot's source radius; shares the rectangle-only shape lane. */
   emitterRadius: 16,
+  /** Directional angular radius in radians, sharing the local source-radius lane. */
+  angularRadius: 16,
 } as const;
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
 const NO_CONE = -2;
@@ -70,6 +73,9 @@ export function writeLightFields(packed: Float32Array, base: number, light: Scen
     (light.right ?? [0, 0, 0]).map((c) => (c * width) / 2),
   );
   packed[base + LIGHT_FIELD.halfHeight] = height / 2;
+  if (light.kind === 'directional')
+    packed[base + LIGHT_FIELD.angularRadius] =
+      light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius;
   if (light.kind === 'point' || spot)
     packed[base + LIGHT_FIELD.emitterRadius] = light.emitterRadius ?? 0;
 }

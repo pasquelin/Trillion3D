@@ -10,11 +10,13 @@ import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts';
 import {
+  askGuidePass,
   encodeWebgpuGuides,
   guidesMoved,
   guidesShown,
 } from '../webgpu/pages/render/encodeGuides.ts';
 import { families } from '../host/families.ts';
+import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/fullscreen.ts';
 
 // The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
 await families.guides.load();
@@ -43,26 +45,30 @@ const color = { color: true } as unknown as GPUTextureView,
   depth = { depth: true } as unknown as GPUTextureView,
   hdr = { hdr: true } as unknown as GPUTextureView;
 
-test('a world that shows no guide builds nothing and encodes no pass', () => {
+test('a world that shows no guide makes no pass, and a pass encodes nothing without one', async () => {
   const { device, encoder, renderPipelines, buffers, writes, passes } = recorder();
-  const guides = createGuideSet(),
-    pass = createWebgpuGuidePass(device);
-  assert.equal(
-    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
-    false,
-  );
+  const guides = createGuideSet();
+  const rt = { context: { guides }, gpu: {} } as never as Parameters<typeof askGuidePass>[0];
+  askGuidePass(rt, device);
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setVisible(false);
+  askGuidePass(rt, device);
+  assert.equal(rt.gpu.guides, undefined, 'none shown: no pass, no pipeline');
+  for (const made of [renderPipelines, buffers, writes, passes]) assert.equal(made.length, 0);
+  const pass = createWebgpuGuidePass(device);
+  await pipelinesSettled(device);
   assert.equal(
     pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   );
-  for (const made of [renderPipelines, buffers, writes, passes]) assert.equal(made.length, 0);
+  for (const made of [buffers, writes, passes]) assert.equal(made.length, 0);
 });
 
-test('guides draw over the display target, depth read and never written', () => {
+test('guides draw over the display target, depth read and never written', async () => {
   const { device, encoder, renderPipelines, buffers, bindGroups, passes, draws } = recorder();
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device);
+  assert.equal(pipelinesCompiling(device), true, 'its pipeline compiles off the frame from now');
+  await pipelinesSettled(device);
   guides.lines({ positions: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0] });
   assert.equal(
     pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
@@ -89,7 +95,7 @@ test('guides draw over the display target, depth read and never written', () => 
   assert.equal([...again.entries][1]?.resource, resized, 'a resized depth is bound anew');
 });
 
-test('the pass draws with the camera, not the jittered matrix of temporal accumulation', () => {
+test('the pass draws with the camera, not the jittered matrix of temporal accumulation', async () => {
   const { device, encoder, writes, passes } = recorder();
   const guides = createGuideSet();
   const rt = {
@@ -111,7 +117,9 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
   assert.equal(guidesMoved(rt), true, 'a change the last image did not draw');
   assert.equal(guidesShown(rt), true);
   assert.equal(guidesMoved(rt), false, 'the image about to be encoded draws it');
-  encodeWebgpuGuides(rt, device, encoder, { viewProjection: unjittered } as never);
+  askGuidePass(rt, device);
+  await pipelinesSettled(device);
+  encodeWebgpuGuides(rt, encoder, { viewProjection: unjittered } as never);
   const view = writes.find(({ data }) => data.length === GUIDE_UNIFORM_FLOATS)!;
   const expected = writeGuideView(
     new Float32Array(GUIDE_UNIFORM_FLOATS),

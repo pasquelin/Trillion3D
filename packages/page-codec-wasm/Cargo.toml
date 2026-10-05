@@ -11,9 +11,9 @@ name = "trillion3d_page_codec"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
-# The normal cone's arc cosine (`src/normal_cone.rs`): fdlibm's, the same bits on every host and
-# in WebAssembly, pure Rust from musl (MIT), without `std`.
+[dev-dependencies]
+# fdlibm's arc cosine, pure Rust from musl (MIT): the reference `src/acos.rs` is transcribed from,
+# with the instruction's square root rather than its software one, and tested against.
 libm = "0.2.16"
 
 [profile.release]

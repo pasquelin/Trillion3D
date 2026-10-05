@@ -46,11 +46,11 @@ test('shader bindings are those of the layout, and the uniform has the declared 
       `binding ${name}`,
     );
   // Two matrices, viewport and params, the nine weights in three quadruplets, render grid,
-  // jitter, eye.
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 3 * 16);
+  // jitter, eye, exposure, the camera's parallax and the flicker rates.
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 6 * 16);
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,\}/,
   );
   // No cosine per pixel: weights come from the uniform, neighbour by neighbour. Only a deformed
   // pixel's waves take one (`deformWgsl.ts`).
@@ -70,18 +70,20 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
     /if\(view\.params\.z!=0\.0&&id!=0u\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
   );
   assert.doesNotMatch(TAA_REPROJECT_WGSL, /textureLoad\(ids/);
-  assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec3f\(0\.0,0\.0,0\.0\);\}/);
+  assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec4f\(0\.0\);\}/);
 });
 
 // OMB-11: with no as-is pixel every neighbour's share is 0, and history is clamped to [0, 0]: the
 // flag-reading resolve writes 0 wherever its colour is finite. The flagless one writes that 0 and
-// is otherwise the same text — the colour and the placement tag line for line —, reading neither
-// flags nor share history.
+// is otherwise the same text — the colour and the geometry line for line —, reading neither flags
+// nor the as-is share history.
 test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
   const flagless = taaShader(false);
-  assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|shareHistory|shareLo|keptShare/);
+  assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|sharePast|shareLo|keptShare/);
   const outputs = (text: string) => [
-    ...text.matchAll(/TaaOut\((.*),vec4f\((.*),tag,0\.0,0\.0\)\);\}?$/gm),
+    ...text.matchAll(
+      /TaaOut\((.*),vec4f\((.*),gradient\*[\d.]+\+[\d.]+,0\.0,historyCount\/16\.0\),geometry,moire\);\}?$/gm,
+    ),
   ];
   const kept = outputs(TAA_SHADER),
     zero = outputs(flagless);
@@ -94,7 +96,11 @@ test('the flagless resolve is the flag-reading one without its share, written as
   const flagged = new Set(TAA_SHADER.split('\n'));
   const own = flagless.split('\n').filter((line) => !flagged.has(line));
   assert.equal(own.length, 3, 'only its three outputs are its own');
-  for (const line of own) assert.match(line, /TaaOut\(.*,vec4f\(0\.0,tag,0\.0,0\.0\)\);\}?$/);
+  for (const line of own)
+    assert.match(
+      line,
+      /TaaOut\(.*,vec4f\(0\.0,gradient\*[\d.]+\+[\d.]+,0\.0,historyCount\/16\.0\),geometry,moire\);\}?$/,
+    );
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
 });
@@ -103,7 +109,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
 // reflections' reprojections hand it theirs, as the resolve does.
 test('every reprojection hands previousUv the identifier it read', () => {
   for (const shader of [TAA_SHADER, REFLECTION_RESOLVE_WGSL, REFLECTION_SOURCE_WGSL]) {
-    const calls = [...shader.matchAll(/previousUv\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
+    const calls = [...shader.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
       .map((call) => call[1].split(',').at(-1))
       .filter((last) => last !== 'id:u32');
     assert.ok(calls.length > 0);

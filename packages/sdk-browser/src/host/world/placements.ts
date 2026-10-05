@@ -1,76 +1,27 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { hostWorldTree, type HostWorldTree } from './tree.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
- * World matrices THE ENGINE owns for the drawn nodes of the host scene.
- *
- * `tree.ts` computes these matrices in the engine's transform tree; this file gives
- * each requested node the pose object that page records, cluster roots and transparent copies
- * carry. That object is a VIEW on the tree's own world buffer: its sixteen numbers are the ones
- * the tree just wrote, and a pass rewrites them in place. Nothing is copied here, so nothing can
- * go stale — that was the defect a snapshot of a host `matrixWorld` had already cost once — and
- * a scene change no longer pays a sixteen-number copy per drawn node.
- *
- * No host-library matrix is created, read or written: the pose crosses as sixteen flat numbers
- * (`MatrixElements`), which is what every consumer of the frame reads.
- *
- * A pose is returned ONCE per node and lives as long as the scene: what a pass rewrites,
- * everything that carries it sees at that instant.
+ * World matrices of the drawn nodes of a scene, read where they live: the transform tree every
+ * scene node is a slot of (`objectSpace.ts`). A pose handed out is the node's own `matrixWorld`,
+ * whose numbers are its slot's world matrix in that tree, whose storage never moves (`storage.ts`):
+ * the numbers the tree's frame pass last wrote, rewritten in place, never copied, never stale.
+ * Nothing mirrors the scene and nothing compares its poses: a write lists its node in the tree, and
+ * the pass recomputes what the writes since the last one changed (`pass.ts`).
  */
 export interface HostWorldPlacements {
-  /** Engine world matrix for `node`: the same object from call to call, its numbers always
-   *  those of the last pass. Throws for a node outside the indexed subtree. */
+  /** The world matrix of `node`: the same object from call to call, its numbers always those of
+   *  the last pass. */
   of(node: Object3D): MatrixElements;
-  /** Recomputes the index from the host's local poses. Every pose already handed out reads the
-   *  result: they are views on it. */
+  /** Brings every world matrix up to date with the poses written since the last pass. */
   refresh(): void;
-  /** The same pass on the subtree of `node` alone, exact while the host wrote no pose outside it
-   *  (`tree.ts`, `refreshFrom`). */
-  refreshFrom(node: Object3D): void;
-  /** The engine's world of `node`'s parent, current with the host's poses, or `null` when its tree
-   *  cannot vouch for it (`pose.ts`). A view: read it, never write it. */
-  parentWorld(node: Object3D): Float64Array | null;
 }
 
-/**
- * A pose handed out here is kept for the index's life, so it may only ever be a view that
- * outlives a pass. A LOT pass is the one that does not qualify: it rebuilds its views whenever
- * the module memory has grown, which would leave every pose handed out reading a dead buffer,
- * silently. The tree below is built WITHOUT a lot, so this cannot fire — it is what makes that
- * assumption fail loudly rather than quietly, if the construction ever changes.
- */
-function assertStable(tree: HostWorldTree) {
-  if (tree.batched)
-    throw new EngineError('BATCHED_WORLD_VIEW', 'a lot pass cannot back a cached pose', {});
-}
-
-/** World-matrix index of `source`, ready to be read: the pass is that of the core tree
- *  (`tree.ts`), which accepts both a node that recomposes its pose and a posed node. */
+/** The world matrices of `source`'s scene, brought up to date a first time: the one entry that
+ *  runs the pass before world matrices are read in bulk. */
 export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
-  // No lot: the pass runs on the tree, whose per-node views stay valid for the index's life.
-  const tree = hostWorldTree(source);
-  assertStable(tree);
-  // Requested nodes, and them alone. One table, node → pose: the rank of a parallel list would
-  // be a third way of saying the same thing, and one more to keep in agreement.
-  const matrices = new Map<Object3D, MatrixElements>();
-  return {
-    of(node) {
-      const held = matrices.get(node);
-      if (held) return held;
-      const matrix: MatrixElements = { elements: tree.world(node) };
-      matrices.set(node, matrix);
-      return matrix;
-    },
-    refresh() {
-      tree.refresh();
-      assertStable(tree);
-    },
-    refreshFrom(node) {
-      tree.refreshFrom(node);
-      assertStable(tree);
-    },
-    parentWorld: (node) => tree.parentWorld(node),
-  };
+  const tree = Object3D._treeOf(source);
+  updateTransformTree(tree);
+  return { of: (node) => node.matrixWorld, refresh: () => void updateTransformTree(tree) };
 }

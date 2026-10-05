@@ -1,5 +1,5 @@
 import { createViewFingerprint } from './viewFingerprint.ts';
-import type { EngineCamera } from '../camera/world.ts';
+import type { EngineCamera, HostCamera } from '../camera/world.ts';
 import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts';
 
 /**
@@ -17,6 +17,7 @@ function createViewRevision() {
   let far = NaN,
     quality = NaN;
   return {
+    same: fingerprint.same,
     /** Rereads this frame's view; increments `view` and returns true if any of these numbers moved. */
     read(
       revisions: FrameRevisions,
@@ -51,4 +52,7 @@ export const createViewHold = (values: number, view: number) => ({
   fingerprint: createViewRevision(),
   hold: createFrameHold(values),
   view,
+  camera: undefined as HostCamera | undefined,
+  cameraRevision: 0,
+  temporalRevision: 0,
 });

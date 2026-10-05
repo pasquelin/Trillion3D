@@ -50,9 +50,11 @@ const rasterInput = {} as GpuRasterInput;
 
 /**
  * Creates the compute raster once, and only under a variant that asks for it — `raster-compute` or
- * `raster-hybrid`: in production the hardware draws (Geometry 26). A variant is a request, not an
- * opportunity — a device without compute or an exceeded surface budget refuses; they do not silently
- * render the hardware image under the compute label.
+ * `raster-hybrid`: in production the hardware draws (Geometry 26). A frame's entry makes it, its
+ * pipelines compiled off the thread while the frame is held (`../../frame/framePipelines.ts`); the
+ * image's encode finds it. A variant is a request, not an opportunity — a device without compute
+ * or an exceeded surface budget refuses; they do not silently render the hardware image under the
+ * compute label.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt;
@@ -66,6 +68,9 @@ export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Writes the image's uniforms and rebuilds the shade and raster bind groups a resource change voided. */
 export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tableRows: number) {
   writeWebgpuVisibilityUniforms(rt, device, tableRows);
+  // The resolve's cache is laid for this image's rows before its group names the buffer.
+  const [width, height] = rt.gpu.targetSize;
+  rt.vis.shadeCache?.layFor(tableRows, rt.setup.maxCorners, width, height);
   ensureWebgpuShadeBindings(rt, device);
   ensureWebgpuVisibilityBindings(rt, device);
 }

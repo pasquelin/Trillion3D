@@ -43,8 +43,6 @@ const NOT_IN_CORE = {
  *  the core splits at a world's creation reads its shadow shares from them
  *  (`residency/shadowBudgetBytes.ts`), and only them of the shadows' folders. */
 const SHADOW_SIZES = [
-  'sdk-browser/src/gpu/shadow/sizes.js',
-  'sdk-browser/src/gpu/shadow/batchBudget.js',
   'sdk-browser/src/webgpu/shadow/allocLayout.js',
   'sdk-browser/src/webgpu/shadow/freshLayout.js',
 ];

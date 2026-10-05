@@ -1,5 +1,6 @@
-import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
+import { TRANSLUCENT_SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
 import * as surfaceModel from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
@@ -12,26 +13,28 @@ import {
   tileDeclarations,
 } from '../tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts';
-import { BLEND_BINDINGS } from '../core/bindLayout.ts';
+import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts';
 import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
 import * as itemFlags from '../../visibility/buffer.ts';
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 import { BLEND_VERTEX_WGSL } from './vertexWgsl.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
 export { BLEND_VIEW_WGSL } from './vertexWgsl.ts';
-export const blendShader = (pages?: number) => `${BLEND_VERTEX_WGSL}
+/** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
+ *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). */
+export const blendShader = (key: Partial<ContractKey> = {}) => `${BLEND_VERTEX_WGSL}
 ${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance, pages)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowTransmittance, BLEND_VSM_BINDINGS, false, !key.unshadowed, !key.rectless, shadowKindsOf(key))}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 ${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
 ${MIRROR_LIGHTING_WGSL.replace(')*reflectedRadiance(', ')*resolvedRadiance(')}
-${SCREEN_REFLECTION_WGSL}
+${TRANSLUCENT_SCREEN_REFLECTION_WGSL}
+fn translucentReflectionFrame()->f32{return uni.frameNoise;}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d_array;
-@group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -45,11 +48,14 @@ ${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
 ${BLEND_SURFACE_WGSL}
 fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;
- // \`fwidth\` wants uniform control flow: taken before any condition on the item's flags.
+ // Every derivative wants uniform control flow: taken before the coverage test returns.
  let width=fwidth(in.bary);
- let s=blendSurface(in,front);
- // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
- if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}
+ let g=blendGrads(in);
+ let base=blendBase(in,g);
+ // A fragment the material rejects (\`blendKeeps\`), or a dashed line's gap (\`lineDash\`: its
+ // distance along the line rides the first coordinate), reads and lights nothing more.
+ if(!blendKeeps(in,base,front)||!lineDash(in.uv.x,in.alphaAo.zw)){discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(0.0),vec4f(0.0));}
+ let s=blendSurface(in,front,g,base);
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   if(s.alpha<=0.01){discard;}
   var color=vec3f(0.204,0.827,0.6);
@@ -74,6 +80,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
    surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    thinSubsurface=s.subsurface;
    shadowFootprint=blendShadowFootprint(in.view);
+   shadowSetView(uni.camPos.xyz,uni.viewport.x,in.position.xy,0u,shadowFootprint,in.view);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);

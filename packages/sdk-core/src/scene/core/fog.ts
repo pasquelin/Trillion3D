@@ -10,8 +10,7 @@
  * - exponential (Beer-Lambert, a uniform medium): `T = exp(−density · d)`;
  * - exponential height fog, a medium whose density falls off with height,
  *   `density · exp(−heightFalloff · (y − baseHeight))`: `T = exp(−τ)`, the optical depth `τ`
- *   integrated in closed form along the ray (Wenzel, "Real-time Atmospheric Effects in Games",
- *   SIGGRAPH 2006; Quilez, "Better fog", 2010). A falloff of zero is the uniform medium.
+ *   integrated in closed form along the ray. A falloff of zero is the uniform medium.
  * The distance is measured from the camera's position, the height along +y.
  */
 import { EngineError } from '../../contracts/cache.ts';

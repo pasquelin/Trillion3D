@@ -1,4 +1,4 @@
-//! Tiny DDS of the golden, written here byte by byte from Microsoft's public specification. No
+//! Tiny DDS of the golden, written here byte by byte. No
 //! encoder is called: each field of `DDS_HEADER`, `DDS_PIXELFORMAT` and `DDS_HEADER_DXT10` is
 //! set by hand, and each block carries values whose exact decoding is known. That is the only
 //! way to assert “lossless” without taking the decoder's word for it.

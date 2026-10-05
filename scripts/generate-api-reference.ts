@@ -33,13 +33,18 @@ function current(): boolean {
 export async function generateApiFiles(): Promise<void> {
   if (current()) return;
   // Loaded only here: TypeScript and the model cost a second to every reader of current files.
-  const [{ FAMILIES }, { buildReference }, { apiInventory }, { writeGenerated }] =
-    await Promise.all([
-      import('../site/content/model.ts'),
-      import('./api-reference/exports.ts'),
-      import('./sdk-api-inventory.ts'),
-      import('./sdk-api-model.ts'),
-    ]);
+  const [
+    { FAMILIES },
+    { buildReference },
+    { apiInventory },
+    { refreshApiProgram, writeGenerated },
+  ] = await Promise.all([
+    import('../site/content/model.ts'),
+    import('./api-reference/exports.ts'),
+    import('./sdk-api-inventory.ts'),
+    import('./sdk-api-model.ts'),
+  ]);
+  refreshApiProgram();
   await writeGenerated(API_FILES.reference, json(buildReference(new Set(FAMILIES))));
   await writeGenerated(API_FILES.inventory, json(apiInventory()));
 }

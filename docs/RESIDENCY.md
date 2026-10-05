@@ -2,7 +2,7 @@
 
 What stays in memory: the geometry pool, the cut that reads it, and the virtual textures. The
 budgets a page sets are [SDK.md](SDK.md#memory-budgets); the raster that draws the cut is
-[ENGINE.md](ENGINE.md#webgpu-page-raster); the shadow pool is [SHADOWS.md](SHADOWS.md).
+[ENGINE.md](ENGINE.md#webgpu-page-raster); the shadow page pool is [SHADOWS.md](SHADOWS.md).
 
 ## One cut rule per cluster
 

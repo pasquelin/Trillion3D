@@ -17,12 +17,13 @@
 //! within its error.
 use super::bounds::bounding_sphere;
 use crate::join::Join;
-use std::collections::{BTreeMap, HashMap};
+use crate::shared_math::WordMap;
+use std::collections::BTreeMap;
 
 /// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
 /// its triangles: one root per part.
-pub(super) fn joined(source: &[u32], weld: &[u32]) -> (HashMap<u32, u32>, Vec<u32>, Join) {
-    let mut local: HashMap<u32, u32> = HashMap::new();
+pub(super) fn joined(source: &[u32], weld: &[u32]) -> (WordMap<u32, u32>, Vec<u32>, Join) {
+    let mut local: WordMap<u32, u32> = WordMap::default();
     let mut id = |v: u32| {
         let next = local.len() as u32;
         *local.entry(weld[v as usize]).or_insert(next)

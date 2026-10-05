@@ -10,7 +10,7 @@ import type { PageDecodeDone } from '../../../../sdk-core/src/index.ts';
 import { assertCellNodes, type CellNode } from '../../../../sdk-core/src/scene/core/tableCell.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
-import { hostLocalInto } from '../../host/world/matrices.ts';
+import { composeMatrix4 } from '../../../../sdk-core/src/math/matrix/matrix4Compose.ts';
 
 const scratch = new Object3D();
 
@@ -20,7 +20,8 @@ function rowLocal(node: CellNode, out: Float64Array) {
   scratch.quaternion.set(0, 0, 0, 1);
   scratch.scale.set(1, 1, 1);
   pose(scratch, node);
-  return hostLocalInto(out, scratch);
+  const { position, quaternion, scale } = scratch;
+  return composeMatrix4(out, position.elements, quaternion.elements, scale.elements);
 }
 
 /** A cell file as the pool answers it (`PageDecodeDone.cells`). */

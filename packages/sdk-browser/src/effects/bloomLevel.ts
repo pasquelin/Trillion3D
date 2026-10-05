@@ -14,6 +14,14 @@ export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`;
  * read. `tent` reads the level through the upsample filter (`bloomFilter.ts`); `blendLevel` is the
  * bloom's last blend — `keep` of the image, `glow` of the first level's sum —, one text for the
  * bloom's own `composite` pass and for the composition that takes that pass over (#963).
+ *
+ * `tent9` is the filter itself, nine bilinear taps spread by `radius`. At the default radius, 1,
+ * `tent4` is the same kernel in four taps, exact in real arithmetic: a pixel `f` texels past texel
+ * `i` of the level reads two per axis, of weights `(3−2f)/4` and `(1+2f)/4`, at `i + (1+2f)r` and
+ * `i + 2 − (3−2f)r` texels, `r = ½ / ((3−2f)(1+2f))`; the weights are scaled by 4 per axis, the
+ * product by `1/16`. A sampler holds a tap's weights to a few bits, so on a device the two differ
+ * by at most 2 · 2^-bits times the largest step between neighbouring texels the taps read. The
+ * derivation, its proof and that bound are `bloomTent.test.ts`'s.
  */
 export const bloomLevelWgsl = (group: number) => `
 struct Bloom{outTexel:vec2f,inTexel:vec2f,radius:f32,keep:f32,glow:f32,unused:f32,}
@@ -21,9 +29,17 @@ struct Bloom{outTexel:vec2f,inTexel:vec2f,radius:f32,keep:f32,glow:f32,unused:f3
 @group(${group}) @binding(1) var linearClamp:sampler;
 @group(${group}) @binding(2) var<uniform> bloom:Bloom;
 fn fetchLevel(uv:vec2f)->vec4f{return textureSampleLevel(level,linearClamp,uv,0.0);}
-fn tent(uv:vec2f)->vec4f{let stride=bloom.inTexel*bloom.radius;var c=vec4f(0.0);
+fn tent9(uv:vec2f)->vec4f{let stride=bloom.inTexel*bloom.radius;var c=vec4f(0.0);
 ${bloomTapText(BLOOM_UP_TAPS, levelTap, 'vec2f')}
 return c;}
+fn tent4(uv:vec2f)->vec4f{
+let t=uv/bloom.inTexel-0.5;let i=floor(t);let f=t-i;
+let wa=3.0-2.0*f;let wb=1.0+2.0*f;let r=0.5/(wa*wb);
+let a=(i+wb*r)*bloom.inTexel;let b=(i+2.0-wa*r)*bloom.inTexel;
+return (fetchLevel(a)*(wa.x*wa.y)+fetchLevel(vec2f(b.x,a.y))*(wb.x*wa.y)
++fetchLevel(vec2f(a.x,b.y))*(wa.x*wb.y)+fetchLevel(b)*(wb.x*wb.y))*0.0625;
+}
+fn tent(uv:vec2f)->vec4f{if(bloom.radius!=1.0){return tent9(uv);}return tent4(uv);}
 fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`;
 
 /**

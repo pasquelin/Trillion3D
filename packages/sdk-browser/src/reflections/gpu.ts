@@ -3,14 +3,16 @@ import { createReflectionConePyramid } from './conePyramid.ts';
 import { mipLevelCountFor } from '../texture/tiles.ts';
 import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { screenReflects } from './eligible.ts';
+import { mirrorRange, screenReflects } from './eligible.ts';
 import { surfacesOfRows } from '../page/rowSurfaces.ts';
 import { createReflectionHistory, type ReflectionHistory } from './historyRuntime.ts';
 import type { ReflectionHistoryFrame } from './historyFrame.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { createReflectionSource, type ReflectionSource } from './source.ts';
+import { itemKept } from '../webgpu/blend/expandCpu.ts';
 
 const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surface));
+const mirroring = (surface: PageSurface) => mirrorRange(refreshSurface(surface));
 const roughReflecting = (surface: PageSurface) => {
   const material = refreshSurface(surface);
   return screenReflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
@@ -44,16 +46,42 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   );
 }
 
+/** Whether a pass may walk a mirror ray (`screenReflection`, `traceShader.ts`): a receiver in the
+ *  mirror range, opaque or blended, or a water surface (#1279), wherever they stand; `inView`,
+ *  whether one does this image, read after the frustum's verdict on the transparents
+ *  (`prepareBlend`) and before the bounds are built: a water surface the frustum kept, which the
+ *  composite needs to be encoded at all (`drawsWater`, `../webgpu/water/pass.ts`, whose lighting
+ *  the blends publish after the bounds, so a kept surface it then skips builds them for nothing);
+ *  a mirror-range receiver among the view's rows (those the CPU cut draws, or those resident where
+ *  the GPU selects); an impostor card drawn, whose baked roughness no surface here tells
+ *  (`../webgpu/impostor/cardWgsl.ts`); a blended one the frustum kept. An image none of these, nor
+ *  the rough trace or the cone, reads builds no bounds (`encode.ts`). */
+function wantsMirrorWalk(rt: WebgpuPagesRuntime, inView = false) {
+  const { blendState } = rt;
+  if ((inView ? blendState.transmissiveInView : blendState.transmissive) > 0) return true;
+  if (surfacesOfRows(rt.layout.rows).some(mirroring)) return true;
+  if (inView && (rt.gpu.impostors?.count ?? 0) > 0) return true;
+  return blendState.blendGpu.some(
+    ({ surface }, rank) => (!inView || itemKept(blendState.keepPacked, rank)) && mirroring(surface),
+  );
+}
+
+/** Whether a mirror ray walks the depth bounds this image (`wantsMirrorWalk` in view). */
+export const mirrorWalksImage = (rt: WebgpuPagesRuntime) => wantsMirrorWalk(rt, true);
+
 /** What the reflection targets hold for `rt`, the one rule the builder, the targets' fit and their
  *  allocation read: a rough history and a cone only under an active reflection, the depth-bounds
- *  pyramid for either and for a water surface's bounded mirror ray (`water`, #1279; a reference
- *  session's walks every pixel and needs none), its radiance levels for a cone alone. */
+ *  pyramid for either and for a mirror ray's walk (`mirror`), its radiance levels for a cone
+ *  alone. */
 export function reflectionPlan(rt: WebgpuPagesRuntime) {
   const active = wantsReflections(rt);
+  // The final program reads a rough receiver's reflection from its history alone
+  // (`heldReflection`, `pipelines.ts`): without one, binding 3 held the reflection source itself,
+  // and every glossy pixel read its own colour back.
   const rough = active && wantsRoughReflectionHistory(rt);
   const cone = active && wantsReflectionCone(rt);
-  const water = active && rt.blendState.transmissive > 0 && !rt.context?.unboundedReflections;
-  return { active, rough, cone, water, pyramid: rough || cone || water };
+  const mirror = active && wantsMirrorWalk(rt);
+  return { active, rough, cone, mirror, pyramid: rough || cone || mirror };
 }
 
 /** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
@@ -67,7 +95,7 @@ export function createScreenReflection(
   active: boolean,
   rough = false,
   cone = false,
-  water = false,
+  mirror = false,
 ) {
   const color = device.createTexture({
     label: 'Trillion3D unfogged reflection source',
@@ -83,9 +111,9 @@ export function createScreenReflection(
   let pyramid: ReturnType<typeof createReflectionConePyramid> | undefined;
   let reprojection: ReflectionSource | undefined;
   try {
-    // The rough trace and the water's mirror walk the cone's depth bounds; its radiance levels only
+    // The rough trace and every mirror ray walk the cone's depth bounds; its radiance levels only
     // where a cone reads.
-    if (active && (cone || rough || water))
+    if (active && (cone || rough || mirror))
       pyramid = createReflectionConePyramid(device, color, depth, cone);
     uniform = device.createBuffer({
       size: REFLECTION_VIEW_BYTES,
@@ -117,10 +145,15 @@ export function createScreenReflection(
       return group;
     };
     groupFor();
+    let walks = mirror;
     return {
       active,
-      /** The water composite's mirror ray walks the depth bounds (`reflectionPlan`). */
-      water,
+      /** A pass may walk a mirror ray over the depth bounds (`reflectionPlan`). */
+      mirror,
+      /** One does this image (`mirrorWalksImage`), as `update` last heard it. */
+      get walks() {
+        return walks;
+      },
       view,
       get group() {
         return groupFor();
@@ -132,13 +165,16 @@ export function createScreenReflection(
        *  (`sourceOutputWgsl.ts`); `keep`, after their readers, of this image's depth and ids. */
       source: reprojection,
       /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
-       *  `frame`, what the history and the source read (`reflectionFrame.ts`). */
+       *  `frame`, what the history and the source read (`reflectionFrame.ts`); `walking`, whether a
+       *  mirror ray walks this image (`mirrorWalksImage`, which `frame.ts` asks only of a `mirror`). */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
+        walking = mirror,
       ) {
+        walks = walking;
         if (history && frame) history.prepare(frame, matrix, drawn);
         reprojection?.update(matrix, drawn, frame);
         packed.set(matrix);

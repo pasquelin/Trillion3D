@@ -14,7 +14,7 @@ import {
   waterCostCamera,
   poseWaterCost,
   SIZE,
-} from '../../../../../tests/browser/support/waterCostScene.ts';
+} from '../../../../../tests/gpu/water/waterCostScene.ts';
 
 function scene(enabled = true) {
   const source = waterCostScene(1 / 16, enabled);

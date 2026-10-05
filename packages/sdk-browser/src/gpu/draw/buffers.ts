@@ -7,11 +7,16 @@ import {
 } from './contract.ts';
 
 /**
- * Compact buffers: they depend only on the row count and the coplanar-layer count, never on the
- * frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
+ * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
+ * row takes at most, never on the frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
  * compact, exactly as before.
  */
-export function createGpuDrawBuffers(device: GPUDevice, slotCap: number, layerSlots: number) {
+export function createGpuDrawBuffers(
+  device: GPUDevice,
+  slotCap: number,
+  layerSlots: number,
+  perRow: number,
+) {
   const slots = slotCount(layerSlots);
   const groupCount = Math.ceil(slotCap / WORKGROUP),
     groupBytes = groupCount * slots * 4;
@@ -22,11 +27,13 @@ export function createGpuDrawBuffers(device: GPUDevice, slotCap: number, layerSl
     usage: storage,
   });
   const uniforms = device.createBuffer({
+    label: 'Trillion3D draw compaction uniform',
     size: UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+  // A row takes up to `perRow` instances, one per batch of its triangles (`drawBatches`).
   const instanceBuffer = device.createBuffer({
-    size: slotCap * 4,
+    size: slotCap * perRow * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
   const indirectBuffer = device.createBuffer({

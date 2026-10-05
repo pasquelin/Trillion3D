@@ -5,14 +5,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
-import { packVisibilityId, rasterVisibilityIds } from '../visibility/buffer.ts';
-import { visibilityDepth } from './depth.ts';
+import { visibilityDepth } from './visibilityDepth.fixture.ts';
 import { referenceVisibilityDepth } from '../../../../bench/oracles/browser/hiz.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { asHostLibrary } from '../host/resources.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import { packVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 /** The oracle reads the camera by shape: the engine graph's own camera is handed to it as is. */
 const oracleDepth = (

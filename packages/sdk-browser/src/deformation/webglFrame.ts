@@ -6,7 +6,6 @@ import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
-import type { HostWorldPlacements } from '../host/world/placements.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { createSessionDeformation } from './session.ts';
 
@@ -20,10 +19,9 @@ import { createSessionDeformation } from './session.ts';
  */
 export function createWebglDeformation(
   roots: readonly ClusterRoot<PageRec>[],
-  worlds: Pick<HostWorldPlacements, 'of'>,
   copies: readonly BlendCopy[] = [],
 ) {
-  const session = createSessionDeformation(roots, worlds, copies),
+  const session = createSessionDeformation(roots, copies),
     frame = session.frame,
     source = {
       block: frame.block,

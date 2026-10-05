@@ -76,7 +76,7 @@ export interface WebgpuGpuState {
   targetBytes: number;
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
    *  at that size; gone once granted. */
-  targetGrant: (FrameSize & DeviceGrant) | undefined;
+  targetGrant: (FrameSize & DeviceGrant & { retryAt?: number }) | undefined;
   positionBuffers: Map<HostAttributes, GPUBuffer>;
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says

@@ -1,3 +1,4 @@
+import { slabCut } from '../math/primitives/slab.ts';
 import { insideTriangle, triangleNormal } from './closest.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
@@ -27,7 +28,7 @@ export function forEachTriangleInBox(
   while (top > 0) {
     const node = stack[--top],
       at = node * 6;
-    if (!overlaps(bounds, at, min, max)) continue;
+    if (!overlapsNode(bounds, at, min, max)) continue;
     if (counts[node] === 0) {
       stack[top++] = links[node];
       stack[top++] = node + 1;
@@ -35,31 +36,71 @@ export function forEachTriangleInBox(
     }
     for (let t = links[node], end = t + counts[node]; t < end; t++) {
       const first = 9 * t;
-      if (overlaps(triangles, first, min, max, 3)) visit(first);
+      if (overlapsTriangle(triangles, first, min, max)) visit(first);
     }
   }
 }
 
-/** Whether the box around `corners` points stored from `at` — a node's min and max, or a
- *  triangle's three corners — meets `[min, max]`. */
-function overlaps(
-  values: Float32Array,
+/** Whether node box `at` of `bounds` — min xyz, max xyz, never NaN — meets `[min, max]`. Each
+ *  axis misses when both bounds lie past one side of the query: the test of the smaller and the
+ *  larger bound, so an empty node (`+∞` to `−∞`) is kept as before. */
+function overlapsNode(
+  bounds: Float32Array,
   at: number,
   min: ArrayLike<number>,
   max: ArrayLike<number>,
-  corners = 2,
+) {
+  for (let k = 0; k < 3; k++) {
+    const low = bounds[at + k],
+      high = bounds[at + 3 + k];
+    if ((low > max[k] && high > max[k]) || (low < min[k] && high < min[k])) return false;
+  }
+  return true;
+}
+
+/** Whether the box around triangle `at` of `triangles` — three corners, a NaN number skipped —
+ *  meets `[min, max]`. */
+export function overlapsTriangle(
+  triangles: Float32Array,
+  at: number,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
 ) {
   for (let k = 0; k < 3; k++) {
     let low = Infinity,
       high = -Infinity;
-    for (let c = 0; c < corners; c++) {
-      const value = values[at + 3 * c + k];
+    for (let c = at + k; c < at + 9; c += 3) {
+      const value = triangles[c];
       if (value < low) low = value;
       if (value > high) high = value;
     }
     if (low > max[k] || high < min[k]) return false;
   }
   return true;
+}
+
+/**
+ * The triangles of `tree` whose box meets `[min, max]` — each one's first number in
+ * `tree.triangles` — in the order `forEachTriangleInBox` visits them, into `into.list` (grown when
+ * full); returns their count. A node's box holds its triangles' boxes, so filtering this list by
+ * `overlapsTriangle` against any box inside `[min, max]` gives that box's visit, in its order.
+ */
+export function gatherTrianglesInBox(
+  tree: TriangleTree,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  into: { list: Int32Array },
+) {
+  let count = 0;
+  forEachTriangleInBox(tree, min, max, (at) => {
+    if (count === into.list.length) {
+      const grown = new Int32Array(2 * count);
+      grown.set(into.list);
+      into.list = grown;
+    }
+    into.list[count++] = at;
+  });
+  return count;
 }
 
 const normal = new Float64Array(3);
@@ -86,8 +127,10 @@ function crossTriangle(
   return insideTriangle(o[0] + t * d[0], o[1] + t * d[1], o[2] + t * d[2], v, at, normal) ? t : -1;
 }
 
-/** The parameter where the ray enters node box `at` of `bounds`, or `Infinity` when it misses it
- *  or enters it past `before`. */
+const span = new Float64Array(2);
+
+/** The parameter where the ray enters node box `at` of `bounds` (`slabCut`), or
+ *  `Infinity` when it misses it or enters it past `before`. */
 function enterBox(
   bounds: Float32Array,
   at: number,
@@ -95,23 +138,9 @@ function enterBox(
   d: ArrayLike<number>,
   before: number,
 ) {
-  let near = 0,
-    far = before;
-  for (let k = 0; k < 3; k++) {
-    const low = bounds[at + k],
-      high = bounds[at + 3 + k];
-    if (d[k] === 0) {
-      if (o[k] < low || o[k] > high) return Infinity;
-      continue;
-    }
-    let a = (low - o[k]) / d[k],
-      b = (high - o[k]) / d[k];
-    if (a > b) [a, b] = [b, a];
-    if (a > near) near = a;
-    if (b < far) far = b;
-    if (near > far) return Infinity;
-  }
-  return near;
+  span[0] = 0;
+  span[1] = before;
+  return slabCut(span, bounds, at, bounds, at + 3, o, d) ? span[0] : Infinity;
 }
 
 /**

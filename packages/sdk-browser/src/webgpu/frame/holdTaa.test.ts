@@ -17,6 +17,7 @@ function heldRuntime(stillFrames: number) {
   let checkpoints = 0;
   const frame = createTaaFrameState();
   frame.stillFrames = stillFrames;
+  frame.viewSeen = rt.run.gate.temporalRevision;
   Object.assign(rt.gpu, {
     temporalWanted: true,
     targetSize: [64, 32],
@@ -33,28 +34,28 @@ function heldRuntime(stillFrames: number) {
 }
 
 test('#26: a held frame takes no checkpoint and counts no still frame', () => {
-  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES - 1);
+  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES);
   const { device } = fakeDevice();
   const sample = frame.sample;
   for (let i = 0; i < 5; i++) assert.equal(holdWebgpuFrame(rt, device), true);
   assert.equal(rt.run.frameHeld, true);
   assert.equal(checkpoints(), 0, 'the checkpoint a barrier replays stays the last encoded one');
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES - 1, 'the replay weighs its image as before');
+  assert.equal(frame.stillFrames, TAA_STILL_FRAMES, 'the replay weighs its image as before');
   assert.equal(frame.sample, sample);
 });
 
 test('#26: the quiet frame that still accumulates enters, then the next one is held', () => {
-  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES - 2);
+  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES - 1);
   const { device } = fakeDevice();
-  assert.equal(holdWebgpuFrame(rt, device), false, 'one frame short of the cycle: drawn');
+  assert.equal(holdWebgpuFrame(rt, device), false, 'one image short of whole cycles: drawn');
   assert.equal(checkpoints(), 1);
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES - 1);
-  assert.equal(holdWebgpuFrame(rt, device), true, 'the cycle is closed: held');
+  assert.equal(frame.stillFrames, TAA_STILL_FRAMES);
+  assert.equal(holdWebgpuFrame(rt, device), true, 'the cycles are closed: held');
   assert.equal(checkpoints(), 1);
 });
 
 test('#26: a view that does not accumulate holds on the count a settled beauty image left', () => {
-  const { rt, frame } = heldRuntime(TAA_STILL_FRAMES - 1);
+  const { rt, frame } = heldRuntime(TAA_STILL_FRAMES);
   const { device } = fakeDevice();
   rt.run.diagnostic = 'wireframe';
   assert.equal(
@@ -62,5 +63,5 @@ test('#26: a view that does not accumulate holds on the count a settled beauty i
     true,
     'the count it never moves already closes the cycle',
   );
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES - 1);
+  assert.equal(frame.stillFrames, TAA_STILL_FRAMES);
 });

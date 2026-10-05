@@ -2,13 +2,13 @@
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
+import type { CameraPose, FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/types.ts';
 import type { MemoryBudgets } from '../witnesses/measurement.ts';
 import type { LiveTuning, NetworkBytes } from './report/types.ts';
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { LivePools } from './benchSettings.ts';
 import { residentBudget } from './poolFill.ts';
+export { gpuReadings } from './gpuReadings.ts';
 
 interface MovingLight {
   origin: readonly number[];
@@ -135,63 +135,4 @@ export function filtrerMetriques(
   return Object.fromEntries(
     Object.entries(last ?? {}).filter(([, v]) => scalaire(v) || table(v)),
   ) as Partial<FrameMetrics> & Record<string, unknown>;
-}
-
-/**
- * Drains the shadow-page queue before reading the atlas: a pending page still holds the
- * previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
- * remaining count is published as-is, never assumed zero.
- */
-export async function drainShadowAtlas(explorer: MeasuredWorld, capturePose: CameraPose) {
-  if (typeof explorer.shadowAtlasDigest !== 'function') return null;
-  let pending: number | null = null,
-    drains = 0;
-  for (; drains < 600; drains++) {
-    const frame = explorer.render(capturePose);
-    await explorer.flush();
-    pending = typeof frame.shadowPagesPending === 'number' ? frame.shadowPagesPending : null;
-    if (pending === null || pending === 0) break;
-  }
-  const digest = await explorer.shadowAtlasDigest();
-  return digest ? { ...digest, pagesPending: pending, images: drains } : null;
-}
-
-/** The per-frame shadow counters the series reads: what the shadow pass did on each frame. */
-const SHADOW_COUNTERS = [
-  'shadowPagesRequested',
-  'shadowPagesCached',
-  'shadowPagesDrawn',
-  'shadowLightCuts',
-  'shadowPoolPages',
-  'shadowPagesRefetched',
-  'shadowFacesDrawn',
-] as const;
-
-/**
- * Collects the shadow counters of every measured frame; `summary()` gives each its mean, p95 and
- * max over the frames that published it, `null` for a counter no frame published (an older dist).
- */
-export function shadowCountersPerFrame() {
-  const values = new Map(SHADOW_COUNTERS.map((key) => [key, [] as number[]]));
-  return {
-    push(frame: Partial<FrameMetrics>) {
-      for (const [key, list] of values) {
-        const value = frame[key];
-        if (typeof value === 'number') list.push(value);
-      }
-    },
-    summary() {
-      return Object.fromEntries(
-        [...values].map(([key, list]) => {
-          if (list.length === 0) return [key, null];
-          const sorted = [...list].sort((a, b) => a - b);
-          const mean = list.reduce((sum, value) => sum + value, 0) / list.length;
-          return [
-            key,
-            { mean, p95: sorted[Math.ceil(0.95 * sorted.length) - 1], max: sorted.at(-1)! },
-          ];
-        }),
-      );
-    },
-  };
 }

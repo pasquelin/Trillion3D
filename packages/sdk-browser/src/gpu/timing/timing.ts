@@ -1,13 +1,16 @@
 import type { GpuTimingSample } from './types.ts';
 export type { GpuTimingSample } from './types.ts';
 import {
+  READBACKS,
   createTimingResources,
   instrumentTimingEncoder,
   type TimingImage,
   type TimingPart,
   type TimingResources,
 } from './encoder.ts';
-import { createSampleEmitter, timingEntries, summarizeTimestamps } from './sample.ts';
+import { createSampleEmitter, failedSample, summarizeTimestamps, timingEntries } from './sample.ts';
+import { createSlotMemory } from './slotMemory.ts';
+import { createTimeline } from './timeline.ts';
 import { PARTS, QUERY_COUNT, TIMED_PASSES } from './queries.ts';
 export function createGpuTiming(
   device: GPUDevice,
@@ -22,12 +25,14 @@ export function createGpuTiming(
     Math.max(1, Math.floor((typeof asked === 'function' ? asked() : asked) ?? 60));
   let enabled = !!device.features?.has('timestamp-query'),
     disposed = false,
+    /** The last image sampled at the cadence. */
     lastFrame = -Infinity;
   let resources: TimingResources | undefined;
 
   let active:
     (TimingImage & { frame: number; parts: Map<GPUCommandEncoder, TimingPart> }) | undefined;
-  let pending: Promise<void> | undefined;
+  /** The readbacks in flight, by the readback buffer each holds. */
+  const inFlight = new Map<GPUBuffer, Promise<void>>();
   let sampledFrames = 0,
     completedSamples = 0,
     droppedSamples = 0,
@@ -35,10 +40,14 @@ export function createGpuTiming(
     unresolvedParts = 0;
   const skippedFrames = { unsupported: 0, interval: 0, busy: 0, disposed: 0, parts: 0 };
   const emit = createSampleEmitter(options.onSample);
+  /** Each image's span on the device timeline, for the idle before the next (#1451). */
+  const timeline = createTimeline();
+  /** What each timestamp slot held at the last image read, to tell a pass the driver skipped. */
+  const slots = createSlotMemory(QUERY_COUNT);
   const destroy = () => {
     for (const set of resources?.sets ?? []) set.destroy();
     resources?.resolve.destroy();
-    resources?.read.destroy();
+    for (const read of resources?.reads ?? []) read.destroy();
     resources = undefined;
   };
   const timing = {
@@ -64,11 +73,14 @@ export function createGpuTiming(
         droppedSamples++;
       }
       if (!active) {
-        if (frame - lastFrame < every()) {
+        // The image right after one sampled at the cadence is sampled too, into the second
+        // readback: the device idle between two images is only read between neighbours (#1451).
+        const second = frame === lastFrame + 1;
+        if (!second && frame - lastFrame < every()) {
           skippedFrames.interval++;
           return encoder;
         }
-        if (pending) {
+        if (inFlight.size >= (second ? READBACKS : 1)) {
           droppedSamples++;
           skippedFrames.busy++;
           return encoder;
@@ -78,20 +90,12 @@ export function createGpuTiming(
         } catch (error) {
           enabled = false;
           destroy();
-          emit({
-            frame,
-            totalMs: null,
-            frameMs: null,
-            submittedMs: null,
-            hostGapMs: null,
-            passes: [],
-            truncated: false,
-            error: String(error),
-          });
+          emit(failedSample(frame, false, String(error)));
           return encoder;
         }
-        active = { frame, parts: new Map(), truncated: false, cursor: 0 };
-        lastFrame = frame;
+        const read = resources.reads.find((buffer) => !inFlight.has(buffer))!;
+        active = { frame, parts: new Map(), truncated: false, cursor: 0, read };
+        if (!second) lastFrame = frame;
         sampledFrames++;
       }
       const state = active;
@@ -114,36 +118,28 @@ export function createGpuTiming(
       const { entries, truncated } = collected;
       unresolvedParts += collected.unresolvedParts;
       if (!entries.length || !resources) return;
-      const staging = resources.read,
+      const staging = state.read,
         used = state.cursor * 8;
-      pending = (async () => {
+      const readback = (async () => {
         try {
           // Only the timestamps the image wrote are mapped.
           await staging.mapAsync(GPUMapMode.READ, 0, used);
           if (disposed) return;
           const values = new BigUint64Array(staging.getMappedRange(0, used));
-          const { sample, invalidSamples: invalid } = summarizeTimestamps(
+          const { sample, span } = summarizeTimestamps(
             entries,
             values,
             truncated,
+            slots.read(state.frame),
           );
-          invalidSamples += invalid;
-          emit({ ...metadata, frame: state.frame, ...sample });
+          invalidSamples += sample.pairs.invalid;
+          const idleBetweenMs = timeline.read(state.frame, span);
+          emit({ ...metadata, frame: state.frame, ...sample, idleBetweenMs });
           completedSamples++;
         } catch (error) {
           if (!disposed) {
             enabled = false;
-            emit({
-              ...metadata,
-              frame: state.frame,
-              totalMs: null,
-              frameMs: null,
-              submittedMs: null,
-              hostGapMs: null,
-              passes: [],
-              truncated,
-              error: String(error),
-            });
+            emit({ ...metadata, ...failedSample(state.frame, truncated, String(error)) });
             completedSamples++;
           }
         } finally {
@@ -154,8 +150,9 @@ export function createGpuTiming(
           }
         }
       })().finally(() => {
-        pending = undefined;
+        inFlight.delete(staging);
       });
+      inFlight.set(staging, readback);
     },
     cancelUnsubmitted() {
       if (active) {
@@ -164,7 +161,7 @@ export function createGpuTiming(
       }
     },
     async flush() {
-      await pending;
+      await Promise.all(inFlight.values());
     },
     stats() {
       return {
@@ -177,8 +174,8 @@ export function createGpuTiming(
         invalidSamples,
         unresolvedParts,
         skippedFrames: { ...skippedFrames },
-        pending: pending ? 1 : 0,
-        maxPending: 1,
+        pending: inFlight.size,
+        maxPending: READBACKS,
         maxPasses: TIMED_PASSES,
         maxParts: PARTS,
         queryCount: QUERY_COUNT,

@@ -6,12 +6,13 @@
 //!
 //! Two cones are built and the narrower kept (#929). The mean cone is `triangleCone`
 //! (`tests/kit/cone.ts`), which the prepare ran until #272, operation for operation in float64:
-//! its axis keeps its bits, `Math.hypot` ported as V8 computes it. Its angle cannot: V8's
-//! `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from fdlibm),
-//! so it is fdlibm's (`libm`, the same bits everywhere) raised by [`ANGLE_MARGIN_ULPS`]. The
-//! narrowest cone points at the centre of the smallest ball holding the unit normals, its angle
+//! its axis keeps its bits, `Math.hypot` to the bit (`math::hypot`). Its angle cannot: the
+//! JavaScript `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
+//! fdlibm), so it is fdlibm's (`acos.rs`, the same bits everywhere) raised by
+//! [`ANGLE_MARGIN_ULPS`]. The narrowest cone points at the centre of the smallest ball holding the unit normals, its angle
 //! measured and raised the same way. Either bounds every face on any runtime, and a wider cone only
 //! culls less (`tests/integration/cooked-cones.test.ts`).
+use crate::math::hypot;
 use crate::min_ball::min_ball;
 use crate::vec3::{cross, divide, dot, point, sub};
 
@@ -27,34 +28,6 @@ pub const OPEN_CONE: [f64; 4] = [0.0, 0.0, 1.0, std::f64::consts::PI];
 fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
     let [a, b, c] = triangle.map(|vertex| point(pos, vertex));
     cross(sub(b, a), sub(c, a))
-}
-
-/// `Math.hypot(x, y, z)` as V8 computes it: every magnitude divided by the largest, the squares
-/// summed with Kahan compensation, the root scaled back. The specification leaves `Math.hypot`
-/// approximated; this is the rounding Chrome and Node return, where a plain `sqrt` of the squares
-/// differs in the last bit on a large share of inputs.
-pub(crate) fn hypot3(x: f64, y: f64, z: f64) -> f64 {
-    let values = [x.abs(), y.abs(), z.abs()];
-    // `f64::max` passes over a NaN, as V8 takes the largest of the others.
-    let max = values[0].max(values[1]).max(values[2]);
-    if max == f64::INFINITY {
-        return f64::INFINITY;
-    }
-    if values.iter().any(|v| v.is_nan()) {
-        return f64::NAN;
-    }
-    if max == 0.0 {
-        return 0.0;
-    }
-    let (mut sum, mut compensation) = (0.0f64, 0.0f64);
-    for value in values {
-        let n = value / max;
-        let summand = n * n - compensation;
-        let preliminary = sum + summand;
-        compensation = (preliminary - sum) - summand;
-        sum = preliminary;
-    }
-    sum.sqrt() * max
 }
 
 /// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`:
@@ -78,7 +51,7 @@ fn faces(pos: &[f32], indices: &[u32]) -> Vec<([f64; 3], f64)> {
         .iter()
         .filter_map(|&triangle| {
             let c = face_cross(pos, triangle);
-            let len = hypot3(c[0], c[1], c[2]);
+            let len = hypot(c);
             (len > 0.0).then_some((c, len))
         })
         .collect()
@@ -93,7 +66,7 @@ fn mean_cone(faces: &[([f64; 3], f64)]) -> [f64; 4] {
     let s = faces.iter().fold([0.0f64; 3], |s, (c, _)| {
         [s[0] + c[0], s[1] + c[1], s[2] + c[2]]
     });
-    let sl = hypot3(s[0], s[1], s[2]);
+    let sl = hypot(s);
     // `!(sl > 0)` in the TypeScript: a NaN length opens the cone as a zero one does.
     if sl.is_nan() || sl <= 0.0 {
         return OPEN_CONE;
@@ -109,13 +82,23 @@ fn raised_cone(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> [f64; 4] {
     [axis[0], axis[1], axis[2], angle]
 }
 
-/// The widest angle between `axis` and a face's normal, by fdlibm's arccosine. `f64::max` passes
-/// over a NaN as the TypeScript's `a > angle` does.
+/// The widest angle between `axis` and a face's normal, by fdlibm's arccosine: that of the
+/// smallest cosine, one arccosine per cone rather than one per face. fdlibm's `acos` is
+/// non-increasing — no adjacent pair of floats out of 2.16·10⁹ checked over `[-1, 1]` and around
+/// every branch edge rises —, so it is the same float as the largest of the per-face angles; and
+/// were a pair ever to rise, each lies within one ulp of the true, decreasing angle, which
+/// [`ANGLE_MARGIN_ULPS`] covers. `f64::min` passes over a NaN as the TypeScript's `a > angle`
+/// does; no number at all leaves the angle `0`.
 fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
-    faces
+    let smallest = faces
         .iter()
-        .map(|&(c, len)| libm::acos((dot(c, axis) / len).clamp(-1.0, 1.0)))
-        .fold(0.0f64, f64::max)
+        .map(|&(c, len)| (dot(c, axis) / len).clamp(-1.0, 1.0))
+        .fold(f64::INFINITY, f64::min);
+    if smallest == f64::INFINITY {
+        0.0
+    } else {
+        crate::acos::acos(smallest)
+    }
 }
 
 /// The cone whose axis points at the centre of the smallest ball enclosing the unit face normals
@@ -132,7 +115,7 @@ fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
         normals.push(n);
     }
     let (centre, _) = min_ball(&mut normals)?;
-    let length = hypot3(centre[0], centre[1], centre[2]);
+    let length = hypot(centre);
     if length.is_nan() || length <= 1e-9 {
         return None;
     }

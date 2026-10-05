@@ -1,6 +1,5 @@
 export * from './contracts/index.ts';
 export * from './impostor/switch.ts';
-export * from './impostor/octahedron.ts';
 export * from './impostor/plan.ts';
 export * from './bounce/contracts.ts';
 export * from './contracts/proxy.ts';
@@ -8,12 +7,7 @@ export * from './bounce/cascades.ts';
 export * from './bounce/occupancy.ts';
 export * from './bounce/budget.ts';
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts';
-export {
-  DEPTH_LAYER_BIAS_UNITS,
-  MAX_DEPTH_LAYER,
-  depthLayerUnits,
-  biasedDepthBits,
-} from './lod/depthLayer.ts';
+export { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER, depthLayerUnits } from './lod/depthLayer.ts';
 export { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from './manifest/binaryFormat.ts';
 export {
   PREVIEW_BASE,
@@ -23,14 +17,8 @@ export {
   previewLastLevel,
   previewLevelSize,
 } from './manifest/binary.ts';
-export {
-  PREVIEW_MAX_LEVELS,
-  previewLevelCount,
-  previewPixelBytes,
-} from './texture/previewLevels.ts';
-export { assertManifestBinary, isBinaryManifest } from './manifest/binaryTypes.ts';
-export { decodeManifestBinary, decodeManifestPreviews } from './manifest/binaryDecode.ts';
-export { manifestBinaryRanges } from './manifest/binaryLayout.ts';
+export { assertManifestBinary } from './manifest/binaryTypes.ts';
+export { decodeManifestBinary } from './manifest/binaryDecode.ts';
 export { readPagedManifest } from './manifest/paged.ts';
 export {
   textureLevelFormat,
@@ -63,7 +51,6 @@ export * from './runtime/diagnostics.ts';
 export { dagWarningsDiagnostic } from './contracts/dagWarnings.ts';
 export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts';
 export type { LodQualityId } from './lod/policy.ts';
-export * from './runtime/paths.ts';
 export { frameStatistics, summarize } from './runtime/stats.ts';
 export * from './runtime/stageProfile.ts';
 export * from './page/decodeContracts.ts';
@@ -116,19 +103,6 @@ export type {
 } from './runtime/safety.ts';
 export { userNotice } from './runtime/events.ts';
 export type { RuntimeEvent, UserNotice } from './runtime/events.ts';
-export { createLightingScene } from './lighting/scene/experimentScene.ts';
-export { exportLightingGltf } from './lighting/scene/gltf.ts';
-export { createDefaultLightingSceneLights } from './lighting/scene/controls.ts';
-export type { Vec3, Surface, Patch, Scene } from './lighting/scene/experimentScene.ts';
-export type { LightingSceneLight } from './lighting/scene/types.ts';
-export { createTransport } from './lighting/transport/transport.ts';
-export { solveTransportOracle } from './lighting/transport/oracle.ts';
-export type {
-  TransportOptions,
-  TransportProgress,
-  TransportResult,
-  TransportSnapshot,
-} from './lighting/transport/contracts.ts';
 export {
   LIGHT_SETTINGS,
   MAX_SHADOW_SLICES,
@@ -146,7 +120,6 @@ export {
   addIrradianceCoefficients,
   addUniformIrradiance,
   emptyIrradiance,
-  environmentLights,
 } from './scene/core/environment.ts';
 export type { SceneToneMapping } from './scene/core/environment.ts';
 export type { SceneExponentialFog, SceneFog, SceneLinearFog } from './scene/core/fog.ts';
@@ -160,17 +133,7 @@ export type { LightingCapabilities } from './scene/light/capabilities.ts';
 export { validateSceneEnvironment, validateSceneLight } from './scene/light/validate.ts';
 export { LIGHT_FIELD, createSceneLightStore } from './scene/light/store.ts';
 export type { SceneLightStore } from './scene/light/store.ts';
-export {
-  POINT_FACE_AXES,
-  SHADOW_CULL_FLOATS,
-  SHADOW_RECORD_FLOATS,
-  writeFace,
-} from './scene/light-shadow/faces.ts';
-export { createShadowPlan } from './scene/light-shadow/plan.ts';
-export type { ShadowPlan } from './scene/light-shadow/plan.ts';
-export type { ShadowRequestReport } from './scene/light-shadow/requests.ts';
-export { SHADOW_PAGE } from './scene/light-shadow/virtual.ts';
-export { regionRect } from './scene/light-shadow/volume.ts';
+export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts';
 export type { NumberSink } from './math/matrix/matrix4.ts';
 export type { Counts } from './manifest/binaryLayout.ts';
 export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts';

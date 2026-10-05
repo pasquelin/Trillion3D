@@ -3,7 +3,7 @@ import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from './tiles.ts';
 import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 import { heldBuffer, mipPipeline } from './mips.ts';
-import { TEXTURE_MIPS_PASS } from './mipsPass.ts';
+import { REFLECTION_RADIANCE_MIPS_PASS, TEXTURE_MIPS_PASS } from './mipsPass.ts';
 
 /** One texture of a batch: its size, its colour rule — weighted by alpha when every reader takes
  *  alpha for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) — and its readers' cutoff
@@ -70,9 +70,7 @@ function encodeChain(
   { uniforms, first, stride }: { uniforms: GPUBuffer; first: number; stride: number },
 ) {
   const { layout, pipeline } = mipPipeline(shared, format, weighted);
-  const views = Array.from({ length: levels }, (_, level) =>
-    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-  );
+  const views = levelViews(texture, levels);
   let chain: CoverageChain | undefined;
   if (cutoff) {
     const size = levels * LEVEL_BIN_BYTES,
@@ -91,80 +89,81 @@ function encodeChain(
         { binding: 1, resource: { buffer: uniforms, offset: (first + level) * stride, size: 16 } },
       ],
     });
-    encodeMipPass(encoder, pipeline, group, views[level]);
+    encodeMipPass(encoder, pipeline, group, views[level], TEXTURE_MIPS_PASS);
   }
 }
 
-/** A frame source keeps its views and groups; encoding never allocates or submits.
- * Its owner admits the texture chain and this uniform buffer before construction. */
-export function createRadianceMipChain(device: GPUDevice, texture: GPUTexture) {
-  return createImageMipChain(device, texture);
-}
+/** The views of `texture`'s first `count` mip levels, one a level. */
+export const levelViews = (texture: GPUTexture, count = texture.mipLevelCount) =>
+  Array.from({ length: count }, (_, level) =>
+    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+  );
 
-/** A nearest/farthest pyramid starts at half size and reads the existing depth target. */
-export function createDepthBoundsMipChain(
+/** The uniform of a chain of `count` reductions over a `width × height` image — block `index`
+ *  holds source level `index`'s size, then the image's — and a bind group per reduction, `group`
+ *  given its block. A frame source keeps both; its owner admits the buffer before construction,
+ *  and a group that throws releases it. */
+export function reductionGroups(
   device: GPUDevice,
-  texture: GPUTexture,
-  source: { view: GPUTextureView; width: number; height: number },
+  label: string,
+  [width, height]: readonly [number, number],
+  count: number,
+  group: (index: number, extent: GPUBufferBinding) => GPUBindGroup,
 ) {
-  return createImageMipChain(device, texture, source);
-}
-
-function createImageMipChain(
-  device: GPUDevice,
-  texture: GPUTexture,
-  depth?: { view: GPUTextureView; width: number; height: number },
-) {
-  const { mipLevelCount: levels, format } = texture;
-  const { width, height } = depth ?? texture;
-  const reductions = levels - Number(!depth);
   const stride = uniformStride(device.limits);
   const uniforms = device.createBuffer({
-    label: 'Trillion3D radiance mip extents',
-    size: Math.max(1, reductions) * stride,
+    label,
+    size: Math.max(1, count) * stride,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   try {
     const packed = new Uint32Array(uniforms.size / 4);
-    const shared = sharedGpuDevice(device);
-    const program = mipPipeline(shared, format, false, depth ? 'bounds' : 'radiance');
-    const first = depth ? mipPipeline(shared, format, false, 'depth') : program;
-    const views = Array.from({ length: levels }, (_, level) =>
-      texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-    );
-    const outputs = depth ? views : views.slice(1);
-    const groups = outputs.map((_, index) => {
+    const groups = Array.from({ length: count }, (_, index) => {
       packed.set([...levelSize(width, height, index), width, height], (index * stride) / 4);
-      return device.createBindGroup({
-        layout: index === 0 ? first.layout : program.layout,
-        entries: [
-          {
-            binding: 0,
-            resource: depth && index === 0 ? depth.view : views[index - Number(!!depth)],
-          },
-          { binding: 1, resource: { buffer: uniforms, offset: index * stride, size: 16 } },
-        ],
-      });
+      return group(index, { buffer: uniforms, offset: index * stride, size: 16 });
     });
     device.queue.writeBuffer(uniforms, 0, packed);
-    return {
-      encode(encoder: GPUCommandEncoder) {
-        for (let index = 0; index < groups.length; index++)
-          encodeMipPass(
-            encoder,
-            index === 0 ? first.pipeline : program.pipeline,
-            groups[index],
-            outputs[index],
-          );
-      },
-      dispose() {
-        uniforms.destroy();
-      },
-    };
+    return { uniforms, groups };
   } catch (error) {
     uniforms.destroy();
     throw error;
   }
+}
+
+/** The radiance levels a reflection cone reads (`../reflections/conePyramid.ts`), each reduced
+ *  from the one above; encoding never allocates or submits. */
+export function createRadianceMipChain(device: GPUDevice, texture: GPUTexture) {
+  const program = mipPipeline(sharedGpuDevice(device), texture.format, false, 'radiance');
+  const views = levelViews(texture);
+  const { uniforms, groups } = reductionGroups(
+    device,
+    'Trillion3D radiance mip extents',
+    [texture.width, texture.height],
+    views.length - 1,
+    (index, extent) =>
+      device.createBindGroup({
+        layout: program.layout,
+        entries: [
+          { binding: 0, resource: views[index] },
+          { binding: 1, resource: extent },
+        ],
+      }),
+  );
+  return {
+    encode(encoder: GPUCommandEncoder) {
+      for (let index = 0; index < groups.length; index++)
+        encodeMipPass(
+          encoder,
+          program.pipeline,
+          groups[index],
+          views[index + 1],
+          REFLECTION_RADIANCE_MIPS_PASS,
+        );
+    },
+    dispose() {
+      uniforms.destroy();
+    },
+  };
 }
 
 function encodeMipPass(
@@ -172,9 +171,10 @@ function encodeMipPass(
   pipeline: GPURenderPipeline,
   group: GPUBindGroup,
   view: GPUTextureView,
+  label: string,
 ) {
   const pass = encoder.beginRenderPass({
-    label: TEXTURE_MIPS_PASS,
+    label,
     colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store' }],
   });
   pass.setPipeline(pipeline);

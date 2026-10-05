@@ -22,7 +22,7 @@ type Field = {
   readonly align: number;
 };
 
-/** The block, in order. `as const` is what makes `FieldName` a union of the twenty-two names rather
+/** The block, in order. `as const` is what makes `FieldName` a union of the twenty names rather
  *  than `string`: annotated `readonly Field[]`, the literal types widen and a typo in `viewWord`
  *  would compile and throw mid-frame, which is the drift this module exists to prevent. */
 const VIEW_FIELDS = [
@@ -39,15 +39,13 @@ const VIEW_FIELDS = [
   { name: 'cameraStretch', type: 'f32', words: 1, align: 1 },
   { name: 'listCap', type: 'u32', words: 1, align: 1 },
   { name: 'perspective', type: 'f32', words: 1, align: 1 },
-  { name: 'viewFlags', type: 'u32', words: 1, align: 1 },
-  { name: 'pageRows', type: 'u32', words: 1, align: 1 },
-  { name: 'pageMask', type: 'vec2<u32>', words: 2, align: 2 },
-  { name: 'clipScale', type: 'f32', words: 1, align: 1 },
-  { name: 'clipPad', type: 'f32', words: 1, align: 1 },
   { name: 'viewCount', type: 'u32', words: 1, align: 1 },
   { name: 'viewCapacity', type: 'u32', words: 1, align: 1 },
   { name: 'queueCap', type: 'u32', words: 1, align: 1 },
   { name: 'ahead', type: 'u32', words: 1, align: 1 },
+  { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
+  { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
+  { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },
 ] as const satisfies readonly Field[];
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
@@ -75,8 +73,8 @@ export const VIEW_BLOCK_WORDS = VIEW_FIELDS.reduce(
   0,
 );
 
-/** The word a field starts at. `viewWord('viewFlags')` is where the host writes what the kernels read
- *  as `views[vi].viewFlags`; nothing else may hold that number.
+/** The word a field starts at. `viewWord('ahead')` is where the host writes what the kernels read
+ *  as `views[vi].ahead`; nothing else may hold that number.
  *
  *  `field` is a union of the table's names, so a typo is a type error rather than a throw thrown
  *  mid-frame: the compiler and the shader are checked against the same list. */

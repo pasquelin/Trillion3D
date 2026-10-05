@@ -106,6 +106,9 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         ...routeScope(kind, leftHalf),
         fwidth: () => [0, 0, 0],
         lineDash: () => true,
+        blendGrads: () => ({}),
+        blendBase: () => [0, 0, 0, 1],
+        blendKeeps: () => true,
         blendSurface: () => surface,
         uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
         BlendOut: (

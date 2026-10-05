@@ -11,7 +11,9 @@ import type { HierarchyOp } from './support/hierarchyScenarios.ts';
 import { objectifs, visees } from './support/hierarchyScenariosCamera.ts';
 import { marquages, liveScenario } from './support/hierarchyScenariosLive.ts';
 
-const options = { chauffe: 1, tours: 3, budgetMs: 500 };
+// Warm-up and the round floor are the harness's (`bench/core/chrono.ts`): three samples taken
+// during tier-up spread 188 % run to run.
+const options = { tours: 30, budgetMs: 500 };
 /** One case: a scenario whose size is the number of replayed operations. */
 const cas = (name: string, scenario: HierarchyOp[]): MesureCas<HierarchyOp[]> => ({
   name,

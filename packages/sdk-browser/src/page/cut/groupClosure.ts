@@ -22,8 +22,7 @@ import { createSparseInts, grown } from './sparseInts.ts';
  * Every placement of a primitive shares its records (#1235), and what the cache holds is a record,
  * never an instance: so a group is held once per primitive, named at the packed ranks of the first
  * placement that asked for it, however many placements the cut selects it on (#1232). The tables
- * follow the records the cut closes over — bounded by the view's rows, as cluster's per-frame lists
- * are by `a reference setting` —, never the world's instances.
+ * follow the records the cut closes over — bounded by the view's rows —, never the world's instances.
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>;
 

@@ -79,7 +79,7 @@ test('updateCameraFrame: view = inverse of world matrix, viewProjection = projec
   assert.deepEqual([...frame.viewProjection], [...vpAttendue]);
 });
 
-test('updateCameraFrame: a singular world matrix yields a zero view, like reference inverse', () => {
+test('updateCameraFrame: a singular world matrix yields a zero view', () => {
   const frame = createCameraFrame();
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 1);
   const singuliere = new Float64Array(16);

@@ -3,12 +3,7 @@ import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
-import {
-  VIS_INVALID,
-  VIS_TRIANGLE_BITS,
-  VIS_TRIANGLE_MASK,
-  VIS_MAX_PAGE_TRIANGLES,
-} from './visWords.ts';
+import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts';
 export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts';
 /** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
 export const VIS_MAX_PAGES = 0xfffffe;
@@ -25,6 +20,12 @@ export const PAGE_INFO_STRIDE = 272;
 export const PAGE_DEFORM_WORD = 64,
   PAGE_DEFORM_COUNT_WORD = 65,
   PAGE_DEFORM_OUTPUT_WORD = 66;
+/** The bits of `PAGE_DEFORM_OUTPUT_WORD`: results in the float pool rather than a slot's tail; a
+ *  float-pool block with no source header (`../deformation/slotLayout.ts`); the address, the
+ *  results' first word plus one. */
+export const DEFORM_IN_POOL = 0x80000000,
+  DEFORM_NO_HEADER = 0x40000000,
+  DEFORM_ADDRESS = 0x3fffffff;
 export const FLAG_LIT = 1,
   FLAG_DOUBLE = 2,
   FLAG_HAS_UV = 4,
@@ -72,32 +73,6 @@ export type VisPage = {
 };
 export type { VisMaterial } from './materialType.ts';
 
-export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };
-
-/**
- * CPU mirror of the packing the shaders write inline (`page.packedBase|(triangle&0xffu)` in
- * `shader/visWgsl.ts` and `../gpu/raster/pixelWgsl.ts`, `id>>8u` / `id&0xffu` at unpack in
- * `shader/shadeWgsl.ts`). Two languages: the text is not shared, the layout is.
- */
-export function packVisibilityId(pageIndex: number, triangleIndex: number) {
-  if (
-    !Number.isInteger(pageIndex) ||
-    pageIndex < 0 ||
-    pageIndex >= VIS_MAX_PAGES ||
-    !Number.isInteger(triangleIndex) ||
-    triangleIndex < 0 ||
-    triangleIndex > VIS_TRIANGLE_MASK
-  )
-    throw new Error('VISIBILITY_ID_RANGE');
-  // The page field reaches past 2^31, so the shift is done in floating point and forced unsigned.
-  return ((pageIndex + 1) * VIS_MAX_PAGE_TRIANGLES + (triangleIndex & VIS_TRIANGLE_MASK)) >>> 0;
-}
-
-export function unpackVisibilityId(id: number): UnpackedVisibility | null {
-  if (id === VIS_INVALID) return null;
-  return { pageIndex: (id >>> VIS_TRIANGLE_BITS) - 1, triangleIndex: id & VIS_TRIANGLE_MASK };
-}
-
 export { isTransmissive } from './shader/material.ts';
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
@@ -118,7 +93,7 @@ export const texelsReason = ({ format, image }: { format?: number; image: unknow
 export const texelsRefusal = (texture: Texture) =>
   texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image });
 
-export type TextureRgba = { data: Uint8Array; width: number; height: number };
+type TextureRgba = { data: Uint8Array; width: number; height: number };
 /**
  * Bytes of a texture, kept as long as it shows the same image. The rasterizer and the sample
  * call this per texel read: without a cache, each texel allocated a `Uint8Array` view and an

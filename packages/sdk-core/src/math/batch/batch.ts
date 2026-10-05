@@ -5,7 +5,7 @@ import { composeMatrix4 } from '../matrix/matrix4Trs.ts';
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
- * entry, no allocation. This is the reference JavaScript path and fallback path:
+ * entry, no allocation. This is the JavaScript path, the baseline and the fallback:
  * WebAssembly kernels in `packages/page-codec-wasm/src/math.rs` replicate these loops term by
  * term, and the governor (`../path/governor.ts`) selects which of the two runs.
  *
@@ -69,7 +69,7 @@ export function multiplyMatrix4Batch(
  * Reduces `n` bounding boxes into `into` by progressive union: `into = into ∪ boxes[0] ∪ … ∪ boxes[n - 1]`.
  * `into` carries six numbers, `boxes` carries six numbers per element flat.
  *
- * Repeats `boxUnion`. Replaces Three.js loop: `for … box.union(b)`.
+ * Repeats `boxUnion`.
  */
 export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {
@@ -92,7 +92,7 @@ const scratchUnionBox = new Float64Array(BOX_VALUES);
 /**
  * Transforms `n` boxes by `n` matrices and unites them into `into` in a single pass without allocation.
  *
- * Repeats `boxTransform` then `boxUnion`. Replaces Three.js loop: `Box3.setFromObject`.
+ * Repeats `boxTransform` then `boxUnion`. One box around many objects.
  */
 export function boxTransformUnionBatch(
   into: Float64Array,

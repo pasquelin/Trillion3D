@@ -14,10 +14,6 @@ import {
   worldOf,
 } from '../records.fixture.ts';
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
-import {
-  boxMissesLightPages,
-  type LightPages,
-} from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { dagScratch, projectedError } from './math.fixture.ts';
 import { drawsCluster } from '../../../page/cut/rule.ts';
 import type { MatrixElements } from '../../../math/matrixElements.ts';
@@ -45,9 +41,6 @@ type PredicateContext = {
   perspective: number;
   /** The camera of the render frame, homogeneous (`DagViewFrames.viewPoint`). */
   viewPoint: Float64Array;
-  /** A light's cut: casters write both faces, no cone rejects them, and a box must reach one
-   *  of the face's redrawn pages (`DagViewUniforms.light`). */
-  light?: LightPages;
   /** The cut rule applied: `drawsCluster`, or the kernel's WGSL call site run in Node by the
    *  rule's tests, which reads the page's residency itself. */
   rule?: CutRuleAt;
@@ -58,10 +51,10 @@ const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
 
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
-  const { perspective, viewPoint, light } = context;
+  const { perspective, viewPoint } = context;
   const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
-    if (light || !hasBoxOf(records, index)) return false;
+    if (!hasBoxOf(records, index)) return false;
     const { cone, min, max } = dagScratch;
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
@@ -80,8 +73,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
     const { min, max } = dagScratch;
     boxInto(records, index, min, max);
     const w = worldOf(records, index);
-    if (frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])) return false;
-    return !light || !boxMissesLightPages(light, min, max, views[w], perspective);
+    return !frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2]);
   };
   const bandPixels = (index: number, at: number) => {
     const w = worldOf(records, index),

@@ -24,6 +24,11 @@ export interface QuantizedGrid {
   cells: number[];
 }
 
+/** The nearest integer, a half away from zero, as Rust's `f64::round` the compiler's quantizer
+ *  takes (`geometry_page_quant.rs`): `Math.round` sends −2.5 to −2, the compiler to −3, and a page
+ *  cut at run time would then disagree with the one compiled. −0 stays −0, as in Rust. */
+const roundHalfAway = (x: number) => (x < 0 ? -Math.round(-x) : Math.round(x));
+
 /**
  * Integer cells of `n`-wide vectors on a power-of-two grid, and the record that describes them.
  * The exponent is the caller's, never widened: a page that needs more than 24 bits on it is
@@ -37,7 +42,7 @@ export function quantize(values: ArrayLike<number>, n: number, exponent: number)
     cells: number[] = [];
   for (let i = 0; i < count; i++)
     for (let c = 0; c < n; c++) {
-      const cell = Math.round(values[i * n + c] / step);
+      const cell = roundHalfAway(values[i * n + c] / step);
       cells.push(cell);
       lo[c] = Math.min(lo[c], cell);
       hi[c] = Math.max(hi[c], cell);

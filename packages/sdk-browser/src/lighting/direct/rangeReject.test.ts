@@ -9,7 +9,7 @@ import { directLightingWgsl } from './lightingWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 
-const UNSHADOWED = directLightingWgsl(false, undefined, false);
+const UNSHADOWED = directLightingWgsl(false, false);
 const K = wgslConstants(UNSHADOWED);
 type Lamp = { positionRange: { xyz: number; w: number }; params: { x: number }; weight: number };
 
@@ -80,7 +80,7 @@ test('the program with shadow code pays no range test: its loop reads a light on
     code.slice(code.indexOf('fn sliceLighting(')).split(/\n(?:fn |\/\*\*)/)[0];
   for (const narrow of [false, true]) {
     const shadowed = loop(directLightingWgsl(narrow)),
-      unshadowed = loop(directLightingWgsl(narrow, undefined, false));
+      unshadowed = loop(directLightingWgsl(narrow, false));
     // The reject's per-light test costs a lit light 13 % (42.3 -> 47.9 ps) that a shadowed
     // scene never repays: that loop reads the record only where it shades the light, as develop.
     assert.doesNotMatch(shadowed, /RANGE_REJECT|isSunKind|continue/);

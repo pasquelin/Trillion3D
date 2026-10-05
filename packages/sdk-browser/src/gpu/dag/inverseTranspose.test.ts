@@ -2,11 +2,11 @@
 // on its NORMALISED determinant, never on the raw determinant. An absolute threshold judges
 // scale: a uniform-scale rotation s has determinant ±s³, so s ≲ 2.15e-7 fell under 1e-20 and
 // the kernel returned the unrotated local axis — cone rejection then culled front faces.
-// Real GPU behaviour is proved by `tests/browser/renders/inverse-transpose-small-scale.browser.ts`;
+// Real GPU behaviour is proved by `tests/gpu/math/inverse-transpose-small-scale.gpu.ts`;
 // this test replays the same f32 arithmetic so `pnpm test` catches the regression without GPU.
-// The f32 model lives in `tests/browser/probes/inverseTransposeF32.ts`, shared with the lighting
+// The f32 model lives in `tests/gpu/math/inverseTransposeF32.ts`, shared with the lighting
 // proof: one writing of the arithmetic, tied to the shader actually executed by
-// `tests/browser/renders/normal-transform-arithmetic.browser.ts`.
+// `tests/gpu/math/normal-transform.gpu.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
@@ -14,12 +14,12 @@ import { SINGULAR_DETERMINANT_WGSL } from '../../../../sdk-core/src/index.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../math/inverseTransposeBefore.fixture.ts';
 import {
-  angleEntre,
-  apresLeLot,
-  avantLeLot,
+  angleBetween,
+  inverseTransposeShipped,
+  inverseTransposeBefore,
   f,
-  unitaire,
-} from '../../../../../tests/browser/probes/inverseTransposeF32.ts';
+  unit,
+} from '../../../../../tests/gpu/math/inverseTransposeF32.ts';
 
 type Vec = [number, number, number];
 
@@ -32,19 +32,19 @@ const tourneeDe180 = (s: number): [Vec, Vec, Vec] => [
 const AXE: Vec = [0, 0, 1];
 
 test('the absolute threshold returned the local axis as soon as s³ fell under 1e-20', () => {
-  assert.deepEqual(unitaire(avantLeLot(tourneeDe180(1e-3), AXE)), [0, 0, -1]);
-  assert.deepEqual(unitaire(avantLeLot(tourneeDe180(1e-8), AXE)), [0, 0, 1]);
+  assert.deepEqual(unit(inverseTransposeBefore(tourneeDe180(1e-3), AXE)), [0, 0, -1]);
+  assert.deepEqual(unit(inverseTransposeBefore(tourneeDe180(1e-8), AXE)), [0, 0, 1]);
 });
 
 test('the shipped kernel rotates the axis at every scale, from 1e6 to 1e-18', () => {
   for (const s of [1e6, 1e3, 1, 1e-3, 1e-6, 2e-7, 1e-7, 1e-8, 1e-12, 1e-16, 1e-18])
-    assert.deepEqual(unitaire(apresLeLot(tourneeDe180(s), AXE)), [0, 0, -1], `scale ${s}`);
+    assert.deepEqual(unit(inverseTransposeShipped(tourneeDe180(s), AXE)), [0, 0, -1], `scale ${s}`);
 });
 
 // Normalisation changes f32 rounding by a few ULPs: the direction returned outside the
 // threshold band is therefore not bitwise the previous one, it is collinear to within
 // 1e-6 radian. What matters is the reject decision, measured unchanged outside the band
-// on a real GPU — see `tests/browser/probes/inverse-transpose-small-scale.ts`.
+// on a real GPU — see `tests/gpu/math/inverse-transpose-small-scale.gpu.ts`.
 test('outside the threshold band, the returned direction matches the previous one to 1e-6 radian', () => {
   for (const s of [1e6, 1e3, 1, 1e-3, 1e-4, 1e-5, 1e-6])
     for (const axe of [
@@ -54,7 +54,7 @@ test('outside the threshold band, the returned direction matches the previous on
       [0.6, -0.8, 0],
     ] as Vec[]) {
       const m = tourneeDe180(s);
-      const ecart = angleEntre(apresLeLot(m, axe), avantLeLot(m, axe));
+      const ecart = angleBetween(inverseTransposeShipped(m, axe), inverseTransposeBefore(m, axe));
       assert.ok(ecart < 1e-6, `scale ${s} axis ${axe}: delta ${ecart} rad`);
     }
 });
@@ -65,11 +65,11 @@ test('null, infinite or NaN 3×3: adjoint zeroed, hence null vector, never the l
     [0, 0, 0],
     [0, 0, 0],
   ];
-  assert.deepEqual(apresLeLot(nulle, AXE), [0, 0, 0]);
+  assert.deepEqual(inverseTransposeShipped(nulle, AXE), [0, 0, 0]);
   for (const valeur of [Infinity, -Infinity, NaN]) {
     const abimee = tourneeDe180(1);
     abimee[0][0] = valeur;
-    assert.deepEqual(apresLeLot(abimee, AXE), [0, 0, 0]);
+    assert.deepEqual(inverseTransposeShipped(abimee, AXE), [0, 0, 0]);
   }
 });
 
@@ -83,8 +83,8 @@ test('null, infinite or NaN 3×3: adjoint zeroed, hence null vector, never the l
 test('a null column: the adjoint carries the plane normal, not the local axis', () => {
   const colonneNulle = tourneeDe180(1e-8);
   colonneNulle[1] = [0, 0, 0];
-  assert.deepEqual(apresLeLot(colonneNulle, AXE), [0, 0, 0]);
-  assert.deepEqual(unitaire(apresLeLot(colonneNulle, [0, 1, 0])), [0, -1, 0]);
+  assert.deepEqual(inverseTransposeShipped(colonneNulle, AXE), [0, 0, 0]);
+  assert.deepEqual(unit(inverseTransposeShipped(colonneNulle, [0, 1, 0])), [0, -1, 0]);
 });
 
 // Normalisation, determinant and adjoint depend only on the matrix: they live in
@@ -131,8 +131,8 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
 // unseen. A reproduction that no longer reproduces reassures wrongly: this test holds
 // what makes its value, the absolute threshold on the raw 3×3, present on one side and
 // absent on the other. The substitution itself is established, not assumed, by
-// `tests/browser/probes/substitutionBefore.ts`. The real GPU is measured by
-// `tests/browser/probes/inverse-transpose-small-scale.ts`, which separates face culls the
+// `tests/gpu/math/substitutionBefore.ts`. The real GPU is measured by
+// `tests/gpu/math/inverse-transpose-small-scale.gpu.ts`, which separates face culls the
 // engine draws (656 before the lot, 0 after) from those it does not.
 test('the defect-6 reproduction form still carries the absolute threshold, and it alone', () => {
   const prep = (texte: string) => texte.split('fn invTranspose3Prep')[1].split('\n}')[0];

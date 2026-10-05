@@ -19,8 +19,8 @@
  * flattened-normal convention — is written once, in `inverseTransposeWgsl.ts`.
  *
  * WHAT IT DOES NOT COVER. `invertMatrix4` (`matrix4Inverse.ts`) is the full 4×4 inverse, held
- * to the bits of the reference 3D library, `det === 0` threshold included; it transports no
- * normal, and its contract is parity with the reference, not this rule.
+ * to the textbook bits, `det === 0` threshold included; it transports no
+ * normal, and its contract is that exact threshold, not this rule.
  */
 
 /**
@@ -78,7 +78,7 @@ export function normalizedLinearDeterminant(m: ArrayLike<number>) {
  * THE DECISION, in the very form of the WGSL kernel (`invTranspose3Prep`): the factor that multiplies
  * the adjugate of the linear part.
  *
- *  — `1 / determinant`, the matrix is REGULAR: the inverse-transpose, at the reference bits.
+ *  — `1 / determinant`, the matrix is REGULAR: the inverse-transpose, at the textbook bits.
  *    The passed determinant is the RAW determinant the caller already has; only the decision reads the
  *    normalised determinant, so a regular matrix yields exactly what it used to.
  *  — `1`, the matrix is SINGULAR: the adjugate as-is, with no factor — it would be ±∞. This is

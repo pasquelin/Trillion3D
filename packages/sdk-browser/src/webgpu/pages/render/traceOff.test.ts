@@ -38,7 +38,6 @@ function runtime(traceEnabled: boolean) {
     context: {},
     gpu: {},
     vis: {},
-    sunFar: {},
     lights: {},
     gate: {},
   } as unknown as WebgpuPagesRuntime;

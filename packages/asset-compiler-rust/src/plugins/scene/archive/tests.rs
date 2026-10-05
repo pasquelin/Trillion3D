@@ -103,7 +103,7 @@ impl<'a> Entry<'a> {
     }
 }
 
-/// A ZIP archive written byte by byte, from the APPNOTE: local header, payload, central directory,
+/// A ZIP archive written byte by byte: local header, payload, central directory,
 /// end of directory. `aligned` pads each entry's "extra" field so its payload starts on a multiple
 /// of sixty-four bytes, as the USDZ layout requires.
 fn zip_bytes(entries: &[Entry<'_>], aligned: bool) -> Vec<u8> {

@@ -1,49 +1,13 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { after } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import type { Scene } from './scene.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
-import { byteRange } from '../../../../../scripts/static-server.ts';
 
-/** The site's own caches, served from disk as the site's server serves them, one byte range
- *  answered alone (`byteRange`); the GPU is the one thing these tests have not. */
-export const HOST = 'http://site.test/';
-const SITE = new URL('../../../../../site/', import.meta.url);
-const saved = { fetch: globalThis.fetch, location: Reflect.get(globalThis, 'location') };
-/** A slow disk on demand: every read waits this long first (`WORLD_FIXTURE_READ_DELAY_MS`). */
-const READ_DELAY_MS = Number(process.env.WORLD_FIXTURE_READ_DELAY_MS ?? 0);
-let reading = 0;
-/** Disk reads still in flight: a loop gone idle leaves none behind. */
-export const readsInFlight = () => reading;
-const serve = async (input: string | URL | Request, init?: RequestInit) => {
-  const url = String(input instanceof Request ? input.url : input);
-  const path = fileURLToPath(new URL(url.slice(HOST.length), SITE));
-  const json = /\.(json|gltf)$/.test(path);
-  const type = json ? 'application/json' : 'application/octet-stream';
-  reading++;
-  try {
-    if (READ_DELAY_MS > 0) await new Promise((done) => setTimeout(done, READ_DELAY_MS));
-    const file = await readFile(path);
-    const range = byteRange(new Headers(init?.headers).get('range') ?? undefined, file.byteLength);
-    if (!range) return new Response(file, { headers: { 'content-type': type } });
-    const { start, end } = range;
-    return new Response(file.subarray(start, end + 1), {
-      status: 206,
-      headers: {
-        'content-type': type,
-        'content-range': `bytes ${start}-${end}/${file.byteLength}`,
-      },
-    });
-  } finally {
-    reading--;
-  }
-};
-globalThis.fetch = serve as typeof fetch;
-Reflect.set(globalThis, 'location', new URL(HOST));
+const saved = { location: Reflect.get(globalThis, 'location') };
+Reflect.set(globalThis, 'location', new URL('http://engine.test/'));
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event);
 /** Every reopen a content change caused in these tests' runtimes: each one a defect (#837). */
 const contentReopens: unknown[] = [];
@@ -56,7 +20,6 @@ export const takeContentReopens = () => contentReopens.splice(0);
 after(() => {
   stopListening();
   assert.deepEqual(contentReopens, [], 'a content change reopened a session');
-  globalThis.fetch = saved.fetch;
   Reflect.set(globalThis, 'location', saved.location);
 });
 
@@ -84,11 +47,6 @@ export const runtimeOf = (
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
     diagnostic: { notices: createWorldNotices(), failed, opening },
   });
-
-export const until = async (done: () => boolean) => {
-  for (let waited = 0; !done() && waited < 5000; waited += 20)
-    await new Promise((resolve) => setTimeout(resolve, 20));
-};
 
 /** A session stand-in: what the runtime writes into it — lights, view, environment — is kept. */
 export function sessionStandIn() {
@@ -119,6 +77,7 @@ export function sessionStandIn() {
     render: () => ({}),
     /** No optional family on its way: every frame draws (`../session/familyUse.ts`). */
     familiesPending: (): Promise<void> | undefined => undefined,
+    measureFrame: () => false,
     dispose() {},
   };
   return { session, written };

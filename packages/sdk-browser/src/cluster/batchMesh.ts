@@ -1,6 +1,6 @@
 import { isInstancedNode } from '../host/graph/kinds.ts';
 import { IDENTITY_MATRIX4, type Side } from '../../../sdk-core/src/index.ts';
-import type { HostAttributes, HostMaterials, HostMesh } from '../host/resources.ts';
+import type { HostAttributes, HostMaterials } from '../host/resources.ts';
 import type { DrawRanges } from './batchRange.ts';
 import { firstMaterial, sideOf } from '../scene/materialSide.ts';
 
@@ -32,11 +32,6 @@ export type WholeMesh = {
  *  a renderer's copy of it frees itself there. */
 type Released = { readonly released: Set<() => void> };
 
-/** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
- *  the fields a diagnostic submission draws. It stays inside the engine's own shapes — the
- *  crossing back to the host library is `asHostLibrary`, and this is not one. */
-export const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
-
 /** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
 export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 
@@ -64,7 +59,7 @@ export const drawTriangles = (draw: ClusterDraw) =>
 const BACK_THEN_FRONT: readonly Side[] = ['back', 'front'];
 const DECLARED_SIDE: readonly undefined[] = [undefined];
 /**
- * The passes a material draws, read at the draw as the reference reads them: a two-sided
+ * The passes a material draws, read at the draw: a two-sided
  * transparent surface draws its back faces then its front faces, in that order; any other
  * surface draws once, on the faces its material declares (`undefined`).
  */

@@ -8,7 +8,7 @@ export const FRAGMENTS = join(RACINE, '.mesure', 'perf');
 const BASELINES = join(RACINE, '.mesure', 'baselines');
 
 /** Moves `measureOutput`'s root: the proof import test points its children at its own scratch. */
-export const MEASURE_OUT = 'TRILLION3D_MEASURE_OUT';
+const MEASURE_OUT = 'TRILLION3D_MEASURE_OUT';
 
 /** Where a bench, cook or browser proof writes: `.mesure/out/<batch>/…`, off git (AGENTS.md). */
 export const measureOutput = (...parts: string[]) =>

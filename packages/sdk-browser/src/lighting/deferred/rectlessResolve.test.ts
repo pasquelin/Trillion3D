@@ -3,7 +3,7 @@
 // and a scene that holds one never is. `isRect` answers false for every light of such a scene, so
 // the branches left out never ran: the program is the full one less those two branches, character
 // for character. That both give the same sums, bit for bit, runs on the GPU:
-// `tests/browser/probes/narrow-resolve-gpu.ts` and `sampled-resolve-gpu.ts`.
+// `tests/gpu/lighting/narrow-resolve.gpu.ts` and `sampled-resolve.gpu.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { contractLightingShader } from './shaders.ts';
@@ -21,8 +21,8 @@ test('the rectless program is the full one less its two rectangle branches', () 
     [true, true, true],
     [false, false, false],
   ] as const) {
-    const full = contractLightingShader(bounce, narrow, undefined, shadowed);
-    const rectless = contractLightingShader(bounce, narrow, undefined, shadowed, false);
+    const full = contractLightingShader(bounce, narrow, shadowed);
+    const rectless = contractLightingShader(bounce, narrow, shadowed, false);
     assert.match(full, RECT_TERM);
     assert.match(full, RECT_WEIGHT);
     assert.equal(full.replace(RECT_TERM, '').replace(RECT_WEIGHT, ''), rectless);

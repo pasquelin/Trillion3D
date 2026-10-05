@@ -6,7 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate, setTimeout } from 'node:timers/promises';
 import type { Worker as NodeWorker } from 'node:worker_threads';
-import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
 import { JOLT_THREAD_LOADED, type JoltThreadStart } from './joltThreads.ts';
 import { nodeThread } from './module.fixture.ts';
 import { fakeWorkers, launchedWorker } from './worker.fixture.ts';
@@ -33,20 +32,17 @@ async function until(done: () => boolean) {
 test('a threaded worker steps only once every pool thread has loaded', async (t) => {
   const { held, close } = heldThreads();
   t.after(close);
-  let now = 0;
-  const { ticks, sent, receive, ready } = await launchedWorker(() => now, THREADS);
+  const { sent, receive, ready } = await launchedWorker(() => 0, THREADS);
   await until(() => held.length === THREADS - 1);
-  // Turns enough for a start that does not wait to post its ready and schedule its first step.
+  // A frame's commands and steps, sent before the threads load: they wait for them, in order.
+  receive({ type: 'commands', words: new Uint32Array(0) });
+  receive({ type: 'advance', to: 2, steps: 2 });
+  // Turns enough for a start that does not wait to post its ready and take its first step.
   for (let turn = 0; turn < 20; turn++) await setImmediate();
   // The module is started and its threads spawned, not loaded: the first step waits for them.
   assert.equal(sent.length, 0, 'no ready and no step before the threads loaded');
-  assert.equal(ticks.length, 0, 'no tick owed before the threads loaded');
   for (const thread of held) thread.onmessage({ data: JOLT_THREAD_LOADED });
   await ready;
-  ticks.shift()![0](); // At start, nothing owed yet.
-  receive({ type: 'commands', words: new Uint32Array(0) });
-  now += 2 * PHYSICS_STEP * 1000 + 1;
-  ticks.shift()![0]();
   const results = sent.filter((m) => m.type === 'results');
   assert.ok(
     results.some((m) => m.steps > 0),
@@ -54,7 +50,6 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
   );
   assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent));
   // A loaded thread that throws is named to the page, and the worker steps no more.
-  ticks.length = 0;
   held[2].onerror({ message: 'out of stack', preventDefault() {} });
   assert.deepEqual(sent.at(-1), {
     type: 'error',
@@ -64,8 +59,8 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
   });
   const told = sent.length;
   receive({ type: 'commands', words: new Uint32Array(0) });
-  assert.equal(ticks.length, 0, 'no tick after the thread failed');
-  assert.equal(sent.length, told);
+  receive({ type: 'advance', to: 3, steps: 1 });
+  assert.equal(sent.length, told, 'no step after the thread failed');
 });
 
 test('a pool thread that fails to load stops the start, named', async (t) => {

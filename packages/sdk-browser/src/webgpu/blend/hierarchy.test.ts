@@ -1,5 +1,5 @@
 // The frustum verdict through the box tree (#981) against develop's item-by-item ranking
-// (`hierarchyOracle.fixture.ts`): the audit's CPU-17 equivalence harness, ported.
+// (`hierarchyOracle.fixture.ts`): the audit's CPU-17 equivalence harness.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';

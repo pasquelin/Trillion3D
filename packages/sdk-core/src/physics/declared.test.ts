@@ -59,7 +59,7 @@ test('an implicit shape is its primitive at the body scale, defaults filled in',
   });
 });
 
-test('a shape Jolt cannot make, or a scale that bends it, is refused by name', () => {
+test('a shape the module cannot make, or a scale that bends it, is refused by name', () => {
   const refused = (shape: ImplicitShape, s = one) =>
     assert.throws(() => declaredShape(body(shape), s), {
       code: 'PHYSICS_FAILED',

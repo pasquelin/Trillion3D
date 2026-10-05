@@ -49,8 +49,6 @@ export interface MeasureViewOptions {
   profileFrames: number;
   lights: SceneLight[];
   moving: MovingLightPlan | null;
-  shadowPages: boolean;
-  shadowDigest: boolean;
   textureSource: 'cache' | 'host';
   textureUploadMs: number | null;
   /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
@@ -69,11 +67,13 @@ interface MeasureViewSuccess {
   cpuFrameMs: number[];
   cpuSelectMs: number[];
   gpuFrameMs: number[];
+  /** Device idle before a sampled image, from its neighbour's last timestamp, one reading per
+   *  sampled image that carries one (#1451): read beside `gpuFrameMs`, from the same run. */
+  gpuIdleMs?: number[];
   syncFrameMs?: number[];
   rafIntervalMs: number[];
   importedLights: { count: number; ids: string[] } | null;
   witnessLights: unknown;
-  shadowAtlas: unknown;
   movingNode: MovingNode;
   stageProfile: StageProfile | null;
   gpuPassSamples: GpuPassTimings[];
@@ -85,9 +85,6 @@ interface MeasureViewSuccess {
   // held-pose loop, no compiler warnings and no per-step CPU profile of their own.
   settleFrames?: number | null;
   liveTuning?: LiveTuning | null;
-  /** Mean, p95 and max of each shadow counter over the measured frames; `null` per counter the
-   *  dist does not publish. */
-  shadowCounters?: Record<string, { mean: number; p95: number; max: number } | null>;
   mathBatch: FrameMetrics['mathBatch'] | null;
   size: { width: number; height: number; dpr?: number };
   lost: string[];

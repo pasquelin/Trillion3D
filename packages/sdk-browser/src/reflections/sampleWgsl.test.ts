@@ -19,7 +19,7 @@ test('a rough sample spends the bounded Hi-Z walk, and a miss reads the filtered
       stochasticReflectionShader(contractLightingShader(bounce, false), false),
       ['boundedReflectionRay'],
     );
-    assert.match(ray, /screenReflectionHiZ\(P\+N\*shadowFootprint,R\)/);
+    assert.match(ray, /screenReflection\(P\+N\*shadowFootprint,R\)/);
     assert.ok(ray.includes(`filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END})`));
     assert.doesNotMatch(ray, /resolvedReflectionRay|proxyReflectionRay/);
   }
@@ -29,10 +29,9 @@ test("a reference session's program walks the whole ray with the program's whole
   for (const bounce of [false, true]) {
     const sample = trace(bounce, true);
     assert.match(sample, /return vec4f\(resolvedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/);
-    assert.doesNotMatch(sample, /screenReflectionHiZ|boundedReflectionRay/);
     assert.doesNotMatch(
       stochasticReflectionShader(contractLightingShader(bounce, false), true),
-      /fn reflectionHiZWalk/,
+      /boundedReflectionRay/,
     );
   }
 });

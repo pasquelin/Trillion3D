@@ -21,7 +21,7 @@ fn filter(value: Option<&Value>, default: &'static str) -> &'static str {
         _ => default,
     }
 }
-/// The image a texture shows, the one the reference loader reads: the WebP, then the AVIF source
+/// The image a texture shows, the one the table publishes: the WebP, then the AVIF source
 /// an extension declares (a texture may carry no other), else the core `source`.
 fn texture_image(texture: &Value) -> Option<u64> {
     ["EXT_texture_webp", "EXT_texture_avif"]

@@ -1,6 +1,6 @@
 /**
  * Threads of the physics module, without emscripten's glue. The threaded module
- * (`joltPhysicsThreads.wasm`) runs Jolt's own thread pool; each of its threads starts in C through
+ * (`joltPhysicsThreads.wasm`) runs the module's own thread pool; each of its threads starts in C through
  * `pthread_create`, which calls the `__pthread_create_js` import below: the loader answers with a
  * worker that instantiates the same module on the same shared memory, gives itself the thread's
  * stack and thread-local storage, and runs the thread's entry point. Written from the WebAssembly
@@ -43,7 +43,7 @@ export interface JoltThreadStart {
 /** Starts a worker for one thread; the worker calls `runJoltThread` with the message. */
 export type SpawnJoltThread = (start: JoltThreadStart) => void;
 
-/** Stack of every thread the module starts (Jolt's jobs recurse through the collision queries). */
+/** Stack of every thread the module starts (the module's jobs recurse through the collision queries). */
 const THREAD_STACK_BYTES = 1024 * 1024;
 
 /** The imports of either module; the threaded one adds its thread hooks. */
@@ -85,7 +85,7 @@ export function joltImports(
         return 0;
       },
       emscripten_num_logical_cores: () => threads.count,
-      // Thread exit, mailboxes and main-thread proxying: Jolt's pool never uses them (its threads
+      // Thread exit, mailboxes and main-thread proxying: the module's pool never uses them (its threads
       // live as long as the world, and nothing is proxied), so they do nothing.
       emscripten_check_blocking_allowed: none,
       _emscripten_receive_on_main_thread_js: none,

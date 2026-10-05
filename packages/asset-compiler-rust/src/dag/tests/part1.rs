@@ -117,6 +117,13 @@ fn every_threshold_selects_exactly_one_cluster_per_ancestor_chain() {
         }
         error * 600.0 / distance
     };
+    // A cluster's replacing group, then that group's first output: the links the runtime reads.
+    let mut first_output: HashMap<usize, usize> = HashMap::new();
+    for (id, cluster) in dag.iter().enumerate() {
+        if let Some(group) = cluster.source {
+            first_output.entry(group).or_insert(id);
+        }
+    }
     for &threshold in &[0.0_f64, 0.25, 1.0, 4.0, 64.0, 1e9] {
         let drawn = |c: &DagCluster| {
             project(c.lod_error, c.sphere) <= threshold
@@ -133,10 +140,10 @@ fn every_threshold_selects_exactly_one_cluster_per_ancestor_chain() {
                 if drawn(&dag[node]) {
                     selected += 1;
                 }
-                let Some(next) = dag[node].replacement else {
+                let Some(group) = dag[node].group else {
                     break;
                 };
-                node = next;
+                node = first_output[&group];
                 hops += 1;
                 assert!(hops <= DAG_MAX_LEVELS, "chain must terminate");
             }

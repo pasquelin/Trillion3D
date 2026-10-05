@@ -1,14 +1,14 @@
 import { TONE_MAPPING_RANK as R } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { shaderFloat } from '../../lighting/shaderConstants.ts';
 import { ACES, AGX, CINEON, NEUTRAL } from '../../lighting/toneCurveConstants.ts';
+import { SRGB_ENCODE_GLSL } from '../../texture/srgbEncode.ts';
 
 /**
  * The display chain's last two links, in GLSL, shared by every engine program that writes a
  * displayed colour: the display curve the scene chose (`toneCurve`, a rank of
  * `TONE_MAPPING_RANK`; the operators are those of `../../lighting/toneMappingWgsl.ts`, ACES with its 0.6
- * exposure scale folded in by default) and the sRGB transfer, at the exponent 0.41666 the WGSL
- * transfers write (`../../lighting/deferred/shaders.ts`) and the reference writes: an image the
- * WebGL2 path draws is the reference's to the last bit. One text, so that two programs never
+ * exposure scale folded in by default) and the sRGB transfer of IEC 61966-2-1, the one text both
+ * shader languages share (`../../texture/srgbEncode.ts`). One text, so that two programs never
  * encode the same colour twice. A program sets `toneCurve` on every frame it draws.
  */
 export const OUTPUT_TRANSFER_GLSL = `uniform int toneCurve;
@@ -26,4 +26,4 @@ vec3 toneMap(vec3 c){if(toneCurve==${R.none})return c;if(toneCurve==${R.linear})
 if(toneCurve==${R.reinhard})return clamp(c/(1.0+c),0.0,1.0);
 if(toneCurve==${R.cineon}){vec3 x=max(vec3(0.0),c-${CINEON.offset});return pow(${CINEON.curve},vec3(2.2));}
 if(toneCurve==${R.agx})return agxCurve(c);if(toneCurve==${R.neutral})return neutralCurve(c);return aces(c);}
-vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(0.0031308));return mix(1.055*pow(max(x,vec3(0.0)),vec3(0.41666))-0.055,12.92*x,low);}`;
+${SRGB_ENCODE_GLSL}`;

@@ -54,6 +54,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
       mapLayer: new Map(),
       dataLayer: new Map(),
       asIsShown: false,
+      emissiveAoShown: false,
     } as never,
     rows.markRowDirty,
     // The catalogue's meshes sit at the origin: every page's root is placed at the identity.
@@ -65,9 +66,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
     rows.residentOffsetWords[page] = page * 16;
     rows.touchPage(page);
   });
-  const pins: Array<[number, number]> = [];
-  const map = { pin: (page: number, row: number) => pins.push([page, row]) };
   const restaled: PageRec[] = [];
   const casters = createBlendCasterRows(rows, pages, writer, (rec) => restaled.push(rec));
-  return { rows, writer, casters, map, pins, restaled };
+  return { rows, writer, casters, restaled };
 }

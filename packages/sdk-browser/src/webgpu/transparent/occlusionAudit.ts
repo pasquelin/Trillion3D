@@ -76,13 +76,9 @@ export async function readTransparentOcclusionAudit(
   for (let i = 0; i < rejected.length; i++) {
     const page = table.pageOfEntry[rejected[i]],
       rec = recordOf(page);
-    if (rec)
-      pageCornersInto(
-        corners,
-        i * BOX_CORNER_VALUES,
-        rec,
-        rootOf(selectionRoots, placement.rootOfPacked[page]).world,
-      );
+    if (!rec) continue;
+    const root = rootOf(selectionRoots, placement.rootOfPacked[page]);
+    pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, root.world, root.reach);
   }
   return {
     width: frame.width,

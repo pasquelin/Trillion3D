@@ -1,4 +1,4 @@
-import { BASE_SLOTS } from '../draw/contract.ts';
+import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts';
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
 import {
   FLAG_CLIP,
@@ -31,8 +31,11 @@ import {
  */
 export const PARTITION_CLASSIFY_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn classifyRows(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=uni.rows){return;}
+fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+ if(id.x<uni.rows){classifyRow(id.x);}
+ flushTally(lane);
+}
+fn classifyRow(i:u32){
  let base=i*${ROW_DATA_U32}u;
  let held=rowData[base+${ROW_FLAGS}u];
  let clips=(held&${FLAG_CLIP}u)!=0u;
@@ -41,9 +44,9 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
  // Verdict the compute raster reads: a row's half, before any occlusion test.
  flags[i]=select(${VERDICT_OCCLUDER}u,${VERDICT_KEPT}u,rest!=0u);
  if(rest!=0u){atomicOr(&restBits[i>>5u],1u<<(i&31u));}
- else{atomicAdd(&state[${ST_OCCLUDERS}u],1u);}
+ else{tallyAdd(${ST_OCCLUDERS}u,1u);}
  let item=items[i];
- atomicAdd(&slotUsed[rest*3u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);
+ atomicAdd(&slotUsed[rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);
  if(rest==0u){return;}
  // Only the tested half travels to the kernel, each box naming the row it answers for.
  // The rectangle is already clipped to the viewport and expressed in texels of the mip that
@@ -78,12 +81,12 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
  }
  tested[slot+4u]=rowData[base+${ROW_NEAREST}u];
  tested[slot+8u]=item.triangles;
- atomicAdd(&state[${ST_TESTED_TRIANGLES}u],item.triangles);
+ tallyAdd(${ST_TESTED_TRIANGLES}u,item.triangles);
  // A footprint wider than the level-0 kernel answers from a coarser mip: it is counted on the
  // UNCLIPPED rectangle, like \`hizOversized\`.
  if(!clips&&(unclipped.z-unclipped.x>=${HIZ_KERNEL_TEXELS}||unclipped.w-unclipped.y>=${HIZ_KERNEL_TEXELS})){
-  atomicAdd(&state[${ST_OVERSIZED}u],1u);
-  atomicAdd(&state[${ST_OVERSIZED_TRIANGLES}u],item.triangles);
+  tallyAdd(${ST_OVERSIZED}u,1u);
+  tallyAdd(${ST_OVERSIZED_TRIANGLES}u,item.triangles);
  }
 }
 `;

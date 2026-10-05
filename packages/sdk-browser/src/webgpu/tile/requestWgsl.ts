@@ -18,7 +18,7 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1;
  * ancestor's —: what a convergence looks for (`everyPick`). Requires `TILE_POOL_WGSL` and the atlas
  * reads (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`) before this block.
  */
-export const tileRequestIndexWgsl = (
+const tileRequestIndexWgsl = (
   k: string,
 ) => `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
  let s=${k}Slot(slot);
@@ -38,13 +38,13 @@ export const tileRequestIndexWgsl = (
 
 /**
  * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
- * asks for tiles shares — the shadow cutout's too (`../../gpu/shadow/shader.ts`). An ordinary image
- * names ONE pick (`requestPick`), its position shifted by the image's pick turn. A convergence image
- * (`feedbackEvery`) runs through all of a pixel's picks (`everyPick`, `PICK_TURNS` per map) and names
- * the first whose tile is missing: one image asks every tile the pose reads, a sliver's included,
- * so what a settled pose reads is what it asked, never what the pool kept of an earlier pose (#1016).
+ * asks for tiles shares. An ordinary image names ONE pick (`requestPick`), its position shifted by
+ * the image's pick turn. A convergence image (`feedbackEvery`) runs through all of a pixel's picks
+ * (`everyPick`, `PICK_TURNS` per map) and names the first whose tile is missing: one image asks
+ * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
+ * never what the pool kept of an earlier pose (#1016).
  */
-export const FEEDBACK_RULE_WGSL = `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
+const FEEDBACK_RULE_WGSL = `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
 fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
 fn feedbackPhase(p:vec2f,word:u32)->bool{
  if(feedbackEvery(word)){return true;}

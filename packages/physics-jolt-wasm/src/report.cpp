@@ -166,7 +166,6 @@ uint32_t writePoses() {
       bodies.SetLinearAndAngularVelocity(slot.id, slot.linear, slot.angular);
       continue;
     }
-    if (slot.frozen) noteFar(w, slot, at);
     if (slot.withheld && at.seen) send(slot, body, true);
     if (slot.withheld || slot.frozen) wait(slot, index);
   }

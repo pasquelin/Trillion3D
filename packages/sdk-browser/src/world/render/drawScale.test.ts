@@ -45,7 +45,7 @@ function steered(frames: number, held: boolean) {
     camera: {},
     geometryUrls: new Set(),
     streamer: { retainRanks() {} },
-    streaming: { lastPrefetch: Infinity, queuedFetch: new Set() },
+    streaming: { queuedFetch: new Set() },
     directGpu: false,
     webglSurface: { context: timedGl() },
     baseline: backend,
@@ -61,6 +61,7 @@ function steered(frames: number, held: boolean) {
 }
 
 test('a moving frame over budget lowers the WebGL2 render scale, a held one never', () => {
-  assert.ok(steered(3, false) < 1, 'lowered');
-  assert.equal(steered(3, true), 1, 'held');
+  // Past the controller's period (`PERIOD`) after the refresh clock's first frames.
+  assert.ok(steered(12, false) < 1, 'lowered');
+  assert.equal(steered(12, true), 1, 'held');
 });

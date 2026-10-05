@@ -4,7 +4,6 @@ import { encodeDraws } from '../render/encodeDraws.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { grantFrameTargets } from '../prepare/targetGrant.ts';
 import { poolFundingPending } from '../prepare/targetFunding.ts';
-import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import { grantPending } from '../../../gpu/core/errorScope.ts';
 import { createWebgpuView, type WebgpuView } from '../state/view.ts';
@@ -28,9 +27,9 @@ export async function captureAside<T>(
   work: () => Promise<T>,
 ) {
   const { capture } = rt;
-  // A casting light's pool is asked of the device, sized from the canvas, before the capture's
-  // view is drawn: never drawn without its shadows (#483).
-  sizeShadowPool(rt);
+  // The capture asks no shadow memory of its own: the frames make the virtual shadow maps they
+  // draw (`../render/vsm/vsmEncode.ts`), and the capture waits for them to settle
+  // (`shadowsUnsettled`).
   capture.capturing = true;
   const view = createWebgpuView(size.width, size.height);
   let drawn = false;

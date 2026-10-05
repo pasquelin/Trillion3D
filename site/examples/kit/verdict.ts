@@ -9,59 +9,53 @@ import { exampleId, kitWord } from './words.ts';
 /**
  * What one part of the health check holds, named here once — the bench's baselines hold relative
  * thresholds, none of these quantities: the floor of the 60–120 Hz a frame targets, the GPU time
- * of one 60 Hz frame, and #525's shadows within 2 ms of GPU. Shadow pages are read, not judged.
+ * of one 60 Hz frame, and #525's shadows within 2 ms of GPU.
  */
 const BUDGETS = { fps: 60, gpuFrameMs: 1000 / 60, gpuShadowsMs: 2 };
 
 /** The budgets the engine does not meet yet, each with the open issue that delivers it: its line
  *  is `flagged`: red, `until #<issue>`, and counts against no verdict. Its pull request drops it. */
-export const UNTIL: Partial<Record<keyof typeof BUDGETS, number>> = { gpuShadowsMs: 525 };
+const UNTIL: Partial<Record<keyof typeof BUDGETS, number>> = { gpuShadowsMs: 525 };
 
-export const flagged = ({ name, motif }: ResultRow) =>
+const flagged = ({ name, motif }: ResultRow) =>
   name !== 'refused' && /, until #\d+$/.test(motif ?? '');
 
 /** The engine's counters of a drawn frame the verdict reads, `null` when not measured. */
-export interface Counters {
+interface Counters {
   gpuFrameMs?: number | null;
   gpuShadowsMs?: number | null;
-  shadowPagesDrawn?: number | null;
-  shadowPagesRefetched?: number | null;
 }
 
 /** A drawn frame of a part: when it was drawn, and its counters. */
 type Frame = Counters & { at: number };
 
 /** The health check's verdict: `measure.ts`'s shape, and whether no line is red. */
-export type HealthVerdict = Measurement & { correct: boolean };
+type HealthVerdict = Measurement & { correct: boolean };
 
 const measured = (frames: Frame[], key: keyof Counters) =>
   frames.map((frame) => frame[key]).filter((value): value is number => typeof value === 'number');
 
-/** A line of a quantity: held under its budget in ms, `until #<issue>` when `UNTIL` flags it, a plain
- *  reading without one, `null` when the engine did not measure it; its median and p95 kept. */
-function line(name: string, values: number[], key?: keyof typeof BUDGETS) {
+/** A line of a quantity: held under its budget in ms, `until #<issue>` when `UNTIL` flags it,
+ *  `null` when the engine did not measure it; its median and p95 kept. */
+function line(name: string, values: number[], key: keyof typeof BUDGETS) {
   const value = spread(values),
-    until = key && UNTIL[key] ? `, until #${UNTIL[key]}` : '';
+    until = UNTIL[key] ? `, until #${UNTIL[key]}` : '';
   const row = !value
     ? resultRow({ name, motif: '—' })
-    : !key
-      ? resultRow({ name, motif: String(value.p95) })
-      : resultRow({
-          name,
-          correct: value.p95 <= BUDGETS[key],
-          motif: `${ms(value.p95)} ≤ ${ms(BUDGETS[key])}${until}`,
-        });
+    : resultRow({
+        name,
+        correct: value.p95 <= BUDGETS[key],
+        motif: `${ms(value.p95)} ≤ ${ms(BUDGETS[key])}${until}`,
+      });
   return { ...row, medianeMs: value?.p50 ?? null, p95Ms: value?.p95 ?? null };
 }
 
 /** The lines of a part, `<part>: <quantity>`: its rate from the gaps between its frames, the p95
- *  of its GPU and shadow times and of its shadow pages drawn a frame, the pages refetched in it. */
+ *  of its GPU and shadow times. */
 function partLines(part: string, frames: Frame[]): ResultRow[] {
   const at = frames.map((frame) => frame.at),
     gaps = spread(at.slice(1).map((time, k) => time - at[k])),
     [fps, mean] = [Math.round(1000 / (gaps?.p50 ?? NaN)), Math.round(rate(at) ?? 0)];
-  const refetched = measured(frames, 'shadowPagesRefetched'),
-    pages = refetched.length ? [refetched.at(-1)! - refetched[0]] : [];
   return [
     {
       ...resultRow({ name: `${part}: FPS`, motif: '—' }),
@@ -73,8 +67,6 @@ function partLines(part: string, frames: Frame[]): ResultRow[] {
     },
     line(`${part}: GPU frame`, measured(frames, 'gpuFrameMs'), 'gpuFrameMs'),
     line(`${part}: GPU shadows`, measured(frames, 'gpuShadowsMs'), 'gpuShadowsMs'),
-    line(`${part}: shadow pages drawn`, measured(frames, 'shadowPagesDrawn')),
-    line(`${part}: shadow pages refetched`, pages),
   ];
 }
 
@@ -97,14 +89,8 @@ export function healthCheck(
     const name = part();
     if (name === null) return;
     const frames = parts.get(name) ?? parts.set(name, []).get(name)!;
-    const { gpuFrameMs, gpuShadowsMs, shadowPagesDrawn, shadowPagesRefetched } = metrics;
-    frames.push({
-      at: performance.now(),
-      gpuFrameMs,
-      gpuShadowsMs,
-      shadowPagesDrawn,
-      shadowPagesRefetched,
-    });
+    const { gpuFrameMs, gpuShadowsMs } = metrics;
+    frames.push({ at: performance.now(), gpuFrameMs, gpuShadowsMs });
   });
   return {
     refuse: (reason: string, documented = false) =>

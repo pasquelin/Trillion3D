@@ -25,12 +25,6 @@ fn proxyFirstOwner(triangle:u32)->u32{
  if((group&PROXY_GROUP_OWNED)==0u){return PROXY_POSED;}
  return proxy.words[proxy.rangesWord+(group&~PROXY_GROUP_OWNED)];
 }
-/** Whether every owner of a triangle's group casts no shadow (castShadow false, #966): a
- *  far sun's shadow ray passes it (sunFarShadowWgsl.ts), a bounce ray does not. */
-fn proxyCastless(triangle:u32)->bool{
- let group=proxy.words[proxy.groupsWord+triangle]&~PROXY_GROUP_OWNED;
- return (proxy.words[proxy.castlessWord+(group>>5u)]&(1u<<(group&31u)))!=0u;
-}
 fn proxyOwnerVertex(triangle:u32,vertex:u32,owner:u32)->vec3f{
  let p=proxyVertex(triangle,vertex);
  if(owner==PROXY_POSED){return p;}

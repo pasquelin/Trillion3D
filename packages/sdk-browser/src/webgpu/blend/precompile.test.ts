@@ -43,11 +43,11 @@ test('a precompiled mode is drawn without a compile; a mode a draw compiled firs
     ),
   } as unknown as GPUDevice;
   const set = pipelinesByMode(device, (mode) => [{ label: mode } as GPURenderPipelineDescriptor]);
-  const now = (mode: Blending) => (set.at(mode)[0] as unknown as { now: boolean }).now;
-  const drawn = set.at('multiply');
+  const now = (mode: Blending) => (set.at(mode, 0) as unknown as { now: boolean }).now;
+  const drawn = set.at('multiply', 0);
   await set.precompile(['normal', 'additive', 'multiply']);
   assert.deepEqual(built, ['now:multiply', 'async:normal', 'async:additive']);
-  assert.equal(set.at('multiply'), drawn, 'the pipeline a draw already bound is not replaced');
+  assert.equal(set.at('multiply', 0), drawn, 'the pipeline a draw already bound is not replaced');
   assert.equal(now('additive'), false);
   assert.equal(now('normal'), false);
   assert.equal(built.length, 3, 'no draw compiles a precompiled mode');
@@ -66,6 +66,10 @@ test('the fallback pass precompiles, off the frame, the very pipeline a draw wou
   // The fake's pipeline is its descriptor; each device builds its own module, so the descriptors
   // are compared as data.
   for (const mode of modes)
-    assert.equal(JSON.stringify(precompiled.at(mode)), JSON.stringify(drawnLazily.at(mode)), mode);
+    assert.equal(
+      JSON.stringify(precompiled.at(mode, 0)),
+      JSON.stringify(drawnLazily.at(mode, 0)),
+      mode,
+    );
   assert.equal(eager.renderPipelines.length, compiledAtPrepare, 'no draw compiled a pipeline');
 });

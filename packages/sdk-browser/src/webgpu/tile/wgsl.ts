@@ -46,15 +46,16 @@ import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './samplingWgsl.t
  *
  * Coordinates are clamped to the half-texel of the level being read: linear filtering therefore never
  * leaves a level's texels, nor a tail tile toward its neighbour, and the seam of a repeating period
- * remains the one `wrapUv` mixes by hand.
+ * is the one `wrapUv` mixes by hand — at each level read, on that level's size (`${k}Level`), as
+ * the sampler of a mip chain mixes a level's last texel and its first.
  *
  * An atlas has one pool per LANE — lossless RGBA8, RGBA blocks, two-channel blocks — and a
- * texture's header names the TAP every tile of it takes (`../../texture/blockFormats.ts`, `tapOf`): the
- * pool it samples, the same place arithmetic on each, and for a two-channel block which channel
- * holds Y — the second for BC5, the alpha for the ASTC luminance-alpha block. A two-channel read
- * is a normal map's X and Y, Z rebuilt as the reference does from a two-channel map — the
- * unit-length remainder —, so what the material receives is the three-channel map it would have
- * read from a lossless lane.
+ * texture's header names the TAP every tile of it takes (`../../texture/blockFormats.ts`, `tapOf`):
+ * the pool it samples, the same place arithmetic on each, and for a two-channel block which
+ * channel holds Y — the second for BC5, the alpha for the ASTC luminance-alpha block. A
+ * two-channel read is a normal map's X and Y, Z rebuilt from the two channels as the unit-length
+ * remainder —, so what the material receives is the three-channel map it would have read from a
+ * lossless lane.
  *
  * The host shader declares one `${k}Pool<lane>` per lane in `POOL_LANES` order — `colorPool0`,
  * `colorPool1`, `colorPool2`, the same for `data` —, `mapsSampler`, `colorPages` and `dataPages`,
@@ -99,7 +100,10 @@ fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&0xffu),f32((word>>8u)&0xffu))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>16u)&0xffu);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(word&0xffffu),f32(word>>16u));}
-fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size/exp2(f32(level))),vec2f(1.0));}
+/** Size of a level, \`max(size >> level, 1)\` as the CPU lays it out (\`../../texture/tiles.ts\`): the
+ *  size times 2^-level built from its exponent bits — exact, where \`exp2\` may stray by ULPs —, 0
+ *  from level 127 on, as the division by 2^level gave. */
+fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size*bitcast<f32>((127u-min(level,127u))<<23u)),vec2f(1.0));}
 fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsize-0.5);}
 /** Entry of a texel in its level: its tile, in tile rows. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}
@@ -155,12 +159,26 @@ fn ${k}Fetch(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
  }
  return ${k}Tap(s.tap,${k}Place(s,uv,level,word,nearest));
 }
+/** One level of a read, the coordinate brought back by the texture's addressing nibble: a single
+ *  fetch off a seam; on the seam of a repeating period — half a texel of THIS level from either
+ *  edge, wider the coarser the level —, the four fetches the sampler's rule mixes, the last texel
+ *  and the first, by their weights at this level. A nearest read takes the texel the fold named. */
+fn ${k}Level(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
+ if(!wrapRepete(s.wrap)){return ${k}Fetch(s,wrapReplie(uv,s.wrap),level,finest,nearest);}
+ let t=wrapUv(uv,s.wrap,levelSize(s.size,level));
+ if(!t.couture||nearest){return ${k}Fetch(s,t.proche,level,finest,nearest);}
+ let s00=${k}Fetch(s,t.proche,level,finest,nearest);
+ let s10=${k}Fetch(s,vec2f(t.loin.x,t.proche.y),level,finest,nearest);
+ let s01=${k}Fetch(s,vec2f(t.proche.x,t.loin.y),level,finest,nearest);
+ let s11=${k}Fetch(s,t.loin,level,finest,nearest);
+ return mix(mix(s00,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
+}
 /** Filtered read: the two levels the footprint straddles, mixed by their share. */
 fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f{
  let l0=floor(lod);let t=lod-l0;
- let a=${k}Fetch(s,uv,u32(l0),finest,nearest);
+ let a=${k}Level(s,uv,u32(l0),finest,nearest);
  if(t<=0.0||l0>=f32(s.last)){return a;}
- return mix(a,${k}Fetch(s,uv,u32(l0)+1u,finest,nearest),t);
+ return mix(a,${k}Level(s,uv,u32(l0)+1u,finest,nearest),t);
 }
 fn ${k}SampleAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,false);}`;
 
@@ -173,7 +191,7 @@ ${atlasReadWgsl('colorSample', 'color', 'vec4f', true)}`;
  * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha at the
  * derivatives of the pass that reads. The camera raster (`finest` false) reads it as the colour
  * reads — same transform, filter, anisotropic taps and mix, `colorSample`'s own `.w` —: the
- * silhouette the reference cuts is the one its hardware sampler reads, and the resolve that
+ * silhouette the raster cuts is the one its hardware sampler reads, and the resolve that
  * shades the kept pixel reads the same taps. The shadow pass (`finest` true) reads one tap at
  * the isotropic level, under its fallback rule (see the header): a shadow texel's footprint is
  * not a view at a grazing angle, and it does not pay for anisotropy's taps. Requires

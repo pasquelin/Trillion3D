@@ -12,7 +12,7 @@
 // hide the unwalked rig the contract exists to catch. A host therefore enters through
 // `cameraMoteur(…)`, as frame entry does.
 //
-// `test:gpu` had failed on four hosts of `test/*.browser.ts` that stayed on the raw camera;
+// `test:gpu` had failed on four hosts of `test/*.gpu.ts` that stayed on the raw camera;
 // they moved to `cameraMoteur` (in-repo fixtures, not third-party hosts). `pnpm test` had not
 // seen it: they are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs —
 // these tests therefore reproduce both calls without a browser, the faulty one and the right one.
@@ -20,17 +20,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
-import { rasterVisibility } from '../visibility/raster.ts';
 import type { VisPage } from '../visibility/types.ts';
 import {
   POSES_PARENT,
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/browser/probes/cameraRig.ts';
+} from '../../../../tests/gpu/kit/cameraRig.ts';
 import { cameraMoteur } from './camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.

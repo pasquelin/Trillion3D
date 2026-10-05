@@ -68,15 +68,59 @@ void leaveAll(uint32_t engine) {
   }
 }
 
+namespace {
+
+/// Jolt keeps at most four points of a manifold (`PruneContactPoints`).
+constexpr uint32_t MANIFOLD_POINTS = 4;
+/// Projected Gauss–Seidel sweeps over a manifold's points: the total settles to float precision.
+constexpr uint32_t IMPULSE_SWEEPS = 32;
+
+/// The normal impulse that stops the approach of every point of `manifold` at once, each bounced
+/// back at the pair's restitution past Jolt's restitution speed, estimated before the solver runs:
+/// the inelastic contact problem `K λ ≥ v, λ ≥ 0, λ·(K λ − v) = 0` Jolt's solver iterates, with
+/// `K_ij = m_a⁻¹ + m_b⁻¹ + (r_ai × n)·I_a⁻¹(r_aj × n) + (r_bi × n)·I_b⁻¹(r_bj × n)` its
+/// non-penetration constraint's (`ContactConstraintManager.cpp`, `AxisConstraintPart.h`), each
+/// point midway between the two surfaces. Its total `Σ λ`: a body's mass times its approach when
+/// it lands flat, a quarter of that when a rod lands on its tip.
+float manifoldImpulse(const Body &a, const Body &b, const ContactManifold &manifold, const ContactSettings &settings) {
+  const uint32_t count = std::min<uint32_t>(manifold.mRelativeContactPointsOn1.size(), MANIFOLD_POINTS);
+  const Vec3 normal = manifold.mWorldSpaceNormal;
+  const float inverse = settings.mInvMassScale1 * inverseMass(a) + settings.mInvMassScale2 * inverseMass(b);
+  const Mat44 turnA = settings.mInvInertiaScale1 * inverseInertia(a), turnB = settings.mInvInertiaScale2 * inverseInertia(b);
+  const float threshold = world().system->GetPhysicsSettings().mMinVelocityForRestitution;
+  Vec3 armA[MANIFOLD_POINTS], armB[MANIFOLD_POINTS];
+  float target[MANIFOLD_POINTS], k[MANIFOLD_POINTS][MANIFOLD_POINTS], lambda[MANIFOLD_POINTS] = {};
+  for (uint32_t i = 0; i < count; ++i) {
+    RVec3 point = Real(0.5) * (manifold.GetWorldSpaceContactPointOn1(i) + manifold.GetWorldSpaceContactPointOn2(i));
+    Vec3 ra = Vec3(point - a.GetCenterOfMassPosition()), rb = Vec3(point - b.GetCenterOfMassPosition());
+    float speed = (a.GetPointVelocity(point) - b.GetPointVelocity(point)).Dot(normal);
+    target[i] = bounced(speed, settings.mCombinedRestitution, threshold);
+    armA[i] = ra.Cross(normal), armB[i] = rb.Cross(normal);
+  }
+  for (uint32_t i = 0; i < count; ++i)
+    for (uint32_t j = 0; j < count; ++j)
+      k[i][j] = inverse + armA[i].Dot(turnA.Multiply3x3(armA[j])) + armB[i].Dot(turnB.Multiply3x3(armB[j]));
+  for (uint32_t sweep = 0; sweep < IMPULSE_SWEEPS; ++sweep)
+    for (uint32_t i = 0; i < count; ++i) {
+      if (k[i][i] <= 0) continue;
+      float residual = target[i];
+      for (uint32_t j = 0; j < count; ++j) residual -= k[i][j] * lambda[j];
+      lambda[i] = std::max(0.0f, lambda[i] + residual / k[i][i]);
+    }
+  float total = 0;
+  for (uint32_t i = 0; i < count; ++i) total += lambda[i];
+  return total;
+}
+
+}  // namespace
+
 void Listener::OnContactAdded(const Body &a, const Body &b, const ContactManifold &manifold,
-                              ContactSettings &) {
+                              ContactSettings &settings) {
   uint32_t ia = uint32_t(a.GetUserData()), ib = uint32_t(b.GetUserData());
   if (!wantsEvents(ia) && !wantsEvents(ib)) return;
   Vec3 point = Vec3(manifold.GetWorldSpaceContactPointOn1(0));
-  // Approach speed along the normal times the pair's reduced mass; only a pair's first contact
-  // sends it (`replayContacts`).
-  Vec3 relative = a.GetPointVelocity(RVec3(point)) - b.GetPointVelocity(RVec3(point));
-  float impulse = approachImpulse(relative.Dot(manifold.mWorldSpaceNormal), inverseMass(a) + inverseMass(b));
+  // Only a pair's first contact sends its impulse (`replayContacts`).
+  float impulse = manifoldImpulse(a, b, manifold, settings);
   Float3 at;
   point.StoreFloat3(&at);
   deferContact({ContactRecord::ADDED, ia, ib, impulse, at, 0});

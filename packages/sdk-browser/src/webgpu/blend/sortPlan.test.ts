@@ -5,51 +5,26 @@ import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { orderBlendPasses } from './order.ts';
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts';
-import { blendSceneOf } from './plan.fixture.ts';
-import { resliceBlendRuns } from './runs.ts';
-import { RUN_WORDS } from './planLayout.ts';
-import { buildBlendRuns } from './runSlicing.ts';
-import { precedes, sortPlanFarToNear } from './sortPlan.ts';
+import { blendSceneOf, paintOutcome, referenceOrder } from './plan.fixture.ts';
+import { precedes, sortSeedsFarToNear } from './sortPlan.ts';
 import type { BlendGpuItem } from './state.ts';
 
 type BlendState = ReturnType<typeof blendSceneOf>;
 
-/**
- * The ranking `develop` did before the shift budget: insertion on the previous frame's order,
- * then the runs sliced whole. Every frame below must match it word for word.
- */
-function developRanking(previous: Uint32Array, items: readonly BlendGpuItem[]) {
-  const order = previous.slice();
-  for (let i = 1; i < order.length; i++) {
-    const entry = order[i],
-      moved = items[planItem(entry)];
-    let j = i - 1;
-    for (; j >= 0; j--) {
-      const held = items[planItem(order[j])];
-      if (!precedes(held.orderKey, held.orderRank, moved.orderKey, moved.orderRank)) break;
-      order[j + 1] = order[j];
-    }
-    order[j + 1] = entry;
-  }
-  const runs = new Uint32Array(Math.max(1, order.length) * RUN_WORDS);
-  const count = buildBlendRuns(order, runs);
-  return { order: Array.from(order), runs: Array.from(runs.subarray(0, count * RUN_WORDS)) };
-}
-
-/** A frame ranked by `orderBlendPasses`, checked against `developRanking` on both passes. */
+/** A frame ranked by `orderBlendPasses`: the whole paint order, and the own entries the CPU
+ *  ranked itself, both checked against `referenceOrder` on both passes. */
 function rankAndCheck(blendState: BlendState, eye: number[], what: string) {
-  const previous = blendState.orders.map((order) => order.slice());
   orderBlendPasses(blendState, eye);
-  for (let pass = 0; pass < previous.length; pass++) {
-    const expected = developRanking(previous[pass], blendState.blendGpu);
-    const count = blendState.runCount[pass];
+  const { orders, ownSeeds } = paintOutcome(blendState);
+  for (let pass = 0; pass < orders.length; pass++) {
+    const seeds = blendState.seeds[pass];
+    const expected = referenceOrder(seeds, blendState.blendGpu);
+    assert.deepEqual(orders[pass], seeds.length ? expected : [], `${what}, pass ${pass}`);
+    const own = new Set(ownSeeds[pass].map((seed) => seeds[seed]));
     assert.deepEqual(
-      {
-        order: Array.from(blendState.orders[pass]),
-        runs: Array.from(blendState.runs[pass].subarray(0, count * RUN_WORDS)),
-      },
-      expected,
-      `${what}, pass ${pass}`,
+      ownSeeds[pass].map((seed) => seeds[seed]),
+      expected.filter((entry) => own.has(entry)),
+      `${what}, own entries of pass ${pass}`,
     );
   }
 }
@@ -84,7 +59,7 @@ function scene(count: number, seed: number, edges = false) {
   return { blendState, next };
 }
 
-/** Frames of small steps, camera jumps, and the events that void or replace the runs. */
+/** Frames of small steps, camera jumps, and the events that void or replace the plan. */
 function walk(count: number, seed: number, frames: number, edges = false) {
   const { blendState, next } = scene(count, seed, edges);
   let eye = [0, 0, 0];
@@ -95,32 +70,65 @@ function walk(count: number, seed: number, frames: number, edges = false) {
     else if (roll < 0.65) orderBlendPasses(blendState, undefined);
     else if (roll < 0.7) refreshBlendPlan(blendState);
     else if (roll < 0.75) {
-      // New runs buffers under the same orders: a remount, which asks for an upload.
+      // A remount: new statics, then the plan they need.
       buildBlendStatics(blendState);
-      blendState.orderMoved = [true, true];
-    } else if (roll < 0.85) blendState.orderMoved = [false, false];
+      refreshBlendPlan(blendState);
+    }
     rankAndCheck(blendState, eye, `seed ${seed}, frame ${frame}`);
   }
 }
 
-test('ranking is word for word the insertion order, runs included, on random walks', () => {
+test('the paint order is the total order of the keys, own entries included, on random walks', () => {
   for (let seed = 1; seed <= 12; seed++) walk(60, seed, 40);
 });
 
-test('a camera jump past the shift budget gives the same order as insertion', () => {
+test('a camera jump past the shift budget gives the same order', () => {
   // Hundreds of entries: a jump costs far more than eight shifts per entry.
   for (let seed = 21; seed <= 24; seed++) walk(600, seed, 12);
 });
 
-test('NaN, infinite, signed zero and huge keys give the same order as insertion', () => {
+test('NaN, infinite, signed zero and huge keys give the same order', () => {
   for (let seed = 31; seed <= 40; seed++) walk(300, seed, 16, true);
 });
 
-test('a NaN key keeps pure insertion, even on a jump', () => {
+/** The first three items the blend pass paints, a double-sided item's two entries counted once. */
+const nanHead = (blendState: BlendState) =>
+  [...new Set(paintOutcome(blendState).orders[0].map(planItem))].slice(0, 3);
+
+test('a NaN key ranks farthest, by rank among NaNs, whatever the previous frame left', () => {
   const { blendState } = scene(400, 41);
-  blendState.blendGpu[7].bounds = new Float64Array([-Infinity, 0, 0, Infinity, 0, 0]);
-  rankAndCheck(blendState, [30, 30, 30], 'far eye');
-  rankAndCheck(blendState, [-30, -30, -30], 'jump through the scene');
+  for (const rank of [7, 3, 250]) {
+    blendState.blendGpu[rank].bounds = new Float64Array([-Infinity, 0, 0, Infinity, 0, 0]);
+    blendState.blendGpu[rank].transmissive = false;
+  }
+  refreshBlendPlan(blendState);
+  for (const eye of [
+    [30, 30, 30],
+    [-30, -30, -30],
+  ]) {
+    rankAndCheck(blendState, eye, `eye ${eye}`);
+    assert.deepEqual(nanHead(blendState), [3, 7, 250], 'the NaN keys first, in rank order');
+  }
+  // From any previous order: the order is the total one, not one the history decides.
+  blendState.paintOrders[0].reverse();
+  blendState.ownSeeds[0].reverse();
+  rankAndCheck(blendState, [-30, -30, -30], 'from reversed orders');
+  assert.deepEqual(nanHead(blendState), [3, 7, 250]);
+});
+
+test('precedes is a total order, NaN farthest', () => {
+  const keys = [NaN, Infinity, 5, 0, -0, NaN];
+  for (const [a, keyA] of keys.entries())
+    for (const [b, keyB] of keys.entries()) {
+      if (a === b) continue;
+      assert.notEqual(
+        precedes(keyA, a, keyB, b),
+        precedes(keyB, b, keyA, a),
+        `${keyA}#${a} against ${keyB}#${b}: exactly one recedes`,
+      );
+    }
+  assert.equal(precedes(Infinity, 0, NaN, 1), true, 'an infinite key recedes behind a NaN');
+  assert.equal(precedes(NaN, 2, NaN, 1), true, 'NaN keys by rank');
 });
 
 test('empty, single-item and single-pass scenes', () => {
@@ -130,65 +138,36 @@ test('empty, single-item and single-pass scenes', () => {
   assert.deepEqual(blendState.runCount, [0, 0]);
 });
 
-test('runs resliced from any entry equal runs sliced whole', () => {
-  const next = random(61);
-  for (let trial = 0; trial < 200; trial++) {
-    const n = 1 + Math.floor(next() * 40);
-    // Pipelines 0-1 and the share bit, so runs of every length appear.
-    const entries = () =>
-      Uint32Array.from(
-        { length: n },
-        (_, i) => (i << 6) | (next() < 0.8 ? 16 : 0) | (next() < 0.3 ? 1 : 0),
-      );
-    const before = entries(),
-      runs = new Uint32Array(n * RUN_WORDS),
-      count = buildBlendRuns(before, runs);
-    const at = Math.floor(next() * (n + 1)),
-      after = before.slice();
-    after.set(entries().subarray(at), at);
-    const expected = new Uint32Array(n * RUN_WORDS);
-    const whole = buildBlendRuns(after, expected);
-    assert.equal(resliceBlendRuns(after, runs, count, at), whole, `trial ${trial}`);
-    assert.deepEqual(runs.subarray(0, whole * RUN_WORDS), expected.subarray(0, whole * RUN_WORDS));
-  }
-});
-
-test('the sort names an entry at or before the first it changed, merge fallback included', () => {
-  const check = (keys: number[], order: number[], what: string) => {
-    const items = keys.map((orderKey, orderRank) => ({ orderKey, orderRank }) as BlendGpuItem);
-    const before = Uint32Array.from(order, (rank) => rank << 6),
-      after = before.slice();
-    const first = sortPlanFarToNear(after, Float64Array.from(keys));
-    assert.deepEqual(Array.from(after), developRanking(before, items).order, what);
-    const changed = after.findIndex((entry, i) => entry !== before[i]);
-    assert.ok(first <= (changed < 0 ? after.length : changed), `${what}: ${first} > ${changed}`);
+test('insertion and its merge fallback reach the one sorted list, from any start', () => {
+  const sortedFrom = (keys: number[], start: number[]) => {
+    const seeds = Uint32Array.from(keys.keys(), (item) => item << 6),
+      order = Uint32Array.from(start);
+    sortSeedsFarToNear(order, seeds, Float64Array.from(keys));
+    return Array.from(order);
   };
+  const expected = (keys: number[]) =>
+    Array.from(keys.keys()).sort((a, b) =>
+      precedes(keys[a], a, keys[b], b) ? 1 : precedes(keys[b], b, keys[a], a) ? -1 : 0,
+    );
   // A sorted head, a reversed middle that spends the budget, then a tail due at the very front.
   const keys = [
     ...Array.from({ length: 10 }, (_, i) => 1000 - i),
     ...Array.from({ length: 380 }, (_, i) => i + 1),
     ...Array.from({ length: 10 }, () => 5000),
   ];
-  check(
-    keys,
-    keys.map((_, rank) => rank),
-    'late jump',
-  );
+  assert.deepEqual(sortedFrom(keys, [...keys.keys()]), expected(keys), 'late jump');
   const next = random(71);
   for (let trial = 0; trial < 50; trial++) {
     const n = 1 + Math.floor(next() * 500),
-      shuffled = Array.from({ length: n }, (_, rank) => rank);
+      start = Array.from({ length: n }, (_, rank) => rank);
     // Mostly sorted, with a random stretch shuffled: from a few shifts to past the budget.
     const from = Math.floor(next() * n),
       to = from + Math.floor(next() * (n - from));
     for (let i = to; i > from; i--) {
       const j = from + Math.floor(next() * (i - from + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      [start[i], start[j]] = [start[j], start[i]];
     }
-    check(
-      Array.from({ length: n }, (_, rank) => n - rank - (rank % 3)),
-      shuffled,
-      `trial ${trial}`,
-    );
+    const trialKeys = Array.from({ length: n }, (_, rank) => n - rank - (rank % 3));
+    assert.deepEqual(sortedFrom(trialKeys, start), expected(trialKeys), `trial ${trial}`);
   }
 });

@@ -66,7 +66,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   } as unknown as ClusterRoot<PageRec>;
   const parks: [number, boolean][] = [],
     marks: number[] = [],
-    changed: number[][] = [];
+    changed: number[][] = [],
+    touched: number[] = [];
   const rt = {
     run: {
       gate: { updateWorlds: () => true, revisions: { scene: 1 } },
@@ -82,8 +83,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     timing: { worldCounts: {} },
     blendState,
     lights: {
-      mobility: { moves: () => false },
-      plan: { worldChanged: (lo: number[], hi: number[]) => changed.push([...lo, ...hi]) },
+      mobility: { moves: () => false, touch: (rank: number) => touched.push(rank) },
+      changes: { worldChanged: (lo: number[], hi: number[]) => changed.push([...lo, ...hi]) },
     },
   } as unknown as WebgpuPagesRuntime;
   const cam = { eye: new Float64Array(3) } as unknown as EngineCamera;
@@ -93,6 +94,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.equal(item.hidden, true, 'the blend item of the hidden node is hidden');
   assert.ok(!kept.hidden, 'another node keeps its blend item');
   assert.deepEqual(changed, [[-1, -2, -3, 1, 2, 3]], 'its shadow pages are drawn again');
+  assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them");
   orderBlendPasses(blendState, [0, 0, 0]);
   assert.equal(blendState.keepPacked[0] & 1, 0, 'the GPU path keeps it out');
   selectWebgpuBlend(blendState);
@@ -107,6 +109,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   ]);
   assert.equal(item.hidden, false);
   assert.equal(changed.length, 2, 'shown again, its shadow is drawn again');
+  assert.deepEqual(touched, [0, 0]);
   orderBlendPasses(blendState, [0, 0, 0]);
   assert.equal(blendState.keepPacked[0] & 1, 1);
   selectWebgpuBlend(blendState);

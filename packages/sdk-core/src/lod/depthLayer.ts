@@ -43,20 +43,3 @@ export function depthLayerUnits(layer: number | undefined) {
   if (!layer || !Number.isFinite(layer) || layer <= 0) return 0;
   return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS;
 }
-
-/** Bits of `1.0` in float32: the near plane of the engine's reversed depth, and the ceiling no
- *  biased depth may cross. */
-const ONE_BITS = 0x3f800000;
-
-/**
- * The same offset applied straight to the bits of a float32 depth, for the software raster, which
- * compares packed integer keys instead of running a depth test. For a depth in [0, 1] the IEEE-754
- * bit pattern grows with the value, and the engine's depth is reversed — nearer is larger — so
- * moving a cluster towards the camera is ADDING that many last bits; the result is clamped at the
- * bits of 1.0 so a near-plane cluster can never wrap past the near plane.
- */
-export function biasedDepthBits(bits: number, layer: number | undefined) {
-  const units = depthLayerUnits(layer);
-  if (units === 0) return bits >>> 0;
-  return Math.min(ONE_BITS, (bits >>> 0) + units) >>> 0;
-}

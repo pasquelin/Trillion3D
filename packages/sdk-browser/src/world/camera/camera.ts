@@ -40,7 +40,6 @@ export function createExplorerCamera(
   );
   const bounds = hostBox(flat);
   const center = hostPoint(framingSphere[0], framingSphere[1], framingSphere[2]);
-  const homeOffset = hostPoint(framing.offset[0], framing.offset[1], framing.offset[2]);
   camera.position.set(
     framingSphere[0] + framing.offset[0],
     framingSphere[1] + framing.offset[1],
@@ -48,5 +47,5 @@ export function createExplorerCamera(
   );
   camera.lookAt(center);
   camera.updateMatrixWorld();
-  return { bounds, center, radius, camera, homeOffset };
+  return { bounds, center, radius, camera };
 }

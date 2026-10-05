@@ -2,7 +2,7 @@ import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.
 import { shaderFloat } from './shaderConstants.ts';
 import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts';
 
-/** The filmic curve of the reference (ACES, its 0.6 exposure scale folded in), the default one. */
+/** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
 export const ACES_WGSL = `
 fn aces(color:vec3f)->vec3f{
  var c=color/${ACES.exposure};
@@ -16,13 +16,13 @@ const R = TONE_MAPPING_RANK;
 
 /**
  * Every display curve a scene may choose (`SceneEnvironment.toneMapping`), picked by its rank:
- * a uniform branch, the same for every pixel of the pass. Each is the published operator:
- * - `linear` clips, `reinhard` is `c / (1 + c)` (Reinhard et al., 2002);
- * - `cineon` is the Hejl and Burgess-Dawson filmic fit, which carries a display gamma of its own
+ * a uniform branch, the same for every pixel of the pass. Each is as follows:
+ * - `linear` clips, `reinhard` is `c / (1 + c)`;
+ * - `cineon` is a filmic rational fit, which carries a display gamma of its own
  *   that the power 2.2 takes back to linear before the sRGB transfer;
- * - `agx` is Sobotka's AgX: to the BT.2020 primaries (ITU-R BT.2087), the inset, a log2 encoding
+ * - `agx` is a filmic image formation: to the BT.2020 primaries, the inset, a log2 encoding
  *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
- * - `neutral` is the Khronos PBR Neutral operator, which keeps base colours below 0.76 as they are.
+ * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are.
  */
 export const TONE_MAPPING_WGSL = `${ACES_WGSL}
 fn cineonCurve(color:vec3f)->vec3f{

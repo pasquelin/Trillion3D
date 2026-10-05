@@ -101,7 +101,12 @@ export class Box3 {
   }
   /** Moves the box by a matrix and keeps it lined up with the axes. */
   applyMatrix4(m: Matrix4) {
-    flat.set([this.min.x, this.min.y, this.min.z, this.max.x, this.max.y, this.max.z]);
+    flat[0] = this.min.x;
+    flat[1] = this.min.y;
+    flat[2] = this.min.z;
+    flat[3] = this.max.x;
+    flat[4] = this.max.y;
+    flat[5] = this.max.z;
     boxTransform(flat, 0, flat, 0, m.elements);
     this.min.set(flat[0], flat[1], flat[2]);
     this.max.set(flat[3], flat[4], flat[5]);

@@ -10,8 +10,16 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, he
   return true;
 }
 
+/** True when the sixteen numbers of `now` are `held`'s, sign of zero and `NaN` included:
+ *  `Object.is`, not `sameElements`' `!==`, which merges `-0` with `0` — two translations a zero's
+ *  sign tells apart compose differently, and a `NaN` left in place is no change. */
+export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) {
+  for (let i = 0; i < 16; i++) if (!Object.is(held[i], now[i])) return false;
+  return true;
+}
+
 /** One float32 step at magnitude 1: the GPU draws every world in float32. */
-const FLOAT32_STEP = 2 ** -23;
+export const FLOAT32_STEP = 2 ** -23;
 
 /**
  * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at

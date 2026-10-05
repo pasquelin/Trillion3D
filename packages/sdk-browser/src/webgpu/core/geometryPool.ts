@@ -55,10 +55,10 @@ export function createVertexPool(
     let part = 0;
     for (const [source, width, missing] of parts) {
       const list: List | undefined = a[source];
-      for (let i = 0; i < n; i++)
-        for (let c = 0; c < width; c++)
-          scratch[part + i * stride + c] =
-            list && c < list.itemSize ? list.getComponent(from + i, c) : missing;
+      if (list) list.readInto(scratch, part, stride, from, n, width, missing);
+      else
+        for (let i = 0; i < n; i++)
+          scratch.fill(missing, part + i * stride, part + i * stride + width);
       part += width;
     }
     return n * stride;

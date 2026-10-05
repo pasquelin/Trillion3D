@@ -9,7 +9,9 @@ import {
 import { compare } from '../../../core/index.ts';
 import type { Measurement } from '../../../core/index.ts';
 
-const options = { chauffe: 1, tours: 5, budgetMs: 200 };
+// Warm-up and the round floor are the harness's (`bench/core/chrono.ts`): five samples after one
+// warm-up call spread up to 474 % run to run.
+const options = { tours: 30, budgetMs: 500 };
 
 /** A line: a single set of inputs, the reference against the foundation or against the previous code. */
 export const ligne = <Entree extends ArrayLike<unknown>, Sortie>(
@@ -29,17 +31,18 @@ export const ligne = <Entree extends ArrayLike<unknown>, Sortie>(
     options,
   });
 
-/** The yielded value, or the raise code: two sides that raise alike are equal. */
-export function essaie<T>(fn: () => T): T | string {
-  try {
-    return fn();
-  } catch (erreur) {
-    const e = erreur as { code?: string; message?: string };
-    return `raise: ${e.code ?? e.message}`;
-  }
-}
-
 export const f64 = (e: ArrayLike<number>) => Float64Array.from(e);
+/** `n` outputs of `width` numbers, allocated beside a line's inputs, once: the timed side writes
+ *  output `i` where it allocated one per element under the clock. */
+export const outputs = (n: number, width: number) =>
+  Array.from({ length: n }, () => new Float64Array(width));
+/** The TRS outputs of `n` decompositions, as `trs` returns them, allocated once. */
+export const trsOutputs = (n: number) =>
+  Array.from({ length: n }, (): [Float64Array, Float64Array, Float64Array] => [
+    new Float64Array(3),
+    new Float64Array(4),
+    new Float64Array(3),
+  ]);
 export const m4 = (e: ArrayLike<number>) => new THREE.Matrix4().fromArray(e);
 
 const colonne3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[k + 1], e[k + 2]);

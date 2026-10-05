@@ -1,7 +1,7 @@
 // Defect: the requested world pose was brought into the parent's frame by the world matrix the
 // parent carried, UP TO DATE OR NOT. A host may write `parent.position.x = 10` without walking the
-// graph (`updateMatrixWorld`) before posing the child — that is the contract `hostWorldChainInto`
-// holds in `../../webgpu/pages/render/transform.ts`. These tests go through the explorer's PUBLIC API
+// graph (`updateMatrixWorld`) before posing the child — that is the contract the transform tree's
+// on-demand read (`updateWorldMatrix`) holds in `../../host/world/moveByName.ts`. These tests go through the explorer's PUBLIC API
 // (`explorer.setTransform`, `createExplorerLightApi`), not the internal `setWebgpuTransform` called
 // directly: that is what the host actually calls. The world checked is the one THE ENGINE holds
 // (`../../host/world/placements.ts`), which is the one it draws.
@@ -44,7 +44,7 @@ function banc() {
     setup: { source, worlds },
     layout: { selectionRoots: [], rows: { tableEpoch: 0 } },
     run,
-    lights: { plan: { worldChanged: () => {} } },
+    lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime;
   const backend = {
     setTransform(nodeName: string, matrix: Float32Array) {

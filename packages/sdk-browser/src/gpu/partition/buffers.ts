@@ -15,11 +15,11 @@ import {
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   const rows = createGpuPartitionRows(device, slotCap);
-  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  // Zeroed each frame by the partition's first dispatch (`clearRows`), copied to the counts.
   const state = device.createBuffer({
     label: 'Trillion3D partition state v1',
     size: STATE_WORDS * 4,
-    usage: storage | GPUBufferUsage.COPY_SRC,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
   const uniforms = device.createBuffer({
     label: 'Trillion3D partition uniform v1',

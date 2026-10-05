@@ -166,15 +166,16 @@ export function physicsBudgetOf(budget: Partial<PhysicsBudget> = {}): PhysicsBud
 
 /** The share of `memoryBytes` the static collision holds at once. */
 const COLLISION_SHARE = 0.5;
-/** Bytes Jolt holds a static triangle by: what a cooked tile takes, bounding tree included. */
+/** Bytes the module holds a static triangle by: what a cooked tile takes, bounding tree included. */
 export const TRIANGLE_BYTES = 16;
 /** Bytes of static collision `budget` holds at once: tiles and static triangle meshes together. */
 export const collisionBytesOf = (budget: Pick<PhysicsBudget, 'memoryBytes'>) =>
   Math.floor(budget.memoryBytes * COLLISION_SHARE);
 
-/** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate. */
+/** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate; the frames owe it
+ *  their time in such steps (`sdk-browser/src/physics/stepClock.ts`). */
 export const PHYSICS_STEP = 1 / 60;
-/** Steps a late worker may take at once; beyond, the time is dropped (slow motion, never a spiral). */
+/** Steps one frame may owe; beyond, its time is dropped (slow motion, never a spiral). */
 export const MAX_CATCH_UP_STEPS = 4;
 
 /** Refuses a request past a budget, naming the budget, its limit and the request. */

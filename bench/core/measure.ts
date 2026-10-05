@@ -1,14 +1,13 @@
 // Absolute measurement of an engine calculation, on named cases, against an oracle.
 // This file only measures and compares: table, fragments, baselines and path
 // checking of cited files are managed by `report.ts`.
-import { ecartRelatif } from './baseline.ts';
+import { chronometre, type Reglages } from './chrono.ts';
 import { ecart } from './diff.ts';
 import type { Compteur } from './ulp.ts';
 import {
   resultRow,
   type Measurement,
   type ResultRow,
-  type Stats,
 } from '../../site/examples/kit/measureTypes.ts';
 
 /** One named input to measure, or to verify only when `mesure` is `false`. */
@@ -17,12 +16,6 @@ export interface MesureCas<Entree = unknown> {
   input: Entree;
   size?: number | null;
   mesure?: boolean;
-}
-
-interface Reglages {
-  chauffe: number;
-  tours: number;
-  budgetMs: number;
 }
 
 interface Verdict {
@@ -41,7 +34,25 @@ export interface MesureParams<Entree = unknown, Sortie = unknown> {
   attendu?: (input: Entree) => Sortie | Promise<Sortie>;
   temoin?: (input: Entree) => unknown;
   differences?: (ref: Sortie, obt: Sortie, chemin: string) => Compteur;
+  /** Reads, untimed, what a call left — its result or the state it wrote — for the oracle check:
+   *  the timed call then runs the engine alone, with no copy or allocation of its output. */
+  lecture?: (input: Entree, sortie: Sortie) => unknown;
   motif?: string | null;
+}
+
+/**
+ * `f` over every element of a list, into an array the returned function keeps from call to call:
+ * the timed call runs the measured function alone, where `liste.map` allocated and filled a new
+ * array each time — at 2 000 elements, most of what a 20 µs line read. A side's result is read
+ * before that side is called again, so reusing its array changes no comparison.
+ */
+export function parElement<E, R>(f: (element: E, index: number) => R) {
+  const sortie: R[] = [];
+  return (liste: readonly E[]) => {
+    sortie.length = liste.length;
+    for (let i = 0; i < liste.length; i++) sortie[i] = f(liste[i], i);
+    return sortie;
+  };
 }
 
 export function graine(depart: number) {
@@ -54,23 +65,9 @@ export function graine(depart: number) {
   };
 }
 
-function stats(durees: number[]): Stats {
-  const t = durees.slice().sort((a, b) => a - b);
-  const n = t.length;
-  const milieu = n >> 1;
-  const medianeMs = n % 2 ? t[milieu] : (t[milieu - 1] + t[milieu]) / 2;
-  const i95 = Math.min(Math.ceil(n * 0.95) - 1, n - 1);
-  return { medianeMs, p95Ms: t[i95], minMs: t[0], tours: n };
-}
-
 const compteTexte = (c: Compteur) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at most`;
 
-interface VerifieConf<Entree, Sortie> {
-  calcul: (input: Entree) => Sortie | Promise<Sortie>;
-  attendu?: (input: Entree) => Sortie | Promise<Sortie>;
-  differences?: (ref: Sortie, obt: Sortie, chemin: string) => Compteur;
-  motif?: string | null;
-}
+type VerifieConf<Entree, Sortie> = Omit<MesureParams<Entree, Sortie>, 'name' | 'fichier' | 'cas'>;
 
 /**
  * Compares a case to its oracle. Without `differences`, equality is strict bitwise; with, the
@@ -81,24 +78,27 @@ interface VerifieConf<Entree, Sortie> {
  */
 async function verifie<Entree, Sortie>(
   item: MesureCas<Entree>,
-  { calcul, attendu, differences, motif }: VerifieConf<Entree, Sortie>,
+  { calcul, attendu, differences, lecture, motif }: VerifieConf<Entree, Sortie>,
 ): Promise<Verdict> {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
-  const ref = await attendu(item.input);
-  const obt = await calcul(item.input);
+  const lit = (sortie: Sortie) => (lecture ? lecture(item.input, sortie) : sortie);
+  const ref = lit(await attendu(item.input));
+  const obt = lit(await calcul(item.input));
   if (!differences) {
     const diff = ecart(ref, obt, item.name);
     return { correct: diff === null, difference: diff, motif: motif ?? null };
   }
-  const compte = compteTexte(differences(ref, obt, item.name));
+  const compte = compteTexte(differences(ref as Sortie, obt as Sortie, item.name));
   return { correct: null, difference: null, motif: motif ? `${compte} ; ${motif}` : compte };
 }
 
 /**
  * Absolute measurement of a calculation on a set of named cases, each verified against `attendu`.
  * `fichier` is the measured path, or list of paths; `mesure: false` on a case verifies it without timing.
- * `temoin` is another calculation of the same thing, timed under the same settings: its statistics
- * go under `temoin` and `ecartTemoin` reads the calculation's median against its (`null` without).
+ * `temoin` is another calculation of the same thing, timed under the same settings and interleaved
+ * with it: its statistics go under `temoin`, and `ecartTemoin` is the median of the per-round
+ * quotients calculation / witness, minus one (`null` without) — the one statistic the `vs witness`
+ * column prints and the duel gates read.
  */
 export async function mesure<Entree = unknown, Sortie = unknown>({
   name,
@@ -118,8 +118,16 @@ export async function mesure<Entree = unknown, Sortie = unknown>({
       continue;
     }
 
-    const t = conf.temoin ? await chronometre(conf.temoin, item.input, reglages) : null;
-    const s = await chronometre(conf.calcul, item.input, reglages);
+    const {
+      calcul: s,
+      temoin: t,
+      ecartTemoin,
+    } = await chronometre(
+      conf.calcul as (input: unknown) => unknown,
+      item.input,
+      reglages,
+      conf.temoin as ((input: unknown) => unknown) | undefined,
+    );
     const taille = item.size ?? null;
     resultats.push({
       name: item.name,
@@ -128,32 +136,9 @@ export async function mesure<Entree = unknown, Sortie = unknown>({
       nsParElement: taille !== null && taille > 0 ? (s.medianeMs * 1e6) / taille : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
       temoin: t,
-      ecartTemoin: ecartRelatif(s.medianeMs, t?.medianeMs),
+      ecartTemoin,
       ...verdict,
     });
   }
   return { name, fichier, resultats };
-}
-
-/** Warm-up, then timed turns until `tours` or the budget: the statistics of one calculation on one input. */
-async function chronometre<Entree>(
-  calcul: (input: Entree) => unknown,
-  input: Entree,
-  { chauffe, tours, budgetMs }: Reglages,
-): Promise<Stats> {
-  for (let i = 0; i < chauffe; i++) await calcul(input);
-
-  // Two clock readings per turn, not three: the end of a turn is also where the
-  // budget is evaluated. The timer wraps exactly the call, as before.
-  const durees: number[] = [];
-  const debut = process.hrtime.bigint();
-  let fin: bigint;
-  while (durees.length < tours) {
-    const t0 = process.hrtime.bigint();
-    await calcul(input);
-    fin = process.hrtime.bigint();
-    durees.push(Number(fin - t0) / 1e6);
-    if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
-  }
-  return stats(durees);
 }

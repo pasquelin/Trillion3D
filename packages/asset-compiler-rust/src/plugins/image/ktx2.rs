@@ -1,23 +1,19 @@
-//! KTX 2.0 driver, Khronos's texture container, read from the public specification
-//! "KTX File Format Specification, version 2.0": twelve-byte identifier, fourteen-field
-//! header, section index and level index, all written by hand from that document. No vendor
-//! SDK or code.
+//! KTX 2.0 driver, the texture container: twelve-byte identifier, fourteen-field header,
+//! section index and level index, all parsed by hand.
 //!
-//! Three permissive libraries do the rest, each on one matter:
+//! Three crates do the rest, each on one matter:
 //!
-//! - `basisu` 0.1.0 (Apache-2.0, `marcogomez/basisu`, pure Rust, no `cc` or C++) transcodes
-//!   Basis Universal payloads — ETC1S under BasisLZ supercompression, UASTC LDR 4 × 4 — to
-//!   RGBA8. It is a port of Binomial's reference transcoder, verified byte for byte against it.
-//! - `texture2ddecoder` 0.1.2 (MIT or Apache-2.0) expands blocks already compressed for the
+//! - `basisu` (pure Rust) transcodes Basis Universal payloads — ETC1S under BasisLZ
+//!   supercompression, UASTC LDR 4 × 4 — to RGBA8.
+//! - `texture2ddecoder` expands blocks already compressed for the
 //!   GPU, through the `image::blocks` base this driver shares with `dds`: the codec is named
 //!   by `vkFormat` here and by `dwFourCC` there, but walking the pixels is the same work. The
-//!   two unsigned EAC formats are an exception: `eac.rs`, written here from the OpenGL ES 3.0
-//!   specification, expands them to eleven bits then rounds — the external decoder truncated
+//!   two unsigned EAC formats are an exception: `eac.rs`, written here, expands them to eleven bits then rounds — the external decoder truncated
 //!   them and read their index field backwards.
-//! - `ruzstd` 0.7.3 (MIT, pure Rust) undoes a level's Zstandard supercompression.
+//! - `ruzstd` (pure Rust) undoes a level's Zstandard supercompression.
 //!
 //! **No extra loss is added.** An ETC1S, UASTC or BCn payload has already lost what it had to
-//! lose at its encoder; the driver only does the reconstruction the codec specification
+//! lose at its encoder; the driver only does the reconstruction the codec
 //! defines, with no filter, no extra rounding, no re-encoding. The source is never modified.
 //!
 //! **Decoding is a fallback, not the destination.** The repository rule is that a texture

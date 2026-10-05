@@ -53,7 +53,11 @@ impl<'a> Welds<'a> {
             attributes,
             columns: Columns {
                 islands: vertex_islands(&weld_seam, indices),
-                exact: weld_exact(positions, attributes.carried, indices),
+                // Nothing carried, the exact key is the position key: the same weld.
+                exact: match attributes.carried.is_empty() {
+                    true => weld.clone(),
+                    false => weld_exact(positions, attributes.carried, indices),
+                },
                 extents: super::vanished::part_extents(positions, indices, &weld),
                 weld,
                 weld_seam,

@@ -1,10 +1,10 @@
 // What reconstructing the pre-batch form is worth, in the reproduction benches of
-// defects 6 and 9 (`tests/browser/probes/inverse-transpose-small-scale.ts` and
-// `lighting-normal-small-scale.ts`).
+// defects 6 and 9 (`tests/gpu/math/inverse-transpose-small-scale.gpu.ts` and
+// `normal-transform-small-scale.gpu.ts`).
 //
 // THE PREVIOUS STATE, for the record: both benches rebuilt the pre-batch shader with
-// `texte.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_AVANT_WGSL)`, guarded by a single
-// `assert.notEqual(resultat, texte)`. That guard catches the case where the shipped block is no
+// `text.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_BEFORE_WGSL)`, guarded by a single
+// `assert.notEqual(result, text)`. That guard catches the case where the shipped block is no
 // longer found — so the substitution was not complete silence — but it only says "something
 // moved": it lets a partial substitution through (shipped block present twice, only the first
 // replaced) and a crooked substitution (`$&`, `` $` ``, `$'`, `$$` interpreted in the
@@ -18,48 +18,51 @@ import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts';
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts';
-import { substitueFormeAvant } from '../../../../tests/browser/probes/substitutionBefore.ts';
+import { substitutePreviousForm } from '../../../../tests/gpu/math/substitutionBefore.ts';
 import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../math/inverseTransposeBefore.fixture.ts';
 
-const ORIGINE = 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
-const SEUIL_ABSOLU = 'abs(det)<1e-20';
-const reel = (texte: string, name: string) => ({
-  texte,
-  livre: INVERSE_TRANSPOSE_WGSL,
-  before: INVERSE_TRANSPOSE_BEFORE_WGSL,
+const ORIGIN = 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+const ABSOLUTE_THRESHOLD = 'abs(det)<1e-20';
+const real = (text: string, name: string) => ({
+  text,
+  shipped: INVERSE_TRANSPOSE_WGSL,
+  previous: INVERSE_TRANSPOSE_BEFORE_WGSL,
   name,
-  origine: ORIGINE,
-  marqueur: SEUIL_ABSOLU,
+  origin: ORIGIN,
+  marker: ABSOLUTE_THRESHOLD,
 });
 
 test('on the two real shaders, substitution yields the pre-batch form', () => {
-  for (const [name, texte] of [
+  for (const [name, text] of [
     ['DAG selection', DAG_SELECTION_SHADER],
     ['lighting', NORMAL_TRANSFORM_WGSL],
   ] as const) {
-    const before = substitueFormeAvant(reel(texte, name));
-    assert.ok(before.includes(SEUIL_ABSOLU), `${name}: the absolute threshold did not come back`);
+    const before = substitutePreviousForm(real(text, name));
     assert.ok(
-      !texte.includes(SEUIL_ABSOLU),
+      before.includes(ABSOLUTE_THRESHOLD),
+      `${name}: the absolute threshold did not come back`,
+    );
+    assert.ok(
+      !text.includes(ABSOLUTE_THRESHOLD),
       `${name}: the shipped text still carries the threshold`,
     );
     assert.equal(
       before.length,
-      texte.length - INVERSE_TRANSPOSE_WGSL.length + INVERSE_TRANSPOSE_BEFORE_WGSL.length,
+      text.length - INVERSE_TRANSPOSE_WGSL.length + INVERSE_TRANSPOSE_BEFORE_WGSL.length,
     );
   }
 });
 
 /** The call must throw, and the message must contain that fragment. */
-function echoue(options: Parameters<typeof substitueFormeAvant>[0], fragment: string) {
+function fails(options: Parameters<typeof substitutePreviousForm>[0], fragment: string) {
   assert.throws(
-    () => substitueFormeAvant(options),
-    (erreur: Error) => {
+    () => substitutePreviousForm(options),
+    (error: Error) => {
       assert.ok(
-        erreur.message.includes(fragment),
-        `message without "${fragment}": ${erreur.message}`,
+        error.message.includes(fragment),
+        `message without "${fragment}": ${error.message}`,
       );
-      assert.ok(erreur.message.includes(ORIGINE), `message without the origin: ${erreur.message}`);
+      assert.ok(error.message.includes(ORIGIN), `message without the origin: ${error.message}`);
       return true;
     },
   );
@@ -68,55 +71,55 @@ function echoue(options: Parameters<typeof substitueFormeAvant>[0], fragment: st
 test('shipped block not found: the bench stops instead of replaying the fixed text', () => {
   // The case that counts: the kernel moved and the previous constant no longer matches it. Without
   // a guard, `replace` returns the unchanged text and the bench measures the FIXED version on both sides.
-  echoue(
-    { ...reel(DAG_SELECTION_SHADER, 'shader without the block'), livre: 'fn jamaisEcrite(){}' },
+  fails(
+    { ...real(DAG_SELECTION_SHADER, 'shader without the block'), shipped: 'fn neverWritten(){}' },
     'appears 0 times',
   );
 });
 
 test('shipped block present twice: the substitution would be partial', () => {
-  echoue(
-    reel(`${DAG_SELECTION_SHADER}\n${INVERSE_TRANSPOSE_WGSL}`, 'shader with doubled block'),
+  fails(
+    real(`${DAG_SELECTION_SHADER}\n${INVERSE_TRANSPOSE_WGSL}`, 'shader with doubled block'),
     'appears 2 times',
   );
 });
 
 test('a "$" in the previous form: the raw replace pastes crookedly, this one does not', () => {
-  // `$&` is the matched text: a raw `replace(livre, avant)` pastes the SHIPPED block into the
+  // `$&` is the matched text: a raw `replace(shipped, previous)` pastes the SHIPPED block into the
   // "previous shader", which then replays the fixed version in the middle of the defect. The
   // function-based replace, itself, reads no `$`.
-  const avecDollar = `${INVERSE_TRANSPOSE_BEFORE_WGSL}\n// $&`;
-  const naif = DAG_SELECTION_SHADER.replace(INVERSE_TRANSPOSE_WGSL, avecDollar);
-  assert.ok(naif.includes(INVERSE_TRANSPOSE_WGSL), 'the raw replace did not interpret "$&"');
-  const sain = substitueFormeAvant({
-    ...reel(DAG_SELECTION_SHADER, 'previous form with $&'),
-    before: avecDollar,
+  const withDollar = `${INVERSE_TRANSPOSE_BEFORE_WGSL}\n// $&`;
+  const naive = DAG_SELECTION_SHADER.replace(INVERSE_TRANSPOSE_WGSL, withDollar);
+  assert.ok(naive.includes(INVERSE_TRANSPOSE_WGSL), 'the raw replace did not interpret "$&"');
+  const sound = substitutePreviousForm({
+    ...real(DAG_SELECTION_SHADER, 'previous form with $&'),
+    previous: withDollar,
   });
   assert.ok(
-    !sain.includes(INVERSE_TRANSPOSE_WGSL),
+    !sound.includes(INVERSE_TRANSPOSE_WGSL),
     'the shipped block stayed in the previous shader',
   );
-  assert.ok(sain.includes('// $&'), 'the "$&" must stay the text it is');
+  assert.ok(sound.includes('// $&'), 'the "$&" must stay the text it is');
   assert.equal(
-    sain.length,
-    DAG_SELECTION_SHADER.length - INVERSE_TRANSPOSE_WGSL.length + avecDollar.length,
+    sound.length,
+    DAG_SELECTION_SHADER.length - INVERSE_TRANSPOSE_WGSL.length + withDollar.length,
   );
 });
 
 test('a previous form that no longer carries the marker reproduces nothing', () => {
-  echoue(
+  fails(
     {
-      ...reel(DAG_SELECTION_SHADER, 'previous form without threshold'),
-      before: INVERSE_TRANSPOSE_WGSL,
+      ...real(DAG_SELECTION_SHADER, 'previous form without threshold'),
+      previous: INVERSE_TRANSPOSE_WGSL,
     },
     'both blocks are the same text',
   );
-  echoue(
+  fails(
     {
-      ...reel(DAG_SELECTION_SHADER, 'watered-down previous form'),
-      before: INVERSE_TRANSPOSE_BEFORE_WGSL.replace(SEUIL_ABSOLU, 'abs(det)<1e-30'),
+      ...real(DAG_SELECTION_SHADER, 'watered-down previous form'),
+      previous: INVERSE_TRANSPOSE_BEFORE_WGSL.replace(ABSOLUTE_THRESHOLD, 'abs(det)<1e-30'),
     },
-    `no longer carries « ${SEUIL_ABSOLU} »`,
+    `no longer carries « ${ABSOLUTE_THRESHOLD} »`,
   );
 });
 
@@ -125,5 +128,5 @@ test('the previous form already present in the text: this is no longer a reprodu
     INVERSE_TRANSPOSE_WGSL,
     () => INVERSE_TRANSPOSE_BEFORE_WGSL,
   );
-  echoue(reel(dejaAvant, 'shader already rolled back'), 'appears 0 times');
+  fails(real(dejaAvant, 'shader already rolled back'), 'appears 0 times');
 });

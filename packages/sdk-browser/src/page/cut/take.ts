@@ -1,35 +1,10 @@
 /** The per-page half of the cut's descent: a leaf's clusters tested and kept (`visit.ts`). */
 import { coneSkipsPage } from '../selection/helpers.ts';
 import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
-import { boxMissesLightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { framePixels } from '../selection/frame.ts';
 import { pixelsAtZero } from '../selection/projection.ts';
 import { drawsCluster } from './rule.ts';
 import { fitPacked, selectionScratch, type PageRecord, type SelectionState } from './state.ts';
-
-/** A page box grown for a light's cut: rewritten per use, no array made. */
-const grownMin = [0, 0, 0],
-  grownMax = [0, 0, 0];
-/** Whether the light's cut misses the page box `min`, `max`, grown by the root's reach on every
- *  side when a deformation moves it (#357). */
-function missesLight<T extends PageRecord>(
-  s: SelectionState<T>,
-  min: readonly number[],
-  max: readonly number[],
-) {
-  const reach = s.flatReach;
-  let low = min,
-    high = max;
-  if (reach > 0) {
-    for (let c = 0; c < 3; c++) {
-      grownMin[c] = min[c] - reach;
-      grownMax[c] = max[c] + reach;
-    }
-    low = grownMin;
-    high = grownMax;
-  }
-  return boxMissesLightPages(s.light!, low, high, s.flatElements, s.cam.perspective);
-}
 
 /** Frustum test of a page's world box against the selection planes. */
 function clipRecordBox(min: readonly number[], max: readonly number[]) {
@@ -98,10 +73,6 @@ export function take<T extends PageRecord>(
       return;
     }
   } else if (!boxes && (!rec.min || !rec.max)) return;
-  if (s.light && missesLight(s, rec.min!, rec.max!)) {
-    s.frustumRejected++;
-    return;
-  }
   const held = s.flatHeld,
     ready = !held || held.isReady(index);
   // Settled: every cluster under the node meets the threshold and its parent does not.

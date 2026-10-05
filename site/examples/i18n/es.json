@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Imágenes/s",
-      "FPS (held)": "Imágenes/s (congelado)",
       "triangles": "triángulos",
       "triangles (scene)": "triángulos (escena)",
       "draw calls": "llamadas de dibujo",
       "pages": "páginas",
       "geometry pool": "reserva de geometría",
       "lights": "luces",
+      "GPU memory": "memoria GPU",
+      "screen images": "imágenes de pantalla",
+      "shadow memory": "memoria de sombras",
+      "geometry memory": "memoria de geometría",
+      "texture memory": "memoria de texturas",
+      "live textures": "texturas activas",
+      "transmission backdrop": "fondo de transmisión",
       "GPU frame": "imagen GPU",
       "GPU frame (last)": "imagen GPU (última)",
       "CPU frame": "imagen CPU",
       "page hooks": "código de la página",
-      "engine CPU": "CPU del motor"
+      "engine CPU": "CPU del motor",
+      "Statistics": "Estadísticas",
+      "hint": "Clic: compacto · arrastrar: mover · tecla º / `",
+      "fps": "FPS",
+      "budget": "presupuesto",
+      "held": "congelado",
+      "last": "último",
+      "others": "otros",
+      "Shadows": "Sombras",
+      "Scene and memory": "Escena y memoria",
+      "cut and culling": "corte y descarte",
+      "page preparation": "preparación de páginas",
+      "command encoding": "codificación de comandos",
+      "physics step": "paso de física",
+      "Cadence": "Cadencia",
+      "{n}× refresh": "{n}× refresco",
+      "GPU idle": "GPU inactiva"
+    },
+    "shadows": {
+      "lights": "luces",
+      "maps": "mapas",
+      "pagesRequested": "páginas pedidas",
+      "pagesAllocated": "páginas asignadas",
+      "pagesCached": "páginas en caché",
+      "pagesRendered": "páginas dibujadas",
+      "freePages": "páginas libres",
+      "lodBias": "sesgo de LOD",
+      "projectionPasses": "pasadas de proyección",
+      "invalidation": "invalidación",
+      "marking": "marcado",
+      "pageManagement": "gestión de páginas",
+      "render": "dibujo",
+      "projection": "proyección",
+      "transmission": "transmisión"
+    },
+    "passes": {
+      "vsm projection": "proyección VSM",
+      "vsm marking": "marcado VSM",
+      "vsm render": "dibujo VSM",
+      "material surfaces": "superficies de materiales",
+      "temporal antialiasing": "antialiasing temporal",
+      "HDR composition + present": "composición HDR + presentación",
+      "deferred lighting": "iluminación diferida",
+      "reflection source": "fuente de reflejos",
+      "HiZ pyramid": "pirámide HiZ",
+      "light tiles": "teselas de luz",
+      "texture mips": "mips de texturas",
+      "reflection radiance mips": "mips de radiancia de reflejos",
+      "reflection depth bounds mips": "mips de límites de profundidad de reflejos"
     },
     "failure": {
       "title": "Este ejemplo se detuvo por un error",
@@ -1363,7 +1417,8 @@
       "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Arrastra para rodear el busto. La caja y la bola de cristal giran sobre su plataforma.",
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caja de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Elige una calidad, una resolución y una vista. Guarda un ajuste como A, otro como B, y pulsa C para alternar entre ellos."
   }
 }

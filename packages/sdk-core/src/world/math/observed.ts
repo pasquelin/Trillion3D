@@ -91,5 +91,10 @@ export function unlisten(value: Observed, listener: () => void) {
   const chain = chains.get(value);
   if (chain?.call !== current) return;
   const at = chain.listeners.indexOf(listener);
-  if (at >= 0) chain.listeners.splice(at, 1);
+  if (at < 0) return;
+  chain.listeners.splice(at, 1);
+  // One owner left: it hears the value straight again, and the chain is let go.
+  if (chain.listeners.length > 1) return;
+  value._onChange = chain.listeners[0] ?? null;
+  chains.delete(value);
 }

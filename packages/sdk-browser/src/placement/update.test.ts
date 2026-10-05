@@ -6,8 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boxTransform } from '../../../sdk-core/src/index.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/math/matrix/matrix4.ts';
-import * as light from '../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import * as sun from '../../../sdk-core/src/scene/light-shadow/sunView.fixture.ts';
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts';
 import { createPlacementRows, placementWorld } from './rows.ts';
 import { followPlacementRows } from './update.ts';
@@ -53,7 +51,7 @@ function placed() {
       touched,
     );
   };
-  return { rows, write };
+  return { rows, write, mobility };
 }
 
 test('a written range stales each root that moved, apart, and none left where it stands', () => {
@@ -80,18 +78,21 @@ test('a written range stales each root that moved, apart, and none left where it
   assert.deepEqual(boxes, []);
 });
 
-test('a row parked or taken back where it stands stales its box', () => {
-  const { rows, write } = placed(),
+test('a row parked or taken back where it stands stales its box, and is no move', () => {
+  // A hidden or shown primitive is removed or added and its pages invalidated once; only a
+  // transform update caches it as dynamic: the static layer keeps it.
+  const { rows, write, mobility } = placed(),
     boxes: [number[], boolean][] = [];
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
     boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
   rows.live[2] = 0;
-  assert.equal(write([], collect), true, 'parked: a move whatever its pose');
-  assert.deepEqual(boxes, [[BOXES[2], false]], 'its first move stales the static layer');
+  assert.equal(write([], collect), true, 'parked: its box is stale');
+  assert.deepEqual(boxes, [[BOXES[2], false]], 'the static layer is drawn again');
   boxes.length = 0;
   rows.live[2] = 1;
-  assert.equal(write([], collect), true, 'taken back: a move whatever its pose');
-  assert.deepEqual(boxes, [[BOXES[2], true]], 'moving already: its moving casters');
+  assert.equal(write([], collect), true, 'taken back: its box is stale');
+  assert.deepEqual(boxes, [[BOXES[2], false]], 'still static');
+  assert.equal(mobility.moves(2), false, 'shown or hidden in place: never moving');
 });
 
 test('a row that stops or starts casting flips its mark and stales its box, whatever its pose', () => {
@@ -127,39 +128,4 @@ test('a moving row that stops casting as it moves stales its moving casters alon
     boxes.map(([, movingOnly]) => movingOnly),
     [true],
   );
-});
-
-test('a caster moving over a still ground, under a moving camera, redraws the pages it sweeps', () => {
-  const { store, plan, slice } = light.sunScene();
-  const named = sun.sunBlock(plan, slice, [3, 4, 5], [0, 5, 0], 8),
-    read = () => sun.entriesOf(plan, slice, named);
-  for (let frame = 1; frame < 4; frame++)
-    light.cycleDrawn(plan, store, frame, read, light.nudged(frame));
-  const { write } = placed(),
-    current = new Set<number>();
-  for (let frame = 4, was = 0; frame < 16; frame++) {
-    const x = frame * 0.02,
-      // The caster's own swept box, where it was and where it is.
-      min = [was - 0.1, 0, -0.1],
-      max = [x + 0.1, 0.2, 0.1];
-    was = x;
-    let boxes = 0;
-    write([[0, x]], (lo, hi) => {
-      boxes++;
-      plan.worldChanged(lo, hi);
-    });
-    assert.equal(boxes, 1, `frame ${frame}: the caster alone moved`);
-    current.clear();
-    for (let page = 0; page < plan.pool.pages; page++)
-      if (plan.pool.owner[page] >= 0 && plan.pool.valid[page] && !plan.pool.dirty[page])
-        current.add(page);
-    let under = 0;
-    for (const page of light.cycleDrawn(plan, store, frame, read, light.nudged(frame))) {
-      if (!current.has(page) || plan.records.isFloor(page)) continue;
-      const at = { level: plan.pool.view[page], ax: plan.pool.x[page], ay: plan.pool.y[page] };
-      assert.ok(sun.covers(plan, slice, at, min, max), `frame ${frame}: page ${page} drawn again`);
-      under++;
-    }
-    assert.ok(under > 0, `frame ${frame}: the pages under the caster are drawn`);
-  }
 });

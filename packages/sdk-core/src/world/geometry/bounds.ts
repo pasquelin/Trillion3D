@@ -1,8 +1,8 @@
 /**
- * The local bounds of a geometry, as the reference spans them: every vertex and every shape a
- * morph target gives it. A position is read at the value it stands for, as `drawnTriangles` draws
- * it (`pointAt`): straight from its list when it owns three plain numbers a vertex and no morph
- * target moves it, else vertex by vertex.
+ * The local bounds of a geometry: every vertex and every shape a morph target gives it. A
+ * position is read at the value it stands for, as `drawnTriangles` draws it (`pointAt`): straight
+ * from its list when it owns three plain numbers a vertex and no morph target moves it, else
+ * vertex by vertex.
  */
 import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
 import type { VertexAttribute } from '../buffer/attribute.ts';
@@ -121,10 +121,9 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
 }
 
 /** Whether `geometry` reads `attribute` as its stored numbers, a normalised integer unscaled: a
- *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
- *  geometry's lists are read at the value they stand for, as the host always read them, and so
- *  is a view of an interleaved buffer. Not asked for a position, which every owner reads at its
- *  value (`pointAt`). */
+ *  list a world geometry owns, read as stored. The lists of the application's geometry (`_owner`
+ *  `'host'`) are read at the value they stand for, and so is a view of an interleaved buffer. Not
+ *  asked for a position, which every owner reads at its value (`pointAt`). */
 export const readsStored = (geometry: Pick<Geometry, '_owner'>, attribute: VertexAttribute) =>
   geometry._owner === 'world' && attribute.kind === 'attribute';
 

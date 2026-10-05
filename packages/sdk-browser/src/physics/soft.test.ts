@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
+import {
+  PHYSICS_STEP,
+  softBodyOf,
+  type SoftBodyOptions,
+} from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { addSoft, at, ropeLine, settle, softWorld, WRITEBACK_BOUND } from './soft.fixture.ts';
+import { clampedCloth } from './softScenes.fixture.ts';
 import { FLAT } from './records.fixture.ts';
 
 /** A cloth of 1 m, 10 × 10 squares, and its rows of 11 vertices from `y = −0.5`. */
@@ -27,17 +32,21 @@ function volumeOf(indices: ArrayLike<number>, v: Float32Array) {
 }
 
 type Volume = Omit<Extract<SoftBodyOptions, { type: 'volume' }>, 'type'>;
-/** A ball (0.5 m unless told) dropped on the floor, after 3 s: its volume over its rest volume;
- *  `pressure` overrides the one its options give, `gravityScale` Earth's pull. */
+/** A ball (0.5 m unless told) dropped on the floor, after 3 s in steps of `step`: its volume over
+ *  its rest volume; `pressure` overrides the one its options give, `gravityScale` Earth's pull. */
 async function ball(
   options: Volume,
   shape: Geometry = sphere(0.5, 16, 12),
-  { pressure, gravityScale = 1 }: { pressure?: number; gravityScale?: number } = {},
+  {
+    pressure,
+    gravityScale = 1,
+    step = PHYSICS_STEP,
+  }: { pressure?: number; gravityScale?: number; step?: number } = {},
 ) {
-  const jolt = await softWorld();
+  const jolt = await softWorld(undefined, step);
   const rest = volumeOf(shape.index!.array, shape.getAttribute('position')!.array as Float32Array);
   const settings = softSettings({ type: 'volume', ...options });
-  const made = softBodyOf(shape, { x: 1, y: 1, z: 1 }, settings);
+  const made = softBodyOf(shape, { x: 1, y: 1, z: 1 }, settings, step);
   const record = addSoft(jolt, shape, { type: 'volume', ...options }, [0, 1, 0], {
     ...{ gravityScale, record: { ...made, pressure: pressure ?? made.pressure } },
   });
@@ -96,28 +105,27 @@ test('a volume keeps within a tenth of its rest volume at the most pressure its 
     [() => sphere(0.1, 32, 24), {}],
     [() => sphere(0.5, 16, 12), { stretch: 1e-3, mass: 5 }],
   ];
-  for (const [shape, options] of cases) {
-    const settings = softSettings({ type: 'volume', ...options });
-    const held = softBodyOf(shape(), { x: 1, y: 1, z: 1 }, settings).pressure;
-    const kept = await ball(options, shape(), { gravityScale: 0 });
-    assert.ok(Math.abs(kept - 1) < 0.1, `volume ${kept} at ${held} Pa`);
-    const swollen = await ball(options, shape(), { pressure: 2 * held, gravityScale: 0 });
-    assert.ok(swollen > 1.1, `volume ${swollen} at ${2 * held} Pa`);
-  }
+  // Reckoned at the page's step: a finer one gives less, and holds more.
+  for (const step of [PHYSICS_STEP, PHYSICS_STEP / 2])
+    for (const [shape, options] of cases) {
+      const settings = softSettings({ type: 'volume', ...options });
+      const held = softBodyOf(shape(), { x: 1, y: 1, z: 1 }, settings, step).pressure;
+      const kept = await ball(options, shape(), { gravityScale: 0, step });
+      assert.ok(Math.abs(kept - 1) < 0.1, `${step}: volume ${kept} at ${held} Pa`);
+      const swollen = await ball(options, shape(), { pressure: 2 * held, gravityScale: 0, step });
+      assert.ok(swollen > 1.1, `${step}: volume ${swollen} at ${2 * held} Pa`);
+    }
 });
 
-test('a cloth bent stiff stays out flat from its pins; folding freely, it hangs', async () => {
-  const reach = async (bend: number) => {
-    const jolt = await softWorld();
-    const options = { type: 'cloth' as const, pins: [...row(10), ...row(9)], bend };
-    const record = addSoft(jolt, cloth(), options, [0, 3, 0], {
-      quaternion: FLAT,
-      linearDamping: 2,
-    });
-    return at(settle(jolt, record, 3), 5)[2];
-  };
-  assert.ok((await reach(0)) > -0.3, 'stiff, it stays out');
-  assert.ok((await reach(Infinity)) < -0.8, 'free, it hangs');
+test('a cloth bent stiff stands out from its pins, as stiff as the solver resolves; folding freely, it hangs', async () => {
+  const reach = async (bend: number) => at(await clampedCloth(bend), 5)[2];
+  // Declared rigid, its bends are held at the stiffest the solver resolves (`SOFT_BEND_FLOOR`):
+  // the 1 m cloth of 10 cm squares clamped along two rows bows 0.28 m at its tip (0.22 unfloored),
+  // a third of its free hang; stiffer than that, the solver adds energy.
+  const [rigid, stiff, free] = [await reach(0), await reach(0.001), await reach(Infinity)];
+  assert.ok(rigid > -0.3 && stiff > -0.3, `stiff, it stands out: ${rigid}, ${stiff}`);
+  assert.ok(Math.abs(rigid - stiff) < 1e-3, 'stiffer than the solver resolves, alike');
+  assert.ok(free < -0.8, `free, it hangs: ${free}`);
 });
 
 test('SOFT reads gravity scale, damping and friction where the layout puts them', async () => {
@@ -131,16 +139,18 @@ test('SOFT reads gravity scale, damping and friction where the layout puts them'
   assert.ok(Math.abs((await drop({ gravityScale: 0 }))[1] + 0.5) < 1e-3, 'no gravity, it floats');
   assert.ok((await drop({ linearDamping: 20 }))[1] > -0.5 - 0.3, 'damped, it falls slowly');
   assert.ok((await drop({}))[1] < -0.5 - 1, 'undamped, it falls freely');
-  // On a floor tilted 30°, a flat cloth slides unless it grips (tan 30° < √(0.5 · 1)).
-  const slope = async (friction: number) => {
+  // On a floor tilted 30°, a flat cloth slides unless it grips (tan 30° < √(0.5 · 1)): gripping, it
+  // slides 0.17 m as it lands, 1 cm thick, then holds (0.09 m with no thickness).
+  const slope = async (friction: number, seconds = 1) => {
     const jolt = await softWorld([0, 0, Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)]);
     const record = addSoft(jolt, plane(0.5, 0.5, 4, 4), { type: 'cloth' }, [0, 0.35, 0], {
       quaternion: FLAT,
       friction,
     });
-    return at(settle(jolt, record, 1), 12)[0];
+    return at(settle(jolt, record, seconds), 12)[0];
   };
-  assert.ok(Math.abs(await slope(1)) < 0.1, 'it grips');
+  const [held, later] = [await slope(1), await slope(1, 2)];
+  assert.ok(Math.abs(held) < 0.25 && Math.abs(later - held) < 0.01, `it grips: ${held}, ${later}`);
   assert.ok(Math.abs(await slope(0)) > 0.5, 'it slides');
 });
 

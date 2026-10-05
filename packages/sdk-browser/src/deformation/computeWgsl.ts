@@ -3,9 +3,17 @@ import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pag
 
 /** The binding of the float pool's normal atlas (`../webgpu/core/floatAtlas.ts`, #1410). */
 export const DEFORMATION_NORMALS = 2;
-import { FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts';
+import {
+  DEFORM_ADDRESS,
+  DEFORM_IN_POOL,
+  FLAG_CLUSTER_PAGE,
+  FLAG_DYNAMIC,
+} from '../visibility/types.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
 import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts';
+
+/** Lanes of the stage's group: a row of at most as many vertices deforms them in one pass. */
+export const DEFORMATION_LANES = 64;
 
 /** One invocation per vertex, one group per resident placement; results share its cache slot. */
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -21,26 +29,38 @@ fn storeDeformed(at:u32,v:vec3f,whole:bool){
  if(whole){positions[at]=v.x;positions[at+1u]=v.y;positions[at+2u]=v.z;return;}
  indices[at]=bitcast<u32>(v.x);indices[at+1u]=bitcast<u32>(v.y);indices[at+2u]=bitcast<u32>(v.z);
 }
-@compute @workgroup_size(64)
+/** A tag as a vertex's results keep it: a word in a slot's tail; in the float pool, its low 24
+ *  bits, which a float carries exactly. */
+fn deformTagOf(tag:u32,whole:bool)->u32{return select(tag,tag&0xffffffu,whole);}
+fn deformTag(at:u32,whole:bool)->u32{
+ if(whole){return u32(positions[at]);}return indices[at];
+}
+fn storeTag(at:u32,tag:u32,whole:bool){
+ if(whole){positions[at]=f32(deformTagOf(tag,true));return;}indices[at]=tag;
+}
+@compute @workgroup_size(${DEFORMATION_LANES})
 fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let row=group.x+group.y*${DEFAULT_GROUP_WIDTH}u;
  if(row>=arrayLength(&pages)){return;}
  let page=pages[row];
  if(page.deformOutput==0u||page.indexCount==0u){return;}
  let h=pageHeader(page);
- for(var v=lane;v<page.deformCount;v+=64u){
+ for(var v=lane;v<page.deformCount;v+=${DEFORMATION_LANES}u){
   let p=pageRestPosition(page,h,v);
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
   else{n=vertN(page.vertexBase,v);}
-  let whole=(page.deformOutput&0x80000000u)!=0u;
-  let at=(page.deformOutput&0x7fffffffu)-1u+v*11u;
+  let whole=(page.deformOutput&${DEFORM_IN_POOL}u)!=0u;
+  // A whole copy keeps no tags; a slot's tail and a float page's block do.
+  let tagged=!deformWholeCopy(page);
+  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*11u;
   var before=deformPoint(page,h,v,p,true);
-  if(!whole&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&indices[at-2u]==page.selectionIndex+1u){
-   if(indices[at-1u]==image.x-1u){before=pageDeformed(page,v,0u);}
-   if(indices[at-1u]==image.x){before=pageDeformed(page,v,3u);}
+  if(tagged&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(at-2u,whole)==deformTagOf(page.selectionIndex+1u,whole)){
+   let last=deformTag(at-1u,whole);
+   if(last==deformTagOf(image.x-1u,whole)){before=pageDeformed(page,v,0u);}
+   if(last==deformTagOf(image.x,whole)){before=pageDeformed(page,v,3u);}
   }
-  if(!whole){indices[at-2u]=page.selectionIndex+1u;indices[at-1u]=image.x;}
+  if(tagged){storeTag(at-2u,page.selectionIndex+1u,whole);storeTag(at-1u,image.x,whole);}
   storeDeformed(at,deformPoint(page,h,v,p,false),whole);
   storeDeformed(at+3u,before,whole);
   storeDeformed(at+6u,deformNormal(page,h,v,n),whole);

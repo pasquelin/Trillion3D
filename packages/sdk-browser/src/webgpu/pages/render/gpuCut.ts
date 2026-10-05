@@ -3,6 +3,7 @@ import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts';
 import { prefetchHorizonMs } from '../../../backend/common.ts';
 import { mirrorDrawnFromShown } from '../helpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts';
+import { encodeComposedRoots } from '../../../placement/gpuCompose.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { encodeDraws } from './encodeDraws.ts';
 import { admitGpuCut } from './gpuCutAdmission.ts';
@@ -100,6 +101,7 @@ export function renderGpuCut(
   try {
     const encoder = openFrameEncoder(rt, gpuDevice);
     rt.vis.deformationCode?.encodeDeformation(rt, encoder);
+    encodeComposedRoots(rt, gpuDevice, encoder);
     rt.timing.frameSelection = run.gpuSelection.dispatch(run.selectionUniforms, encoder);
   } catch (error) {
     abandonFrameEncoder(rt);

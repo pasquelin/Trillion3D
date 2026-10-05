@@ -1,71 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-import {
-  beginTaaFrame,
-  dropTaaHistory,
-  encodeTaaPass,
-  taaRenderMatrix,
-  taaSampledRank,
-  taaSettled,
-} from './frame.ts';
-import { createTaaFrameState } from './frameState.ts';
-import { createScaleControl } from '../frame/scaleControl.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { TaaInputs } from './inputs.ts';
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
+import { restartTaaAverage } from './landing.ts';
+import { taaRenderMatrix, taaSampledRank, taaSettled } from './frame.ts';
+import { runtime } from './frame.fixture.ts';
 import { TAA_STILL_FRAMES } from './stillFrames.fixture.ts';
-/** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
-function runtime() {
-  const encoded: unknown[] = [];
-  const output = { color: {}, share: {} };
-  const flags = { flags: true } as unknown as GPUTextureView;
-  const temporal = {
-    uniform: {} as GPUBuffer,
-    motion: {
-      buffer: {} as GPUBuffer,
-      moved: false,
-      updates: [] as boolean[],
-      resets: 0,
-      update(_eye: ArrayLike<number>, scan: boolean) {
-        this.updates.push(scan);
-      },
-      reset() {
-        this.resets++;
-      },
-    },
-    frame: createTaaFrameState(),
-    inputs: {} as TaaInputs,
-    checkpoint() {},
-    replay: () => false,
-    encode(_encoder: unknown, inputs: unknown) {
-      encoded.push(inputs);
-      return output;
-    },
-  };
-  const size = () => [64, 32];
-  const rt = {
-    gpu: { temporal, temporalWanted: true, depthView: {}, hdrView: {}, cache: { buffer: {} } },
-    vis: { visView: { ids: true }, pageTable: { pages: true }, concatPos: {}, concatUv: {} },
-    run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
-    capture: { capturing: false },
-  } as unknown as WebgpuPagesRuntime;
-  rt.gpu.surfaces = { views: () => [{}, {}, {}, flags] } as never;
-  Object.assign(rt.gpu, { targetSize: size(), allocatedSize: size(), displaySize: size() });
-  Object.assign(rt, { scale: createScaleControl(undefined) });
-  const { device, writes } = fakeDevice();
-  const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
-  /** A whole frame: input, render matrix, pass; returns the written uniform, or `null`. */
-  const frame = (quiet: boolean, asIs = true) => {
-    beginTaaFrame(rt, cam, quiet);
-    taaRenderMatrix(rt, cam);
-    const before = writes.length;
-    encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, rt.gpu.hdrView!, asIs);
-    return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null;
-  };
-  return { rt, cam, temporal, encoded, frame, flags };
-}
+import { TAA_SAMPLES } from './jitter.ts';
+import type { TaaInputs } from './inputs.ts';
 
 test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
   const { rt, cam, encoded, frame } = runtime();
@@ -112,10 +52,10 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
 
 test('hold waits for a full cycle of still frames, averaged uniformly from a fixed phase', () => {
   const { rt, temporal, frame } = runtime();
-  // Three moving frames: exponential accumulation at one eighth, jitter advances.
+  // Three moving frames: the history's own share (`historyCap`), no uniform one; jitter advances.
   for (let i = 0; i < 3; i++) frame(false);
   assert.equal(temporal.frame.sample, 3);
-  assert.equal(Math.fround(frame(false)![36]), Math.fround(1 / 8));
+  assert.equal(frame(false)![36], 0);
   assert.equal(taaSettled(rt), false);
   // First still frame: history is dropped, jitter restarts from zero.
   let u = frame(true)!;
@@ -126,24 +66,23 @@ test('hold waits for a full cycle of still frames, averaged uniformly from a fix
   u = frame(true)!;
   assert.equal(u[37], 1);
   assert.equal(Math.fround(u[36]), Math.fround(1 / 2));
-  for (let k = 3; k < TAA_STILL_FRAMES - 1; k++) frame(true);
-  assert.equal(taaSettled(rt), false, 'two frames before the full cycle, nothing is held');
-  u = frame(true)!;
-  assert.equal(Math.fround(u[36]), Math.fround(1 / (TAA_STILL_FRAMES - 1)));
-  assert.equal(taaSettled(rt), true, 'read before entry: the next quiet image closes the cycle');
+  for (let k = 3; k < TAA_STILL_FRAMES; k++) frame(true);
+  assert.equal(taaSettled(rt), false, 'one image short of the whole cycles, nothing is held');
+  assert.equal(temporal.frame.sample, TAA_SAMPLES - 1, 'the last phase of the cycle is still owed');
   u = frame(true)!;
   assert.equal(Math.fround(u[36]), Math.fround(1 / TAA_STILL_FRAMES));
-  assert.equal(taaSettled(rt), true);
-  // Something moves: the count restarts, history stays and mixes at one eighth.
+  assert.equal(temporal.frame.sample, 0, 'the images drawn close whole cycles');
+  assert.equal(taaSettled(rt), true, 'read before entry: every phase drawn as often, held');
+  // Something moves: the count restarts, history stays and mixes at its own share.
   u = frame(false)!;
   assert.equal(temporal.frame.stillFrames, 0);
   assert.equal(u[37], 1);
-  assert.equal(Math.fround(u[36]), Math.fround(1 / 8));
+  assert.equal(u[36], 0);
   assert.equal(taaSettled(rt), false);
   // Reallocated targets lose history and the count.
   for (let i = 0; i < TAA_STILL_FRAMES; i++) frame(true);
   assert.equal(taaSettled(rt), true);
-  dropTaaHistory(rt);
+  restartTaaAverage(temporal.frame);
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(taaSettled(rt), false);
 });

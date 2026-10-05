@@ -7,6 +7,7 @@ import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts';
+import type { RasterView } from '../runtime.ts';
 import {
   assertOccluderImage,
   occluderScene,
@@ -38,8 +39,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   const { cam, cpu } = run,
     backend = run.backend as ReturnType<typeof webgpuPagesBackend> & {
       selectedPageIds(): string[];
-      rasterRgba(): Uint8Array;
-      visibilityIds(): Uint32Array;
+      rasterView(): RasterView;
     };
   assert.ok(textures.some((texture) => texture.format === 'r32float'));
   backend.render(cam);

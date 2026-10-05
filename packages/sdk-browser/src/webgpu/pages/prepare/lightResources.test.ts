@@ -4,13 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import {
-  directLightResources,
-  followLightThreshold,
-  readsAsIs,
-  wantsContractLighting,
-} from './lightResources.ts';
-import { createWebgpuLightState } from '../state/lights.ts';
+import { directLightResources, readsAsIs, wantsContractLighting } from './lightResources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 const LAMP: SceneLight = {
@@ -23,19 +17,19 @@ const LAMP: SceneLight = {
   castsShadow: false,
 };
 
-function banc() {
+function harness() {
   const store = createSceneLightStore();
   return { store, rt: { lights: { store } } as unknown as WebgpuPagesRuntime };
 }
 
 test('`lit` view with no light: the contract still lights, the image comes out black', () => {
-  const b = banc();
+  const b = harness();
   b.store.setView('lit');
   assert.equal(wantsContractLighting(b.rt), true);
 });
 
 test('turning off the last light in a `lit` view does not bring albedo back', () => {
-  const b = banc();
+  const b = harness();
   b.store.setView('lit');
   b.store.add({ ...LAMP });
   assert.equal(wantsContractLighting(b.rt), true);
@@ -44,7 +38,7 @@ test('turning off the last light in a `lit` view does not bring albedo back', ()
 });
 
 test('`auto` keeps its behaviour: albedo while no light is declared', () => {
-  const b = banc();
+  const b = harness();
   assert.equal(wantsContractLighting(b.rt), false, 'auto with no light: raw albedo');
   b.store.add({ ...LAMP });
   assert.equal(wantsContractLighting(b.rt), true, 'a declared light: real lighting takes over');
@@ -57,17 +51,11 @@ test('`auto` keeps its behaviour: albedo while no light is declared', () => {
 });
 
 test('`unlit` stays the diagnostic view, lights or not', () => {
-  const b = banc();
+  const b = harness();
   b.store.setView('unlit');
   assert.equal(wantsContractLighting(b.rt), false);
   b.store.add({ ...LAMP });
   assert.equal(wantsContractLighting(b.rt), false);
-});
-
-test('the light cuts select at the camera threshold, which no budget raises', () => {
-  const lights = createWebgpuLightState(32);
-  assert.equal(followLightThreshold(lights, 1, [0, 0, 0]), 1);
-  assert.equal(followLightThreshold(lights, 8, [0, 0, 0]), 8);
 });
 
 // OMB-11: the flagless variants are chosen only when nothing in the image can write the as-is flag.
@@ -80,15 +68,15 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
 });
 
 test('the resolve with no shadow code is asked by the declared lights, never a slot (#1249, #1362)', () => {
-  const b = banc();
+  const b = harness();
   // No visibility buffer yet: no receiver offset to recompute (#1410).
-  const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
+  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
   b.store.add({ ...LAMP });
   b.store.add({ ...LAMP, id: 'l1' });
   assert.equal(directLightResources(rt).unshadowed, true, 'no light declares a shadow');
   b.store.set('l1', { castsShadow: true });
-  assert.equal(directLightResources(rt).unshadowed, true, 'a shadow, but no atlas to hold it');
-  Object.assign(rt.lights, { shadows: {} });
+  assert.equal(directLightResources(rt).unshadowed, true, 'a shadow, but no raster to draw it');
+  Object.assign(rt.lights, { pageLayout: {} });
   assert.equal(directLightResources(rt).unshadowed, false, 'a declared shadow: shadow code');
   // A lamp that moves takes and leaves its slot: the program stays.
   for (const slice of [0, -1, 0]) {
@@ -98,8 +86,8 @@ test('the resolve with no shadow code is asked by the declared lights, never a s
 });
 
 test('a frame with no rectangle light asks for the resolve with no rectangle code (#1369)', () => {
-  const b = banc();
-  const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
+  const b = harness();
+  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
   b.store.add({ ...LAMP });
   assert.equal(directLightResources(rt).rectless, true, 'a point lamp alone');
   const panel: SceneLight = {
@@ -114,4 +102,47 @@ test('a frame with no rectangle light asks for the resolve with no rectangle cod
   assert.equal(directLightResources(rt).rectless, false, 'a rectangle: the program that shades it');
   b.store.remove('panel');
   assert.equal(directLightResources(rt).rectless, true);
+});
+
+test('a frame asks for the shadow read of the kinds its shadowed lights are, never a slot (`ShadowKinds`)', () => {
+  const b = harness();
+  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, lights: { store: b.store, pageLayout: {} } };
+  const key = () => {
+    const { unshadowed, sunless, localless } = directLightResources(
+      rt as unknown as WebgpuPagesRuntime,
+    );
+    return { unshadowed, sunless, localless };
+  };
+  const sun: SceneLight = {
+    id: 'sun',
+    kind: 'directional',
+    color: [1, 1, 1],
+    intensity: 5,
+    direction: [0, -1, 0],
+    castsShadow: false,
+  };
+  b.store.add({ ...LAMP });
+  b.store.add({ ...sun });
+  assert.deepEqual(
+    key(),
+    { unshadowed: true, sunless: false, localless: false },
+    'no shadow: both cut at once',
+  );
+  b.store.set('sun', { castsShadow: true });
+  assert.deepEqual(
+    key(),
+    { unshadowed: false, sunless: false, localless: true },
+    'the sun alone casts',
+  );
+  b.store.set('l0', { castsShadow: true });
+  assert.deepEqual(key(), { unshadowed: false, sunless: false, localless: false }, 'both kinds');
+  b.store.set('sun', { castsShadow: false });
+  assert.deepEqual(
+    key(),
+    { unshadowed: false, sunless: true, localless: false },
+    'a lamp alone casts',
+  );
+  // A slot taken or left changes nothing.
+  b.store.assignSlice(0, 0);
+  assert.deepEqual(key(), { unshadowed: false, sunless: true, localless: false });
 });

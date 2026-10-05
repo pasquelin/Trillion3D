@@ -112,7 +112,7 @@ fn morph_targets_and_their_weights_are_laid_out() {
 }
 
 // Issue #275: a texture whose only image is an extension's (`EXT_texture_webp`,
-// `EXT_texture_avif`) keeps it, as the reference loader reads it — the extension's first,
+// `EXT_texture_avif`) keeps it, as the table publishes it — the extension's first,
 // before the core `source`.
 #[test]
 fn a_texture_keeps_the_image_its_webp_or_avif_extension_names() {

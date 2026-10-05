@@ -1,11 +1,22 @@
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
-import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR } from '../types.ts';
+import {
+  DEFORM_ADDRESS,
+  DEFORM_IN_POOL,
+  DEFORM_NO_HEADER,
+  FLAG_CLUSTER_PAGE,
+  FLAG_HAS_COLOR,
+  FLAG_HAS_UV,
+  FLAG_MASK,
+} from '../types.ts';
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts';
 import { SPRITE_WGSL } from './spriteWgsl.ts';
 import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
+/** The flags under which a vertex hands its UV on: a row that has one AND is masked, the only one
+ *  whose `maskKeep` reads it (an unmasked row keeps every fragment before its first read). */
+export const UV_READ = FLAG_HAS_UV | FLAG_MASK;
 
 /**
  * The geometry of a cluster as every page-geometry pass reads it — visibility raster, compute
@@ -18,9 +29,10 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * always read, and its rows carry the bit at zero. Both paths are written here once, so no pass
  * can read one geometry and another pass the other.
  *
- * The header is decoded once per invocation and passed down: it is twenty-one words of the page
- * and a handful of shifts, and a vertex stage that read it per corner would pay it three times a
- * triangle. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
+ * The header is decoded once per invocation and passed down: twenty-three words of the page and a
+ * chain of fifteen stream offsets. A vertex stage decodes it per corner, so it asks `pageHeaderFor`
+ * for the nine words and five streams of corners and positions alone when its row draws no surface
+ * attribute. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
  *
  * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
  * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
@@ -33,10 +45,24 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * which the camera passes add.
  */
 /** The corners, positions and deformed tail of a page, read from \`indices\` and \`positions\`. */
-const PAGE_POINT_WGSL = `fn pageHeader(page:PageInfo)->ClusterHeader{
+const PAGE_POINT_WGSL = `/** Whether the row's results are a whole copy's: in the float pool, after a source header. */
+fn deformWholeCopy(page:PageInfo)->bool{
+ return (page.deformOutput&${(DEFORM_IN_POOL | DEFORM_NO_HEADER) >>> 0}u)==${DEFORM_IN_POOL}u;
+}
+fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
+/** Whether a raster's corner reads a surface attribute of its page: a line's direction
+ *  (\`pageLine\`), a masked row's UV and vertex alpha (\`pageUv\`, \`pageMaskAlpha\`). */
+fn pageSurfaceRead(page:PageInfo)->bool{return page.lineWidth>0.0||(page.flags&${FLAG_MASK}u)!=0u;}
+/** The header a pass reads: on a quantized row, its corners and positions alone unless \`withSurface\`
+ *  asks for its normals, UVs and colours too (\`clusterPointHeader\`); a vertex stage reads it per
+ *  corner, so a row that draws none of them pays none of their words. */
+fn pageHeaderFor(page:PageInfo,withSurface:bool)->ClusterHeader{
  var h:ClusterHeader;
- if(${QUANTIZED}){h=clusterHeader(page.pageOffset);}
- else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
+ if(${QUANTIZED}){
+  h=clusterPointHeader(page.pageOffset);
+  if(withSurface){h=clusterSurfaceHeader(h,page.pageOffset);}
+ }
+ else if(deformWholeCopy(page)){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
  return h;
 }
 /** Local vertex index of a corner of the page, three per triangle. */
@@ -66,10 +92,11 @@ fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
  return pageRestPosition(page,h,vertex);
 }
-/** A computed result stored in the resident geometry slot's tail. */
+/** A computed result stored in the resident geometry slot's tail, or in the float pool (high bit):
+ *  a whole copy's, read after its source header, or a float page's block, which has none (next bit). */
 fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
- let at=(page.deformOutput&0x7fffffffu)-1u+vertex*11u+field;
- if((page.deformOutput&0x80000000u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
+ let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*11u+field;
+ if((page.deformOutput&${DEFORM_IN_POOL}u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
  return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
 }`;
 
@@ -135,7 +162,7 @@ fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f)->vec
 }
 /** World position of a corner \`p\` of a sprite page (\`page.sprite.y\` not zero): its quad turned
  *  to face the camera (\`spriteAt\`). The camera raster draws it, the resolve rebuilds it, the
- *  shadow passes never draw it: the reference's sprite casts no shadow. */
+ *  shadow passes never draw it: a sprite casts no shadow. */
 fn pageSprite(page:PageInfo,p:vec3f)->vec4f{return spriteAt(uni.viewProj,page.world,p.xy,page.sprite);}
 /** Clip position of a page vertex under \`vp\`: every raster's, a line page's widened on screen,
  *  a sprite page's turned to the camera. */

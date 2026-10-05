@@ -2,8 +2,8 @@ import { determinantMatrix4, type NumberSink } from './matrix4.ts';
 
 /**
  * Position, rotation and scale of a column-major 4×4 matrix, both ways. Quaternion
- * stored `(x, y, z, w)`. Reference formulas, term by term, so the engine hierarchy
- * recomposes the same world matrices as the one it replaces.
+ * stored `(x, y, z, w)`. Standard formulas, term by term, so the engine hierarchy
+ * recomposes the same world matrices.
  */
 
 export { composeMatrix4 } from './matrix4Compose.ts';
@@ -58,7 +58,7 @@ export function writeRotationQuaternion(out: NumberSink, r: Float64Array) {
  * length; a negative determinant is carried by the `x` axis alone, whichever axis was reversed at
  * the source. A sheared matrix has no such decomposition: the rotation returned is then that
  * of the column-normalised matrix, and recomposition no longer yields `m` — the bench quantifies
- * this gap, identical to the reference's.
+ * this gap, which is the format of the decomposition.
  */
 export function decomposeMatrix4(
   m: ArrayLike<number>,
@@ -123,7 +123,7 @@ export function basisMatrix4<T extends NumberSink>(
 }
 
 /** `out` = uniform scale `s` placed at `center` — `makeScale(s, s, s)` followed by `setPosition`.
- *  Sixteen stores, each index a constant: a zeroing loop then the diagonal cost 4% more than Three. */
+ *  Sixteen stores, each index a constant: a zeroing loop then the diagonal cost 4% more. */
 export function uniformScaleMatrix4<T extends NumberSink>(
   out: T,
   s: number,

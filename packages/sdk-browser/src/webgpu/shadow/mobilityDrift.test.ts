@@ -20,7 +20,7 @@ test('a pose that moves its box by less than a float32 step is no move; a millim
   const turned = parked.slice();
   [turned[0], turned[2], turned[8], turned[10]] = [Math.cos(1e-9), -1e-9, 1e-9, Math.cos(1e-9)];
   assert.equal(pose(turned), MOVE_NONE, 'a nano-radian turn: no move');
-  assert.equal(mobility.layered, false, 'the static layer stays whole');
+  assert.equal(mobility.moves(0), false, 'the static layer stays whole');
   const shifted = parked.slice();
   shifted[12] += 1e-3;
   assert.equal(pose(shifted), MOVE_PROMOTED, 'a millimetre moves it');

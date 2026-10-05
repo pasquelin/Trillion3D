@@ -3,16 +3,13 @@ import { dropGpuSelection, dropVis } from './drops.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import { dropBlendBuffers } from '../../blend/buffers.ts';
 import { disposeBlendResources } from '../../blend/resources.ts';
-import { directLightTimings } from '../../../stage/mapping.ts';
+import { directLightTimings, passOwnMs } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
-import { disposeStaticLayer } from '../state/lights.ts';
-import { shadowPoolShown } from '../../shadow/memoryGrant.ts';
-import { lightCutMetrics } from '../../shadow/casters.ts';
-import { shadowWorkMetrics } from '../../shadow/work.ts';
-import { shadowCpuMetrics } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { vsmFrameMetrics } from '../render/vsm/vsmStats.ts';
+import { destroyEngineVsm } from '../render/vsm/engineVsm.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
 /** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
@@ -25,13 +22,17 @@ export function vertexBytesOf(
 }
 
 export function metricsOf(rt: WebgpuPagesRuntime) {
+  return Object.assign(frameMetricsOf(rt), vsmFrameMetrics(rt, rt.timing.lastGpuPassMs));
+}
+
+function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, blendState, services, lights } = rt,
     { geometryPool } = rt.setup;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
-  const poolHeld = shadowPoolShown(lights);
+  const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS);
   // What the occlusion test dropped, from the path that ran it: the GPU's last sampled counts, or
   // the CPU oracle's where no GPU test runs; `null` when neither counted, never an unmeasured 0.
   const gpuHizCounts = vis.gpuPartition?.counts();
@@ -44,6 +45,12 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
     frameHeld: run.frameHeld,
+    // The display's cadence, from the clock the render-scale budget reads (`frame/scaleControl.ts`).
+    rafIntervalMs: rt.scale.frameIntervalMs,
+    displayRefreshMs: rt.scale.refreshMs,
+    // The size every pass up to the temporal resolve drew this image at (`drawFrameAt`).
+    renderWidth: gpu.targetSize[0],
+    renderHeight: gpu.targetSize[1],
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
     uncoveredTriangles: null,
@@ -62,10 +69,10 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
-    gpuDeformationMs:
-      timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)?.gpuMs ?? null,
+    gpuDeformationMs: deformation ? passOwnMs(deformation) : null,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
+    gpuIdleMs: timing.lastGpuIdleMs,
     gpuDeviceLost: run.lostCause ?? null,
     vramBytes: null,
     gpuAllocatedBytes: ledger?.bytes ?? null,
@@ -90,30 +97,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuSelectionFallback: rt.gpu.selectionFallback,
     lightsActive: lights.lightsActive,
     lightsSampled: lights.lightsActive > 0 && taaSampledRank(rt) > 0,
-    shadowsUpdated: lights.shadowsUpdated,
-    shadowFacesDrawn: lights.shadowFaces,
-    shadowDrawCalls: lights.shadowDrawCalls,
-    shadowRenderPasses: lights.shadowRenderPasses,
-    shadowLightCuts: lights.lightRuns,
-    shadowPagesRequested: lights.plan.requests.counts.requested,
-    shadowPagesCached: lights.plan.counts.cachedPages,
-    shadowPoolPages: lights.plan.counts.poolPages,
-    shadowPoolBytes: poolHeld,
-    shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
-    shadowPeakBytes: poolHeld === null ? null : Math.max(lights.memory.peakBytes, poolHeld),
-    shadowResolutionBias: lights.memory.bias,
-    shadowMemoryEvents: lights.memory.events,
-    shadowPagesRefetched: lights.plan.pool.refetched,
-    shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
-    shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
-    shadowPagesDrawn: lights.shadowPages,
-    shadowPagesTotal: lights.shadowPagesTotal,
-    shadowPagesPending: lights.plan.counts.pendingPages,
-    shadowWaitMs: lights.plan.counts.waitedMs,
-    ...shadowWorkMetrics(lights),
-    ...lightCutMetrics(rt),
     ...directLightTimings(timing.lastGpuPassMs),
-    ...shadowCpuMetrics(timing.cpuProfile.row),
     ...lights.tiles?.poolMetrics(),
   };
 }
@@ -166,31 +150,17 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.impostors?.pass.dispose();
   gpu.impostors = undefined;
   rt.lights.tiles?.dispose();
-  rt.lights.shadows?.dispose();
-  rt.lights.pageRequests?.dispose();
-  rt.lights.pageRequests = undefined;
-  disposeStaticLayer(rt.lights);
+  if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm);
+  rt.lights.vsm = undefined;
   rt.lights.mobilityRows?.destroy();
   rt.lights.rowLods?.buffer.destroy();
   rt.lights.mobilityRows = rt.lights.rowLods = undefined;
   rt.bounce.probes?.dispose();
   rt.bounce.probes = undefined;
-  rt.sunFar.gpu?.dispose();
-  rt.sunFar.gpu = undefined;
-  rt.lights.cull?.dispose();
-  rt.lights.bins?.dispose();
-  rt.lights.bins = undefined;
-  rt.lights.movingGroups?.dispose();
-  rt.lights.pageQuads = undefined;
-  rt.lights.cpuCasters?.source.destroy();
-  rt.lights.cpuCasters?.indirect.destroy();
-  rt.lights.cpuCasters = rt.lights.lightCut = undefined;
   rt.lights.spheres?.buffer.destroy();
+  rt.lights.spheres?.local?.destroy();
   rt.lights.spheres = undefined;
-  rt.lights.shadowGroups.fill(undefined);
-  rt.lights.shadowGroupsKey.length = 0;
   rt.lights.buffer?.destroy();
-  rt.lights.plan.reset();
   gpu.synchronousCapture?.dispose();
   const closing = gpu.cache?.dispose();
   gpu.cache = undefined;

@@ -18,7 +18,7 @@ const RECT_WEIGHT_WGSL = `
  *
  * `LIGHT_SAMPLES` points are laid evenly along the cumulative weight of the list, from a per-pixel
  * offset that advances by the golden ratio every image, so one pixel walks its list evenly over
- * time and its neighbours start elsewhere — the reference engine stochastic light sampling' fixed samples per pixel drawn from the
+ * time and its neighbours start elsewhere — a fixed number of samples per pixel drawn from the
  * light grid's cell, their noise left to the temporal history (#1369). A light whose share of the
  * pixel's weight reaches one sample's worth holds a point or more and is shaded **exactly**, once,
  * the points it holds spent: it would be drawn every image anyway, and drawing it a varying number

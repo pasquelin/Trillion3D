@@ -1,5 +1,4 @@
-// #359: a dashed line draws `dashSize`, then leaves `gapSize` empty, along the line, as the
-// reference's `LineDashedMaterial`. The real text of both shaders and its CPU twin decide it, and
+// #359: a dashed line draws `dashSize`, then leaves `gapSize` empty, along the line. The real text of both shaders and its CPU twin decide it, and
 // every path that draws a line reads that one formula.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,7 +82,7 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
     /emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,pad2:u32,\}/,
   );
   assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);'));
-  assert.ok(BLEND_SHADER.includes(' if(!lineDash(in.uv.x,in.alphaAo.zw)){discard;}'));
+  assert.ok(BLEND_SHADER.includes('||!lineDash(in.uv.x,in.alphaAo.zw)){discard;return '));
   // The opaque fallback.
   assert.ok(FALLBACK_SHADER.includes(LINE_DASH_WGSL));
   assert.ok(FALLBACK_SHADER.includes('viewport:vec2f,dash:vec2f,sprite:vec2f,}'));

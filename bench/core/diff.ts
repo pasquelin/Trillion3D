@@ -2,7 +2,7 @@
 // `Object.is` separates -0 from +0 and identifies NaN. Checks TypedArray, Array, Set, Map, Object.
 
 /** Typed array kinds this comparison understands; a bench never compares any other kind. */
-export type TypedArray =
+type TypedArray =
   | Float64Array
   | Float32Array
   | Int32Array
@@ -24,7 +24,7 @@ const TYPES: readonly (new (length: number) => ArrayBufferView)[] = [
 ];
 
 /** Without `some`: this test is on the hot path, a closure per visited node would cost more. */
-export function estTypedArray(v: unknown): v is TypedArray {
+function estTypedArray(v: unknown): v is TypedArray {
   for (let i = 0; i < TYPES.length; i++) if (v instanceof TYPES[i]) return true;
   return false;
 }
@@ -33,7 +33,7 @@ export function estTypedArray(v: unknown): v is TypedArray {
  * Keys of two objects, in the same order, or `null` if they differ. Strings are
  * joined only on the divergence branch: in nominal execution this test constructs nothing.
  */
-export function memesCles(a: object, b: object): string[] | null {
+function memesCles(a: object, b: object): string[] | null {
   const clesA = Object.keys(a).sort(),
     clesB = Object.keys(b).sort();
   if (clesA.length !== clesB.length) return null;
@@ -41,7 +41,7 @@ export function memesCles(a: object, b: object): string[] | null {
   return clesA;
 }
 
-export const differenceDeCles = (a: object, b: object) =>
+const differenceDeCles = (a: object, b: object) =>
   `champs ${Object.keys(a).sort().join(',')} ≠ ${Object.keys(b).sort().join(',')}`;
 
 /**

@@ -87,6 +87,18 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.updatePlacements(rows, from, to);
     },
+    /** POC: whether the active path composes rows under their parent on the GPU. */
+    composesPlacements: () => !!getActive().composePlacements,
+    /** POC: rows `links` follow `parent` (`BackendSceneUpdates.composePlacements`). */
+    composePlacements(
+      parent: object,
+      world: ArrayLike<number>,
+      links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
+      whole: boolean,
+    ) {
+      check();
+      return getActive().composePlacements?.(parent, world, links, whole) ?? false;
+    },
     /** Whether the active path grows an instance buffer in place (`growPlacements`). */
     growsPlacements: () => !!getActive().growPlacements,
     /** Whether it grows each of `from` to `capacity` rows (`BackendSceneUpdates.growsInPlace`). */

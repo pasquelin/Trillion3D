@@ -106,17 +106,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
     desiredPacked,
     shown,
     shownPacked,
-    viewport,
     roots,
     batches,
     indexByUrl,
     disposeGeometry,
-    get cam() {
-      return renderState.cam;
-    },
-    get lastPixelError() {
-      return renderState.lastPixelError;
-    },
     get frame() {
       return renderState.frame;
     },

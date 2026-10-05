@@ -3,12 +3,12 @@ import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { FACING_SHIFT } from './facing.ts';
 
 /** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
- *  (\`shadowFootprint\`), and the level its marks ask for (\`marksWgsl.ts\`). */
-export const BLEND_SHADOW_FOOTPRINT_WGSL = `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`;
+ *  (\`shadowFootprint\`). */
+const BLEND_SHADOW_FOOTPRINT_WGSL = `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`;
 
-export const BLEND_SURFACE_NORMAL_WGSL = `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
- *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point. What the blend
- *  stage bends by its map (\`blendSurface\`) and the shadow marks read as is (\`marksWgsl.ts\`). */
+const BLEND_SURFACE_NORMAL_WGSL = `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
+ *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point: what the blend
+ *  stage bends by its map (\`blendSurface\`). */
 fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  // uniteOuZero yields normalize wherever the vector is not null: same bits as before on an
  // ordinary surface, a null vector — and not NaN — on a collapsed face, whose a NaN would win
@@ -38,25 +38,40 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  * Two fragment stages consume it, and it is the only place the material is read: the blend
  * stage, which lights it in place (`shader.ts`), and the water surface stage, which
  * stores it for the fullscreen composite (`../water/surfaceWgsl.ts`). The host shader
- * declares `VSOut`, the atlas samplers and `blendRequest` before this block; the alpha test
- * discards here, so no stage shades a fragment the material rejects — nor one of a doubtful
- * triangle its side does not draw (`facing.ts`).
+ * declares `VSOut`, the atlas samplers and `blendRequest` before this block.
+ *
+ * Each stage reads it in three steps: the screen derivatives (`blendGrads`), in uniform control
+ * flow; the base sample and the coverage test (`blendKeeps`) — the alpha test, and the side a
+ * doubtful triangle does not draw (`facing.ts`) —, where a rejected fragment discards and RETURNS;
+ * then the rest of the material (`blendSurface`). A `discard` alone only demotes the invocation to
+ * a helper, which a backend runs to the end: returning is what spares a rejected fragment every
+ * other read and its lighting. Every derivative is taken before that return, so a helper lane's
+ * neighbours read the same ones; every value a kept fragment computes is the one it computed
+ * before, from the same operands.
  */
 export const BLEND_SURFACE_WGSL = `
 ${COTANGENT_FRAME_WGSL}
 ${BLEND_SURFACE_NORMAL_WGSL}
+struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,}
+fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(in.uv),dpdy(in.uv),dpdx(in.view),dpdy(in.view));}
+fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
+/** The base map's sample: the colour, and the alpha the coverage test reads. */
+fn blendBase(in:VSOut,g:BlendGrads)->vec4f{return colorSample(in.ids.x,in.uv,g.gradX,g.gradY,blendSampled(in));}
+/** The fragment's opacity: what the alpha test compares and the stage writes. */
+fn blendAlpha(in:VSOut,base:vec4f)->f32{return base.w*in.color.w;}
+fn blendKeeps(in:VSOut,base:vec4f,front:bool)->bool{
+ return !(blendAlpha(in,base)<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front));
+}
 struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,}
-fn blendSurface(in:VSOut,front:bool)->BlendSurface{
+fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  let flags=in.ids.y;
- let sampled=(flags&${FLAG_SAMPLED}u)!=0u;
- let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
+ let sampled=blendSampled(in);
+ let gradX=g.gradX;let gradY=g.gradY;
  let request=blendRequest(in,gradX,gradY);
- let q0=dpdx(in.view);let q1=dpdy(in.view);
- var N=blendGeometricNormal(in,front,q0,q1);
+ var N=blendGeometricNormal(in,front,g.q0,g.q1);
  let face=select(-1.0,1.0,front);
- let sample=colorSample(in.ids.x,in.uv,gradX,gradY,sampled);
- let alpha=sample.w*in.color.w;
- let rgb=in.color.xyz*sample.xyz;
+ let alpha=blendAlpha(in,base);
+ let rgb=in.color.xyz*base.xyz;
  var rough=in.pbr.x;var metal=in.pbr.y;var ao=1.0;
  if(in.maps.x!=0u){rough*=dataSample(in.maps.x,in.uv,gradX,gradY,sampled).g;}
  if(in.maps.y!=0u){metal*=dataSample(in.maps.y,in.uv,gradX,gradY,sampled).b;}
@@ -65,7 +80,7 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
   let mapN=dataSample(in.maps.z,in.uv,gradX,gradY,sampled).xyz*2.0-vec3f(1.0);
   // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
   // sign, as on the geometric normal above.
-  let frame=cotangentFrame(N,q0,q1,gradX,gradY);
+  let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);
   var T=-frame.T;var B=-frame.B;
   if((flags&2048u)!=0u){T=uniteOuZero(in.tangent.xyz);B=uniteOuZero(in.bitangent.xyz);}
   if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
@@ -73,7 +88,6 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,gradX,gradY,sampled).rgb;}
- if(alpha<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front)){discard;}
  var thin=clamp(vec3f(in.normal.w,in.tangent.w,in.bitangent.w),vec3f(0.0),vec3f(1.0));
  if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
  return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);

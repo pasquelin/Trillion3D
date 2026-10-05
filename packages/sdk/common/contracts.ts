@@ -6,7 +6,6 @@ export {
   addIrradianceCoefficients,
   addUniformIrradiance,
   emptyIrradiance,
-  environmentLights,
   SCENE_ENVIRONMENT_FLOATS,
   TONE_MAPPING_RANK,
 } from '../../sdk-core/src/scene/core/environment.ts';
@@ -36,13 +35,6 @@ export type {
 } from '../../sdk-core/src/contracts/impostor.ts';
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts';
 export {
-  biasedDepthBits,
-  DEPTH_LAYER_BIAS_UNITS,
-  depthLayerUnits,
-  MAX_DEPTH_LAYER,
-} from '../../sdk-core/src/lod/depthLayer.ts';
-export { cellWeights, octDecode, octEncode } from '../../sdk-core/src/impostor/octahedron.ts';
-export {
   clusterErrorAtDepth,
   clusterErrorPixels,
   screenErrorBound,
@@ -58,6 +50,11 @@ export type {
   PrimitiveDagWarning,
 } from '../../sdk-core/src/contracts/dag.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts';
+export {
+  DEPTH_LAYER_BIAS_UNITS,
+  depthLayerUnits,
+  MAX_DEPTH_LAYER,
+} from '../../sdk-core/src/lod/depthLayer.ts';
 export {
   drawsImpostor,
   IMPOSTOR_PI,
@@ -91,10 +88,7 @@ export type {
   SceneLinearFog,
 } from '../../sdk-core/src/scene/core/fog.ts';
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts';
-export type {
-  ShadowFrameMetrics,
-  ShadowStaleReason,
-} from '../../sdk-core/src/contracts/shadowMetrics.ts';
+export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts';
 export {
   TABLE_FLAGS,
   TABLE_NUMBERS,

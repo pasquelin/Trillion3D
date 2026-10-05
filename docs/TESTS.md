@@ -1,7 +1,7 @@
 # Tests and Performance Benchmarks
 
 One command per intent, one location per nature of test. The tree below is checked against the
-repository, and `tests/browser/test-gpu.test.ts` tracks the probe list.
+repository, and `bench/dawn/proofs.test.ts` tracks the GPU proofs.
 
 ## 1. Directory Tree
 
@@ -11,9 +11,7 @@ packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
 packages/sdk-node/src/       unit tests (*.test.ts), next to their source
 tests/integration/           architecture, boundaries, public contracts (*.test.ts)
-tests/browser/renders/       rendering in real Chromium (*.browser.ts)
-tests/browser/probes/        GPU probes and their support modules
-tests/browser/support/       pages and cases served to the render proofs
+tests/gpu/                   GPU proofs on the bench (*.gpu.ts), one folder per engine area, kit/ shared
 tests/kit/                   shared test tools: fake GPU devices, servers, assertions
 tests/fixtures/              test data builders; formats/ holds the compiler goldens
 bench/core/                  measure, report, diff, ulp, baseline
@@ -30,7 +28,7 @@ when page and repository disagree. It carries no file count: counts changed with
 and made parallel ones conflict (#452).
 
 One rule: **a unit test sits next to the file it tests; every other kind lives under `tests/`**, one
-folder per nature — `integration/` (architecture, public contracts), `browser/` (runs in Chromium),
+folder per nature — `integration/` (architecture, public contracts), `gpu/` (runs on the bench's GPU),
 `fixtures/` (test data), `kit/` (one fake GPU device family in `gpu/`, one static server and the
 fixture route in `server/`, one bit-exact comparison and one hostile-value list in `assert/`). The
 tracked git hooks (`.githooks/`, one-line shims onto `scripts/hooks/*.ts`) are proved in a throwaway
@@ -41,14 +39,15 @@ every published package. The compiler's golden fixtures are under `tests/fixture
 The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/tests/` by topic,
 `tests/` for the CLI).
 
-## 2. The Four Commands
+## 2. The Commands
 
-| Command | What it runs |
-| --- | --- |
-| `pnpm test` | every unit, integration, kit, bench-runner and script test |
-| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
-| `pnpm run validate` | full pre-merge validation gate |
+| Command                | What it runs                                                          |
+| ---------------------- | --------------------------------------------------------------------- |
+| `pnpm test`            | every unit, integration, kit, bench-runner and script test            |
+| `pnpm run test:gpu`    | the GPU correctness probes, then every rendering proof, sequentially  |
+| `pnpm run test:chrome` | the recette's proofs in Chrome: the WebGL2 backend, witness materials |
+| `pnpm run perf:all`    | every benchmark of `bench/perf/`, then the aggregated report          |
+| `pnpm run validate`    | full pre-merge validation gate                                        |
 
 `pnpm run check:changed`, the one local gate, runs only what changed files touch
 (`scripts/affected-tests.ts`); it does not replace `validate`, which the CI runs. A change of
@@ -74,7 +73,7 @@ Algorithms, package boundaries and public contracts; no graphics device, run any
 checks a result — a value, a buffer, an image, an output read cell by cell — never the literal
 text of a generated shader or report: such a test breaks on a rewrite that keeps the same image
 and proves nothing about the image. What a shader computes is proved on a device
-(`tests/browser/`).
+(`tests/gpu/`).
 
 ### Mutation Measurement
 
@@ -96,43 +95,42 @@ it kills one, or deleted. A surviving mutant is a change no test notices: a test
 fails on it, or the mutant is equivalent (the change keeps every result) and the reason is written
 beside the code.
 
-### GPU Correctness Probes
+### GPU Proofs on the Bench
 
-`tests/browser/probes/` checks what the device computes: WGSL shader precision, error floors,
-projection matrices, texel coordinates, readbacks. A probe's name contains a hyphen; the folder's
-other files are its support modules, never run alone. `tests/browser/renders/` renders frames in
-real Chromium and compares them. Both are found **by rule, never by a hand-curated list** (every
-`tests/browser/renders/*.browser.ts` runs; explicit kebab-case names like `held-gpu-cut`,
-`lighting-normal-small-scale`, as for benchmarks) and run together via `pnpm run test:gpu`
-(`tests/browser/test-gpu.ts`). `tests/browser/test-gpu.test.ts` keeps **launched ∪ skipped == disk**
-in each folder, and no exclusion outlives the file it names: no proof stops running unnoticed.
+`tests/gpu/` checks what the device computes and draws: WGSL precision, error floors, projection
+matrices, texel coordinates, readbacks, and whole frames of the engine. Every proof is a
+`tests/gpu/<area>/<name>.gpu.ts`, the area named after the engine folder it tests; the other files
+of an area are the modules its proofs load (`*Page.ts`, cases), and `tests/gpu/kit/` is what they
+share. They run on Dawn in Node — the WebGPU implementation Chrome runs, on the machine's GPU, no
+browser (`tests/gpu/kit/onDawn.ts`) — one by one under the machine's bench lock, found **by rule,
+never by a hand-curated list**, via `pnpm run test:gpu` (`bench/dawn/proofs.ts`).
+`bench/dawn/proofs.test.ts` keeps **launched ∪ excluded == disk**, refuses a module no file names,
+and no exclusion outlives the proof it names: no proof stops running unnoticed. A proof never opens
+the GPU from an import: only an explicit run does (`assertProofEntryPoint`).
 
 ```bash
-pnpm run test:gpu                                  # run all
-node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run single target
+pnpm run test:gpu                                             # run all
+node bench/dawn/proofs.ts tests/gpu/dag/cut-rule.gpu.ts       # run one
 ```
 
-What cannot run is **declared** in `BROWSER_ECARTES` (`tests/browser/test-gpu.ts`) with category and
-reason, printed before starting — never in silence:
+What cannot run is **declared** in `EXCLUDED` (`bench/dawn/proofs.ts`) with category and reason,
+printed before starting — never in silence:
 
-- **montage** (setup) — the proof is valid but the machine is not ready: assets in `.mesure/assets/`
-  need recompiling, `timestamp-query` unavailable.
-- **regression** — the proof fails on an open issue: a debt fixed in the engine.
-- **stale-double** — the proof keeps a manual copy of a contract that drifted in the source: read
-  the contract instead of duplicating it.
+- **setup** — the proof is valid but the machine is not ready: assets in `.mesure/assets/` need
+  recompiling, a device feature is unavailable.
+- **regression** — the proof fails on an engine defect: a debt fixed in the engine.
+- **stale duplicate** — the proof keeps a manual copy of a contract that drifted in the source:
+  read the contract instead of duplicating it.
 
-`BROWSER_ECARTES` is empty: every render proof runs.
-
-- `scene-webgpu` reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
-  `.mesure/assets/`, off git; a sibling worktree has none: point `TRILLION3D_ASSETS` at the shared
-  folder, else the proof stops by name on the missing cache and `pnpm run test:gpu` fails loudly.
-- `geometry-network` reads the same cache over Chrome's emulated network (60 ms, 30 Mb/s) and
-  asserts orderings, never durations: geometry page reads overlap, the pool admits the same pages,
-  the view ahead grows with the round trip, cache objects arrive brotli-encoded;
-  `NETWORK_PROOF_DIST=<other>/dist` runs another build's engine against it.
-- `witness-materials` needs no asset: fixtures are built in the page and served from
-  `tests/browser/support/`, the SDK from `dist/`, so `pnpm run build` precedes it.
-- `tests/browser/probes/public-scenes.ts` needs no GPU or browser: in a tenth of a second it asserts
+- `webgpu/reference-trajectory` reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`)
+  under `.mesure/assets/`, off git; a sibling worktree has none: point `TRILLION3D_ASSETS` at the
+  shared folder, else the proof stops by name on the missing cache and `pnpm run test:gpu` fails
+  loudly.
+- `streaming/geometry-network` reads the same cache from a local server that answers 60 ms late,
+  and asserts orderings, never durations: geometry page reads overlap, the pool admits the same
+  pages, the view ahead grows with the round trip.
+- `scene/public-scenes` needs no GPU, only the machine's compiled assets, which is why it runs
+  with the proofs: in a tenth of a second it asserts
   what each public scene's cache guarantees — a DAG climbing above level 0 wherever a primitive
   holds more than one cluster, a mirrored mapping locking no vertex. It never builds caches: without
   `node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`, then
@@ -141,55 +139,47 @@ reason, printed before starting — never in silence:
   its geometry pages and from its source buffers, on WebGPU: to the pixel when blended, recorded
   when opaque (its header says why). `node bench/runner/scenes/tangentScenes.ts` writes its four
   scenes derived from `normal-tangent-mirror-test` and prints the `assets.ts --only` line compiling
-  them; `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts` runs it. The
+  them; `node bench/dawn/proofs.ts tests/gpu/webgpu/page-tangents.gpu.ts` runs it. The
   acceptance session runs it on `develop` after the merge (AGENTS.md rule 2).
 
 `node bench/runner/assets.ts` fetches and compiles every scene the proofs read
 ([Assets](../bench/runner/README.md#assets)).
 
-#### Known failures of `test:gpu`, and where they were read
+#### Chrome proofs, the recette's
 
-`test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
-inherited, not those it caused, against this written baseline. Last read on an Apple M2 Max
-(Mac14,6), macOS 27.0, Chrome headless, `TRILLION3D_ASSETS` on the shared `.mesure/assets/`,
-2026-09-23, head of #281: **2 fail** of 64 (before #281: 10 fail, 54 pass, at `ea7e3ecf4` and the
-head of #322).
+What Dawn does not have is proved in the system Chrome: the WebGL2 backend (`tests/gpu/webgl/`, the
+WebGL2 halves of `particles/`, `reflections/` and `backend/`) and the per-material comparison with
+the witness renderer (`webgpu/material-pixels`). Each is a `tests/gpu/<area>/<name>.chrome.ts`,
+found by the same rule and declared in the same `EXCLUDED`; its page module is served from the
+sources and called in a fresh headless Chrome (`tests/gpu/kit/onChrome.ts`, through
+`launchChrome`), under the bench lock. Their scenes are built by the proofs — a triangle, quads, a
+sphere, material squares, the kinetic garden, a compiled coplanar fixture —, never a page of the
+site. They never block a merge (AGENTS.md rule 2): the recette runs them on each batch of
+`develop`.
 
-- `shadow-camera-stop`: at the stop, with 198 shadow pages pending under the 0.01 ms budget, 57 705
-  of 876 096 pixels (6.6 %, bound 5 %) shade otherwise than at rest — lit arches far from the camera
-  read as shadowed. Publishing the current extent's matrix with the wrap origin of an undrawn slid
-  cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
-- `explorer-startup`: failed through the geometry-garden lesson's own mounting (a 300 × 150 buffer
-  under a 488 × 20 px CSS box, no animation frame in 1.5 s); that lesson left the portal (#327,
-  `18ce55b5b`, with `explorerStartupGarden.ts`) and the proof now drives the engine's interactive
-  session; #492 showed the engine resizes and schedules a grown canvas
-  (`world/session/interactive.test.ts`). It leaves this list once the acceptance session re-reads it
-  passing.
+```bash
+pnpm run test:chrome                                                    # run all
+node bench/dawn/proofs.ts --chrome tests/gpu/webgl/blend-passes.chrome.ts  # run one
+```
 
-A batch leaving exactly these failing changed nothing here; one adding a failure owns it. The pass
-count moves with the number of proof files. The failures are not portable, only the method: re-read
-the baseline on your own machine.
+#### Known failures of `test:gpu`
+
+`test:gpu` drives a real GPU, so its result belongs to a machine. What fails on the engine or on a
+drifted copy is declared in `EXCLUDED` (`bench/dawn/proofs.ts`) with its cause, and printed before
+every run; a batch leaving exactly these failing changed nothing here, one adding a failure owns
+it.
 
 ### Site proofs
 
-The portal under `site/` has its own proofs, run on demand in system Chrome. The two
-`scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site
-into `dist/site/` first (no committed bundle); CI has no GPU and runs none, the acceptance session
-runs them on `develop`. `scripts/docs-examples.browser.ts` opens every page of `site/examples/` on
-WebGPU and WebGL2 (`navigator.gpu` hidden) and fails on any error a page raises or logs — a failed
-import, a 404, the engine's own failures — except those `DECLARED_ERRORS` names
-(`scripts/docs/examples/capture.ts`), each with its reason. A behaviour-neutral site change is
-proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route (entries
-and examples in every language, examples index, API index, reports, not found) served from two built
-trees, settled, its DOM compared after normalising what is dynamic (canvas contents and sizes,
-`disabled`, stat values, generated ids, frame metrics).
-`node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
-(DOMContentLoaded, settled, requests, bytes) over cold contexts: a measurement, not a proof.
+The portal under `site/` has no browser proof: the engine's proofs run on the bench, and nothing
+of the site is a test of the engine. `node scripts/site-first-load.ts <siteDir> [route ...]`
+measures a route's first load (DOMContentLoaded, settled, requests, bytes) over cold contexts: a
+measurement, not a proof.
 
 ### Performance Benchmarks
 
 A benchmark measures a package computation on named cases and **compares it to an oracle**: the
-pre-optimization implementation, copied verbatim under `bench/oracles/`. Each line gives median,
+pre-optimization implementation, kept unchanged under `bench/oracles/`. Each line gives median,
 p95, nanoseconds per element, operations per second, baseline difference, witness difference and the
 oracle verdict. `mesure()` refuses to run if the file a benchmark reports as measured does not
 exist.
@@ -199,16 +189,14 @@ a rejected candidate — timed on the same input and settings; the row keeps its
 `temoin`, and "vs witness" reads the median relative to it as "vs baseline" does to the baseline. A
 witness is a comparison, never a regression gate: the column carries no icon.
 
-Three verdict types, never silence:
+Two verdict types, never silence:
 
 - **✓ / ✗** — bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
   tolerance (`differences` + `tolere`, in ULPs by `ulp.ts`).
-- **published diff** (`ecartPublie`) — the benchmark measures a _rejected_ candidate and quantifies
-  the displacement instead of expecting equality: C1 (`raster-tampon`) and C3 (`pages-anneau`).
 - **reason** — no oracle exists; the line says why and where correctness is held. A stale oracle is
   declared, never silently removed.
 
-**The reference-library duels** (`bench/perf/core/three-vs-core-*.perf.ts`, `pnpm run perf:core`)
+**The witness duels** (`bench/perf/core/three-vs-core-*.perf.ts`, `pnpm run perf:core`)
 run the host library and the engine on the same seeded inputs, one row per calculation family, Three
 the witness and its result read untimed as the oracle; they refuse an engine that differs by a bit
 or runs slower, and the `duel` helper's own `node:test` enforces each family's declared ceiling. The
@@ -240,22 +228,22 @@ optimising](../CONTRIBUTING.md#measure-before-optimising).
 
 ## 4. Quality Gates
 
-| Command | Role |
-| --- | --- |
-| `pnpm run check:lines` | Maximum 200 physical lines per maintained JS/TS/Rust file |
-| `pnpm run check:duplicates` | No duplicated blocks ≥ 8 lines and ≥ 64 tokens |
-| `pnpm run check:helpers` | No small helper copied into a second module of the same package |
-| `pnpm run check:english` | No new French word in the code: a count per package that only goes down |
-| `pnpm run check:translations` | No translation left behind when its English changes |
-| `pnpm run check:thumbnails` | Report, not a gate: the examples the recette still has to capture |
-| `pnpm run check:structure` | sdk-core typed without DOM; the boundary tests run in the unit suite |
-| `pnpm run check:unused` | Dead exports and files, and those only tests reach (`knip`, two passes) |
-| `pnpm run check:no-js` | No JavaScript source under `site/`: the site is TypeScript |
-| `pnpm run check:docs-three` | Three.js named only in witness, benchmark, measurement or migration sections |
-| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git |
-| `pnpm run check:bundle-size` | After `build`: the gzip CDN core (`dist/trillion3d.module.js` and its static chunks) within its declared budget, each optional family (`FAMILY_MODULES`) a chunk of its own |
-| `pnpm run check:site-types` | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
-| `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |
+| Command                       | Role                                                                                                                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                                                                                                                   |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                                                                                                                              |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package                                                                                                             |
+| `pnpm run check:english`      | No new French word in the code: a count per package that only goes down                                                                                                     |
+| `pnpm run check:translations` | No translation left behind when its English changes                                                                                                                         |
+| `pnpm run check:thumbnails`   | Report, not a gate: the examples the recette still has to capture                                                                                                           |
+| `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite                                                                                                        |
+| `pnpm run check:unused`       | Dead exports and files, and those only tests reach (`knip`, two passes)                                                                                                     |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                                                                                                                  |
+| `pnpm run check:docs-three`   | Three.js named only in witness, benchmark, measurement or migration sections                                                                                                |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                                                                                                               |
+| `pnpm run check:bundle-size`  | After `build`: the gzip CDN core (`dist/trillion3d.module.js` and its static chunks) within its declared budget, each optional family (`FAMILY_MODULES`) a chunk of its own |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)                                                                                                    |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links                                                                                                         |
 
 `check:english` counts per package the French words of `scripts/french-words.ts` in every source
 file's identifiers, comments and strings (strings a program reads, named there, excepted); above

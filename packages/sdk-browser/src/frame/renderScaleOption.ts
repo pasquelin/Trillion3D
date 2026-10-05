@@ -6,7 +6,7 @@
  */
 export type RenderScale = number | 'auto' | { min?: number; max?: number };
 
-/** Smallest render scale: half the display per axis, the reference's minimum screen percentage. */
+/** Smallest render scale: half the display per axis. */
 export const MIN_RENDER_SCALE = 0.5;
 
 /** What a page's `RenderScale` asks, in `[MIN_RENDER_SCALE, 1]`: the controller's bounds, or one

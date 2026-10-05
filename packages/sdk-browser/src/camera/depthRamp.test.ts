@@ -106,10 +106,10 @@ test('The weights land at the offset they are given, nothing around them', () =>
   assert.equal(words[4], 0, 'no clip-z weight under a perspective projection');
 });
 
-test('The resolve uniform: the ramp is a vec4f right before the sun, 16-byte aligned', () => {
-  assert.match(SHADE_DECL_WGSL, /pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,\}/);
-  // viewProj 16 words, viewport 4, four scalars: the ramp starts at word 24, the sun at 28.
+test('The resolve uniform: the ramp is the last vec4f, 16-byte aligned', () => {
+  assert.match(SHADE_DECL_WGSL, /feedback:u32,depthRamp:vec4f,\}/);
+  // viewProj 16 words, viewport 2 and five scalars, one padding word: the ramp starts at word 24.
   assert.equal(DEPTH_RAMP_WORD, 16 + 4 + 4);
   assert.equal(DEPTH_RAMP_WORD % 4, 0);
-  assert.equal(SHADE_UNIFORM_WORDS, DEPTH_RAMP_WORD + 4 + 16);
+  assert.equal(SHADE_UNIFORM_WORDS, DEPTH_RAMP_WORD + 4);
 });

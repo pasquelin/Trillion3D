@@ -46,7 +46,7 @@ export type WebgpuTilePool = {
    *  at first, as a queue built once per image. A tile looked at on the previous image is very
    *  likely looked at on this one: giving it up for another is asking for it again on the next — a
    *  full pool would spin on itself every image. It refuses instead, and the coarse level holds;
-   *  that is the age rule of the reference's virtual-texture pool. */
+   *  that is the pool's age rule. */
   victims(frame: number): VictimQueue;
   /** Every occupied place, pinned included, in pool order. */
   occupied(): number[];

@@ -1,4 +1,4 @@
-import { HIZ_BOUNDS_VALUES, projectBoxInto } from './corners.ts';
+import { HIZ_BOUNDS_VALUES, projectBoxInto, rowBox } from './corners.ts';
 import type { HizPage } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import { locationOf, type PageLocations } from '../page/selection/placements.ts';
@@ -22,10 +22,11 @@ export function projectBoxesFlat(
     if (only && !only[i]) continue;
     const page = pages[i];
     if (!page) continue;
-    const base = i * HIZ_BOUNDS_VALUES;
+    const { min, max } = rowBox(page),
+      base = i * HIZ_BOUNDS_VALUES;
     projectBoxInto(
-      page.min,
-      page.max,
+      min,
+      max,
       locationOf(locations, i).world,
       view,
       elements,

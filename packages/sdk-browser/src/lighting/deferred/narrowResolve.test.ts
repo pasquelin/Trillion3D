@@ -17,7 +17,7 @@ test("the narrow resolve bounds its light array, the rest of its program the wid
     assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`));
     assert.match(wide, /items:array<DirectLight>/);
     // That both give the same sum, bit for bit, runs on the GPU:
-    // `tests/browser/probes/narrow-resolve-gpu.ts`.
+    // `tests/gpu/lighting/narrow-resolve.gpu.ts`.
     const outside = (code: string) => code.replace(/items:array<DirectLight(,\d+)?>/, '');
     assert.equal(outside(narrow), outside(wide));
   }
@@ -40,7 +40,7 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
 });
 
 test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is (#1249)', async () => {
-  const unshadowed = contractLightingShader(false, false, undefined, false);
+  const unshadowed = contractLightingShader(false, false, false);
   assert.doesNotMatch(unshadowed, /shade=shadowFactor\(|shadowTransmission;/, 'no shadow read');
   assert.match(contractLightingShader(false, false), /let shade=shadowFactor\(/);
   const { device } = fakeDevice();

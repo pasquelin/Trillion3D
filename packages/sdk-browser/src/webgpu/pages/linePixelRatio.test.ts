@@ -40,8 +40,8 @@ async function frameWords(fallback: boolean, transparent = false, dashed = false
   }
 }
 
-// #348: a line's width counts CSS pixels, as the reference's `LineMaterial`: every WebGPU pass that
-// widens a line reads the host's pixel ratio, and the shared `lineClip` draws width × ratio.
+// #348: a line's width counts CSS pixels: every WebGPU pass that widens a line reads the host's
+// pixel ratio, and the shared `lineClip` draws width × ratio.
 test('the rasters, the resolve and the blend pass read the host pixel ratio', async () => {
   const words = await frameWords(false);
   assert.equal(words('Trillion3D visibility uniforms')[24], 2, 'Uniforms.pixelRatio');

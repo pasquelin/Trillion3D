@@ -9,7 +9,7 @@ const light = (name: string, kind: 'point' | 'spot' | 'sun' | 'rect', castShadow
   kind: kind === 'sun' ? 'directional' : kind,
 });
 
-// Issue #275: the reference files its lights after a stable sort that puts the shadow casters
+// Issue #275: the engine files its lights after a stable sort that puts the shadow casters
 // first; within a kind the engine's program writes them in that same order.
 test('the direct lights are filed by kind, the shadow casters first within a kind', () => {
   const lights = [

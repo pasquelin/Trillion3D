@@ -8,7 +8,7 @@ interface ScreenPoint {
   y: number;
 }
 
-/** `packages/sdk-browser/src/gpu/dag/oracle/math.ts:33-51` from before: reject by the six planes, ternary per component. */
+/** The engine's earlier box reject: reject by the six planes, ternary per component. */
 export function referenceOutsidePlanes(
   planes: ArrayLike<number>,
   minX: number,
@@ -29,41 +29,9 @@ export function referenceOutsidePlanes(
   return false;
 }
 
-/** `packages/sdk-browser/src/visibility/math.ts:50-58` from before: signed area and affine barycentrics inline. */
-export function referenceBarycentric(
-  a: ScreenPoint,
-  b: ScreenPoint,
-  c: ScreenPoint,
-  x: number,
-  y: number,
-) {
-  const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-  if (area === 0) return null;
-  const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area,
-    w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area,
-    w2 = 1 - w0 - w1;
-  if (w0 < 0 || w1 < 0 || w2 < 0) return null;
-  return { w0, w1, w2, area };
-}
-
 /** Signed area as `packages/sdk-browser/src/visibility/raster.ts`, `packages/sdk-browser/src/hiz/depth.ts` and `packages/sdk-browser/src/page/raster.ts` wrote it. */
 export function referenceSignedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-}
-
-/** The three affine weights as `packages/sdk-browser/src/hiz/depth.ts:48-50` and `packages/sdk-browser/src/page/raster.ts:180-182` wrote them. */
-export function referenceWeights(
-  a: ScreenPoint,
-  b: ScreenPoint,
-  c: ScreenPoint,
-  x: number,
-  y: number,
-  area: number,
-) {
-  const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area;
-  const w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area;
-  const w2 = 1 - w0 - w1;
-  return { w0, w1, w2 };
 }
 
 /** `packages/sdk-browser/src/webgpu/row/pageRow.ts:98` and `packages/sdk-browser/src/webgpu/row/commit.ts:35` from before: the identifier base of a row. */
@@ -75,9 +43,9 @@ export function referencePackedRowBase(row: number, bits: number) {
 export function referenceDevicePixels(
   logical: number,
   pixelRatio: number | undefined,
-  defaut: number,
+  fallback: number,
 ) {
-  return Math.floor(logical * (pixelRatio ?? defaut));
+  return Math.floor(logical * (pixelRatio ?? fallback));
 }
 
 /** `packages/sdk-browser/src/gpu/timing/sample.ts` and `packages/sdk-browser/src/webgl/core/frameTimer.ts` from before: nanoseconds to milliseconds. */

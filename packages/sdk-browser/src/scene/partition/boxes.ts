@@ -19,12 +19,11 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { boxUnion } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { sameMatrixBits } from '../../host/world/pose.ts';
+import { keepNumbers } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import { sameMatrixBits } from '../../math/matrixElements.ts';
+import { resolveCameraWorld } from '../../camera/world.ts';
 
-const rootWorld = new Float64Array(MATRIX_VALUES),
-  rootInverse = new Float64Array(MATRIX_VALUES),
-  parentWorld = new Float64Array(MATRIX_VALUES),
+const rootInverse = new Float64Array(MATRIX_VALUES),
   relative = new Float64Array(MATRIX_VALUES),
   inverse = new Float64Array(MATRIX_VALUES),
   carried = new Float64Array(6);
@@ -34,15 +33,22 @@ const UNBOUNDED = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity
 /** How far a frame stretches a distance of the root's: at least, at most. */
 export type Stretch = readonly [least: number, most: number];
 
+/** Whether `matrix` is flattened, or so nearly flat that `back`, its inverse (`invertMatrix4`),
+ *  overflows. */
+const flatFrame = (matrix: ArrayLike<number>, back: Float64Array) =>
+  determinantMatrix4(matrix) === 0 || !back.every(Number.isFinite);
+
+/** The least `matrix` stretches a distance, its smallest singular value `1 / σmax(M⁻¹)`, read from
+ *  `back`, its inverse; a flat frame (`flatFrame`) stretches it by 0. Never its shortest column,
+ *  which a shear leaves long. */
+export const leastStretchOf = (matrix: ArrayLike<number>, back: Float64Array) =>
+  flatFrame(matrix, back) ? 0 : 1 / maxStretch(back);
+
 /** The least and the most `matrix` stretches a distance — its smallest and largest singular
- *  values —; a flattened frame, or one so nearly flat its inverse overflows, stretches it by 0. */
+ *  values (`leastStretchOf`, `maxStretch`). */
 export function stretchOf(matrix: ArrayLike<number>): Stretch {
   const most = maxStretch(matrix);
-  if (determinantMatrix4(matrix) === 0) return [0, most];
-  const back = invertMatrix4(inverse, matrix).every(Number.isFinite)
-    ? maxStretch(inverse)
-    : Infinity;
-  return [1 / back, most];
+  return [leastStretchOf(matrix, invertMatrix4(inverse, matrix)), most];
 }
 
 /** What carries boxes — a cell —: its `[core rank, box]` per parent, its boxes in the root's frame
@@ -66,7 +72,7 @@ export type Declared = {
 };
 
 const relativeInto = (out: Float64Array, parent: Object3D) =>
-  multiplyMatrix4(out, rootInverse, hostWorldChainInto(parentWorld, parent));
+  multiplyMatrix4(out, rootInverse, resolveCameraWorld(parent).worldMatrix);
 
 /**
  * The frames of the core parents of ranks `ranks` relative to `root`, the node their scene hangs
@@ -95,22 +101,20 @@ export function createCellBoxes(
   /** Each parent moved since the declaration: what carries its declared frame to where it is,
    *  `null` when its declared frame is flat and its cells may stand anywhere. */
   const displaced = new Map<number, Float64Array | null>();
-  invertMatrix4(rootInverse, hostWorldChainInto(rootWorld, root));
+  invertMatrix4(rootInverse, resolveCameraWorld(root).worldMatrix);
   for (const rank of ranks) {
     const declared = relativeInto(new Float64Array(MATRIX_VALUES), parents[rank]);
     const back = invertMatrix4(new Float64Array(MATRIX_VALUES), declared);
-    const flat = determinantMatrix4(declared) === 0 || !back.every(Number.isFinite);
+    const flat = flatFrame(declared, back);
     frames.set(rank, { matrix: declared.slice(), declared, back: flat ? null : back, moved: 0 });
-    stretch.set(rank, stretchOf(declared));
+    stretch.set(rank, [leastStretchOf(declared, back), maxStretch(declared)]);
   }
   let now = 0;
   const refresh = () => {
     now++;
-    if (frames.size) invertMatrix4(rootInverse, hostWorldChainInto(rootWorld, root));
+    if (frames.size) invertMatrix4(rootInverse, resolveCameraWorld(root).worldMatrix);
     for (const [rank, frame] of frames) {
-      relativeInto(relative, parents[rank]);
-      if (sameMatrixBits(frame.matrix, relative)) continue;
-      frame.matrix.set(relative);
+      if (keepNumbers(frame.matrix, relativeInto(relative, parents[rank]))) continue;
       frame.moved = now;
       stretch.set(rank, stretchOf(relative));
       if (sameMatrixBits(frame.declared, relative)) displaced.delete(rank);

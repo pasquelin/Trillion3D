@@ -64,7 +64,7 @@ test('a soft body drawn where it is keeps its body: nothing removed nor made aga
     const soft = new Uint32Array(2 + 9 * 3);
     soft.set([physics.session()!.engineIdOf(cloth), 9]);
     new Float32Array(soft.buffer).fill(0.5, 2);
-    worker.onmessage({ data: { ...idleTick, soft } });
+    worker.onmessage({ data: { ...idleTick, soft: { words: soft, befores: null } } });
     physics.frame();
     assert.equal(cloth.geometry.usage, 'dynamic', 'never cut into pages again');
     assert.equal(cloth.geometry.version, version + 2, 'its positions and normals written');

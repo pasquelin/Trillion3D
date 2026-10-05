@@ -80,17 +80,19 @@ export async function createGpuLightTiles(device: GPUDevice) {
         tileLightPoolGrowths: growths,
       };
     },
-    /** Ensures the grid buffer and the bind group; `true` if the pass is ready. */
-    ensure(width: number, height: number, lights: GPUBuffer) {
+    /** Ensures the grid buffer, its pool sized for `count` lights, and the bind group; `true` if
+     *  the pass is ready. */
+    ensure(width: number, height: number, lights: GPUBuffer, count: number) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height),
         records = wantedX * wantedY * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS;
       // The pool never takes the buffer past what the device binds: a cell with no room walks all.
       const room = Math.floor(storageBufferCap(device.limits) / 4) - records;
-      const wantedPool = Math.max(0, Math.min(pool.words(wantedX * wantedY), room));
+      const wantedPool = Math.max(0, Math.min(pool.words(wantedX * wantedY, count), room));
       if (!tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool > poolWords) {
         tiles?.destroy();
-        // The same view with more pool words: the pool grew to what an overflowing frame asked.
+        // The same view with more pool words: the pool grew, to what an overflowing frame asked or
+        // to more lights.
         if (poolWords && wantedX === tilesX && wantedY === tilesY) growths++;
         tilesX = wantedX;
         tilesY = wantedY;

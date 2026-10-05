@@ -38,26 +38,9 @@ const CPU = cpuStepTable([
   ['retainMs', 'hostPages'],
   ['submitMs', 'submit'],
   ['encodeSubmitMs', null],
-  ['shadowPlanMs', null],
-  ['shadowRequestsMs', null],
-  ['shadowAdmissionMs', null],
-  ['shadowBatchesMs', null],
-  ['shadowRegionsMs', null],
-  ['shadowPassesMs', null],
   ['totalMs', null],
 ] as const);
 export const CPU_STEP_NAMES = CPU.names;
 export const CPU_STEP = CPU.at;
 /** Stage of each bound, in profile-row order; `null` for a sum. */
 export const CPU_STEP_STAGES = CPU.stages;
-
-/** The shadow bounds, planning then encoding (`../../shadow/cpuSteps.ts`). */
-export const SHADOW_CPU_STEPS = [
-  'shadowPlanMs',
-  'shadowRequestsMs',
-  'shadowAdmissionMs',
-  'shadowBatchesMs',
-  'shadowRegionsMs',
-  'shadowPassesMs',
-] as const;
-export type ShadowCpuStep = (typeof SHADOW_CPU_STEPS)[number];

@@ -3,6 +3,7 @@
 // The textures a pump changed are declared together: one scan of the page table, one box.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { ceilFloat32 } from '../../../../sdk-core/src/math/primitives/splitDouble.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts';
@@ -71,12 +72,13 @@ function lightsSpy() {
   const lights = {
     store: { count: 1 },
     mobility: { moves: (placement: number) => movingRoots.has(placement) },
-    plan: { representationChanged: spy(boxes), worldChanged: spy(worlds) },
+    changes: { representationChanged: spy(boxes), worldChanged: spy(worlds) },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
   return { lights, boxes, worlds, moving };
 }
 
-const r = Math.fround(Math.sqrt(3));
+/** A unit cube's sphere radius as the engine packs it: rounded up to f32, never down. */
+const r = ceilFloat32(Math.sqrt(3));
 
 test('a tile of a texture read by a cutout stales the box of that cutout, not the opaque surface beside it', () => {
   const { lights, boxes } = lightsSpy(),

@@ -1,6 +1,6 @@
 //! The error a group reduction publishes (#929).
 //!
-//! meshoptimizer's quadric error, attributes weighed in, estimates how far the kept surface moves;
+//! The simplifier's quadric error, attributes weighed in, estimates how far the kept surface moves;
 //! on a curved surface it under-measures the chord sag (0.6 times the sampled Hausdorff distance
 //! on a sphere: a cut at a 1 px threshold drew 1.39 px of error). The published error is therefore
 //! never below the geometry's own, the sampled two-sided Hausdorff distance between the group's

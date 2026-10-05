@@ -5,17 +5,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { grownListCap, initialListCap } from './listCap.ts';
-import { SELECTION_HEADER_WORDS as HEAD, SELECTION_LIST_CAP, stagedOutputBytes } from './layout.ts';
+import { SELECTION_LIST_CAP, stagedOutputBytes } from './layout.ts';
 import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
 import { packDagSelection } from './selection.ts';
-import { packRequest } from './request.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 import { createSelectionUniforms } from '../core/selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { deviceListCap } from './deviceListCap.ts';
+import { writeCut } from './differenceRig.fixture.ts';
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
   const limits = { maxStorageBufferBindingSize: 128 << 20 };
@@ -51,17 +51,8 @@ async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) 
     const buffer = create(descriptor);
     if (descriptor.usage & GPUBufferUsage.MAP_READ)
       buffer.getMappedRange = () => {
-        const listCap = held(),
-          bytes = new ArrayBuffer(descriptor.size),
-          ints = new Uint32Array(bytes),
-          kept = drawn.slice(0, listCap);
-        ints.set([drawn.length, 0, 0, drawn.length > listCap ? 1 : 0]);
-        ints.set(
-          kept.map((page) => packRequest(page, 1)),
-          HEAD,
-        );
-        ints[HEAD + listCap] = drawn.length;
-        ints.set(kept, 2 * HEAD + listCap);
+        const bytes = new ArrayBuffer(descriptor.size);
+        writeCut(new Uint32Array(bytes), held(), { asked: drawn, drawn });
         return bytes;
       };
     return buffer;

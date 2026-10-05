@@ -4,7 +4,7 @@
 //! legal on disk and forbidden as-is in a URI: written raw, it would re-read as
 //! a different name, or as nothing.
 //!
-//! The rule is glTF 2.0's: an RFC 3986 relative reference. Every byte outside
+//! The rule is glTF 2.0's: a relative URI reference. Every byte outside
 //! the unreserved characters `A-Z a-z 0-9 - . _ ~` is written `%XX`, and the
 //! only component separator that remains is `/`.
 use std::path::{Path, PathBuf};

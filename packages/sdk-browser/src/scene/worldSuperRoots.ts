@@ -11,8 +11,8 @@
  * inside a primitive, so there is no second selection path and no second BVH (rule 7).
  *
  * The world pages are world-space geometry (`worldRootsPage`): the root's world matrix is the
- * identity, and the pages' `min`/`max`/`sphere` are their own world-space bounds. As cluster's
- * hierarchy is, the DAG is read in the cook's own cluster order, never re-sorted: a cluster out of
+ * identity, and the pages' `min`/`max`/`sphere` are their own world-space bounds. The
+ * DAG is read in the cook's own cluster order, never re-sorted: a cluster out of
  * its rank is refused, `WORLD_CLUSTER_RANK`, since the groups name clusters by rank.
  */
 

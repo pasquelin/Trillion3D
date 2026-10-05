@@ -5,9 +5,8 @@ import { cellOrigin } from './write.ts';
 import { tailSlotOf, tileKeyOf } from './ids.ts';
 
 /**
- * An atlas pool changes layers WITHOUT losing what it holds — the reference, itself, empties its
- * virtual textures when their pool changes size. Surviving layers are copied in one command, slot
- * for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
+ * An atlas pool changes layers WITHOUT losing what it holds. Surviving layers are copied in one
+ * command, slot for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
  * slot of the new pool — pinned queues first, then the most looked-at —, each copied and
  * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
  * its texture and the coarse level takes over. A tail never leaves: only a pool drawn under its

@@ -4,10 +4,12 @@ import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility
 import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts';
-import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
+import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
-import { withSubgroupShadowRequests } from '../direct/shadowRequestWgsl.ts';
+import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts';
+import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts';
+import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
@@ -20,21 +22,28 @@ export interface DirectLightResources {
   /** The declared lights, grown with the scene: the one buffer a contract program reads them from. */
   lights?: GPUBuffer;
   tiles?: GPUBuffer;
-  /** Shadow records and page table, and the buffer the resolve records its shadow reads in. */
-  slices?: GPUBuffer;
-  requests?: GPUBuffer;
-  atlas?: GPUTextureView;
-  transmittance?: { view: GPUTextureView; depthView: GPUTextureView };
+  /** The virtual shadow maps a non-mask read samples (`CONTRACT_VSM_BINDINGS`): this frame's
+   *  page table, projection data and uniforms, and the pool's dynamic slice. */
+  vsm?: { pageTable: GPUBuffer; projectionData: GPUBuffer; uniforms: GPUBuffer; pool: GPUBuffer };
+  /** The virtual shadow maps' traced mask array (`vsmEncode.ts`), one 8-bit lane per shadowed
+   *  light: bound on the transmittance's number. */
+  vsmMask?: GPUTextureView;
+  /** The mask's tile words (`vsmMaskFactor`): the layers its projection stored in each 8×8 tile. */
+  vsmMaskTiles?: GPUTextureView;
+  /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none. */
+  vsmTransmission?: GPUTextureView;
   /** Probe grid, coefficients, mirror surface cache — the two atlases of `atlas.ts`: one
    *  lifetime, the probes' identity. */
   bounceGrid?: GPUBuffer;
   probes?: GPUTextureView;
   surfaceCache?: GPUTextureView;
-  /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
+  /** Resident proxy; absent, a zero substitute. */
   proxy?: GPUBuffer;
   narrow?: boolean; // the narrow tile pass wrote the lists (`contractVariants.ts`, #849)
-  unshadowed?: boolean; // no light declares a shadow, or no atlas: no shadow code (#1249, #1362)
+  unshadowed?: boolean; // no light declares a shadow, or no shadow raster: no shadow code (#1249)
   rectless?: boolean; // no light is a rectangle: no rectangle code (#1369)
+  sunless?: boolean; // no shadowed light is a sun: no clipmap read (`ShadowKinds`)
+  localless?: boolean; // no shadowed light is a point or a spot: no local read (`ShadowKinds`)
   receiver?: ReceiverResources; // what the receiver offset reads (#1410)
 }
 export interface DeferredSources {
@@ -43,8 +52,6 @@ export interface DeferredSources {
   label: string;
   direct: boolean;
   bounce?: boolean;
-  /** Pages per side of a sun's clipmap the shadow shader was built with (`shadowRequestWgsl.ts`). */
-  pages?: number;
   unboundedReflections?: boolean; // a reference session's rough trace (`reflectionTrace`, #33)
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
@@ -69,21 +76,17 @@ export async function createDeferredProgram(
   sources: DeferredSources,
   bindings: DeferredBindings,
 ) {
-  // Granted `subgroups`, a contract program, its reflection passes too, asks for its shadow pages
-  // per subgroup (#966).
-  const perSubgroup = sources.direct && device.features.has('subgroups');
-  const text = perSubgroup
-    ? withSubgroupShadowRequests(sources.lighting, sources.pages)
-    : sources.lighting;
   const lighting = await createCheckedShaderModule(
     device,
-    text,
-    `${sources.label}${perSubgroup ? '_SUBGROUP' : ''}_LIGHTING`,
+    sources.lighting,
+    `${sources.label}_LIGHTING`,
   );
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
   const [light, reflection, compositions] = await Promise.all([
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    sources.direct ? reflectionPipelines(device, text, lightingLayout, sources) : undefined,
+    sources.direct
+      ? reflectionPipelines(device, sources.lighting, lightingLayout, sources)
+      : undefined,
     createCompositions(device, sources.compose, sources.label),
   ]);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
@@ -93,6 +96,14 @@ export async function createDeferredProgram(
     /** The bound surface's flags: the share the lit image is composed with. */
     boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
+  // The virtual shadow maps' stand-ins as a frame's group (`DirectLightResources.vsm`), made once:
+  // a frame without maps binds them and allocates nothing.
+  const vsmPlaceholders = {
+    pageTable: bindings.placeholders.vsmPageTable,
+    projectionData: bindings.placeholders.vsmProjectionData,
+    uniforms: bindings.placeholders.vsmUniforms,
+    pool: bindings.placeholders.vsmPool,
+  };
   // One per colour and share read, weakly keyed by every view it reads: nothing to reset.
   type Composition = { group: GPUBindGroup; input: ComposeInput };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
@@ -136,11 +147,10 @@ export async function createDeferredProgram(
       const { placeholders } = bindings;
       const lights = direct.lights,
         tiles = direct.tiles ?? placeholders.tiles,
-        slices = direct.slices ?? placeholders.slices,
-        atlas = direct.atlas ?? placeholders.atlasView,
-        transmittance = direct.transmittance?.view ?? placeholders.transmittanceView,
-        translucentDepth = direct.transmittance?.depthView ?? placeholders.atlasView,
-        requests = direct.requests ?? placeholders.requests,
+        vsm = direct.vsm ?? vsmPlaceholders,
+        mask = direct.vsmMask ?? placeholders.vsmMask,
+        maskTiles = direct.vsmMaskTiles ?? placeholders.vsmMaskTiles,
+        vsmTransmission = direct.vsmTransmission ?? placeholders.transmittanceView,
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy,
         receiver = direct.receiver ?? placeholders.receiver;
@@ -149,12 +159,15 @@ export async function createDeferredProgram(
       next[0] = surface;
       next[1] = lights;
       next[2] = tiles;
-      next[3] = atlas;
-      next[4] = transmittance;
-      next[5] = requests;
-      next[6] = probes;
-      next[7] = proxy;
-      for (let i = 0; i < receiver.length; i++) next[8 + i] = receiver[i];
+      next[3] = vsm.pageTable;
+      next[4] = mask;
+      next[5] = probes;
+      next[6] = proxy;
+      for (let i = 0; i < receiver.length; i++) next[7 + i] = receiver[i];
+      next[7 + receiver.length] = vsm.projectionData;
+      next[8 + receiver.length] = vsm.uniforms;
+      next[9 + receiver.length] = vsmTransmission;
+      next[10 + receiver.length] = maskTiles;
       if (!identity.moved()) return;
       boundSurface = surface;
       boundFlags = surface.views()[3];
@@ -170,14 +183,18 @@ export async function createDeferredProgram(
           { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
           { binding: 6, resource: { buffer: lights } },
           { binding: 7, resource: { buffer: tiles } },
-          { binding: 8, resource: { buffer: slices } },
-          { binding: 9, resource: atlas },
-          { binding: 10, resource: placeholders.sampler },
+          { binding: CONTRACT_VSM_BINDINGS.pageTable, resource: { buffer: vsm.pageTable } },
+          {
+            binding: CONTRACT_VSM_BINDINGS.projectionData,
+            resource: { buffer: vsm.projectionData },
+          },
+          { binding: CONTRACT_VSM_BINDINGS.uniforms, resource: { buffer: vsm.uniforms } },
           // The resident proxy as-is, no copy: its header says whether there is anything to trace.
-          { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
-          { binding: CONTRACT_SHADOW_BINDINGS.requests, resource: { buffer: requests } },
-          { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
-          { binding: CONTRACT_SHADOW_BINDINGS.translucentDepth, resource: translucentDepth },
+          { binding: RESIDENT_PROXY_BINDING, resource: { buffer: proxy } },
+          { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: mask },
+          { binding: VSM_MASK_TABLE_BINDING, resource: placeholders.vsmMaskTable.view },
+          { binding: VSM_MASK_TILES_BINDING, resource: maskTiles },
+          { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: vsmTransmission },
         );
       }
       if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)

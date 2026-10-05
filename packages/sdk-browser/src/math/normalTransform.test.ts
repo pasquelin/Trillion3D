@@ -7,10 +7,10 @@
 // WHAT THIS FILE HOLDS, AND HOW. It no longer reads shader text with regex patterns: a suite of
 // `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
 // CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
-// `tests/browser/probes/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
+// `tests/gpu/math/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
 // flattened then collapsed — and threshold crossed on both sides.
-// This model is not the shader: `tests/browser/renders/normal-transform-arithmetic.browser.ts` executes text
-// shipped in Chromium WebGPU on EXACTELY these cases (`tests/browser/probes/normalTransformCases.ts`) and
+// This model is not the shader: `tests/gpu/math/normal-transform.gpu.ts` executes text
+// shipped on Dawn on EXACTELY these cases (`tests/gpu/math/normalTransformCases.ts`) and
 // mandates rendering what model renders — which is also where non-compiling shader fails proof.
 // Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
 // would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
@@ -21,67 +21,64 @@ import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts';
 import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
 import {
-  angleEntre,
-  unitaire,
-  verdictNormale,
-  xformNormalAvantLeLot,
-  xformNormalModele,
-} from '../../../../tests/browser/probes/inverseTransposeF32.ts';
-import {
-  APLATIES,
-  CAS,
-  DECROCHE_DEG,
   DEG,
-  EFFONDREES,
-  REGULIERE_MINUSCULE,
-  SEUIL,
-} from '../../../../tests/browser/probes/normalTransformCases.ts';
+  DROPOUT_DEG,
+  angleBetween,
+  unit,
+  normalVerdict,
+  xformNormalBefore,
+  xformNormalModel,
+} from '../../../../tests/gpu/math/inverseTransposeF32.ts';
+import {
+  FLATTENED,
+  CASES,
+  COLLAPSED,
+  TINY_REGULAR,
+  THRESHOLD_SCALE,
+} from '../../../../tests/gpu/math/normalTransformCases.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
-const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
-  verdictNormale(rendue, cas.vraie, DECROCHE_DEG);
+const verdict = (cas: { truth: number[] }, rendue: number[]) =>
+  normalVerdict(rendue, cas.truth, DROPOUT_DEG);
 
 test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => {
-  assert.ok(CAS.length >= 300, `sample too small : ${CAS.length}`);
-  for (const cas of CAS) {
-    const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
-    assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
+  assert.ok(CASES.length >= 300, `sample too small : ${CASES.length}`);
+  for (const cas of CASES) {
+    const v = verdict(cas, xformNormalModel(cas.world, cas.normal));
+    assert.ok(v.ok, `${cas.name} : ${v.reason}`);
   }
   // Without effective rotation, these cases prove nothing: true normal must have moved.
-  const tournees = CAS.filter(
-    (cas: { vraie: number[]; normale: number[] }) => angleEntre(cas.vraie, cas.normale) * DEG > 10,
-  ).length;
-  assert.ok(tournees > CAS.length / 2, `only ${tournees} cases rotate normal`);
+  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * DEG > 10).length;
+  assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`);
 });
 
 test('absolute threshold before batch dropped out, and exactly below s³ = 1e-20', () => {
-  const decroches = CAS.filter(
-    (cas: { world: number[]; normale: number[]; vraie: number[] }) =>
-      !verdict(cas, xformNormalAvantLeLot(cas.world, cas.normale)).ok,
+  const decroches = CASES.filter(
+    (cas) => !verdict(cas, xformNormalBefore(cas.world, cas.normal)).ok,
   );
   assert.ok(decroches.length > 0, 'reproduction no longer reproduces: review cases');
   // What batch was meant to change, and nothing else: above threshold, old code was already correct.
   // Dropout outside band would mean bug was not what we thought.
   for (const cas of decroches)
     assert.ok(
-      cas.s < SEUIL,
-      `${cas.nom} : dropout outside threshold band (s = ${cas.s} ≥ ${SEUIL})`,
+      cas.s < THRESHOLD_SCALE,
+      `${cas.name} : dropout outside threshold band (s = ${cas.s} ≥ ${THRESHOLD_SCALE})`,
     );
   // And across threshold, behavior toggles: 2.154e-7 inside, 2.16e-7 outside.
   // Without these two scales, bound would not be tested, only crossed from afar.
-  const a = (s: number) => decroches.some((cas: { s: number }) => cas.s === s);
+  const a = (s: number) => decroches.some((cas) => cas.s === s);
   assert.ok(a(2.154e-7), 'just below threshold: former code should have dropped out');
   assert.ok(!a(2.16e-7), 'just above threshold: former code should not have dropped out');
 });
 
 test('outside threshold band, batch did not move rendered normal', () => {
-  for (const cas of CAS.filter((c: { s: number }) => c.s >= 1e-6)) {
+  for (const cas of CASES.filter((c) => c.s >= 1e-6)) {
     const ecart =
-      angleEntre(
-        xformNormalModele(cas.world, cas.normale),
-        xformNormalAvantLeLot(cas.world, cas.normale),
+      angleBetween(
+        xformNormalModel(cas.world, cas.normal),
+        xformNormalBefore(cas.world, cas.normal),
       ) * DEG;
-    assert.ok(ecart < 1e-4, `${cas.nom} : normal moved by ${ecart}° outside band`);
+    assert.ok(ecart < 1e-4, `${cas.name} : normal moved by ${ecart}° outside band`);
   }
 });
 
@@ -90,24 +87,21 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
   // transformed edges for rank 2, zero vector for collapsed. Former expectation — LOCAL normal
   // rendered as is — described bug, not convention: on `scale (1,1,0) then 90° around Y` it left +Z
   // where transformed face looks at +X.
-  for (const cas of APLATIES) {
-    const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
-    assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
-    const ecart = angleEntre(cas.vraie, unitaire(cas.normale)) * DEG;
-    assert.ok(ecart > 10, `${cas.nom} : local and true normals differ by only ${ecart}°`);
+  for (const cas of FLATTENED) {
+    const v = verdict(cas, xformNormalModel(cas.world, cas.normal));
+    assert.ok(v.ok, `${cas.name} : ${v.reason}`);
+    const ecart = angleBetween(cas.truth, unit(cas.normal)) * DEG;
+    assert.ok(ecart > 10, `${cas.name} : local and true normals differ by only ${ecart}°`);
   }
-  for (const cas of EFFONDREES)
+  for (const cas of COLLAPSED)
     assert.deepEqual(
-      xformNormalModele(cas.world, cas.normale),
+      xformNormalModel(cas.world, cas.normal),
       [0, 0, 0],
-      `${cas.nom} : face without world area does not light — zero, never NaN nor local`,
+      `${cas.name} : face without world area does not light — zero, never NaN nor local`,
     );
   // And guard must not be greedy: tiny but regular matrix passes.
-  const v = verdict(
-    REGULIERE_MINUSCULE,
-    xformNormalModele(REGULIERE_MINUSCULE.world, REGULIERE_MINUSCULE.normale),
-  );
-  assert.ok(v.ok, `${REGULIERE_MINUSCULE.nom} : caught by guard — ${v.raison}`);
+  const v = verdict(TINY_REGULAR, xformNormalModel(TINY_REGULAR.world, TINY_REGULAR.normal));
+  assert.ok(v.ok, `${TINY_REGULAR.name} : caught by guard — ${v.reason}`);
 });
 
 // --- Single writing and compilation --------------------------------------------------------------

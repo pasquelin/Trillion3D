@@ -43,6 +43,8 @@ export function createPageRecords(
       geometryPage: page.geometry,
       min: widened(page.min, -1, slack),
       max: widened(page.max, 1, slack),
+      // A dynamic page's box this frame (#573), set by its rewrites: one record shape for all.
+      moved: undefined,
       role: page.role,
       level: cut.level,
       lodError: cut.lodError,

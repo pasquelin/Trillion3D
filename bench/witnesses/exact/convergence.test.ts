@@ -1,7 +1,5 @@
 // Still pose, cache that applies arrivals: the cut must converge to ONE cover and stop
-// asking. Two equivalent covers took turns as arrivals landed, with permanent requests —
-// the prefetch ring, asked even when the visible cut was incomplete, fought the cache with
-// what the frame shows.
+// asking. Two equivalent covers took turns as arrivals landed, with permanent requests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from '../measurement.ts';
@@ -43,7 +41,7 @@ function image(
   camera = wideCamera(),
 ) {
   backend.render(camera);
-  const demandes = [...backend.pendingUrls!(), ...backend.prefetchUrls!()];
+  const demandes = [...backend.pendingUrls!()];
   for (const url of demandes) {
     const bytes = octets.get(url);
     if (bytes) backend.acceptPage!(url, bytes);
@@ -67,24 +65,6 @@ test('still pose: the cut converges to a cover and stops asking', () => {
   }
   assert.equal(couvertures.size, 1, `the cut alternates between ${couvertures.size} covers`);
   assert.equal(demandesApres, 0, 'the engine is still asking while its cut is complete');
-  backend.dispose();
-  dispose();
-});
-
-test('the prefetch ring does not fight the cache with the visible cut', () => {
-  const { backend, octets, dispose } = engine();
-  const camera = wideCamera();
-  backend.render(camera);
-  assert.ok(backend.pendingUrls!().length > 0, 'the visible cut must be incomplete here');
-  assert.deepEqual(
-    backend.prefetchUrls!(),
-    [],
-    'the ring is asked while the frame still shows holes: it pushes out what the frame ' +
-      'is waiting for, the cut falls back on a coarser substitute, and nothing converges',
-  );
-  // Once the visible cut is complete, the ring resumes its role: prefetch the neighbourhood.
-  for (let i = 0; i < 10; i++) image(backend, octets, camera);
-  assert.deepEqual(backend.pendingUrls!(), [], 'the visible cut is complete');
   backend.dispose();
   dispose();
 });

@@ -34,11 +34,10 @@ export interface FrenchException {
 const PERF_FORMAT: FrenchException = {
   reason:
     'a key of the bench perf measurement format (`site/examples/kit/measureTypes.ts`), written by ' +
-    '`bench/core/measure.ts` and `bench/perf`, read by `bench/runner/perf`, `bench/oracles`, ' +
-    '`site/examples/kit/verdict.ts` and `scripts/docs-examples.browser.ts`, and stored in each ' +
-    "machine's `.mesure/baselines`: listed until renamed together with its readers",
-  files:
-    /^(?:bench\/(?:core|perf|oracles|runner\/perf)\/|site\/examples\/kit\/|scripts\/docs-examples)/,
+    '`bench/core/measure.ts` and `bench/perf`, read by `bench/runner/perf`, `bench/oracles` and ' +
+    "`site/examples/kit/verdict.ts`, and stored in each machine's `.mesure/baselines`: listed " +
+    'until renamed together with its readers',
+  files: /^(?:bench\/(?:core|perf|oracles|runner\/perf)\/|site\/examples\/kit\/)/,
 };
 
 /** The format's keys holding a counted word, excepted only where they are keys (`.key`, `key:`,

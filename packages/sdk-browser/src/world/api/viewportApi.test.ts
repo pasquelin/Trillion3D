@@ -72,9 +72,10 @@ test('public resize sizes the owned surface once, and the composition targets in
 test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface', () => {
   const canvas = { width: 0, height: 0 } as HTMLCanvasElement;
   const viewport: [number, number] = [0, 0];
+  let blanked = 0;
   const api = createExplorerViewportApi({
     check: () => {},
-    active: () => ({}) as never,
+    active: () => ({ canvasResized: () => blanked++ }) as never,
     setCapturingSurface: () => {},
     targets: () => [],
     camera: { aspect: 0, updateProjectionMatrix: () => {} } as never,
@@ -85,6 +86,7 @@ test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface
   });
   api.resize(20, 10);
   assert.deepEqual(viewport, [30, 15]);
+  assert.equal(blanked, 1, 'the engine presents into a canvas sizing blanked');
 });
 
 // THE CAPTURE VIEW IS AIMED AT A REAL HOST POINT.

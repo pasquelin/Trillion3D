@@ -2,7 +2,6 @@
 // kept as a test fixture: only the tests build binary manifests in TypeScript.
 import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
 import * as format from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
-import { manifestBinaryRanges } from '../../packages/sdk-core/src/manifest/binaryLayout.ts';
 import {
   checkedDepthLayer,
   countManifest,
@@ -11,6 +10,7 @@ import {
   writeCone,
   writeSha,
 } from './manifestBinaryEncodeChecks.ts';
+import { manifestBinaryRanges } from './manifestBinaryRanges.ts';
 import { encodePreviewColumns } from './manifestBinaryPreviewEncode.ts';
 import type {
   ManifestBinaryDescriptor,

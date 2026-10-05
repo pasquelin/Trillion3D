@@ -1,4 +1,10 @@
-import { HIZ_NOTHING } from './oracles.ts';
+/**
+ * Value returned when no texels are read: cannot occlude anything.
+ *
+ * Engine depth is REVERSED — near is 1, far is 0 (`../math/primitives/camera.ts`). A bounding box is occluded
+ * only if its nearest depth bound is FARTHER (smaller value) than the occluder depth.
+ */
+export const HIZ_NOTHING = Number.NEGATIVE_INFINITY;
 
 /**
  * The per-frame Hi-Z pyramid: a single `Float32Array` for all levels, one offset
@@ -7,7 +13,7 @@ import { HIZ_NOTHING } from './oracles.ts';
  * reversed: nothing is rounded, the flat layout returns exactly what the nested
  * array pyramid returned, without allocating one line per row and frame.
  *
- * Production mirror of `hizReduceCeil` (oracles.ts), which remains the oracle: two
+ * Production mirror of `hizReduceCeil` (`oracles.fixture.ts`), which remains the oracle: two
  * deliberate implementations of the same reduction, pitted against each other in equivalence test.
  */
 export type HizFlat = {
@@ -68,8 +74,10 @@ export function hizFlatLayout(width: number, height: number, into?: HizFlat): Hi
 }
 
 /**
- * 2x2 ceil reduction, level by level, into the pre-allocated buffer. Candidate starts at `Infinity`
- * and passes through `Math.min`: NaN propagates as before.
+ * 2x2 ceil reduction, level by level, into the pre-allocated buffer: the farthest (`Math.min`) of
+ * each quad, NaN propagating. `Math.min` is exact, commutative and associative on every input
+ * (NaN absorbs, −0 < +0), so the interior quads — four texels, no bound to test — take the min of
+ * two pairs, and the odd last column and row the generic loop from `Infinity`: the same values.
  */
 function reduire(pyramid: HizFlat, level: number) {
   const { data, offsets, widths, heights } = pyramid;
@@ -79,10 +87,22 @@ function reduire(pyramid: HizFlat, level: number) {
   const width = widths[level],
     height = heights[level],
     dst = offsets[level];
+  const fullWidth = srcWidth >> 1,
+    fullHeight = srcHeight >> 1;
+  for (let y = 0; y < fullHeight; y++) {
+    const top = src + 2 * y * srcWidth,
+      bottom = top + srcWidth,
+      out = dst + y * width;
+    for (let x = 0, c = 0; x < fullWidth; x++, c += 2)
+      data[out + x] = Math.min(
+        Math.min(data[top + c], data[top + c + 1]),
+        Math.min(data[bottom + c], data[bottom + c + 1]),
+      );
+  }
   for (let y = 0; y < height; y++) {
     const startRow = y * 2,
       lastRow = startRow + 2 < srcHeight ? startRow + 2 : srcHeight;
-    for (let x = 0; x < width; x++) {
+    for (let x = y < fullHeight ? fullWidth : 0; x < width; x++) {
       const startCol = x * 2,
         lastCol = startCol + 2 < srcWidth ? startCol + 2 : srcWidth;
       let candidate = Infinity;
@@ -104,45 +124,9 @@ export function hizBuildFlat(
   if (depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE');
   const pyramid = hizFlatLayout(width, height, into);
   const { data } = pyramid;
-  for (let i = 0, n = width * height; i < n; i++) data[i] = depth[i];
+  const n = width * height;
+  if (depth instanceof Float32Array) data.set(depth.subarray(0, n));
+  else for (let i = 0; i < n; i++) data[i] = depth[i];
   for (let level = 1; level < pyramid.count; level++) reduire(pyramid, level);
   return pyramid;
-}
-
-/**
- * Farthest occluder depth over the half-open level-0 pixel rectangle
- * [x0,x1)x[y0,y1). Empty or out-of-field rectangle: `HIZ_NOTHING`, which cannot hide anything.
- */
-export function hizFootprintFarFlat(
-  pyramid: HizFlat,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  level: number,
-): number {
-  if (level < 0 || level >= pyramid.count || x1 <= x0 || y1 <= y0) return HIZ_NOTHING;
-  const width = pyramid.widths[level],
-    height = pyramid.heights[level],
-    base = pyramid.offsets[level],
-    data = pyramid.data;
-  if (width === 0) return HIZ_NOTHING;
-  const scale = 2 ** level;
-  const minX = Math.floor(x0 / scale),
-    maxX = Math.floor((x1 - 1) / scale);
-  const minY = Math.floor(y0 / scale),
-    maxY = Math.floor((y1 - 1) / scale);
-  let far = Infinity,
-    hit = false;
-  for (let y = minY; y <= maxY; y++) {
-    if (y < 0 || y >= height) continue;
-    const row = base + y * width;
-    for (let x = minX; x <= maxX; x++) {
-      if (x < 0 || x >= width) continue;
-      far = Math.min(far, data[row + x]);
-      hit = true;
-    }
-  }
-  if (!hit) return HIZ_NOTHING;
-  return far;
 }

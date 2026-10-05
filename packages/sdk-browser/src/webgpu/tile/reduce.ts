@@ -6,8 +6,7 @@
  * atomics, which the whole pixel group the GPU runs together waited on: the materials pass cost twice
  * the old atlas at 2496×1404 on Emerald (5.6 ms versus 2.8; 2.65 without this feedback). It is this
  * compute pass, one thread per phase pixel, that counts: one pixel in sixteen outside a barrier, all
- * of them during a convergence — the reference's principle, the pixel writes its request and analysis
- * comes after.
+ * of them during a convergence: the pixel writes its request and the analysis comes after.
  */
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts';
 import { REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts';

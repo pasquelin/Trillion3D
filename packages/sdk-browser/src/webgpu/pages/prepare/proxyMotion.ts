@@ -1,6 +1,6 @@
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { ProxySync } from '../../../../../sdk-core/src/scene/core/proxyMotion.ts';
-import { sourceNodes, syncSunFarCasters } from './sunFarCasters.ts';
+import { sourceNodes } from './sourceIndex.ts';
 
 type MovingProxy = {
   sync(worldOf: (source: number) => ArrayLike<number> | undefined): ProxySync;
@@ -23,7 +23,8 @@ function reader(rt: WebgpuPagesRuntime) {
   const nodes = sourceNodes(rt);
   read = (rank) => {
     const node = rank === -1 ? rt.setup.source : nodes.get(rank);
-    return node ? rt.setup.worlds.of(node).elements : undefined;
+    // A node the host destroyed is no source any more: its slot may serve another node.
+    return node?._alive ? rt.setup.worlds.of(node).elements : undefined;
   };
   readers.set(rt, read);
   return read;
@@ -48,9 +49,7 @@ export function syncPageProxy(rt: WebgpuPagesRuntime, proxy: MovingProxy, arrive
   return change;
 }
 
-/** Kept bounce resources must follow motion even while bounce is toggled off: far shadows borrow them. */
+/** Kept bounce resources must follow motion even while bounce is toggled off. */
 export function syncLightingProxies(rt: WebgpuPagesRuntime) {
   if (rt.bounce.probes) syncPageProxy(rt, rt.bounce.probes);
-  if (rt.sunFar.gpu?.proxy && !rt.sunFar.borrowed) syncPageProxy(rt, rt.sunFar.gpu.proxy);
-  syncSunFarCasters(rt);
 }

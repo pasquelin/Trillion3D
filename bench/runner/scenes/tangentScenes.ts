@@ -12,7 +12,7 @@
 // its source buffers, authored tangents included; the paged one is cut into geometry pages
 // (`clustered-blend`, `exact-clusters`), which store no tangent. The WebGPU engine applies no
 // morph target, so the images of a pair can be compared pixel for pixel
-// (`tests/browser/renders/page-tangents.browser.ts`).
+// (`tests/gpu/webgpu/page-tangents.gpu.ts`).
 // =====================================================================================
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';

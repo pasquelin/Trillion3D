@@ -55,6 +55,9 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  by a lost or disposed device before the next call raises `WEBGPU_LOST`: no host composes a
    *  frame older than the device. */
   readonly presentedSurface?: HTMLCanvasElement;
+  /** The host sized the canvas the engine presents into, which blanks it: the next frame presents
+   *  its image even when held. Absent from an engine that does not present into the host canvas. */
+  canvasResized?(): void;
   metrics(): BackendMetrics & BackendDrawCounters;
   /** Per-step profile of the sliding window: CPU and GPU durations kept separate.
    *  Absent from an engine that does not hold one; `enabled: false` when the host did not ask. */
@@ -63,8 +66,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   resetStageProfile?(): void;
   /** CPU bounds of the images since that reset, read once then forgotten; `null` with no row. */
   cpuSteps?(): CpuStepSummary | null;
-  /** Shadow-atlas fingerprint, bit for bit: the proof of drawing by pages, never an image. */
-  shadowAtlasDigest?(): Promise<import('../gpu/shadow/digest.ts').ShadowAtlasDigest | null>;
   /** What the GPU partition of the last frame wrote, and the inputs it drew it from: the proof,
    *  cluster by cluster, that its rectangles and depths are conservative. */
   partitionAudit?(): Promise<import('../webgpu/core/partitionAudit.ts').PartitionAudit | null>;
@@ -74,8 +75,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
     import('../webgpu/transparent/occlusionAudit.ts').TransparentOcclusionAudit | null
   >;
   pendingUrls?(): string[];
-  /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
-  prefetchUrls?(): string[];
   pageUrls?(): string[];
   /** Page pins as a difference of request ranks; both page backends implement this. */
   retainedRanks?(): import('../streaming/types.ts').HostRetentionDelta;
@@ -98,7 +97,12 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
-  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
+  /** The interactive loop's frame began: true where the engine holds it, drawing nothing, to
+   *  measure the display (`../webgpu/frame/interactiveFrame.ts`); an explicit render never is. */
+  measureFrame?(): boolean;
+  /** What the view received so far — camera pages made resident, quiet images a still average not
+   *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
+  landings?(): number;
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
@@ -108,8 +112,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
   ): Promise<import('../scene/surfaceBuffer.ts').SurfaceCapture>;
-  rasterRgba?(): Uint8Array;
-  visibilityIds?(): Uint32Array;
   dispose(): void | Promise<void>; // A release that finishes later resolves when it has.
 }
 export interface BackendContext {
@@ -139,7 +141,7 @@ export interface BackendContext {
   diagnosticDetail?: DiagnosticDetail;
   viewport?: [number, number];
   /** Image pixels per CSS pixel, read each frame: the host's `pixelRatio`, which a resize may
-   *  change. A line's `linewidth` counts CSS pixels, as the reference's `LineMaterial` does. */
+   *  change. A line's `linewidth` counts CSS pixels, so a line keeps its look when the pixel ratio changes. */
   pixelRatio?: () => number;
   gpuDevice?: GPUDevice;
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
@@ -158,12 +160,10 @@ export interface BackendContext {
    *  beyond it waits; `textureCompression`: the block family, `'auto'` what the device samples. */
   texturePoolBytes?: number;
   textureCompression?: import('../texture/blockFormats.ts').TextureCompression;
-  /** Temporal antialiasing, on by default as in the reference: `false` renders the image sampled at
+  /** Temporal antialiasing, on by default: `false` renders the image sampled at
    *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean;
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
-  /** A reference session's raised sun window, pages a side (`frame/referenceMode.ts`). */
-  sunWindow?: number;
   unboundedReflections?: boolean; // a reference session's rough trace (`reflectionTrace`, #33)
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
@@ -184,9 +184,6 @@ export interface BackendContext {
   feedbackTargetAB?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
-  shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
-  shadowLocalToClip?: boolean; // shadow corners from a stored LocalToClip (OMB-25), off by default
-  shadowPoolPages?: number; // physical shadow pages, allocated once; else the setting's (`poolSetting.ts`)
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   readPage?: (url: string) => Promise<Uint32Array>; // Validated reader of the GPU fallback.

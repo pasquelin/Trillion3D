@@ -11,18 +11,20 @@ import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
 import { atlasBytes, probeAtlasExtent } from './atlas.ts';
 import { ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
+import { createSnapshotFollow, type SnapshotFollow } from './snapshotFollow.ts';
 import { createBounceSchedule } from './schedule.ts';
 import { createProbeStorage } from './probeStorage.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
 import { syncBounceProbes } from './probeSync.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { BOUNCE_PROBE_PASS } from '../stage/passLabels.ts';
+import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
+import { BOUNCE_PASS } from '../stage/passLabels.ts';
 
 /** Proxy, lights, queue, frozen probes, output and canonical surface cache: the three atlases
  *  of `atlas.ts`. */
 const PROBE_TYPES: BounceSlot[] = [
   'uniform',
-  'storage',
+  'read-only-storage',
   'read-only-storage',
   'read-only-storage',
   'atlas-array',
@@ -65,6 +67,7 @@ export async function createGpuBounceProbes(
   let surface!: GpuBounceSurface;
   let pipeline: GPUComputePipeline;
   let group: GPUBindGroup;
+  let follow: SnapshotFollow;
   let boundLights: GPUBuffer;
   let layout: GPUBindGroupLayout;
   /** The probe group, on the light buffer of the moment. */
@@ -90,11 +93,12 @@ export async function createGpuBounceProbes(
     });
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE');
     layout = bounceLayout(device, PROBE_TYPES);
-    pipeline = device.createComputePipeline({
+    pipeline = await buildComputePipeline(device, {
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateProbes' },
     });
     group = bind();
+    follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView);
   } catch (error) {
     surface?.dispose();
     release();
@@ -180,15 +184,18 @@ export async function createGpuBounceProbes(
       const groups = schedule.plan(batch());
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups);
       uniform.write(generation, groups, frame);
-      encoder.copyTextureToTexture({ texture: probes }, { texture: snapshot }, extent);
-      surface.encode(encoder, budget.load);
+      // One pass: the surface cache's sweep, then the probes' update, which reads the cache, then
+      // the snapshot's follow-up. The snapshot equals the probes here — the last update's texels
+      // followed it, and a clear clears both —: the sweep reads it, then the update does.
+      const pass = encoder.beginComputePass({ label: BOUNCE_PASS });
+      surface.encode(pass, budget.load);
       if (groups) {
-        const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, group);
         pass.dispatchWorkgroups(groups, 1, 1);
-        pass.end();
+        follow(pass, groups);
       }
+      pass.end();
       updates = groups;
       return true;
     },

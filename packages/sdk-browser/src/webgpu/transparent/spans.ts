@@ -1,6 +1,6 @@
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { rowIndexCount } from '../row/pageRow.ts';
-import { deformOutputWord } from '../../deformation/slotLayout.ts';
+import { writeSpanDeformation } from '../../deformation/slotLayout.ts';
 
 /** The residency mirror reports only offsets that changed, including eviction and slot reuse. */
 export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset: number) {
@@ -18,9 +18,7 @@ export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset:
   if (table.spans[entry * 4] === start && table.spans[entry * 4 + 1] === count) return;
   table.spans[entry * 4] = start;
   table.spans[entry * 4 + 1] = count;
-  const output = rec.deformationOutput;
-  table.spans[entry * 4 + 2] = count ? deformOutputWord(output, offset) : 0;
-  table.spans[entry * 4 + 3] = count && output ? output.count : 0;
+  writeSpanDeformation(table.spans, entry, rec.deformationOutput, offset, count);
   dirtySpans.add(entry);
 }
 

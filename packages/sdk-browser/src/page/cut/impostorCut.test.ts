@@ -1,6 +1,6 @@
 // #1314 To-do 3, #1335: a root the impostor plan switches carries the card bit of its mark
 // (`CARD_ROOT`), so every camera cut drops its clusters in the same breath as the card
-// `planImpostors` yields for it, while every light cut still walks them: the object keeps its
+// `planImpostors` yields for it, while its mark keeps no shadow bit: the object keeps its
 // mesh's shadow. A root without the bit — WebGL2, any pre-impostor cache — is cut as before. Fails
 // on develop: the card bit and its reading are new.
 import test from 'node:test';
@@ -10,8 +10,8 @@ import { collectClusterPages, selectVisiblePages } from '../selection/selection.
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
-import { markCard } from '../../visibility/shader/spriteWgsl.ts';
-import { castsNoShadow, drawsCard } from './select.ts';
+import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts';
+import { drawsCard } from './select.ts';
 
 /** The engine camera of a host camera, as frame entry reads it (`readCameraWorld`). */
 const engineOf = (cam: ReturnType<typeof frontCamera>) =>
@@ -85,7 +85,7 @@ function planFor(
   return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam));
 }
 
-test('a switched root is left to its card by the camera cut, never by a light cut', () => {
+test('a switched root is left to its card by the camera cut, its shadow kept', () => {
   const { fixture, roots } = impostorRoots();
   const near = frontCamera(5),
     far = frontCamera(200, 5000);
@@ -102,11 +102,9 @@ test('a switched root is left to its card by the camera cut, never by a light cu
   const carded = selectVisiblePages(roots, engineOf(far), options);
   assert.deepEqual(carded.shown, [], 'the switched root shows no cluster');
   assert.deepEqual(carded.wanted, [], 'the switched root wants no cluster');
-  // A light's cut keeps it: the card bit is no shadow bit.
-  const light = {};
-  assert.equal(drawsCard(roots[0].mark, undefined), true);
-  assert.equal(drawsCard(roots[0].mark, light), false, 'a light cut walks the root');
-  assert.equal(castsNoShadow(roots[0].mark, light), false, 'the object keeps its shadow');
+  // The card bit is no shadow bit: the object keeps its shadow.
+  assert.equal(drawsCard(roots[0].mark), true);
+  assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'the object keeps its shadow');
   assert.equal(markCard(roots[0], false), true);
   assert.equal(roots[0].mark, undefined, 'cleared, the mark is as before');
   assert.ok(selectVisiblePages(roots, engineOf(far), options).shown.length > 0);

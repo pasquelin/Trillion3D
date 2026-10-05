@@ -33,6 +33,8 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
     frames.set(gpu.reflection, frame);
   }
   const { metadata, epoch, lighting } = frame;
+  // The textures the lighting binds (`depth`, `normalRough`, `vis`), which the rough trace records
+  // its texels' pixels from (`sampleWgsl.ts`): the resolve reads the same bits.
   metadata.depth = gpu.depthTexture;
   metadata.normal = gpu.surfaces.normalRough;
   metadata.ids = vis.visTexture;

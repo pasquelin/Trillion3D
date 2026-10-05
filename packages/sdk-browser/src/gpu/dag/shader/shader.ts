@@ -1,9 +1,11 @@
+import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts';
 import { DAG_BINDINGS_WGSL } from './bindings.ts';
 import { DAG_ERROR_WGSL } from './error.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
 import { DAG_RELEVE_WGSL } from './snapshotWgsl.ts';
+import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts';
 import { DAG_REQUEST_WGSL } from '../requestWgsl.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
@@ -12,13 +14,8 @@ import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
 import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_GRID_WGSL } from './gridWgsl.ts';
-import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
-import {
-  CARD_ROOT,
-  CASTS_NO_SHADOW,
-  SPRITE_UNCULLED,
-} from '../../../visibility/shader/spriteWgsl.ts';
-import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
+import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
+import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
@@ -32,7 +29,6 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
-// \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
 ${VIEW_UNIFORM_STRUCT}
@@ -79,7 +75,7 @@ fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
+ return !outsideFrustum(planesOf(w),boxMin(r),boxMax(r));
 }
 fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].cameraStretch;}
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
@@ -91,10 +87,7 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let head=rangeFirst()==0u;let i=flatIndex(id.x,id.y,n.x);
  if(head&&i==0u){
-  // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
-  // the list-full bit carry on, the other flags are the batch's own.
-  if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;}
-  else{atomicAnd(&out.overflow,${LIST_FULL}u);}
+  atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
  if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
@@ -104,17 +97,15 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  if(i>=rangeCount()*views[0u].viewCount){return;}
  let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // light cut opens none on a primitive that casts no shadow, a camera cut none on one its impostor
- // card draws (\`markOf\`, \`castsNoShadow\`, \`drawsCard\`).
+ // camera cut opens none on a primitive its impostor card draws (\`markOf\`, \`drawsCard\`).
  let mark=markOf(w);
- let skips=select((mark&${CARD_ROOT}u)!=0u,(mark&${CASTS_NO_SHADOW}u)!=0u,isLightCut());
+ let skips=(mark&${CARD_ROOT}u)!=0u;
  let root=select(rootOf(w),0xffffffffu,skips);
  setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
- let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
+ let pose=worldPose(w);let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
- let open=!isLightCut()&&unculledOf(w);
- putPlanes(base,m,vi,open);
- if(!isLightCut()){preparePrimitive(w,pose,m,open);}
+ let open=unculledOf(w);
+ putPlanes(base,m,vi,open);preparePrimitive(w,pose,m,open);
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -135,38 +126,30 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   let word=flagAt(coneCache(i));
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
-   if(isLightCut()){
-    let pixels=clusterPixels(clusterAt(r),viewWorld(w),stretchOf(w),focalPixels());
-    draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
-   }else{
-    // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
-    // projections — no matrix product, no projection, no sphere read again.
-    draw=drawsCompared(all||isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,all||childResident(i));
-   }
+   // The rule on the two comparisons \`dagWanted\` made this frame, on the same projections — no
+   // matrix product, no projection, no sphere read again.
+   draw=drawsCompared(all||isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,all||childResident(i));
   }
   noteImage(r,clusterFlags,draw);
-  // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
-  if(isLightCut()){if(draw){viewDrawnAppend(i);}}
-  else{
-   let drawn=select(0u,1u,draw);
-   setFlag(views[0u].queueCap+i,drawn);
-   // Drawn count of this page's block, held here rather than reread later page by page.
-   if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
-  }
+  let drawn=select(0u,1u,draw);
+  setFlag(views[0u].queueCap+i,drawn);
+  // Drawn count of this page's block, held here rather than reread later page by page.
+  if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
  }}
  verseTotaux(lid);
 }
 ${DAG_CONE_WGSL}
 ${DAG_PRIMITIVE_WGSL}
+${DAG_WORLD_POSE_WGSL}
 ${DAG_ERROR_WGSL}
 ${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
+${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
-${DAG_GRID_WGSL}${DAG_PAGES_WGSL}
+${DAG_GRID_WGSL}
 ${DAG_VIEWS_WGSL}
 ${DAG_RECORD_WGSL}
 ${DAG_AHEAD_WGSL}`;

@@ -4,7 +4,7 @@ import { MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES } from '../batch/stri
 /**
  * `out = T · R · S`, written at `at`, from a position at `pi`, a quaternion at `qi` and a scale
  * at `si`. The last row is written `(0, 0, 0, 1)` exactly; quaternion products are doubled by
- * addition (`x + x`), like the reference, never multiplied by two.
+ * addition (`x + x`), never multiplied by two.
  *
  * THE FORMULA LIVES HERE, once: `composeMatrix4` reads it at offset zero and
  * `composeMatrix4Batch` walks it, so the batch cannot drift from the unit function it repeats.
@@ -22,37 +22,44 @@ export function composeMatrix4At(
   scale: ArrayLike<number>,
   si: number,
 ) {
-  const x = quaternion[qi],
-    y = quaternion[qi + 1],
-    z = quaternion[qi + 2],
-    w = quaternion[qi + 3];
-  const x2 = x + x,
-    y2 = y + y,
-    z2 = z + z;
-  const xx = x * x2,
-    xy = x * y2,
-    xz = x * z2;
-  const yy = y * y2,
-    yz = y * z2,
-    zz = z * z2;
-  const wx = w * x2,
-    wy = w * y2,
-    wz = w * z2;
-  const sx = scale[si],
-    sy = scale[si + 1],
-    sz = scale[si + 2];
-  out[at] = (1 - (yy + zz)) * sx;
-  out[at + 1] = (xy + wz) * sx;
-  out[at + 2] = (xz - wy) * sx;
+  // A unit quaternion (v, qw), v = (qx, qy, qz), rotates by R = I + 2·qw·[v]× + 2·[v]×²: each
+  // entry carries a factor two, taken once on v by an exact addition, t = v + v. The diagonal is
+  // 1 − (t_b·v_b + t_c·v_c) over the two other axes; off it, the symmetric part v_a·t_b plus or
+  // minus the skew part qw·t_c.
+  const qx = quaternion[qi],
+    qy = quaternion[qi + 1],
+    qz = quaternion[qi + 2],
+    qw = quaternion[qi + 3];
+  const tx = qx + qx,
+    ty = qy + qy,
+    tz = qz + qz;
+  // Twice the squares, twice the cross products, and the skew part qw·t.
+  const sqx = qx * tx,
+    sqy = qy * ty,
+    sqz = qz * tz;
+  const cxy = qx * ty,
+    cxz = qx * tz,
+    cyz = qy * tz;
+  const ax = qw * tx,
+    ay = qw * ty,
+    az = qw * tz;
+  // Column j of R · S is column j of R times the scale along j.
+  const s0 = scale[si],
+    s1 = scale[si + 1],
+    s2 = scale[si + 2];
+  out[at] = (1 - (sqy + sqz)) * s0;
+  out[at + 1] = (cxy + az) * s0;
+  out[at + 2] = (cxz - ay) * s0;
   out[at + 3] = 0;
-  out[at + 4] = (xy - wz) * sy;
-  out[at + 5] = (1 - (xx + zz)) * sy;
-  out[at + 6] = (yz + wx) * sy;
+  out[at + 4] = (cxy - az) * s1;
+  out[at + 5] = (1 - (sqx + sqz)) * s1;
+  out[at + 6] = (cyz + ax) * s1;
   out[at + 7] = 0;
-  out[at + 8] = (xz + wy) * sz;
-  out[at + 9] = (yz - wx) * sz;
-  out[at + 10] = (1 - (xx + yy)) * sz;
+  out[at + 8] = (cxz + ay) * s2;
+  out[at + 9] = (cyz - ax) * s2;
+  out[at + 10] = (1 - (sqx + sqy)) * s2;
   out[at + 11] = 0;
+  // T only adds the last column: the position, read as it is written.
   out[at + 12] = position[pi];
   out[at + 13] = position[pi + 1];
   out[at + 14] = position[pi + 2];
@@ -74,9 +81,9 @@ export function composeMatrix4<T extends NumberSink>(
  * Composes `n` matrices. Two forms, and only two: everything flat, or everything as `n` sub-views
  * — `../batch/batch.ts` explains why a matrix travels as a sub-view. The form is settled BEFORE the
  * loop, never inside it: a ternary per element costs 6% on two hundred thousand compositions,
- * measured against Three's own loop by `three-vs-core-batch-matrices.perf.ts`.
+ * measured by the batch matrices bench.
  *
- * Repeats `composeMatrix4`; replaces Three's `for … m.compose(p, q, s)`.
+ * Repeats `composeMatrix4`, over `n` matrices.
  */
 export function composeMatrix4Batch(
   out: NumberSink,
@@ -100,19 +107,20 @@ export function composeMatrix4Batch(
   n: number,
 ): void {
   if (Array.isArray(out) && typeof positions[0] === 'object') {
-    const o = out as readonly NumberSink[],
+    const views = out as readonly NumberSink[],
       p = positions as readonly ArrayLike<number>[],
       q = quaternions as readonly ArrayLike<number>[],
       s = scales as readonly ArrayLike<number>[];
-    for (let i = 0; i < n; i++) composeMatrix4At(o[i], 0, p[i], 0, q[i], 0, s[i], 0);
+    for (let i = 0; i < n; i++) composeMatrix4At(views[i], 0, p[i], 0, q[i], 0, s[i], 0);
     return;
   }
-  const dst = out as NumberSink,
-    pf = positions as ArrayLike<number>,
-    qf = quaternions as ArrayLike<number>,
-    sf = scales as ArrayLike<number>;
+  const flat = out as NumberSink,
+    p = positions as ArrayLike<number>,
+    q = quaternions as ArrayLike<number>,
+    s = scales as ArrayLike<number>;
+  // Position and scale share their stride, so one offset serves both.
   for (let i = 0; i < n; i++) {
-    const pi = i * POSITION_VALUES;
-    composeMatrix4At(dst, i * MATRIX_VALUES, pf, pi, qf, i * QUATERNION_VALUES, sf, pi);
+    const three = i * POSITION_VALUES;
+    composeMatrix4At(flat, i * MATRIX_VALUES, p, three, q, i * QUATERNION_VALUES, s, three);
   }
 }

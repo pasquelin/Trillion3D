@@ -5,6 +5,7 @@ import {
   HIZ_PASS_LEVELS,
   HIZ_UNIFORM_BYTES,
   hizBuildPasses,
+  hizBuildSlots,
   hizBuildWords,
 } from './uniforms.ts';
 import { evaluateHizReduce } from './oracle.fixture.ts';
@@ -18,18 +19,16 @@ export function lcg(seed: number) {
   return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
 
-/** A compute encoder that records each dispatch as its uniform slot's first word, then its grid. */
-export function recordingEncoder() {
+/** A compute pass that records each dispatch as its uniform slot's first word, then its grid. */
+function recordingPass() {
   const dispatches: number[][] = [];
   let slot = 0;
   const pass = {
     setPipeline() {},
     setBindGroup: (_: number, __: unknown, offsets: number[]) => (slot = offsets[0] / 4),
     dispatchWorkgroups: (...grid: number[]) => dispatches.push([slot, ...grid]),
-    end() {},
-  };
-  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder;
-  return { encoder, dispatches };
+  } as unknown as GPUComputePassEncoder;
+  return { pass, dispatches };
 }
 
 export type Scene = {
@@ -147,8 +146,8 @@ export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => numb
   const { sizes, offsets, count, stride } = layout(scene);
   const passes = hizBuildPasses(sizes, scene.maxLevels);
   const words = hizBuildWords(sizes, offsets, passes, stride);
-  const { encoder, dispatches } = recordingEncoder();
-  encodeHizPyramid(encoder, '', {} as GPUBindGroup, {} as GPUComputePipeline, passes, count);
+  const { pass, dispatches } = recordingPass();
+  encodeHizPyramid(pass, {} as GPUBindGroup, {} as GPUComputePipeline, passes, hizBuildSlots(passes), count);
   for (const [at, gx, gy, gz] of dispatches) {
     const u = words.subarray(at, at + SLOT_WORDS);
     for (let z = 0; z < gz; z++)

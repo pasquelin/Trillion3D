@@ -76,7 +76,7 @@ function banc() {
     setup: { source, worlds },
     layout: { selectionRoots: [], rows },
     run: { gate, temporalHizState: {}, noOccluderHistory: false },
-    lights: { plan: { worldChanged: () => {} } },
+    lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime;
   const camera = G.perspectiveCamera();
   const drawn = [{ sourceMesh: node }];

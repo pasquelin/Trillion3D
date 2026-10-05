@@ -36,10 +36,14 @@ void deferContact(ContactRecord record);
 inline float inverseMass(const JPH::Body &body) {
   return body.IsDynamic() ? body.GetMotionProperties()->GetInverseMass() : 0.0f;
 }
-/// The impulse that stops an approach at `speed` along the normal between bodies of summed
-/// inverse mass `inverse`: an estimate made before the solver runs.
-inline float approachImpulse(float speed, float inverse) {
-  return inverse > 0 ? std::max(0.0f, speed) / inverse : 0.0f;
+/// A body's inverse inertia in world space, zero unless it is dynamic.
+inline JPH::Mat44 inverseInertia(const JPH::Body &body) {
+  return body.IsDynamic() ? body.GetInverseInertia() : JPH::Mat44::sZero();
+}
+/// The approach speed along the normal the solver takes out of a contact: all of `speed`, and
+/// `restitution` times more when it comes faster than `threshold` (it bounces back).
+inline float bounced(float speed, float restitution, float threshold) {
+  return speed > threshold ? (1 + restitution) * speed : speed;
 }
 
 }  // namespace trillion

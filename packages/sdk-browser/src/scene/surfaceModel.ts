@@ -43,7 +43,7 @@ export const EMISSIVE_AO_SURFACE_FLAG = 16;
 export const FOG_FREE_MODEL_BIT = 8;
 
 /** The one rule for debug views on both paths: a normal or depth surface is output untouched —
- *  no exposure, no tone mapping —, as the reference never tone maps those two materials. */
+ *  no exposure, no tone mapping —: a debug view shows the raw value, never a tone-mapped one. */
 export const shownAsIs = (model: number | undefined) =>
   model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth;
 
@@ -70,7 +70,7 @@ export const litModel = (host: HostShadedMaterial) =>
   host.family === 'phong';
 
 /**
- * Why a surface declares a map the reference draws and its model never reads, or `undefined`: a
+ * Why a surface declares a map that its model never reads, or `undefined`: a
  * toon's tone ramp, a matcap's colour map, the normal map of a surface drawn unlit. The one
  * refusal the WebGL2 gate (`../host/surfaceGate.ts`) and the page record (`../page/surface.ts`)
  * share, so no path drops one from the image.
@@ -84,13 +84,19 @@ export function unreadMapRefusal(host: HostShadedMaterial) {
 }
 
 /** Whether a surface's occlusion map darkens it: a lit one does, and a plain colour one on the
- *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths, as the reference does. */
+ *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths. */
 export const readsOcclusion = (host: HostShadedMaterial) =>
   litModel(host) || host.family === 'basic';
 
-/** The roughness a Blinn–Phong exponent reads as, `√(2 / (n + 2))`: its lobe's width. */
+/**
+ * The roughness a Blinn–Phong exponent `n` reads as, `(2 / (n + 2))^¼`. The shaders square a
+ * roughness into GGX's `α`, and `α² = 2 / (n + 2)` is the exponent the Blinn lobe gives that
+ * `α` (`n = 2 / α² − 2`), the match of the two lobes' widths: a highlight 9.6° wide at
+ * half its peak for `n = 30`, against 12.3° for the Phong lobe itself, where reading `α` as
+ * `2 / (n + 2)` narrowed it to 2.3°.
+ */
 export const shininessRoughness = (shininess: number) =>
-  Math.sqrt(2 / (Math.max(0, shininess) + 2));
+  Math.sqrt(Math.sqrt(2 / (Math.max(0, shininess) + 2)));
 
 // The formulas of the models, written once: WGSL and GLSL spell these expressions alike, so both
 // GPU paths shade a diffuse, toon or matcap surface from the same text, never a restated copy.

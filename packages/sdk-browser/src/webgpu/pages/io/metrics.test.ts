@@ -6,6 +6,7 @@ import { createWebgpuVisState } from '../state/vis.ts';
 import { createWebgpuBlendState } from '../../blend/state.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
 import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/byte-metrics.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuGpuState } from '../state/gpu.ts';
@@ -18,13 +19,15 @@ function runtimeOver(
 ) {
   return {
     run,
-    gpu,
+    // A view's state holds the size it draws at from its creation (`createWebgpuGpuState`).
+    gpu: { targetSize: [1, 1], ...gpu },
     vis: createWebgpuVisState(),
     timing: createWebgpuTimingState(),
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    lights: createWebgpuLightState(32),
+    lights: createWebgpuLightState(),
+    scale: createScaleControl(undefined),
   } as unknown as WebgpuPagesRuntime;
 }
 
@@ -153,4 +156,25 @@ test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
   assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 1024);
   const bare = { positionBuffers: new Map(), targetBytes: 1000 };
   assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), bare)).gpuFrameTargetBytes, 1000);
+});
+
+test('the display cadence and the GPU idle are published as the scale clock and the timer hold them', () => {
+  const rt = runtimeOver(createWebgpuRunState());
+  const before = metricsOf(rt);
+  assert.equal(before.rafIntervalMs, null, 'no frame interval before two frames');
+  assert.equal(before.displayRefreshMs, null, 'no refresh before the clock finds one');
+  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
+  // A frame that missed a refresh: two of them, read on the same grid.
+  rt.scale.tick((5 * 1000) / 120);
+  rt.timing.lastGpuIdleMs = 1.25;
+  const metrics = metricsOf(rt);
+  assert.ok(Math.abs(metrics.rafIntervalMs! - 2000 / 120) < 1e-9);
+  assert.ok(Math.abs(metrics.displayRefreshMs! - 1000 / 120) < 1e-9);
+  assert.equal(metrics.gpuIdleMs, 1.25);
+});
+
+test('the size the image was drawn at is the one every pass up to the resolve drew at', () => {
+  const gpu = { positionBuffers: new Map(), targetSize: [1728, 1112] };
+  const metrics = metricsOf(runtimeOver(createWebgpuRunState(), gpu));
+  assert.deepEqual([metrics.renderWidth, metrics.renderHeight], [1728, 1112]);
 });

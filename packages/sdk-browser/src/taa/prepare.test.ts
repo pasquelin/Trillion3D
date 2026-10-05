@@ -59,6 +59,27 @@ test('temporal antialiasing is switched during the session', async () => {
   assert.equal(changed(), 4);
 });
 
+// Decision 14: off releases the history's targets — not a byte kept —, the programs stay; on again
+// makes them at the view's size, counted with its targets, and the first image starts afresh.
+test('switched off, the history leaves its targets; on again, it is made at once', async () => {
+  const { rt } = runtime(true);
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!);
+  const temporal = rt.gpu.temporal!;
+  Object.assign(rt.gpu, { hdrTexture: {}, displaySize: [4, 2] });
+  temporal.resize(4, 2);
+  const bytes = temporal.historyBytes;
+  assert.ok(bytes > 0);
+  rt.gpu.targetBytes = 1000 + bytes;
+  setWebgpuTemporalAntialiasing(rt, false);
+  assert.equal(temporal.historyBytes, 0, 'off: no history target');
+  assert.equal(rt.gpu.targetBytes, 1000, 'its bytes leave the count');
+  assert.equal(rt.gpu.temporal, temporal, 'the pass and its programs stay');
+  setWebgpuTemporalAntialiasing(rt, true);
+  assert.equal(temporal.historyBytes, bytes, 'on: made again at the view size');
+  assert.equal(rt.gpu.targetBytes, 1000 + bytes);
+  assert.equal(temporal.frame.hasHistory, false, 'its first image reads no history');
+});
+
 // #832: the renderer's temporal upscaling is the pass's own, served and withdrawn with it.
 test('temporal upscaling is served with the pass', async () => {
   const { rt } = runtime(true);
@@ -105,7 +126,7 @@ test('a pass rigged during a capture gets its history targets', async () => {
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
   Object.assign(rt.gpu, {
-    colorTexture: {},
+    hdrTexture: {},
     targetSize: [4, 2],
     allocatedSize: [4, 2],
     displaySize: [4, 2],

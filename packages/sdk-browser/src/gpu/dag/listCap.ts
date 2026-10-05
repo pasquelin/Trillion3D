@@ -1,8 +1,10 @@
 import { validationScope } from '../core/errorScope.ts';
 import {
   DAG_READBACK_SLOTS,
+  KEPT_HEADER_WORDS,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
+  keptSnapshotWord,
   residentReadbackBytes,
   selectionListCap,
 } from './layout.ts';
@@ -64,8 +66,7 @@ export function createDagList(
  * Made under an out-of-memory scope: a device that cannot grant the larger list keeps the old one
  * whole and says `false`, so the host falls back on the next truncated readout rather than on an
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's
- * list, in `pageCones`, keeps its own (`layout.ts`). A light cut already made keeps the readout it
- * was made with.
+ * list, in `pageCones`, keeps its own (`layout.ts`).
  */
 async function growDagList(resources: DagResources, listCap: number, disposed: () => boolean) {
   const made: GPUBuffer[] = [];
@@ -91,6 +92,7 @@ async function growDagList(resources: DagResources, listCap: number, disposed: (
     return false;
   }
   const old = [resources.output, ...resources.readback];
+  if (resources.residentCut) moveKeptSnapshot(resources.device, resources, list);
   Object.assign(resources, list);
   resources.buffers.push(...made);
   resources.group.out = list.output;
@@ -100,6 +102,32 @@ async function growDagList(resources: DagResources, listCap: number, disposed: (
     buffer.destroy();
   }
   return true;
+}
+
+/**
+ * The kept snapshot carried into the grown readout, lengths and both lists, each at the place the
+ * new cap gives it (`keptSnapshotWord`): the next copy's difference is taken against it as if the
+ * list had not grown, and the readbacks since keep naming their pages by its ranks
+ * (`differenceChain.ts`). The ranks beside it in `work` stay where they are.
+ */
+function moveKeptSnapshot(
+  device: GPUDevice,
+  from: { output: GPUBuffer; listCap: number },
+  to: { output: GPUBuffer; listCap: number },
+) {
+  const encoder = device.createCommandEncoder(),
+    a = keptSnapshotWord(from.listCap) * 4,
+    b = keptSnapshotWord(to.listCap) * 4,
+    asked = (KEPT_HEADER_WORDS + from.listCap) * 4;
+  encoder.copyBufferToBuffer(from.output, a, to.output, b, asked);
+  encoder.copyBufferToBuffer(
+    from.output,
+    a + asked,
+    to.output,
+    b + (KEPT_HEADER_WORDS + to.listCap) * 4,
+    from.listCap * 4,
+  );
+  device.queue.submit([encoder.finish()]);
 }
 
 /** Grows the list to `state.grow` behind the readbacks in `state.pending`; no frame cuts until it

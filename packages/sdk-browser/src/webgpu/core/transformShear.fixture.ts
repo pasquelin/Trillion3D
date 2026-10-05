@@ -1,4 +1,4 @@
-// Shared fixtures of `setWebgpuTransform` tests on shear matrices: a minimal Three scene, a
+// Shared fixtures of `setWebgpuTransform` tests on shear matrices: a minimal host scene, a
 // `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
@@ -78,10 +78,10 @@ export function runtime(
     run,
     blendState: { occlusionEpoch: 0 },
     lights: {
-      plan: {
+      changes: {
         worldChanged: (min: number[], max: number[], movingOnly: boolean) =>
           motions.push({ min: [...min], max: [...max], movingOnly }),
-        changeRoom: () => SHADOW_CHANGE_BOXES,
+        room: () => SHADOW_CHANGE_BOXES,
       },
       mobility: createShadowMobility(),
     },

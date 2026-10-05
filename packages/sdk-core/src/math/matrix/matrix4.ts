@@ -1,9 +1,9 @@
 /**
  * 4×4 matrices of the math kernel: free functions on column-major arrays (`m[column ·
  * 4 + row]`), output passed in, no allocation. Product and inverse follow term
- * by term the formulas of the reference 3D library, in the same floating-point
- * operation order: a replaced call yields the same bits. `bench/perf/browser/core-math.perf.ts`
- * proves it, and quantifies the gap where a formula in this repo differs from the reference.
+ * by term the closed-form formulas (cofactor expansion for the inverse), in a fixed floating-point
+ * operation order: the same inputs always yield the same bits. `bench/perf/browser/core-math.perf.ts`
+ * proves it, and quantifies the gap where a formula in this repo differs from the closed form.
  */
 
 /** What an output accepts: `Float32Array`, `Float64Array` or a plain array. */
@@ -82,8 +82,8 @@ export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Ar
 }
 
 /**
- * 4×4 determinant, expanded along the last row like the reference, parentheses and unary
- * signs included. On an affine matrix, the first three terms are `0 · cofactor`.
+ * Determinant of a column-major 4×4 matrix, expanded along the last row in a fixed order of
+ * terms and signs; 0 for a singular matrix. On an affine matrix, the first three terms are `0 · cofactor`.
  */
 export function determinantMatrix4(m: ArrayLike<number>) {
   const n11 = m[0],

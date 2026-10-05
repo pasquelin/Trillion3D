@@ -6,16 +6,15 @@ import {
   type SceneProxy,
 } from '../../../../sdk-core/src/index.ts';
 import {
-  PROXY_COUNT_OFFSET,
   PROXY_LAYOUT_WORD,
-  PROXY_PARAM_FLOATS,
+  PROXY_REVISION_WORD,
   PROXY_STEPS_WORD,
+  residentProxyWgsl,
 } from '../../bounce/nodeWgsl.ts';
 import { PROXY_HEADER_WORDS } from '../../bounce/sizes.ts';
 import { PROXY_LEAF_OWNED } from '../../../../sdk-core/src/scene/core/proxyLeaves.ts';
 import { ownedProxy, proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';
-import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
 import {
   fakeDevice,
   replayWrites,
@@ -25,34 +24,6 @@ import {
 /** The mapped range of the resident proxy's buffer, as its creation filled it. */
 const proxyBytes = (buffers: FakeBuffer[]) =>
   buffers.find((buffer) => buffer.label?.startsWith('Trillion3D resident proxy'))!.getMappedRange();
-
-test('an adopted proxy carries ray settings and counters itself', () => {
-  const { device, writes } = fakeDevice();
-  const sunFar = createGpuSunFarShadow(device);
-  const resident = {
-    buffer: { label: 'proxy' } as unknown as GPUBuffer,
-    bounds: [0, 0, 0, 3, 4, 0],
-    cellMetres: 2,
-    nodeCount: 1,
-  } as unknown as Parameters<typeof sunFar.adopt>[0];
-  sunFar.adopt(resident, false);
-  assert.equal(sunFar.buffer(), resident.buffer, 'both passes bind proxy itself');
-  assert.deepEqual(
-    [writes[0].offset, writes[0].data.length],
-    [0, PROXY_PARAM_FLOATS],
-    'settings are written at head of proxy',
-  );
-  assert.equal(sunFar.maxDistanceMetres, 5, 'reach is bounding diagonal');
-  const cleared: Array<[number, number]> = [];
-  sunFar.prepare(
-    {
-      clearBuffer: (_b: unknown, offset: number, size: number) => cleared.push([offset, size]),
-      copyBufferToBuffer: () => {},
-    } as unknown as GPUCommandEncoder,
-    0,
-  );
-  assert.deepEqual(cleared, [[PROXY_COUNT_OFFSET, 8]], 'counters live in same header');
-});
 
 test('resident proxy fits in single buffer, at offsets published by its header', () => {
   const triangles = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -120,8 +91,7 @@ test('resident proxy fits in single buffer, at offsets published by its header',
       1 +
       2 +
       2 +
-      16 +
-      1) *
+      16) *
       4 +
       4,
   );
@@ -158,9 +128,9 @@ test('motion uploads owner poses and conservative bounds once without rewriting 
     initial[PROXY_HEADER_WORDS + initial[PROXY_LAYOUT_WORD + 3] + 1] & PROXY_LEAF_OWNED,
     'rays use owner geometry after motion',
   );
-  assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 12], 10);
-  assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 28], 0);
-  assert.ok(floats[PROXY_HEADER_WORDS + initial[9] + 3] >= 11);
+  assert.equal(floats[PROXY_HEADER_WORDS + initial[PROXY_LAYOUT_WORD + 7] + 12], 10);
+  assert.equal(floats[PROXY_HEADER_WORDS + initial[PROXY_LAYOUT_WORD + 7] + 28], 0);
+  assert.ok(floats[PROXY_HEADER_WORDS + initial[PROXY_LAYOUT_WORD + 2] + 3] >= 11);
   assert.equal(
     initial[PROXY_STEPS_WORD],
     BOUNCE_SETTINGS.traversalSteps + 1,
@@ -172,4 +142,30 @@ test('motion uploads owner poses and conservative bounds once without rewriting 
     null,
   );
   assert.equal(writes.length, count, 'repeating a pose submits no writes');
+});
+
+test('the header words the host writes are the struct members the shader reads, in order', () => {
+  const body = residentProxyWgsl(1).match(/struct ResidentProxy\{([^]*?)words:/)![1];
+  const members = body
+    .split(',')
+    .map((member) => member.trim().split(':')[0])
+    .filter(Boolean);
+  assert.equal(members.length, PROXY_HEADER_WORDS, 'the columns start right after the header');
+  const at = (name: string) => members.indexOf(name);
+  assert.equal(at('nodeCount'), PROXY_LAYOUT_WORD);
+  assert.deepEqual(
+    [
+      'trianglesWord',
+      'boundsWord',
+      'childrenWord',
+      'groupsWord',
+      'rangesWord',
+      'ownersWord',
+      'transformsWord',
+    ].map(at),
+    [1, 2, 3, 4, 5, 6, 7].map((rank) => PROXY_LAYOUT_WORD + rank),
+    'one start rank per column, in the order the host writes the columns',
+  );
+  assert.equal(at('revision'), PROXY_REVISION_WORD);
+  assert.equal(at('steps'), PROXY_STEPS_WORD);
 });

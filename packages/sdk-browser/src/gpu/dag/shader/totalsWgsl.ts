@@ -11,7 +11,7 @@ import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts';
  * triangles it draws — no cluster the rule draws can lack its bytes, so the readout copies it as
  * the drawn total (`../uniforms.ts`) —, and `transparent`, its blended share. A surface the rule
  * leaves undrawn has no cluster to count it, so no uncovered total is kept here: holes are proven
- * on the drawn set (`../../../page/cut/cutRule.test.ts`, `held-gpu-cut.browser.ts`).
+ * on the drawn set (`../../../page/cut/cutRule.test.ts`, `held-gpu-cut.gpu.ts`).
  *
  * They describe the CUT, never the list that reports it: a rank the readback cap refuses does not
  * subtract from a total. That is what lets them survive the disappearance of the lists.

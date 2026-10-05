@@ -19,10 +19,10 @@ export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
 
 /** The one public address of the site: its canonical link and its crawler rules derive from it,
  * and the deployment checks the address the built page declares. */
-export const SITE_URL = 'https://www.trillion3d.com/';
+const SITE_URL = 'https://www.trillion3d.com/';
 
 /** What the site serves as is: examples, assets, data, reports, and the icon every page gets. */
-export const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports', 'favicon.ico'];
+const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports', 'favicon.ico'];
 /** The pages the portal replaced, each moved to its route: an old link still lands on it. */
 const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
 /** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
@@ -138,15 +138,6 @@ export const SITE_STEPS: readonly SiteStep[] = [
 /** The folders of `out` the build products are written in. */
 const BUILT_FOLDERS = SITE_STEPS.flatMap(({ folder }) => folder ?? []);
 
-/** Writes the build products into `out`. */
-export const buildBundles = (root: string, out: string) =>
-  buildSite(
-    root,
-    out,
-    false,
-    SITE_STEPS.filter(({ folder }) => folder),
-  );
-
 /** Writes the portal page with its canonical link, and crawler rules that allow everything. The
  * portal routes by hash, so the root is the only address a crawler can list: no sitemap. */
 async function writeMetadata(source: string, out: string, published: boolean) {
@@ -171,7 +162,7 @@ async function writeMetadata(source: string, out: string, published: boolean) {
 
 /** Copies the served statics of the site `source` tree into `out`, sources excluded, and writes
  * the root pages the site address shapes; `published`, with the audience measurement. */
-export async function copyStatics(source: string, out: string, published = false) {
+async function copyStatics(source: string, out: string, published = false) {
   await mkdir(out, { recursive: true });
   for (const name of STATIC_ENTRIES)
     await copyTree(resolve(source, name), resolve(out, name), published);

@@ -44,12 +44,9 @@ function definingModule(symbol: ts.Symbol, checker: ts.TypeChecker): string {
 }
 
 let program: ts.Program | undefined;
-/** One program over the entry files and the published facade, built once per process: the
- *  checker the facade, the export inventory and the reference all read. */
-export function apiProgram(): ts.Program {
-  const files = [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)];
-  program ??= ts.createProgram(
-    files.map((file) => join(ROOT, file)),
+const buildApiProgram = (old?: ts.Program) =>
+  ts.createProgram(
+    [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)].map((file) => join(ROOT, file)),
     {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.NodeNext,
@@ -58,8 +55,19 @@ export function apiProgram(): ts.Program {
       skipLibCheck: true,
       types: ['node', '@webgpu/types'],
     },
+    undefined,
+    old,
   );
+/** One program over the entry files and the published facade: the checker the facade, the export
+ *  inventory and the reference all read. Built on first use, then kept until `refreshApiProgram`. */
+export function apiProgram(): ts.Program {
+  program ??= buildApiProgram();
   return program;
+}
+/** Rebuilds the program from the files as they are now, reusing the unchanged ones: a long-lived
+ *  reader (`docs:dev`) calls it before each generation, or it would write the sources it started on. */
+export function refreshApiProgram() {
+  program = buildApiProgram(program);
 }
 
 /** The module symbol of each entry file, in the order `entries` lists them. */

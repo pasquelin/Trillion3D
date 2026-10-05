@@ -110,7 +110,7 @@ test('attach keeps the world matrix, and position, rotation and scale hold the n
   assert.ok(Math.abs(Math.abs(turn.dot(node.quaternion)) - 1) < 1e-12, 'its angles follow');
 });
 
-test("attach gives the reference's pose to the bit: new parent's inverse × old parent × local", () => {
+test("attach gives the same pose to the bit: new parent's inverse × old parent × local", () => {
   const product = new Float64Array(16);
   const [p, q, s] = [new Float64Array(3), new Float64Array(4), new Float64Array(3)];
   const wave = (k: number) => Math.sin(k * 12.9898) * 3; // unrounded values, fixed from run to run

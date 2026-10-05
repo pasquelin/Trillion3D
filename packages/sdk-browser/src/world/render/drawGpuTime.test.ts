@@ -58,7 +58,6 @@ function world(extension: boolean) {
       streaming: {
         decodeFailures: new Set(),
         queuedFetch: new Set(),
-        lastPrefetch: Infinity,
       } as never,
       directGpu: false,
       webglSurface: { context } as never,
@@ -73,7 +72,14 @@ function world(extension: boolean) {
     streamer as never,
     0,
     0,
-    () => ({ loaded: 0, pageBytesRead: 0, streamingError: null, effectBytes: 0, gpu: draw.gpu }),
+    () => ({
+      loaded: 0,
+      pageBytesRead: 0,
+      streamingError: null,
+      renderSize: null,
+      effectBytes: 0,
+      gpu: draw.gpu,
+    }),
   );
   /** One host frame, `held` or drawn: the draw, then the metrics it publishes. */
   return (held = false) => {

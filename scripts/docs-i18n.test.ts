@@ -82,11 +82,8 @@ test('a demo canvas label is translated, its technical symbols and values kept',
   assert.equal(localizeDemoText('kept', 'en'), 'kept');
   assert.equal(localizeDemoText('before (y 0)', 'fr'), 'avant (y 0)');
   assert.equal(
-    localizeDemoText(
-      'determinant 0: sixteen zeros, like the reference — test the determinant, never the output',
-      'fr',
-    ),
-    'déterminant 0 : seize zéros comme la référence ; testez le déterminant, jamais la sortie',
+    localizeDemoText('determinant 0: sixteen zeros — test the determinant, never the output', 'fr'),
+    'déterminant 0 : seize zéros ; testez le déterminant, jamais la sortie',
   );
   assert.equal(localizeDemoText('multiplyMatrix4(out, a, b)', 'fr'), 'multiplyMatrix4(out, a, b)');
   assert.equal(localizeDemoText('constructor', 'fr'), 'constructor');

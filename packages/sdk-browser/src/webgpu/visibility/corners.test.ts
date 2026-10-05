@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts';
 import { uploadClusterSpheres } from '../shadow/bounds.ts';
+import { CLUSTER_SPHERE_FLOATS } from '../shadow/rowBuffers.ts';
 import { moveRootRows } from '../pages/render/movedRoot.ts';
 import { createWebgpuRowState } from '../row/state.ts';
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
@@ -59,7 +60,7 @@ function scatteredScene() {
   const sent = (toSpheres: boolean) =>
     writes
       .filter(({ buffer }) => (buffer === sphereBuffer) === toSpheres)
-      .map(({ size }) => size! / (toSpheres ? 4 : PAGE_INFO_STRIDE));
+      .map(({ size }) => size! / (toSpheres ? CLUSTER_SPHERE_FLOATS : PAGE_INFO_STRIDE));
   const spheres = () => sent(true),
     table = () => sent(false);
   const rt = {
@@ -77,7 +78,14 @@ function scatteredScene() {
     },
     run: { noOccluderHistory: false, temporalHizState: {} },
     blendState: { occlusionEpoch: 1 },
-    lights: { spheres: { buffer: sphereBuffer, packed: new Float32Array(ROWS * 4), rows: ROWS } },
+    lights: {
+      spheres: {
+        buffer: sphereBuffer,
+        packed: new Float32Array(ROWS * CLUSTER_SPHERE_FLOATS),
+        rows: ROWS,
+        written: { epoch: 0, runs: [] },
+      },
+    },
     timing: { encodeCounts: { rowsUploaded: 0 } },
     gpu: { device },
     vis: {

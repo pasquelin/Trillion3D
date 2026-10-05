@@ -16,7 +16,7 @@ test('the water mirror walks the depth bounds, but in a reference session, chose
   const ray = (shader: string) => functionText(shader, 'resolvedReflectionRay');
   assert.match(ray(waterCompositeShader()), /return boundedReflectionRay\(P,N,R\);/);
   assert.match(ray(waterRoutedShader()), /return boundedReflectionRay\(P,N,R\);/);
-  for (const shader of [waterCompositeShader(undefined, true), waterRoutedShader(undefined, true)])
+  for (const shader of [waterCompositeShader(true), waterRoutedShader(true)])
     assert.match(ray(shader), /screenReflection\(P,R\)[^]*reflectedRadiance\(/);
   // The fake device hands each descriptor back as its pipeline.
   const label = (pipeline: GPURenderPipeline) =>
@@ -25,7 +25,7 @@ test('the water mirror walks the depth bounds, but in a reference session, chose
   for (const unbounded of [false, true]) {
     const { device, renderPipelines } = fakeDevice();
     const layout = createWaterCompositeLayout(device);
-    const composites = await createWaterComposites(device, layout, undefined, unbounded);
+    const composites = await createWaterComposites(device, layout, unbounded);
     const suffix = unbounded ? '_UNBOUNDED' : '';
     assert.equal(label(composites.at(false, false)), `WATER_COMPOSITE${suffix}`);
     assert.equal(label(composites.at(false, true)), `WATER_COMPOSITE${suffix}`);

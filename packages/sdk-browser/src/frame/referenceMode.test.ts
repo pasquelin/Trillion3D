@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { referenceCapture, referenceOptions, referenceSunWindow } from './referenceMode.ts';
-import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { referenceCapture, referenceOptions } from './referenceMode.ts';
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { resolveSupersampled } from './referenceTilePlacement.ts';
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts';
 
@@ -36,6 +36,31 @@ test('reference mode switches off every approximation it names, whatever the pag
   assert.throws(capture, { code: 'REFERENCE_SHADOWS_REDUCED' });
 });
 
+test('shadowResolution: refused while shadows draw coarser than asked, read at each capture', () => {
+  const { reference } = referenceOptions({ ...BOSS, reference: true });
+  const image = () => new Uint8Array(16);
+  /** The reference capture under a frame whose shadows publish `bias`. */
+  const under = (bias: number | null | undefined) => referenceCapture(image, reference, () => bias);
+  // `shadowResolutionBias` (`vsmStats.ts`): null while no shadow map runs, 0 at the full pool
+  // drawing every page at the level asked — both pass, as the image is the reference's.
+  for (const bias of [null, undefined, 0]) assert.doesNotThrow(under(bias), `${bias} passes`);
+  // A halving of the pool, or a fill bias however small, refuses it by name with the bias read.
+  for (const bias of [1, 3, 0.25, 2 ** -126])
+    assert.throws(under(bias), {
+      code: 'REFERENCE_SHADOWS_REDUCED',
+      details: { shadowResolutionBias: bias },
+    });
+  // The bias of the frame captured, not of the session's opening: the pool regrown, it passes.
+  let bias = 1;
+  const capture = referenceCapture(image, reference, () => bias);
+  assert.throws(capture, { code: 'REFERENCE_SHADOWS_REDUCED' });
+  bias = 0;
+  assert.equal(capture().length, 16);
+  // Outside reference mode, the session's own capture, unguarded.
+  const own = referenceCapture(image, null, () => 1);
+  assert.equal(own, image);
+});
+
 test('the resolved image is the linear-light mean of each block, the same bytes on every run', () => {
   // A 4 × 2 image: a black and white 2 × 2 block, then a flat grey one.
   const rgba = new Uint8Array(4 * 2 * 4);
@@ -48,21 +73,6 @@ test('the resolved image is the linear-light mean of each block, the same bytes 
   // Half the light of white, re-encoded: 188, not the 128 of a mean of the bytes.
   assert.deepEqual([...once], [188, 188, 188, 255, 128, 128, 128, 255]);
   assert.deepEqual(resolveSupersampled(rgba, 4, 2, 2), once);
-});
-
-test('the reference raises the sun window so every pixel reads the finest clipmap level', () => {
-  // The boss's case: 2234 device pixels at 55° reach 4291, and `pages · shadowPage / 2` must
-  // hold that — 68 pages, even so `sunLevels` centres them, past the ordinary 64.
-  const boss = referenceSunWindow(1117 * 2, 55);
-  assert.equal(boss, 68);
-  assert.ok(boss > LIGHT_SETTINGS.sunLevelPages);
-  assert.ok((boss * LIGHT_SETTINGS.shadowPage) / 2 >= 4291, 'the window reaches the whole view');
-  // The session's own canvas and field, not one case: a taller view or a narrower field needs a
-  // wider window; the field defaults to the camera's; the ordinary one is never lowered.
-  assert.ok(referenceSunWindow(4470, 55) > boss);
-  assert.ok(referenceSunWindow(1117 * 2, 40) > boss);
-  assert.equal(referenceSunWindow(1117 * 2), boss);
-  assert.equal(referenceSunWindow(1), LIGHT_SETTINGS.sunLevelPages);
 });
 
 test('reference mode refuses an interactive session, whose resize would drop the supersampling', () => {

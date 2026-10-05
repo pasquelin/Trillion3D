@@ -2,7 +2,7 @@
 //! oracle traces the source scene with it (`oracle`), and the impostor bake the level-0 mesh
 //! (`impostor`), through a hit filter that lets a ray through a cut texel.
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
-use crate::shared_math::{cross, dot, scale, sub, unit_where};
+use crate::shared_math::{cross, dot, sub, unit_where};
 
 /// Triangles and their tree, with one word a triangle in the same order: the oracle's packed
 /// linear albedo (the source scene in world space, re-read without cuts, simplification or
@@ -35,7 +35,8 @@ pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
     ))
 }
 /// Hit point and facing normal. Source has no reliable winding order:
-/// ray determines which surface side it arrives at.
+/// ray determines which surface side it arrives at. The oracle's alone: compiled with it.
+#[cfg(any(test, feature = "oracle"))]
 pub fn surface_at(
     world: &World,
     origin: [f64; 3],
@@ -49,7 +50,7 @@ pub fn surface_at(
     ];
     let facing = normal_of(world, hit.triangle);
     let normal = if dot(facing, ray) > 0.0 {
-        scale(facing, -1.0)
+        crate::shared_math::scale(facing, -1.0)
     } else {
         facing
     };
@@ -77,7 +78,7 @@ fn slab(world: &World, node: usize, origin: [f64; 3], inverse: [f64; 3], limit: 
     entry <= exit
 }
 
-/// Möller–Trumbore, double-sided: a wall has no front or back for light.
+/// Ray-triangle test by barycentric coordinates, double-sided: a wall has no front or back for light.
 fn triangle_hit(
     world: &World,
     triangle: usize,

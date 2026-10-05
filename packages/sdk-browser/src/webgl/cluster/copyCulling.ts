@@ -84,7 +84,7 @@ function placementsBox(
 const isBlended = (material: WholeMesh['material']) => !!firstMaterial(material)?.transparent;
 
 /**
- * The scene copies of one frame, in view, by pass, the classification the reference applies to
+ * The scene copies of one frame, in view, by pass, the classification the engine applies to
  * a mesh at its draw: a copy transmits; or it blends, drawn after the transmissive ones and
  * outside the backdrop; or it is plain — one a diagnostic mode painted, or that stopped
  * transmitting — drawn as a whole mesh with the clusters, never through the transmission pass

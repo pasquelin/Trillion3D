@@ -21,18 +21,10 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
       );
     },
     /**
-     * Shadow-atlas fingerprint of the active engine, bit for bit, or `null` when it holds none.
-     * Two runs of the same scene — one redrawing whole faces, the other only invalidated
-     * pages — must yield the same fingerprint once the queue is empty.
-     */
-    shadowAtlasDigest() {
-      return active().shadowAtlasDigest?.() ?? Promise.resolve(null);
-    },
-    /**
      * What the GPU partition of the active engine wrote for the last frame, with the world
      * corners and the matrices it drew it from, or `null` when the engine holds none. Redoing
-     * the reference compute on those inputs proves, cluster by cluster, that the GPU screen
-     * rectangle contains the reference's and that its depth underestimates the reference's.
+     * the CPU computation on those inputs proves, cluster by cluster, that the GPU screen
+     * rectangle contains the CPU one and that its depth underestimates the CPU one.
      */
     partitionAudit() {
       return active().partitionAudit?.() ?? Promise.resolve(null);

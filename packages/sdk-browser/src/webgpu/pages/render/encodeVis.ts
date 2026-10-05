@@ -5,7 +5,8 @@ import { encodeWebgpuPartition } from '../../visibility/partition.ts';
 import { sendDrawItemWords } from '../../visibility/itemWords.ts';
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
-import { createRenderEncoder, submitColorCopy } from './encoder.ts';
+import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encoder.ts';
+import { encodeComposedRows } from '../../../placement/gpuCompose.ts';
 import { encodeSurfaceLighting } from './surfaceLighting.ts';
 import { followDirtyRows } from './encodeDraws.ts';
 import {
@@ -15,6 +16,11 @@ import {
   ensureVisBindings,
 } from './encodeVisSetup.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { PARTITION_PASS } from '../../../stage/passLabels.ts';
+import { LazyComputePass } from '../../../gpu/core/lazyComputePass.ts';
+
+/** The visibility's opening compute pass, opened by the first of its modules that dispatches. */
+const partitionPass = new LazyComputePass(PARTITION_PASS);
 
 /** The visibility-buffer image: occluder and rest raster passes, small triangles, material surfaces,
  *  lighting and presentation, all in the image's command buffer. Returns the triangles submitted. */
@@ -25,11 +31,10 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     !vis.visBindGroupLayout ||
     !gpu.cache ||
     !vis.concatPos ||
-    !gpu.colorView ||
     !gpu.depthView ||
     !vis.visView ||
     !vis.visPipelineBack ||
-    !vis.materialDepthPipeline ||
+    !vis.shadeClasses ||
     !vis.pageTable ||
     !rows.pageTableInts
   )
@@ -42,6 +47,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // its shadows, and rows left dirty would keep the frame from being held (#198).
   timing.encodeCounts.itemsUploaded = 0;
   followDirtyRows(rt, device);
+  encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device));
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuRaster(rt, device);
@@ -59,30 +65,34 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const encoder = createRenderEncoder(rt, device);
   // The image's partition opens the command buffer: it writes the rest bits and the per-slot counts
   // draw compaction reads right after, and the bounds the occlusion test will read later. It rereads
-  // along the way the previous image's verdicts, which this image's test has not yet zeroed: that is
-  // what feeds the occluder history.
+  // along the way the previous image's verdicts, which this image's test has not yet rewritten: that
+  // is what feeds the occluder history. Both are one compute pass, the compaction's dispatches
+  // seeing what the partition's wrote.
   const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
+  const pass = partitionPass.begin(encoder);
+  vis.gpuPartition?.encode(pass);
   if (useIndirect) {
     sendDrawItemWords(rt);
     // The camera draws its own rows: under the CPU cut, the light casters it adds sit behind them.
     vis.gpuDraw!.encode(
-      encoder,
+      pass,
       run.gpuFrameActive ? rows.packedCount : run.cameraRows,
-      maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
     );
   }
+  pass.end();
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
-  // when it exists, blends its own between its passes — small triangles under the reference split,
+  // when it exists, blends its own between its passes — small triangles under the hybrid split,
   // the whole cut under the `raster-compute` variant.
   run.gpuComputeDispatches = 0;
   const compute = vis.gpuRaster
     ? computeRasterStages(rt, twoPass, tableRows, maxVertexCount, idsView, depthTarget)
     : null;
-  encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect, compute);
+  encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, useIndirect, compute);
   // Counts the GPU just wrote — partition and occlusion verdicts — are copied one image in fifteen,
-  // and mapped once the image is submitted. No image waits for that readback.
-  if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
+  // the one whose kernels counted, and mapped once the image is submitted. No image waits for that
+  // readback.
+  vis.gpuPartition?.encodeCounts(encoder, run.frame);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   // Surfaces, one class at a time, and the virtual-texture feedback target where each opaque
   // pixel posts the tile rank it wants — completed by transparents, reduced to counts at submit.

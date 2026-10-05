@@ -1,24 +1,14 @@
-// Pure A2 oracles, no side effects: `ombrage.bench.ts` measures them; unit tests import
-// them as reference.
+// Pure A2 oracles, no side effects: the CPU image's tests import them as reference
+// (`cpu-image/shade.test.ts`).
 import * as THREE from 'three';
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts';
-import {
-  attr2,
-  backgroundRgb,
-  barycentric,
-  linearToSrgb8,
-  perspectiveBary,
-  sampleLinear,
-  sampleMap,
-  triangleAt,
-} from '../../../packages/sdk-browser/src/visibility/math.ts';
-import { shadeLit } from '../../../packages/sdk-browser/src/visibility/shader/lighting.ts';
-import {
-  unpackVisibilityId,
-  type VisPage,
-} from '../../../packages/sdk-browser/src/visibility/types.ts';
+import { linearToSrgb8 } from '../../../packages/sdk-core/src/math/primitives/color.ts';
+import { perspectiveBary, triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { attr2, backgroundRgb, barycentric, sampleLinear, sampleMap } from './cpu-image/math.ts';
+import { shadeLit } from './cpu-image/lighting.ts';
+import { type VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import {
   createEngineCamera,
   readCameraWorld,
@@ -26,6 +16,7 @@ import {
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { DepthCamera } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
+import { unpackVisibilityId } from './cpu-image/ids.ts';
 
 /** A page with the world of its root, which pages carried before #1226. */
 type Placed = VisPage & { matrix: MatrixElements };
@@ -34,7 +25,7 @@ type Placed = VisPage & { matrix: MatrixElements };
  *  camera as the frame input does, and shading reads the same. */
 const engineScratch = createEngineCamera();
 
-/** `packages/sdk-browser/src/visibility/shader/shadePixel.ts:15-63` before batch A: the surface record and the triangle per pixel. */
+/** `bench/oracles/browser/cpu-image/shadePixel.ts:15-63` before batch A: the surface record and the triangle per pixel. */
 function referenceShadePixel(
   id: number,
   pages: readonly (Placed | undefined)[],
@@ -86,7 +77,7 @@ function referenceShadePixel(
   return encode(rgb);
 }
 
-/** `packages/sdk-browser/src/visibility/shader/shade.ts:8-34` before batch A. */
+/** `bench/oracles/browser/cpu-image/shade.ts:8-34` before batch A. */
 export function referenceShadeVisibility(
   ids: Uint32Array,
   pages: readonly (Placed | undefined)[],

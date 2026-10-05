@@ -1,56 +1,5 @@
-import { transform } from 'esbuild';
-import type { TestContext } from 'node:test';
 import type { Browser, Page } from 'playwright';
-
-/**
- * The module scripts of an example page, each parsed as the browser would load it: a syntax
- * error — a name declared twice in one scope included — throws here, not in the browser.
- * Imports are not resolved.
- */
-export async function exampleModules(html: string): Promise<string[]> {
-  const sources = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map(
-    ([, source]) => source,
-  );
-  for (const source of sources) await transform(source, { loader: 'js', format: 'esm' });
-  return sources;
-}
-
-/** An example module's import of the built engine or kit: its names, then `engine` or `kit`. */
-export const RUNTIME_IMPORT = /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g;
-
-/** The constructor of async functions: a module's body may `await` at its top level. */
-const AsyncFunction = (async () => {}).constructor as new (
-  ...args: string[]
-) => (modules: object) => Promise<void>;
-
-/**
- * Runs an example page's first module in Node, its imports of the built engine and kit taken
- * from `modules` — the engine's own objects, or stand-ins a test counts with. Resolves once the
- * module's body has run, its top-level `await`s included.
- */
-export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
-  const [source] = await exampleModules(html);
-  const body = source.replace(RUNTIME_IMPORT, 'const {$1} = modules.$2;');
-  await new AsyncFunction('modules', `'use strict';${body}`)(modules);
-}
-
-/**
- * The `pagehide` listener an example page registers while `t` runs, the global
- * `addEventListener` restored after it: calling the result runs the page's cleanup, and fails
- * when the page registered none.
- */
-export function catchPagehide(t: TestContext): () => void {
-  let pagehide: (() => void) | undefined;
-  const previous = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: () => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof addEventListener;
-  t.after(() => void (globalThis.addEventListener = previous));
-  return () => {
-    if (!pagehide) throw new Error('the page registers no pagehide cleanup');
-    pagehide();
-  };
-}
+import { declaredError } from './declaredErrors.ts';
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
 export interface GalleryEntry {
@@ -75,14 +24,21 @@ export function thumbnailDelay(html: string): number {
  * The examples that legitimately draw under the proof's tenth (#527), each with the share it
  * must still reach, the backends it is sparse on and why: every other example, and every example
  * on a backend it is not declared for, keeps the tenth. The shares sit under the ones measured on
- * 2026-09-24, which a blank or a refused render never reaches.
+ * 2026-09-24, and for the three skinned scenes at half those measured on 2026-10-04: a blank or a
+ * refused render never reaches them.
  */
-export const SPARSE: Record<string, { share: number; on: 'both' | 'webgl2' }> = {
-  // A slender spiral stair standing alone in a wide view, on either backend.
+const SPARSE: Record<string, { share: number; on: 'both' | 'webgl2' }> = {
+  // A slender spiral stair standing alone in a wide view.
   'a-staircase-from-one-step': { share: 0.04, on: 'both' },
   // Small points on a black sky; the WebGL2 path has no antialiasing, so a point under a pixel
   // that misses the pixel's centre is not drawn. WebGPU's temporal antialiasing keeps the tenth.
   'a-cloud-of-points': { share: 0.04, on: 'webgl2' },
+  // One skinned figure walking alone in the middle of a plain sky.
+  'a-character-that-walks': { share: 0.006, on: 'both' },
+  // Ten small figures walking far off in a plain sky.
+  'a-crowd-of-characters': { share: 0.01, on: 'both' },
+  // One small skinned tree swaying alone in a plain sky.
+  'additive-poses': { share: 0.02, on: 'both' },
 };
 
 /** The share of its canvas an example must draw on a backend: a tenth, or its declared share. */
@@ -91,7 +47,10 @@ export function leastDrawn(id: string, gpu: boolean): number {
   return sparse && (sparse.on === 'both' || !gpu) ? sparse.share : 0.1;
 }
 
-/** A capture of the render alone: the example kit's panels and the credit line hidden. */
+/**
+ * A capture of the render alone: the credit line hidden, and every layer drawn over the render —
+ * the kit's panels, and a panel or HUD a page builds itself, which carries `data-example-overlay`.
+ */
 export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
 /**
@@ -123,27 +82,11 @@ export async function drawnShare(page: Page, canvas = 'canvas#view', tolerance =
 }
 
 /**
- * The errors an example page may raise or log, each named with its page and why; every other one
- * fails the proofs (#945): the engine's own failures (`worldHandles.ts`, `interactive.ts`,
- * `webgpu/pages/io/lost.ts`), a module whose import fails, a resource answered 404.
- */
-export const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] = [
-  {
-    page: 'outline-the-selection',
-    error: 'effect.outline is not a function',
-    why: 'parked, written against the outline pass #757 delivers',
-  },
-];
-
-/** Whether `error`, raised or logged by the example `page`, is one declared for it. */
-const declaredError = (page: string, error: string) =>
-  DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error);
-
-/**
  * Opens one example file in a new page of `browser` and waits until its canvas shows an image,
  * `share` of it drawn at least, `leastDrawn` on that backend unless given (an engine that failed
  * leaves the canvas blank); resolves with the page and the errors it raised or logged, those
- * `DECLARED_ERRORS` names for it aside, which the caller closes and judges.
+ * `declaredError` allows for it (`declaredErrors.ts`: its page and its exact message) aside, which
+ * the caller closes and judges.
  *
  * `gpu: false` hides `navigator.gpu` from the page, the machine an example must render on too:
  * naming no backend, it reaches `chooseBackends`, which takes the engine's own WebGL2 path.

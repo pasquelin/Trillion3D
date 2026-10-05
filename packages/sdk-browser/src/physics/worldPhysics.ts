@@ -9,6 +9,7 @@ import type { HostCpuProfile } from '../host/cpuProfile.ts';
 import { families } from '../host/families.ts';
 import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
+import { createWaterCarry } from './waterCarry.ts';
 import type { PhysicsSession } from './session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
 import {
@@ -18,7 +19,7 @@ import {
 } from './worldPhysicsOptions.ts';
 
 /**
- * The world's physics, `world.physics`: off until enabled, and then Jolt Physics in a worker. The
+ * The world's physics, `world.physics`: off until enabled, and then the physics engine in a worker. The
  * worker and its WebAssembly are fetched on first use; bodies set before are queued. Every body
  * is an ordinary mesh with `physics` set (`mesh.physics`).
  */
@@ -42,6 +43,9 @@ export function createWorldPhysics(
     error: EngineError | null = null,
     watcher: (() => void) | null = null; // told when a session starts or ends (the character)
   const stopped = emptyPhysicsStats();
+  const carry = createWaterCarry(root);
+  /** The surface clocked at the simulation's time: still without a session, as the worker's. */
+  const clocked = () => (water ? surface!.setTime(session?.waterTime() ?? 0) : null);
   const joints = createJointList(() => {
     session?.structure();
     invalidate();
@@ -138,16 +142,19 @@ export function createWorldPhysics(
       return water;
     },
     set water(spec: WaterSpec | null) {
-      // Resolved here once, so a wrong wave throws on the page, not in the worker.
-      surface = spec ? new WaterSurface(spec) : null;
+      // Resolved here once, so a wrong wave throws on the page, not in the worker. The surface is
+      // the same one set again: what holds it (`mesh.waves`) is carried by the new waves.
+      if (spec) surface = surface?._declare(spec) ?? new WaterSurface(spec);
       water = spec;
+      carry.water();
       session?.setWater(spec);
       invalidate();
     },
-    /** The water's surface at the simulation's time, to draw it: the waves buoyancy reads, the
-     *  same numbers (`height`, `point`, `normal`). @defaultValue null (no water) */
+    /** The water's surface at the simulation's time: the waves buoyancy reads, the same numbers
+     *  (`height`, `point`, `normal`). A mesh that lies on its rest plane, or whose `mesh.waves` is
+     *  this surface, is drawn carried by it, on the GPU. @defaultValue null (no water) */
     get waterSurface(): WaterSurface | null {
-      return surface?.setTime(session?.waterTime() ?? 0) ?? null;
+      return clocked();
     },
     /** Counts and both clocks: worker milliseconds per step, page milliseconds per frame. */
     get stats(): Readonly<PhysicsStats> {
@@ -161,25 +168,37 @@ export function createWorldPhysics(
   };
   setGravity(settings.gravity ?? 'earth');
   if (options) handle.enabled = true;
+  // Without water, nothing is carried: a change is no mesh to read again.
+  const hear = (node: Object3D) => water && carry.heard(node);
   root._link = physicsLink(root._link, {
-    structure: () => session?.structure(),
-    content: (node) => session?.content(node),
-    pose: (node) => session?.pose(node),
+    structure: (node) => (hear(node), session?.structure()),
+    content: (node) => (hear(node), session?.content(node)),
+    pose: (node) => (hear(node), session?.pose(node)),
   });
   return {
     handle,
     /** The fixed envelopes, `world.budget.physics`: read once when the physics starts. */
     budget,
-    /** Runs the frame's physics, timed into the `physics` CPU stage; returns whether a body is
-     *  still on its way. */
+    /** Sets the frame's time, `seconds` of the world's time after the last frame
+     *  (`FrameInfo.delta`), at its start: what the frame draws reads it (`worldFrames.ts`). */
+    time(seconds: number) {
+      session?.time(seconds);
+    },
+    /** Runs the frame's physics, timed into the `physics` CPU stage, then clocks the water's
+     *  surface and finds the meshes it carries (`waterCarry.ts`); returns whether a body is still
+     *  on its way, or waves still move a mesh that holds the surface. */
     frame() {
-      if (!session) return false;
-      const start = performance.now();
-      const moving = session.frame(camera(), range);
-      // The frame's own work, plus the ticks received since the last one (`session.frame`).
-      session.stats.mainMs += performance.now() - start;
-      (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
-      return moving;
+      let moving = false;
+      if (session) {
+        const start = performance.now();
+        moving = session.frame(camera(), range);
+        // The frame's own work, plus the ticks received since the last one (`session.frame`).
+        session.stats.mainMs += performance.now() - start;
+        (runtime.explorer as HostCpuProfile | null)?.cpuStep?.('physicsMs', session.stats.mainMs);
+      }
+      const drawn = clocked(),
+        held = carry.frame(drawn);
+      return moving || (held && !!session && !paused && timeScale > 0 && drawn!.crest > 0);
     },
     /** The character's body in the running session, for `world.controls`; `watch` is told
      *  each time a session starts or ends. */

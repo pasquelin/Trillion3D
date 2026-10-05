@@ -1,7 +1,7 @@
 //! The live triangles of one texture set, binned by texture island and texture cell, and the
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
+use crate::shared_math::WordMap;
 use crate::shared_math::{length, point, sub};
-use std::collections::HashMap;
 
 /// Barycentric weights of the samples: corners, edge midpoints, centroid.
 const SAMPLES: [[f64; 3]; 7] = [
@@ -27,10 +27,10 @@ pub(super) struct Lookup<'a> {
     live: &'a [u32],
     /// Side of a texture cell; not finite when no live triangle maps any texture area.
     cell: f64,
-    cells: HashMap<(u32, i64, i64), Vec<usize>>,
+    cells: WordMap<(u32, i64, i64), Vec<usize>>,
     /// Per island, the triangles too wide for the cells, then every triangle.
-    wide: HashMap<u32, Vec<usize>>,
-    all: HashMap<u32, Vec<usize>>,
+    wide: WordMap<u32, Vec<usize>>,
+    all: WordMap<u32, Vec<usize>>,
 }
 
 impl<'a> Lookup<'a> {
@@ -53,9 +53,9 @@ impl<'a> Lookup<'a> {
             uvs,
             live,
             cell: (area / triangles as f64).sqrt() * 2.0,
-            cells: HashMap::new(),
-            wide: HashMap::new(),
-            all: HashMap::new(),
+            cells: WordMap::default(),
+            wide: WordMap::default(),
+            all: WordMap::default(),
         };
         for t in 0..triangles {
             let Some(home) = island(live[t * 3]) else {

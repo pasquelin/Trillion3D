@@ -91,7 +91,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
           'determinant',
           !singular,
           singular
-            ? `determinant ${formatNumber(determinant)}: sixteen zeros, like the reference — test the determinant, never the output`
+            ? `determinant ${formatNumber(determinant)}: sixteen zeros — test the determinant, never the output`
             : `determinant ${formatNumber(determinant)}`,
         ),
       ];

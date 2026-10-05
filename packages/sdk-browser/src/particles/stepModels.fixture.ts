@@ -1,7 +1,7 @@
 /**
  * CPU models of the two particle steps (#759) for the fast tests: each runs its shader's
  * arithmetic in 32-bit floats on exactly what its step handed the GPU, and keeps its state as the
- * GPU would. What the GPU itself does is the recette's (`tests/browser/probes/particles-step-*`).
+ * GPU would. What the GPU itself does is proved on the bench (`tests/gpu/particles/`).
  */
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';
@@ -52,8 +52,9 @@ function move(state: ArrayLike<number>, staged: ArrayLike<number>, i: number, ri
     dt = f(a[3]);
   if (p[3] < p[7]) {
     for (let c = 0; c < 3; c++) {
-      p[4 + c] = f(p[4 + c] + f(a[c] * dt));
-      p[c] = f(p[c] + f(p[4 + c] * dt));
+      const gain = f(a[c] * dt);
+      p[c] = f(p[c] + f(f(p[4 + c] + f(0.5 * gain)) * dt));
+      p[4 + c] = f(p[4 + c] + gain);
     }
     p[3] = f(p[3] + dt);
   }

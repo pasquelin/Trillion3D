@@ -1,6 +1,7 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { autonomousPlacements } from '../../placement/autonomousPlacements.ts';
+import { createDynamicReach } from './dynamicReach.ts';
 import { backendMetrics } from './metrics.ts';
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
@@ -55,7 +56,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
+    deformation = createWebglDeformation(roots, blendCopies), // the roots' records (#357)
     impostors = webglImpostorTier(context, roots, gate, () => hostDraw.textureRoom()),
     // The cards' atlases are paid from the one texture pool, beside the maps (`textureQueue.ts`).
     cards = impostors?.cards,
@@ -111,6 +112,11 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     residency,
     pool: pool.budget,
   });
+  const placements = autonomousPlacements({
+    ...{ ...tables, context, descriptors, bootstrapUrls, blendCopies },
+    ...{ scene, gate, geometryStore, coverChanged: heldFloor.placed },
+  });
+  const dynamicReach = createDynamicReach(roots, () => heldFloor.placements);
   return {
     id: 'autonomous-pages-webgl',
     scene,
@@ -149,10 +155,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     ...hostDraw.host,
     ...hostDraw.materials,
     ...instances,
-    ...autonomousPlacements({
-      ...{ ...tables, context, descriptors, bootstrapUrls, blendCopies },
-      ...{ scene, gate, geometryStore, coverChanged: heldFloor.placed },
-    }),
+    ...placements,
     ...lightingApi,
     ...autonomousRenderScale(context),
     setClearColor: graphBackground(scene, gate.resourcesChanged),
@@ -163,8 +166,13 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
     syncResident: () => (gate.resourcesChanged(), sync()),
-    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
-    updateVertices: () => (gate.sceneMoved(), true),
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573);
+    // its roots' cuts grow by how far they moved.
+    updateVertices: (attributes, _ranges, _box, reach) => (
+      dynamicReach.note(attributes, reach),
+      gate.sceneMoved(),
+      true
+    ),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));

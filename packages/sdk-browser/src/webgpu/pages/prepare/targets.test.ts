@@ -14,7 +14,7 @@ import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.t
 import {
   MEASURE_HEIGHT,
   MEASURE_WIDTH,
-} from '../../../../../../tests/browser/support/sceneProvenance.ts';
+} from '../../../../../../tests/gpu/webgpu/measureResolution.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { createScaleControl } from '../../../frame/scaleControl.ts';
 
@@ -29,10 +29,12 @@ const native = (width: number, height: number) => ({
 
 // The defect this test catches: a 288 MiB ceiling, sampled once on this Mac, refused 4K and the
 // compute raster at 2496×1404 (`SURFACE_BUDGET: 415 MB > 288 MiB`, 18 Sept. 2026) on a machine that
-// held them. As in the reference, targets follow resolution: what they cost is published, and only
+// held them. Targets follow resolution: what they cost is published, and only
 // a size the device cannot make is refused.
 test('targets follow resolution, history included: 4K is admitted and costed', () => {
   const { rt, resized, temporal } = runtime();
+  // The pass on: switched off, its history is not made (`ensureTaaTargets`).
+  rt.gpu.temporalWanted = true;
   for (const [width, height] of [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
@@ -59,11 +61,14 @@ test("a surface capture does not touch the view's history targets", () => {
   assert.deepEqual(resized, []);
 });
 
-test('an eligible receiver accounts for viewport reflection colour and its uniform', () => {
+test('an eligible receiver accounts for viewport reflection colour, its uniform and the bounds its mirror ray walks', () => {
   const { rt } = runtime(true);
+  // A mirror's ray walks the depth bounds (`reflectionPlan`): 32×16 down to 1×1 in rg32float, and
+  // a uniform block a level; no radiance levels, no cone reads them.
+  const bounds = (512 + 128 + 32 + 8 + 2 + 1) * 8 + 6 * 256;
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 24 + REFLECTION_SOURCE_VIEW_BYTES + 80,
+    frameTargetBytes(64, 32, true) + 64 * 32 * 24 + REFLECTION_SOURCE_VIEW_BYTES + 80 + bounds,
   );
 });
 
@@ -80,7 +85,7 @@ test('a blended scene costs the share only when a debug view or the temporal pas
     cone;
   // Under the screen-reflection cutoff (#1341), above the mirror range: the cone's lobe.
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) };
-  Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
+  Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } });
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
     base,
@@ -132,6 +137,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
     context: {},
     gpu: {
       colorTexture: {},
+      hdrTexture: {},
       feedbackTexture: {},
       targetSize: [32, 32],
       allocatedSize: [32, 32],
@@ -147,16 +153,17 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
 });
 
-// #816: every pass up to the resolve draws at the render size; the display colour is apart.
-test('a frame drawn below the display costs its render targets and one display colour', () => {
+// #816: every pass up to the resolve draws at the render size; the display colour is apart. S11:
+// no water, no render-size display colour (`displayColor.test.ts`).
+test('a frame drawn below the display costs its render targets and the display colour', () => {
   const { rt } = runtime();
   const scaled = { width: 64, height: 32, renderWidth: 32, renderHeight: 16, apart: true };
   assert.equal(
     frameTargetAllocation(rt, scaled),
-    frameTargetAllocation(rt, native(32, 16)) + 64 * 32 * 4,
+    frameTargetAllocation(rt, native(32, 16)) - 32 * 16 * 4 + 64 * 32 * 4,
   );
   Object.assign(rt.gpu, {
-    colorTexture: {},
+    hdrTexture: {},
     displayTexture: {},
     surfaces: { hasSubsurface: false },
     feedbackTexture: {},

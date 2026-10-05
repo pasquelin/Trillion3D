@@ -133,7 +133,6 @@ export interface Row {
   lights: LightsSummary | null;
   importedLights: { count: number; ids: string[] } | null;
   witnessLights: unknown;
-  shadowAtlas: unknown;
   movingNode: MovingNode;
   load: { start: number[]; end: number[] };
   png: string | null;

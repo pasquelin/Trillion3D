@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Bingkai/dtk",
-      "FPS (held)": "Bingkai/dtk (diam)",
       "triangles": "segitiga",
       "triangles (scene)": "segitiga (adegan)",
       "draw calls": "panggilan gambar",
       "pages": "halaman",
       "geometry pool": "kolam geometri",
       "lights": "lampu",
+      "GPU memory": "memori GPU",
+      "screen images": "gambar layar",
+      "shadow memory": "memori bayangan",
+      "geometry memory": "memori geometri",
+      "texture memory": "memori tekstur",
+      "live textures": "tekstur aktif",
+      "transmission backdrop": "latar transmisi",
       "GPU frame": "bingkai GPU",
       "GPU frame (last)": "bingkai GPU (terakhir)",
       "CPU frame": "bingkai CPU",
       "page hooks": "kode halaman",
-      "engine CPU": "CPU mesin"
+      "engine CPU": "CPU mesin",
+      "Statistics": "Statistik",
+      "hint": "Klik: ringkas · seret: pindah · tombol `",
+      "fps": "FPS",
+      "budget": "anggaran",
+      "held": "diam",
+      "last": "terakhir",
+      "others": "lainnya",
+      "Shadows": "Bayangan",
+      "Scene and memory": "Adegan dan memori",
+      "cut and culling": "potong dan culling",
+      "page preparation": "persiapan halaman",
+      "command encoding": "pengodean perintah",
+      "physics step": "langkah fisika",
+      "Cadence": "Ritme",
+      "{n}× refresh": "{n}× penyegaran",
+      "GPU idle": "GPU menganggur"
+    },
+    "shadows": {
+      "lights": "lampu",
+      "maps": "peta",
+      "pagesRequested": "halaman diminta",
+      "pagesAllocated": "halaman dialokasikan",
+      "pagesCached": "halaman di cache",
+      "pagesRendered": "halaman digambar",
+      "freePages": "halaman bebas",
+      "lodBias": "bias LOD",
+      "projectionPasses": "lintasan proyeksi",
+      "invalidation": "invalidasi",
+      "marking": "penandaan",
+      "pageManagement": "pengelolaan halaman",
+      "render": "gambar",
+      "projection": "proyeksi",
+      "transmission": "transmisi"
+    },
+    "passes": {
+      "vsm projection": "proyeksi VSM",
+      "vsm marking": "penandaan VSM",
+      "vsm render": "gambar VSM",
+      "material surfaces": "permukaan material",
+      "temporal antialiasing": "antialiasing temporal",
+      "HDR composition + present": "komposisi HDR + tampil",
+      "deferred lighting": "pencahayaan tertunda",
+      "reflection source": "sumber pantulan",
+      "HiZ pyramid": "piramida HiZ",
+      "light tiles": "ubin cahaya",
+      "texture mips": "mip tekstur",
+      "reflection radiance mips": "mip radiansi pantulan",
+      "reflection depth bounds mips": "mip batas kedalaman pantulan"
     },
     "failure": {
       "title": "Contoh ini berhenti karena sebuah kesalahan",
@@ -1238,7 +1292,7 @@
     "banner": "Geser untuk berkeliling alun-alun. Pilih waktu, dari siang sampai cahaya bulan.",
     "controls": {
       "moment": "Momen",
-      "lampLumens": "reference-GI lampu",
+      "lampLumens": "Lumen lampu",
       "autoExposure": "Eksposur otomatis",
       "exposureValue": "Nilai eksposur",
       "turning": "Berputar"
@@ -1363,7 +1417,8 @@
       "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Geser untuk mengelilingi patung dada. Peti dan bola kaca berputar di atas meja putarnya.",
     "words": {
       "credit": "Marble Bust 01 oleh Rico Cilliers, Poly Haven, CC0; peti oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Pose"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Pilih kualitas, resolusi, dan sudut pandang. Simpan satu pengaturan sebagai A, yang lain sebagai B, lalu tekan C untuk berganti di antara keduanya."
   }
 }

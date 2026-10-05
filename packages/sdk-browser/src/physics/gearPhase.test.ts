@@ -18,7 +18,7 @@ function turnOf(rig: Awaited<ReturnType<typeof jointRig>>, mesh: Parameters<type
 test('gear and rack and pinion: a braked train keeps its teeth in phase over 10,000 steps', async () => {
   const rig = await jointRig([0, 0, 0]);
   // Wheels of 36, 12, 24 and 12 teeth, the last braked; the 12 → 24 gear written `a` small, so
-  // its ratio is 0.5 and Jolt makes it the other way round. A 12-tooth pinion pushes a braked rack.
+  // its ratio is 0.5 and the simulation makes it the other way round. A 12-tooth pinion pushes a braked rack.
   const teeth = [36, 12, 24, 12];
   const wheels = teeth.map((_, i) => rig.cube(i * 3, 0, 0));
   const [pinion, rack] = [rig.cube(0, 0, 4), rig.cube(3, 0, 4)];

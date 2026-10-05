@@ -101,7 +101,7 @@ fn decode(
     mode: &str,
     filter: &str,
 ) -> Result<()> {
-    // Layout checks above meet meshoptimizer's FFI preconditions. Both ranges are
+    // Layout checks above meet the codec's FFI preconditions. Both ranges are
     // bounded, disjoint allocations; the decoder accepts untrusted encoded bytes.
     let status = unsafe {
         let dest = out.as_mut_ptr().cast();

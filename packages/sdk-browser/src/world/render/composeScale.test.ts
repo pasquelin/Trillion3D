@@ -47,6 +47,7 @@ test('a fixed scale draws the image at it and resamples it to the display', () =
   compose(backend, null);
   const [drawn] = outputs;
   assert.deepEqual([drawn.width, drawn.height, drawn.displayWidth], [32, 16, 64]);
+  assert.deepEqual(compose.renderSize(), [32, 16], 'the size it was drawn at, for the metrics');
   assert.notEqual(drawn.framebuffer, null, 'drawn in a target of its own');
   assert.equal(backend.renderScale!(), 0.5);
   const program = of('shaderSource').find(([, text]) => /lanczos2/.test(text as string));
@@ -90,4 +91,5 @@ test('the default setting draws at the display, call for call as without a rende
   assert.deepEqual(scaled.calls, plain.calls, 'no target, no resample');
   assert.deepEqual(b.outputs, a.outputs);
   assert.equal(b.backend.renderScale!(), 1);
+  assert.deepEqual(scaled.compose.renderSize(), [64, 32], 'drawn at the display');
 });

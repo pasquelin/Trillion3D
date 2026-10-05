@@ -1,11 +1,18 @@
-import { composeMatrix4 } from '../../math/matrix/matrix4Compose.ts';
+import { composeMatrix4At } from '../../math/matrix/matrix4Compose.ts';
 import { Observed } from './observed.ts';
 import type { XYZWLike as Q } from './likes.ts';
 
 const clamp = (v: number) => Math.min(1, Math.max(-1, v));
-/** Beyond this the middle angle is at its pole and the outer two share one degree of freedom. */
+/**
+ * Beyond this the middle angle is at its pole and the outer two share one degree of freedom.
+ * Declared: the sine of the pitch past which the rotation matrix is treated as gimbal-locked;
+ * 0.9999999 leaves about 4e-4 rad of pitch to the pole, far above float64 rounding, so a matrix
+ * just under it still resolves its outer angles; a lower value locks earlier and loses their
+ * precision.
+ */
 const POLE = 0.9999999;
 const rotation = new Float64Array(16),
+  turn = new Float64Array(4),
   ORIGIN = [0, 0, 0],
   UNIT = [1, 1, 1];
 
@@ -88,61 +95,75 @@ export class Euler extends Observed {
   }
   /** The angles of a column-major rotation matrix, in this order. */
   setFromRotationMatrix(m: { elements: ArrayLike<number> }, order = this._order, quiet = false) {
-    const e = m.elements;
-    // prettier-ignore
-    const [m11, m12, m13, m21, m22, m23, m31, m32, m33] = [
-      e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10],
-    ];
-    let x: number, y: number, z: number;
-    switch (order) {
-      case 'YXZ':
-        x = Math.asin(-clamp(m23));
-        [y, z] =
-          Math.abs(m23) < POLE
-            ? [Math.atan2(m13, m33), Math.atan2(m21, m22)]
-            : [Math.atan2(-m31, m11), 0];
-        break;
-      case 'ZXY':
-        x = Math.asin(clamp(m32));
-        [y, z] =
-          Math.abs(m32) < POLE
-            ? [Math.atan2(-m31, m33), Math.atan2(-m12, m22)]
-            : [0, Math.atan2(m21, m11)];
-        break;
-      case 'ZYX':
-        y = Math.asin(-clamp(m31));
-        [x, z] =
-          Math.abs(m31) < POLE
-            ? [Math.atan2(m32, m33), Math.atan2(m21, m11)]
-            : [0, Math.atan2(-m12, m22)];
-        break;
-      case 'YZX':
-        z = Math.asin(clamp(m21));
-        [x, y] =
-          Math.abs(m21) < POLE
-            ? [Math.atan2(-m23, m22), Math.atan2(-m31, m11)]
-            : [0, Math.atan2(m13, m33)];
-        break;
-      case 'XZY':
-        z = Math.asin(-clamp(m12));
-        [x, y] =
-          Math.abs(m12) < POLE
-            ? [Math.atan2(m32, m22), Math.atan2(m13, m11)]
-            : [Math.atan2(-m23, m33), 0];
-        break;
-      default:
-        y = Math.asin(clamp(m13));
-        [x, z] =
-          Math.abs(m13) < POLE
-            ? [Math.atan2(-m23, m33), Math.atan2(-m12, m11)]
-            : [Math.atan2(m32, m22), 0];
-    }
-    return this.set(x, y, z, order, quiet);
+    return this.fromElements(m.elements, order, quiet);
   }
   /** The three angles that make the same turn as a quaternion. */
   setFromQuaternion(q: Q, order = this._order, quiet = false) {
-    composeMatrix4(rotation, ORIGIN, [q.x, q.y, q.z, q.w], UNIT);
-    return this.setFromRotationMatrix({ elements: rotation }, order, quiet);
+    turn[0] = q.x;
+    turn[1] = q.y;
+    turn[2] = q.z;
+    turn[3] = q.w;
+    composeMatrix4At(rotation, 0, ORIGIN, 0, turn, 0, UNIT, 0);
+    return this.fromElements(rotation, order, quiet);
+  }
+  /** The angles of the rotation in the upper 3×3 of the column-major `e`, read in place. */
+  private fromElements(e: ArrayLike<number>, order: string, quiet: boolean) {
+    const m11 = e[0],
+      m12 = e[4],
+      m13 = e[8],
+      m21 = e[1],
+      m22 = e[5],
+      m23 = e[9],
+      m31 = e[2],
+      m32 = e[6],
+      m33 = e[10];
+    let x = 0,
+      y = 0,
+      z = 0;
+    switch (order) {
+      case 'YXZ':
+        x = Math.asin(-clamp(m23));
+        if (Math.abs(m23) < POLE) {
+          y = Math.atan2(m13, m33);
+          z = Math.atan2(m21, m22);
+        } else y = Math.atan2(-m31, m11);
+        break;
+      case 'ZXY':
+        x = Math.asin(clamp(m32));
+        if (Math.abs(m32) < POLE) {
+          y = Math.atan2(-m31, m33);
+          z = Math.atan2(-m12, m22);
+        } else z = Math.atan2(m21, m11);
+        break;
+      case 'ZYX':
+        y = Math.asin(-clamp(m31));
+        if (Math.abs(m31) < POLE) {
+          x = Math.atan2(m32, m33);
+          z = Math.atan2(m21, m11);
+        } else z = Math.atan2(-m12, m22);
+        break;
+      case 'YZX':
+        z = Math.asin(clamp(m21));
+        if (Math.abs(m21) < POLE) {
+          x = Math.atan2(-m23, m22);
+          y = Math.atan2(-m31, m11);
+        } else y = Math.atan2(m13, m33);
+        break;
+      case 'XZY':
+        z = Math.asin(-clamp(m12));
+        if (Math.abs(m12) < POLE) {
+          x = Math.atan2(m32, m22);
+          y = Math.atan2(m13, m11);
+        } else x = Math.atan2(-m23, m33);
+        break;
+      default:
+        y = Math.asin(clamp(m13));
+        if (Math.abs(m13) < POLE) {
+          x = Math.atan2(-m23, m33);
+          z = Math.atan2(-m12, m11);
+        } else x = Math.atan2(m32, m22);
+    }
+    return this.set(x, y, z, order, quiet);
   }
   /** The three angles and the order, as a list. */
   toArray(): [number, number, number, string] {

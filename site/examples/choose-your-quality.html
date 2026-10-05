@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Choose your quality</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e8d2b6;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #quality {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        box-sizing: border-box;
+        width: 22rem;
+        max-width: calc(100vw - 1.5rem);
+        max-height: calc(100% - 1.5rem);
+        overflow: auto;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.6rem;
+        background: rgba(15, 18, 24, 0.78);
+        backdrop-filter: blur(10px);
+        color: #e5e7eb;
+        font: 12px/1.4 system-ui, sans-serif;
+      }
+      #quality .row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.25rem 0;
+      }
+      #quality .name {
+        flex: none;
+        width: 6.8rem;
+        opacity: 0.8;
+      }
+      #quality .choices {
+        display: flex;
+        flex: 1;
+        flex-wrap: wrap;
+        gap: 0.2rem;
+        min-width: 0;
+      }
+      #quality button {
+        padding: 0.1rem 0.4rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 0.35rem;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      #quality button[aria-pressed='true'] {
+        border-color: #3b82f6;
+        background: #3b82f6;
+        color: #fff;
+      }
+      #quality button[aria-disabled='true'] {
+        opacity: 0.35;
+        cursor: help;
+      }
+      #quality input[type='range'] {
+        flex: 1;
+        min-width: 0;
+      }
+      #quality output {
+        width: 3.2rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      #quality summary {
+        cursor: pointer;
+        opacity: 0.8;
+      }
+      #quality hr {
+        margin: 0.4rem 0;
+        border: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      html[data-panels='hidden'] #quality {
+        display: none;
+      }
+      /* A phone: one column, a third of the width at most, the groups folded. */
+      @media (max-width: 640px) {
+        #quality {
+          width: 30vw;
+          padding: 0.35rem;
+          font-size: 10px;
+        }
+        #quality .row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        #quality .name,
+        #quality output {
+          width: auto;
+          text-align: left;
+        }
+        #quality .choices {
+          flex-direction: column;
+        }
+      }
+    </style>
+    <script>
+      // The page hosting the example may hide its panels; it says so as the frame loads, before the
+      // module below has run, so the choice is heard here and kept on the document.
+      addEventListener('message', (event) => {
+        if (event.source !== parent || event.data?.type !== 'trillion3d:controls') return;
+        document.documentElement.dataset.panels = event.data.visible ? 'shown' : 'hidden';
+      });
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <aside id="quality" data-example-overlay></aside>
+    <script type="module">
+      import { createWorld, effect, geometry, light, material, math, object, side, texture, wrap, LOD_QUALITY } from '../runtime/engine.js';
+      import { leafTexture, seeded, stats, tour } from '../runtime/kit.js';
+
+      // ── The quality table ──────────────────────────────────────────────────────────────────
+      // What each level of each group asks of the engine, through the world's public switches:
+      // the page's stand-in for the engine's own presets, swapped for them once its settings
+      // registry exists. `Max` asks nothing below the engine's defaults. A group whose setting the
+      // engine does not have yet is `coming`: shown disabled, never imitated by changing the scene.
+      const LEVELS = ['Smooth', 'Balanced', 'Fine', 'Max'];
+      const QUALITY = {
+        shadows: { name: 'Shadows', coming: 'the engine has no shadow quality setting yet' },
+        reflections: { name: 'Reflections', coming: 'the engine has no reflection setting yet' },
+        // Temporal antialiasing: jitter accumulated over frames, which also rebuilds an image
+        // drawn below the display's size.
+        edges: { name: 'Edge smoothing', levels: (level) => ({ temporalAntialiasing: level !== 'Smooth' }) },
+        // The world's effect chain: the glow of the signs, a pass over the whole image.
+        effects: { name: 'Image effects', levels: (level) => ({ glow: level !== 'Smooth' }) },
+        textures: { name: 'Textures', coming: 'the engine has no texture quality setting yet' },
+        // `world.bounce` is off by default: turned on at any level, `Max` would no longer be the
+        // engine's default image.
+        indirect: { name: 'Indirect light', coming: 'bounced light has no levels yet, and it is off by default' },
+        // How many pixels a coarser version of what is far may stray before a finer one is drawn.
+        distance: {
+          name: 'View distance',
+          levels: (level) => ({
+            pixelError: {
+              Smooth: 2 * LOD_QUALITY.balanced.pixelError,
+              Balanced: LOD_QUALITY.balanced.pixelError,
+              Fine: LOD_QUALITY.high.pixelError,
+              Max: LOD_QUALITY.source.pixelError,
+            }[level],
+          }),
+        },
+      };
+      // The share of the display, per axis, the image is drawn at; temporal antialiasing rebuilds
+      // it to the display, so below 100 % `Edge smoothing` at `Smooth` (no temporal antialiasing)
+      // shows the small image as drawn. The engine draws no lower than half: a mode below is coming.
+      const RESOLUTION = { Native: 1, Sharp: 0.67, Mixed: 0.58, Fast: 0.5, Turbo: 0.33 };
+      const LOWEST_SCALE = 0.5;
+      // `Auto` is every group at `Max` with the engine's own dynamic resolution (`'auto'`: the
+      // frame budget picks the scale between half and full); picking the preset from the GPU time
+      // is coming.
+      const PRESETS = [...LEVELS, 'Auto'];
+      const AUTO_COMING = 'Auto: the engine’s dynamic resolution, 50–100 %. Coming: the preset picked from the GPU time.';
+
+      // ── The square ─────────────────────────────────────────────────────────────────────────
+      // A paved square, 48 m a side, in a low late-afternoon sun, with one corner for each group:
+      // fine shadows and fine bricks on the west wall, an arcade and its lamps to the north-west,
+      // a red wall on a white floor to the north-east, a glass canopy over a pool to the south,
+      // and in the middle a chrome ball on a polished floor, ringed by a road a car drives round.
+      // A street runs north to the horizon through a crowd of crates and trees.
+      const world = createWorld('view', { controls: 'orbit', physics: true });
+      const haze = math.color('#e8d2b6');
+      world.scene.background = haze;
+      world.scene.fog = { color: haze, density: 0.0016 };
+      world.camera.far = 2400;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      world.controls.maxDistance = 400;
+      const random = seeded(48);
+
+      const paint = (color, roughness = 0.85, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const glowing = (color, emissiveIntensity = 10) => material.meshStandard({ color: '#000000', emissive: color, emissiveIntensity });
+      const put = (shape, look, [x, y, z], parent = world.scene) => {
+        const mesh = object.mesh(shape, look);
+        mesh.position.set(x, y, z);
+        parent.add(mesh);
+        return mesh;
+      };
+      // One unit box for every block: the blocks of one material are instances of one shape.
+      const UNIT = geometry.box(1, 1, 1);
+      const block = (look, at, [sx, sy, sz], parent) => {
+        const mesh = put(UNIT, look, at, parent);
+        mesh.scale.set(sx, sy, sz);
+        return mesh;
+      };
+      // A picture drawn on a canvas by the page, repeated `across` × `up` times over a surface.
+      const drawn = (width, height, draw, across = 1, up = 1) => {
+        const canvas = document.createElement('canvas');
+        Object.assign(canvas, { width, height });
+        draw(canvas.getContext('2d'), width, height);
+        const picture = texture.canvas(canvas);
+        picture.wrap = wrap.repeat;
+        picture.repeat.set(across, up);
+        return picture;
+      };
+
+      const stone = paint('#cbbda8'), iron = paint('#26282c', 0.55, 0.6), wood = paint('#8a6038', 0.8);
+      block(paint('#8d8163', 0.95), [0, -0.1, -400], [1600, 0.2, 2000]);
+      block(stone, [0, 0, 0], [48, 0.04, 48]);
+
+      // The middle: a chrome ball on a polished dark floor, a brushed-metal bench and stele beside
+      // it — a sharp reflection, and rough ones — inside the ring the car drives on.
+      put(geometry.cylinder(5, 5, 0.02, 64), paint('#24262b', 0.06), [0, 0.03, 0]);
+      put(geometry.ring(8.2, 9.8, 96), paint('#3e3b39', 0.9), [0, 0.025, 0]).rotation.x = -Math.PI / 2;
+      put(geometry.cylinder(0.5, 0.6, 0.25, 32), stone, [0, 0.16, 0]);
+      put(geometry.sphere(1.1, 64, 32), paint('#ffffff', 0.02, 1), [0, 1.38, 0]);
+      const brushed = paint('#c8ccd2', 0.35, 1);
+      block(brushed, [0, 0.45, -3.6], [3, 0.08, 0.8]);
+      for (const x of [-1.3, 1.3]) block(brushed, [x, 0.22, -3.6], [0.08, 0.44, 0.7]);
+      block(brushed, [3.4, 1.25, -1.6], [0.1, 2.4, 1.4]).rotation.y = 0.5;
+
+      // The west wall: fine bricks, a sign of small print and a panel of tight stripes — what
+      // shimmers, what blurs, what shows moiré.
+      const bricks = drawn(512, 512, (pen, w, h) => {
+        pen.fillStyle = '#d8cbb8';
+        pen.fillRect(0, 0, w, h);
+        for (let row = 0; row < 16; row++)
+          for (let column = -1; column < 8; column++) {
+            const shade = 0.8 + random() * 0.35;
+            pen.fillStyle = `rgb(${158 * shade},${74 * shade},${52 * shade})`;
+            pen.fillRect(column * 64 + (row % 2) * 32 + 2, row * 32 + 2, 60, 28);
+          }
+      }, 13, 2.5);
+      put(geometry.box(0.4, 5, 26), material.meshStandard({ map: bricks, roughness: 0.9 }), [-22.4, 2.5, 0]);
+      const sign = drawn(1024, 384, (pen, w, h) => {
+        pen.fillStyle = '#16352c';
+        pen.fillRect(0, 0, w, h);
+        pen.strokeStyle = '#d9b45a';
+        pen.lineWidth = 6;
+        pen.strokeRect(14, 14, w - 28, h - 28);
+        pen.fillStyle = '#e9cf8a';
+        pen.textAlign = 'center';
+        pen.font = 'bold 96px Georgia, serif';
+        pen.fillText('The Corner Café', w / 2, 140);
+        pen.font = '28px system-ui, sans-serif';
+        pen.fillText('Coffee · Tea · Pastries · Open daily from 8 am to 11 pm', w / 2, 220);
+        pen.font = '16px system-ui, sans-serif';
+        pen.fillText('Prices include service. Ask at the counter for the list of allergens in each dish.', w / 2, 290);
+        pen.font = '11px system-ui, sans-serif';
+        pen.fillText('Fine print: the smallest line on this sign, there to read how sharp the image stays.', w / 2, 330);
+      });
+      block(paint('#1d1f22', 0.7), [-22.18, 3.1, -6], [0.06, 1.4, 3.4]);
+      put(geometry.plane(3.2, 1.2), material.meshStandard({ map: sign, roughness: 0.6 }), [-22.14, 3.1, -6]).rotation.y = Math.PI / 2;
+      const stripes = drawn(512, 512, (pen, w, h) => {
+        pen.fillStyle = '#f4f1ea';
+        pen.fillRect(0, 0, w, h);
+        pen.fillStyle = '#17181b';
+        for (let x = 0; x < w; x += 4) pen.fillRect(x, 0, 2, h);
+      });
+      put(geometry.plane(2.4, 2.4), material.meshStandard({ map: stripes, roughness: 0.7 }), [-22.18, 3.4, -0.6]).rotation.y = Math.PI / 2;
+
+      // Before the wall, in the sun: an iron grille of thin bars, a fence of slats, three wires
+      // and a tree of cut-out leaves. Their shadows are long, thin and close together.
+      for (let z = -2; z <= 1; z += 0.08) block(iron, [-16, 1.2, z], [0.025, 2.4, 0.025]);
+      for (let y = 0.2; y < 2.4; y += 0.3) block(iron, [-16, y, -0.5], [0.025, 0.025, 3]);
+      for (let z = 2; z < 8; z += 0.14) block(wood, [-13, 0.7, z], [0.03, 1.4, 0.07]);
+      for (const y of [0.35, 1.1]) block(wood, [-13.04, y, 5], [0.04, 0.08, 6]);
+      for (const z of [-12, 10]) block(iron, [-12, 2.1, z], [0.12, 4.2, 0.12]);
+      const wire = geometry.cylinder(0.008, 0.008, 22, 6);
+      for (const y of [3.4, 3.7, 4]) put(wire, iron, [-12, y, -1]).rotation.x = Math.PI / 2;
+      const bark = paint('#5a4632', 0.9);
+      put(geometry.cylinder(0.15, 0.25, 3.4, 12), bark, [-18, 1.7, 7]);
+      const leaf = material.meshStandard({ map: leafTexture({ texture }), alphaTest: 0.5, side: side.double, roughness: 0.6 });
+      const leafShape = geometry.plane(0.18, 0.26);
+      for (let k = 0; k < 500; k++) {
+        const [a, b, r] = [random() * Math.PI * 2, Math.acos(2 * random() - 1), Math.cbrt(random())];
+        const at = [-18 + 1.7 * r * Math.sin(b) * Math.cos(a), 4.4 + 1.2 * r * Math.cos(b), 7 + 1.7 * r * Math.sin(b) * Math.sin(a)];
+        put(leafShape, leaf, at).rotation.set(random() * 6.3, random() * 6.3, random() * 6.3);
+      }
+
+      // The arcade, north-west: pillars, a roof and a back wall. Under it, a wide lamp and a spot;
+      // behind its back wall, out of sight at the start, a second spot lights the lane.
+      block(stone, [-14, 2, -22.2], [12.4, 4, 0.4]);
+      block(stone, [-14, 4.15, -20], [12.4, 0.3, 4.6]);
+      for (let x = -20; x <= -8; x += 3) block(stone, [x, 2, -17.9], [0.45, 4, 0.45]);
+      const bulb = glowing('#ffd59a', 8), bulbShape = geometry.sphere(0.12, 16, 12);
+      const lamps = [
+        light.point({ position: [-14, 3.6, -20], color: '#ffd59a', intensity: 40, distance: 14, radius: 0.25, castShadow: true }),
+        light.spot({ position: [-18.5, 3.8, -19.6], target: [-18.5, 0, -18], color: '#ffe6c4', intensity: 120, distance: 12, angle: 0.5, penumbra: 0.35, castShadow: true }),
+        light.spot({ position: [-14, 3.8, -22.9], target: [-14, 0, -27], color: '#ffe6c4', intensity: 120, distance: 12, angle: 0.6, penumbra: 0.35, castShadow: true }),
+      ];
+      for (const lamp of lamps) {
+        world.scene.add(lamp);
+        put(bulbShape, bulb, [lamp.position.x, lamp.position.y, lamp.position.z]);
+      }
+      // On the arcade's roof, a sign of three neon tubes: the glow and the haze around them.
+      block(paint('#1a1b1f', 0.8), [-14, 4.95, -17.95], [5, 1.3, 0.1]);
+      for (const [colour, y, width] of [['#ff3d7f', 5.35, 4.2], ['#3dd9ff', 4.95, 3.4], ['#b6ff3d', 4.55, 2.6]])
+        block(glowing(colour, 14), [-14, y, -17.86], [width, 0.07, 0.07]);
+
+      // A red wall on a white floor, north-east: the red the floor would take back from it.
+      block(paint('#b3221c', 0.9), [15, 2, -22.2], [10, 4, 0.4]);
+      block(paint('#f2f0ea', 0.9), [15, 0.035, -18.5], [10, 0.03, 7]);
+
+      // A pool, and a canopy of coloured glass beside it: its shadow falls coloured on the water.
+      for (const z of [9.85, 15.15]) block(stone, [-1, 0.25, z], [8.6, 0.5, 0.3]);
+      for (const x of [-5.15, 3.15]) block(stone, [x, 0.25, 12.5], [0.3, 0.5, 5]);
+      block(paint('#1d4a5c', 0.03), [-1, 0.33, 12.5], [8, 0.02, 5]);
+      for (const [x, z] of [[5, 13], [11, 13], [5, 19], [11, 19]]) block(iron, [x, 1.6, z], [0.12, 3.2, 0.12]);
+      const GLASS = ['#e2453c', '#f2a93b', '#f4e04d', '#4cbf6b', '#3b8de0', '#8a56d6'];
+      GLASS.forEach((colour, k) => {
+        const pane = material.meshStandard({ color: colour, roughness: 0.1, transparent: true, opacity: 0.55, depthWrite: false, transparentShadow: true });
+        block(pane, [6 + (k % 3) * 2, 3.25, 14.5 + Math.floor(k / 3) * 3], [1.96, 0.03, 2.96]);
+      });
+      for (const z of [13, 16, 19]) block(iron, [8, 3.28, z], [6.1, 0.06, 0.06]);
+
+      // The street, north to the horizon: a roadway, two pavements and a row of buildings on each
+      // side, taller and plainer far away, and a skyline at the end.
+      block(paint('#47444a', 0.9), [0, 0.02, -474], [12, 0.04, 900]);
+      const pavement = paint('#b5a894', 0.9);
+      for (const x of [-7.5, 7.5]) block(pavement, [x, 0.08, -474], [3, 0.16, 900]);
+      const FACADES = ['#d8b48a', '#c98b62', '#e7d8bd', '#b9745a', '#d9c49a', '#a8826a'].map((c) => paint(c));
+      const pick = (list) => list[Math.floor(random() * list.length)];
+      for (const way of [-1, 1])
+        for (let z = -30; z > -920; ) {
+          const width = 10 + random() * 12, height = 9 + random() * 20 + (-z / 900) * 25;
+          block(pick(FACADES), [way * 16, height / 2, z - width / 2], [14, height, width - 0.4]);
+          z -= width;
+        }
+      for (let k = 0; k < 60; k++) {
+        const height = 40 + random() * 90, width = 12 + random() * 30;
+        block(pick(FACADES), [(random() - 0.5) * 700, height / 2, -950 - random() * 200], [width, height, width]);
+      }
+
+      // The crowd: three thousand crates and fifteen hundred trees either side of the street, a
+      // few shapes repeated as instances, so that what they cost follows what is in view.
+      const crate = geometry.box(0.9, 0.9, 0.9), crateWood = paint('#a0743f', 0.8);
+      const trunk = geometry.cylinder(0.12, 0.18, 1.6, 6), crown = geometry.cone(1.1, 3.2, 8), foliage = paint('#4f6b34', 0.9);
+      const somewhere = () => [(random() < 0.5 ? -1 : 1) * (30 + random() * 130), -30 - random() * 470];
+      for (let k = 0; k < 3000; k++) {
+        const [x, z] = somewhere(), size = 0.7 + random() * 0.6;
+        const box = put(crate, crateWood, [x, 0.45 * size, z]);
+        box.scale.set(size, size, size);
+        box.rotation.y = random() * Math.PI;
+      }
+      for (let k = 0; k < 1500; k++) {
+        const [x, z] = somewhere(), size = 0.8 + random() * 0.7;
+        put(trunk, bark, [x, 0.8 * size, z]).scale.set(size, size, size);
+        put(crown, foliage, [x, 3.2 * size, z]).scale.set(size, size, size);
+      }
+
+      // Motion, east: a car driving round the ring, a fan spinning and a flag in the wind.
+      const car = object.group(), carPaint = paint('#b0201c', 0.35, 0.6), carGlass = paint('#1b2430', 0.1, 0.3);
+      block(carPaint, [0, 0.62, 0], [1.8, 0.6, 4.2], car);
+      block(carPaint, [0, 1.15, -0.2], [1.6, 0.5, 2.2], car);
+      block(carGlass, [0, 1.15, -0.2], [1.64, 0.36, 1.9], car);
+      const headlight = glowing('#fff4d8', 6);
+      for (const x of [-0.6, 0.6]) block(headlight, [x, 0.66, 2.11], [0.3, 0.12, 0.02], car);
+      const tyre = geometry.cylinder(0.36, 0.36, 0.26, 20), rubber = paint('#151517', 0.8);
+      const wheels = [-1.35, 1.35].flatMap((z) =>
+        [-0.85, 0.85].map((x) => {
+          const wheel = object.group();
+          wheel.position.set(x, 0.36, z);
+          put(tyre, rubber, [0, 0, 0], wheel).rotation.z = Math.PI / 2;
+          block(brushed, [0, 0.22, 0], [0.28, 0.1, 0.1], wheel);
+          car.add(wheel);
+          return wheel;
+        }),
+      );
+      world.scene.add(car);
+
+      put(geometry.cylinder(0.05, 0.08, 2.2, 10), iron, [12, 1.1, -4]);
+      put(geometry.cylinder(0.18, 0.18, 0.35, 16), iron, [12.05, 2.25, -4]).rotation.z = Math.PI / 2;
+      const rotor = object.group(), blade = paint('#eceae4', 0.5);
+      rotor.position.set(11.8, 2.25, -4);
+      for (let k = 0; k < 4; k++) {
+        const arm = object.group();
+        arm.rotation.x = (k * Math.PI) / 2;
+        block(blade, [0, 0.5, 0], [0.03, 0.8, 0.2], arm).rotation.y = 0.35;
+        rotor.add(arm);
+      }
+      world.scene.add(rotor);
+
+      // The flag: a cloth of 24 × 16 squares, its column at the pole pinned. The physics has no
+      // wind; the gust is a sideways pull added to its gravity, and the flag is the only body.
+      const POLE = [12.5, 0, 3], COLUMNS = 24, ROWS = 16;
+      put(geometry.cylinder(0.05, 0.06, 6, 12), iron, [POLE[0], 3, POLE[2]]);
+      const flag = put(geometry.plane(2.4, 1.6, COLUMNS, ROWS), material.meshStandard({ color: '#2d5fb3', roughness: 0.9, side: side.double }), [POLE[0] + 1.2, 5.1, POLE[2]]);
+      flag.physics = { type: 'cloth', pins: Array.from({ length: ROWS + 1 }, (_, row) => row * (COLUMNS + 1)) };
+
+      // The sun: low, from the east-south-east, and the sky's light on what it misses.
+      const sun = light.directional({ intensity: 3.2, color: '#ffc78f', castShadow: true });
+      sun.position.set(240, 99, 150);
+      world.scene.add(sun, light.hemisphere({ color: '#c9d8f0', groundColor: '#8a7458', intensity: 0.8 }));
+      const glow = effect.bloom({ intensity: 0.05 });
+
+      // Motion stands still on `Still`, so the image may hold, and an `Auto` scale climb back.
+      // The gust is written ten times a second: each write is a command to the physics worker.
+      let angle = 0, nextGust = 0;
+      world.beforeFrame(({ delta, time }) => {
+        if (world.physics.paused) return;
+        const step = Math.min(delta, 0.05), speed = 9, radius = 9;
+        angle += (speed / radius) * step;
+        car.position.set(radius * Math.sin(angle), 0, radius * Math.cos(angle));
+        car.rotation.y = Math.atan2(Math.cos(angle), -Math.sin(angle));
+        for (const wheel of wheels) wheel.rotation.x += (speed / 0.36) * step;
+        rotor.rotation.x += 14 * step;
+        if (time >= nextGust) {
+          nextGust = time + 0.1;
+          const gust = 5 + 3 * Math.sin(1.1 * time) + 1.5 * Math.sin(3.3 * time + 1);
+          world.physics.gravity.set(gust, -9.81, 1.5 * Math.sin(0.7 * time));
+        }
+        world.invalidate();
+      });
+
+      // ── The settings, the engine's switches, and the panel ─────────────────────────────────
+      const groups = Object.entries(QUALITY);
+      const state = { levels: Object.fromEntries(groups.map(([key]) => [key, 'Max'])), scale: RESOLUTION.Native };
+
+      /** Writes `next` into the world: each live group's level through the table, then the scale. */
+      function apply(next) {
+        Object.assign(state, next, { levels: { ...next.levels } });
+        const asked = Object.assign({}, ...groups.map(([key, group]) => group.levels?.(state.levels[key])));
+        world.temporalAntialiasing = asked.temporalAntialiasing;
+        world.pixelError = asked.pixelError;
+        if (asked.glow !== world.effects.passes.includes(glow))
+          asked.glow ? world.effects.add(glow) : world.effects.remove(glow);
+        world.renderScale = state.scale;
+        world.invalidate();
+        show();
+      }
+      /** The preset the levels and the scale make, or `null` for a mix of levels. */
+      function presetOf(levels, scale) {
+        const live = groups.filter(([, group]) => group.levels).map(([key]) => levels[key]);
+        if (live.some((level) => level !== live[0])) return null;
+        if (scale === 'auto') return live[0] === 'Max' ? 'Auto' : null;
+        return live[0];
+      }
+      const choose = (levels, scale) => {
+        shown = null;
+        apply({ levels, scale });
+      };
+      const usePreset = (name) => {
+        const level = name === 'Auto' ? 'Max' : name;
+        const scale = name === 'Auto' ? 'auto' : state.scale === 'auto' ? RESOLUTION.Native : state.scale;
+        choose(Object.fromEntries(groups.map(([key]) => [key, level])), scale);
+      };
+
+      // The panel, drawn from the tables: a row of buttons per setting.
+      const panel = document.getElementById('quality');
+      const buttons = [];
+      const button = (label, press, pressed, coming) => {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.textContent = label;
+        // A coming level is drawn disabled; its row says why.
+        if (coming) element.setAttribute('aria-disabled', 'true');
+        else element.onclick = () => (press(), element.blur());
+        buttons.push([element, pressed]);
+        return element;
+      };
+      const row = (parent, name, ...parts) => {
+        const line = document.createElement('div'), label = document.createElement('span'), choices = document.createElement('span');
+        line.className = 'row';
+        label.className = 'name';
+        label.textContent = name;
+        choices.className = 'choices';
+        choices.append(...parts);
+        line.append(label, choices);
+        parent.append(line);
+        return line;
+      };
+      const rule = () => panel.append(document.createElement('hr'));
+
+      const presets = PRESETS.map((name) => button(name, () => usePreset(name), () => presetOf(state.levels, state.scale) === name));
+      presets.at(-1).title = AUTO_COMING;
+      row(panel, 'Quality', ...presets);
+      row(panel, 'Resolution', ...Object.entries(RESOLUTION).map(([name, scale]) =>
+        button(`${name} ${Math.round(scale * 100)} %`, () => choose(state.levels, scale), () => state.scale === scale,
+          scale < LOWEST_SCALE && 'the engine draws no lower than 50 % yet'),
+      ));
+      const slider = Object.assign(document.createElement('input'), { type: 'range', min: LOWEST_SCALE * 100, max: 100, step: 1 });
+      const percent = document.createElement('output');
+      // A drag shows the scale; its release asks it of the engine, which makes its images again.
+      slider.oninput = () => (percent.textContent = `${slider.value} %`);
+      slider.onchange = () => (choose(state.levels, slider.valueAsNumber / 100), slider.blur());
+      row(panel, 'Render scale', slider, percent);
+      rule();
+      const details = document.createElement('details'), summary = document.createElement('summary');
+      summary.textContent = 'Groups';
+      details.append(summary);
+      details.open = innerWidth > 640;
+      panel.append(details);
+      for (const [key, group] of groups)
+        row(details, group.name, ...LEVELS.map((level) =>
+          button(level, () => choose({ ...state.levels, [key]: level }, state.scale),
+            () => !group.coming && state.levels[key] === level, group.coming),
+        )).title = group.coming ? `Coming: ${group.coming}` : '';
+      rule();
+
+      // The prepared viewpoints, one a corner; `Tour` flies them in turn, over and over, until a
+      // press or a wheel on the canvas hands the camera back.
+      const VIEWS = {
+        Overview: { position: [34, 26, 42], target: [0, 0, -4] },
+        'Fine detail': { position: [-6, 2.4, 6], target: [-20, 1.8, -1] },
+        'Glass & water': { position: [12, 4.5, 28], target: [0, 0.5, 12] },
+        Motion: { position: [3, 2.6, 4], target: [12.5, 2, 0] },
+      };
+      let flight = null, view = 'Overview';
+      const fly = (name) => {
+        flight?.dispose();
+        view = name;
+        const poses = name === 'Tour'
+          ? Object.entries(VIEWS).map(([part, pose]) => ({ name: part, ...pose, seconds: 5, hold: 1.5 }))
+          : [{ name, ...VIEWS[name], seconds: 1.5, hold: 0 }];
+        flight = tour(world, poses);
+        show();
+      };
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => {
+          view = null;
+          show();
+        }, { passive: true });
+      world.onFrame(() => {
+        if (view === 'Tour' && !flight.gliding) flight.restart();
+      });
+      row(panel, 'Views', ...[...Object.keys(VIEWS), 'Tour'].map((name) => button(name, () => fly(name), () => view === name)),
+        button('Still', () => {
+          world.physics.paused = !world.physics.paused;
+          world.invalidate();
+          show();
+        }, () => world.physics.paused));
+      const { position, target } = VIEWS.Overview;
+      world.camera.position.set(...position);
+      world.controls.target.set(...target);
+      world.controls.update();
+
+      // Compare: two settings kept, A and B, and `C` (or ⇄) flips between them where the camera is.
+      const kept = { A: null, B: null };
+      let shown = null;
+      const keep = (name) => {
+        kept[name] = { ...state, levels: { ...state.levels } };
+        shown = name;
+        show();
+      };
+      const flip = () => {
+        if (!kept.A || !kept.B) return;
+        shown = shown === 'A' ? 'B' : 'A';
+        apply(kept[shown]);
+      };
+      row(panel, 'Compare',
+        button('Keep A', () => keep('A'), () => shown === 'A'),
+        button('Keep B', () => keep('B'), () => shown === 'B'),
+        button('A ⇄ B  (C)', flip, () => false),
+      ).title = 'Keep the current setting as A, another as B, then press C to flip between them.';
+      addEventListener('keydown', (event) => {
+        if (event.code === 'KeyC' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) flip();
+      });
+
+      /** The panel shows the state: the pressed buttons, the slider and its percentage. */
+      function show() {
+        for (const [element, pressed] of buttons) element.setAttribute('aria-pressed', String(pressed()));
+        const auto = state.scale === 'auto';
+        slider.disabled = auto;
+        if (!auto) slider.value = String(Math.round(state.scale * 100));
+        percent.textContent = auto ? 'auto' : `${Math.round(state.scale * 100)} %`;
+      }
+
+      // The examples' stats corner: the engine's own counters, its GPU memory by kind among them.
+      stats(world);
+
+      apply(state);
+    </script>
+  </body>
+</html>

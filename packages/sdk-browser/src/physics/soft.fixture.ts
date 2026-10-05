@@ -1,6 +1,7 @@
 import {
   CommandWriter,
   FLAG,
+  PHYSICS_STEP,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -27,9 +28,9 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
 }
 
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
- *  `quaternion` about its centre. */
-export async function softWorld(quaternion = [0, 0, 0, 1]) {
-  const jolt = await startModule();
+ *  `quaternion` about its centre, stepped in fixed steps of `step` seconds. */
+export async function softWorld(quaternion = [0, 0, 0, 1], step = PHYSICS_STEP) {
+  const jolt = await startModule({}, null, step);
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);
   writer.add({ ...body(FLOOR, 0, -1, 1), size: [20, 1, 20], quaternion });
@@ -37,8 +38,8 @@ export async function softWorld(quaternion = [0, 0, 0, 1]) {
   return jolt;
 }
 
-/** Writes `geometry` as a soft body of engine id `id`, at `position` turned by `quaternion`;
- *  `words` override the record's. Its record. */
+/** Writes `geometry` as a soft body of engine id `id`, at `position` turned by `quaternion`,
+ *  reckoned at `step`; `words` override the record's. Its record. */
 export function writeSoftBody(
   writer: CommandWriter,
   id: number,
@@ -47,9 +48,10 @@ export function writeSoftBody(
   position: number[],
   quaternion = [0, 0, 0, 1],
   words: Partial<SoftBodyRecord> = {},
+  step = PHYSICS_STEP,
 ) {
   const settings = softSettings(options);
-  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
+  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings, step);
   writeSoft(writer, {
     ...{ id, position, quaternion, scale: [1, 1, 1] },
     ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
@@ -58,7 +60,8 @@ export function writeSoftBody(
   return record;
 }
 
-/** Adds `geometry` as a soft body in slot 1, at `position`; `words` override the record's. */
+/** Adds `geometry` as a soft body in slot 1, at `position`, reckoned at the module's step;
+ *  `words` override the record's. */
 export function addSoft(
   jolt: Module,
   geometry: Geometry,
@@ -67,16 +70,32 @@ export function addSoft(
   words: Partial<SoftBodyRecord> = {},
 ) {
   const writer = new CommandWriter();
-  const record = writeSoftBody(writer, CLOTH, geometry, options, position, undefined, words);
+  const { fixedStep } = jolt;
+  const record = writeSoftBody(
+    writer,
+    CLOTH,
+    geometry,
+    options,
+    position,
+    undefined,
+    words,
+    fixedStep,
+  );
   jolt.step(writer.take(), 0);
   return record;
 }
 
-/** Steps `seconds`, then the soft body's vertices as the page hears them, per geometry vertex. */
-export function settle(jolt: Module, record: { map: Uint32Array }, seconds: number) {
+/** Steps `seconds` in steps of `step` seconds (the module's unless told), then the soft body's
+ *  vertices as the page hears them, per geometry vertex. */
+export function settle(
+  jolt: Module,
+  record: { map: Uint32Array },
+  seconds: number,
+  step = jolt.fixedStep,
+) {
   let last: Float32Array | null = null;
-  for (let s = 0; s < seconds * 60; s++) {
-    jolt.step(null, 1 / 60);
+  for (let s = 0; s < Math.round(seconds / step); s++) {
+    jolt.step(null, step);
     const words = jolt.soft();
     if (words.length) last = new Float32Array(words.slice(SOFT_STATE_WORDS).buffer);
   }
@@ -93,6 +112,10 @@ export const ropeLine = (count: number, length: number) =>
     [],
     [],
   );
+
+/** The most any vertex of `vertices` strays from `rest` once `offset` is taken off. */
+export const strayed = (vertices: Float32Array, rest: ArrayLike<number>, offset = [0, 0, 0]) =>
+  Math.max(...Array.from(vertices, (x, i) => Math.abs(x - offset[i % 3] - rest[i])));
 
 /** The vertex `v` of `vertices`. */
 export const at = (vertices: Float32Array, v: number) => [...vertices.subarray(v * 3, v * 3 + 3)];
@@ -121,4 +144,29 @@ export const WRITEBACK_BOUND = 4 * 2 ** -19;
 export function* softBodiesIn(words: Uint32Array) {
   for (let at = 0; at < words.length; at += SOFT_STATE_WORDS + words[at + 1] * 3)
     yield { engine: words[at], count: words[at + 1], from: at + SOFT_STATE_WORDS };
+}
+
+/**
+ * Steps `jolt` `seconds` in steps of `step` seconds (the module's unless told), `record`'s soft
+ * body in it: per step, its vertices as the page hears them, per geometry vertex (`null` while it
+ * sends none), whether the module brought it back or took it out, and the step's soft words
+ * (valid until the next step).
+ */
+export function* stepped(
+  jolt: Module,
+  record: { map: Uint32Array },
+  seconds: number,
+  step = jolt.fixedStep,
+) {
+  for (let s = 0; s < Math.round(seconds / step); s++) {
+    jolt.step(null, step);
+    const words = jolt.soft();
+    let vertices: Float32Array | null = null;
+    if (words.length) {
+      const floats = new Float32Array(words.slice(SOFT_STATE_WORDS).buffer);
+      vertices = new Float32Array(record.map.length * 3);
+      record.map.forEach((v, i) => vertices!.set(floats.subarray(v * 3, v * 3 + 3), i * 3));
+    }
+    yield { vertices, recovered: jolt.recovered(), diverged: jolt.diverged(), words };
+  }
 }

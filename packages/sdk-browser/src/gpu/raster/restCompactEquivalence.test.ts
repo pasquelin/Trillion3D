@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BASE_SLOTS } from '../draw/contract.ts';
+import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts';
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts';
 import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts';
 
@@ -23,7 +23,7 @@ type Frame = {
 };
 
 const restSlotAt = (n: number) =>
-  Math.floor(n / (BASE_SLOTS / 2)) * BASE_SLOTS + BASE_SLOTS / 2 + (n % (BASE_SLOTS / 2));
+  Math.floor(n / HALF_SLOTS) * BASE_SLOTS + HALF_SLOTS + (n % HALF_SLOTS);
 const survives = (f: Frame, row: number) =>
   !(f.hizSlots[row] !== NONE && f.hizFlags[f.hizSlots[row]] === VERDICT_REJECTED);
 
@@ -117,7 +117,7 @@ function frame(rand: () => number): Frame {
     offsets,
     hizSlots,
     hizFlags,
-    restSlots: (BASE_SLOTS / 2) * layers,
+    restSlots: HALF_SLOTS * layers,
     // The dispatch covers the drawable rows, sometimes fewer than a slot holds.
     tiles: Math.ceil((rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total)) / TILE),
   };
@@ -143,7 +143,7 @@ test('compaction draws what truncation drew, in the same order, and no rejected 
       is = drawn(after);
     for (let slot = 0; slot < was.length; slot++) {
       // An occluder slot is neither truncated nor compacted: it draws as it was.
-      const tested = slot % BASE_SLOTS >= BASE_SLOTS / 2;
+      const tested = slot % BASE_SLOTS >= HALF_SLOTS;
       const kept = tested ? was[slot].filter((row) => survives(f, row)) : was[slot];
       assert.deepEqual(is[slot], kept, `trial ${trial}, slot ${slot}`);
       dropped += was[slot].length - kept.length;
@@ -154,20 +154,24 @@ test('compaction draws what truncation drew, in the same order, and no rejected 
 });
 
 test('edge cases: all rejected draws nothing, all kept is left as it was, half keeps its order', () => {
+  // The first two tested slots: a hundred instances from offset 0, a hundred from offset 100.
+  const [first, second] = [restSlotAt(0), restSlotAt(1)];
   const edge = (hizSlots: number[]) => {
+    const offsets = new Array<number>(BASE_SLOTS).fill(0);
+    offsets[second] = 100;
     const f: Frame = {
       instances: Uint32Array.from({ length: 200 }, (_, i) => i % 2),
       indirect: new Uint32Array(BASE_SLOTS * 4),
-      offsets: [0, 0, 0, 0, 100, 100],
+      offsets,
       hizSlots: Uint32Array.from(hizSlots),
       hizFlags: Uint32Array.from([VERDICT_REJECTED]),
-      restSlots: BASE_SLOTS / 2,
+      restSlots: HALF_SLOTS,
       tiles: 4,
     };
-    f.indirect[3 * 4 + 1] = 100;
-    f.indirect[4 * 4 + 1] = 100;
+    f.indirect[first * 4 + 1] = 100;
+    f.indirect[second * 4 + 1] = 100;
     compact(f);
-    return [f.indirect[3 * 4 + 1], f.indirect[4 * 4 + 1], [...f.instances]] as const;
+    return [f.indirect[first * 4 + 1], f.indirect[second * 4 + 1], [...f.instances]] as const;
   };
   assert.deepEqual(edge([0, 0]).slice(0, 2), [0, 0]);
   const kept = edge([NONE, NONE]);

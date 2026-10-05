@@ -2,7 +2,6 @@ import { copyMatrix4, determinantMatrix4, multiplyMatrix4 } from '../../math/mat
 import { composeMatrix4 } from '../../math/matrix/matrix4Compose.ts';
 import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts';
 import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
-import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { axisAngleQuaternion } from '../../math/matrix/quaternion.ts';
 import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts';
 import { hypot3 } from '../../math/primitives/hypot.ts';
@@ -12,7 +11,11 @@ const t = new Float64Array(3),
   s = new Float64Array(3),
   scratch = new Float64Array(16);
 const ORIGIN = [0, 0, 0],
-  UNIT = [1, 1, 1];
+  UNIT = [1, 1, 1],
+  IDENTITY = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
+/** The 3×3 matrix, beside this one since the scene layer first read both from here. */
+export { Matrix3 } from './matrix3.ts';
 
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {
@@ -24,11 +27,28 @@ export class Matrix4 {
   // prettier-ignore
   set(n11: number, n12: number, n13: number, n14: number, n21: number, n22: number, n23: number, n24: number,
     n31: number, n32: number, n33: number, n34: number, n41: number, n42: number, n43: number, n44: number) {
-    this.elements.set([n11, n21, n31, n41, n12, n22, n32, n42, n13, n23, n33, n43, n14, n24, n34, n44]);
+    // Number by number, in the column-major order a list would be read: no list made.
+    const e = this.elements;
+    e[0] = n11;
+    e[1] = n21;
+    e[2] = n31;
+    e[3] = n41;
+    e[4] = n12;
+    e[5] = n22;
+    e[6] = n32;
+    e[7] = n42;
+    e[8] = n13;
+    e[9] = n23;
+    e[10] = n33;
+    e[11] = n43;
+    e[12] = n14;
+    e[13] = n24;
+    e[14] = n34;
+    e[15] = n44;
     return this;
   }
   /** Resets to the matrix that changes nothing. */ identity() {
-    this.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    this.elements.set(IDENTITY);
     return this;
   }
   /** Takes the numbers of another matrix. */ copy(m: { elements: ArrayLike<number> }) {
@@ -88,15 +108,24 @@ export class Matrix4 {
   }
   /** Swaps rows and columns. */ transpose() {
     const e = this.elements;
-    for (const [i, j] of [
-      [1, 4],
-      [2, 8],
-      [3, 12],
-      [6, 9],
-      [7, 13],
-      [11, 14],
-    ])
-      [e[i], e[j]] = [e[j], e[i]];
+    let v = e[1];
+    e[1] = e[4];
+    e[4] = v;
+    v = e[2];
+    e[2] = e[8];
+    e[8] = v;
+    v = e[3];
+    e[3] = e[12];
+    e[12] = v;
+    v = e[6];
+    e[6] = e[9];
+    e[9] = v;
+    v = e[7];
+    e[7] = e[13];
+    e[13] = v;
+    v = e[11];
+    e[11] = e[14];
+    e[14] = v;
     return this;
   }
   /** Becomes a move by `(x, y, z)`. */ makeTranslation(x: number, y: number, z: number) {
@@ -149,42 +178,5 @@ export class Matrix4 {
   }
   /** Whether two matrices hold the same numbers. */ equals(m: { elements: ArrayLike<number> }) {
     return this.elements.every((value, i) => value === m.elements[i]);
-  }
-}
-
-/** A 3×3 matrix, column-major: a normal transform, a texture transform. */
-export class Matrix3 {
-  /** Always `true`: tells a 3×3 matrix apart. */ readonly isMatrix3 = true as const;
-  /** The nine numbers, column by column. */
-  readonly elements = new Float64Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
-
-  // prettier-ignore
-  /** Sets the nine numbers, row by row. */
-  set(n11: number, n12: number, n13: number, n21: number, n22: number, n23: number,
-    n31: number, n32: number, n33: number) {
-    this.elements.set([n11, n21, n31, n12, n22, n32, n13, n23, n33]);
-    return this;
-  }
-  /** Resets to the 3×3 identity. */ identity() {
-    return this.set(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  }
-  /** Takes the numbers of another 3×3 matrix. */ copy(m: { elements: ArrayLike<number> }) {
-    this.elements.set(Array.from(m.elements).slice(0, 9));
-    return this;
-  }
-  /** A new 3×3 matrix with the same numbers. */ clone() {
-    return new Matrix3().copy(this);
-  }
-  /** Keeps the turn and stretch part of a 4×4 matrix. */ setFromMatrix4(m: Matrix4) {
-    const e = m.elements;
-    return this.set(e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]);
-  }
-  /** Inverse transpose of the upper 3×3: what carries normals under `m`. */
-  getNormalMatrix(m: Matrix4) {
-    normalMatrix3(this.elements, m.elements);
-    return this;
-  }
-  /** The nine numbers as a list. */ toArray(): number[] {
-    return Array.from(this.elements);
   }
 }

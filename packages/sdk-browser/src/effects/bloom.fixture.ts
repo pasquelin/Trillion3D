@@ -2,8 +2,8 @@ import type { BloomTap } from './bloomFilter.ts';
 import { bloomBlend, bloomLevelSizes } from './bloomFilter.ts';
 
 /**
- * The published filters, rebuilt from their description rather than copied from the engine's
- * table (Jimenez, SIGGRAPH 2014): the downsample is five overlapping 2×2 boxes of bilinear taps —
+ * The filters, rebuilt from their definition rather than copied from the engine's
+ * table: the downsample is five overlapping 2×2 boxes of bilinear taps —
  * the centre one, corners at ±1 texel, weighted 0.5, and the four whose corners reach ±2, weighted
  * 0.125 each —, the upsample a 3×3 tent, the outer product of (1, 2, 1) / 4 with itself.
  */
@@ -45,14 +45,16 @@ export const tapWords = (taps: readonly BloomTap[]) =>
 
 export type Image = { data: Float64Array; w: number; h: number };
 
-/** A bilinear read at texel coordinates `(x, y)`, clamped to the edge, as the samplers read. */
-export function bilinear({ data, w, h }: Image, x: number, y: number) {
+/** A bilinear read at texel coordinates `(x, y)`, clamped to the edge, as the samplers read; with
+ *  `weightBits`, the sampler's own rounding: each weight's fraction held to that many bits. */
+export function bilinear({ data, w, h }: Image, x: number, y: number, weightBits?: number) {
   const fx = x - 0.5,
     fy = y - 0.5;
   const x0 = Math.floor(fx),
-    y0 = Math.floor(fy),
-    tx = fx - x0,
-    ty = fy - y0;
+    y0 = Math.floor(fy);
+  const held = (t: number) => (weightBits ? Math.round(t * 2 ** weightBits) / 2 ** weightBits : t);
+  const tx = held(fx - x0),
+    ty = held(fy - y0);
   const at = (i: number, j: number) =>
     data[Math.min(h - 1, Math.max(0, j)) * w + Math.min(w - 1, Math.max(0, i))];
   return (
@@ -61,19 +63,33 @@ export function bilinear({ data, w, h }: Image, x: number, y: number) {
   );
 }
 
+/** The taps' weighted bilinear reads of `from` around `(x, y)` texels, offsets scaled by `stride`. */
+export function tapSum(
+  from: Image,
+  x: number,
+  y: number,
+  taps: readonly BloomTap[],
+  stride: number,
+) {
+  let c = 0;
+  for (const [dx, dy, weight] of taps)
+    c += bilinear(from, x + dx * stride, y + dy * stride) * weight;
+  return c;
+}
+
 /** One filter pass: every texel of an `ow` × `oh` image reads `from` at its centre plus each
  *  tap, in texels of `from` scaled by `stride`. */
 function filter(from: Image, ow: number, oh: number, taps: readonly BloomTap[], stride: number) {
   const data = new Float64Array(ow * oh);
   for (let j = 0; j < oh; j++)
-    for (let i = 0; i < ow; i++) {
-      const x = ((i + 0.5) * from.w) / ow,
-        y = ((j + 0.5) * from.h) / oh;
-      let c = 0;
-      for (const [dx, dy, weight] of taps)
-        c += bilinear(from, x + dx * stride, y + dy * stride) * weight;
-      data[j * ow + i] = c;
-    }
+    for (let i = 0; i < ow; i++)
+      data[j * ow + i] = tapSum(
+        from,
+        ((i + 0.5) * from.w) / ow,
+        ((j + 0.5) * from.h) / oh,
+        taps,
+        stride,
+      );
   return { data, w: ow, h: oh };
 }
 
@@ -101,14 +117,6 @@ export function cpuBloom(
   const blurred = filter(levels[0], image.w, image.h, up, radius);
   const data = image.data.map((value, i) => value * keep + blurred.data[i] * glow);
   return { data, w: image.w, h: image.h };
-}
-
-/** Every `c+=<read>(uv+vec2(x,y)*stride)*w;` of a text, as taps. */
-export function tapsOf(text: string): BloomTap[] {
-  const taps: BloomTap[] = [];
-  const pattern = /c\+=\w+\((?:level,)?uv\+vec2f?\(([-\d.]+),([-\d.]+)\)\*stride\)\*([\d.e-]+);/g;
-  for (const [, x, y, w] of text.matchAll(pattern)) taps.push([Number(x), Number(y), Number(w)]);
-  return taps;
 }
 
 /** An `rgba16float` target's store of `x`: the nearest half, ties to even, ±Inf from 65520 on,

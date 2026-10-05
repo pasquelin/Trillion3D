@@ -1,6 +1,7 @@
 import type { GpuRasterInput } from './types.ts';
 import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
 import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 
 const RESOLVE_DEPTH = {
   format: 'depth32float' as const,
@@ -36,8 +37,10 @@ export function createRasterResolves(
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const vertex = { module, entryPoint: 'vs' };
   const primitive = { topology: 'triangle-list' as const };
+  // Asked, compiled off the thread from now, the frames held on them, as the raster's own
+  // (`raster.ts`).
   const makeFinal = (two: boolean) =>
-    device.createRenderPipeline({
+    preparedPipeline(device, {
       layout: pipelineLayout,
       vertex,
       fragment: {
@@ -50,15 +53,15 @@ export function createRasterResolves(
       primitive,
       depthStencil: RESOLVE_DEPTH,
     });
-  const one = makeFinal(false),
-    two = makeFinal(true);
-  const hizOnly = device.createRenderPipeline({
+  const one = makeFinal(false).ask(),
+    two = makeFinal(true).ask();
+  const hizOnly = preparedPipeline(device, {
     layout: pipelineLayout,
     vertex,
     fragment: { module, entryPoint: 'hiz', targets: [{ format: 'r32float' as const }] },
     primitive,
     depthStencil: RESOLVE_DEPTH,
-  });
+  }).ask();
   let group: GPUBindGroup | undefined;
   const bound = (uniform: GPUBuffer) =>
     (group ??= device.createBindGroup({
@@ -116,7 +119,7 @@ export function createRasterResolves(
       refresh(input);
       const pass = encoder.beginRenderPass(hizPass!);
       pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline(hizOnly);
+      pass.setPipeline(hizOnly.get());
       pass.setBindGroup(0, bound(input.uniform));
       pass.draw(3);
       pass.end();
@@ -126,7 +129,7 @@ export function createRasterResolves(
       refresh(input);
       const pass = encoder.beginRenderPass(finalPass!);
       pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline(input.hizView ? two : one);
+      pass.setPipeline((input.hizView ? two : one).get());
       pass.setBindGroup(0, bound(input.uniform));
       pass.draw(3);
       pass.end();

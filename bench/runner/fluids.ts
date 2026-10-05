@@ -7,7 +7,8 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import { SHAPE, type BodyRecord } from '../../packages/sdk-core/src/physics/index.ts';
+import { SHAPE } from '../../packages/sdk-core/src/physics/index.ts';
+import type { BodyRecord } from '../../packages/sdk-core/src/physics/bodyRecord.ts';
 import type { PhysicsPart, PhysicsPrimitive } from '../../packages/sdk-core/src/physics/options.ts';
 import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
 import { floatingBodies } from '../../packages/sdk-browser/src/physics/water.fixture.ts';

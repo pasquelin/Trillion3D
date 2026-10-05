@@ -1,6 +1,6 @@
 // The display layers' shipped WGSL (#558) run in JavaScript (`shaderRun`): the route every
 // transparent layer takes, the mask it reads and the display filter pass that composes them. The
-// tone curve is the witness's (`blendModel.fixture.ts`): the curves are proved on their own.
+// tone curve is the reference display's (`blendModel.fixture.ts`): the curves are proved on their own.
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
@@ -8,7 +8,7 @@ import { filmic, type Rgba } from './blendModel.fixture.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts';
 
-/** The curve the routes are run with, the witness's. */
+/** The curve the routes are run with, the reference display's. */
 export const ACES = TONE_MAPPING_RANK.aces;
 
 export type Route = { keep: number; tint: Rgba; add: Rgba };

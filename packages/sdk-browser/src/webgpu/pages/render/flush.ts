@@ -5,7 +5,6 @@ import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnosti
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { directLightingState } from './encodeLights.ts';
 import { bounceState } from '../state/bounce.ts';
-import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
 import { deviceAnswer } from '../../frame/deviceAnswer.ts';
@@ -26,7 +25,6 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     },
     directLighting: { version: 1, ...directLightingState(rt) },
     bounce: { version: 1, ...bounceState(rt.bounce) },
-    sunFarShadows: { version: 1, ...sunFarState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,
     selectedTriangles: run.selectedTriangles,

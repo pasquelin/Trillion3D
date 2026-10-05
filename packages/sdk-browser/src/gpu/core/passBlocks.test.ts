@@ -17,12 +17,11 @@ const sample = (
 test('each pass falls in the block its label names, and an unknown one stays outside', () => {
   assert.equal(gpuPassBlockOf('Trillion3D DAG selection'), 'visibility');
   assert.equal(gpuPassBlockOf('Trillion3D visibility primary'), 'visibility');
-  assert.equal(gpuPassBlockOf('Trillion3D HiZ pyramid'), 'visibility');
+  assert.equal(gpuPassBlockOf('Trillion3D HiZ'), 'visibility');
   assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials');
-  assert.equal(gpuPassBlockOf('Trillion3D material depth'), 'materials');
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials');
   assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other');
-  assert.equal(gpuPassBlockOf('Trillion3D shadow atlas v1'), 'other');
+  assert.equal(gpuPassBlockOf('vsm.pass'), 'other');
   assert.equal(gpuPassBlockOf('Trillion3D opaque fallback'), 'other');
   assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other');
 });
@@ -33,7 +32,7 @@ test("a block's durations add up, and the three sum to that of the passes", () =
       ['Trillion3D clear', 0.066],
       ['Trillion3D DAG selection', 0.406],
       ['Trillion3D visibility primary', 1.148],
-      ['Trillion3D HiZ pyramid', 0.099],
+      ['Trillion3D HiZ', 0.099],
       ['Trillion3D empty surfaces', 0.217],
       ['Trillion3D material surfaces v1', 2.084],
       ['Trillion3D deferred lighting', 1.5],

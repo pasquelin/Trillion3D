@@ -10,7 +10,7 @@ test('a session reopened after a device loss reads the resident proxy from the k
   const { metadata, fetched } = await servedScene(0);
   const pageCache = createPageCache();
   const before = await openSession(metadata, pageCache);
-  // The bounce and the far shadow may both ask: one read serves them.
+  // The bounce and the reflections may both ask: one read serves them.
   const [lit] = await Promise.all([
     before.context.readSceneProxy!(),
     before.context.readSceneProxy!(),

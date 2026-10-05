@@ -1,22 +1,19 @@
 //! The existing welded simulation IDs carried through cluster localization and vertex dedup.
 use super::Deformation;
+use crate::physics_cook::declared_soft;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 
 impl Deformation {
     pub fn soft_source(&mut self, g: &Value, mesh: usize, positions: &[f32]) -> Result<()> {
-        let declared = g["nodes"].as_array().is_some_and(|nodes| {
-            nodes.iter().any(|node| {
-                node["mesh"].as_u64() == Some(mesh as u64)
-                    && matches!(
-                        node.pointer("/extras/physics/type").and_then(Value::as_str),
-                        Some("cloth" | "rope" | "volume")
-                    )
-            })
+        let declared = g["nodes"].as_array().and_then(|nodes| {
+            (nodes.iter())
+                .filter(|node| node["mesh"].as_u64() == Some(mesh as u64))
+                .find_map(|node| declared_soft(node).map(|(kind, _)| kind))
         });
-        if !declared {
+        let Some(kind) = declared else {
             return Ok(());
-        }
+        };
         if self.skin.is_some() || !self.targets.is_empty() {
             return Err(CompilerError::new(
                 "SOFT_DEFORMATION",
@@ -36,7 +33,7 @@ impl Deformation {
         let weights = map.iter().flat_map(|_| [1.0, 0.0, 0.0, 0.0]).collect();
         self.skin = Some((ids, weights));
         self.influences = 4;
-        self.soft_source = true;
+        self.soft_source = Some(kind);
         Ok(())
     }
 }

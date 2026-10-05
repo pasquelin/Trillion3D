@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { BASE_SLOTS, PAGE_BIND_ALIGN } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 import type { MockDraw } from './mockEncoder.ts';
+
+/** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
+const STORAGE_OFFSET_ALIGN = 256;
 
 /**
  * Indirect commands of a hardware-raster image, with the invariants they all hold: at most one call
@@ -13,7 +16,7 @@ export function indirectDraws(draws: readonly MockDraw[]) {
   const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs');
   assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS);
   assert.ok(vis.every((draw) => draw.firstInstance === 0));
-  assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % PAGE_BIND_ALIGN === 0));
+  assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % STORAGE_OFFSET_ALIGN === 0));
   return vis;
 }
 
@@ -44,10 +47,10 @@ export function installGpuGlobals() {
 }
 
 /** `writeBuffer`'s window: `dataOffset` and `size` count elements of `data`, bytes for an ArrayBuffer. */
-export function bytesOf(data: BufferSource, dataOffset = 0, size?: number) {
-  if (data instanceof ArrayBuffer)
+export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?: number) {
+  if (!ArrayBuffer.isView(data))
     return new Uint8Array(data, dataOffset, size ?? data.byteLength - dataOffset);
-  const view = data as ArrayBufferView,
+  const view = data,
     element = (view as { BYTES_PER_ELEMENT?: number }).BYTES_PER_ELEMENT ?? 1;
   const start = view.byteOffset + dataOffset * element;
   return new Uint8Array(

@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Feuilles découpées",
       "a-colour-ramp-in-linear-light": "Dégradé linéaire",
       "the-material-family": "La famille des matériaux",
+      "page-materials": "Modifier les matériaux en direct",
+      "a-bust-a-crate-and-a-glass-ball": "Un buste, une caisse, une boule de verre",
       "a-texture-turned-and-tiled": "Texture tournée, répétée",
       "texture-filters-compared": "Filtres de texture",
       "every-image-format": "Tous les formats d’image",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Tone mapping comparé",
       "a-first-post-effect": "Un premier post-effet",
       "a-glow-around-lights": "Halo autour des lumières",
+      "choose-your-quality": "Choisir sa qualité",
       "glow-on-chosen-objects": "Halo sélectif",
       "depth-of-field": "Profondeur de champ",
       "motion-blur": "Flou de mouvement",
@@ -743,7 +746,6 @@
     "protocol": "Conditions enregistrées",
     "references": "Repères issus de publications",
     "referenceNote": "Les chiffres publiés des moteurs de bureau utilisent leur propre matériel, leurs scènes et leurs protocoles. Ils ne participent pas aux comparaisons ci-dessus.",
-    "referenceLink": "Lire les sources et les limites",
     "commit": "Commit du dépôt",
     "date": "Date de mesure",
     "browser": "Navigateur",
@@ -1286,10 +1288,10 @@
       "description": "`out = a · b`. Les trente-deux entrées sont lues avant la première écriture ; `out` peut donc être `a` ou `b`. Chaque terme additionne quatre produits sans zéro initial afin de préserver le signe de zéro. Entrées et sortie utilisent uniquement `Float64Array`."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` par cofacteurs. Un déterminant exactement nul produit la matrice nulle, comme la référence. Les seize entrées sont lues avant la première écriture ; `out` peut donc être `m`."
+      "description": "`out = m⁻¹` par cofacteurs. Un déterminant exactement nul produit la matrice nulle. Les seize entrées sont lues avant la première écriture ; `out` peut donc être `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, quaternion ordonné `(x, y, z, w)`. La dernière ligne est exactement `(0, 0, 0, 1)` et les produits du quaternion sont doublés par addition, comme la référence."
+      "description": "`out = T · R · S`, quaternion ordonné `(x, y, z, w)`. La dernière ligne est exactement `(0, 0, 0, 1)` et les produits du quaternion sont doublés par addition, jamais multipliés par deux."
     },
     "decomposeMatrix4": {
       "description": "Opération inverse : l’échelle d’une colonne est sa longueur et un déterminant négatif est porté uniquement par l’axe `x`. Une matrice cisaillée n’a pas cette décomposition ; la recomposition ne redonne alors plus `m`, comme dans la référence."
@@ -1352,7 +1354,7 @@
       "description": "Les six plans du frustum d’une matrice de clip. La première fonction les normalise pour obtenir une distance signée ; la seconde conserve les sommes et différences brutes des lignes, dont seul le signe décide, comme le test de clip exact. Une matrice dégénérée produit des plans NaN ou infinis sans lever d’exception."
     },
     "frustumFarPlane": {
-      "description": "Le plan lointain d’un frustum dont la projection n’en possède pas. La projection du moteur est infinie : le plan est donc lu dans la matrice de vue. Une distance `far` non finie laisse un plan nul, réellement sans limite. `frustumPlanesToLocal` transporte les plans dans l’espace local d’une transformation."
+      "description": "Le plan lointain d’un frustum dont la projection n’en possède pas. La projection du moteur est infinie : le plan est donc lu dans la matrice de vue. Une distance `far` non finie laisse un plan nul, réellement sans limite."
     },
     "frustumExcludesBox": {
       "description": "Teste une boîte contre le frustum. La première fonction vaut vrai lorsqu’un plan laisse les huit coins derrière lui. La seconde renvoie 0 hors champ, 1 à cheval ou 2 entièrement dedans. Un sous-arbre entièrement dedans évite de retester toutes ses boîtes."
@@ -1676,7 +1678,7 @@
       "nodes": "nœuds"
     },
     "patterns": {
-      "singular": "déterminant {{value}} : seize zéros comme la référence ; testez le déterminant, jamais la sortie"
+      "singular": "déterminant {{value}} : seize zéros ; testez le déterminant, jamais la sortie"
     }
   }
 }

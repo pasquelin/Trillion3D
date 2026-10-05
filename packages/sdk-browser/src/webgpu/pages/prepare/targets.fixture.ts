@@ -17,7 +17,9 @@ export function runtime(reflective = false) {
     dispose() {},
   };
   const rt = {
-    setup: { reserveHiz: true },
+    setup: {},
+    // A textured scene's: its pipelines write the feedback (`feedbackVariant.ts`).
+    vis: { gpuHiz: {}, writesFeedback: true, writesEmissiveAo: true },
     run: { diagnostic: 'beauty' },
     layout: {
       rows: {

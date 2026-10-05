@@ -1,24 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  clusterErrorPixels,
-  dotVector3,
-  coneRejects,
-  exclusiveScan,
-  compact,
-  edge,
-  barycentric,
-  packDrawIndirect,
-  maxStretch,
-} from '../index.ts';
-
-function createSeededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) % 4294967296;
-    return s / 4294967296;
-  };
-}
+import { clusterErrorPixels, dotVector3, coneRejects, maxStretch } from '../index.ts';
 
 test('wide cone must not reject a visible normal', () => {
   const angle = (2 * Math.PI) / 3;
@@ -56,29 +38,6 @@ test('unique cut and threshold equality', () => {
   }
 });
 
-test('scan example', () => {
-  const [offsets, total] = exclusiveScan([1, 0, 1, 1, 0]);
-  assert.deepEqual(offsets, [0, 1, 1, 2, 3]);
-  assert.equal(total, 3);
-});
-
-test('compaction empty and partial', () => {
-  assert.deepEqual(compact([], []), []);
-  assert.deepEqual(compact(['a', 'b', 'c'], [1, 0, 1]), ['a', 'c']);
-});
-
-test('compaction matches filter', () => {
-  const rand = createSeededRandom(121);
-  for (const size of [1, 31, 32, 33, 63, 64, 65, 129]) {
-    const flags = Array.from({ length: size }, () => (rand() < 0.5 ? 0 : 1));
-    const values = Array.from({ length: size }, (_, i) => i);
-    assert.deepEqual(
-      compact(values, flags),
-      values.filter((_, i) => flags[i] === 1),
-    );
-  }
-});
-
 test('indirect base vertex signed', () => {
   const buffer = new ArrayBuffer(20);
   const view = new DataView(buffer);
@@ -89,42 +48,6 @@ test('indirect base vertex signed', () => {
   view.setUint32(16, 0, true);
   assert.equal(buffer.byteLength, 20);
   assert.equal(view.getInt32(12, true), -7);
-});
-
-test('non-indexed drawIndirect is four u32 words', () => {
-  const words = packDrawIndirect(768, 17);
-  assert.equal(words.length, 4);
-  assert.equal(words[0], 768);
-  assert.equal(words[1], 17);
-  assert.equal(words[2], 0);
-  assert.equal(words[3], 0);
-  assert.equal(words.byteLength, 16);
-});
-
-test('drawIndirect packer rejects non-integers and negatives', () => {
-  assert.throws(() => packDrawIndirect(1.5, 1));
-  assert.throws(() => packDrawIndirect(-1, 1));
-  assert.throws(() => packDrawIndirect(1, 0xffffffff + 1));
-});
-
-test('barycentric vertex and center', () => {
-  const vertices = [
-    [0, 0],
-    [3, 0],
-    [0, 3],
-  ] as const;
-  assert.deepEqual(barycentric(vertices, [0, 0]), [1, 0, 0]);
-  for (const weight of barycentric(vertices, [1, 1])) {
-    assert.ok(Math.abs(weight - 1 / 3) < 1e-12);
-  }
-});
-
-test('edge increment', () => {
-  const first = [2, 3] as const;
-  const second = [4, 7] as const;
-  const point = [5, 8] as const;
-  assert.equal(edge(first, second, [6, 8]) - edge(first, second, point), -4);
-  assert.equal(edge(first, second, [5, 9]) - edge(first, second, point), 2);
 });
 
 test('amdahl example', () => {

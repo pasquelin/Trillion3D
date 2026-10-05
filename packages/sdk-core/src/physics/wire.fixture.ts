@@ -1,10 +1,10 @@
-// The opcodes, word counts and error names the Jolt side reads, and the memory it starts with,
+// The opcodes, word counts and error names the native side reads, and the memory it starts with,
 // taken from its own source (`packages/physics-jolt-wasm/`): a test checks the writers against
 // what the reader expects, never against a copy of it.
 import { readFileSync } from 'node:fs';
 
 const read = new Map<string, string>();
-/** The text of the Jolt module's `file`, from its package, read once. */
+/** The text of the physics module's `file`, from its package, read once. */
 function jolt(file: string) {
   let text = read.get(file);
   if (text === undefined)
@@ -14,10 +14,10 @@ function jolt(file: string) {
     );
   return text;
 }
-/** The text of the Jolt binding's `file`. */
+/** The text of the physics binding's `file`. */
 const binding = (file: string) => jolt(`src/${file}`);
 
-/** The value of `name`, a `constexpr` of the Jolt binding's `file`. */
+/** The value of `name`, a `constexpr` of the physics binding's `file`. */
 export function joltConstant(file: string, name: string) {
   const found = binding(file).match(new RegExp(`\\b${name} = (\\d+)`));
   if (!found) throw new Error(`${name} is not declared in ${file}`);

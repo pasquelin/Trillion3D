@@ -64,6 +64,24 @@ export const ST_TESTED = 0,
   ST_REJECTED = 7,
   ST_REJECTED_TRIANGLES = 8;
 
+/** Words of `state` a workgroup tallies: up to the last counter, `ST_TESTED` left unused. */
+const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1;
+/**
+ * The frame's counters, kept on a sampled frame only (`uni.counting`: the `countsDue` answer that
+ * also encodes their copy, `counters.ts`), as one atomic per workgroup and counter: a workgroup sums
+ * its rows' in workgroup memory, then its lane `k` adds counter `k` to `state`. u32 sums wrap and
+ * are associative: `state` holds what one atomic per row gave, term for term. A module that holds
+ * `state` and a uniform `uni.counting` declares it; its entry point calls `flushTally` from uniform
+ * control flow. `ST_TESTED`, the tested boxes' allocator, is never tallied.
+ */
+export const STATE_TALLY_WGSL = `var<workgroup> tally:array<atomic<u32>,${TALLY_WORDS}>;
+fn tallyAdd(word:u32,n:u32){if(uni.counting!=0u){atomicAdd(&tally[word],n);}}
+fn flushTally(lane:u32){
+ if(uni.counting==0u){return;}
+ workgroupBarrier();
+ if(lane>${ST_TESTED}u&&lane<${TALLY_WORDS}u){let n=atomicLoad(&tally[lane]);if(n!=0u){atomicAdd(&state[lane],n);}}
+}`;
+
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
  *  kept back to rejected; everything that draws — vertex stage, tested-half compaction, compute
@@ -92,6 +110,7 @@ export const PARTITION_BINDING = {
 /** What each kernel binds: a stage may bind eight storage buffers, and the two together would
  *  need nine, so each layout names only the buffers its entry point reads or writes. */
 export const PARTITION_KERNEL_BINDINGS = {
+  clearRows: ['restBits', 'slotUsed', 'state', 'uniforms'],
   projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],
   classifyRows: [
     'items',
@@ -120,15 +139,4 @@ export const UNI_VIEW = 0,
 export const MAX_HIZ_LEVELS = 16;
 export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2;
 
-/**
- * A double coordinate written as TWO single-precision values: round-to-nearest, then what it
- * left. The sum of the two represents the original double to within an ulp squared, and that is
- * the only form in which corners and the anchor enter the kernel (`margins.ts`). The
- * two positions are given separately because the layouts differ: a corner stores its residue
- * three floats further, the uniform four.
- */
-export function writeSplitDouble(out: Float32Array, highAt: number, lowAt: number, value: number) {
-  const high = Math.fround(value);
-  out[highAt] = high;
-  out[lowAt] = value - high;
-}
+export { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts';

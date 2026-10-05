@@ -1,5 +1,6 @@
 //! Union-find over dense `u32` ids: the fans of a mesh's corners when normals are smoothed, the
-//! texture islands of a mesh in the corpus. Nothing here is specific to either.
+//! texture islands of a mesh in the corpus, the plane buckets the coplanar stage merges. Nothing
+//! here is specific to any of them.
 
 pub(crate) struct Join {
     parent: Vec<u32>,

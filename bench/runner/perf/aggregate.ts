@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Assembles fragments dropped by `.perf.ts` benches into a single table, on the console and
+// Assembles fragments dropped by the `*.perf.ts` benches into a single table, on the console and
 // under `.mesure/out/perf/`. Regression thresholds come from `bench/core/baseline.ts` and
 // the rendering of a line from `bench/core/table.ts`: a line and the conclusion of the
 // same table cannot contradict each other, and a bench console shows the same format as the aggregate.

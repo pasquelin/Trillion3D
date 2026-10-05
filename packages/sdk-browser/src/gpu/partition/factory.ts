@@ -1,4 +1,7 @@
-import { CORNER_VALUES, PARTITION_WORKGROUP, ROW_DATA_U32, STATE_WORDS } from './contract.ts';
+import { CORNER_VALUES, PARTITION_WORKGROUP, ROW_DATA_U32 } from './contract.ts';
+import { partitionClearThreads } from './clearWgsl.ts';
+import type { OpenPass } from '../core/lazyComputePass.ts';
+
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import {
   createGpuPartitionBuffers,
@@ -14,6 +17,11 @@ import { constructGpuResources, validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { readGpuBuffer } from '../core/readback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './types.ts';
+
+/** The partition's kernels, in the order a frame dispatches them. */
+const KERNELS = ['clearRows', 'projectRows', 'classifyRows'] as const;
+const CLEAR = 0,
+  PROJECT = 1;
 
 /**
  * Partition of a frame, done by the GPU: box projection, occluder/tested split, packing of the
@@ -38,32 +46,30 @@ export async function createGpuPartition(
     const made = await validated(device, async () => {
       const module = device.createShaderModule({ code: PARTITION_SHADER });
       if (await shaderFailed(module)) return undefined;
-      const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
-        classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
-      const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
-        buildComputePipeline(device, {
-          layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-          compute: { module, entryPoint },
-        });
-      const [project, classify] = await Promise.all([
-        pipelineFor(projectLayout, 'projectRows'),
-        pipelineFor(classifyLayout, 'classifyRows'),
-      ]);
-      return {
-        projectLayout,
-        project,
-        classify,
-        classifyLayout,
-        projectGroup: createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers),
-        classifyGroup: createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers),
-      };
+      // Each kernel binds its own buffers (`PARTITION_KERNEL_BINDINGS`): a layout and a pipeline
+      // each, compiled together.
+      const layouts = KERNELS.map((kernel) => createGpuPartitionLayout(device, kernel));
+      const pipelines = await Promise.all(
+        KERNELS.map((entryPoint, k) =>
+          buildComputePipeline(device, {
+            layout: device.createPipelineLayout({ bindGroupLayouts: [layouts[k]] }),
+            compute: { module, entryPoint },
+          }),
+        ),
+      );
+      return { layouts, pipelines };
     });
     if (!made) {
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
-    const { projectLayout, project, classify } = made;
-    let { projectGroup, classifyGroup } = made;
+    const { layouts, pipelines } = made;
+    /** Each kernel's group on the buffers of the moment, in `KERNELS` order. */
+    const regroup = () =>
+      KERNELS.map((kernel, k) => createGpuPartitionGroup(device, layouts[k], kernel, buffers));
+    let groups = regroup();
+    // This frame runs: `beginFrame` found a pyramid.
+    let running = false;
     const writeUniform = createPartitionUniformWriter();
     // Runs `[from, to]` of rows rewritten since the last image, flattened in pairs: their held
     // rectangle, verdict and history describe the page — or the place — that left. The next image
@@ -81,7 +87,8 @@ export async function createGpuPartition(
       view: new Float64Array(16),
       viewProj: new Float64Array(16),
     };
-    let lastFrame: KeptFrame | undefined;
+    let lastFrame: KeptFrame | undefined,
+      counting = false;
     const counters = createPartitionCounters(device);
     const cornerBytes = CORNER_VALUES * 4;
     return {
@@ -113,10 +120,7 @@ export async function createGpuPartition(
           const read = next();
           Object.assign(inputs, read);
           Object.assign(buffers, grown, read);
-          const group = (layout: GPUBindGroupLayout, kernel: 'projectRows' | 'classifyRows') =>
-            createGpuPartitionGroup(device, layout, kernel, buffers);
-          projectGroup = group(projectLayout, 'projectRows');
-          classifyGroup = group(made.classifyLayout, 'classifyRows');
+          groups = regroup();
           // The new rows hold nothing: every one reads as never projected.
           forgotten.length = 0;
           return old;
@@ -136,7 +140,10 @@ export async function createGpuPartition(
           (to - from + 1) * cornerBytes,
         );
       },
-      encode(encoder: GPUCommandEncoder, frame: PartitionFrame) {
+      get counting() {
+        return counting;
+      },
+      beginFrame(encoder: GPUCommandEncoder, frame: PartitionFrame) {
         if (disposed) return;
         // Zero flags are a row never projected: the kernel keeps nothing of what they held.
         for (let i = 0; i < forgotten.length; i += 2) {
@@ -147,13 +154,11 @@ export async function createGpuPartition(
         }
         forgotten.length = 0;
         const pyramid = inputs.pyramid();
+        // A frame without a pyramid runs no kernel: it counts nothing, and its sample waits.
+        running = !!pyramid;
+        counting = running && frame.counting;
         if (!pyramid) return;
         const rows = Math.min(frame.rows, allocated.rows);
-        // Nothing is held from frame to frame but the history, which lives in `rowData`:
-        // counters, rest bits and per-slot counts start from zero.
-        encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
-        encoder.clearBuffer(inputs.restBits);
-        encoder.clearBuffer(inputs.slotUsed);
         writeUniform(device, allocated.uniforms, frame, rows);
         kept.rows = rows;
         kept.width = frame.width;
@@ -164,20 +169,33 @@ export async function createGpuPartition(
         lastFrame = kept;
         if (pyramid !== buffers.pyramid) {
           buffers.pyramid = pyramid;
-          projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
+          groups[PROJECT] = createGpuPartitionGroup(
+            device,
+            layouts[PROJECT],
+            'projectRows',
+            buffers,
+          );
         }
-        const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
-        const pass = encoder.beginComputePass({ label: 'Trillion3D partition' });
-        pass.setPipeline(project);
-        pass.setBindGroup(0, projectGroup);
-        pass.dispatchWorkgroups(groups);
-        pass.setPipeline(classify);
-        pass.setBindGroup(0, classifyGroup);
-        pass.dispatchWorkgroups(groups);
-        pass.end();
+      },
+      encode(open: OpenPass) {
+        if (disposed || !running) return;
+        // Nothing is held from frame to frame but the history, which lives in `rowData`:
+        // counters, rest bits and per-slot counts start from zero, cleared by the pass's first
+        // dispatch; then each row is projected, then classified.
+        const pass = open.pass,
+          rows = kept.rows,
+          rowGroups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
+        const clearThreads = partitionClearThreads(rows, inputs.slotUsed.size / 4);
+        for (let k = 0; k < KERNELS.length; k++) {
+          pass.setPipeline(pipelines[k]);
+          pass.setBindGroup(0, groups[k]);
+          pass.dispatchWorkgroups(
+            k === CLEAR ? Math.ceil(clearThreads / PARTITION_WORKGROUP) : rowGroups,
+          );
+        }
       },
       encodeCounts(encoder: GPUCommandEncoder, frame: number) {
-        if (!disposed) counters.encodeCopy(encoder, allocated.state, frame);
+        if (!disposed && counting) counters.encodeCopy(encoder, allocated.state, frame);
       },
       countsDue: (frame: number) => !disposed && counters.due(frame),
       countsSubmitted: counters.submitted,

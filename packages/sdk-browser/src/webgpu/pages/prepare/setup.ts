@@ -4,6 +4,7 @@ import type { BlendCopy } from '../../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../../cluster/blendCopyRecord.ts';
 import { indexSourceBytes } from '../io/catalogue.ts';
 import { describePageSlots, pageAddress } from '../../row/pageSlots.ts';
+import { pageHomes } from '../../../gpu/page/homes.ts';
 import type { BackendContext } from '../../../backend/types.ts';
 import type { createWebgpuDiagnostics } from '../io/diagnostics.ts';
 import { createWebgpuPageTracking } from '../../row/pageTracking.ts';
@@ -108,10 +109,13 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const {
     geometryUrls,
     pageBytes: sourcePageBytes,
+    homes: widths,
     maxCorners,
     ...clusterSides
   } = describePageSlots(allPages);
-  const pageBytes = deformationSlotBytes(allPages, sourcePageBytes, roots);
+  const pageBytes = deformationSlotBytes(allPages, sourcePageBytes, roots, widths);
+  // Each page at its own width while the pool holds the whole catalogue (`gpu/page/homes.ts`).
+  const homes = pageHomes(widths);
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
   // still draws from the source float buffers, and that is what those bytes are there for.
   diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
@@ -120,17 +124,19 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     ...clusterSides,
     sharedBlendMeshes,
     slotBytes: pageBytes,
+    homeBytes: homes?.bytes ?? null,
     drawCorners: maxCorners,
   });
   diag.engineDiagnostic(...floorDiagnostic(bootstrapUrls.size, floorPages));
   const sourceBytes = indexSourceBytes(allPages);
-  // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
+  // The engine's two fixed pools, in bytes: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
   // at the ceiling the host names for the pool, and grow in place past it (`growTables.ts`).
   const geometry = sessionGeometryPool(
     {
       pageBytes,
       uniquePages,
+      homeBytes: homes?.bytes,
       rootPages: floorPages,
       maxResidentPages,
       limits: gpuDevice?.limits,
@@ -140,9 +146,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     true,
   );
   const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
-  const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
-  // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's
-  // own unit.
+  // The tile pass's two budgets: bytes, and a fixed upload cadence in the frame's own unit.
   const textureBudget = textureTransferBytesFor(context.maxTextureTransferBytesPerFrame);
   const textureUploadMs = textureUploadMsFor(context.maxTextureUploadMsPerFrame);
   return {
@@ -173,6 +177,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     cap: geometry.ceilingSlots,
     scene,
     pageBytes,
+    homes,
     // Largest corner count of the catalogue: the ceiling of every page draw and of the compute
     // raster's triangle budget.
     maxCorners,
@@ -180,7 +185,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // Geometry page url of every cluster drawn from one, by cluster address: what the pool reads
     // for that slot. A cluster absent from this table is uploaded from `sourceBytes`.
     geometryUrls,
-    reserveHiz,
     textureBudget,
     textureUploadMs,
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the

@@ -1,20 +1,22 @@
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
-import { compareImages } from '../../../../sdk-core/src/index.ts';
+import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import {
-  rasterVisibilityIds,
-  shadeVisibility,
-  unpackVisibilityId,
-} from '../../visibility/buffer.ts';
+import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
 import type { Placements } from '../../page/selection/placements.ts';
+import type { RasterView } from './runtime.ts';
+import {
+  backendRasterRgba,
+  backendVisibilityIds,
+} from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts';
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
+import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 export function occluderScene() {
   const geometry = new G.Geometry();
@@ -96,8 +98,7 @@ export function coarseQuadScene(error = 1) {
  *  survives in the visibility identifiers. */
 export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesBackend> & {
-    rasterRgba(): Uint8Array;
-    visibilityIds(): Uint32Array;
+    rasterView(): RasterView;
   },
   shown: PageRec[],
   roots: Placements,
@@ -116,7 +117,7 @@ export function assertOccluderImage(
   };
   assert.equal(
     compareImages(
-      backend.rasterRgba(),
+      backendRasterRgba(backend.rasterView()),
       shadeVisibility(
         rasterVisibilityIds(visPages, locations, cam, viewport),
         visPages,
@@ -128,7 +129,7 @@ export function assertOccluderImage(
     0,
   );
   const drawn = new Set(
-    [...backend.visibilityIds()].flatMap((id) => {
+    [...backendVisibilityIds(backend.rasterView())].flatMap((id) => {
       const unpacked = unpackVisibilityId(id);
       return unpacked ? [unpacked.pageIndex] : [];
     }),

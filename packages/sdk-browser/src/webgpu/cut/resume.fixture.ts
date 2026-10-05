@@ -78,6 +78,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       return undefined;
     },
     peek: () => releve,
+    adopt: () => undefined,
   } as unknown as GpuSelection;
   const { adopter, desired, shown } = mountCutAdopter({
     packedPages: [page],

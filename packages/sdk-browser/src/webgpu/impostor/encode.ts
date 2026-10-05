@@ -1,6 +1,6 @@
 import { core } from '../../impostor/borrowed.ts';
 import { CARD_VIEW_FLOATS } from './cardWgsl.ts';
-import { CARD_FLOATS } from '../../impostor/cards.ts';
+import { CARD_FLOATS, composeCardWorlds } from '../../impostor/cards.ts';
 import { IMPOSTOR_PASS } from './pipelines.ts';
 import type { WebgpuImpostors } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -35,7 +35,8 @@ function drawRuns(
  * The cards' visibility stage, drawn into the open primary visibility pass `pass` before the Hi-Z
  * pyramid is built: identifier 0, the depth where the mesh's surface would be, and the pyramid's
  * level 0 when `hiz`. It first sends the image's view — its render view-projection, jitter
- * included, and eye — and card records, which the surface stage reads too. True when it drew.
+ * included, and eye — and card records, each carrying that view-projection composed with its world
+ * (`composeCardWorlds`), which the surface stage reads too. True when it drew.
  */
 export function drawImpostorVisibility(
   rt: WebgpuPagesRuntime,
@@ -50,6 +51,7 @@ export function drawImpostorVisibility(
   for (let k = 0; k < 3; k++) viewWords[16 + k] = eye[k];
   viewWords[19] = 1;
   const image = state.pass.imageGroup(state.count);
+  composeCardWorlds(state.records, state.worlds, state.count, core.viewProj);
   device.queue.writeBuffer(state.pass.viewBuffer, 0, viewWords);
   device.queue.writeBuffer(image.buffer, 0, state.records, 0, state.count * CARD_FLOATS);
   drawRuns(rt, state, pass, state.pass.visPipeline(hiz), image);

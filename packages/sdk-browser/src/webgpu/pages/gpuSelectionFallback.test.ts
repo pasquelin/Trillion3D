@@ -7,20 +7,25 @@ import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/in
 import { webgpuPagesBackend } from './pages.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
-import { rasterVisibilityIds, shadeVisibility } from '../../visibility/buffer.ts';
+import {
+  backendRasterRgba,
+  backendVisibilityIds,
+} from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts';
+import type { RasterView } from './runtime.ts';
+import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './testScenes.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
  *  general `RenderBackend` contract leaves optional or omits. */
 type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
   flush(): Promise<void>;
   selectedPageIds(): string[];
-  visibilityIds(): Uint32Array;
-  rasterRgba(): Uint8Array;
+  rasterView(): RasterView;
 };
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
@@ -137,11 +142,11 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
       rootOfPacked: new Int32Array(pages.length),
     };
   const expected = rasterVisibilityIds(pages, locations, cameraMoteur(cam), [32, 32]);
-  const observed = backend.visibilityIds();
+  const observed = backendVisibilityIds(backend.rasterView());
   assert.deepEqual(observed, expected);
-  assert.deepEqual(observed, backend.visibilityIds());
+  assert.deepEqual(observed, backendVisibilityIds(backend.rasterView()));
   const image = compareImages(
-    backend.rasterRgba(),
+    backendRasterRgba(backend.rasterView()),
     shadeVisibility(expected, pages, locations, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);

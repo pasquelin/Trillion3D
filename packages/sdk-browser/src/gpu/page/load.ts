@@ -1,5 +1,5 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
-import { commitGpuPage } from './commit.ts';
+import { commitGpuPage, homeOf } from './commit.ts';
 import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
@@ -81,19 +81,22 @@ export function createGpuPageLoader(
           } else throw err;
         }
         check(combined);
-        if (bytes.byteLength > pageBytes || bytes.byteLength === 0) {
+        // A page fills its own home at most, where the pool holds the whole catalogue: one
+        // past it would write over its neighbour.
+        const room = homeOf(context, key)?.bytes ?? pageBytes;
+        if (bytes.byteLength > room || bytes.byteLength === 0) {
           emit?.('gpu-page-corruption', 'Unexpected GPU page size', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
-            expectedBytes: pageBytes,
+            expectedBytes: room,
             actualBytes: bytes.byteLength,
           }));
           emit?.('gpu-page-admission-blocked', 'Page refused by a GPU slot capacity', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
-            expectedBytes: pageBytes,
+            expectedBytes: room,
             actualBytes: bytes.byteLength,
           }));
           throw new Error('PAGE_SIZE_MISMATCH');

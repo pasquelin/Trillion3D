@@ -1,3 +1,5 @@
+import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts';
+import type { PackedDag } from './types.ts';
 import { uniformStride } from '../../residency/pools.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { primitiveWordAt } from './worlds.ts';
@@ -11,13 +13,9 @@ const WORLD_BYTES = 64;
 /** Bytes of one range's `frames`; a range holds at least one primitive. */
 export const framesBytes = (count: number) => count * PRIMITIVE_BYTES;
 
-/** The `range` words of a `frames` that holds all `worldCount` primitives: a probe's. */
-export const wholeRange = (worldCount: number) => new Uint32Array([0, worldCount, 0, 0]);
-
 /**
  * A camera cut's `frames`, one buffer per range (`cameraFrameRanges`), and the uniform that tells
- * each bind group its range: `{first, count}` at the range's aligned offset, written once. A light
- * cut splits its own per-view rows in the same ranges and shares that uniform (`lightCut.ts`). The
+ * each bind group its range: `{first, count}` at the range's aligned offset, written once. The
  * host keeps its rows whole (`frameData`, indexed by primitive); each write lands in the range
  * that holds the primitive, at its row there. No work per frame: a write follows a change. The
  * world matrices follow the same ranges, one `worlds` buffer each, read at `rowOf(w)`.
@@ -28,11 +26,11 @@ export function createCameraFrames(
   worldCount: number,
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   worlds: Float32Array,
+  sources?: PackedDag['worldSources'],
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
     stride = uniformStride(device.limits),
-    per = ranges[0].count,
-    rowBytes = ROW_FLOATS * 4;
+    per = ranges[0].count;
   const buffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG frames',
@@ -43,10 +41,11 @@ export function createCameraFrames(
   const worldBuffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG worlds',
-      size: count * WORLD_BYTES,
+      size: count * (WORLD_BYTES + WORLD_ORIGIN_BYTES),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
   );
+  const origins = createWorldOrigins(device, ranges, worldBuffers, sources);
   const bounds = own({
     label: 'Trillion3D DAG frame ranges',
     size: ranges.length * stride,
@@ -63,31 +62,29 @@ export function createCameraFrames(
     ranges,
     buffers,
     worldBuffers,
-    /** Primitives of the largest range: what one binding of a light cut's rows must hold. */
-    per,
-    /** One bind group per range: `group`, its buffer of `targets`, its `worlds`, its `range`. */
+    writeWorldOrigins: origins.write,
+    originBytes: origins.hostBytes,
+    /** One bind group per range: `group`, its `frames`, its `worlds`, its `range`. */
     bindGroups(
       layout: GPUBindGroupLayout,
       group: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
-      targets = buffers,
     ) {
       return ranges.map(({ count }, r) => ({
         count,
         bindGroup: device.createBindGroup({
           layout,
           entries: dagGroupEntries(
-            { ...group, frames: targets[r], worlds: worldBuffers[r] },
+            { ...group, frames: buffers[r], worlds: worldBuffers[r] },
             { buffer: bounds, offset: r * stride, size: 16 },
           ),
         }),
       }));
     },
-    /** Every host row, each to its range's buffer in `targets`, from its start. `dagPrepare`
-     *  writes the rest. */
-    writeRows(targets = buffers) {
+    /** Every host row, each to its range's buffer, from its start. `dagPrepare` writes the rest. */
+    writeRows() {
       for (let r = 0; r < ranges.length; r++) {
         const { first, count } = ranges[r];
-        device.queue.writeBuffer(targets[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS);
+        device.queue.writeBuffer(buffers[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS);
       }
     },
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
@@ -132,14 +129,10 @@ export function createCameraFrames(
         device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1);
       }
     },
-    /** Every range's host rows into its buffer in `targets`, from its start: a light cut's. */
-    copyRows(encoder: GPUCommandEncoder, targets: GPUBuffer[]) {
-      for (let r = 0; r < ranges.length; r++)
-        encoder.copyBufferToBuffer(buffers[r], 0, targets[r], 0, ranges[r].count * rowBytes);
-    },
   };
   table.writeRows();
   table.writeWorlds(worlds);
+  table.writeWorldOrigins();
   return table;
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>;

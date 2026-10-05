@@ -1,4 +1,5 @@
 import type { PendingGrowth } from '../core/tableGrowth.ts';
+import type { OpenPass } from '../core/lazyComputePass.ts';
 
 export type GpuHiz = {
   width: number;
@@ -6,7 +7,8 @@ export type GpuHiz = {
   level0: GPUTexture;
   level0View: GPUTextureView;
   flags: GPUBuffer;
-  encodePyramid(encoder: GPUCommandEncoder): void;
+  /** The build of the drawn pyramid, as dispatches of the frame's compute pass. */
+  encodePyramid(open: OpenPass): void;
   /**
    * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the
    * pyramid — it reads `flags` — so the bind group only knows them here. Without this call,
@@ -22,18 +24,20 @@ export type GpuHiz = {
    *  the `levels()` table. It changes identity on every target resize. */
   pyramidBuffer(): GPUBuffer | undefined;
   /**
-   * Tests the boxes the partition compacted; their count lives in the state, and the CPU does not
-   * read it. `maxRows` bounds the dispatch — any drawable row may have been tested — and
-   * `flagRows` verdict entries are cleared first, so a row this frame does not test reads 0
-   * instead of a previous frame's verdict. `pages` is the page table: a row whose Hi-Z slot is
-   * none (never culled) is kept and counts no reject.
+   * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
+   * the pyramid's build in the same pass; their count lives in the state, and the CPU does
+   * not read it. `maxRows` bounds the dispatch — any drawable row may have been tested. Nothing is
+   * cleared first: the partition wrote every drawable row's verdict this frame (`classifyRows`),
+   * `0` for an occluder, and the test rewrites each tested row's. `pages` is the page table: a row
+   * whose Hi-Z slot is none (never culled) is kept and counts no reject. Rejects are counted only
+   * when `counting`, the frame whose counters are sampled (`GpuPartition.countsDue`).
    */
   encodeTest(
     device: GPUDevice,
-    encoder: GPUCommandEncoder,
+    open: OpenPass,
     maxRows: number,
-    flagRows: number,
     pages: GPUBuffer,
+    counting: boolean,
   ): number;
   resize(device: GPUDevice, width: number, height: number): boolean;
   /**

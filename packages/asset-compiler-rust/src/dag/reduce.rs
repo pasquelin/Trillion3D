@@ -1,9 +1,9 @@
-//! Group reduction: the simplifier, then what happens when it stalls.
+//! Group reduction: the linked `meshopt` simplifier (`qem.rs`), then what happens when it stalls.
 //!
 //! The group's corners first point at their exact copy (`attributes::weld_exact`): an unindexed
 //! mesh reduces as the indexed one it draws the same as. The simplifier weighs normals and texture
 //! sets and, in permissive mode, collapses across a hard edge rather than stall on it (`qem.rs`):
-//! meshoptimizer otherwise slides a copied position only along its seam and locks any position
+//! the simplifier otherwise slides a copied position only along its seam and locks any position
 //! present in more than two copies, which on disjoint slabs reduced nothing. Texture seams stay
 //! protected — welding them was measured on Emerald facades, drawn with the texture from the
 //! other side of the seam — and every coarse corner points back at the copy of its position whose
@@ -62,7 +62,7 @@ pub(super) fn reduce_group(
         source_rank = source_rank.min(child.source_rank);
     }
     let sphere = enclosing_sphere(&spheres);
-    let mut own: HashMap<u32, u32> = HashMap::new();
+    let mut own: WordMap<u32, u32> = WordMap::default();
     let corners = children.iter().flat_map(|c| c.indices.iter());
     let live = live_triangles(corners.map(|&v| *own.entry(input.exact[v as usize]).or_insert(v)));
     let (error, clusters, relocked, placed) = match attempt(input, &live, true)? {

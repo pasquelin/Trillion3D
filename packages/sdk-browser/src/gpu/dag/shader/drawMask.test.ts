@@ -26,6 +26,7 @@ function kernel(clusterCount: number) {
   return {
     blockCount: fn('blockCount')(),
     drawMaskBase: fn('drawMaskBase')(),
+    ranks: [fn('keptRankAt')(0, 0), fn('keptRankAt')(1, 0)],
     liveCounter: fn('liveCounter')(),
     word: fn('drawMaskWord'),
     bit: fn('drawBit'),
@@ -70,7 +71,7 @@ test('the mask rank is the walked rank, on every density and block edge', () => 
     }
 });
 
-test('the masks sit between the block offsets and the live counter the layout allocates', () => {
+test('the mask and kept ranks sit between the block offsets and the counters the layout allocates', () => {
   for (const count of [1, 64, 65, 4096, 100_000]) {
     const k = kernel(count),
       layout = dagWorkLayout(k.blockCount);
@@ -79,7 +80,11 @@ test('the masks sit between the block offsets and the live counter the layout al
       assert.equal(k.word(b * 64), k.drawMaskBase + 2 * b, `block ${b}, first half`);
       assert.equal(k.word(b * 64 + 32), k.drawMaskBase + 2 * b + 1, `block ${b}, second half`);
     }
-    assert.equal(k.liveCounter, k.drawMaskBase + 2 * k.blockCount, 'two words per block');
+    // The draw mask, two words per block; then the two kept lists' rank of every page
+    // (`differenceWgsl.ts`), sixty-four words per block each; then the counters.
+    const ranks = k.drawMaskBase + 2 * k.blockCount;
+    k.ranks.forEach((base, l) => assert.equal(base, ranks + 64 * l * k.blockCount));
+    assert.equal(k.liveCounter, ranks + 128 * k.blockCount, 'then the counters');
     assert.equal(layout.liveCounter, k.liveCounter, 'the layout the engine allocates');
   }
 });

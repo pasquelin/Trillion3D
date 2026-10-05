@@ -27,7 +27,7 @@ export function createDagReadiness(packed: PackedDag) {
     );
   // A placement holds its own state only while one of its pages is resident: otherwise it reads
   // its primitive's state with nothing resident, one shared by every placement of the primitive
-  // (cluster's instances read their resource's pages, they hold none). The heap thus follows what
+  // (an instance reads its primitive's pages, it holds none). The heap thus follows what
   // is resident, never the placement count (#1235, #483 rule 6).
   const blank = new Map<CullingLinks, Map<DagCutLinks['structure'], CutReadiness>>();
   const blankOf = ({ structure, links }: DagCutLinks) => {

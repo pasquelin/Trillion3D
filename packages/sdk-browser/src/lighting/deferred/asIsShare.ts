@@ -20,8 +20,9 @@ export const SHARE_TARGET: GPUColorTargetState = {
  *  alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 };
 
-/** The seed's program, once a device, compiled off the thread from the first targets on: frame
- *  targets made again at another size compile nothing (#1362). */
+/** The seed's program, once a device, compiled off the thread from the first frame entry of a scene
+ *  whose transparents or particles can write the share (`askAsIsSeed`): frame targets made again at
+ *  another size compile nothing (#1362), and the image that first seeds finds it compiled. */
 const seedProgram = oncePerDevice((device) => {
   const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER });
   const layout = device.createBindGroupLayout({
@@ -37,6 +38,10 @@ const seedProgram = oncePerDevice((device) => {
   );
   return { layout, pipeline };
 });
+
+/** Asks the seed's program of `device` off the frame, the frames held until it landed
+ *  (`../../webgpu/frame/framePipelines.ts`). */
+export const askAsIsSeed = (device: GPUDevice) => void seedProgram(device).pipeline.ask();
 
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
@@ -62,14 +67,20 @@ export function createAsIsShare(
   const group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: flags }] });
   return {
     view,
-    seed(encoder: GPUCommandEncoder) {
+    /** Clears the share and its reactive value to 0, then, on an image that can hold an as-is
+     *  pixel (`asIs`, `readsAsIs`), seeds the share from the flags. Any other image's flags hold no
+     *  as-is pixel (only a row shown as-is or a diagnostic view writes one): the seed would write
+     *  the clear's zeros again, so its draw is left out. */
+    seed(encoder: GPUCommandEncoder, asIs: boolean) {
       const pass = encoder.beginRenderPass({
         label: 'Trillion3D as-is share seed',
         colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] }],
       });
-      pass.setPipeline(pipeline.get());
-      pass.setBindGroup(0, group);
-      pass.draw(3);
+      if (asIs) {
+        pass.setPipeline(pipeline.get());
+        pass.setBindGroup(0, group);
+        pass.draw(3);
+      }
       pass.end();
     },
     dispose: () => texture.destroy(),

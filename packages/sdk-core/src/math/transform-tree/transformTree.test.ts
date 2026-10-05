@@ -25,7 +25,6 @@ test('createTransformTree: empty tree, requested capacity, no live node', () => 
   assert.equal(tree.end, 0);
   assert.equal(tree.freeCount, 0);
   assert.equal(tree.parent.length, 8);
-  assert.equal(tree.world.length, 8 * 16);
   assert.equal(tree.worldViews.length, 8);
 });
 

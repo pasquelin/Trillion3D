@@ -9,22 +9,12 @@ import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
-import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
+import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
 import { OPEN_PLANES, openMark } from './openRoot.ts';
 
-/** True when a camera cut walks `root` open (`openMark`). */
-export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
-  openMark(root.mark, s.light);
-
-/** True when a light's cut leaves a root out: a sprite, or a root set to cast no shadow
- *  (`CASTS_NO_SHADOW`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
-export const castsNoShadow = (mark: number | undefined, light: unknown) =>
-  !!light && ((mark ?? 0) & CASTS_NO_SHADOW) !== 0;
-
-/** True when a camera's cut leaves a root to its impostor card (`CARD_ROOT`); a light's never
- *  does. Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
-export const drawsCard = (mark: number | undefined, light: unknown) =>
-  !light && ((mark ?? 0) & CARD_ROOT) !== 0;
+/** True when a camera's cut leaves a root to its impostor card (`CARD_ROOT`). Read by the CPU cut
+ *  and the GPU cut's oracle (`dagOracleDescent`). */
+export const drawsCard = (mark: number | undefined) => ((mark ?? 0) & CARD_ROOT) !== 0;
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
  *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */
@@ -61,14 +51,14 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
   // means "I declared nothing": the cut then tests each page, as before this batch.
   s.flatReach = root.reach ?? 0;
-  s.flatCones = !s.light && root.cones !== false && !(s.flatReach > 0);
+  s.flatCones = root.cones !== false && !(s.flatReach > 0);
   // A root that declares all its pages carry their box takes that check out of the per-cluster
   // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
   // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
-  if (openToCamera(s, root)) planes.set(OPEN_PLANES);
+  if (openMark(root.mark)) planes.set(OPEN_PLANES);
   else if (s.flatReach > 0) growPlanes(planes, s.flatReach);
   // The cut rule's residency, when the cut holds any: the nearest resident representation of each
   // surface is then drawn, the wanted cluster or its nearest resident ancestor (`./rule.ts`).

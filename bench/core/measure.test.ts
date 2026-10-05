@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mesure } from './measure.ts';
+import { TOURS_MIN } from './chrono.ts';
 
 const conf = {
   fichier: 'bench/core/measure.ts',
@@ -26,7 +27,9 @@ test('a witness is timed like the calculation, and its median gives ecartTemoin'
   });
   const [r] = resultats;
   assert.ok(r.temoin);
-  assert.equal(r.temoin.tours, conf.options.tours);
+  // Interleaved rounds: one sample of each side per round, never fewer than the floor.
+  assert.equal(r.temoin.tours, r.tours);
+  assert.ok(r.tours >= Math.max(conf.options.tours, TOURS_MIN), `rounds ${r.tours}`);
   assert.ok(r.temoin.medianeMs > 0);
   assert.ok(Number.isFinite(r.ecartTemoin), `ecartTemoin ${r.ecartTemoin}`);
 });

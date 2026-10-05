@@ -29,7 +29,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       temporalAntialiasing: false,
       pixelError: 1.5,
       lodAdaptive: true,
-      shadowPageInvalidation: false,
       bounce: true,
       bounceBudgetMs: 1,
       importedLights: false,
@@ -59,7 +58,6 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'interactive',
     'temporalAntialiasing',
     'lodAdaptive',
-    'shadowPageInvalidation',
     'bounce',
     'importedLights',
     'autonomousGeometry',
@@ -101,7 +99,6 @@ test('an explorer request naming only its manifest is completed with the engine 
   assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET);
   assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS);
   assert.equal(request.bounceBudgetMs, BOUNCE_SETTINGS.budgetMs);
-  assert.equal(request.shadowPoolPages, undefined, 'the screen chooses the shadow pool');
   for (const [key, property] of Object.entries(EXPLORER_OPTIONS_SCHEMA.properties)) {
     if (property.default === undefined) continue;
     assert.notEqual(request[key], undefined, key);

@@ -1,7 +1,7 @@
-// Pure A12 oracles, no side effects: `streaming.bench.ts` measures them; unit tests import
+// Pure A12 oracles, no side effects: `arrival-admission.perf.ts` measures them; unit tests import
 // them as reference.
-const LIMITE = 6,
-  BUDGET_TRANSFERT = 2 * 1024 * 1024;
+const ACTIVE_LIMIT = 6,
+  TRANSFER_BUDGET = 2 * 1024 * 1024;
 
 /** A queued job, as `packages/sdk-browser/src/streaming/queueOrder.fixture.ts` and the bench build it. */
 interface AdmissionJob {
@@ -14,24 +14,24 @@ interface AdmissionJob {
 /** `packages/sdk-browser/src/streaming/queue.ts:22-59` before batch A: a full sort on every `while` lap, then findIndex. */
 export function referenceAdmission(
   queue: AdmissionJob[],
-  octetsDe: (url: string) => number | undefined,
+  bytesOf: (url: string) => number | undefined,
 ) {
-  const admis: string[] = [];
+  const admitted: string[] = [];
   let active = 0,
     activeBytes = 0;
-  while (active < LIMITE && queue.length) {
+  while (active < ACTIVE_LIMIT && queue.length) {
     queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
     const at = queue.findIndex(
-      (item) => active === 0 || activeBytes + (octetsDe(item.url) ?? 0) <= BUDGET_TRANSFERT,
+      (item) => active === 0 || activeBytes + (bytesOf(item.url) ?? 0) <= TRANSFER_BUDGET,
     );
     if (at < 0) break;
     const job = queue.splice(at, 1)[0];
     if (job.consumers === 0) continue;
     active++;
-    activeBytes += octetsDe(job.url) ?? 0;
-    admis.push(job.url);
+    activeBytes += bytesOf(job.url) ?? 0;
+    admitted.push(job.url);
   }
-  return admis;
+  return admitted;
 }
 
 /** A delivery target as the arrival queue read it before batch A: `syncResident` was still

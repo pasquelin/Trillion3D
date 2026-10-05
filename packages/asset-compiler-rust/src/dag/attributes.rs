@@ -6,7 +6,7 @@ use super::quality::{face_normal, unit_normal};
 use crate::geometry_page::{Attribute as Carried, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use crate::qem::Attribute;
 use crate::shared_math::dot;
-use std::collections::HashMap;
+use crate::shared_math::WordMap;
 
 /// Normals are unit vectors: two opposite ones differ by 2, which this weight brings to the
 /// region's extent, the position scale the error is clamped to (`qem`).
@@ -118,8 +118,8 @@ pub fn own_normals(
     normals: &[f32],
 ) -> Vec<u32> {
     // Per copy, the faces of `source` that draw it; per position, its copies.
-    let mut owners: HashMap<u32, Vec<[f64; 3]>> = HashMap::new();
-    let mut copies: HashMap<u32, Vec<u32>> = HashMap::new();
+    let mut owners: WordMap<u32, Vec<[f64; 3]>> = WordMap::default();
+    let mut copies: WordMap<u32, Vec<u32>> = WordMap::default();
     for tri in source.as_chunks::<3>().0 {
         let face = face_normal(positions, tri).map(|(face, _)| face);
         for &v in tri {

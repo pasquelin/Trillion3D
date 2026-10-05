@@ -10,8 +10,8 @@ import { wgslStageBindings } from '../../gpu/core/wgslBindings.fixture.ts';
 import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
-import { createShadowDemand } from '../shadow/demandPass.ts';
 import { createDeferredLightingLayout } from '../../lighting/deferred/setup.ts';
+import { createShadeCache } from '../visibility/shadeCache.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -29,18 +29,21 @@ async function passLayouts() {
     [],
   );
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  // The resolve's frame cache: its marks and rows, then its triangles, which bind the geometry.
+  const cache = fakeDevice();
+  await createShadeCache(cache.device);
   return {
     visibility: visBindGroupLayout,
     'hardware resolve': shadeBindGroupLayout,
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
     'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
-    // The demand recomputes the receiver offset from the page geometry (#1410).
-    'shadow demand': await firstLayout((d) => createShadowDemand(d)),
     // The lit resolve recomputes it too, reading the float pool through one binding (#1410).
     'deferred lighting': createDeferredLightingLayout(device, true),
     // With bounce: its probes and surface cache are atlases, no storage buffer (#1410).
     'deferred lighting with bounce': createDeferredLightingLayout(device, true, true),
+    'material cache rows': cache.bindGroupLayouts[0],
+    'material cache triangles': cache.bindGroupLayouts[1],
   } as Record<string, unknown>;
 }
 

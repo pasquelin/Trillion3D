@@ -1,10 +1,6 @@
 // Measure a discrepancy, not just observe it. Certain optimizations reorder
 // floating point operations: this file counts differing values and states by how much, in ULP,
 // so that the table displays a number where strict equality would only show a "no".
-// Type list and key comparison come from `diff.ts`: single rule for two
-// traversals, otherwise one knows a type that the other ignores.
-import { differenceDeCles, estTypedArray, memesCles } from './diff.ts';
-import type { TypedArray } from './diff.ts';
 
 /** How many values differ, by at most how many ULP, and the first discrepancy seen. */
 export interface Compteur {
@@ -52,63 +48,4 @@ export function note(c: Compteur, a: number, b: number, chemin: string, bits = 6
   const u = ulpEntre(a, b, bits);
   if (u > c.ulpMax) c.ulpMax = u;
   c.premier ??= `${chemin}: ${String(a)} ≠ ${String(b)} (${u} ULP)`;
-}
-
-function rate(c: Compteur, chemin: string, texte: string) {
-  c.nombre++;
-  c.ulpMax = Infinity;
-  c.premier ??= `${chemin}: ${texte}`;
-  return c;
-}
-
-const liste = (v: unknown) => (v instanceof Set || v instanceof Map ? [...v] : v);
-
-/** Generic traversal: typed arrays value by value, remainder field by field. */
-export function parcours(
-  c: Compteur,
-  a: unknown,
-  b: unknown,
-  chemin = '',
-  profondeur = 0,
-): Compteur {
-  if (Object.is(a, b)) return c;
-  if (profondeur > 8) throw new Error('ECART_PROFONDEUR_MAX');
-  if (typeof a === 'number' || typeof b === 'number') {
-    note(c, a as number, b as number, chemin);
-    return c;
-  }
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object')
-    return rate(c, chemin, `${String(a)} ≠ ${String(b)}`);
-  if (estTypedArray(a) || estTypedArray(b)) {
-    const ao = a as TypedArray,
-      bo = b as TypedArray;
-    if (ao.constructor !== bo.constructor || ao.length !== bo.length)
-      return rate(
-        c,
-        chemin,
-        `${ao.constructor?.name}[${ao.length}] ≠ ${bo.constructor?.name}[${bo.length}]`,
-      );
-    const bits = ao instanceof Float32Array ? 32 : 64;
-    for (let i = 0; i < ao.length; i++) note(c, ao[i], bo[i], `${chemin}[${i}]`, bits);
-    return c;
-  }
-  const ga = liste(a),
-    gb = liste(b);
-  if (Array.isArray(ga) || Array.isArray(gb)) {
-    if (!Array.isArray(ga) || !Array.isArray(gb) || ga.length !== gb.length)
-      return rate(
-        c,
-        chemin,
-        `longueur ${(ga as unknown[] | undefined)?.length} ≠ ${(gb as unknown[] | undefined)?.length}`,
-      );
-    for (let i = 0; i < ga.length; i++)
-      parcours(c, ga[i], gb[i], `${chemin}[${i}]`, profondeur + 1);
-    return c;
-  }
-  const cles = memesCles(a, b);
-  if (!cles) return rate(c, chemin, differenceDeCles(a, b));
-  const ao = a as Record<string, unknown>,
-    bo = b as Record<string, unknown>;
-  for (const cle of cles) parcours(c, ao[cle], bo[cle], `${chemin}.${cle}`, profondeur + 1);
-  return c;
 }

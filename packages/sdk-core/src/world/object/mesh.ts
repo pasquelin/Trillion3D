@@ -35,7 +35,8 @@ export class Mesh<M extends object = Material> extends Object3D {
   declare skeleton?: Skeleton;
   /** The water surface whose waves carry it (`world.physics.waterSurface`): each vertex, a rest
    *  point of the plane at the surface's level, is moved on the GPU where the waves carry that
-   *  point — the numbers buoyancy reads (#357, #422). */
+   *  point — the numbers buoyancy reads (#357, #422). Unset, a mesh that lies flat on the world's
+   *  water at its level is carried by it, and set to it; `null`, never. */
   declare waves?: WaterSurface | null;
   declare private _physics?: ObjectPhysics | null;
   /** What the geometry and materials call while the mesh is in a world; made on its first entry. */
@@ -126,7 +127,7 @@ export class Mesh<M extends object = Material> extends Object3D {
   protected override blank(): this {
     return new Mesh(this.geometry, this.material, this.primitive) as this;
   }
-  // The reference's copy: the morph weights copied, the geometry and skeleton shared, the
+  // The copy: the morph weights copied, the geometry and skeleton shared, the
   // materials listed anew.
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
@@ -135,7 +136,7 @@ export class Mesh<M extends object = Material> extends Object3D {
     const mesh = source as Mesh<M>;
     if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
     if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
-    // The reference shares the skeleton: a copy bends by the same bones.
+    // The skeleton is shared: a copy bends by the same bones.
     if (mesh.skeleton) this.skeleton = mesh.skeleton;
     if (mesh.waves) this.waves = mesh.waves;
     const worn = mesh.material;

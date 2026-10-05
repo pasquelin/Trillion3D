@@ -1,7 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
-import { mockBuffers, type MapFaults } from './mockBuffers.ts';
+import { mockBuffers, type MapFaults, type MockWrite } from './mockBuffers.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
@@ -34,13 +34,7 @@ export function mockGpu({
   ...faults
 }: MockGpuOptions = {}) {
   const draws: MockDraw[] = [],
-    writes: Array<{
-      offset: number;
-      bytes: Uint8Array;
-      label?: string;
-      size?: number;
-      seq: number;
-    }> = [];
+    writes: MockWrite[] = [];
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
   const { buffers, createBuffer, destroyedMaps } = mockBuffers(faults),
     submits: number[] = [],
@@ -65,8 +59,9 @@ export function mockGpu({
     rows: number;
     seq: number;
   }> = [];
-  const computes: string[] = [];
-  const imageCopies: unknown[] = [];
+  const computes: string[] = [],
+    commands: string[] = [],
+    imageCopies: unknown[] = [];
   const renderPipelines: GPURenderPipelineDescriptor[] = [];
   const layouts: Array<{ entries: Array<{ binding: number; buffer?: { type?: string } }> }> = [];
   const members: Record<string, unknown> = {
@@ -136,6 +131,7 @@ export function mockGpu({
     createCommandEncoder: createMockCommandEncoderFactory({
       draws,
       passes,
+      commands,
       computes,
       imageCopies,
       copyUsages,
@@ -188,6 +184,7 @@ export function mockGpu({
     submits,
     textures,
     passes,
+    commands,
     computes,
     layouts,
     imageCopies,

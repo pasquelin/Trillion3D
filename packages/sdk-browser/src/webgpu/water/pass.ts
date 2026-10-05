@@ -3,6 +3,8 @@
 import { countBlendDraws } from '../blend/draw.ts';
 import { beginWaterBounds } from './bounds.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
+import { directLightResources } from '../pages/prepare/lightResources.ts';
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
 function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
@@ -32,10 +34,9 @@ export function boundWaterPass(
 
 /**
  * Whether the water pass draws the image's transmission slice, as far as the frame knows before
- * it binds: the shadow marks pick the water stage on it (`../blend/marks.ts`) and the pass encodes
- * on it, so both take the same decision.
+ * it binds: the pass encodes on it.
  */
-export function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
+function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
   const { blendState } = rt;
   return (
     composesWater(rt, composes) &&
@@ -52,12 +53,14 @@ export function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
  * pipelines, under a diagnostic view or a capture from a second camera, nothing of it exists in
  * the frame, and the transmission slice draws as one more blend. So too when no composition
  * `composes` the image after it: the water word borrows the display colour (`surfaceWgsl.ts`),
- * which only that composition writes over.
+ * which only that composition writes over. `key`, the frame's lights' key (`directLightResources`,
+ * resolved here when not given), picks the composite's program (`frame.ts`).
  */
 export function encodeWaterPass(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   composes = true,
+  key?: Partial<ContractKey>,
 ) {
   const { gpu, run, blendState } = rt,
     water = blendState.water;
@@ -73,7 +76,8 @@ export function encodeWaterPass(
     !water.frame.bind(gpu, viewBuffer, lighting)
   )
     return false;
-  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces), true);
+  const lit = key ?? directLightResources(rt);
+  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces, lit), true);
   run.gpuDrawCalls++;
   return true;
 }

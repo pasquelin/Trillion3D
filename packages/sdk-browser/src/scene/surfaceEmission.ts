@@ -1,9 +1,10 @@
 import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts';
+import type { VisMaterial } from '../visibility/materialType.ts';
 
 /**
  * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING (#1369).
  *
- * the reference engine packs its GBuffer so that a pixel fetches only what its shading model reads: a field most
+ * A pixel fetches only what its shading model reads: a field most
  * pixels leave at its default is not fetched there. Here the surface buffer's normal stays in
  * `rgba16float` — three half floats that no two-channel octahedral code gives back bit for bit —
  * and its roughness and metalness already ride in the alpha of the normal and the base colour. What
@@ -20,9 +21,39 @@ import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts';
  * reads its occlusion, and its emission is zero.
  */
 
-/** The bit a surface written with `emissive` and `ao` carries (the material pass). */
+/** The bit a surface written with `emissive` and `ao` carries (the material pass). `EMISSIVE_AO`
+ *  false — an image without the layer (`surfaceEmitsOrOccludes`) — marks no texel: none of its
+ *  surfaces could have set the bit. */
 export const EMISSIVE_AO_FLAG_WGSL = `
-fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0);}`;
+override EMISSIVE_AO:bool=true;
+fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,EMISSIVE_AO&&(any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0));}`;
+
+/** Bytes a pixel of the emission-and-occlusion layer takes (`rgba16float`). */
+export const EMISSIVE_AO_BYTES = 8;
+
+/** The f32 bits of `x` are not all zero: a negative zero and a NaN count, as the GPU compares bits;
+ *  a value the conversion flushes to zero counts too, which only keeps the layer. */
+const bitsSet = (x: number) => x !== 0 || Object.is(x, -0);
+
+/**
+ * Whether a surface can write a texel other than `(0, 0, 0, 1)`, the one `emissiveAoFlag` leaves
+ * unmarked: an emission or occlusion map, an emission factor of any bit set, or an occlusion
+ * intensity whose product with zero is no zero (`1 + intensity × 0`, an infinite or a NaN). An
+ * image none of whose opaque surfaces can has no use for the layer: nothing marks a texel of it.
+ */
+export function surfaceEmitsOrOccludes(
+  mat: Pick<VisMaterial, 'emissive' | 'emissiveMap' | 'aoMap' | 'aoIntensity'>,
+) {
+  const [r, g, b] = mat.emissive;
+  return (
+    !!mat.emissiveMap ||
+    !!mat.aoMap ||
+    bitsSet(r) ||
+    bitsSet(g) ||
+    bitsSet(b) ||
+    !Number.isFinite(Math.fround(mat.aoIntensity))
+  );
+}
 
 /** The pixel's emission and occlusion: the texel under the bit, `(0, 0, 0, 1)` without it. Needs
  *  the pass's `emissiveAo` binding. */

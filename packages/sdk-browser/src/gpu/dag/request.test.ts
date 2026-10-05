@@ -1,9 +1,8 @@
 // BROADCAST request: the page and its priority in a word, and the order that priority gives.
 //
-// The WebGL2 path has always sorted its requests by the SUBSTITUTE's screen error — a missing
-// cluster is drawn by a coarser ancestor, and that ancestor's error is what the eye sees
-// (`../../streaming/priority.ts`, `orderPendingUrls`). The WebGPU path published them in the order of
-// an atomic counter, i.e. in none. This test holds both halves:
+// Requests rank by the SUBSTITUTE's screen error — a missing cluster is drawn by a coarser
+// ancestor, and that ancestor's error is what the eye sees. The WebGPU path published them in the
+// order of an atomic counter, i.e. in none. This test holds both halves:
 // ① the word yields exactly what was put in it, and quantification never reverses two errors;
 // ② the order the cut publishes is that of the WebGL2 formula, on the same scene.
 import test from 'node:test';
@@ -88,8 +87,8 @@ test('published order decreases with the substitute’s screen error, like the W
     );
     return { vue, stretch: maxStretch(vue as unknown as readonly number[]) };
   });
-  // SUBSTITUTE screen error, by the core formula — the one `orderPendingUrls` uses, and of which
-  // `projected` (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
+  // SUBSTITUTE screen error, by the core formula (`clusterErrorPixels`), of which `projected`
+  // (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
   // snapshot, is what makes the proof non-circular.
   const centre = new Float64Array(4);
   const pixelsDe = (id: number) => {
@@ -112,8 +111,7 @@ test('published order decreases with the substitute’s screen error, like the W
   const pixels = releve.pageIds.map(pixelsDe);
   assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors');
   // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
-  // between two clusters of the same step order is indifferent — the reference does not break
-  // those ties either —, and the boundary between two steps is floating, the kernel rounding in
+  // between two clusters of the same step order is indifferent — ties are not broken —, and the boundary between two steps is floating, the kernel rounding in
   // f32 what this proof recomputes in f64. One step is 2^(1/16), i.e. 4.43 %.
   const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE);
   for (let i = 1; i < pixels.length; i++)

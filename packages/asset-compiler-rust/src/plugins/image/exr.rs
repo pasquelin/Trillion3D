@@ -1,14 +1,11 @@
-//! OpenEXR driver, read from the Academy Software Foundation public specifications
-//! ("Technical Introduction to OpenEXR" and "OpenEXR File Layout", openexr.com) for the version
-//! field and the channel set, and decoded by the `exr` 1.74.2 crate (BSD-3-Clause,
-//! `johannesvollmer/exrs`, pure Rust and no `unsafe`, notices kept with the dependency).
-//! No vendor SDK or code, no C library, no re-encoding.
+//! OpenEXR driver: the version field and the channel set are checked here, and the pixels are
+//! decoded by the `exr` crate. No re-encoding.
 //!
 //! **No extra loss is added.** Samples leave as `f32`: a half-float expands into it exactly, a
 //! single-precision float passes through as-is. Nothing is reduced to eight bits, nothing is
 //! tone-mapped, nothing is rescaled — hence the `DecodedImage::RgbaF32` variant.
 //!
-//! **An OpenEXR's alpha is associated.** The "Technical Introduction to OpenEXR" defines the
+//! **An OpenEXR's alpha is associated.** The format defines the
 //! RGB components as already multiplied by the pixel's alpha; the output contract, itself,
 //! asks for straight alpha. This driver therefore divides each component by alpha before
 //! returning the image — otherwise the preview, which premultiplies in turn, would premultiply

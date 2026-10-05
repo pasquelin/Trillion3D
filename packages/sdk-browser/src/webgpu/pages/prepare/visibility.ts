@@ -6,6 +6,7 @@ import {
   createWebgpuVisibilityRasterPipelines,
 } from '../../visibility/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts';
+import { createShadeCache } from '../../visibility/shadeCache.ts';
 import { visUniformSlots } from '../../visibility/uniforms.ts';
 import { MAX_DEPTH_LAYER, depthLayerUnits } from '../../../../../sdk-core/src/index.ts';
 import { createGpuHiz } from '../../../gpu/hiz/hiz.ts';
@@ -15,13 +16,13 @@ import { createGpuPartition } from '../../../gpu/partition/factory.ts';
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts';
 import { prepareTransparentOcclusion } from '../../transparent/occlusionHost.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { sceneMaterialClasses } from '../../row/pageRowMaterial.ts';
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
 import { families } from '../../../host/families.ts';
 import { blendWritesShare } from './asIsShareTarget.ts';
+import { blendContext } from './contractLight.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
@@ -34,10 +35,10 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       gpuDevice,
       blendState.blendGpu,
       rt.context.diagnosticGpuVariant,
-      true,
+      vis.writesFeedback,
       undefined,
       blendWritesShare(rt),
-      rt.context,
+      blendContext(rt),
     );
     vis.blendBindGroupLayout = built.blendBindGroupLayout;
     vis.blendPipelines = built.blendPipelines;
@@ -62,6 +63,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     visUniformSlots(vis),
     variant,
     rt.context.feedbackTargetAB === true,
+    vis.writesFeedback,
   );
   vis.shadeUniform = shaders.shadeUniform;
   vis.visBindGroupLayout = shaders.visBindGroupLayout;
@@ -131,16 +133,26 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.visLayerPipelines = [];
       vis.drawLayerSlots = 1;
     }
-  // Each resolve class gets a depth-tested pipeline, plus a direct single-class path.
-  const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
+  // Each resolve class of the census (`preparePages.ts`), read now that the atlases are laid out,
+  // gets its pipeline, plus a direct single-class path; the census is taken again at a frame entry
+  // once what it reads moved (`../../frame/framePipelines.ts`).
+  const classes = vis.shadeCensus!.keys;
+  // The frame's cache first: its passes decide what the class pipelines read of it.
+  vis.shadeCache ??= await createShadeCache(gpuDevice);
   ({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
-    materialDepthPipeline: vis.materialDepthPipeline,
-    shadePipelineFor: vis.shadePipelineFor,
-    shadePipelines: vis.shadePipelines,
-    singleShadePipelines: vis.singleShadePipelines,
+    shadeClasses: vis.shadeClasses,
     materialTiles: vis.materialTiles,
-  } = await createWebgpuShadePipelines(gpuDevice, shadeModule, classes, variant));
+  } = await createWebgpuShadePipelines(
+    gpuDevice,
+    shadeModule,
+    classes,
+    variant,
+    vis.writesFeedback,
+    undefined,
+    vis.writesEmissiveAo,
+    vis.shadeCache.constants,
+  ));
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,
     keys: classes,
@@ -154,10 +166,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   const ab = shaders.shadeWithoutFeedback && (await families.diagnostics.load()); // a view's
   if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback!, classes);
   vis.visEnabled =
-    !!vis.visTexture &&
-    !!vis.shadeBindGroup &&
-    !!vis.materialDepthPipeline &&
-    !!vis.visPipelineBack;
+    !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadeClasses && !!vis.visPipelineBack;
   if (!vis.visEnabled) return dropVis(rt);
   diag.engineDiagnostic('material-surfaces-ready', 'Surfaces and lighting split', {
     surfaceVersion: 1,
@@ -172,7 +181,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   capabilities.unsupported = capabilities.unsupported.filter(
     (item) => !VIS_FEATURES.includes(item),
   );
-  vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
+  vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots, rt.setup.maxCorners);
   if (vis.gpuDraw) grantCapability(capabilities, 'indirect draw');
   // The partition mounts last: it writes compaction buffers and rereads pyramid verdicts. Without
   // it, every slot is compacted: the image draws in one pass, without occlusion, nothing silent.

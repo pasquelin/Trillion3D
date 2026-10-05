@@ -7,9 +7,7 @@ import { SPHERE_VALUES } from './strides.ts';
  * Tests `n` bounding boxes against the six frustum planes (24 floats), and writes what is KEPT:
  * `kept[i]` is 1 where the box intersects the frustum or sits inside it, 0 where it is excluded.
  * Returns how many were kept. The name says keep because that is what the array holds — it
- * repeats `frustumExcludesBox` negated, which is the polarity Three's `intersectsBox` answers in.
- *
- * Replaces Three's `for … frustum.intersectsBox(box)`.
+ * repeats `frustumExcludesBox` negated: true means the box is kept, false means it is excluded.
  */
 export function frustumKeepsBoxBatch(
   kept: Uint8Array,
@@ -39,7 +37,7 @@ export function frustumKeepsBoxBatch(
  * Computes bounding spheres for `n` boxes. `out` receives 4 floats per element
  * (centre x, y, z, radius).
  *
- * Repeats `sphereFromBounds`. Replaces Three.js loop: `for … box.getBoundingSphere(s)`.
+ * Repeats `sphereFromBounds`. Loops over `n` boxes.
  */
 export function sphereFromBoundsBatch(
   out: Float64Array,

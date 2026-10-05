@@ -6,14 +6,6 @@ export type {
   GpuPassTiming,
   GpuPassTimings,
 } from '../../sdk-core/src/contracts/metrics.ts';
-export {
-  barycentric,
-  compact,
-  edge,
-  exclusiveScan,
-  packDrawIndirect,
-} from '../../sdk-core/src/math/oracles.ts';
-export { CAMERA_SCENARIOS, makeCameraPath } from '../../sdk-core/src/runtime/paths.ts';
 export { compareImages } from '../../sdk-core/src/runtime/compareImages.ts';
 export { DIAGNOSTICS } from '../../sdk-core/src/runtime/diagnostics.ts';
 export type {

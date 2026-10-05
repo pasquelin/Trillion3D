@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "帧/秒",
-      "FPS (held)": "帧/秒（停住）",
       "triangles": "三角形",
       "triangles (scene)": "三角形（场景）",
       "draw calls": "绘制调用",
       "pages": "页",
       "geometry pool": "几何体存储",
       "lights": "灯光",
+      "GPU memory": "GPU 内存",
+      "screen images": "屏幕图像",
+      "shadow memory": "阴影内存",
+      "geometry memory": "几何体内存",
+      "texture memory": "纹理内存",
+      "live textures": "活动纹理",
+      "transmission backdrop": "透射背景",
       "GPU frame": "GPU 帧",
       "GPU frame (last)": "GPU 帧（上次）",
       "CPU frame": "CPU 帧",
       "page hooks": "页面代码",
-      "engine CPU": "引擎 CPU"
+      "engine CPU": "引擎 CPU",
+      "Statistics": "统计",
+      "hint": "点击：紧凑 · 拖动：移动 · 按键 `",
+      "fps": "帧/秒",
+      "budget": "预算",
+      "held": "静止",
+      "last": "上次",
+      "others": "其他",
+      "Shadows": "阴影",
+      "Scene and memory": "场景与内存",
+      "cut and culling": "裁切与剔除",
+      "page preparation": "页面准备",
+      "command encoding": "命令编码",
+      "physics step": "物理步进",
+      "Cadence": "节奏",
+      "{n}× refresh": "{n}× 刷新",
+      "GPU idle": "GPU 空闲"
+    },
+    "shadows": {
+      "lights": "灯光",
+      "maps": "贴图",
+      "pagesRequested": "请求的页",
+      "pagesAllocated": "分配的页",
+      "pagesCached": "缓存的页",
+      "pagesRendered": "绘制的页",
+      "freePages": "空闲页",
+      "lodBias": "LOD 偏移",
+      "projectionPasses": "投影通道",
+      "invalidation": "失效",
+      "marking": "标记",
+      "pageManagement": "页面管理",
+      "render": "渲染",
+      "projection": "投影",
+      "transmission": "透射"
+    },
+    "passes": {
+      "vsm projection": "VSM 投影",
+      "vsm marking": "VSM 标记",
+      "vsm render": "VSM 渲染",
+      "material surfaces": "材质表面",
+      "temporal antialiasing": "时间抗锯齿",
+      "HDR composition + present": "HDR 合成 + 呈现",
+      "deferred lighting": "延迟光照",
+      "reflection source": "反射源",
+      "HiZ pyramid": "HiZ 金字塔",
+      "light tiles": "灯光分块",
+      "texture mips": "纹理 mip",
+      "reflection radiance mips": "反射辐射 mip",
+      "reflection depth bounds mips": "反射深度边界 mip"
     },
     "failure": {
       "title": "这个示例因为一个错误停下了",
@@ -1363,7 +1417,8 @@
       "credit": "为这个示例用代码制作的花瓶大道，CC0 — 见 assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "拖动绕着胸像转。木箱和玻璃球在转台上转圈。",
     "words": {
       "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0；木箱作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "位姿"
     }
+  },
+  "choose-your-quality": {
+    "banner": "选择画质、分辨率和视角。把一组设置存为 A，另一组存为 B，按 C 在两者之间切换。"
   }
 }

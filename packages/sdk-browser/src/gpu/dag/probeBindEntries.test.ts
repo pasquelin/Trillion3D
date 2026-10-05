@@ -1,33 +1,27 @@
-// The GPU probes run only in the recette's browser, so this Node test holds their bind groups
-// to the engine's (#20): the page gets `namedBufferEntries` itself, and no probe, oracle or light
-// cut lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
+// The GPU probes run on Dawn (`tests/gpu`), so this Node test holds their bind groups to the
+// engine's (#20): `namedBufferEntries` lays each buffer at its shader name's binding, and no probe
+// or oracle lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { runInNewContext } from 'node:vm';
 import { DAG_BINDING } from './shader/bindings.ts';
 import { EXPAND_BINDING } from '../../webgpu/blend/expandBindings.ts';
-import { PAGE_INIT_SCRIPT } from '../../../../../tests/browser/probes/pageWebgpu.ts';
-
-/** `namedBufferEntries` as the page sees it: installed by the init script, with no module scope. */
-function pageBuilder() {
-  const page: { namedBufferEntries?: typeof globalThis.namedBufferEntries } = {};
-  runInNewContext(PAGE_INIT_SCRIPT, { globalThis: page });
-  assert.equal(typeof page.namedBufferEntries, 'function', 'the page holds namedBufferEntries');
-  return page.namedBufferEntries!;
-}
+import { namedBufferEntries } from '../core/computeBindings.ts';
 
 const KERNELS: [string, Record<string, number>][] = [
   ['selection', DAG_BINDING],
   ['expansion', EXPAND_BINDING],
 ];
 for (const [kernel, bindings] of KERNELS) {
-  test(`the page lays each ${kernel} buffer at its shader name's binding`, () => {
+  test(`namedBufferEntries lays each ${kernel} buffer at its shader name's binding`, () => {
     // Listed in reverse: the binding must come from the name, never from the listing order.
     const names = Object.keys(bindings).reverse();
     // A stand-in per buffer that carries its own name, so each entry says which buffer it holds.
     const buffers = Object.fromEntries(names.map((name) => [name, { buffer: name }]));
-    const entries = pageBuilder()(bindings, buffers as unknown as Record<string, GPUBufferBinding>);
+    const entries = namedBufferEntries(
+      bindings,
+      buffers as unknown as Record<string, GPUBufferBinding>,
+    );
     assert.equal(entries.length, names.length);
     for (const { binding, resource } of entries) {
       const name = (resource as unknown as { buffer: string }).buffer;
@@ -37,10 +31,10 @@ for (const [kernel, bindings] of KERNELS) {
 }
 
 // The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
-// frame ranges, which bind the selection kernel's group 0 per range for the camera and light cuts.
+// frame ranges, which bind the selection kernel's group 0 per range for the camera cut.
 const BUILDERS = [
-  '../../../../../tests/browser/probes/selectionKernelGpu.ts',
-  '../../../../../tests/browser/probes/scatterKernelGpu.ts',
+  '../../../../../tests/gpu/dag/selectionKernel.ts',
+  '../../../../../tests/gpu/blend/scatterKernel.ts',
   '../../../../../bench/oracles/browser/cut-dispatches.ts',
   './frameRanges.ts',
 ];
