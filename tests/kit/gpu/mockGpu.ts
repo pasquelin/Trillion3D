@@ -2,7 +2,7 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
 import { mockBuffers, type MapFaults, type MockWrite } from './mockBuffers.ts';
-import { asWebgpuDevice, untag } from './webgpuDevice.ts';
+import { asWebgpuDevice, untag } from './fakeWebgpuDevice.ts';
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
  *  the failures it injects. `compute` gives the device compute pipelines without a DAG. */

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { claimGpuDevice } from './deviceOwners.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { deviceOwner as owner } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { deviceOwner as owner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts';
 
 // As Dawn writes it: the object at fault by its type and its label, in quotes.
 const destroyed = (label: string) =>
