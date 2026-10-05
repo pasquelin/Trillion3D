@@ -4,7 +4,7 @@ import { createGpuPartition } from './factory.ts';
 import { PARTITION_SHADER } from './shader.ts';
 import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, ROW_DATA_U32 } from './contract.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { PartitionFrame } from './uniform.ts';
+import { buffer, frame } from './partition.fixture.ts';
 
 const STORAGE_BUFFERS_PER_STAGE = 8;
 
@@ -15,25 +15,6 @@ const bufferGroups = (bindGroups: GPUBindGroupDescriptor[]) =>
       [...entries].map((e) => [e.binding, (e.resource as GPUBufferBinding).buffer]),
     ),
   );
-
-const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
-
-function frame(rows: number): PartitionFrame {
-  return {
-    view: new Float64Array(16),
-    viewProj: new Float64Array(16),
-    anchor: [0, 0, 0],
-    near: 0.1,
-    rows,
-    width: 8,
-    height: 8,
-    levels: [{ offset: 0, width: 8 }],
-    layerTop: 0,
-    hasRest: true,
-    viewMoved: false,
-    counting: false,
-  };
-}
 
 const encoder = () =>
   ({

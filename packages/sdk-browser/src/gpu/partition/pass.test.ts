@@ -6,23 +6,7 @@ import assert from 'node:assert/strict';
 import { createGpuPartition } from './factory.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { recordingEncoder } from '../../../../../tests/kit/gpu/usageScope.ts';
-import type { PartitionFrame } from './uniform.ts';
-
-const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
-const frame = (rows: number): PartitionFrame => ({
-  view: new Float64Array(16),
-  viewProj: new Float64Array(16),
-  anchor: [0, 0, 0],
-  near: 0.1,
-  rows,
-  width: 8,
-  height: 8,
-  levels: [{ offset: 0, width: 8 }],
-  layerTop: 0,
-  hasRest: true,
-  viewMoved: false,
-  counting: false,
-});
+import { buffer, frame } from './partition.fixture.ts';
 
 test('the frame clears nothing from the encoder: its first dispatch zeroes what the kernels count', async () => {
   const { device } = fakeDevice();
