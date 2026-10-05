@@ -23,7 +23,9 @@ test('a session that deforms nothing loads no deformation code; one whose page d
   await families.deformation.settled();
   assert.deepEqual([still.vis.deformationCode, families.deformation.arrived], [undefined, false]);
   assert.ok(still.vis.concatPos, 'its vertices are pooled all the same');
-  const skinned = session([{ attributes: G.triangleAttributes(), deformationOutput: { from: 0, count: 3 } }]);
+  const skinned = session([
+    { attributes: G.triangleAttributes(), deformationOutput: { from: 0, count: 3 } },
+  ]);
   await prepareDeformationGeometry(skinned as never, device);
   assert.equal(skinned.vis.deformationCode, families.deformation.get(), 'awaited at prepare');
 });
