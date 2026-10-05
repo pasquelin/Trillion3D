@@ -1,5 +1,4 @@
-// Parent/child cases of the math kernel: real `Object3D` chains from `three`, updated by
-// `updateMatrixWorld(true)`, recomposed node by node with `composeMatrix4` and `multiplyMatrix4`
+// Parent/child cases of the math kernel: real host-library `Object3D` chains, with their world matrices updated, recomposed node by node with `composeMatrix4` and `multiplyMatrix4`
 // (`chainesHostiles`, already written for the batch bench, reused here for bit-exact truth).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,7 +74,7 @@ test('hostile parent/child chains: the fixture covers the required cases', () =>
   );
 });
 
-test('hostile parent/child chains: world, position, quaternion, scale, determinant, normal and inverse — bit-exact against `three`', () => {
+test('hostile parent/child chains: world, position, quaternion, scale, determinant, normal and inverse — bit-exact against the host library', () => {
   const noeuds = chainesHostiles();
   for (const [index, n] of noeuds.entries()) {
     const ref = lectureReference(n),

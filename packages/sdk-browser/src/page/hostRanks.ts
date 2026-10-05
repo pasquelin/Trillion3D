@@ -2,6 +2,8 @@ import type { HostRetentionDelta } from '../streaming/types.ts';
 
 /** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number };
+/** No record of any list: the one a list's first record is compared with. */
+const UNMARKED: Ranked = {};
 
 /**
  * The set of request ranks an image keeps, held from one image to the next and published as a delta.
@@ -87,10 +89,16 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
       enteredCount = 0;
       exitedCount = 0;
     },
-    /** Marks the ranks of a list. A rank already marked in this pass costs only a read. */
+    /** Marks the ranks of a list. A rank already marked in this pass costs only a read, and a
+     *  record repeated next to itself — the placements of one primitive, rank after rank — not
+     *  even that: marking its rank again would change nothing. */
     mark(list: readonly Ranked[]) {
+      let last: Ranked = UNMARKED;
       for (let i = 0; i < list.length; i++) {
-        const rank = list[i].requestIndex;
+        const rec = list[i];
+        if (rec === last) continue;
+        last = rec;
+        const rank = rec.requestIndex;
         if (rank !== undefined) markRank(rank);
       }
     },

@@ -3,19 +3,16 @@ import {
   hizBuildPyramid,
   hizFootprintFar,
   hizOccluded,
-} from '../../../packages/sdk-core/src/index.ts';
+} from '../../../packages/sdk-core/src/hiz/oracles.fixture.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
-import {
-  hizRejects,
-  hizTestRect,
-  HIZ_TEST_VALUES,
-} from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
-import type { HizBounds, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
+import { hizTestRect, HIZ_TEST_VALUES } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
+import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
 import type { ScenePage } from './support/scenes.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe, located, rectangles } from './support/scenes.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { rasterVisibility } from '../../oracles/browser/cpu-image/raster.ts';
+import { hizRejects, type HizBounds } from '../../oracles/browser/hizRejects.ts';
 
 function referenceRowsOf(depth: Float32Array, width: number, height: number): number[][] {
   const rows: number[][] = [];

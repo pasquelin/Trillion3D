@@ -122,11 +122,16 @@ export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime
   return (compiled ?? 0) > since || firstNewer(sourceOf(scene, root), since) !== null;
 }
 
-/** Compiles every stale cache. Without a compiler, a `required` run throws; another names what it
- *  left and goes on, for a caller that may read none of them. */
-export function compileSiteCaches(required = true): void {
+/** The scenes the engine's tests read, beside them under `tests/`: what the test runners cook. */
+export const TEST_SCENES = Object.values(COOKED_SCENES).filter(({ directory }) =>
+  directory.startsWith('tests/'),
+);
+
+/** Compiles every stale cache of `scenes`. Without a compiler, a `required` run throws; another
+ *  names what it left and goes on, for a caller that may read none of them. */
+export function compileSiteCaches(required = true, scenes = Object.values(COOKED_SCENES)): void {
   const compiled = compilerTime();
-  const stale = Object.values(COOKED_SCENES).filter((scene) => isStale(scene, ROOT, compiled));
+  const stale = scenes.filter((scene) => isStale(scene, ROOT, compiled));
   if (!stale.length) return;
   try {
     requireNativeCompiler();

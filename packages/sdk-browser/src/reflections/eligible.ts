@@ -9,7 +9,7 @@ const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) =
 const reflectsUnder = (limit: number) => (surface: PageSurface) =>
   reflects(surface) && (!!surface.roughnessMap || surface.roughness < limit);
 
-/** A screen-traced receiver: under the reference engine's maximum roughness (#1341). */
+/** A screen-traced receiver: under the maximum roughness (#1341). */
 export const screenReflects = reflectsUnder(SCREEN_REFLECTION_CUTOFF);
 
 /** A WebGL2 screen-traced receiver: its base lobe, or a clear coat's own lobe, which the WebGL2

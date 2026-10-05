@@ -1,7 +1,6 @@
 import { encodeReflectionSource } from '../../reflections/encode.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts';
 import { createContractVariants, type LitPrograms } from './contractVariants.ts';
 import { createDeferredPlaceholders } from './setup.ts';
@@ -15,23 +14,21 @@ import { ZERO_DIRECT, createDeferredView } from './view.ts';
 import { DEFERRED_LIGHTING_PASS } from '../../stage/passLabels.ts';
 export { FULLSCREEN_VERTEX } from './shaders.ts';
 
-/** The contract program these resources light with: with bounce, narrow, unshadowed, rectless. */
-const contractOf = ({ bounceGrid, probes, narrow, unshadowed, rectless }: DirectLightResources) =>
-  [!!bounceGrid && !!probes, !!narrow, !!unshadowed, !!rectless] as const;
+/** Whether these resources light with the bounce program. */
+const bounceOf = ({ bounceGrid, probes }: DirectLightResources) => !!bounceGrid && !!probes;
 
 /** Deferred and frozen-source lighting programs: the lit ones from the start when `lit` says so,
  *  else compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(
   device: GPUDevice,
   onReady?: () => void,
-  pages = SUN_WINDOW,
   lit?: LitPrograms,
 ) {
   const view = createDeferredView(device);
   const placeholders = createDeferredPlaceholders(device);
   const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
-  const variants = createContractVariants(device, bindings, pages, onReady, lit);
+  const variants = createContractVariants(device, bindings, onReady, lit);
   // The program the first frame asks for, and its wide twin. Prepare waits for the one without
   // bounce, which lights any first frame; the bounce pair lands meanwhile.
   const litReady = lit?.precompile ? variants.precompile(false, lit.key) : Promise.resolve();
@@ -40,7 +37,7 @@ export async function createDeferredLighting(
     const unlit = await createDeferredProgram(
       device,
       // The unlit view composes by identity: with no declared source, no radiance is to be
-      // exposed or brought into the display range, and albedo must be read as-is (P6).
+      // exposed or brought into the display range, and albedo must be read as-is.
       {
         lighting: UNLIT_LIGHTING_SHADER,
         compose: UNLIT_COMPOSITIONS,
@@ -50,7 +47,7 @@ export async function createDeferredLighting(
       bindings,
     );
     let active: DeferredProgram = unlit;
-    // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
+    // Diagnostic views output raw values: no filmic curve, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
     let rawOutput = false;
     /** The size this image draws, from `update`: its targets may be larger (`renderScale.ts`). */
@@ -104,8 +101,13 @@ export async function createDeferredLighting(
         onFailure?: (error: unknown) => void,
       ) {
         // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
-        active = (wantsContract && variants.pick(...contractOf(direct), onFailure)) || unlit;
+        active =
+          (wantsContract && variants.pick(bounceOf(direct), !!direct.narrow, direct, onFailure)) ||
+          unlit;
         active.bind(surface, depth, hdr, direct);
+        // A program reading a shadow mask: its decode table is filled, in its own submit, before
+        // this frame's (`projectionMaskTable.ts`).
+        if (active !== unlit && direct.vsmMask) placeholders.vsmMaskTable.fill();
       },
       settle() {
         return variants.settle();
@@ -113,7 +115,7 @@ export async function createDeferredLighting(
       /** What a frame lit with these resources waits for: the lit program's compile while no ready
        *  one can light it, else nothing (`contractVariants.ts`). */
       awaited(direct: DirectLightResources) {
-        return variants.awaited(...contractOf(direct));
+        return variants.awaited(bounceOf(direct), !!direct.narrow, direct);
       },
       /** Draws the lighting, after the reflection source when the frame's program reflects, the
        *  next image's source then written beside it; returns the passes drawn (#1157). */

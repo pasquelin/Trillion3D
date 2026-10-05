@@ -9,13 +9,19 @@ import { stateDump } from './stateDump.fixture.ts';
  *  before PHY-09 and PHY-10; taken again apart from the vertices when PHY-06 rounded them (#975),
  *  and again with each step's events hashed as a set, develop's module giving it too. It proves the
  *  poses, the soft words and the event set equal develop's, not its event order: the canonical
- *  order is the accepted route (boss's yes, 29 Sept., #934). */
-const DEVELOP_MOTION = 'd54edc7d4da4d89a53292e152a575d5760cd6b3326128592eb1a87f280200692';
+ *  order is the accepted route (boss's yes, 29 Sept., #934). Taken again on 4 Oct. 2026, when a soft
+ *  body took a 1 cm thickness (`SOFT_VERTEX_RADIUS`): the same module built with a radius of 0 gave
+ *  develop's own, `d54edc7d…` (motion) and `014b9452…` (whole), so the thickness alone moves it.
+ *  Taken again the same day, when a contact's impulse took its bodies' turn and bounce: with every
+ *  event's impulse word zeroed, the modules before and after give the same two hashes (`167f1388…`
+ *  and `6bd49e2d…`), so only the impulses moved. */
+const DEVELOP_MOTION = '308bb20ef804ca2a490e90baeea7180d13f75878210c9854a8f3d0e99d4e44c9';
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it, the
- *  events in the order the engine sent them (see `stateDump`), not Jolt's callback order (#934). */
-const FULL_DUMP = '014b9452cc734f7693069b276dafa8988e189f4db86bc362104041364f3d3c9c';
+ *  events in the order the engine sent them (see `stateDump`), not the module's callback order
+ *  (#934). */
+const FULL_DUMP = 'd5cc715a70b4c1b33da212a274cff7973116a4651951e7c0f42b78f51f7d7ec2';
 
-test('a finite scene steps exactly as before, but for pinned cloths that never stretch', async () => {
+test('a finite scene steps exactly as before, but for pinned cloths that never stretch and the thickness of soft bodies', async () => {
   assert.deepEqual(stateDump(await startModule()), { motion: DEVELOP_MOTION, full: FULL_DUMP });
 });
 

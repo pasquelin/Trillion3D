@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import {
   crossVector3,
+  decomposeMatrix4,
   determinantMatrix4,
   dotVector3,
   invertMatrix4,
@@ -12,17 +13,26 @@ import {
   transformAffinePoint,
   transformHomogeneousPoint,
 } from '../../../../packages/sdk-core/src/index.ts';
-import type { Measurement } from '../../../core/index.ts';
+import { parElement, type Measurement } from '../../../core/index.ts';
 import { chainesHostiles, lectureReference, lectureSocle } from './coreHierarchy.ts';
-import { f64, ligne, m4, normaleReference, trs, trsReference } from './coreLine.ts';
+import { f64, ligne, m4, normaleReference, trsReference } from './coreLine.ts';
 import { affines, matrices, paires, paires32, points } from './scenesCore.ts';
+import * as S from './coreOutputs.ts';
 
 const v3 = (p: ArrayLike<number>) => new THREE.Vector3(p[0], p[1], p[2]);
-const echantillon = points.filter((_, i) => i % 29 === 0);
 /** Each matrix against each sample point. */
-const croise = <T>(liste: ArrayLike<number>[], fn: (m: ArrayLike<number>, p: number[]) => T) =>
-  Array.from(liste).flatMap((m) => echantillon.map((p) => fn(m, p)));
-const fini = (p: ArrayLike<number>) => Number.isFinite(p[0] + p[1] + p[2]);
+const crossed = <T>(list: ArrayLike<number>[], fn: (m: ArrayLike<number>, p: number[]) => T) =>
+  Array.from(list).flatMap((m) => S.samplePoints.map((p) => fn(m, p)));
+const finite = (p: ArrayLike<number>) => Number.isFinite(p[0] + p[1] + p[2]);
+
+// The engine sides that walk a list of their own, each built once: a `parElement` keeps its output
+// array from call to call, so the timed call runs the walk and builds nothing.
+const affinePoints = parElement(([m, p]: readonly [Float64Array, number[]], i) =>
+  finite(p) ? transformAffinePoint(S.affinePointsOut[i], m, p[0], p[1], p[2]) : null,
+);
+const clipPoints = parElement(([m, p]: readonly [Float64Array, number[]], i) =>
+  transformHomogeneousPoint(S.clips[i], m, p[0], p[1], p[2]),
+);
 
 async function lignesOperations(): Promise<Measurement[]> {
   return [
@@ -32,7 +42,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       'paires hostiles',
       paires,
       (l) => l.map(([a, b]) => f64(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements)),
-      (l) => l.map(([a, b]) => multiplyMatrix4(new Float64Array(16), a, b)),
+      parElement(([a, b]: Float64Array[], i) => multiplyMatrix4(S.products[i], a, b)),
     ),
     await ligne(
       '4×4 product written on its input',
@@ -40,11 +50,11 @@ async function lignesOperations(): Promise<Measurement[]> {
       'paires hostiles',
       paires,
       (l) => l.map(([a, b]) => f64(m4(b).premultiply(m4(a)).elements)),
-      (l) =>
-        l.map(([a, b]) => {
-          const out = f64(b);
-          return multiplyMatrix4(out, a, out);
-        }),
+      parElement(([a, b]: Float64Array[], i) => {
+        const out = S.inPlace[i];
+        out.set(b);
+        return multiplyMatrix4(out, a, out);
+      }),
     ),
     await ligne(
       '4×4 product toward single precision',
@@ -55,7 +65,10 @@ async function lignesOperations(): Promise<Measurement[]> {
         l.map(([a, b]) =>
           Float32Array.from(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements),
         ),
-      (l) => l.map(([a, b]) => Float32Array.from(multiplyMatrix4(new Float64Array(16), a, b))),
+      parElement(([a, b]: Float64Array[], i) => {
+        S.singles[i].set(multiplyMatrix4(S.toSingle[i], a, b));
+        return S.singles[i];
+      }),
     ),
     await ligne(
       '4×4 inverse, singulars included',
@@ -63,11 +76,11 @@ async function lignesOperations(): Promise<Measurement[]> {
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => f64(m4(m).invert().elements)),
-      (l) =>
-        l.map((m) => {
-          const out = f64(m);
-          return invertMatrix4(out, out);
-        }),
+      parElement((m: Float64Array, i) => {
+        const out = S.inverses[i];
+        out.set(m);
+        return invertMatrix4(out, out);
+      }),
     ),
     await ligne(
       '4×4 determinant',
@@ -75,7 +88,10 @@ async function lignesOperations(): Promise<Measurement[]> {
       'matrices hostiles',
       matrices,
       (l) => f64(l.map((m) => m4(m).determinant())),
-      (l) => f64(l.map((m) => determinantMatrix4(m))),
+      (l) => {
+        for (let i = 0; i < l.length; i++) S.determinants[i] = determinantMatrix4(l[i]);
+        return S.determinants;
+      },
     ),
     await ligne(
       'matrice normale',
@@ -83,7 +99,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => normaleReference(m4(m))),
-      (l) => l.map((m) => normalMatrix3(new Float64Array(9), m)),
+      parElement((m: Float64Array, i) => normalMatrix3(S.normals[i], m)),
     ),
     await ligne(
       'TRS decomposition',
@@ -91,18 +107,18 @@ async function lignesOperations(): Promise<Measurement[]> {
       'matrices hostiles',
       matrices,
       (l) => l.map((m) => trsReference(m4(m))),
-      (l) => l.map((m) => trs(m)),
+      parElement((m: Float64Array, i) => {
+        decomposeMatrix4(m, ...S.decomposed[i]);
+        return S.decomposed[i];
+      }),
     ),
     await ligne(
       'point affine (matrice affine, point fini)',
       'packages/sdk-core/src/math/primitives/vector.ts',
       'poses × points',
       affines,
-      (l) => croise(l, (m, p) => (fini(p) ? f64(v3(p).applyMatrix4(m4(m)).toArray()) : null)),
-      (l) =>
-        croise(l, (m, p) =>
-          fini(p) ? transformAffinePoint(new Float64Array(3), m, p[0], p[1], p[2]) : null,
-        ),
+      (l) => crossed(l, (m, p) => (finite(p) ? f64(v3(p).applyMatrix4(m4(m)).toArray()) : null)),
+      () => affinePoints(S.affineCrossings),
     ),
     await ligne(
       'homogeneous point in clip space',
@@ -110,11 +126,10 @@ async function lignesOperations(): Promise<Measurement[]> {
       'matrices × points',
       matrices,
       (l) =>
-        croise(l, (m, p) =>
+        crossed(l, (m, p) =>
           f64(new THREE.Vector4(p[0], p[1], p[2], 1).applyMatrix4(m4(m)).toArray()),
         ),
-      (l) =>
-        croise(l, (m, p) => transformHomogeneousPoint(new Float64Array(4), m, p[0], p[1], p[2])),
+      () => clipPoints(S.matrixCrossings),
     ),
     await ligne(
       'produits vectoriel et scalaire',
@@ -126,11 +141,14 @@ async function lignesOperations(): Promise<Measurement[]> {
           const q = l[(i * 13 + 5) % l.length];
           return [f64(new THREE.Vector3().crossVectors(v3(p), v3(q)).toArray()), v3(p).dot(v3(q))];
         }),
-      (l) =>
-        l.map((p, i) => {
-          const q = l[(i * 13 + 5) % l.length];
-          return [crossVector3(new Float64Array(3), p, q), dotVector3(p, q)];
-        }),
+      // The line's input is `points`: each vector crossed with the one the reference pairs it with.
+      parElement((p: number[], i) => {
+        const q = points[(i * 13 + 5) % points.length],
+          out = S.crossDots[i];
+        crossVector3(out[0] as Float64Array, p, q);
+        out[1] = dotVector3(p, q);
+        return out;
+      }),
     ),
     await ligne(
       'node displacement: parent⁻¹ · world, then TRS',
@@ -138,32 +156,16 @@ async function lignesOperations(): Promise<Measurement[]> {
       'paires hostiles',
       paires,
       (l) =>
-        l.map(([parent, monde]) =>
-          trsReference(m4(monde).premultiply(m4(parent).clone().invert())),
+        l.map(([parent, world]) =>
+          trsReference(m4(world).premultiply(m4(parent).clone().invert())),
         ),
-      (l) =>
-        l.map(([parent, monde]) => {
-          const inverse = invertMatrix4(new Float64Array(16), parent),
-            local = f64(monde);
-          return trs(multiplyMatrix4(local, inverse, local));
-        }),
-    ),
-    await ligne(
-      "pose de repos de l'observation : base⁻¹ · monde, puis base · repos",
-      'tests/kit/lighting/meshes.ts',
-      'paires hostiles',
-      paires,
-      (l) =>
-        l.map(([base, monde]) => {
-          const repos = m4(base).clone().invert().multiply(m4(monde));
-          return f64(new THREE.Matrix4().multiplyMatrices(m4(base), repos).elements);
-        }),
-      (l) =>
-        l.map(([base, monde]) => {
-          const repos = invertMatrix4(new Float64Array(16), base);
-          multiplyMatrix4(repos, repos, monde);
-          return multiplyMatrix4(new Float64Array(16), base, repos);
-        }),
+      parElement(([parent, world]: Float64Array[], i) => {
+        const inverse = invertMatrix4(S.rests[i], parent),
+          local = S.poses[i];
+        local.set(world);
+        decomposeMatrix4(multiplyMatrix4(local, inverse, local), ...S.displaced[i]);
+        return S.displaced[i];
+      }),
     ),
   ];
 }

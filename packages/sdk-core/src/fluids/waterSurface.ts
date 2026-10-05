@@ -7,22 +7,38 @@ import { Waves, type WaveSpec } from './waves.ts';
  * model buoyancy reads in the physics worker, the same numbers, clocked at the simulation's time.
  */
 export class WaterSurface {
-  private readonly waves: Waves;
-  private readonly declared: readonly WaveSpec[];
-  /** Height of the surface at rest, metres. */
-  readonly level: number;
-  /** Highest point a crest reaches above `level`, metres. */
-  readonly crest: number;
+  private waves!: Waves;
+  private declared!: readonly WaveSpec[];
+  private rest = 0;
   /** Simulated seconds since the water was set: the waves' clock. */
   time = 0;
 
   /** @param spec - The water as `world.physics.water` takes it; a wave out of range throws
    *  `RangeError`, as there. */
   constructor(spec: WaterSpec) {
+    this._declare(spec);
+  }
+
+  /** The world's water set again (`world.physics.water`): this surface becomes the new one in
+   *  place, its clock at 0 s as the worker's, so a mesh it carries (`mesh.waves`) is carried by
+   *  the new waves. A wave out of range throws `RangeError` and leaves it as it was. */
+  _declare(spec: WaterSpec) {
+    const waves = new Waves(spec.waves);
     this.declared = spec.waves;
-    this.waves = new Waves(spec.waves);
-    this.level = spec.level;
-    this.crest = this.waves.crest;
+    this.waves = waves;
+    this.rest = spec.level;
+    this.time = 0;
+    return this;
+  }
+
+  /** Height of the surface at rest, metres. */
+  get level() {
+    return this.rest;
+  }
+
+  /** Highest point a crest reaches above `level`, metres. */
+  get crest() {
+    return this.waves.crest;
   }
 
   /** Clocks the waves at `t` simulated seconds. */

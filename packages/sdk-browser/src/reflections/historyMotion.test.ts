@@ -63,11 +63,14 @@ test('with live motion a camera move and a moved source keep the history, reproj
   assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a moved source keeps it whole');
   assert.equal(clipped(), 1);
   assert.equal(history.reuse, false);
-  // #1342: a relit source kept its old reflections; no motion brings old lighting to the new one.
+  // A relit source keeps it whole, clipped, while it changes; once it stops, the change cap flushes
+  // the old lighting (#1342).
   step(() => frame.lighting[0]++);
-  assert.equal(params()[0], 0, 'a lighting change resets it, live motion or not');
-  assert.equal(history.rank, 0);
+  assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a relight keeps it whole');
+  assert.equal(clipped(), 1, 'clipped to the neighbourhood while it changes');
   step(() => {});
+  assert.deepEqual(params(), [1, REFLECTION_CHANGE_KEPT, 1], 'then the change cap');
+  assert.equal(clipped(), 0);
   frame.motion = frame.pages;
   step(() => frame.epoch[0]++);
   assert.deepEqual(

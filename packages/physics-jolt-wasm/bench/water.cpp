@@ -15,7 +15,7 @@
 
 extern "C" {
 uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConstraints,
-                   uint32_t tempBytes, uint32_t threads);
+                   uint32_t tempBytes, uint32_t threads, float step);
 uint32_t *jolt_buffer(uint32_t which, uint32_t words);
 uint32_t jolt_step(uint32_t commandWords, float dt);
 uint32_t jolt_water_query(float top, float sliceLength);
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   if (!readCommands(argv[1], words)) return 1;
   uint32_t bodies = std::atoi(argv[2]), threads = std::atoi(argv[3]), steps = std::atoi(argv[4]);
   float slice = std::atof(argv[5]), dt = 1.0f / 60.0f;
-  if (jolt_init(bodies, 65536, 10240, 16 * 1024 * 1024, threads) != 0) return 1;
+  if (jolt_init(bodies, 65536, 10240, 16 * 1024 * 1024, threads, dt) != 0) return 1;
   jolt_buffer(1, bodies * 14);
   jolt_buffer(2, 4096 * 7);
   std::memcpy(jolt_buffer(0, uint32_t(words.size())), words.data(), words.size() * 4);

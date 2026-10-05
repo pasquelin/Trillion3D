@@ -38,10 +38,10 @@ export function encodeReflectionSource(
   source.end();
   const history = reflection.history;
   const traced = !!history && !history.reuse;
-  // Without radiance levels only the trace and the water's mirror ray read the depth bounds: an
-  // image both skip skips them.
-  if (reflection.pyramid?.radiance || traced || reflection.water)
-    reflection.pyramid?.encode(encoder);
+  // Without radiance levels only the trace and the mirror rays read the depth bounds: an image both
+  // skip — no mirror receiver or water in view (`mirrorWalksImage`) — skips them.
+  if (reflection.pyramid?.radiance || traced || reflection.walks)
+    reflection.pyramid?.encode(encoder, reflected.bounds);
   if (traced) {
     const trace = encoder.beginRenderPass({
       label: 'Trillion3D rough reflection trace',
@@ -53,6 +53,7 @@ export function encodeReflectionSource(
     trace.setPipeline(reflected.trace);
     trace.setBindGroup(0, group);
     trace.setBindGroup(1, reflection.group);
+    trace.setBindGroup(2, history.owners);
     trace.draw(3);
     trace.end();
     history.encode(encoder, target, reflected.resolve, reflected.resolveLayout);

@@ -47,10 +47,8 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null;
   // The box is handed on as declared, fitted where each projection is composed, at the shape it
   // is drawn at. The engine composes its own projection from it (`engineCamera.ts`); the host
-  // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here, and
-  // its flag, which turns its shading's view vector to the camera's axis.
+  // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here.
   into.orthographic = box;
-  (into as { isOrthographicCamera?: boolean }).isOrthographicCamera = !!box;
   into.updateProjectionMatrix();
   if (box)
     hostOrthographic(

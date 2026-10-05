@@ -1,8 +1,18 @@
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-let attachmentsFor: GPUTextureView[] | undefined,
-  attachments: GPURenderPassColorAttachment[] | undefined;
+type Attachments = Array<GPURenderPassColorAttachment | null>;
+
+let attachmentsFor: GPUTextureView[] | undefined, attachments: Attachments | undefined;
+
+/** Each surface view as `attach` makes it; the emission-and-occlusion slot empty while the layer is
+ *  its 1×1 stand-in (`SurfaceBuffer.hasEmissiveAo`): its pipelines write no target there. */
+const surfaceSlots = (
+  surfaces: SurfaceBuffer,
+  views: GPUTextureView[],
+  attach: (view: GPUTextureView) => GPURenderPassColorAttachment,
+): Attachments =>
+  views.map((view, at) => (at === 2 && surfaces.hasEmissiveAo === false ? null : attach(view)));
 
 /**
  * Surface colour attachments, kept as-is until the next view set. Their four descriptors depend only
@@ -13,7 +23,7 @@ let attachmentsFor: GPUTextureView[] | undefined,
 export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
   const views = surfaces.views();
   if (attachmentsFor !== views || !attachments) {
-    attachments = views.map((view) => ({
+    attachments = surfaceSlots(surfaces, views, (view) => ({
       view,
       loadOp: 'clear' as const,
       storeOp: 'store' as const,
@@ -25,14 +35,18 @@ export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
   return attachments;
 }
 
-let loadedFor: GPUTextureView[] | undefined, loaded: GPURenderPassColorAttachment[] | undefined;
+let loadedFor: GPUTextureView[] | undefined, loaded: Attachments | undefined;
 
 /** The same surfaces, kept rather than cleared: a pass drawing over what the material passes wrote
  *  (the impostor cards, `../../impostor/encode.ts`). Rebuilt only with the view set. */
 export function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
   const views = surfaces.views();
   if (loadedFor !== views || !loaded) {
-    loaded = views.map((view) => ({ view, loadOp: 'load' as const, storeOp: 'store' as const }));
+    loaded = surfaceSlots(surfaces, views, (view) => ({
+      view,
+      loadOp: 'load' as const,
+      storeOp: 'store' as const,
+    }));
     loadedFor = views;
   }
   return loaded;
@@ -43,7 +57,7 @@ const feedback: GPURenderPassColorAttachment = {
   loadOp: 'clear',
   storeOp: 'store',
 };
-let withFeedback: GPURenderPassColorAttachment[] | undefined;
+let withFeedback: Attachments | undefined;
 
 /**
  * Attachment of the virtual-texture feedback target, and the only rule of its load: the first pass
@@ -58,10 +72,11 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   return feedback;
 }
 
-/** Surfaces then the feedback target: the five attachments of the hardware resolve. */
+/** Surfaces then the feedback target, while the pipelines write it (`feedbackVariant.ts`): the
+ *  attachments of the hardware resolve. */
 export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
   const base = surfaceColorAttachments(surfaces);
-  if (rt.feedbackAB?.target === false) return base;
+  if (!rt.vis.writesFeedback) return base;
   withFeedback ??= [...base, feedback];
   feedbackAttachment(rt);
   return withFeedback;

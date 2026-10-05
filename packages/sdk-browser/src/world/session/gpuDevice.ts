@@ -23,7 +23,8 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
 /**
  * The WebGPU device of a session: the optional features the adapter offers, minus those the host
  * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the fallback's proof on
- * a machine that has them), and the adapter's own limits.
+ * a machine that has them), and the adapter's own limits up to what the engine binds
+ * (`WEBGPU_REQUIRED_LIMITS`).
  */
 export async function requestExplorerDevice(
   adapter: GPUAdapter,
@@ -35,9 +36,10 @@ export async function requestExplorerDevice(
   );
   const adapterLimits = adapter.limits;
   const requiredLimits: Record<string, number> = {};
-  for (const name of WEBGPU_REQUIRED_LIMITS) {
+  for (const [name, ceiling] of Object.entries(WEBGPU_REQUIRED_LIMITS)) {
     const value = (adapterLimits as unknown as Record<string, number | undefined>)[name];
-    if (typeof value === 'number' && Number.isFinite(value)) requiredLimits[name] = value;
+    if (typeof value === 'number' && Number.isFinite(value))
+      requiredLimits[name] = Math.min(value, ceiling);
   }
   return adapter.requestDevice({ requiredFeatures: features, requiredLimits });
 }

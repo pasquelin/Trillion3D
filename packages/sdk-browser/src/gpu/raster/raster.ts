@@ -13,6 +13,7 @@ import { RESOLVE, rasterSource } from './shader.ts';
 import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts';
 import { createRasterBindings } from './bindings.ts';
 import { createRasterResolves } from './resolve.ts';
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import type { GpuRasterInput } from './types.ts';
 
 /**
@@ -61,11 +62,13 @@ export function createGpuRaster(
   });
   const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) });
   const computePipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] });
+  // Asked, compiled off the thread from now, the frames held on them: the raster is made at a
+  // frame's entry (`../../webgpu/frame/framePipelines.ts`), and the frame that draws it finds them.
   const pipelineFor = (entryPoint: string) =>
-    device.createComputePipeline({
+    preparedComputePipeline(device, {
       layout: computePipelineLayout,
       compute: { module: computeModule, entryPoint },
-    });
+    }).ask();
   const clear = pipelineFor('clear'),
     bin = pipelineFor('bin'),
     plan = pipelineFor('plan');
@@ -84,7 +87,7 @@ export function createGpuRaster(
     const pass = encoder.beginComputePass({ label });
     pass.setBindGroup(0, group!);
     for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
-      pass.setPipeline(raster[klass]![mode]!);
+      pass.setPipeline(raster[klass]![mode]!.get());
       pass.dispatchWorkgroupsIndirect(indirect, klass * 12);
     }
     pass.end();
@@ -106,11 +109,11 @@ export function createGpuRaster(
         spanZ = Math.ceil(rows / DISPATCH_SPAN);
       const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' });
       binning.setBindGroup(0, group);
-      binning.setPipeline(clear);
+      binning.setPipeline(clear.get());
       binning.dispatchWorkgroups(Math.ceil((width * height) / 64));
-      binning.setPipeline(bin);
+      binning.setPipeline(bin.get());
       binning.dispatchWorkgroups(Math.max(1, Math.ceil(input.maxTriangles / 64)), spanY, spanZ);
-      binning.setPipeline(plan);
+      binning.setPipeline(plan.get());
       binning.dispatchWorkgroups(1);
       binning.end();
       encoder.copyBufferToBuffer(work, listOffset + 24, indirect, 0, DISPATCH_WORDS * 4);

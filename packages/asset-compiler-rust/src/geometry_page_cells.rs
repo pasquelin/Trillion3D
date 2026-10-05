@@ -2,6 +2,7 @@
 
 use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
+use crate::shared_math::word_map;
 use crate::{CompilerError, Result};
 use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
@@ -130,7 +131,7 @@ pub fn first_use<T: Copy + Eq + std::hash::Hash>(
     items: impl ExactSizeIterator<Item = T>,
 ) -> (Vec<T>, Vec<u32>) {
     let mut distinct = Vec::<T>::with_capacity(items.len());
-    let mut rank = std::collections::HashMap::<T, u32>::with_capacity(items.len());
+    let mut rank = word_map::<T, u32>(items.len());
     let ranks = items
         .map(|item| {
             *rank.entry(item).or_insert_with(|| {
@@ -147,7 +148,7 @@ pub fn first_use<T: Copy + Eq + std::hash::Hash>(
 pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
     let bound = indices.len().min(65_535);
     let mut original = Vec::<u32>::with_capacity(bound);
-    let mut remap = std::collections::HashMap::<u32, u32>::with_capacity(bound);
+    let mut remap = word_map::<u32, u32>(bound);
     let mut local = Vec::<u32>::with_capacity(indices.len());
     for &source in indices {
         if source as usize >= vertices {

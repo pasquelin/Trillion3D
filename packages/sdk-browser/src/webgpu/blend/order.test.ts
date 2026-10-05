@@ -5,8 +5,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { orderBlendPasses } from './order.ts';
-import { RUN_WORDS } from './planLayout.ts';
-import { blendSceneOf } from './plan.fixture.ts';
+import { blendSceneOf, paintOutcome } from './plan.fixture.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -23,15 +22,11 @@ function item(z: number, extra: Partial<BlendGpuItem> = {}) {
   } as unknown as BlendGpuItem;
 }
 
-/** Everything a ranking hands the frame: order, runs, mask, reject and water counts. */
+/** Everything a ranking hands the frame: paint order, slots, mask, reject and water counts. */
 function outcome(blendState: BlendState, rejected: number) {
   return {
     rejected,
-    orders: blendState.orders.map((order) => Array.from(order)),
-    runs: blendState.runs.map((runs, pass) =>
-      Array.from(runs.subarray(0, blendState.runCount[pass] * RUN_WORDS)),
-    ),
-    runCount: [...blendState.runCount],
+    ...paintOutcome(blendState),
     keep: Array.from(blendState.keepPacked),
     transmissiveInView: blendState.transmissiveInView,
   };
@@ -117,11 +112,11 @@ test('a frame without an eye resumes ranking when the eye returns', () => {
   rankAgainstFresh(blendState, eye);
 });
 
-test('the first frame with an eye after one without slices the runs again, its order unmoved', () => {
+test('a frame without an eye draws no slot, the next frame with one draws them all again', () => {
   const { blendState, eye } = rankedScene();
-  blendState.orderMoved = [false, false];
+  const slots = [...blendState.runCount];
   orderBlendPasses(blendState, undefined);
+  assert.deepEqual(blendState.runCount, [0, 0], 'no paint order, nothing drawn');
   orderBlendPasses(blendState, eye);
-  assert.ok(blendState.runCount[0] > 0, 'the transparents are drawn again');
-  assert.equal(blendState.orderMoved[0], true, 'the new runs are uploaded');
+  assert.deepEqual(blendState.runCount, slots, 'the transparents are drawn again');
 });

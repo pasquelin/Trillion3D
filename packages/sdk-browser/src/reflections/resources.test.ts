@@ -38,11 +38,12 @@ test('opaque rough history follows reflection ownership while mirrors allocate n
       true,
       rough,
     );
-    assert.equal(reflection.history?.bytes ?? 0, rough ? 64 * 32 * 24 : 0);
+    // Its targets, and the trace's records of its half-resolution texels.
+    assert.equal(reflection.history?.bytes ?? 0, rough ? 64 * 32 * 28 + 32 * 16 * 8 : 0);
     // The rough trace walks a depth-bounds pyramid of its own texture and extents.
-    assert.equal(gpu.textures.length, rough ? 8 : 4);
+    assert.equal(gpu.textures.length, rough ? 11 : 4);
     reflection.dispose();
-    assert.equal(gpu.destroyed.length, rough ? 12 : 6);
+    assert.equal(gpu.destroyed.length, rough ? 15 : 6);
   }
 });
 

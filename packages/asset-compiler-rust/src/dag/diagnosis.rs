@@ -29,7 +29,7 @@ struct Census {
 /// carries no texture set: no position is then a seam corner, and islands are position-connected.
 fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
     // Per position: the first (position, texture coordinate) copy seen, seam, locked.
-    let mut positions: HashMap<u32, (u32, bool, bool)> = HashMap::new();
+    let mut positions: WordMap<u32, (u32, bool, bool)> = WordMap::default();
     for &vertex in live {
         let copy = input.weld_seam[vertex as usize];
         let locked = input.locks[vertex as usize];
@@ -39,10 +39,7 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
         entry.1 |= entry.0 != copy;
     }
     let islands = super::texture::copy_islands(input.weld_seam, live);
-    let islands = islands
-        .values()
-        .collect::<std::collections::HashSet<_>>()
-        .len();
+    let islands = islands.values().collect::<WordSet<_>>().len();
     let seam = positions.values().filter(|p| p.1).count();
     let locked = positions.values().filter(|p| p.2).count();
     Census {

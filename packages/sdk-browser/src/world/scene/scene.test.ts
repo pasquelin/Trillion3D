@@ -16,7 +16,7 @@ import type { ClusterManifest, Page, Primitive } from '../../../../sdk-core/src/
 // Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed
 // walk. `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`
 // (./pagesBounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
-// `find` returned before batch F. The oracles are copied as-is in `oracles/scene-chargement.ts`.
+// `find` returned before batch F. The oracles are copied as-is in `bench/oracles/browser/bounds-and-index.ts`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page;
   if (geometryUrl)
@@ -94,9 +94,9 @@ test('pagesBounds yields the same box as the reference, a « coarse » page excl
 });
 
 // Batch M4a: `pagesBounds` now computes via core `boxTransform`/`boxUnion` instead of
-// `Box3.applyMatrix4`/`union`. Bit-exact on hostile matrices — negative scale, shear, singular
+// the host box's transform and union. Bit-exact on hostile matrices — negative scale, shear, singular
 // matrix, NaN — and a depth-3 hierarchy.
-test('pagesBounds agrees with the reference on hostile matrices, depth-3 hierarchy', () => {
+test('pagesBounds agrees with an independent computation on hostile matrices, depth-3 hierarchy', () => {
   const geometry = new G.Geometry();
   const racine = new G.Group();
   racine.scale.set(-3, 1, 1); // negative scale

@@ -3,11 +3,12 @@ import {
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
+  slerpQuaternion,
 } from '../../math/matrix/quaternion.ts';
 import { writeRotationQuaternion } from '../../math/matrix/matrix4Trs.ts';
 import { ObservedComponents } from './observed.ts';
 import type { EulerLike, XYZLike as V, XYZWLike as Q } from './likes.ts';
-import { hypot3 } from '../../math/primitives/hypot.ts';
+import { hypot3, hypot4 } from '../../math/primitives/hypot.ts';
 
 const other = new Float64Array(4),
   axis = new Float64Array(3),
@@ -78,7 +79,11 @@ export class Quaternion extends ObservedComponents {
   /** From the upper 3×3 of a column-major matrix whose columns are unit length. */
   setFromRotationMatrix(m: { elements: ArrayLike<number> }) {
     const e = m.elements;
-    rows.set([e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]]);
+    for (let row = 0; row < 3; row++) {
+      rows[row * 3] = e[row];
+      rows[row * 3 + 1] = e[row + 4];
+      rows[row * 3 + 2] = e[row + 8];
+    }
     writeRotationQuaternion(other, rows);
     return this.written(other);
   }
@@ -122,7 +127,7 @@ export class Quaternion extends ObservedComponents {
   }
   /** The size of the four numbers together. */
   length() {
-    return Math.hypot(this.x, this.y, this.z, this.w);
+    return hypot4(this.x, this.y, this.z, this.w);
   }
   /** Scales the numbers to size 1, a pure rotation. */
   normalize() {
@@ -135,23 +140,9 @@ export class Quaternion extends ObservedComponents {
   }
   /** Spherical interpolation towards `q`, along the shorter arc. */
   slerp(q: Q, t: number) {
-    let cos = this.dot(q);
-    const sign = cos < 0 ? -1 : 1;
-    cos *= sign;
-    const angle = Math.acos(Math.min(1, cos)),
-      sin = Math.sin(angle);
-    // Nearly aligned: the arc is a line, and the normalised lerp is exact to rounding.
-    const [wa, wb] =
-      sin < 1e-6
-        ? [1 - t, t * sign]
-        : [Math.sin((1 - t) * angle) / sin, (Math.sin(t * angle) / sin) * sign];
-    this.set(
-      this.x * wa + q.x * wb,
-      this.y * wa + q.y * wb,
-      this.z * wa + q.z * wb,
-      this.w * wa + q.w * wb,
-    );
-    return sin < 1e-6 ? this.normalize() : this;
+    const line = slerpQuaternion(other, this.elements, 0, load(turn, q), 0, t);
+    this.written(other);
+    return line ? this.normalize() : this;
   }
   /** Whether two quaternions hold the same numbers. */
   equals(q: Q) {

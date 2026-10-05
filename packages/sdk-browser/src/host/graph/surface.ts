@@ -4,8 +4,8 @@
  *
  * The shapes are those the engine reads (`../resources.ts`, `../shadedMaterial.ts`,
  * `../../scene/physicalMaterialGate.ts`): every field the import, the admission gate and the
- * surface record read is present, at the value the reference holds when a scene leaves it
- * unsaid, so a field is never read as missing where the reference had a default. The constants
+ * surface record read is present, at its default value when a scene leaves it
+ * unsaid, so a field is never read as missing where a default exists. The constants
  * are the engine's named ones (`../surfaceConstants.ts`); the colours and vectors the core's.
  */
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
@@ -15,7 +15,7 @@ import { coloured, extensions, glow, metalRough, raster, relief } from './surfac
 
 /**
  * The families a surface is declared in: a scene's unlit, standard and physical ones, and the
- * others a world draws — each with the fields the reference gives it. The surface model reads the
+ * others a world draws — each with the fields it carries. The surface model reads the
  * family itself (`../../scene/surfaceModel.ts`).
  */
 const FAMILIES = {
@@ -57,7 +57,7 @@ function assign(surface: GraphSurface, key: string, value: unknown) {
 }
 
 /**
- * A surface: the parameters of one family, at the reference's values unless the scene said
+ * A surface: the parameters of one family, at its default values unless the scene said
  * otherwise. Its version is bumped by `needsUpdate`, which every reader compares.
  */
 export class GraphSurface extends Releasable {
@@ -71,7 +71,7 @@ export class GraphSurface extends Releasable {
   userData: Record<string, unknown> = {};
   /** What the resource is; `family` says which surface. */
   readonly kind = 'surface' as const;
-  // The raster state every family carries, set by `raster` at the reference's values.
+  // The raster state every family carries, set by `raster` at its default values.
   /** Whether it is drawn. */
   declare visible: boolean;
   /** Which faces, as the host's constant. */

@@ -6,6 +6,10 @@ export interface SceneLink {
   /** Many nodes moved at once, written straight into their tree (the physics' bodies): told once. */
   posed(nodes: readonly Object3D[]): void;
   /** A node gained or lost children. */ structure(node: Object3D): void;
+  /** A node entered this world: told once for each node of the subtree an add brings in, so one
+   *  that left and came back in the same burst has its children read again — those it gained while
+   *  out of the world included. A node the world never knew is read with its parent. */
+  entered?(node: Object3D): void;
   /** A node's shape or material changed. */ content(node: Object3D): void;
   /** A node's `castShadow` changed: nothing moved. */ shadow?(node: Object3D): void;
   /**

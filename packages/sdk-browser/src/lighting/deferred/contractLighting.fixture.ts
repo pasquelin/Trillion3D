@@ -2,37 +2,44 @@ import { createDeferredLighting } from './deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-/** One render pass an encoder began: its descriptor, the pipeline it set, its draws. */
+/** One pass an encoder began: its descriptor — a compute pass's, its label alone —, the pipeline it
+ *  set, its draws (a compute pass's dispatches, their workgroups each). */
 interface PassRecord {
   descriptor: GPURenderPassDescriptor;
-  pipeline?: GPURenderPipeline;
+  pipeline?: GPURenderPipeline | GPUComputePipeline;
   draws: number[];
   ended: boolean;
 }
 
-/** A fake device and an encoder that records every render pass it begins, with a surface whose
+/** A fake device and an encoder that records every pass it begins, with a surface whose
  *  views stay stable, as a real surface keeps: a composition is keyed by the flags view it reads. */
 export function gpuHarness() {
   const { device, buffers, writes, destroyed, bindGroups } = fakeDevice();
   const passes: PassRecord[] = [];
+  const begin = (descriptor: PassRecord['descriptor']) => {
+    const record: PassRecord = { descriptor, draws: [], ended: false };
+    passes.push(record);
+    return {
+      setPipeline(pipeline: PassRecord['pipeline']) {
+        record.pipeline = pipeline;
+      },
+      setBindGroup() {},
+      setViewport() {},
+      draw(vertices: number) {
+        record.draws.push(vertices);
+      },
+      dispatchWorkgroups(x: number, y = 1) {
+        record.draws.push(x * y);
+      },
+      end() {
+        record.ended = true;
+      },
+    };
+  };
   const encoder = {
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      const record: PassRecord = { descriptor, draws: [], ended: false };
-      passes.push(record);
-      return {
-        setPipeline(pipeline: GPURenderPipeline) {
-          record.pipeline = pipeline;
-        },
-        setBindGroup() {},
-        setViewport() {},
-        draw(vertices: number) {
-          record.draws.push(vertices);
-        },
-        end() {
-          record.ended = true;
-        },
-      };
-    },
+    beginRenderPass: begin,
+    beginComputePass: ({ label }: GPUComputePassDescriptor = {}) =>
+      begin({ label, colorAttachments: [] }),
   } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView;
   const surfaceViews = [view(), view(), view(), view()],

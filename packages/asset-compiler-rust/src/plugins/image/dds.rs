@@ -1,11 +1,8 @@
-//! DDS driver (DirectDraw Surface), read from Microsoft's public specification
-//! "DDS — Programming Guide" (`DDS_HEADER`, `DDS_PIXELFORMAT`, `DDS_HEADER_DXT10`,
-//! `DXGI_FORMAT` enumeration), written by hand from that documentation: no vendor SDK or code.
-//! Compressed blocks are expanded by the `texture2ddecoder` 0.1.2 crate (MIT or Apache-2.0,
-//! `UniversalGameExtraction/texture2ddecoder`, pure Rust, notices kept with the dependency).
+//! DDS driver (DirectDraw Surface): the header, the pixel format and the DXT10 extension are
+//! parsed by hand. Compressed blocks are expanded by the `texture2ddecoder` crate.
 //!
 //! **No extra loss is added.** A BCn DDS has already lost what it had to lose at its encoder;
-//! the driver only does the integer interpolation the specification defines, block by block,
+//! the driver only does the integer interpolation the codec defines, block by block,
 //! with no filter, no extra rounding, no re-encoding. The source file is never modified.
 //!
 //! **Decoding is a fallback, not the destination.** The repository rule is that a texture

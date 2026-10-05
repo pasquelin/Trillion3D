@@ -1,3 +1,4 @@
+import { vsmSubmitted } from './vsm/vsmFrameEnd.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { viewProj } from '../helpers.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
@@ -11,10 +12,10 @@ const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
     : device.createCommandEncoder();
 
-/** Whether this image's texture feedback is read back: not a capture's, nor the feedback A/B's arm
- *  without it. Every pass that writes the feedback counters asks it (#1016). */
-export const feedbackPublished = (rt: WebgpuPagesCore) =>
-  !rt.capture.capturing && rt.feedbackAB?.target !== false;
+/** Whether this image's texture feedback is read back: not a capture's, nor an image without the
+ *  target — a scene that wears no texture, the feedback A/B's arm without it. The reduction, its
+ *  copy and the readback's mapping all ask it (#1016). */
+const feedbackPublished = (rt: WebgpuPagesCore) => !rt.capture.capturing && !!rt.gpu.feedbackView;
 
 /** The image's own command buffer when one is open, a fresh one otherwise. */
 export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
@@ -22,19 +23,6 @@ export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
 
 export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = newEncoder(rt, device));
-
-/** The light cuts' requests and the shading's page requests rode in the image's command buffer:
- *  read them, or give their slots back. */
-function settleShadowRequests(rt: WebgpuPagesCore, submitted: boolean) {
-  const { timing } = rt;
-  const cuts = timing.shadowRequests,
-    redraws = timing.shadowRedraws,
-    pages = timing.shadowPageRequests;
-  timing.shadowRequests = timing.shadowRedraws = timing.shadowPageRequests = undefined;
-  cuts?.(submitted);
-  redraws?.(submitted);
-  pages?.(submitted);
-}
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
@@ -44,7 +32,6 @@ export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const settle = timing.frameSelection;
   timing.frameSelection = undefined;
   settle?.(false);
-  settleShadowRequests(rt, false);
   timing.gpuTiming?.cancelUnsubmitted();
 }
 
@@ -68,7 +55,8 @@ export function submitColorCopy(
   const owned = encoder === timing.frameEncoder;
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
   // reduced to counts, copied to their readback then zeroed.
-  if (!capture.capturing && gpu.feedbackView)
+  const published = feedbackPublished(rt);
+  if (published)
     rt.vis.textures?.publishRequests(
       encoder,
       run.feedbackWritten ? gpu.feedbackView : undefined,
@@ -84,13 +72,9 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
-  if (feedbackPublished(rt)) rt.vis.textures?.feedback.submitted();
-  // Same for the far-shadow counts: their copy is mapped only once submitted.
-  rt.sunFar.gpu?.submitted();
-  rt.lights.cull?.counts.submitted();
-  rt.lights.occlusion?.counts.submitted();
+  if (published) rt.vis.textures?.feedback.submitted();
   rt.lights.tiles?.submitted();
-  settleShadowRequests(rt, true);
+  vsmSubmitted(rt);
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw (#198).
   rt.layout.rows.rowsChanged = false;
@@ -133,7 +117,6 @@ export function submitColorCopy(
       drawCalls: run.gpuDrawCalls,
       renderScale: rt.scale.drawn,
       scaleSteered: rt.scale.steered,
-      scaleStill: rt.scale.still,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });

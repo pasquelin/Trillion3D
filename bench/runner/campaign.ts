@@ -56,8 +56,7 @@ math-wasm | batched math forced to WebAssembly | TWO_VIEWS --pixelError 1 MOVING
 lights-4 | four point lights with shadows, plus the sun | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
 lights-4-no-shadows | four point lights and sun with no shadows: map cost by difference | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --shadows off
 lights-16 | sixteen point lights with shadows | TWO_VIEWS --pixelError 1 MOVING FULL --lights 16
-moving-light | locked camera, one moving light: cost of a shadow that redraws | --views ground --pixelError 1 --sun --lights 4 --moving-light --shadow-digest FULL
-shadow-pages-off | same, full shadow face: atlas identity gate | --views ground --pixelError 1 --sun --lights 4 --moving-light --shadow-digest --shadow-pages off FULL
+moving-light | locked camera, one moving light: cost of a shadow that redraws | --views ground --pixelError 1 --sun --lights 4 --moving-light FULL
 bounce | bounce lighting on | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --bounce on
 instances-4 | four copies of the model | --views overview --pixelError 1 MOVING FULL --instances 4
 instances-12 | twelve copies of the model | --views overview --pixelError 1 MOVING FULL --instances 12

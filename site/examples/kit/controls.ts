@@ -57,7 +57,7 @@ function labelFor(key: string) {
 /** Reads the declared specs into the controls to draw and the values they start at. Labels,
  * choices and notes read in the page's language (`<id>.controls.<key>`,
  * `<id>.choices.<key>.<value>`); the values stay the declared identifiers. */
-export function describe(specs: Record<string, ControlSpec>) {
+function describe(specs: Record<string, ControlSpec>) {
   const controls: Control[] = [];
   const values: Record<string, number | string | boolean> = {};
   for (const [key, spec] of Object.entries(specs)) {
@@ -89,7 +89,7 @@ export function describe(specs: Record<string, ControlSpec>) {
 }
 
 /** A slider's value as printed beside it: as many decimals as its step carries, three at most. */
-export function printed(value: number, step: number): string {
+function printed(value: number, step: number): string {
   let decimals = 0;
   while (decimals < 3 && Math.abs(step * 10 ** decimals - Math.round(step * 10 ** decimals)) > 1e-9)
     decimals++;

@@ -4,7 +4,6 @@ import type { PageRec } from '../page/selection/selection.ts';
 import { createDeformationFrame, type DeformedMesh } from './frame.ts';
 import { placementDeformation } from './placementSource.ts';
 import { deformedOf } from './source.ts';
-import type { HostWorldPlacements } from '../host/world/placements.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import { createDeformationSkip } from './screen.ts';
@@ -17,7 +16,6 @@ import { createDeformationSkip } from './screen.ts';
  */
 export function createSessionDeformation(
   roots: readonly ClusterRoot<PageRec>[],
-  worlds: Pick<HostWorldPlacements, 'of'>,
   copies: readonly BlendCopy[] = [],
 ) {
   const capacities: Parameters<typeof placementDeformation>[2] = new Map();
@@ -28,11 +26,7 @@ export function createSessionDeformation(
   ) => {
     if (!source) return null;
     const { mesh, capacity } = placementDeformation(owner.placement, source, capacities);
-    const deformed = deformedOf(mesh, owner, world, capacity);
-    // Imported bones live in the indexed host tree; page-authored bones use the world's own tree.
-    if (deformed && mesh.skeleton && !owner.placement?.rows.sources)
-      deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
-    return deformed;
+    return deformedOf(mesh, owner, world, capacity);
   };
   const frame = createDeformationFrame([
     ...roots.map((root) =>

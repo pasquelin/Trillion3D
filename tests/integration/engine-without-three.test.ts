@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { AUTORISES, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts';
+import { BENCH_READS_DECLARATION, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts';
 
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 const root = new URL('../../', import.meta.url);
@@ -74,7 +74,7 @@ async function toutesSources(): Promise<Array<[string, URL]>> {
 async function horsListe(motif: RegExp, exclu = ''): Promise<string[]> {
   const fuites: string[] = [];
   for (const file of await sources()) {
-    if (file === exclu || AUTORISES[file.slice(0, -3)]) continue;
+    if (file === exclu) continue;
     if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
   }
   return fuites;
@@ -108,13 +108,6 @@ test('only the declared boundary files cross back through `asHostLibrary`', asyn
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
-// Since #275 the witnesses live beside the bench: the list holds test mounts alone, which the
-// package's `files` never ship, and no other package names the host library at all.
-test('the closed list holds test mounts only', () => {
-  const autres = Object.keys(AUTORISES).filter((nom) => !nom.endsWith('.fixture'));
-  assert.deepEqual(autres, [], 'a witness belongs in `bench/witnesses/`, not in the package');
-});
-
 test('no source of any other package imports the host library', async () => {
   const packages = new URL('../../packages/', import.meta.url);
   const fuites: string[] = [];
@@ -127,19 +120,6 @@ test('no source of any other package imports the host library', async () => {
   assert.deepEqual(fuites, [], 'the published packages name no host library');
 });
 
-test('no dead lines: each declared file exists and still imports', async () => {
-  const fichiers = new Set(await sources());
-  const morts = [];
-  for (const [nom, raison] of Object.entries(AUTORISES)) {
-    const file = `${nom}.ts`;
-    assert.ok(raison.length > 10, `${file} must say why`);
-    if (!fichiers.has(file)) morts.push(`${file} no longer exists`);
-    else if (!NAMES_THREE.test(await readFile(new URL(file, browser), 'utf8')))
-      morts.push(`${file} no longer imports the host library: remove its line`);
-  }
-  assert.deepEqual(morts, [], 'an unused authorisation is removed from the list');
-});
-
 test('only the declared files read the host declaration a page was collected from', async () => {
   const fuites: string[] = [],
     morts: string[] = [];
@@ -150,7 +130,7 @@ test('only the declared files read the host declaration a page was collected fro
   );
   for (const [file, url] of fichiers)
     if (litLaDeclaration(await readFile(url, 'utf8'))) {
-      if (!DECLARATION[file.slice(0, -3)]) fuites.push(file);
+      if (!DECLARATION[file.slice(0, -3)] && !BENCH_READS_DECLARATION.test(file)) fuites.push(file);
     } else if (DECLARATION[file.slice(0, -3)]) morts.push(file);
   assert.deepEqual(
     fuites,

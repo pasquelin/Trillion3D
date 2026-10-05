@@ -92,6 +92,7 @@ export function writeFloatAtlas(
 }
 
 /** `fn name(i:u32)->f32`: float `i` of the atlas bound as `texture` (`texture_2d_array<f32>`),
- *  its row width read from the texture. */
+ *  its row width read from the texture. The layer is the row's quotient by the constant
+ *  `FLOAT_ATLAS_ROWS`, not a second division by the width: `⌊⌊i/w⌋/rows⌋ = ⌊i/(w·rows)⌋`. */
 export const floatAtlasWgsl = (texture: string, name: string) =>
-  `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;return textureLoad(${texture},vec2u(i%w,(i/w)%${FLOAT_ATLAS_ROWS}u),i/(w*${FLOAT_ATLAS_ROWS}u),0).r;}`;
+  `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;let row=i/w;return textureLoad(${texture},vec2u(i%w,row%${FLOAT_ATLAS_ROWS}u),row/${FLOAT_ATLAS_ROWS}u,0).r;}`;

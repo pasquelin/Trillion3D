@@ -1,8 +1,9 @@
 /**
- * THE LINEARLY TRANSFORMED COSINES OF THE ENGINE'S SPECULAR LOBE — fitted, never copied.
+ * The linear transform of a cosine lobe that matches the engine's GGX lobe, 64 × 64 over roughness
+ * and view angle, fitted by a downhill simplex search minimising the cubed difference of the
+ * lobes' densities.
  *
- * Heitz, Dupuy, Hill and Neubelt 2016, "Real-time polygonal-light shading with linearly
- * transformed cosines": the GGX lobe times the cosine, for one roughness and one view angle, is
+ * The GGX lobe times the cosine, for one roughness and one view angle, is
  * approximated by a clamped cosine seen through a 3×3 matrix M. Integrating the lobe over a
  * polygon is then integrating a clamped cosine over the polygon moved by M⁻¹ — a form factor,
  * in closed form. This file fits M, cell by cell, to the engine's OWN lobe: `standardLighting`'s
@@ -12,8 +13,9 @@
  * that takes z to the lobe's mean direction times [[p0, 0, p2], [0, p1, 0], [0, 0, 1]]; the
  * three parameters minimise the cubed difference between the normalised lobe and the
  * transformed cosine, estimated on stratified samples of both (balance heuristic), by
- * Nelder–Mead started from the neighbouring cell. A cell also records the lobe's magnitude
- * ∫ρ·cos and its Schlick share ∫ρ·cos·(1 − v·h)⁵, which the shading weighs by F0.
+ * a simplex search (reflect, expand, contract, shrink the worst of four points) started from the
+ * neighbouring cell. A cell also records the lobe's magnitude
+ * ∫ρ·cos and its Fresnel share ∫ρ·cos·(1 − v·h)⁵, which the shading weighs by F0.
  *
  * Everything is derived: the lobe is the engine's, the tolerances are float resolutions, and
  * the sample counts only set the fit's precision, which `ltcTable.ts` records with the table.
@@ -129,7 +131,7 @@ function fitError(v: V3, alpha: number, norm: number, t: Ltc, points: [number, n
 /**
  * The table: `size × size` cells, roughness along the row (0 to 1) and √(1 − cos θ_v) down the
  * columns, each two vec4 — M⁻¹'s free entries over its middle one (m00, m02, m20, m22), then the
- * lobe's magnitude and Schlick share. `side` is the per-axis count of the stratified samples.
+ * lobe's magnitude and Fresnel share. `side` is the per-axis count of the stratified samples.
  */
 export function fitLtcTable(size: number, side: number) {
   const table = new Float32Array(size * size * 8);

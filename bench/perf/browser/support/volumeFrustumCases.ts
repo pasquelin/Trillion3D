@@ -7,8 +7,8 @@ import {
   clipPlanesFromMatrix,
   frustumClipBox,
   frustumExcludesBox,
-  frustumPlanesToLocal,
 } from '../../../../packages/sdk-core/src/index.ts';
+import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts';
 import type { MesureCas } from '../../../core/index.ts';
 import { boitesDeVue, casCones, matrices, vuesProjections } from './scenesVolumes.ts';
 import type { ConeCase, ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts';
@@ -43,24 +43,20 @@ interface LocalPlaneCase {
 }
 
 /** Single-precision planes of the selection uniforms, brought under each placement. */
-const locaux = (
-  views: { vp: number[]; webgpu: boolean }[],
-  mondes: number[][],
-  pas: number,
-): LocalPlaneCase[] =>
-  views.flatMap(({ vp, webgpu }, v) =>
+const locaux = (views: { vp: number[] }[], mondes: number[][], pas: number): LocalPlaneCase[] =>
+  views.flatMap(({ vp }, v) =>
     mondes
       .filter((_, j) => j % pas === v % pas)
-      .map((m) => ({ planes: plans(vp, webgpu, Float32Array), m })),
+      .map((m) => ({ planes: plans(vp, Float32Array), m })),
   );
 
 /** Equivalence lines of the frustum and the cone, without timer options. */
 // The Three oracle of these three computations predates the reversed-depth convention
 // (reversed Z, infinite far plane): it no longer describes the same output. Their
-// correctness is held by `packages/sdk-core/src/math/frustum/frustum.test.ts` and `packages/sdk-core/src/math/frustum/box.test.ts`, and the bench
+// correctness is held by `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `bench/witnesses/three/parity/core/math/frustum/box.test.ts`, and the bench
 // line publishes it.
 const Z_INVERSE =
-  'Three oracle from before reversed Z — correctness in packages/sdk-core/src/math/frustum/frustum.test.ts';
+  'Three oracle from before reversed Z — correctness in bench/witnesses/three/parity/core/math/frustum/frustum.test.ts';
 
 export const casTronc: CasVolume[] = [
   casVolume({
@@ -74,7 +70,7 @@ export const casTronc: CasVolume[] = [
       vuesHierarchiques,
     ),
     optimisee: (liste: ViewProjectionCase[]) =>
-      liste.flatMap(({ vp, webgpu }) => [plans(vp, webgpu), plans(vp, webgpu, Float32Array)]),
+      liste.flatMap(({ vp }) => [plans(vp), plans(vp, Float32Array)]),
   }),
   casVolume({
     calcul: 'raw planes of a clip matrix',
@@ -104,8 +100,8 @@ export const casTronc: CasVolume[] = [
       boitesDeVueHierarchiques,
     ),
     optimisee: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, webgpu, boite: b }) =>
-        frustumExcludesBox(plans(vp, webgpu), b[0], b[1], b[2], b[3], b[4], b[5]),
+      liste.map(({ vp, boite: b }) =>
+        frustumExcludesBox(plans(vp), b[0], b[1], b[2], b[3], b[4], b[5]),
       ),
   }),
   casVolume({
@@ -118,21 +114,21 @@ export const casTronc: CasVolume[] = [
       boitesDeVueHierarchiques,
     ),
     reference: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, webgpu, boite: b }) => {
+      liste.map(({ vp, boite: b }) => {
         const brut = new Float64Array(24);
         clipPlanesFromMatrix(brut, vp);
         return [
           referenceBoxClip(reordonne(brut), b[0], b[1], b[2], b[3], b[4], b[5]),
-          referenceBoxClip(reordonne(plans(vp, webgpu)), b[0], b[1], b[2], b[3], b[4], b[5]),
+          referenceBoxClip(reordonne(plans(vp)), b[0], b[1], b[2], b[3], b[4], b[5]),
         ];
       }),
     optimisee: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, webgpu, boite: b }) => {
+      liste.map(({ vp, boite: b }) => {
         const brut = new Float64Array(24);
         clipPlanesFromMatrix(brut, vp);
         return [
           frustumClipBox(brut, b[0], b[1], b[2], b[3], b[4], b[5]),
-          frustumClipBox(plans(vp, webgpu), b[0], b[1], b[2], b[3], b[4], b[5]),
+          frustumClipBox(plans(vp), b[0], b[1], b[2], b[3], b[4], b[5]),
         ];
       }),
   }),

@@ -25,6 +25,7 @@ const frame: PartitionFrame = {
   layerTop: 0,
   hasRest: false,
   viewMoved: true,
+  counting: false,
 };
 
 /**
@@ -33,9 +34,10 @@ const frame: PartitionFrame = {
  * Nothing there walks resident rows on the CPU any more: neither projecting boxes into screen
  * rectangles, nor splitting the two halves, nor preparing the Hi-Z test bounds. The image has already
  * uploaded the corners the table had just changed — and those only, before `uploadDirtyRows` closed
- * that range (`uploadRowCorners`). All that remains here is writing one uniform and two compute
- * dispatches whose count depends only on the row count. Nothing is reread: what the partition decided
- * comes back through the periodic sample.
+ * that range (`uploadRowCorners`). All that remains here is writing one uniform; its three compute
+ * dispatches, whose count depends only on the row count, open the frame's partition pass
+ * (`GpuPartition.encode`). Nothing is reread: what the partition decided comes back through the
+ * periodic sample.
  *
  * The matrices come from the ENGINE camera, which image entry has already filled from the pose
  * contract (`../../camera/world.ts`): view and view-projection are posted there once for the whole image, in
@@ -81,9 +83,11 @@ export function encodeWebgpuPartition(
   // A moved view, a moved world or a dropped history free the rows the test kept: what stood
   // still no longer does, and each of them may leave the occluders again.
   frame.viewMoved = run.hizViewMoved || run.noOccluderHistory;
-  partition.encode(encoder, frame);
+  // The sampled frame: its kernels count, and its counters are copied (`encodeCounts`).
+  frame.counting = partition.countsDue(run.frame);
+  partition.beginFrame(encoder, frame);
   run.noOccluderHistory = false;
-  // What encoding the partition costs the CPU: one uniform and two dispatches, never a resident
+  // What encoding the partition costs the CPU: one uniform and three dispatches, never a resident
   // row. Projection and the split have no CPU bound left at all.
   timing.lastPartitionMs = performance.now() - start;
   // The image's counts are those the GPU wrote, reread one image in fifteen. They therefore describe

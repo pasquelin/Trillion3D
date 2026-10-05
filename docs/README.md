@@ -16,7 +16,7 @@ camera, the renderer and the loop.
 | [Physics](PHYSICS.md) | Jolt in the world: bodies, joints, vehicles, soft bodies, budgets, compiled colliders, exact raycast |
 | [Engine internals](ENGINE.md) | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages |
 | [Residency](RESIDENCY.md) | What stays in memory: the cut rule, the geometry pool, out-of-memory answers, coverage counters, virtual textures |
-| [Shadows](SHADOWS.md) | Virtual shadow pages: the pool, its memory, clipmaps, invalidation, the static and transmittance layers, metrics |
+| [Shadows](SHADOWS.md) | Virtual shadow maps: the page pool, its memory, clipmaps, one frame's passes, the static slice, the transmission atlas, metrics |
 | [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format |
 | [Compiler message codes](COMPILER_ERRORS.md) | Every message of the compiler and its Node adapter: public code, sentence, cause, action, one page per code |
 | [Cache format](FORMAT.md) | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables |
@@ -24,7 +24,6 @@ camera, the renderer and the loop.
 | [Tests and benchmarks](TESTS.md) | Test layout, GPU proofs, performance benchmarks, quality gates |
 | [Format fixtures](../tests/fixtures/formats/README.md) | The compiler's test inputs, one section per format: content, provenance, licence |
 | [Measurement harness](../bench/runner/README.md) | The bench, its options, the witnesses, the published reports |
-| [The reference in numbers](REFERENCE.md) | The reference's published constants, bytes per triangle and profile, against ours |
 | [Contributing](../CONTRIBUTING.md) | Engineering rules, measurement rules, the contribution workflow |
 
 Anything not described here is not part of the release. Open tasks are the

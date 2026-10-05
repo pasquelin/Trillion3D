@@ -81,7 +81,8 @@ const runtimeOf = (
   ({
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
     ...{ run: { lost: false, gate, temporalHizState: {} } },
-    layout: { selectionRoots },
+    // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
+    layout: { selectionRoots, rows: { rowOfPage: [], blendRowOf: [] } },
   }) as unknown as WebgpuPagesRuntime;
 
 test('a rewrite lands in its pool block alone and stales only its own shadow pages', () => {
@@ -94,6 +95,7 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   const roots = [0, 50].map((x, i) => ({
     pages: [{ attributes: attributes[i] }],
     world: new Matrix4().makeTranslation(x, 0, 0),
+    reach: undefined as number | undefined,
   }));
   const mobility = createShadowMobility();
   mobility.ensure(2, 4, (rank) => roots[rank].world.elements);
@@ -101,13 +103,16 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   const worldChanged = (min: number[], max: number[], moving: boolean) =>
     void staled.push([[...min, ...max], moving]);
   const api = webgpuVertexApi(
-    runtimeOf(pool, device, new Map(), roots, { mobility, plan: { worldChanged } }),
+    runtimeOf(pool, device, new Map(), roots, { mobility, changes: { worldChanged } }),
   );
   wave.attributes.position.setZ(1, 0.25);
   const box = Float64Array.of(0.5, -0.5, 0, 0.5, -0.5, 0.25);
+  const reach = 0.25; // the vertex lies that far from where it rested (`createPageMotion`)
   writes.length = 0;
   for (let frame = 0; frame < 2; frame++)
-    assert.ok(api.updateVertices(attributes[0], [{ name: 'position', from: 1, count: 1 }], box));
+    assert.ok(
+      api.updateVertices(attributes[0], [{ name: 'position', from: 1, count: 1 }], box, reach),
+    );
   assert.equal(block.vertexBase, 4, 'placed after the rock');
   assert.deepEqual(writes[0].slice(1), [(4 + 1) * 12, [0.5, -0.5, 0.25]], 'one vertex written');
   assert.deepEqual(
@@ -119,6 +124,8 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
     'its moved box alone: whole on the first rewrite, its moving casters after',
   );
   assert.deepEqual([mobility.moves(0), mobility.moves(1)], [true, false], 'the rock stays static');
+  const reaches = roots.map((root) => root.reach);
+  assert.deepEqual(reaches, [reach, undefined], 'the reach is its own too');
 });
 
 test('content mounted after the open grows the pool in place: it is drawn, never reopened', () => {
@@ -130,7 +137,7 @@ test('content mounted after the open grows the pool in place: it is drawn, never
   const api = webgpuVertexApi(runtimeOf(pool, device, new Map()));
   const box = new Float64Array(6),
     range: VertexRange[] = [{ name: 'position', from: 0, count: 1 }];
-  assert.ok(api.updateVertices(sheet(), range, box), 'grown in place, not refused');
+  assert.ok(api.updateVertices(sheet(), range, box, 0), 'grown in place, not refused');
   assert.ok(copies.length > 0, 'what the pool held copied into the wider buffers');
 });
 
@@ -141,12 +148,12 @@ test('a block a rewritten mesh holds survives a growth: written at the same plac
   const api = webgpuVertexApi(runtimeOf(pool, device, new Map()));
   const box = new Float64Array(6),
     range: VertexRange[] = [{ name: 'position', from: 1, count: 1 }];
-  assert.ok(api.updateVertices(held, range, box), 'the dynamic mesh placed and written');
+  assert.ok(api.updateVertices(held, range, box, 0), 'the dynamic mesh placed and written');
   const before = writes.at(-1)!;
   // A record mounted after the open, past the room kept: the pool grows in place.
   const mounted = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes;
-  assert.ok(api.updateVertices(mounted, range, box), 'the mount grown in place');
-  assert.ok(api.updateVertices(held, range, box), 'the held mesh written again, not reopened');
+  assert.ok(api.updateVertices(mounted, range, box, 0), 'the mount grown in place');
+  assert.ok(api.updateVertices(held, range, box, 0), 'the held mesh written again, not reopened');
   const after = writes.at(-1)!;
   assert.equal(after[1], before[1], 'the same block offset: the held box survived');
   assert.notEqual(after[0], before[0], 'into the wider buffer the growth made');
@@ -165,7 +172,7 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent, positio
   const ranges: VertexRange[] = [position, { name: 'normal', from: 0, count: 1 }];
   const weighed = api.vertexBytes(attributes, ranges);
   writes.length = 0;
-  assert.ok(api.updateVertices(attributes, ranges, new Float64Array(6)));
+  assert.ok(api.updateVertices(attributes, ranges, new Float64Array(6), 0));
   const sent = writes.reduce((bytes, [, , floats]) => bytes + floats.length * 4, 0);
   assert.equal(weighed, sent, 'what is weighed is what is sent');
   assert.equal(weighed, 2 * 12 * 2 + 7 * 4, 'two positions twice, one normal and its tangent');
@@ -183,7 +190,7 @@ test('a rewrite breaks the held image but moves no pose: the next image walks no
   for (let frame = 0; frame < 3; frame++) {
     const scene = gate.revisions.scene;
     const range = { name: 'position', from: 0, count: 1 } as const;
-    assert.ok(api.updateVertices(attributes, [range], new Float64Array(6)));
+    assert.ok(api.updateVertices(attributes, [range], new Float64Array(6), 0));
     assert.ok(gate.revisions.scene > scene, `frame ${frame}: the held image is broken`);
     assert.equal(gate.updateWorlds(worlds as never), false, `frame ${frame}: no world walked`);
   }

@@ -1,12 +1,14 @@
+import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts';
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts';
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts';
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { directLightingWgsl } from '../direct/lightingWgsl.ts';
-import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { ALL_SHADOW_KINDS, type ShadowKinds } from '../direct/shadowKinds.ts';
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
+  BOUNCE_SURFACE_FIELDS_WGSL,
   DIRECT_REFLECTION_WGSL,
   MIRROR_LIGHTING_WGSL,
   bounceReflectionWgsl,
@@ -14,15 +16,12 @@ import {
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
-
-export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
-/** Last link of every composition: linear radiance carried into display space. */
-export const SRGB_WGSL = `
-fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
+import { SRGB_ENCODE_WGSL } from '../../texture/srgbEncode.ts';
+export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY_WGSL},0.0,1.0);}`;
 /** View uniform, shared by both programs and by the water composite: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
  *  (`../direct/lightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
- *  exposure, applied before the display curve (P4); `display.x` the rank of that curve
+ *  exposure, applied before the display curve; `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
  *  (`shadowJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */
 export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,jitter:vec4f,}`;
@@ -47,7 +46,7 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
  * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
  * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
  * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
- * no light is declared, because a scene with no source has nothing to light (P6).
+ * no light is declared, because a scene with no source has nothing to light.
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -59,13 +58,12 @@ ${LIGHT_SURFACE_ENTRY}
  if(flag==0u){return vec4f(0.0);}
  return vec4f(textureLoad(baseMetal,coord,0).rgb+surfaceEmissiveAo(coord,flag).rgb,1.0);
 }`;
-/** Contract bindings: declared lights, their per-tile lists and their shadow pool. The shadow
- *  records and page table, binding 8, are declared with the shadow read (`directShadowWgsl`). */
+/** Contract bindings: declared lights and their per-tile lists. The virtual shadow maps' page
+ *  table, projection data, uniforms and pool (8, 9, 10, 19) are declared with the shadow read
+ *  (`directShadowWgsl`, `CONTRACT_VSM_BINDINGS`). */
 export const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
-@group(0) @binding(7) var<storage,read> tileLights:array<u32>;
-@group(0) @binding(9) var shadowAtlas:texture_depth_2d_array;
-@group(0) @binding(10) var shadowSampler:sampler_comparison;`;
+@group(0) @binding(7) var<storage,read> tileLights:array<u32>;`;
 /** Shared body of the two contract programs: only the bounce lines separate them. */
 const contractSurface = (bounce: string, diagnostic = '') =>
   `${FULLSCREEN_VERTEX}
@@ -74,13 +72,14 @@ ${contractSurfaceBody(bounce, diagnostic)}`;
 /** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
 const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
 ${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
+${BOUNCE_SURFACE_FIELDS_WGSL}
 ${MIRROR_LIGHTING_WGSL}
 fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
  return bounceLighting(thinSubsurface,0.0,-N,P,ao);
 }
 ${contractSurface(
-  `+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
+  `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
@@ -88,7 +87,7 @@ const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
 ${contractSurface(MIRROR_TERM_WGSL)}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
- * added (P6). An unlit material shows its colour with no response to light, still seen through
+ * added. An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
  * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
  * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
@@ -101,16 +100,16 @@ ${contractSurface(MIRROR_TERM_WGSL)}`;
 export const contractLightingShader = (
   bounce: boolean,
   narrow: boolean,
-  pages = SUN_WINDOW,
   shadowed = true,
   rects = true,
+  kinds: ShadowKinds = ALL_SHADOW_KINDS,
 ) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 @group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, pages, shadowed, rects)}
+${directLightingWgsl(narrow, shadowed, rects, kinds)}
 ${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
@@ -133,21 +132,21 @@ export type ComposeInput = keyof typeof AS_IS_READ | 'flagless';
 /** The curved chain and the pixel as-is, weighed by its share: written out rather than `mix`, so a
  *  share of 1 yields the pixel as-is exactly, and selected, so a share of 0 yields the chain itself
  *  whatever the radiance holds. */
-const asIsMix = (chaine: string, share: string) =>
-  `let share=${share};let curved=${chaine};let untouched=value.rgb/max(value.a,1e-6);
+const asIsMix = (chain: string, share: string) =>
+  `let share=${share};let curved=${chain};let untouched=value.rgb/max(value.a,1e-6);
  let color=linearToSrgb(select(curved,curved*(1.0-share)+untouched*share,share>0.0));`;
 
 /**
  * Composition, one source for two separate programs — never a branch in the shader.
- * `chaine` is what linear radiance goes through before sRGB, and `courbe` what must be
+ * `chain` is what linear radiance goes through before sRGB, and `curve` what must be
  * declared for that. Background, premultiplication and the raw output of diagnostic views are shared,
  * and so are debug views: a curved chain is weighed back to the pixel as-is by its share
- * (`AS_IS_READ`), as the reference never exposes nor tone maps its normal or depth material. At a
+ * (`AS_IS_READ`), since a normal or depth material is never exposed nor tone mapped. At a
  * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain reads no share.
  * With `bloom`, `hdr` is the image the chain's last bloom read, blended here (`BLOOM_COMPOSE_WGSL`).
  */
-const composeSource = (courbe: string, chaine: string, input: ComposeInput, bloom: boolean) => {
-  const read = courbe && input !== 'flagless' ? AS_IS_READ[input] : undefined;
+const composeSource = (curve: string, chain: string, input: ComposeInput, bloom: boolean) => {
+  const read = curve && input !== 'flagless' ? AS_IS_READ[input] : undefined;
   return `
 ${VIEW_WGSL}
 @group(0) @binding(0) var hdr:texture_2d<f32>;
@@ -155,13 +154,14 @@ ${VIEW_WGSL}
 ${read ? `@group(0) @binding(2) var asIs:${read.texture};` : ''}
 ${bloom ? BLOOM_COMPOSE_WGSL : ''}
 ${FULLSCREEN_VERTEX}
-${SRGB_WGSL}${courbe}
+${SRGB_ENCODE_WGSL}
+${curve}
 fn composeColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
  let value=${bloom ? 'bloomed(textureLoad(hdr,coord,0),pixel.xy)' : 'textureLoad(hdr,coord,0)'};
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- ${read ? asIsMix(chaine, read.share) : `let color=linearToSrgb(${chaine});`}
+ ${read ? asIsMix(chain, read.share) : `let color=linearToSrgb(${chain});`}
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
@@ -172,19 +172,19 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
 }`;
 };
 /** One composition per input: the still image's surface flags, the accumulated share, or none. */
-const composeSources = (courbe: string, chaine: string, bloom = false) => ({
-  still: composeSource(courbe, chaine, 'still', bloom),
-  accumulated: composeSource(courbe, chaine, 'accumulated', bloom),
-  flagless: composeSource(courbe, chaine, 'flagless', bloom),
+const composeSources = (curve: string, chain: string, bloom = false) => ({
+  still: composeSource(curve, chain, 'still', bloom),
+  accumulated: composeSource(curve, chain, 'accumulated', bloom),
+  flagless: composeSource(curve, chain, 'flagless', bloom),
 });
 /** A program's compositions: plain, and blending in the chain's last bloom (#963). */
-const compositionsOf = (courbe: string, chaine: string) => ({
-  plain: composeSources(courbe, chaine),
-  bloom: composeSources(courbe, chaine, true),
+const compositionsOf = (curve: string, chain: string) => ({
+  plain: composeSources(curve, chain),
+  bloom: composeSources(curve, chain, true),
 });
 /**
  * Contract composition: exposure multiplies linear radiance before the display curve the scene
- * chose — ACES unless it chose another —, last link of the chain (P4). That is the one of
+ * chose — ACES unless it chose another —, last link of the chain. That is the one of
  * programs lit by declared lights.
  */
 export const CONTRACT_COMPOSITIONS = compositionsOf(
@@ -193,7 +193,7 @@ export const CONTRACT_COMPOSITIONS = compositionsOf(
 );
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
- * source there is no radiance to expose or bring into the display range (P6) — albedo is
+ * source there is no radiance to expose or bring into the display range — albedo is
  * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
 export const UNLIT_COMPOSITIONS = compositionsOf('', 'value.rgb/max(value.a,1e-6)');

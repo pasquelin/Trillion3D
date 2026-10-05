@@ -131,7 +131,7 @@ export function createExactPagesRender(options: {
   return (camera: HostCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
+    // Frame entry: the order and its guarantees live in `packages/sdk-browser/src/frame/gateCore.ts`, which also copies
     // the host camera into the engine camera. Nothing has moved and the two previous frames
     // produced the same cut: the attached scene is already this frame, and the host redraws
     // it as-is.

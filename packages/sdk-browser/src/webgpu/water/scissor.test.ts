@@ -4,92 +4,73 @@ import { encodeWaterPass } from './pass.ts';
 import { createWaterPass } from './waterPass.ts';
 import { prepared, replay, targets } from './pass.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { WATER_COMPOSITE_PASS, WATER_DEPTH_RESTORE, WATER_SURFACE_PASS } from './passLabels.ts';
+import { waterSurfaceTargets } from './surfaceTargets.ts';
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts';
 
-test('cropped color origins, depth restore and scissors survive the next full frame', async () => {
+/** A water pass on the recording replay (`pass.fixture.ts`), its bounds opened, and its restore
+ *  pipeline. */
+async function recorded() {
   const { blendState, gpu } = prepared();
   targets(gpu);
   const fake = fakeDevice();
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never);
-  const { rt } = replay(blendState, gpu);
-  const copies: unknown[] = [],
-    passes: GPURenderPassDescriptor[] = [],
-    scissors: number[][] = [];
-  const encoder = {
-    copyTextureToTexture(a: unknown, b: unknown, size: unknown) {
-      copies.push(structuredClone({ a, b, size }));
-    },
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      passes.push(descriptor);
-      return {
-        setScissorRect: (...rect: number[]) => scissors.push(rect),
-        setViewport() {},
-        setPipeline() {},
-        setBindGroup() {},
-        draw() {},
-        drawIndirect() {},
-        end() {},
-      };
-    },
-  } as unknown as GPUCommandEncoder;
+  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true, false);
+  const restore = fake.renderPipelines.find((p) => p.fragment?.entryPoint === 'restore_fs')!;
   const bounds = blendState.waterBounds;
   bounds.active = true;
-  bounds.surface.set([2, 3, 6, 7]);
-  bounds.backdrop.set([1, 1, 8, 8]);
-  assert.equal(encodeWaterPass(rt, encoder), true);
-  assert.deepEqual(copies, [
-    {
-      a: { texture: {}, origin: { x: 1, y: 1 } },
-      b: { texture: {}, origin: { x: 1, y: 1 } },
-      size: { width: 7, height: 7 },
-    },
-  ]);
-  assert.deepEqual(
-    passes.map((p) => p.label),
-    [WATER_DEPTH_RESTORE, WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
-  );
-  assert.deepEqual(
-    scissors,
-    Array.from({ length: 3 }, () => [2, 3, 4, 4]),
-  );
-  assert.equal(passes[0].depthStencilAttachment!.depthLoadOp, 'load');
-  const restore = fake.renderPipelines.find((p) => p.fragment?.entryPoint === 'restore_fs')!;
-  assert.deepEqual(restore.depthStencil, {
+  return { ...replay(blendState, gpu), bounds, restore };
+}
+
+/** The lit image's copy from (`at`, `at`), `side` texels square. */
+const hdrCopy = (at: number, side: number) => ({
+  a: { texture: {}, origin: { x: at, y: at } },
+  b: { texture: {}, origin: { x: at, y: at } },
+  size: { width: side, height: side },
+});
+
+const CASES = [
+  { surface: [2, 3, 6, 7], backdrop: [1, 1, 8, 8], rect: [2, 3, 4, 4], copy: hdrCopy(1, 7) },
+  { surface: [0, 0, 8, 8], backdrop: [0, 0, 8, 8], rect: [0, 0, 8, 8], copy: hdrCopy(0, 8) },
+  // Bounds opened but left empty by the cull cover the full target, never a negative rect.
+  { surface: [8, 8, 0, 0], backdrop: [8, 8, 0, 0], rect: [0, 0, 8, 8], copy: hdrCopy(0, 8) },
+];
+
+test('the surface pass restores the opaque depth itself, scissored, before any surface', async () => {
+  const r = await recorded();
+  assert.deepEqual(r.restore.depthStencil, {
     format: 'depth32float',
     depthCompare: 'always',
     depthWriteEnabled: true,
   });
-  assert.equal(
-    [...passes[1].colorAttachments][3]!.loadOp,
-    'clear',
-    'word clear remains full-target',
-  );
-  copies.length = passes.length = scissors.length = 0;
-  bounds.surface.set([0, 0, 8, 8]);
-  bounds.backdrop.set([0, 0, 8, 8]);
-  encodeWaterPass(rt, encoder);
-  assert.equal(copies.length, 2, 'full frame uses the original hardware depth copy');
+  // The surface pass's colour targets, none written: the draw is that pass's.
   assert.deepEqual(
-    passes.map((p) => p.label),
-    [WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
+    [...r.restore.fragment!.targets],
+    waterSurfaceTargets(true).map((target) => ({ ...target, writeMask: 0 })),
   );
-  assert.deepEqual(scissors, [
-    [0, 0, 8, 8],
-    [0, 0, 8, 8],
-  ]);
-  assert.deepEqual(copies[0], {
-    a: { texture: {}, origin: { x: 0, y: 0 } },
-    b: { texture: {}, origin: { x: 0, y: 0 } },
-    size: { width: 8, height: 8 },
-  });
-  // Bounds opened but left empty by the cull fall back to the full target, never a negative rect.
-  copies.length = passes.length = scissors.length = 0;
-  bounds.surface.set([8, 8, 0, 0]);
-  bounds.backdrop.set([8, 8, 0, 0]);
-  encodeWaterPass(rt, encoder);
-  assert.deepEqual(scissors, [
-    [0, 0, 8, 8],
-    [0, 0, 8, 8],
-  ]);
-  assert.equal(copies.length, 2, 'an empty rect takes the whole-target copies');
+  for (const { surface, backdrop, rect, copy } of CASES) {
+    r.passes.length = r.copies.length = 0;
+    r.bounds.surface.set(surface);
+    r.bounds.backdrop.set(backdrop);
+    const drawCalls = r.rt.run.gpuDrawCalls;
+    assert.equal(encodeWaterPass(r.rt, r.encoder), true);
+    assert.deepEqual(r.copies, [copy], 'the lit image alone');
+    assert.deepEqual(
+      r.passes.map((p) => p.label),
+      [WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
+    );
+    assert.deepEqual(
+      r.passes.map((p) => p.scissors),
+      [[rect], [rect]],
+    );
+    const [{ descriptor, commands }] = r.passes;
+    const depth = descriptor.depthStencilAttachment!;
+    assert.deepEqual(
+      [depth.depthLoadOp, depth.depthClearValue, depth.depthStoreOp],
+      ['clear', 0, 'store'],
+    );
+    assert.deepEqual(commands.slice(0, 3), ['pipeline:restore_fs', 'draw', 'pipeline:fsWater']);
+    assert.ok(commands.slice(3).includes('indirect'), 'the surfaces draw after the restore');
+    assert.equal([...descriptor.colorAttachments][3]!.loadOp, 'clear', 'word clear full-target');
+    // The surface draw, the restore draw and the composite.
+    assert.equal(r.rt.run.gpuDrawCalls - drawCalls, 3);
+  }
 });

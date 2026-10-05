@@ -14,7 +14,7 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -28,7 +28,7 @@ The best desktop engines changed what a scene can hold: geometry is streamed by 
 through a DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held
 under a fixed memory budget. None of that exists for the browser. **Trillion3D builds it for the
 web's constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame —
-from the published literature only, and measures itself against the numbers those engines publish.
+from its own derivations only, and measures itself against the numbers those engines publish.
 The geometry is the foundation; the lighting is what it is for.
 
 Parity means four things, and none of them is a pixel count:
@@ -48,8 +48,8 @@ Parity means four things, and none of them is a pixel count:
 | **Cache** | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected |
 | **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing |
 | **Textures** | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled |
-| **Lighting** | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the level chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
-| **Memory** | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile |
+| **Lighting** | a metallic-roughness microfacet model (GGX distribution, Schlick Fresnel), no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the mip chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
+| **Memory** | fixed reservoirs for pages and tiles, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile |
 | **Fallbacks** | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped |
 | **Jobs** | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics |
 

@@ -1,9 +1,10 @@
-// #1346: once nothing changes, the world stops drawing within 20 frames at any render scale — the
-// TAA still average (`taaStillFrames`) and the rough reflection's still window
-// (`REFLECTION_STILL_FRAMES`) both close, and the hold takes over.
+// #1346: once nothing changes, the world stops drawing at any render scale — the rough reflection's
+// still window (`REFLECTION_STILL_FRAMES`) closes, the TAA still average restarts on the settled
+// reflection (`restartTaaOnSettle`) and closes (`taaStillFrames`), and the hold takes over.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
+import { taaStillFrames, upscalePhases } from '../../taa/jitter.ts';
 import { createTaaFrameState } from '../../taa/frameState.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
@@ -14,11 +15,10 @@ import { resolveHistory, stillHistoryFrame } from '../../reflections/historyFram
 
 installGpuGlobals();
 
-const REST_FRAMES = 20;
 const DISPLAY = [64, 32];
 
 /** Frames drawn, the changed one included, once `change` is made to a still world's reflection
- *  drawn at `scale` of the display, before the hold takes over. */
+ *  drawn at `scale` of the display, before the hold takes over, and before the reflection settled. */
 function framesToRest(change: (frame: ReflectionHistoryFrame) => void, scale: number) {
   const gpu = fakeDevice();
   const rt = settledRt();
@@ -33,8 +33,6 @@ function framesToRest(change: (frame: ReflectionHistoryFrame) => void, scale: nu
     deferred: { usesContract: true },
   });
   Object.assign(rt.run, { diagnostic: 'beauty', textureConverging: false });
-  // No shadow lands: a page lands only once drawn (`reflections/frame.test.ts`).
-  Object.assign(rt.lights, { shadowPagesTotal: 0 });
   const history = createReflectionHistory(gpu.device, drawn[0], drawn[1], {
     depth: {} as GPUTextureView,
     ids: {} as GPUTextureView,
@@ -55,13 +53,17 @@ function framesToRest(change: (frame: ReflectionHistoryFrame) => void, scale: nu
   taa.stillFrames = 0;
   draw();
   assert.equal(history.settled, false, 'the change reopened the reflection window');
-  let frames = 1;
+  let frames = 1,
+    settled = 0;
   try {
-    for (; frames <= 100 && !holdWebgpuFrame(rt, gpu.device); frames++) draw();
+    for (; frames <= 200 && !holdWebgpuFrame(rt, gpu.device); frames++) {
+      draw();
+      if (!settled && history.settled) settled = frames;
+    }
   } finally {
     history.dispose();
   }
-  return frames;
+  return { frames, settled };
 }
 
 for (const scale of [1, 0.75, 0.5])
@@ -72,7 +74,9 @@ for (const scale of [1, 0.75, 0.5])
       (frame: ReflectionHistoryFrame) => frame.epoch[0]++,
     ],
   ] as const)
-    test(`#1346: ${name} rests within 20 frames at render scale ${scale}`, () => {
-      const frames = framesToRest(change, scale);
-      assert.ok(frames <= REST_FRAMES, `${frames} frames drawn`);
+    test(`#1346: ${name} rests after its temporal phase cycle at render scale ${scale}`, () => {
+      const { frames, settled } = framesToRest(change, scale);
+      assert.ok(settled > 0, 'the reflection settled');
+      const still = taaStillFrames(upscalePhases(Math.round(DISPLAY[0] * scale), DISPLAY[0]));
+      assert.ok(frames <= settled + still + 1, `${frames} frames drawn, settled at ${settled}`);
     });

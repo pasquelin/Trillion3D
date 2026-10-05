@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Blätter mit Alpha ausgeschnitten",
       "a-colour-ramp-in-linear-light": "Linearer Farbverlauf",
       "the-material-family": "Die Materialfamilie",
+      "page-materials": "Materialien live bearbeiten",
+      "a-bust-a-crate-and-a-glass-ball": "Eine Büste, eine Kiste, eine Glaskugel",
       "a-texture-turned-and-tiled": "Textur gedreht, gekachelt",
       "texture-filters-compared": "Texturfilter",
       "every-image-format": "Jedes Bildformat",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Tone Mapping im Vergleich",
       "a-first-post-effect": "Ein erster Posteffekt",
       "a-glow-around-lights": "Leuchten um Lichter",
+      "choose-your-quality": "Die Qualität wählen",
       "glow-on-chosen-objects": "Gezieltes Leuchten",
       "depth-of-field": "Tiefenschärfe",
       "motion-blur": "Bewegungsunschärfe",
@@ -743,7 +746,6 @@
     "protocol": "Aufgezeichnete Bedingungen",
     "references": "Veröffentlichte Referenzwerte",
     "referenceNote": "Die veröffentlichten Zahlen der Desktop-Engines stammen von eigener Hardware, eigenen Szenen und eigenen Protokollen. Sie sind nicht Teil der Vergleiche oben.",
-    "referenceLink": "Quellen und Einschränkungen lesen",
     "commit": "Commit im Repository",
     "date": "Messdatum",
     "browser": "Browser",
@@ -1250,7 +1252,7 @@
       "description": "Die Matrizen eines Kamerarahmens, einmal zugewiesen und bei jedem Bild neu geschrieben: `view` (die Inverse der Kamera-Weltmatrix), `viewProjection`, und `planes`, die sechs normalisierten Ebenen dieses Sichtkegels."
     },
     "updateCameraFrame": {
-      "description": "Schreibt den Rahmen neu: view = die Inverse von `world` (null bei singulärer Weltmatrix, wie die Referenz), View-Projektion = `projection · view`, und die sechs Ebenen dieses Sichtkegels. Eine Tiefenkonvention durchzieht alle drei. `far` ist die vom Host **deklarierte** Ebene: die Projektion hat keine — sie ist unendlich, was der ganze Sinn der umgekehrten Tiefe ist — aber der Sichtkegel behält sie, sonst würde ein Bild plötzlich jedes Objekt bekommen, das die Kamera nicht zeigte. Fehlt `far` oder ist es nicht endlich, bleibt die Fernebene unbegrenzt."
+      "description": "Schreibt den Rahmen neu: view = die Inverse von `world` (null bei singulärer Weltmatrix), View-Projektion = `projection · view`, und die sechs Ebenen dieses Sichtkegels. Eine Tiefenkonvention durchzieht alle drei. `far` ist die vom Host **deklarierte** Ebene: die Projektion hat keine — sie ist unendlich, was der ganze Sinn der umgekehrten Tiefe ist — aber der Sichtkegel behält sie, sonst würde ein Bild plötzlich jedes Objekt bekommen, das die Kamera nicht zeigte. Fehlt `far` oder ist es nicht endlich, bleibt die Fernebene unbegrenzt."
     },
     "worldToRenderOrigin": {
       "description": "Schreibt `world` mit seiner auf `origin` zurückgeführten Translation. Die Subtraktion geschieht in der Präzision der Eingaben — dem Double der Engine-Weltmatrizen —, und das Schreiben in einen Einzelpräzisions-Puffer rundet **danach**, nie davor: genau das trennt ein scharfes Bild von einem, das zittert. `at` ist der Rang der ersten der sechzehn geschriebenen Zahlen, damit ein Puffer mit vielen Matrizen gefüllt wird, ohne pro Matrix und Bild eine Sicht abzuschneiden."
@@ -1283,10 +1285,10 @@
       "description": "`out = a · b`. Die zweiunddreißig Eingaben werden vor dem ersten Schreiben gelesen, sodass `out` `a` oder `b` sein kann. Jeder Term ist die Summe von vier Produkten ohne Anfangsnull — eine bei `0` begonnene Summe würde das Vorzeichen einer negativen Null ändern. **Nur ein Puffertyp, `Float64Array`, ein und aus**: ein einzelner Aufrufer, der ein einfaches Array übergibt, würde die achtundvierzig Zugriffsstellen polymorph machen, und jede heiße Schleife würde dafür zahlen, also kopiert ein Aufrufer, der von einer Host-Matrix ausgeht, sie zuerst."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` per Kofaktoren. Eine exakt null Determinante ergibt die Nullmatrix, wie die Referenz — ein Aufrufer, der diesen Fall unterscheiden muss, prüft die Determinante, nie die Ausgabe. Diese Schwelle ist Parität mit der Referenz, nicht die Singularitätsregel der Engine, die nur dort gilt, wo eine Normale transportiert wird. Die sechzehn Eingaben werden vor dem ersten Schreiben gelesen, sodass `out` `m` sein kann."
+      "description": "`out = m⁻¹` per Kofaktoren. Eine exakt null Determinante ergibt die Nullmatrix — ein Aufrufer, der diesen Fall unterscheiden muss, prüft die Determinante, nie die Ausgabe. Diese Schwelle ist die exakte Null, nicht die Singularitätsregel der Engine, die nur dort gilt, wo eine Normale transportiert wird. Die sechzehn Eingaben werden vor dem ersten Schreiben gelesen, sodass `out` `m` sein kann."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, das Quaternion in der Reihenfolge `(x, y, z, w)`. Die letzte Zeile wird exakt als `(0, 0, 0, 1)` geschrieben; Quaternion-Produkte werden durch Addition verdoppelt (`x + x`), wie die Referenz, nie mit zwei multipliziert."
+      "description": "`out = T · R · S`, das Quaternion in der Reihenfolge `(x, y, z, w)`. Die letzte Zeile wird exakt als `(0, 0, 0, 1)` geschrieben; Quaternion-Produkte werden durch Addition verdoppelt (`x + x`), nie mit zwei multipliziert."
     },
     "decomposeMatrix4": {
       "description": "Die Umkehrung: die Skalierung einer Spalte ist ihre Länge, und eine negative Determinante wird allein von der `x`-Achse getragen, unabhängig davon, welche Achse an der Quelle umgekehrt wurde. Eine geschertes Matrix hat keine solche Zerlegung — die zurückgegebene Rotation ist dann die der spaltennormalisierten Matrix, und eine erneute Zusammensetzung ergibt nicht mehr `m`, eine Lücke, identisch mit der der Referenz und im Bench quantifiziert."
@@ -1349,7 +1351,7 @@
       "description": "Die sechs Ebenen des Sichtkegels einer Clip-Matrix — eine View-Projektion, oder eine Projektion allein für Ebenen im Sichtraum. Die erste normalisiert sie, sodass `a·x + b·y + c·z + d` ein vorzeichenbehafteter Abstand ist; die zweite lässt die rohen Summen und Differenzen der Zeilen, wo allein das Vorzeichen entscheidet, ohne Quadratwurzel oder Division: die Form des exakten Clip-Tests, wo Normalisieren die Rundung verschieben würde. Eine entartete Matrix ergibt NaN- oder unendliche Ebenen, ohne zu werfen."
     },
     "frustumFarPlane": {
-      "description": "Die Fernebene eines Sichtkegels, dessen Projektion keine hat. Die Projektion der Engine ist unendlich: ihre Tiefenzeile begrenzt nichts mehr, also wird die Fernebene aus der **Sicht**-Matrix gelesen, deren dritte Zeile die Sichttiefe angibt — ein Punkt ist innen, wenn `far + z >= 0`. Ein nicht endliches `far` lässt die Nullebene an Ort und Stelle, eine wirklich unbegrenzte Fernebene. `frustumPlanesToLocal` trägt die Ebenen in den lokalen Raum einer Transformation, damit eine lokale Box getestet wird, ohne transformiert zu werden."
+      "description": "Die Fernebene eines Sichtkegels, dessen Projektion keine hat. Die Projektion der Engine ist unendlich: ihre Tiefenzeile begrenzt nichts mehr, also wird die Fernebene aus der **Sicht**-Matrix gelesen, deren dritte Zeile die Sichttiefe angibt — ein Punkt ist innen, wenn `far + z >= 0`. Ein nicht endliches `far` lässt die Nullebene an Ort und Stelle, eine wirklich unbegrenzte Fernebene."
     },
     "frustumExcludesBox": {
       "description": "Die Box gegen den Sichtkegel: die erste ist wahr, wenn eine Ebene alle acht Ecken hinter sich lässt. Die zweite gibt drei Zustände zurück — 0 außerhalb, 1 überlappend, 2 vollständig innen — in zwei Durchgängen, der erste verwirft nur, der zweite liest die am weitesten hinten liegende Ecke, um „überlappend“ von „innen“ zu unterscheiden. Ein Teilbaum, der vollständig innen liegt, spart einen Test für jede Box darunter."
@@ -1373,7 +1375,7 @@
       "description": "Lesevorgänge der Weltmatrix: die Translationsspalte; Rotation und Skalierung aus ihrer Zerlegung, eine negative Determinante allein von `x` getragen; die dritte Spalte als Richtung normalisiert, umgedreht bei `cameraForward` — eine Kamera und ein Licht schauen zu ihrem `−z`. `nodeWorldMirrorsFaces` ist wahr, wenn die Weltmatrix die Orientierung umkehrt, und die Zeichnung tauscht dann ihre Vorder- und Rückseiten; sie liest, wie sie ist, ohne Update, und eine null oder NaN Determinante kehrt nichts um."
     },
     "lookAtNode": {
-      "description": "Dreht `node` zum Weltpunkt `(x, y, z)`. `viewer` ist wahr für eine Kamera oder ein Licht, die zu ihrem `−z` schauen, falsch für ein Objekt, das sein `+z` zeigt. `up` ist das Oben des Knotens, `(0, 1, 0)` in der Referenz. Vorfahren und der Knoten werden zuerst aktualisiert."
+      "description": "Dreht `node` zum Weltpunkt `(x, y, z)`. `viewer` ist wahr für eine Kamera oder ein Licht, die zu ihrem `−z` schauen, falsch für ein Objekt, das sein `+z` zeigt. `up` ist das Oben des Knotens, standardmäßig `(0, 1, 0)`. Vorfahren und der Knoten werden zuerst aktualisiert."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` Produkte `out[i] = a[i] · b[i]`, alle drei Seiten als Untersichten von sechzehn Zahlen gegeben. Die Untersichten werden einmal erstellt, nie pro Bild; ein WebAssembly-Kernel wiederholt dieselbe Formel Term für Term, und der Regler wählt den jeweils schneller gemessenen Pfad."
@@ -1673,7 +1675,7 @@
       "nodes": "Knoten"
     },
     "patterns": {
-      "singular": "Determinante {{value}}: sechzehn Nullen, wie die Referenz — teste die Determinante, nie die Ausgabe"
+      "singular": "Determinante {{value}}: sechzehn Nullen — teste die Determinante, nie die Ausgabe"
     }
   }
 }

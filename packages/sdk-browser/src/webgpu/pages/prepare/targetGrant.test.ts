@@ -19,6 +19,9 @@ import type { WebgpuPagesBackend } from '../runtime.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 
+/** The label of the Hi-Z pyramid's level 0 (`gpu/hiz/pyramid.ts`). */
+const HI_Z_LEVEL_0 = 'Trillion3D Hi-Z level 0';
+
 const COLOR = 'Trillion3D display color';
 type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
 
@@ -35,7 +38,7 @@ async function resized(
     label,
     (raise, { size }) => {
       const hizAlive = gpu.textures.some(
-        (texture) => texture.format === 'r32float' && !texture.label && !texture.destroyed,
+        (texture) => texture.label === HI_Z_LEVEL_0 && !texture.destroyed,
       );
       if (size?.width === 48) answer(raise, hizAlive);
     },
@@ -130,7 +133,7 @@ test('frame targets refused at prepare are refused by name', async () => {
 });
 
 // A refused grant holds the frame, draws nothing into targets not granted, then draws it complete.
-// And `renders/explorer-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame
+// And `world/session-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame
 // held while the device answers must not say it: a still scene then schedules no more work.
 test('a refused target grant holds the frame, then draws it complete; then nothing is scheduled', async () => {
   let refusals = 1;

@@ -2,14 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
-import { rasterVisibilityIds, shadeVisibility, isTransmissive } from './buffer.ts';
+import { isTransmissive } from './buffer.ts';
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { camera, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { visMaterial } from './shader/material.ts';
-import { VIS_INVALID } from './visWords.ts';
+import { VIS_INVALID } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = nearestQuadTexture();

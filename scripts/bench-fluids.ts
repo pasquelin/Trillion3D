@@ -20,6 +20,7 @@ import {
 } from '../packages/sdk-core/src/fluids/index.ts';
 import { OCEAN } from '../packages/sdk-core/src/fluids/waves.fixture.ts';
 import {
+  PHYSICS_STEP,
   DEFAULT_PHYSICS_BUDGET,
   WATER_PIECE_WORDS,
 } from '../packages/sdk-core/src/physics/index.ts';
@@ -68,6 +69,7 @@ async function web(spec: WaterSpec, threads: number, steps: number) {
     opened,
     { ...DEFAULT_PHYSICS_BUDGET, bodies: 128, memoryBytes: 1 << 30 },
     threads,
+    PHYSICS_STEP,
   );
   jolt.step(floatingScene(BODIES), 0);
   const water = createWater(spec),

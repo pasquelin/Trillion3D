@@ -6,7 +6,7 @@ import { effect } from '../../../sdk-core/src/world/effect/index.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createWorldPhysics } from '../physics/worldPhysics.ts';
 import { worldDiagnostic } from '../world/core/worldHandles.ts';
-import { drawnOnArrival, frameWaits } from '../world/session/familyUse.ts';
+import { frameWaits } from '../world/session/familyUse.ts';
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { families, familyRefusals } from './families.ts';
 import { onDemand } from './onDemand.ts';
@@ -22,17 +22,11 @@ function standIn<N extends keyof typeof families>(t: TestContext, name: N, load:
   t.after(() => void (families[name] = real));
 }
 
-/** A session's frames on a chain with one pass, drawn once its family has arrived. */
-function frames() {
+/** What a frame on a chain with one pass waits for: its family, `undefined` once arrived. */
+function chainFrame() {
   const effects = new EffectChain();
   effects.add(effect.bloom());
-  let drawn = 0;
-  const invalidate = drawnOnArrival(
-    () => frameWaits({ effects }, 'beauty'),
-    () => drawn++,
-    () => false,
-  );
-  return { invalidate, drawn: () => drawn };
+  return () => frameWaits({ effects }, 'beauty');
 }
 
 test('a family whose import fails once arrives, and the frame that needs it draws it (#1404)', async (t) => {
@@ -43,11 +37,10 @@ test('a family whose import fails once arrives, and the frame that needs it draw
   });
   const diagnostic = worldDiagnostic(() => null);
   t.after(() => diagnostic.close());
-  const { invalidate, drawn } = frames();
-  invalidate();
-  assert.equal(drawn(), 0, 'the frame waits for the chain');
+  const waits = chainFrame();
+  assert.ok(waits(), 'the frame waits for the chain');
   await turn();
-  assert.deepEqual([imports, drawn(), diagnostic.handle.error], [2, 1, null]);
+  assert.deepEqual([imports, waits(), diagnostic.handle.error], [2, undefined, null], 'drawn');
 });
 
 test('a family that never loads is named on the world, and no frame draws without it', async (t) => {
@@ -58,15 +51,14 @@ test('a family that never loads is named on the world, and no frame draws withou
   t.after(() => diagnostic.close());
   const closed = worldDiagnostic(() => null);
   closed.close();
-  const { invalidate, drawn } = frames();
-  invalidate();
+  const waits = chainFrame();
+  waits();
   await turn();
   const error = diagnostic.handle.error;
   assert.equal(error?.code, 'FAMILY_LOAD_FAILED');
   assert.equal(error?.details.family, 'effects');
   assert.match(String(error?.message), /^T3D-E090 FAMILY_LOAD_FAILED: the effects family/);
-  invalidate();
-  assert.equal(drawn(), 0, 'the chain is never dropped: its frames wait');
+  assert.ok(waits(), 'the chain is never dropped: its frames wait');
   assert.equal(closed.handle.error, null, 'a closed world hears no more');
 });
 

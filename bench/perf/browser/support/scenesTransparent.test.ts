@@ -6,8 +6,8 @@ import { appelsDe, sceneDe } from './transparentRounds.ts';
 for (const [index, [name, side]] of FACES.entries()) {
   test(`transparent benchmark: ${name} keeps the reference ranges with batched draws`, () => {
     const laps = sceneDe(name, side);
-    assert.equal(laps.after.blendState.orders[0].length, ITEMS * (index + 1));
-    assert.equal(laps.after.blendState.orders[1].length, 0);
+    assert.equal(laps.after.blendState.seeds[0].length, ITEMS * (index + 1));
+    assert.equal(laps.after.blendState.seeds[1].length, 0);
     // Four unpaged primitives retain their own hardware-culled draws per face.
     assert.deepEqual(appelsDe(laps), {
       name,

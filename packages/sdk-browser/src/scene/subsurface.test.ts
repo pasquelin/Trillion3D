@@ -4,7 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { importHostSurface } from '../host/surfaceImport.ts';
 import { createSurfaceBuffer } from './surfaceBuffer.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { DIRECT_LIGHTING_WGSL } from '../lighting/direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts';
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { hostSide } from './materialSide.ts';
 import { material } from '../../../sdk-core/src/world/material/index.ts';
@@ -12,6 +12,12 @@ import { Texture } from '../../../sdk-core/src/world/texture/texture.ts';
 import { hostSurface, repaintHostSurface } from '../world/core/worldSurface.ts';
 import { eachMap, SUBSURFACE_UNIT } from '../webgl/cluster/materialMaps.ts';
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts';
+import {
+  RECEIVER_TARGET_BYTES,
+  RECEIVER_TARGET_FORMAT,
+} from '../visibility/shader/receiverTargetWgsl.ts';
+
+const DIRECT_LIGHTING_WGSL = directLightingWgsl();
 
 test('thin transmission stays independent of albedo, disabled by default and on single sides', () => {
   const material = G.standardSurface();
@@ -50,10 +56,18 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   assert.equal(enabled.views().length, 4);
   assert.equal(enabled.subsurface.width, 13);
   assert.equal(enabled.subsurface.height, 7);
+  // The shadow receiver target is the same with or without transmission: one texel a pixel.
+  for (const { receiver } of [disabled, enabled]) {
+    assert.equal(receiver.format, RECEIVER_TARGET_FORMAT);
+    assert.equal(
+      receiver.width * receiver.height * RECEIVER_TARGET_BYTES,
+      13 * 7 * RECEIVER_TARGET_BYTES,
+    );
+  }
   disabled.dispose();
   enabled.dispose();
-  // Five textures each, the receiver-offset target gone (#1410).
-  assert.equal(gpu.destroyed.length, 10);
+  // Six textures each, the shadow receiver target included.
+  assert.equal(gpu.destroyed.length, 12);
 });
 
 test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {

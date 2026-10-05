@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { near } from '../math/near.fixture.ts';
-import { cellWeights, octDecode, octEncode } from './octahedron.ts';
+import { cellWeights, octDecode, octEncode } from './octahedron.fixture.ts';
 
 test('the world axes land on their places of the plane and decode back from the grid', () => {
   const landmarks = [

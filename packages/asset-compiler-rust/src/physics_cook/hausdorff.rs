@@ -2,7 +2,7 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
-use crate::shared_math::{dot, sub, WordMap};
+use crate::shared_math::{dot, extend_aabb, sub, WordMap};
 
 mod bounded;
 mod level0;
@@ -26,7 +26,7 @@ fn lerp(a: P, b: P, w: f64) -> P {
     ]
 }
 
-/// Squared distance from `p` to triangle `abc` (closest point by Voronoi region, Ericson 5.1.5).
+/// Squared distance from `p` to triangle `abc` (closest point, found by testing the vertex, edge and face Voronoi regions in turn).
 fn triangle_distance2(p: P, a: P, b: P, c: P) -> f64 {
     let (ab, ac, ap) = (sub(b, a), sub(c, a), sub(p, a));
     let (d1, d2) = (dot(ab, ap), dot(ac, ap));
@@ -70,11 +70,7 @@ impl<'a> Grid<'a> {
     fn new(pos: &'a [f32], triangles: &'a [u32]) -> Self {
         let (mut min, mut max) = ([f64::MAX; 3], [f64::MIN; 3]);
         for &i in triangles {
-            let p = at(pos, i);
-            for k in 0..3 {
-                min[k] = min[k].min(p[k]);
-                max[k] = max[k].max(p[k]);
-            }
+            extend_aabb(&mut min, &mut max, at(pos, i));
         }
         let extent = (0..3)
             .map(|k| max[k] - min[k])

@@ -68,12 +68,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     commit,
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare
     // the flag at their next plan (`../shadow/residence.ts`).
-    (rec, page) => (
+    (_rec, page) => (
       run.gate.resourcesChanged(),
       rt.lights.residence.noteRow(page, packedPages.length)
     ),
-    // A blended caster's opacity moved: the shadow pages under it redraw their moving casters, as
-    // the static layer never holds a blended caster (#993).
+    // A blended caster's opacity moved: the shadow pages under it redraw the slice it is cached
+    // in — its placement's mobility decides, as for any caster (the VSM transmission atlas keeps a
+    // still blended caster in the static slice).
     (rec, page) =>
       noteResidenceChange(
         rt.lights,
@@ -81,7 +82,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
         rt.layout.placement.rootOfPacked,
         page,
         rec,
-        true,
       ),
     context.frameBudget,
   );
@@ -130,17 +130,15 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
-  // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
+  // The lower tier: the pages ahead of the camera.
   const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
-  const shadowTier = createLowerTier(tier),
-    aheadTier = createLowerTier(tier),
-    lowerTiers = [shadowTier, aheadTier];
+  const aheadTier = createLowerTier(tier),
+    lowerTiers = [aheadTier];
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,
     bootstrapKey,
     requests: residencySets.requests,
-    casts: shadowTier.has,
   });
   const ensureResident = createWebgpuResidentEnsurer({
     getCache: () => gpu.cache,
@@ -154,9 +152,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
-    // The plan holds when the camera's view is the last one's: at rest the caster tier settles on
-    // its list's first pages, while a moving camera keeps every page the list still names (#1016).
-    still: () => rt.lights.plan.resting,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
@@ -189,7 +184,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapState,
     ensureResident,
     residency,
-    shadowTier,
     affectsImage,
     ...publication,
     hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes, // + GPU admission

@@ -11,14 +11,8 @@ export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/boun
 export { createBounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts';
 export type { BounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts';
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts';
-export { createDefaultLightingSceneLights } from '../../sdk-core/src/lighting/scene/controls.ts';
-export { createLightingScene } from '../../sdk-core/src/lighting/scene/experimentScene.ts';
 export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts';
 export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts';
-export { createShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
-export type { ShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
-export { createTransport } from '../../sdk-core/src/lighting/transport/transport.ts';
-export { exportLightingGltf } from '../../sdk-core/src/lighting/scene/gltf.ts';
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts';
 export {
   LIGHT_KIND,
@@ -35,19 +29,6 @@ export type {
   ShadowViewpoint,
 } from '../../sdk-core/src/scene/light/contracts.ts';
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts';
-export type {
-  LightingSceneLight,
-  Patch,
-  Scene,
-  Surface,
-  Vec3,
-} from '../../sdk-core/src/lighting/scene/types.ts';
-export {
-  POINT_FACE_AXES,
-  SHADOW_CULL_FLOATS,
-  SHADOW_RECORD_FLOATS,
-  writeFace,
-} from '../../sdk-core/src/scene/light-shadow/faces.ts';
 export {
   PROXY_CHILD_WORDS,
   PROXY_CHILDREN,
@@ -63,21 +44,8 @@ export type {
   SceneProxyColumns,
   SceneProxyDescriptor,
 } from '../../sdk-core/src/contracts/proxy.ts';
-export { regionRect } from '../../sdk-core/src/scene/light-shadow/volume.ts';
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/sunEntries.ts';
-export type {
-  ShadowRequestReport,
-  ShadowAsks,
-} from '../../sdk-core/src/scene/light-shadow/requests.ts';
-export { solveTransportOracle } from '../../sdk-core/src/lighting/transport/oracle.ts';
-export type {
-  TransportOptions,
-  TransportProgress,
-  TransportResult,
-  TransportSnapshot,
-} from '../../sdk-core/src/lighting/transport/contracts.ts';
 export {
   validateSceneEnvironment,
   validateSceneLight,
 } from '../../sdk-core/src/scene/light/validate.ts';
-export type { ShadowPoolSnapshot } from '../../sdk-core/src/scene/light-shadow/mirror.ts';

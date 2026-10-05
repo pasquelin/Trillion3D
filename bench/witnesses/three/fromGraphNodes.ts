@@ -6,8 +6,8 @@ import {
   aimOf,
   isDrawnNode,
   isInstancedNode,
-  isPlacedLight,
 } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
+import { isPlacedLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeGeometry, threeMaterials } from './fromGraph.ts';

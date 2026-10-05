@@ -61,7 +61,14 @@ type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
-type Placed = { cut: Cut; material: Material; rows: PlacementRows; name: string };
+type Placed = {
+  cut: Cut;
+  material: Material;
+  rows: PlacementRows;
+  name: string;
+  /** Worn by cloths: drawn on both faces (`hostSurface`'s `sheet`); unsaid, as it declares. */
+  twoSided?: boolean;
+};
 type MirrorInput = {
   placed: readonly Placed[];
   models: readonly { node: Object3D; graph: Object3D }[];
@@ -78,13 +85,14 @@ export function buildWorldMirror(input: MirrorInput) {
   >();
   const geometries = new Map<Cut, Geometry>(),
     // One surface per material, and a second one when the material asks for vertex colours and
-    // is worn by geometries with and without them: the material decides, as in the reference
+    // is worn by geometries with and without them: the material decides
     // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
     // it is worn by lines: the line surface is widened and lifted (`hostSurface`). A fourth when
-    // it is worn by a sprite: the sprite surface turns its quad to the camera.
+    // it is worn by a sprite: the sprite surface turns its quad to the camera. A fifth, and a
+    // sixth with vertex colours, when it is worn by cloths: drawn on both faces.
     surfaces = new Map<Material, GraphSurface[]>(),
     textures: HostTextures = new Map();
-  const meshOf = (cut: Cut, material: Material) => {
+  const meshOf = (cut: Cut, material: Material, twoSided = false) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
     // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
@@ -94,16 +102,19 @@ export function buildWorldMirror(input: MirrorInput) {
         ? 'lines'
         : cut.drawn.spriteRadius !== undefined
           ? 'sprite'
-          : 'faces';
+          : twoSided
+            ? 'sheet'
+            : 'faces';
     let worn = surfaces.get(material);
     if (!worn) surfaces.set(material, (worn = []));
-    const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
+    const rank =
+      reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted;
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
     return numbered(new Mesh(geometry, surface));
   };
   /** Hangs the host mesh of a resource placed by rows; returns it with its association. */
-  const place = ({ cut, material, rows, name }: Placed) => {
-    const mesh = meshOf(cut, material);
+  const place = ({ cut, material, rows, name, twoSided }: Placed) => {
+    const mesh = meshOf(cut, material, twoSided);
     mesh.name = name;
     const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows };
     associations.set(mesh, association);

@@ -8,8 +8,8 @@
  *
  *   draw(c) = resident(c) && parentError(c) > t && (clusterError(c) <= t || !resident(childGroup(c)))
  *
- * The published reference (Karis, Stubbe, Wihlidal, SIGGRAPH 2021) and the `vk_lod_clusters`
- * streaming sample draw a group whose finer group is not resident: that is the last term.
+ * The last term, `!resident(childGroup(c))`, keeps a group on screen while the finer group that
+ * would replace it is still streaming in: without it the cluster would vanish and leave a hole.
  * Residency is the group-closed one `./readiness.ts` derives, so a surface is drawn exactly once,
  * by the finest resident representation the threshold allows — the wanted cluster or its nearest
  * resident ancestor, never a primitive-wide substitute.

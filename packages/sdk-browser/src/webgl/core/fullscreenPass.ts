@@ -1,6 +1,7 @@
+import { FULLSCREEN_XY_GLSL } from '../../math/fullscreenTriangle.ts';
 /** One triangle over the whole viewport, from `gl_VertexID` alone: no buffer, no attribute. */
 export const FULLSCREEN_VERTEX = `#version 300 es
-void main(){gl_Position=vec4(float((gl_VertexID&1)*4-1),float((gl_VertexID>>1)*4-1),0.,1.);}`;
+void main(){gl_Position=vec4(${FULLSCREEN_XY_GLSL},0.,1.);}`;
 
 /** The capabilities a full-screen pass turns off: what a pass that restores them saves. */
 export const FULLSCREEN_DISABLED = [

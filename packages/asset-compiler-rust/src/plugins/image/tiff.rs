@@ -1,5 +1,4 @@
-//! TIFF driver, read from the public specification "TIFF Revision 6.0" (Adobe Developers
-//! Association, 3 June 1992) and decoded by the `image` crate (`tiff` feature, which embeds
+//! TIFF driver (revision 6.0), decoded by the `image` crate (`tiff` feature, which embeds
 //! the `tiff` crate, MIT, notices kept with the dependency). No vendor SDK, no re-encoding.
 //!
 //! TIFF is a field container rather than a format: it describes an uncompressed RGB8 as well

@@ -14,6 +14,7 @@
 //! stored under the SHA-256 of its bytes like a page.
 use super::{hausdorff, height, mesh_shape};
 use crate::dag::{CullingNode, DagCluster};
+use crate::shared_math::extend_aabb_f32;
 use crate::{hash, object_intact, object_path, store_object, Options, Result};
 use rayon::prelude::*;
 use serde_json::{json, Value};
@@ -85,10 +86,7 @@ fn tile(o: &Options, pos: &[f32], triangles: &[u32]) -> Result<Value> {
     for &source in triangles {
         let index = *remap.entry(source).or_insert_with(|| {
             let at = source as usize * 3;
-            for a in 0..3 {
-                min[a] = min[a].min(pos[at + a]);
-                max[a] = max[a].max(pos[at + a]);
-            }
+            extend_aabb_f32(&mut min, &mut max, std::array::from_fn(|a| pos[at + a]));
             vertices.extend_from_slice(&pos[at..at + 3]);
             (vertices.len() / 3 - 1) as u32
         });

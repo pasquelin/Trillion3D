@@ -5,7 +5,8 @@ import {
   unsettledMask,
   unsettledReasons,
 } from '../frame/hold.ts';
-import { convergeStillPhase, dropTaaHistory, taaPhaseCount } from '../../taa/frame.ts';
+import { convergeStillPhase, taaPhaseCount } from '../../taa/frame.ts';
+import { restartTaaAverage } from '../../taa/landing.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import {
@@ -35,7 +36,7 @@ const POSE_ROUNDS = 4;
  * refuses, it does not spin on itself.
  *
  * Nothing is released here: a tile stays resident until the pool, full, yields the least looked-at
- * — the reference's rule. The barrier used to release what the last image had not named, and a
+ * — the pool's rule. The barrier used to release what the last image had not named, and a
  * request that wavers from one image to the next — three tiles of a pane, named one image in seven
  * — entered and left on every capture, changed the resource revision and kept the image from
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
@@ -74,32 +75,22 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
 }
 
 /**
- * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
- * drawn — a report of the last one proves it —, whatever staled them: an arriving tile, a moving
- * camera or a geometry page that entered or left. Each image's request report is awaited before
- * the next is planned; each image draws the pages it marks up to its page budget (`admit.ts`), so
- * what the drain waits for is the report's round trip and, after a burst, the frames that budget
- * spreads it over. Returns the number of frames drained.
- *
- * A drawn page is also a light cut whose report asks for casters: the image after takes it, its
- * casters load, and a caster that enters residency stales the pages over it. The drain waits for
- * each step — the report read, its loads landed — and draws one more image after a report was
- * taken, so its arrivals reach the plan here and not in the first still frame after the barrier.
+ * Drains shadow maps: images are rendered until the virtual shadow maps settle
+ * (`shadowsUnsettled`), whatever staled their pages: an arriving tile, a moving camera or a
+ * geometry page that entered or left. Each image's loads are awaited, and a page made resident
+ * after the last image draws one more, so its arrivals reach the maps here and not in the first
+ * still frame after the barrier. Returns the number of frames drained.
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { lights, services } = rt;
   const revision = () => rt.gpu.cache?.residencyRevision;
   let drains = 0,
-    offered = false,
     seen = revision();
-  const again = () => drainsAgain(offered, seen, revision(), () => shadowsUnsettled(lights));
+  const again = () => drainsAgain(seen, revision(), () => shadowsUnsettled(lights));
   for (; drains < SHADOW_DRAIN_LIMIT && again(); drains++) {
     renderWebgpuPages(rt, rt.run.lastCamera!);
     seen = revision();
     await gpuDevice.queue.onSubmittedWorkDone();
-    await lights.pageRequests?.settled();
-    await lights.lightCut?.settled();
-    offered = !!lights.lightCut?.reports.takeOffered();
     await services.residency.pending;
   }
   return drains;
@@ -149,14 +140,13 @@ export async function settlePose(
   }
   // Tiles or shadow pages that landed during the barrier changed the raster: the still TAA
   // average must restart from this residency, not mix the frames that were still loading (#25).
-  if (mustRestartTaaAfterSettle(served, drains)) dropTaaHistory(rt);
+  if (mustRestartTaaAfterSettle(served, drains)) restartTaaAverage(rt.gpu.temporal?.frame);
   const mask = unsettledMask(rt);
   if (served || drains || mask & (TEXTURES_PENDING | SHADOWS_PENDING))
     diag.engineDiagnostic('pose-settle', 'What the barrier did to settle the image', {
       rounds,
       tilesServed: served,
       shadowFrames: drains,
-      pendingPages: rt.lights.plan.counts.pendingPages,
       reasons: unsettledReasons(mask),
     });
 }

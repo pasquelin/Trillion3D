@@ -21,7 +21,7 @@ export interface ProfiledWorld<Frame = unknown> {
   diagnostic?: { debug: boolean };
 }
 
-/** One second of profile, as `window.__profile` holds it; `null` where nothing was measured. */
+/** One second of profile; `null` where nothing was measured. */
 export interface ProfileWindow {
   frames: number;
   /** Main-thread time of the animation-frame callbacks of each drawn frame. */
@@ -52,7 +52,7 @@ export function spread(values: number[]): Spread | null {
 
 /** A window from the durations of its frames, the engine's CPU steps and the worker's steps
  *  read over the same second. */
-export function profileWindow(
+function profileWindow(
   frameMs: number[],
   hooksMs: number[],
   engine: CpuSteps | null,
@@ -77,7 +77,7 @@ export function profileWindow(
 }
 
 /** What a drawn frame reads of the worker's step, `null` while the physics is off. */
-export const workerStep = ({ physics }: ProfiledWorld) =>
+const workerStep = ({ physics }: ProfiledWorld) =>
   physics?.enabled ? physics.stats.stepMaxMs : null;
 
 const ms = ({ p50, p95 }: Spread) => `${p50.toFixed(2)} / ${p95.toFixed(2)} ms`;

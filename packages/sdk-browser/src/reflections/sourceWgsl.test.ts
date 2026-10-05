@@ -26,7 +26,7 @@ function fixture() {
     reprojectReflectionSource: (pixel: number[]) => number[];
   }>(
     REFLECTION_SOURCE_WGSL,
-    ['reprojectReflectionSource', 'previousDepthOf', 'clipAt', 'placementOf'],
+    ['reprojectReflectionSource', 'previousDepthOf', 'pixelPoint', 'pointBefore', 'placementOf'],
     {
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
       lastImage: 'lastImage',

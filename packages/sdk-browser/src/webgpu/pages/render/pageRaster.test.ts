@@ -6,6 +6,8 @@ import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src
 import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import { rasterPageRecords } from '../../../page/raster.fixture.ts';
+import type { RasterView } from '../runtime.ts';
+import { backendRasterRgba } from '../../../../../../bench/oracles/browser/cpu-image/backendImage.ts';
 import {
   drawnPageIds,
   indirectDraws,
@@ -40,12 +42,12 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   assert.equal(backend.metrics().selectedTriangles, 2);
   assert.equal(backend.metrics().residentPages, 2);
   assert.ok(writes.length >= 2);
-  // The scene has one prepared material class, so its surface draw rejects background itself and
-  // the resolve needs no material-depth export.
+  // The scene has one prepared material class, so its surface draw is one full-screen triangle that
+  // rejects the background itself; it wears no texture, so it writes no feedback.
   const shade = draws.filter((d) => d.entryPoint === 'shade_vs');
   assert.deepEqual(
     shade.map((d) => [d.fragment, d.vertexCount]),
-    [['shade_fs', 3]],
+    [['shade_fsWithoutFeedback', 3]],
   );
   // The hardware raster is the producer of the opaque image: the cut reaches it through the image
   // mask, which its indirect commands consume as instances. The compute raster is not created in
@@ -126,7 +128,9 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
   await webgpu.flush?.();
   webgpu.render(cam);
   const expected = rasterPageRecords(webgl, cam, [32, 32]);
-  const observed = webgpu.rasterRgba!();
+  const observed = backendRasterRgba(
+    (webgpu as unknown as { rasterView(): RasterView }).rasterView(),
+  );
   const image = compareImages(expected, observed);
   assert.equal(image.maxChannelError, 0);
   webgl.dispose();
@@ -135,7 +139,7 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
   material.dispose();
 });
 
-// Like the reference's root pages, resident outside its pool: a budget smaller than root coverage
+// Root pages stay resident outside the pool: a budget smaller than root coverage
 // is raised to it, by name, and the image is complete — never refused.
 test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
   installGpuGlobals();

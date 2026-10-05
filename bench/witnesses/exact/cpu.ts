@@ -3,9 +3,21 @@ import { createCpuStepProfile } from '../../../packages/sdk-browser/src/stage/cp
 import { createStageProfiler } from '../../../packages/sdk-browser/src/stage/profiler.ts';
 import { logFrameCostAudit } from '../../../packages/sdk-browser/src/frame/costAudit.ts';
 import { addCpuSteps, cpuStepTable } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts';
-import { WEBGL_STAGES } from '../../../packages/sdk-browser/src/stage/mapping.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { HostCpuStep } from '../../../packages/sdk-browser/src/host/cpuProfile.ts';
+
+/** Stages the WebGL2 witness can name. */
+export const WEBGL_STAGES = [
+  'physics',
+  'animations',
+  'lights',
+  'hierarchyCut',
+  'selection',
+  'uploads',
+  'residency',
+  'submit',
+  'frame',
+] as const;
 
 /**
  * CPU bounds of a WebGL2 frame, in order: its public name and the profile step it lands in

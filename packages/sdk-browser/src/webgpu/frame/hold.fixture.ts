@@ -63,15 +63,8 @@ export function settledRt() {
     layout: { rows },
     vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
-      plan: {
-        counts: { pendingPages: 0, cachedPages: 0, poolPages: 0 },
-        pool: { refetched: 0 },
-        requests: { counts: { requested: 0 } },
-        gpu: { drawn: 0 },
-      },
+      changes: { deferred: () => false },
       store: { count: 0 },
-      shadowsUpdated: 0,
-      shadowFaces: 0,
     },
     bounce: { probes: undefined as unknown },
     capture: { capturing: false, capturePending: false },
@@ -109,7 +102,8 @@ export function settledRt() {
     },
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).
     context: {} as { effects?: EffectChain; guides?: GuideSet },
-    sunFar: { pending: undefined as Promise<unknown> | undefined, gpu: undefined as unknown },
+    // No transparent: the frame entry asks no share seed (`askFramePipelines`).
+    blendState: { blendGpu: [] as unknown[] },
   };
   return rt as unknown as WebgpuPagesRuntime & typeof rt;
 }

@@ -11,33 +11,23 @@
  */
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
+import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts';
 import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
+${PROJECTED_BOUND_WGSL}
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
  *  deformation reach (\`deformReach\`, #357), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
  *  the clip weight w = p*depth+(1-p) of the projection (\`views[vi].perspective\`, p):
  *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.
- *  Under \`REFERENCE_ERROR\`, the external reference's simple projection: delta*f/w(depth). */
+ *  Under \`REFERENCE_ERROR\`, the plain projection: delta*f/w(depth). */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
  let v=(e*vec4f(sphere.xyz,1.0)).xyz;
- let p=views[vi].perspective;let flat=1.0-p;
- if(REFERENCE_ERROR){
-  let depth=p*-v.z+flat;
-  if(!(depth>p*views[vi].near)){return INF;}
-  let delta=error*stretch;
-  return (delta*focal)/depth;
- }
- let reach=(sphere.w+deformReach)*stretch;let shift=error*stretch;
- let nearest=p*(-v.z-reach)+flat;let closest=nearest-p*shift;let side=p*(sqrt(v.x*v.x+v.y*v.y)+reach);
- if(!(closest>p*views[vi].near)){return INF;}
- let slant=sqrt(nearest*nearest+side*side);
- if(!(slant>=nearest&&slant<INF)){return INF;}
- return ((shift*focal)/nearest)*(slant/closest);
+ return projectedBound(error,v,sphere.w+deformReach,stretch,focal,views[vi].near,views[vi].perspective,REFERENCE_ERROR);
 }
 /** The two screen errors the cut rule compares, projected once: its replacement's (\`x\`, the
  *  parent's) and its own (\`y\`). */

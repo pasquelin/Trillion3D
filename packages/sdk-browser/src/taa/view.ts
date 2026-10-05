@@ -2,8 +2,9 @@ import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index
 import { TAA_SAMPLES } from './jitter.ts';
 import { taaWeightTable } from './weights.ts';
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts';
+import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { TaaFrameState } from './frameState.ts';
+import { stochasticSlot, type TaaFrameState } from './frameState.ts';
 
 const anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4),
@@ -39,9 +40,12 @@ export function writeReprojection(
 /**
  * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
  * display grid the history has, the current share and history flags, the native filter weights
- * of this jitter rank, the `render` grid the frame was drawn in, its jitter and whether it moves
- * (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the last image's;
- * `deformed`, a GPU deformation moved (#357).
+ * of this jitter rank, the `render` grid the frame was drawn in, its jitter, whether it moves and
+ * its rank among eight (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
+ * last image's; `deformed`, a GPU deformation moved (#357); `exposure`, the scene's, which the
+ * history's luma and the blend weights are measured in (`shadingHistoryWgsl.ts`); the camera's
+ * parallax since the last image, the flicker rates, counted in images, and a render pixel's
+ * width in the world (`shadingStill`).
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -53,14 +57,16 @@ export function writeTaaView(
   moved: boolean,
   layers = false,
   deformed = false,
+  exposure = 1,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
   writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display);
-  // Share of the current image: 1/k at the k-th quiet image, one eighth in motion.
-  packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
+  // Share of the current image at the k-th quiet image: 1/k. A moving image's is its history's
+  // own (`historyCap`, `shadingConfidence`), none here.
+  packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 0;
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = moved ? 1 : 0;
   packed[39] = layers ? 1 : 0;
@@ -69,7 +75,22 @@ export function writeTaaView(
   packed[56] = state.jitter[0];
   packed[57] = state.jitter[1];
   packed[58] = state.stillFrames > 0 ? 0 : 1;
+  packed[59] = stochasticSlot(state);
   packed.set(cam.eye, 60);
   packed[63] = deformed ? 1 : 0;
+  packed[64] = Math.max(exposure, 1e-6);
+  // The last projection of the eye's move since: `previous · (lastEye − eye, 0)`, its three first
+  // columns, which anchoring at the eye leaves as they are.
+  const last = state.previousViewProjection,
+    { eye } = cam,
+    dx = state.previousEye[0] - eye[0],
+    dy = state.previousEye[1] - eye[1],
+    dz = state.previousEye[2] - eye[2];
+  for (let row = 0; row < 4; row++)
+    packed[68 + row] = last[row] * dx + last[4 + row] * dy + last[8 + row] * dz;
+  packed[72] = FLICKER_COUNT_RATE;
+  packed[73] = flickerParallax(display[0]);
+  // A render pixel's world width at a clip w of one: 2 / (projection x scale · render width).
+  packed[74] = 2 / ((Math.abs(cam.projection?.[0] ?? 1) || 1) * render[0]);
   device.queue.writeBuffer(uniform, 0, packed);
 }

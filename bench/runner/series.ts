@@ -30,7 +30,7 @@ export async function runSerie(
   const start = machineLoad();
   const result = await runInPage(
     page,
-    measurePayload(side, view, pixelError, pose, poses, captureFile, settings, lights, MANIFEST),
+    measurePayload(side, pixelError, pose, poses, captureFile, settings, lights, MANIFEST),
   );
   const end = machineLoad();
   if ('error' in result) throw new Error(`${side.name} ${view} e${pixelError} : ${result.error}`);
@@ -49,6 +49,9 @@ export async function runSerie(
     engine: ENGINE.id,
     // GPU envelope of a frame, when the page records it (WebGPU engine).
     gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
+    // Device idle between two neighbouring images (#1451), beside the GPU envelope of the same run:
+    // the time the device stood unused before an image, which the envelope does not hold.
+    gpuIdleMs: result.gpuIdleMs?.length ? distribution(result.gpuIdleMs) : null,
     // Wall time of a synchronised frame — render then GPU wait — when the page records it.
     imageSyncMs: result.syncFrameMs?.length ? distribution(result.syncFrameMs) : null,
     rafIntervalMs: result.rafIntervalMs?.length ? distribution(result.rafIntervalMs) : null,
@@ -64,9 +67,6 @@ export async function runSerie(
     settleFrames: typeof result.settleFrames === 'number' ? result.settleFrames : null,
     // In-session reservoir tuning, as the engine reported it; `null` with no tuning.
     liveTuning: result.liveTuning ?? null,
-    // What the shadow pass did per measured frame: pages read, served from the pool, drawn,
-    // light cuts; `null` where the page loop records none.
-    shadowCounters: result.shadowCounters ?? null,
     network: result.network ?? null,
     variant: side.variant ?? null,
     errorMetric: side.errorMetric ?? 'certifiee',
@@ -123,9 +123,6 @@ export async function runSerie(
     importedLights: result.importedLights ?? null,
     // What the Three witness received from the store; `null` when this side does not draw through Three.
     witnessLights: result.witnessLights ?? null,
-    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that differ only by
-    // `--shadow-pages` must yield the same: the proof that page drawing equals a full redraw.
-    shadowAtlas: result.shadowAtlas ?? null,
     movingNode: result.movingNode ?? null,
     load: { start, end },
     png: capture ? captureFile : null,
@@ -143,6 +140,7 @@ export async function runSerie(
     `${side.name} ${view} e${pixelError} : cpuFrame p50=${row.cpuFrameMs ? row.cpuFrameMs.p50.toFixed(2) : '—'} ` +
       `cpuSelect p50=${row.cpuSelectMs ? row.cpuSelectMs.p50.toFixed(2) : '—'} ` +
       `gpuFrame p50=${row.gpuFrameMs ? row.gpuFrameMs.p50.toFixed(2) : '—'} ` +
+      `gpuIdle p50=${row.gpuIdleMs ? row.gpuIdleMs.p50.toFixed(2) : '—'} ` +
       `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'yes' : 'no'}\n`,
   );
   return { row, captureFile };

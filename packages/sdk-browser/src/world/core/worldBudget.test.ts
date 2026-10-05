@@ -6,28 +6,17 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
 } from '../../residency/pools.ts';
 import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts';
-import { SHADOW_BUFFER_BYTES } from '../../gpu/shadow/sizes.ts';
-import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../../gpu/shadow/batchBudget.ts';
-import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import {
-  SHADOW_TABLE_ENTRIES,
-  shadowPoolSize,
-  shadowPoolShape,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { createShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import { bounceProbeBytes } from '../../bounce/limits.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
-import { shadowPoolFor } from '../../webgpu/shadow/poolFor.ts';
+import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import {
-  SHADOW_HOST_BYTES,
-  SHADOW_POOL_BYTES,
-  BOUNCE_PROBE_BYTES,
-  SHADOW_ATLAS_BYTES,
-} from '../../residency/shadowBudgetBytes.ts';
-import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts';
+  DEFAULT_GPU_BUDGET,
+  EFFECT_TARGET_BYTES,
+  oneSunShadowMaps,
+} from '../../residency/budget.fixture.ts';
 
 const budget = (
   renderer: WorldRenderer | null,
@@ -82,33 +71,27 @@ test("the default totals split into each pool's own default", () => {
     effectTargets: EFFECT_TARGET_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
-    shadowMirror: SHADOW_HOST_BYTES,
     pageCache: DEFAULT_CACHED_BYTES,
     textureLevels: (3 * DEFAULT_CACHED_BYTES) / 4,
   });
   assert.equal(handle.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET);
 });
 
-test('the shadow share counts the pool at 3840 × 2160 under one sun, and the page table', () => {
-  assert.ok(SHADOW_BUFFER_BYTES >= SHADOW_TABLE_ENTRIES * 4);
-  assert.deepEqual(shadowPoolShape(shadowPoolSize(3840, 2160)), { side: 53, layers: 2 });
-  const pool = 2 * SHADOW_ATLAS_BYTES + shadowTransmittanceBytes(53, 2);
-  assert.ok(SHADOW_POOL_BYTES > pool + SHADOW_BUFFER_BYTES + SHADOW_BATCH_GPU_BYTES, 'requests');
+test('the shadow share holds the virtual shadow maps of one sun, within a MiB', () => {
+  const { layout, bytes } = oneSunShadowMaps();
+  // One page-table row; 2048 physical pages a slice, each slice one 128 MiB part.
+  assert.equal(layout.pageTableRows, 1);
+  assert.equal(layout.poolPages, 2048);
+  assert.equal(layout.poolPartsPerSlice, 1);
+  assert.ok(bytes <= SHADOW_POOL_BYTES, `${bytes} bytes of maps, ${SHADOW_POOL_BYTES} held`);
+  assert.ok(SHADOW_POOL_BYTES - bytes < MiB, `${SHADOW_POOL_BYTES - bytes} bytes beside the maps`);
   assert.equal(budget('webgpu', null).split.shadowPool, SHADOW_POOL_BYTES);
 });
 
-test('the CPU total counts the shadow table host mirror before the page cache', () => {
-  const { table, pool, admission } = createShadowPlan(53, 2);
-  const host = table.hostBytes + pool.hostBytes + admission.hostBytes + SHADOW_BATCH_HOST_BYTES;
-  assert.equal(SHADOW_HOST_BYTES, host);
-  assert.ok(SHADOW_HOST_BYTES > SHADOW_TABLE_ENTRIES * 5, 'the words and their change flags');
-  assert.equal(DEFAULT_CPU_BUDGET, SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES);
-  for (const total of [SHADOW_HOST_BYTES + 1, DEFAULT_CPU_BUDGET, 4096 * MiB]) {
-    const handle = budget('webgpu', null, { cpu: total });
-    const { shadowMirror, pageCache } = handle.split;
-    assert.equal(shadowMirror + pageCache, total, `${total}`);
-    assert.equal(shadowMirror, SHADOW_HOST_BYTES);
-  }
+test("the CPU total is the page cache's, whole: no shadow table is mirrored on the host", () => {
+  assert.equal(DEFAULT_CPU_BUDGET, DEFAULT_CACHED_BYTES);
+  for (const total of [1, DEFAULT_CPU_BUDGET, 4096 * MiB])
+    assert.equal(budget('webgpu', null, { cpu: total }).split.pageCache, total, `${total}`);
 });
 
 const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES;
@@ -131,17 +114,14 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
   }
 });
 
-// #487's audit: the shadow pool a screen takes, with its static layer and fixed buffers, is sized
-// inside `split.shadowPool`, and a total below 512 MiB never lets the pools sum past it.
-test('the shadow pool of any screen fits its share, and totals below 512 MiB never overflow', () => {
+// #487's audit: what the shadows take is sized inside `split.shadowPool` — the virtual shadow maps
+// of one sun, on any device: its binding limit splits the pool into parts, never grows it, and the
+// screen sizes none of it (the projection's mask is a frame target) —, and a total below 512 MiB
+// never lets the pools sum past it.
+test('the shadow maps fit their share on any device, and totals below 512 MiB never overflow', () => {
   const { shadowPool } = budget('webgpu', null).split;
-  const screens = [1, 1, 1280, 720, 3840, 2160, 16384, 16384, Infinity, Infinity];
-  for (let i = 0; i < screens.length; i += 2) {
-    const [w, h] = [screens[i], screens[i + 1]];
-    const granted = shadowPoolFor(shadowPoolSize(w, h))(SHADOW_ATLAS_BYTES).allocatedBytes;
-    const taken = 2 * granted + SHADOW_BUFFER_BYTES;
-    assert.ok(taken <= shadowPool, `${w}×${h}`);
-  }
+  for (const binding of [128 * MiB, 1024 * MiB, 4096 * MiB - 4])
+    assert.ok(oneSunShadowMaps(binding).bytes <= shadowPool, `${binding} bytes a binding`);
   for (const total of [64 * MiB, 256 * MiB, 511 * MiB, FIXED - 1]) {
     const pools = worldPools();
     const handle = budget('webgpu', null, {}, pools);
@@ -177,12 +157,11 @@ test('a total the rule cannot take is refused by name and changes nothing', () =
   assert.throws(() => (handle.gpu = SHADOW_POOL_BYTES - 1), /GPU_BUDGET_UNDER_SHADOW_POOL/);
   assert.equal(handle.split.shadowPool, SHADOW_POOL_BYTES);
   assert.throws(() => (handle.cpu = 1.5), /INVALID_CPU_BUDGET/);
-  // The mirror never shrinks either: a CPU total that leaves the page cache nothing is refused.
-  assert.throws(() => (handle.cpu = SHADOW_HOST_BYTES), /CPU_BUDGET_UNDER_SHADOW_MIRROR/);
+  assert.throws(() => (handle.cpu = 0), /INVALID_CPU_BUDGET/);
   assert.deepEqual({ ...pools, pageCache: undefined }, { pageCache: undefined });
   assert.equal(pools.pageCache.cpuBytes, DEFAULT_CACHED_BYTES);
   handle.cpu = 64 * MiB;
-  assert.equal(handle.split.pageCache, 64 * MiB - SHADOW_HOST_BYTES);
+  assert.equal(handle.split.pageCache, 64 * MiB);
 });
 
 test("a CPU total applies live to the world's page cache, the one every session reads through", () => {
@@ -190,7 +169,7 @@ test("a CPU total applies live to the world's page cache, the one every session 
   const handle = budget('webgpu', null, {}, pools);
   const page = new Uint8Array(MiB);
   for (let i = 0; i < 8; i++) pools.pageCache.touch(`p${i}`, page);
-  handle.cpu = SHADOW_HOST_BYTES + 3 * MiB;
+  handle.cpu = 3 * MiB;
   assert.equal(pools.pageCache.cpuBytes, 3 * MiB);
   // No session reads: pages leave oldest first, at once, not at the next scene load.
   assert.deepEqual([...pools.pageCache.pages.keys()], ['p5', 'p6', 'p7']);

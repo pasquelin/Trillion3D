@@ -23,13 +23,23 @@ type GeometryNumbers = Pick<
   'firstLevel' | 'levelCount' | 'pixelBytes'
 >;
 
-const geometries =
-  (calcul: (width: number, height: number) => GeometryNumbers) =>
-  (liste: readonly [number, number][]) =>
-    liste.map(([w, h]) => {
-      const g = calcul(w, h);
-      return [g.firstLevel, g.levelCount, g.pixelBytes];
-    });
+/** Each entry's three numbers, flat, in a buffer kept per list: the timed call allocates none. */
+const geometries = (calcul: (width: number, height: number) => GeometryNumbers) => {
+  const outputs = new Map<readonly unknown[], Float64Array>();
+  return (list: readonly [number, number][]) => {
+    let output = outputs.get(list);
+    if (!output) outputs.set(list, (output = new Float64Array(list.length * 3)));
+    for (let i = 0; i < list.length; i++) {
+      const g = calcul(list[i][0], list[i][1]);
+      [output[i * 3], output[i * 3 + 1], output[i * 3 + 2]] = [
+        g.firstLevel,
+        g.levelCount,
+        g.pixelBytes,
+      ];
+    }
+    return output;
+  };
+};
 
 const cas: MesureCas<[number, number][]>[] = [
   { name: '4 000 entries, eight boundary sizes', input: inputs, size: 4000 },

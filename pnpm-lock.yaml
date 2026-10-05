@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      meshoptimizer:
-        specifier: ~0.18.1
-        version: 0.18.1
     devDependencies:
       '@codemirror/lang-html':
         specifier: ^6.4.12
@@ -87,6 +83,9 @@ importers:
       knip:
         specifier: ^6.35.1
         version: 6.35.1
+      meshoptimizer:
+        specifier: ~0.18.1
+        version: 0.18.1
       playwright:
         specifier: ^1.63.0
         version: 1.63.0
@@ -114,6 +113,9 @@ importers:
       typescript-eslint:
         specifier: ^8.70.0
         version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@5.9.3)
+      webgpu:
+        specifier: 0.6.2
+        version: 0.6.2
     optionalDependencies:
       '@trillion3d/compiler-darwin-arm64':
         specifier: workspace:*
@@ -2439,6 +2441,9 @@ packages:
 
   weapon-regex@2.0.5:
     resolution: {integrity: sha512-BJZkSdtcae9Wb8+hKNtAqR+Q61EMOAuQnpCCHKwT50K7fIWg7/2/RnbKR27YB+sMcYxYLUVj+Asm5Y2XhD8mZg==}
+
+  webgpu@0.6.2:
+    resolution: {integrity: sha512-3L4GfmqJLvYUIEWJngEQY+2HQiUlAFkg8+P8NDDj3Xx5hHHIFO/r8JW+ynfqBj7kHN4mbnwO74uB+lrRtLhp4Q==}
 
   which-boxed-primitive@1.1.1:
     resolution: {integrity: sha512-TbX3mj8n0odCBFVlY8AxkqcHASw3L60jIuF8jFP78az3C2YhmGvqbHBpAjTRH2/xqYunrJ9g1jSyjCjpoWzIAA==}
@@ -5030,6 +5035,13 @@ snapshots:
   walk-up-path@4.0.0: {}
 
   weapon-regex@2.0.5: {}
+
+  webgpu@0.6.2:
+    dependencies:
+      '@webgpu/types': 0.1.72
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
 
   which-boxed-primitive@1.1.1:
     dependencies:

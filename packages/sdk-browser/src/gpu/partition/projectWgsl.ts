@@ -47,10 +47,13 @@ import {
  */
 export const PARTITION_PROJECT_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn projectRows(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=uni.rows){return;}
+fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+ if(id.x<uni.rows){projectRow(id.x);}
+ flushTally(lane);
+}
+fn projectRow(i:u32){
  let base=i*${ROW_DATA_U32}u;
- // Last image's verdict, read before this image's Hi-Z test clears it. A row rewritten since
+ // Last image's flags, read before this kernel rewrites them below. A row rewritten since
  // then was cleared before this pass: its zero flags read as never projected.
  let held=rowData[base+${ROW_FLAGS}u];
  var drawn=1u;
@@ -63,7 +66,7 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
   drawn=select(1u,0u,rejected);
   if(!rejected&&uni.viewMoved==0u){kept=true;}
  }
- if(drawn!=0u){atomicAdd(&state[${ST_HISTORY_OCCLUDERS}u],1u);}
+ if(drawn!=0u){tallyAdd(${ST_HISTORY_OCCLUDERS}u,1u);}
  // A frame with no tested half has nowhere to send a withdrawn row; a rectangle never projected
  // or cut by the near plane is nothing the pyramid can judge.
  let judged=(held&(${FLAG_PROJECTED}u|${FLAG_CLIP}u))==${FLAG_PROJECTED}u;
@@ -72,7 +75,7 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
    bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
   if(hiddenByPyramid(heldRect,bitcast<f32>(rowData[base+${ROW_NEAREST}u]))){
    drawn=0u;
-   atomicAdd(&state[${ST_WITHDRAWN}u],1u);
+   tallyAdd(${ST_WITHDRAWN}u,1u);
   }
  }
  let box=projectBox(i,items[i].layer);

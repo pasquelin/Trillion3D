@@ -91,17 +91,14 @@ export function createNestedNodes(
       slots.sort((a, b) => depths.get(a)! - depths.get(b)!);
     },
     clear: () => nodes.clear(),
-    /**
-     * `ancestor` moved (a page's move): each node under it, or it, is drawn from where it stands
-     * now, and `target` (7 numbers by slot) holds it there until its body's next tick, not back
-     * where its last tick was simulated before the move.
-     */
-    follow(ancestor: Object3D, target: Float32Array) {
+    /** `ancestor` moved (a page's move): each node under it, or it, is drawn from where it stands
+     *  now, and `hold` keeps it there until its body's next tick, not back where its last tick was
+     *  simulated before the move. */
+    follow(ancestor: Object3D, hold: (index: number) => void) {
       for (const [index, node] of nodes) {
         if (!under(node, ancestor)) continue;
         read(index, node);
-        target.set(position.subarray(index * 3, index * 3 + 3), index * 7);
-        target.set(quaternion.subarray(index * 4, index * 4 + 4), index * 7 + 3);
+        hold(index);
       }
     },
   };

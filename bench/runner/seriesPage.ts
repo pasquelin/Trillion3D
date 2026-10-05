@@ -12,7 +12,6 @@ import { sdkEntryUrl } from './dists.ts';
 /** The payload one series sends into the page: everything `measureView` needs. */
 export function measurePayload(
   side: Side,
-  view: string,
   pixelError: number,
   pose: CameraPose,
   poses: CameraPose[] | null,
@@ -60,8 +59,6 @@ export function measurePayload(
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
-    shadowPages: settings.shadowPages,
-    shadowDigest: settings.shadowDigest,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
     textureUploadMs: settings.textureUploadMs,

@@ -27,7 +27,7 @@ export interface Helper {
   file: string;
 }
 
-const TEST_TS = /\.(?:test|fixture|perf|browser)\.m?ts$/;
+const TEST_TS = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
 const TEST_RS = /(?:^|\/)(?:tests?|\w+_tests?)(?:\.rs$|\/)/;
 
 /** Whether `file` is a test module, which may keep its own small copies. */

@@ -1,11 +1,12 @@
-import { SRGB_WGSL } from '../../lighting/deferred/shaders.ts';
+import { SRGB_ENCODE_WGSL } from '../../texture/srgbEncode.ts';
 import { TONE_MAPPING_WGSL } from '../../lighting/toneMappingWgsl.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import { programOf } from './displayFilterProgram.ts';
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
 
 /**
- * The display layers (#558): the witness, three@0.174, multiplies and subtracts on a canvas of
+ * The display layers (#558): the reference display multiplies and subtracts on a canvas of
  * display values, after the tone curve, which mixes the channels. In an image whose blends hold
  * such a surface, a mask pass marks the pixels it covers (`MASK_FORMAT`); there every transparent
  * layer — blends, particles, water — maps the tint `t` and the added value `a` instead of the lit
@@ -13,10 +14,16 @@ import { programOf } from './displayFilterProgram.ts';
  * Elsewhere `t = 1`, `a = 0`. Any other image allocates, binds and draws none of it.
  */
 
-/** Eight bits of display value per channel, as the witness's canvas. */
+/** Eight bits of display value per channel, as a display canvas. */
 export const FILTER_FORMAT: GPUTextureFormat = 'rgba8unorm';
 /** One where a filtering surface covers the pixel. */
 export const MASK_FORMAT: GPUTextureFormat = 'r8unorm';
+/** Bytes per pixel of one texel of `format`, as the device ledger counts it. */
+export const texelBytes = (format: GPUTextureFormat) => textureBytesOf({ size: [1, 1], format })!;
+/** Bytes per pixel of the display layers (`createDisplayFilter`): the tint and the added value in
+ *  `FILTER_FORMAT`, and the mask. */
+export const DISPLAY_LAYER_BYTES_PER_PIXEL =
+  2 * texelBytes(FILTER_FORMAT) + texelBytes(MASK_FORMAT);
 
 /** The tint's and added value's targets of a pass drawing a layer of `mode`. */
 export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
@@ -28,7 +35,7 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
  *  display layers where `masked`, else to the lit target (`keep`); 2 (multiply, subtractive)
  *  always; 0 leaves the layers at `(1, 0)` and shows nothing. What the layers take is its display
  *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
-export const DISPLAY_ROUTE_WGSL = `${TONE_MAPPING_WGSL}${SRGB_WGSL}
+export const DISPLAY_ROUTE_WGSL = `${TONE_MAPPING_WGSL}${SRGB_ENCODE_WGSL}
 override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
 fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{
@@ -81,7 +88,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     views,
     width,
     height,
-    bytes: width * height * 9,
+    bytes: width * height * DISPLAY_LAYER_BYTES_PER_PIXEL,
     maskGroup: device.createBindGroup({
       layout: maskLayout,
       entries: [{ binding: 0, resource: mask }],
@@ -134,7 +141,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
       });
       pass.setBindGroup(0, group);
       for (const pipeline of presentation ? present : draw) {
-        pass.setPipeline(pipeline);
+        pass.setPipeline(pipeline.get());
         pass.draw(3);
       }
       pass.end();

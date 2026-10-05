@@ -7,8 +7,10 @@
 import * as THREE from 'three';
 import type { VertexAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
-import { isGraphTexture } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
-import type { GraphTexture } from '../../../packages/sdk-browser/src/host/graph/texture.ts';
+import {
+  isGraphTexture,
+  type GraphTexture,
+} from '../../../packages/sdk-browser/src/host/graph/texture.ts';
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
@@ -34,7 +36,7 @@ function sourceOf(image: unknown) {
 }
 
 /** The library's texture of an engine texture, its sampler state and transform kept in step. */
-export function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
+function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
   if (texture instanceof THREE.Texture) return texture;
   let held = textures.get(texture);
   if (held && held.version === texture.version) return held.made;

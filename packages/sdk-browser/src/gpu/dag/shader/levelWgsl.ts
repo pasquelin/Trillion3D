@@ -117,7 +117,7 @@ fn levelStep(src:u32,s:u32){
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
- if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
+ if(outsideFrustum(planesOf(w),node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
  // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
  // unless the subtree is open, holding the nearest resident ancestor of something missing

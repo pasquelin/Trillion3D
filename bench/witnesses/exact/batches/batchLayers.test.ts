@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { buildLayerGroups, groupForPage, everyGroup } from './batchLayers.ts';
 import { BatchGroup } from './batchPrimitive.ts';
-import type { BatchPage } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+import type { BatchPage } from './batchPage.ts';
 import { ClusterBatches } from './batches.ts';
 import type { ClusterDrawMesh } from '../../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { attributes } from './batches.fixture.ts';

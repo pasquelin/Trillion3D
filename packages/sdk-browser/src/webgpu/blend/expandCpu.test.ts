@@ -1,17 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { instanceItem, RUN_SHARED, runOwner } from './runs.ts';
+import { instanceItem } from '../../../../../bench/oracles/browser/instanceItem.ts';
 import { blendChunkWords, blendVertexShift, RUN_WORDS } from './planLayout.ts';
-import { buildBlendRuns } from './runSlicing.ts';
 import { expandBlendPlan, itemKept } from './expandCpu.ts';
 import { DRAW_UNPAGED } from './plan.ts';
 import { planEntry } from './planEntry.ts';
 
 /** A plan entry: item rank, share bit, pipeline. */
-const entree = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared);
+const entryOf = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared);
 
 /** Minimal expansion setup: three paged items on one side, one isolated primitive. */
-function decor() {
+function scene() {
   const draws = new Uint32Array(4 * 4);
   for (let item = 0; item < 3; item++) {
     draws[item * 4] = item;
@@ -38,8 +37,8 @@ function decor() {
 }
 
 test('a shared run expands the instances of its entries, in plan order', () => {
-  const base = decor();
-  const order = Uint32Array.from([entree(2, true), entree(0, true), entree(1, true)]);
+  const base = scene();
+  const order = Uint32Array.from([entryOf(2, true), entryOf(0, true), entryOf(1, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
@@ -55,9 +54,9 @@ test('a shared run expands the instances of its entries, in plan order', () => {
 });
 
 test('an item the frustum rejects expands no instance, and does not shift the others', () => {
-  const base = decor();
+  const base = scene();
   base.keep[0] = 0b1101;
-  const order = Uint32Array.from([entree(0, true), entree(1, true), entree(2, true)]);
+  const order = Uint32Array.from([entryOf(0, true), entryOf(1, true), entryOf(2, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
@@ -67,8 +66,8 @@ test('an item the frustum rejects expands no instance, and does not shift the ot
 });
 
 test('an unpaged primitive expands into chunks of one index stride', () => {
-  const base = decor();
-  const order = Uint32Array.from([entree(3, false)]);
+  const base = scene();
+  const order = Uint32Array.from([entryOf(3, false)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 1]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
@@ -80,8 +79,8 @@ test('an unpaged primitive expands into chunks of one index stride', () => {
 });
 
 test('the two passes expand into two disjoint regions, each at its base', () => {
-  const base = decor();
-  const order = Uint32Array.from([entree(0, true)]);
+  const base = scene();
+  const order = Uint32Array.from([entryOf(0, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 1]);
   expandBlendPlan({ ...base, order, runs, runCount: 1, instanceBase: 5, argsBase: 8 });
@@ -91,15 +90,14 @@ test('the two passes expand into two disjoint regions, each at its base', () => 
 });
 
 test('a double-sided paged item draws back then face in ONE run, its vertex stage culling', () => {
-  const base = decor();
+  const base = scene();
   // Two double-sided items, far to near: each sets the back (culls the face, 1) then the face.
   const order = Uint32Array.from(
     [0, 1].flatMap((item) => [planEntry(item, 1, true, true), planEntry(item, 2, true, true)]),
   );
-  const runs = new Uint32Array(order.length * RUN_WORDS);
-  const runCount = buildBlendRuns(order, runs);
-  assert.equal(runCount, 1, 'four entries, one pipeline: one draw');
-  const total = expandBlendPlan({ ...base, order, runs, runCount });
+  // Four entries of one pipeline, all shared: the main class of the pass, one slot, one draw.
+  const runs = Uint32Array.from([0, order.length]);
+  const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
   assert.equal(total, 10, 'each item expands its clusters once per side');
   const words = Array.from(base.expanded.subarray(0, 20)).filter((_, k) => k % 2 === 0);
   // The paint order is the one two draws per item gave: back of 0, face of 0, back of 1, face of 1.
@@ -111,17 +109,34 @@ test('a double-sided paged item draws back then face in ONE run, its vertex stag
   );
 });
 
-test('the two faces of one item still name it: out of view, their run is not encoded', () => {
-  const faces = (item: number) => [planEntry(item, 1, true, true), planEntry(item, 2, true, true)];
-  assert.equal(runOwner(Uint32Array.from(faces(3)), 0, 2), 3);
-  assert.equal(runOwner(Uint32Array.from([...faces(3), ...faces(4)]), 0, 4), RUN_SHARED);
+test('an empty slot draws no instance and shifts none of the slots after it', () => {
+  const base = scene();
+  // The main class around one own entry: nothing before it, item 0 after it.
+  const order = Uint32Array.from([entryOf(3, false), entryOf(0, true)]);
+  const runs = Uint32Array.from([0, 0, 0, 1, 1, 1]);
+  const total = expandBlendPlan({ ...base, order, runs, runCount: 3 });
+  assert.equal(total, 5, 'three chunks, then two clusters');
+  assert.deepEqual(Array.from(base.args.subarray(0, 12)), [
+    48,
+    0,
+    0,
+    0,
+    6,
+    3,
+    0,
+    0,
+    48,
+    2,
+    3 << 6,
+    0,
+  ]);
 });
 
 test('a pipeline cull leaves the instance word as the bare item rank', () => {
-  const base = decor();
-  const order = Uint32Array.from([entree(0, true, 2)]);
-  const runs = new Uint32Array(RUN_WORDS);
-  expandBlendPlan({ ...base, order, runs, runCount: buildBlendRuns(order, runs) });
+  const base = scene();
+  const order = Uint32Array.from([entryOf(0, true, 2)]);
+  const runs = Uint32Array.from([0, 1]);
+  expandBlendPlan({ ...base, order, runs, runCount: 1 });
   assert.deepEqual(Array.from(base.expanded.subarray(0, 4)), [0, 100, 0, 101]);
 });
 

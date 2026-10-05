@@ -7,8 +7,7 @@ import { HIZ_UNIFORM_BYTES } from './uniforms.ts';
 
 /**
  * The two Hi-Z kernels, build and test, compiled under one device validation scope, once a device:
- * the camera's pyramid and the shadow pages' (`../shadow/pageHiz.ts`) share them, so the static
- * layer, made at an object's first move, compiles nothing then.
+ * every pyramid of the device shares them, so a pyramid made later compiles nothing.
  */
 export const createHizPipelines = oncePerDevice((device) =>
   validated(device, async () => {

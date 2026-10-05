@@ -54,6 +54,24 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
   assert.equal(gpu.destroyed.length, 4, 'a pool the world let go of gives its buffers back');
 });
 
+test('WebGPU: a pool whose time runs before its first particle dispatches no empty workgroup grid', async () => {
+  const particles = createWebgpuParticles(fakeDevice().device, (error) =>
+    assert.fail(String(error)),
+  );
+  const pool = new ParticlePool({ capacity: 1000, emitPerFrame: 1000 });
+  const { encoder, passes } = computeRecorder();
+  particles.run([pool], encoder);
+  await tick();
+  pool.advance(0.01);
+  // Time, and no slot: a dispatch would ask zero workgroups, which the device warns about.
+  assert.equal(particles.run([pool], encoder), 0);
+  assert.equal(passes.length, 0, 'no pass, no dispatch');
+  pool.emit(0, 1, 2, 3, 4, 5, 6);
+  pool.advance(0.01);
+  assert.equal(particles.run([pool], encoder), 1);
+  assert.deepEqual(passes[0].dispatches, [1]);
+});
+
 test('WebGPU: a step that cannot compile is heard, and its pools stop asking frames', async () => {
   const heard: unknown[] = [],
     { device } = fakeDevice({ compute: false });

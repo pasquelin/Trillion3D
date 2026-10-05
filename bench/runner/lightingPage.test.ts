@@ -111,8 +111,6 @@ async function mesurer(
     profileFrames: 0,
     lights: [],
     moving: null,
-    shadowPages: true,
-    shadowDigest: false,
     textureSource: 'host',
     textureUploadMs: null,
     textureCompression: undefined,

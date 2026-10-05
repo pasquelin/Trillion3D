@@ -18,11 +18,11 @@ const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  * nothing. It shares the shipped kernel's text (`inverseTransposeKernel.ts`) rather than a copy in
  * a bench: only the prepare and the fallback differ, so a kernel change moves both, where a pasted
  * copy would stop matching the first kernel change — without anyone seeing it. The whole block substitutes for the shipped
- * block, structure included, and `tests/browser/probes/substitutionBefore.ts` establishes the
+ * block, structure included, and `tests/gpu/math/substitutionBefore.ts` establishes the
  * substitution instead of hoping for it. A reproduction is only worth as long as it
  * reproduces: GPU actually executed, and measured against what the engine DRAWS (real
  * rasterisation, face state included), this form drops 656 drawn clusters over 6 916 cases
- * where the shipped form drops none (`tests/browser/probes/inverse-transpose-small-scale.ts`).
+ * where the shipped form drops none (`tests/gpu/math/inverse-transpose-small-scale.gpu.ts`).
  * The "560 before, 54 after" of an earlier sample read raw geometric orientation, which
  * ignores face swap under reflection: it counted 119 legitimate rejects as defects and missed
  * 215.

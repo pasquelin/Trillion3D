@@ -1,7 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createPageRowConstants } from './pageRowConstants.ts';
 import { slotSampled } from '../tile/samplingHeaders.ts';
 import { materialClassKey } from '../../visibility/shader/materialClass.ts';
 import { MODEL_SHIFT } from '../../scene/surfaceModel.ts';
@@ -156,30 +155,4 @@ export function rowMaterial(
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE;
   if (geo?.dynamic) flags |= FLAG_DYNAMIC;
   return { map, rough, metal, normal, ao, emissive, subsurface, flags, classKey };
-}
-
-/**
- * Resolve classes of a scene, sorted: the class of every page that takes a row — transparent
- * pages never do (`sync.ts`) — from the same material fields, geometry block and atlas
- * slots the row will carry. Known once the atlases are laid out, before any image: the class
- * pipelines are compiled here, never on the frame that first draws one.
- */
-export function sceneMaterialClasses(
-  allPages: readonly PageRec[],
-  geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
-  layers: MaterialLayers,
-) {
-  const constants = createPageRowConstants();
-  const keys = new Set<number>();
-  const block = emptyGeometryBlock();
-  for (const rec of allPages)
-    if (!rec.transparent)
-      keys.add(
-        rowMaterial(
-          constants.materialOf(rec.material).mat,
-          rowGeometry(rec, geometryBlocks, block),
-          layers,
-        ).classKey,
-      );
-  return [...keys].sort((a, b) => a - b);
 }

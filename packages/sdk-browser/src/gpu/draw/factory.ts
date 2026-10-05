@@ -1,36 +1,36 @@
-import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './contract.ts';
+import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP, drawBatches } from './contract.ts';
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { createGpuDrawBuffers } from './buffers.ts';
 import type { GpuDraw } from './contract.ts';
 import { constructGpuResources, validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
-import { createLightRowMap, type LightRowMap } from './lightRows.ts';
 import { pendingBuffers } from '../core/tableGrowth.ts';
+import { vsmWriteChanged } from '../../vsm/writeChanged.ts';
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
- * coplanar layer the scene carries, so a scene with none asks for the six slots this path has
- * always had and pays nothing. Missing compute returns undefined so the caller keeps the CPU loop.
+ * coplanar layer the scene carries, so a scene with none asks for one layer's `BASE_SLOTS` and
+ * pays nothing more. `maxCorners`, the catalogue's widest page, fixes the instances'
+ * batches (`drawBatches`). Missing compute returns undefined so the caller keeps the CPU loop.
  * The row buffers grow in place (`grow`): the pipelines stay, the groups are made again.
  */
 export async function createGpuDraw(
   device: GPUDevice,
   slotCap: number,
-  layerSlots = 1,
+  layerSlots: number,
+  maxCorners: number,
 ): Promise<GpuDraw | undefined> {
+  const { corners, perRow } = drawBatches(maxCorners);
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined;
-  // The light rows' map: its own buffers, remade with the draw records it reads.
-  const mapBuffers: GPUBuffer[] = [];
   let disposed = false,
     allocated: ReturnType<typeof createGpuDrawBuffers> | undefined;
   const release = () => {
-    for (const buffer of [...(allocated?.all ?? []), ...mapBuffers]) buffer.destroy();
-    mapBuffers.length = 0;
+    for (const buffer of allocated?.all ?? []) buffer.destroy();
   };
   try {
     allocated = constructGpuResources(device, () =>
-      createGpuDrawBuffers(device, slotCap, layerSlots),
+      createGpuDrawBuffers(device, slotCap, layerSlots, perRow),
     );
     const SLOTS = allocated.slots;
     const made = await validated(device, async () => {
@@ -69,7 +69,6 @@ export async function createGpuDraw(
     let boundMask = held.itemsBuf,
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
-    let rowMap: LightRowMap | undefined;
     return {
       uploadItems(items, from, to) {
         const last = Math.min(to, slotCap - 1);
@@ -81,27 +80,29 @@ export async function createGpuDraw(
           items.byteOffset + from * DRAW_ITEM_U32 * 4,
           (last - from + 1) * DRAW_ITEM_U32 * 4,
         );
-        rowMap?.markRows(from, last);
       },
-      encode(encoder, count, maxVertexCount, selection) {
+      encode(open, count, selection) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
         // Only the groups the frame's items reach are counted and prefixed. The groups past them hold zero
         // by construction and nothing reads them, so bounding the serial prefix by the live count is exact.
         const liveGroups = Math.max(1, Math.ceil(n / WORKGROUP));
         uniData[0] = count;
-        uniData[1] = maxVertexCount;
+        uniData[1] = corners;
         uniData[2] = slotCap;
         uniData[3] = liveGroups;
         uniData[4] = selection ? 1 : 0;
         uniData[5] = selection?.maskOffset ?? 0;
+        uniData[6] = perRow;
         const mask = selection?.maskBuffer ?? held.itemsBuf;
         if (mask !== boundMask) {
           boundMask = mask;
           bindGroup = makeBindGroup(mask);
         }
-        device.queue.writeBuffer(held.uniforms, 0, uniData);
-        const pass = encoder.beginComputePass({ label: 'Trillion3D draw compaction' });
+        // Only the words that changed go up — most images change none; a grown table's new
+        // buffer is held as its zeros (`vsmWriteChanged`).
+        vsmWriteChanged(device, held.uniforms, uniData, 0, uniData.length);
+        const pass = open.pass;
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
         // One workgroup per group of items: each lane reads its own item once (`countGroups`).
@@ -110,14 +111,10 @@ export async function createGpuDraw(
         pass.dispatchWorkgroups(1);
         pass.setPipeline(scatterPipeline);
         pass.dispatchWorkgroups(liveGroups);
-        pass.end();
-      },
-      lightRows(pages) {
-        return (rowMap ??= createLightRowMap(device, held.itemsBuf, pages, mapBuffers));
       },
       grow(rows) {
         const next = constructGpuResources(device, () =>
-          createGpuDrawBuffers(device, rows, layerSlots),
+          createGpuDrawBuffers(device, rows, layerSlots, perRow),
         );
         return pendingBuffers(next.all, () => {
           const old = held;
@@ -125,11 +122,7 @@ export async function createGpuDraw(
           slotCap = rows;
           if (boundMask === old.itemsBuf) boundMask = next.itemsBuf;
           bindGroup = makeBindGroup(boundMask);
-          // The map reads the draw records: it is made again, whole, at its next call.
-          const replaced = [...old.all, ...mapBuffers];
-          mapBuffers.length = 0;
-          rowMap = undefined;
-          return replaced;
+          return old.all;
         });
       },
       get itemsBuffer() {
@@ -151,6 +144,8 @@ export async function createGpuDraw(
         return held.groupOffsets;
       },
       slots: SLOTS,
+      corners,
+      perRow,
       dispose() {
         disposed = true;
         release();

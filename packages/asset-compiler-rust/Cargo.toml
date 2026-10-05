@@ -50,7 +50,7 @@ texture2ddecoder = "0.1.2"
 exr = "1.74.2"
 # Basis Universal payload transcoding for the `ktx2` driver — ETC1S under BasisLZ and UASTC LDR 4 × 4 —
 # to RGBA8 (Apache-2.0, marcogomez/basisu, notices retained alongside dependency). Pure Rust, without
-# `cc` or C++ source: a port of Binomial's reference transcoder, verified bit for bit against it.
+# `cc` or C++ source, its output verified bit for bit against the format's decoder.
 # Decoding only, no encoder, no editor code.
 basisu = { version = "0.1.0", default-features = false, features = ["std", "zstd"] }
 # Zstandard decompression for `ktx2` driver levels (MIT, KillingSpark/zstd-rs). Pure Rust,

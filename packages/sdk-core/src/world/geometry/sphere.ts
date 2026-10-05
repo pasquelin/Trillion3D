@@ -22,8 +22,8 @@ export function turnPoint(fraction: number, start = 0, length = Math.PI * 2) {
 
 /**
  * A latitude–longitude sphere as flat arrays: `longitudeSegments` meridians, `latitudeSegments`
- * parallels, the poles on the `y` axis, texture `u` around and `v` from the south pole up. The
- * lighting experiment scene draws its sphere with it, and `geometry.sphere` wraps it.
+ * parallels, the poles on the `y` axis, texture `u` around and `v` from the south pole up.
+ * `geometry.sphere` wraps it.
  */
 export function sphereArrays(
   center: readonly [number, number, number],

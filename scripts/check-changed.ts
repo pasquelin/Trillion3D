@@ -15,7 +15,7 @@ import { heavyStep } from './heavy-lock.ts';
 import { pnpmCommand } from './only-pnpm.ts';
 import { repositoryFiles } from './repository-files.ts';
 import { run } from './run.ts';
-import { compileSiteCaches } from './site-caches.ts';
+import { compileSiteCaches, TEST_SCENES } from './site-caches.ts';
 import { changedTypeErrors, tsProjects } from './ts-projects.ts';
 import { runUnitTests } from './unit-tests.ts';
 
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
         await generateApiFiles();
         break;
       case 'compile:caches':
-        compileSiteCaches(false);
+        compileSiteCaches(false, TEST_SCENES);
         break;
       case 'check:lines':
         run('node', ['scripts/check-file-lines.ts', '--changed']);

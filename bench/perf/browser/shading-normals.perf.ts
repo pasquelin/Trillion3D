@@ -2,7 +2,7 @@
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { shadingNormal } from '../../../packages/sdk-browser/src/visibility/shader/shadingNormal.ts';
+import { shadingNormal } from '../../oracles/browser/cpu-image/shadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts';
 import { reperes } from './support/scenesNormal.ts';
@@ -101,7 +101,7 @@ const passe =
 
 const res = await mesure({
   name: 'shadingNormal hostile frames',
-  fichier: 'packages/sdk-browser/src/visibility/shader/shadingNormal.ts',
+  fichier: 'bench/oracles/browser/cpu-image/shadingNormal.ts',
   cas: [
     { name: `${lot.length} hostile frames`, input: lot, size: lot.length },
     { name: 'one frame', input: lot.slice(0, 1), size: 1 },

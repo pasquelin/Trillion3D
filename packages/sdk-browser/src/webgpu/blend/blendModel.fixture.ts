@@ -1,5 +1,5 @@
 // The one-pixel model of the blend tests (#558): WebGPU's blend equation, factor by factor, and
-// the witness's display value, three@0.174's ACES filmic fit then sRGB, kept independent of the
+// the reference display value, an ACES filmic fit then sRGB, kept independent of the
 // engine's shader on purpose.
 import assert from 'node:assert/strict';
 import { linearToSrgb } from '../../../../sdk-core/src/math/index.ts';
@@ -40,7 +40,7 @@ export function blend(state: GPUBlendState, src: Rgba, dst: Rgba): Rgba {
 export const written = (target: GPUColorTargetState, src: Rgba, dst: Rgba) =>
   target.writeMask === 0 ? dst : blend(target.blend!, src, dst);
 
-/** The witness's tone curve of a linear colour: three@0.174's ACES filmic fit, clamped. */
+/** The reference tone curve of a linear colour: an ACES filmic fit, clamped. */
 export function filmic([r, g, b]: readonly number[]): number[] {
   const c = [r, g, b].map((v) => v / 0.6);
   const into = [0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777];
@@ -58,7 +58,7 @@ export function filmic([r, g, b]: readonly number[]): number[] {
 /** The sRGB transfer of a linear colour. */
 export const srgb = (rgb: readonly number[]) => rgb.map(linearToSrgb);
 
-/** The witness's display value of a linear colour: its tone curve, then sRGB. */
+/** The reference display value of a linear colour: its tone curve, then sRGB. */
 export const display = (rgb: readonly number[]) => srgb(filmic(rgb));
 
 /** The display value of `colour`, opaque. */

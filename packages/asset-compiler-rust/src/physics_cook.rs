@@ -1,15 +1,15 @@
-//! Stage `physics-cook`: the colliders of a compiled scene, cooked at build time by native Jolt
+//! Stage `physics-cook`: the colliders of a compiled scene, cooked at build time by the native physics engine
 //! (`packages/physics-jolt-wasm/cook/cook.cpp`, linked by `build.rs` from the same pinned
-//! submodule as the web module) and written with Jolt's own binary state. At runtime, loading a
+//! submodule as the web module) and written with the engine's own binary state. At runtime, loading a
 //! collider is a decode and a copy: no tree, hull or mass is computed in the browser.
 //!
 //! What it makes, per primitive: a collision level cut through the DAG at one tolerance derived
-//! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a Jolt
+//! from the object (`cut.rs`), split into tiles aligned on the culling hierarchy, each a native
 //! `MeshShape` stored as a SHA-addressed object like the pages; a regular grid becomes a height
 //! field (`height.rs`). Per scene: `physics.json` (`stage.rs`), each placement carrying the matter its
 //! source declares through `KHR_physics_rigid_bodies` (`declared.rs`); the rigid bodies its nodes
 //! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
-//! (`mass.rs`), a breakable one also cut into weighed convex pieces (`pieces.rs`, `voronoi.rs`); and the soft bodies its nodes declare, each Jolt's `SoftBodySharedSettings` as the
+//! (`mass.rs`), a breakable one also cut into weighed convex pieces (`pieces.rs`, `voronoi.rs`); and the soft bodies its nodes declare, each the engine's `SoftBodySharedSettings` as the
 //! physics worker would build them (`soft.rs`).
 use crate::dag::{CullingNode, DagCluster};
 use crate::{CompilerError, Options, Result};
@@ -35,6 +35,7 @@ mod pieces_tests;
 #[cfg(test)]
 mod small_tests;
 mod soft;
+pub(crate) use soft::declared_soft;
 mod soft_record;
 #[cfg(test)]
 mod soft_tests;
@@ -56,7 +57,7 @@ pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
 /// refuses it rather than lose them; one without pieces stays format 2, its bodies unchanged.
 pub const PIECES_FORMAT_VERSION: u32 = 3;
-/// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
+/// The physics engine commit the cook links: shapes are its binary state, readable by this build alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
@@ -64,7 +65,7 @@ pub const PHYSICS_FILE: &str = "physics.json";
 /// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/words.h`).
 const SOFT_VERTEX_WORDS: usize = 4;
 
-/// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when Jolt
+/// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when the engine
 /// refuses one of its shapes: that primitive collides with nothing, and `physics.json`'s report
 /// names it; the compile goes on, its render untouched.
 pub(crate) fn cook_primitive(
@@ -111,7 +112,7 @@ extern "C" {
     ) -> u32;
 }
 
-/// The code of a shape Jolt refuses, or of a soft body the page would refuse: the primitive gets
+/// The code of a shape the engine refuses, or of a soft body the page would refuse: the primitive gets
 /// no collider, the soft body is not simulated, and the report names it.
 pub(crate) const PHYSICS_COOK_FAILED: &str = "PHYSICS_COOK_FAILED";
 
@@ -120,7 +121,7 @@ fn refused(message: String) -> CompilerError {
     CompilerError::new(PHYSICS_COOK_FAILED, message)
 }
 
-/// Copies the bytes the cook left for this thread, or names what it refused and Jolt's reason.
+/// Copies the bytes the cook left for this thread, or names what it refused and the engine's reason.
 fn taken(status: u32, out: *const u8, bytes: u32, what: &str) -> Result<Vec<u8>> {
     // SAFETY: the cook left `bytes` bytes at `out`, valid until this thread's next call.
     let left = (!out.is_null()).then(|| unsafe { std::slice::from_raw_parts(out, bytes as usize) });

@@ -1,13 +1,13 @@
 import { meshes as objects } from '../../scene/meshes.ts';
 import type { HostBoundedNode } from '../../host/scene/graphNodes.ts';
 import type { HostMesh } from '../../host/resources.ts';
-import { hostWorldTree } from '../../host/world/tree.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { emptyWorldBox, hostBoundsLot } from '../../host/world/bounds.ts';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
 import { boxUnionCollector } from '../../math/batchBoxes.ts';
 import type { BackendContext } from '../../backend/types.ts';
+import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
@@ -15,10 +15,9 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  * an autonomous scene, whose bounds are not those of the host geometries but those the
  * compiler wrote page by page.
  *
- * World matrices are those THE ENGINE computes from local poses, in ONE pass over the subtree
- * (`../../host/world/tree.ts`) as host bounds do: the host scene is not walked for that, and a pose
- * written without composition is taken as-is. Transform and union are the core's, hence the
- * reference's, term for term.
+ * World matrices are the transform tree's after its frame pass (`pass.ts`), as host bounds read
+ * them: a pose written without composition is taken as-is. Transform and union are the core's,
+ * term for term.
  */
 
 /** A manifest page carries exact bounds, or is only a coarse approximation. */
@@ -93,7 +92,7 @@ export function pagesBounds(
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives);
   const union = boxUnionCollector(into, lot, exactPagesCount(source, associations, metadata));
-  const mondes = hostWorldTree(source);
+  const worlds = hostWorldPlacements(source);
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
     const placed = placedBox(mesh, associations);
@@ -102,7 +101,7 @@ export function pagesBounds(
       continue;
     }
     // The world matrix is the one the engine computed for this mesh, read once.
-    const world = mondes.world(mesh);
+    const world = worlds.of(mesh).elements;
     if (placed) {
       const { min, max } = placed;
       union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at);

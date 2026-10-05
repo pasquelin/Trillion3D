@@ -1,7 +1,5 @@
-//! TGA driver (Truevision TARGA), read from the public specification "Truevision TGA File
-//! Format Specification, Version 2.0" and decoded by the `image` crate (`tga` feature, MIT or
-//! Apache-2.0, notices kept with the dependency). No vendor SDK, no re-encoding: the file is
-//! read as-is to RGBA8, and the 32-bit alpha channel is kept byte for byte.
+//! TGA driver (Truevision TARGA), decoded by the `image` crate (`tga` feature). No re-encoding:
+//! the file is read as-is to RGBA8, and the 32-bit alpha channel is kept byte for byte.
 //!
 //! TGA has no magic number at the front: version 1.0 starts directly with its eighteen-byte
 //! header, and only version 2.0 puts a "TRUEVISION-XFILE." footer at the end of the file. The

@@ -26,6 +26,8 @@ export type VisBindResources = AtlasResources & {
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
   subsurface: GPUTextureView;
+  /** The shadow receiver target (`../../visibility/shader/receiverTargetWgsl.ts`). */
+  receiver: GPUTextureView;
   visView: GPUTextureView;
   cache: GPUBuffer;
   position: GPUBuffer;
@@ -34,22 +36,27 @@ export type ShadeBindResources = AtlasResources & {
   normal: GPUTextureView;
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
+  /** The frame's cache (`../../visibility/shader/shadeCacheWgsl.ts`). */
+  shadeCache: GPUBuffer;
 };
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
   directLights: GPUBuffer;
+  /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
+   *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
   shadowData: GPUBuffer;
-  shadowAtlas: GPUTextureView;
-  shadowSampler: GPUSampler;
-  /** The pool's transmittance layer and its translucent depth, or the one-texel stand-ins. */
+  shadowAtlas: GPUBuffer;
+  shadowSampler: GPUBuffer;
+  /** The translucent casters' transmission atlas (`vsmTransmissionReadWgsl`), or its one-texel
+   *  stand-in. */
   shadowTransmittance: GPUTextureView;
-  shadowTranslucentDepth: GPUTextureView;
+  shadowTranslucentDepth: GPUBuffer;
   bounceGrid: GPUBuffer;
   /** The probes' atlas (`../../bounce/atlas.ts`). */
   probes: GPUTextureView;
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer;
-  /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
+  /** The resident proxy, the very one the opaque resolve binds. */
   proxy: GPUBuffer;
   /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
   surfaceCache: GPUTextureView;
@@ -129,6 +136,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   return [
     resourceEntry(b.visView, () => r.visView),
     resourceEntry(b.subsurface, () => r.subsurface),
+    resourceEntry(b.receiver, () => r.receiver),
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),
@@ -138,6 +146,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.uniform, () => r.uniform),
     ...atlasEntries(b.data, () => r.textures?.data),
+    bufferEntry(b.shadeCache, () => r.shadeCache),
   ];
 }
 
@@ -164,10 +173,10 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.planInstances, () => r.planInstances),
     bufferEntry(b.clusterSpans, () => r.clusterSpans),
     bufferEntry(b.shadowData, () => r.shadowData),
-    resourceEntry(b.shadowAtlas, () => r.shadowAtlas),
-    resourceEntry(b.shadowSampler, () => r.shadowSampler),
+    bufferEntry(b.shadowAtlas, () => r.shadowAtlas),
+    bufferEntry(b.shadowSampler, () => r.shadowSampler),
     resourceEntry(b.shadowTransmittance, () => r.shadowTransmittance),
-    resourceEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
+    bufferEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
     bufferEntry(b.bounceGrid, () => r.bounceGrid),
     resourceEntry(b.probes, () => r.probes),
     bufferEntry(b.tileLights, () => r.tileLights),

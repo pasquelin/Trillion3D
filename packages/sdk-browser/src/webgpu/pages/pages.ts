@@ -1,4 +1,8 @@
-import { pendingWebgpuFrame } from '../frame/interactiveFrame.ts';
+import {
+  measureWebgpuFrame,
+  pendingWebgpuFrame,
+  webgpuLandings,
+} from '../frame/interactiveFrame.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import { engineRenderer } from '../../backend/engines.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
@@ -14,17 +18,17 @@ import {
   captureImage,
   pageUrls,
   pendingUrls,
-  rasterRgba,
+  rasterView,
   refreshSceneLights,
   retainedRanks,
   syncResident,
-  visibilityIds,
 } from './io/hostApi.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts';
 import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
+import { composeWebgpuPlacements } from '../../placement/gpuCompose.ts';
 import { webgpuVertexApi } from './dynamicVertices.ts';
 import { growWebgpuPlacements, webgpuGrowsInPlace } from '../../placement/webgpuGrowth.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
@@ -58,6 +62,7 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
       // disposed device has no presenter left: nothing stale is published (`markWebgpuLost`).
       return context.gpuCanvas ? undefined : rt.gpu.presenter?.canvas;
     },
+    canvasResized: () => rt.gpu.presenter?.forget(),
     get overBudget() {
       return run.overBudget;
     },
@@ -78,6 +83,8 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
     setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
     renderScale: () => rt.scale.drawn,
     updatePlacements: (rows, from, to) => void updateWebgpuPlacements(rt, rows, from, to),
+    composePlacements: (parent, world, links, whole) =>
+      composeWebgpuPlacements(rt, parent, world, links, whole),
     worldCut: () => (run.gpuSelection?.packsWorld ? run.selectionUniforms : undefined),
     ...webgpuVertexApi(rt),
     growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
@@ -118,7 +125,8 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
     captureFeedbackAb: async () => (await views()).captureFeedbackAb(rt),
     feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
-    landings: () => rt.services.residency.landings,
+    measureFrame: () => measureWebgpuFrame(rt),
+    landings: () => webgpuLandings(rt),
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options);
     },
@@ -140,12 +148,7 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
     },
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
-    visibilityIds() {
-      return visibilityIds(rt);
-    },
-    rasterRgba() {
-      return rasterRgba(rt);
-    },
+    rasterView: () => rasterView(rt),
     pendingUrls: () => pendingUrls(rt),
     pageUrls: () => pageUrls(rt),
     retainedRanks() {
@@ -171,6 +174,9 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms);
+    },
+    frameCpuMs(ms) {
+      rt.timing.logFrame?.(ms, rt.scale.frameIntervalMs);
     },
     cpuFrameEnd() {
       endCpuFrame(rt);

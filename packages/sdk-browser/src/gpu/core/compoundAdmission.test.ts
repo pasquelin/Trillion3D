@@ -18,7 +18,7 @@ for (const kind of ['draw', 'partition'] as const) {
       slotUsed: previous,
       pyramid: () => previous,
     };
-    if (kind === 'draw') assert.equal(await createGpuDraw(gpu.device, 1), undefined);
+    if (kind === 'draw') assert.equal(await createGpuDraw(gpu.device, 1, 1, 3), undefined);
     else await assert.rejects(createGpuPartition(gpu.device, 1, sources), /GPU_BUDGET_EXCEEDED/);
     assert.equal(gpu.buffers.length, 2, 'refused second constructor buffer never reaches device');
     assert.equal(ledger.bytes, 64);
@@ -41,7 +41,7 @@ for (const kind of ['draw', 'partition'] as const) {
     };
     const made =
       kind === 'draw'
-        ? await createGpuDraw(gpu.device, 1)
+        ? await createGpuDraw(gpu.device, 1, 1, 3)
         : await createGpuPartition(gpu.device, 1, sources);
     assert.ok(made);
     const baseline = ledger.bytes;

@@ -11,14 +11,21 @@ import type { BlendGpuItem } from '../../blend/state.ts';
 import { device, mountDevice, prepared, replay, targets } from '../../water/pass.fixture.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** A blended image whose targets are made, and an encoder that notes each pass's label. */
+/** A blended image whose targets are made, and an encoder that notes each pass's label, its
+ *  attachment's load and clear, and the commands it encodes. */
 function blendedImage() {
-  const labels: string[] = [];
+  const labels: string[] = [],
+    commands: string[] = [],
+    loads: unknown[] = [];
+  const note = (name: string) => () => void commands.push(name);
   const encoder = {
-    beginRenderPass: ({ label }: GPURenderPassDescriptor) => (
-      labels.push(label!),
-      { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
-    ),
+    beginRenderPass: ({ label, colorAttachments }: GPURenderPassDescriptor) => {
+      labels.push(label!);
+      const [target] = [...colorAttachments];
+      loads.push([target!.loadOp, target!.clearValue]);
+      const [setPipeline, setBindGroup, draw] = ['pipeline', 'group', 'draw'].map(note);
+      return { setPipeline, setBindGroup, draw, end: note('end') };
+    },
   } as unknown as GPUCommandEncoder;
   const rt = {
     vis: { blendPipelines: {}, asIsShown: false },
@@ -33,7 +40,7 @@ function blendedImage() {
     },
   } as unknown as WebgpuPagesRuntime;
   const { device: gpuDevice, textures, destroyed } = fakeDevice();
-  return { rt, encoder, labels, gpuDevice, textures, destroyed };
+  return { rt, encoder, labels, commands, loads, gpuDevice, textures, destroyed };
 }
 
 test('a blended scene with no debug view runs no share pass and makes no share target', () => {
@@ -62,6 +69,10 @@ test('without a debug view the transparent pass binds no share and draws the sha
   const asked: (boolean | undefined)[] = [];
   rt.vis.blendPipelines = {
     at: (_rank: number, _filtered?: boolean, share?: boolean) => (asked.push(share), {}),
+    lit() {
+      return this;
+    },
+    reach: () => undefined,
   } as unknown as WebgpuPagesRuntime['vis']['blendPipelines'];
   drawBlendPass(rt, device, encoder);
   assert.equal(passes[0].writes[2], undefined, 'the share slot stays empty');
@@ -119,4 +130,30 @@ test('a debug view turned off mid-session releases the share; turned on, a fresh
   assert.ok(second && second !== first, 'a fresh share');
   assert.equal(rt.gpu.targetBytes, 100 + 8 * 4 * 2);
   assert.deepEqual(labels, ['Trillion3D as-is share seed', 'Trillion3D as-is share seed']);
+});
+
+// S19.3: without a row shown as-is or a diagnostic view, the flags hold no as-is pixel, so the
+// seed's draw would write the clear's zeros again: the share is cleared to 0 and nothing is drawn.
+test('an image with no as-is pixel clears the share to zero and draws no seed', () => {
+  const { rt, encoder, commands, loads, gpuDevice } = blendedImage();
+  rt.gpu.temporalWanted = true;
+  assert.ok(seedAsIsShare(rt, gpuDevice, encoder), 'the reactive value still needs it');
+  assert.deepEqual(commands, ['end'], 'no pipeline, no draw');
+  assert.deepEqual(loads, [['clear', [0, 0, 0, 0]]]);
+  rt.blendState.blendGpu = [];
+  rt.context.particles = [] as unknown as WebgpuPagesRuntime['context']['particles'];
+  commands.length = 0;
+  assert.ok(seedAsIsShare(rt, gpuDevice, encoder), 'particles alone');
+  assert.deepEqual(commands, ['end']);
+  // A row shown as-is, or a diagnostic view, under blends: the flags seed it.
+  rt.blendState.blendGpu = [{}] as WebgpuPagesRuntime['blendState']['blendGpu'];
+  for (const shown of [{ asIsShown: true }, { diagnostic: 'normals' }]) {
+    rt.vis.asIsShown = false;
+    rt.run.diagnostic = 'beauty';
+    Object.assign('asIsShown' in shown ? rt.vis : rt.run, shown);
+    commands.length = 0;
+    assert.ok(seedAsIsShare(rt, gpuDevice, encoder));
+    assert.deepEqual(commands, ['pipeline', 'group', 'draw', 'end']);
+  }
+  assert.ok(loads.every((load) => JSON.stringify(load) === '["clear",[0,0,0,0]]'));
 });

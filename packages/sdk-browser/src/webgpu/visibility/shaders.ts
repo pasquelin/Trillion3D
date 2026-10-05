@@ -21,8 +21,7 @@ import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
 export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
   device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE });
 
-/** The visibility raster's group 0, entry by entry: what every pass drawing page-table rows binds
- *  (`../shadow/freshDraws.ts` keeps the entries its draws read). */
+/** The visibility raster's group 0, entry by entry: what every pass drawing page-table rows binds. */
 export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
   const b = VIS_BINDINGS;
   return [
@@ -48,13 +47,34 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
   ];
 }
 
-/** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
+/** The resolve module whose `shade_fsWithoutFeedback` writes the four surfaces alone: the same
+ *  `shade_fs` body, its request dropped (`feedbackFreeEntry`). A scene that wears no texture, and
+ *  the feedback A/B's arm without the target, resolve with it. */
+export const shadeWithoutFeedbackCode = () =>
+  feedbackFreeEntry(
+    SHADE_SHADER,
+    'shade_fs',
+    'SurfaceOut',
+    [
+      ['baseMetal', 'vec4f'],
+      ['normalRough', 'vec4f'],
+      ['emissiveAo', 'vec4f'],
+      ['flags', 'u32'],
+    ],
+    '@builtin(position) pos:vec4f',
+    'pos',
+  );
+
+/** Allocates visibility uniforms and validates both shader modules before pipeline creation.
+ *  `feedback` false makes the resolve module the one without a feedback output
+ *  (`shadeWithoutFeedbackCode`); the feedback A/B gets that one beside the other. */
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
   drawSlots: number,
   uniformSlots = 7,
   variant?: DiagnosticGpuVariant,
   feedbackAB = false,
+  feedback = true,
 ) {
   const shadeUniform = device.createBuffer({
     label: 'Trillion3D resolve uniform',
@@ -75,26 +95,13 @@ export async function createWebgpuVisibilityShaders(
   const visModule = device.createShaderModule({
     code: variesVisibility(variant) ? VIS_SHADER + DIAGNOSTIC_VIS_WGSL : VIS_SHADER,
   });
-  const shadeModule = device.createShaderModule({
-    code: variesShade(variant) ? SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL : SHADE_SHADER,
-  });
-  const shadeWithoutFeedback = feedbackAB
+  const withoutFeedback = () => device.createShaderModule({ code: shadeWithoutFeedbackCode() });
+  const shadeModule = feedback
     ? device.createShaderModule({
-        code: feedbackFreeEntry(
-          SHADE_SHADER,
-          'shade_fs',
-          'SurfaceOut',
-          [
-            ['baseMetal', 'vec4f'],
-            ['normalRough', 'vec4f'],
-            ['emissiveAo', 'vec4f'],
-            ['flags', 'u32'],
-          ],
-          '@builtin(position) pos:vec4f',
-          'pos',
-        ),
+        code: variesShade(variant) ? SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL : SHADE_SHADER,
       })
-    : undefined;
+    : withoutFeedback();
+  const shadeWithoutFeedback = feedbackAB ? withoutFeedback() : undefined;
   if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER');
   const shadeErrors = await shaderErrors(shadeModule);
   if (shadeErrors.length)

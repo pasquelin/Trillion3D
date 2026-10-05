@@ -20,7 +20,7 @@ async function speedsAfterOneSecond() {
 test('a body declaring no damping keeps its speed in free flight; one left unset loses 5 % a second', async () => {
   const [kept, unset] = await speedsAfterOneSecond();
   assert.ok(Math.abs(kept - 10) < 1e-3, `no damping: ${kept} m/s`);
-  // Jolt's own 0.05 per second, applied step by step: 10 × (1 − 0.05 / 60)^60.
+  // The module's own 0.05 per second, applied step by step: 10 × (1 − 0.05 / 60)^60.
   assert.ok(Math.abs(unset - 10 * (1 - 0.05 / 60) ** 60) < 1e-2, `default damping: ${unset} m/s`);
 });
 

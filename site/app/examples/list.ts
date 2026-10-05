@@ -16,7 +16,7 @@ interface RoadmapEntry {
   issue?: number;
 }
 
-export const roadmapEntries = roadmap.entries as RoadmapEntry[];
+const roadmapEntries = roadmap.entries as RoadmapEntry[];
 
 /** Whether an example is complete: it has source and waits on no engine capability. */
 export const isReady = ({ file, status }: RoadmapEntry) => Boolean(file) && !status;
@@ -25,9 +25,6 @@ export const readyEntries = roadmapEntries.filter(isReady);
 
 /** Written examples parked until the engine draws them, each naming the issue it waits for. */
 export const parkedEntries = roadmapEntries.filter(({ status }) => status === 'waiting-engine');
-
-/** Complete examples used by capture and browser proofs. */
-export const readyExampleIds = readyEntries.map(({ id }) => id);
 
 /** Examples with source to open: complete ones and pages parked on an engine capability. */
 export const writtenEntries = roadmapEntries.filter(({ file }) => Boolean(file));

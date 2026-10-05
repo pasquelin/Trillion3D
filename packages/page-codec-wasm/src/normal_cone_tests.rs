@@ -14,18 +14,6 @@ fn holds(cone: [f64; 4], pos: &[f32], indices: &[u32]) -> bool {
 }
 
 #[test]
-fn hypot_rounds_as_v8_does_where_a_plain_root_does_not() {
-    // `Math.hypot` of these three in Node and Chrome; `sqrt` of the squares is one bit higher.
-    let (x, y, z) = (0.4471859335899353, -0.1211518868803978, 0.4516414701938629);
-    assert_eq!(hypot3(x, y, z).to_bits(), 0x3fe4b46054c7ac11);
-    assert_ne!((x * x + y * y + z * z).sqrt().to_bits(), 0x3fe4b46054c7ac11);
-    assert_eq!(hypot3(-3.0, 4.0, 12.0), 13.0);
-    assert_eq!(hypot3(0.0, -0.0, 0.0).to_bits(), 0);
-    assert_eq!(hypot3(f64::NAN, f64::NEG_INFINITY, 1.0), f64::INFINITY);
-    assert!(hypot3(f64::NAN, 2.0, 1.0).is_nan());
-}
-
-#[test]
 fn a_mesh_takes_the_narrowest_cone_the_mean_one_keeping_the_runtime_bits() {
     // Positions, indices and the four words `triangleCone` returns in Node for them; the last
     // triangle is degenerate and left out, as the TypeScript leaves it out. fdlibm's arccosine

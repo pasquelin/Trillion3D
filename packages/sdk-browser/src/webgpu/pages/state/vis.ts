@@ -18,6 +18,10 @@ import type { VertexPool } from '../../core/geometryPool.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 import { type PresentClasses } from '../../core/presentClasses.ts';
 import type { MaterialTiles } from '../../core/materialTiles.ts';
+import type { ShadeCache } from '../../visibility/shadeCache.ts';
+import type { ShadeClasses } from '../../visibility/shadePipelines.ts';
+import type { ShadeCensus } from '../../visibility/shadeCensus.ts';
+import type { FeedbackAside } from '../prepare/feedbackVariant.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
@@ -36,20 +40,30 @@ export interface WebgpuVisState {
   visPipelineNone: GPURenderPipeline | undefined;
   visPipelineFront: GPURenderPipeline | undefined;
   visPipelineFrontCw: GPURenderPipeline | undefined;
-  /** Material depth: each pixel's class, written once per image and tested by every class pass. */
-  materialDepthTexture: GPUTexture | undefined;
-  materialDepthView: GPUTextureView | undefined;
-  materialDepthPipeline: GPURenderPipeline | undefined;
-  /** One resolve pipeline per class, by class key (`../../../visibility/shader/materialClass.ts`): the scene's
-   *  classes at preparation, and any class a material changed into since, made on first draw. */
-  shadePipelines: Map<number, GPURenderPipeline>;
-  shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
-  /** Direct resolve of a one-class image: background is rejected in its fragment stage. */
-  singleShadePipelines: Map<number, GPURenderPipeline>;
+  /** The resolve's pipeline of each class (`../../visibility/shadePipelines.ts`): the scene's
+   *  classes at preparation, and any class a material changed into since, asked before the image
+   *  that draws it. */
+  shadeClasses: ShadeClasses | undefined;
+  /** The classes of the scene's surfaces, taken again once what they read moved
+   *  (`../../visibility/shadeCensus.ts`). */
+  shadeCensus: ShadeCensus | undefined;
   /** Classes the image being encoded has rows of (`../../core/materialPasses.ts`). */
   presentClasses: PresentClasses;
   /** The screen tiles each class draws (`../../core/materialTiles.ts`). */
   materialTiles: MaterialTiles | undefined;
+  /** What the frame composes once for the resolve (`../../visibility/shadeCache.ts`). */
+  shadeCache: ShadeCache | undefined;
+  /** Whether the resolve, blend and water pipelines in place write the texture feedback: the drawn
+   *  view then has its target (`../prepare/feedbackVariant.ts`). */
+  writesFeedback: boolean;
+  /** The other variant, while it compiles for a scene whose textures came or went. */
+  feedbackAside?: FeedbackAside;
+  /** Whether the resolve pipelines in place write the emission-and-occlusion layer: the drawn
+   *  view's surfaces then have it (`../prepare/emissiveAoLayer.ts`). */
+  writesEmissiveAo: boolean;
+  /** Set once an opaque row's surface can emit or occlude (`surfaceEmitsOrOccludes`): from then on
+   *  the image writes the layer. Never unset, as `asIsShown`. */
+  emissiveAoShown: boolean;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -118,14 +132,14 @@ export function createWebgpuVisState(): WebgpuVisState {
     visPipelineNone: undefined,
     visPipelineFront: undefined,
     visPipelineFrontCw: undefined,
-    materialDepthTexture: undefined,
-    materialDepthView: undefined,
-    materialDepthPipeline: undefined,
-    shadePipelines: new Map(),
-    shadePipelineFor: undefined,
-    singleShadePipelines: new Map(),
+    shadeClasses: undefined,
+    shadeCensus: undefined,
     presentClasses: createPresentClasses(),
     materialTiles: undefined,
+    shadeCache: undefined,
+    writesFeedback: true,
+    writesEmissiveAo: true,
+    emissiveAoShown: false,
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,

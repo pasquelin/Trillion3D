@@ -1,5 +1,5 @@
 // The one Chrome launcher refuses a browser to an import: no entry file, a unit test, or anything
-// but a `test:gpu` proof under `node --test` (AGENTS.md rule 2). Any other explicit script opens
+// under `node --test` but a Chrome proof — no test opens a browser. Any other explicit script opens
 // it, wherever it lives. Playwright's launch is replaced here, so a broken guard fails this test
 // instead of opening Chrome.
 import test, { mock } from 'node:test';
@@ -9,27 +9,25 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { listBrowserTests, listJustesseTests } from '../../tests/browser/test-gpu.ts';
 import { assertBrowserEntryPoint, launchChrome } from './chrome.ts';
+import { CHROME_SUFFIX, listProofFiles } from '../dawn/proofs.ts';
 
 const at = (path: string) => join(import.meta.dirname, '..', '..', path);
-const proofs = [listJustesseTests()[0], listBrowserTests()[0]].map(at);
 
-test('under node --test, only a test:gpu proof may open Chrome', () => {
-  for (const proof of proofs) assert.doesNotThrow(() => assertBrowserEntryPoint(proof, true));
-  const refused = [
+test('under node --test, only a Chrome proof may open Chrome', () => {
+  const proof = at(listProofFiles(CHROME_SUFFIX)[0]);
+  assert.doesNotThrow(() => assertBrowserEntryPoint(proof, true), proof);
+  for (const entry of [
     '',
     fileURLToPath(import.meta.url),
-    at('tests/browser/probes/pageWebgpu.ts'),
     at('bench/runner/bench.ts'),
-    at('tests/browser/probes/absent-probe.ts'),
-  ];
-  for (const entry of refused)
+    at('tests/gpu/placement/shear-transform.gpu.ts'),
+  ])
     assert.throws(() => assertBrowserEntryPoint(entry, true), /Chrome refused/, entry);
 });
 
 test('any explicit script but a unit test may open Chrome, wherever it lives', () => {
-  const runs = [...proofs, at('bench/runner/bench.ts'), at('scripts/site-first-load.ts')];
+  const runs = [at('bench/runner/bench.ts'), at('scripts/site-first-load.ts')];
   for (const run of [...runs, process.execPath])
     assert.doesNotThrow(() => assertBrowserEntryPoint(run, false), run);
   for (const entry of ['', at('scripts/check-changed.test.ts'), at('absent-script.ts')])

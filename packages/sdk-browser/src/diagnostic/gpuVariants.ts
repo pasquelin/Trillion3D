@@ -37,7 +37,7 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
    *  production; without it, the hardware raster draws. Two sides that differ only by it
    *  give, at the same size, the envelope and the frame gap of compute against hardware. */
   'raster-compute',
-  /** The reference split: triangles of the raster's fine class — a box of three pixels
+  /** The hybrid split: triangles of the raster's fine class — a box of three pixels
    *  of side at most — to the compute raster, all others to hardware. That is the production
    *  candidate; it only enters if the envelope says so. */
   'raster-hybrid',

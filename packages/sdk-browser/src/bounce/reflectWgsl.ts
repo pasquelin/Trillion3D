@@ -4,6 +4,8 @@ import {
 } from '../reflections/probeFilterWgsl.ts';
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts';
+import { MODEL_FLAG } from '../scene/surfaceModel.ts';
+import { BOUNCE_FIELDS_WGSL } from './gridWgsl.ts';
 
 /** Rank of the surface cache in the deferred bounce layout: past the water composite's own
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
@@ -64,7 +66,7 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
 /**
  * The specular a smooth opaque surface returns from what it reflects (#31): the radiance along the
  * mirror direction, weighed by the GGX lobe's directional albedo the rectangular light already
- * reads (\`ltcLookup\`, texel 1: magnitude and Schlick share) — the split-sum's second factor.
+ * reads (\`ltcLookup\`, texel 1: magnitude and Fresnel share) — the split-sum's second factor.
  *
  * The delta-direction contribution has full weight at the mirror limit and fades once over one
  * LTC roughness sample above it. Read at the floor so the shared water transition does not
@@ -81,3 +83,21 @@ ${ENVIRONMENT_REFLECTION_WGSL}
 fn filteredReflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 ${MIRROR_LIGHTING_WGSL}`;
+
+/**
+ * The deferred resolve's bounced diffuse light (\`bounceLighting\`), for a pixel whose mirror term
+ * will read the probes' filtered lobe: a specular model, bounce on, and short of the mirror limit —
+ * \`mirrorLighting\` and \`reflectedRadiance\` reading \`filteredProbeReflection\` past exactly these
+ * tests. One walk of the probe corners gathers both (\`sampleProbeFields\`), and the lobe is held
+ * for the mirror term, which reads it back for the same bits. Requires \`bounceReflectionWgsl\`.
+ */
+export const BOUNCE_SURFACE_FIELDS_WGSL = `${BOUNCE_FIELDS_WGSL}
+fn bounceSurfaceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u||bounce.counts.w==0u||mirrorWeight(rough)==1.0){
+  return bounceLighting(rgb,metal,N,P,ao);
+ }
+ let R=reflect(-V,N);
+ let fields=sampleProbeFields(P,N,R,reflectionProbeBands(rough));
+ holdProbeSpecular(P,N,R,rough,fields.specular);
+ return bounceDiffuse(rgb,metal,fields.diffuse,ao);
+}`;

@@ -36,7 +36,7 @@ export const CYCLE_UNITS = [
   'packages/page-codec',
 ] as const;
 
-const TEST = /\.(?:test|fixture|perf|browser)\.m?ts$/;
+const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
 
 const unitOf = (file: string) => CYCLE_UNITS.find((unit) => file.startsWith(unit + '/')) ?? null;
 

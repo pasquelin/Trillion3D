@@ -1,4 +1,4 @@
-// #274: with no `backends` option the engine's own path renders, and a Three witness is only ever
+// #274: with no `backends` option the engine's own path renders, and the host-library witness is only ever
 // active because something said so. #297: a machine without WebGPU takes the engine's own
 // autonomous WebGL2 path, which draws; the temporary witness fallback of #298 is gone.
 import test from 'node:test';

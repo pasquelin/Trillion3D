@@ -4,6 +4,7 @@ import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts';
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
 import { chooseBlockFormat, laneCounts, poolEncoding } from '../../../texture/blockFormats.ts';
+import { prepareHostReductions } from '../../../texture/mips.ts';
 import { texturePoolFor, type TexturePool } from '../../residency/memoryBudgets.ts';
 import { grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts';
 import { grantedLatest } from './grantLatest.ts';
@@ -17,6 +18,12 @@ import {
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/tileTexture.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
+
+/** The atlases among `catalogues` holding a host texture: those whose mips the device reduces. */
+const hostKinds = (catalogues: Record<'color' | 'data', readonly TileTexture[]>) =>
+  (['color', 'data'] as const).filter((kind) =>
+    catalogues[kind].some(({ source }) => source.kind === 'host'),
+  );
 
 /** `each` of the live textures, summed per lane. The white fill (slot 0) never opens a lane: it
  *  counts only in one a map opens, read from the white stand-in otherwise (`lanes.ts`), so no
@@ -55,25 +62,36 @@ export const pageTablesReport = ({ color, data }: Pick<WebgpuTileStreamer, 'colo
     ]),
   );
 
-/**
- * Inventories material textures over the geometry prepare concatenated (`prepareWebgpuGeometry`)
- * and builds virtual textures: for each atlas one tile pool per lane its textures take — the block
- * family the session chose for the chains the gate kept in it, RGBA8 for the others and for a host
- * image —, sized together by the host budget, their page tables, each texture's queue pinned from
- * the start, and the sampler the passes read.
- */
-export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { vis, diag, run } = rt,
-    { allPages, blendCopies } = rt.setup,
-    { geometryBlocks, mapLayer, dataLayer } = vis;
+/** The census of the scene's material textures, their slots written in the atlases' layers: taken
+ *  before the frame targets, which make a feedback target only for a scene that wears one
+ *  (`./feedbackVariant.ts`). */
+export function takeMaterialTextures(rt: WebgpuPagesRuntime) {
+  const { mapLayer, dataLayer } = rt.vis;
   mapLayer.clear();
   dataLayer.clear();
-  const { maps, dataMaps, coverage } = collectWebgpuMaterialTextures(
-    allPages,
-    blendCopies,
+  return collectWebgpuMaterialTextures(
+    rt.setup.allPages,
+    rt.setup.blendCopies,
     mapLayer,
     dataLayer,
   );
+}
+
+/**
+ * Builds the virtual textures of the census over the geometry prepare concatenated
+ * (`prepareWebgpuGeometry`, `takeMaterialTextures`): for each atlas one tile pool per lane its
+ * textures take — the block family the session chose for the chains the gate kept in it, RGBA8 for
+ * the others and for a host image —, sized together by the host budget, their page tables, each
+ * texture's queue pinned from the start, and the sampler the passes read.
+ */
+export async function prepareWebgpuTextures(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  { maps, dataMaps, coverage } = takeMaterialTextures(rt),
+) {
+  const { vis, diag, run } = rt,
+    { allPages, blendCopies } = rt.setup,
+    { geometryBlocks } = vis;
   const compte = compteMateriauxEtTangentes(allPages, geometryBlocks);
   diag.engineDiagnostic('material-textures', 'Textures needed for the render', {
     colorTextures: maps.length,
@@ -112,6 +130,10 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     readLevel,
     encoding,
   );
+  // What the atlases holding a host texture reduce its mips with, compiled off the thread beside
+  // the pools' grant, before the tails below are reduced (`../../../texture/mips.ts`); a scene of
+  // cooked chains alone reduces nothing on the device, and compiles none.
+  const reductions = prepareHostReductions(gpuDevice, encoding, hostKinds({ color, data }));
   // The lanes settle here, where the textures are known: each pool is sized by what its lane holds,
   // never below the tails it keeps resident whole, one tile each.
   const demand = { color: laneDemand(color), data: laneDemand(data) };
@@ -163,6 +185,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   // The budget recorded is the one granted, not the one asked.
   rt.setup.texturePoolBudget = granted.pool.budgetBytes;
   const textures = granted.made;
+  await reductions;
   textures.prepare();
   vis.textures = textures;
   diag.engineDiagnostic('material-textures-ready', 'Textures and filtering ready', {

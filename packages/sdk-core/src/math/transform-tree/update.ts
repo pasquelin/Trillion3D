@@ -11,21 +11,21 @@ import { nextStamp, visitSubtree } from './structure.ts';
 import { nextInSubtree } from './links.ts';
 
 /**
- * World-matrix update, batched and without allocation, with the semantics of the reference
- * `updateMatrixWorld(force)` and `updateWorldMatrix(updateParents, updateChildren)`.
+ * World-matrix update, batched and without allocation, with the semantics of a scene-graph
+ * update: a subtree walk with `force`, and a node update with `updateParents` and `updateChildren`.
  *
- * The reference recomposes and remultiplies every node its rule reaches. Here, a reached node is
+ * A plain walk recomposes and remultiplies every node its rule reaches. Here, a reached node is
  * recalculated only if an input has changed since its last calculation: written position, rotation or
  * scale, set local matrix, changed parent, or parent world matrix recalculated since (the parent's
  * `version` counter against the node's `seen`). Recalculating unchanged inputs would yield the same
- * bits: the matrices are the reference's, at every instant it computes them. A node its
+ * bits: the matrices are those the plain walk computes, at every instant it computes them. A node its
  * rule does not reach keeps, as with it, a late world matrix.
  */
 
 /**
- * `matrixWorldNeedsUpdate`. A node whose recomposition is cut carries a local matrix nobody
+ * the world-needs-update mark. A node whose recomposition is cut carries a local matrix nobody
  * recomposes, and setting that matrix marks no reach flag: a rule that starts above would walk
- * past it. This is the mark the reference sets in that case, and the only way to set it here.
+ * past it. This is the mark the plain walk sets in that case, and the only way to set it here.
  */
 export function markNodeWorldNeedsUpdate(tree: TransformTree, node: number) {
   tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE;
@@ -35,7 +35,7 @@ const composePosition = new Float64Array(3),
   composeQuaternion = new Float64Array(4),
   composeScale = new Float64Array(3);
 
-/** `updateMatrix`: the local matrix from the node's position, rotation and scale. */
+/** The local matrix from the node's position, rotation and scale. */
 function composeLocal(tree: TransformTree, node: number) {
   const { position, quaternion, scale } = tree;
   const p = node * 3,
@@ -57,9 +57,9 @@ function composeLocal(tree: TransformTree, node: number) {
  * A reached node: local matrix recomposed if update is automatic and the pose written,
  * then world matrix = parent world × local (the local copied for a root) if an input has
  * changed. Flags are read once and written once, `worldNeedsUpdate` included: cleared by
- * `updateMatrixWorld`, set by `updateWorldMatrix` under automatic update.
+ * the subtree update, set by the node update under automatic update.
  */
-function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean) {
+export function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean) {
   const flags = tree.flags[node],
     auto = (flags & NODE_AUTO_UPDATE) !== 0,
     compose = auto && (flags & NODE_TRS_DIRTY) !== 0;
@@ -73,8 +73,7 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
     changed = compose || (flags & NODE_LOCAL_CHANGED) !== 0;
   if (parent < 0) {
     if (changed) {
-      const at = node * 16;
-      copyMatrix4(tree.world, tree.local, at, at);
+      copyMatrix4(tree.worldViews[node], tree.localViews[node]);
       tree.seen[node] = 0;
       version[node] = (version[node] + 1) >>> 0;
     }
@@ -92,7 +91,7 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
 const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
 
 /**
- * `node.updateMatrixWorld(force)`: the node and its whole subtree, parents first, and how many
+ * The subtree update of `node` with `force`: the node and its whole subtree, parents first, and how many
  * nodes it walked — the subtree, whatever else shares the tree. A node is reached if it updates
  * automatically, if it is marked, or if `force` — that of the call for `node`, otherwise "the
  * parent was reached". Ancestors of `node` are not reread. The stamp of a walked node is
@@ -117,7 +116,7 @@ export function updateNodeMatrixWorld(tree: TransformTree, node: number, force =
 }
 
 /**
- * `node.updateWorldMatrix(updateParents, updateChildren)`: ancestors from the root toward `node` if
+ * The node update with `updateParents` and `updateChildren`: ancestors from the root toward `node` if
  * requested, the node, then its whole subtree if requested.
  */
 export function updateNodeWorldMatrix(

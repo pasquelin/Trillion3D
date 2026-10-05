@@ -1,10 +1,12 @@
 import type { WitnessPage as PageRec } from './pose.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 import { ClusterBatches } from './batches/batches.ts';
-import {
-  asWholeMesh,
-  type WholeMesh,
-} from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import type { WholeMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
+
+/** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
+ *  the fields a diagnostic submission draws. */
+const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
 
 export function createExactPagesResidency(
   shown: PageRec[],

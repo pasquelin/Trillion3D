@@ -1,33 +1,18 @@
-import { useEffect, useState } from 'react';
-import {
-  STATS_CARD,
-  STATS_TERM,
-  STATS_VALUE,
-  statsCorners,
-  watchStats,
-} from '../../examples/kit/statsLines.ts';
+import { useEffect, useRef } from 'react';
+import { statsPanel } from '../../examples/kit/statsPanel.ts';
 import type { Session } from './session.ts';
 
 /**
- * The examples' stats corner, over the editor's view: the frames the world drew per second and
- * the engine's counters of its last frame — triangles, draw calls, pages, pool — read twice a
- * second. A still scene draws no frame, and the corner then keeps its last reading.
+ * The examples' profiler overlay (`statsPanel.ts`), over the editor's view: the frames the world
+ * drew per second, where the frame's time went, the shadows and the engine's counters, read four
+ * times a second. A still scene draws no frame, and the overlay then keeps its last reading.
  */
 export function EditorStats({ session }: { session: Session }) {
-  const [lines, setLines] = useState<[string, string][]>([]);
+  const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const stop = watchStats(session.world, setLines);
+    if (!host.current) return;
+    const { stop } = statsPanel(session.world, host.current);
     return stop;
   }, [session]);
-  if (lines.length === 0) return null;
-  return (
-    <dl className={`${STATS_CARD} ${statsCorners['bottom-left']} z-10`}>
-      {lines.map(([label, value]) => (
-        <div key={label} className="contents">
-          <dt className={STATS_TERM}>{label}</dt>
-          <dd className={STATS_VALUE}>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <div ref={host} className="pointer-events-none absolute inset-0 z-10" />;
 }

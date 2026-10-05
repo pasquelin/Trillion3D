@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BASE_SLOTS, slotCount } from './contract.ts';
+import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts';
 import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
 // The counting and scattering kernels moved from one thread per (group, slot) — each walking the
@@ -25,7 +25,9 @@ type Frame = {
 };
 
 const slotOf = (f: Frame, i: number) =>
-  f.rest[i] * 3 + f.bins[i] + BASE_SLOTS * Math.min(f.layers[i], Math.max(1, f.layerSlots) - 1);
+  f.rest[i] * HALF_SLOTS +
+  f.bins[i] +
+  BASE_SLOTS * Math.min(f.layers[i], Math.max(1, f.layerSlots) - 1);
 const selected = (f: Frame, i: number) => !f.mask || f.mask[i] !== 0;
 const matches = (f: Frame, i: number, slot: number) => slotOf(f, i) === slot && selected(f, i);
 /** Transcribes WGSL `slotAt`. */
@@ -94,7 +96,7 @@ function frame(rand: () => number): Frame {
     layerSlots = 1 + Math.floor(rand() * 4);
   const pick = (k: number) => Array.from({ length: n }, () => Math.floor(rand() * k));
   const f: Frame = {
-    bins: pick(3),
+    bins: pick(HALF_SLOTS),
     layers: pick(layerSlots + 1),
     pages: pick(1 << 20),
     rest: pick(2),

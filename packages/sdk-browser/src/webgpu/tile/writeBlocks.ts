@@ -15,7 +15,7 @@ import { cellOrigin, tailOrigin, type TileRegion } from './write.ts';
  * record's or the tail level's padded bytes hold; and every destination lies inside the cell,
  * gutter included. A block copy into the middle of a pool cannot stop mid-block: WebGPU refuses it.
  * Bytes that are not the whole blocks their dimensions imply are refused once per path: a streamed
- * tile's where its read resolves (`levels.ts`), a tail's level here.
+ * tile's where its read resolves (`../../texture/blockFormats.ts`), a tail's level here.
  */
 const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE;
 

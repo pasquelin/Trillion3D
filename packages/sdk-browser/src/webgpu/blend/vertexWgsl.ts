@@ -13,11 +13,11 @@ import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 
 /** The pass's view uniform (`uniforms.ts`), the water composite's too (`displayFilter.ts`). */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,frameNoise:f32,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
 /**
  * The vertex stage of the transparent runs and all it reads: the view, the item records, the
  * paged geometry and the plan's instances. Every module that draws the runs starts from it — the
- * blend and water stages (`shader.ts`) and the shadow marks (`marksWgsl.ts`) —, so each draws the
+ * blend and water stages (`shader.ts`), so each draws the
  * same fragments; only their fragment stages differ.
  */
 export const BLEND_VERTEX_WGSL = `${BLEND_VIEW_WGSL}
@@ -85,7 +85,7 @@ ${FACING_WGSL}
   if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
- if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal.xyz=vec3f(0.0,0.0,1.0);out.tangent.xyz=vec3f(0.0);out.bitangent.xyz=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
+ if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec4f(vec3f(0.0,0.0,1.0),out.normal.w);out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
  if((flags&${itemFlags.FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
@@ -105,17 +105,17 @@ ${FACING_WGSL}
  }
  let corner=local%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
- out.normal.xyz=vec3f(0.0);
- if((flags&16u)!=0u){out.normal.xyz=xformNormal(it.world,pageNormal(page,h,v));}
- out.tangent.xyz=vec3f(0.0);out.bitangent.xyz=vec3f(0.0);
- if((flags&256u)!=0u){out.normal.xyz=-out.normal.xyz;}
+ out.normal=vec4f(vec3f(0.0),out.normal.w);
+ if((flags&16u)!=0u){out.normal=vec4f(xformNormal(it.world,pageNormal(page,h,v)),out.normal.w);}
+ out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);
+ if((flags&256u)!=0u){out.normal=vec4f(-out.normal.xyz,out.normal.w);}
  // A page stores no tangent: an item that reads one reads it as floats, and a quantized one never
  // carries the flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
  if((flags&2048u)!=0u){
   let t=vertT(page.vertexBase,v);
-  out.tangent.xyz=uniteOuZero((it.world*vec4f(t.xyz,0.0)).xyz);
-  if((flags&256u)!=0u){out.tangent.xyz=-out.tangent.xyz;}
-  out.bitangent.xyz=uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w);
+  out.tangent=vec4f(uniteOuZero((it.world*vec4f(t.xyz,0.0)).xyz),out.tangent.w);
+  if((flags&256u)!=0u){out.tangent=vec4f(-out.tangent.xyz,out.tangent.w);}
+  out.bitangent=vec4f(uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
  }
  out.uv=pageUv(page,h,v);
  return out;

@@ -2,7 +2,7 @@
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
  * starting at an offset. Free functions, output passed as parameter, zero allocation.
  *
- * Each operation preserves the arithmetic of Three.js Box3 term by term — `Math.min` and
+ * Each operation keeps one fixed arithmetic, term by term — `Math.min` and
  * `Math.max` component-wise, homogeneous transformation of the eight corners with division by
  * `w` — to yield the exact same bits, including NaN, signed zeroes, and infinities.
  */
@@ -180,8 +180,8 @@ export function boxTransform(
   out[o + 5] = hiZ;
 }
 
-/** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face, as Box3's
- *  `distanceToPoint` (the clamped point's distance) takes it. */
+/** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face: the distance of the
+ *  clamped point. */
 export function boxPointDistance(
   box: ArrayLike<number>,
   o: number,

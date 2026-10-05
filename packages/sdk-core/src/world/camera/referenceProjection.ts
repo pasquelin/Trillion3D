@@ -5,46 +5,47 @@ import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts';
 const view = new Float64Array(4);
 
 /**
- * Writes into `out` the projection a renderer drawing with `camera`'s optics composes, in the
- * reference's depth convention with a finite far plane, number for number. The world composes
- * its own (`engineCamera.ts`): this one is for a draw that keeps the reference's convention.
+ * Writes into `out` the projection carrying `camera`'s view volume onto the clip cube, its far
+ * plane finite: x and y from −1 to 1 across the picture, depth from −1 on the near plane to 1 on
+ * the far one. The world draws with its own, depth reversed onto [0, 1] (`engineCamera.ts`); this
+ * is the matrix a renderer reads as `camera.projectionMatrix`.
+ *
+ * Orthographic: the box (`drawnView`) brought onto [−1, 1] on each axis. Perspective: x and y
+ * scaled by near / h, h the half extent of the near-plane rectangle; depth −1 on the near plane
+ * and +1 on the far one.
+ *
+ * The order of operations is imposed by the bench's parity test. For every optic with a positive
+ * finite aspect, zoom, fov in (0, 180) and 0 < near < far, finite and not overflowing, the matrix
+ * is bit-identical to the one this file held before its derivation (`referenceProjection.test.ts`
+ * pins it); outside it the entries are not defined (NaN or ±Infinity either way).
  */
 export function referenceProjection(out: Matrix4, camera: Camera) {
   const { near, far, zoom } = camera;
   if (camera.projection === 'orthographic') {
-    const [cx, cy, dx, dy] = drawnView(camera, camera.aspect, zoom, view);
-    const left = cx - dx,
-      right = cx + dx,
-      top = cy + dy,
-      bottom = cy - dy;
-    const w = 1.0 / (right - left),
-      h = 1.0 / (top - bottom),
-      p = 1.0 / (far - near);
+    const [cx, cy, hx, hy] = drawnView(camera, camera.aspect, zoom, view);
+    const x0 = cx - hx,
+      x1 = cx + hx,
+      y0 = cy - hy,
+      y1 = cy + hy;
+    const kx = 1 / (x1 - x0),
+      ky = 1 / (y1 - y0),
+      kz = 1 / (far - near);
     // prettier-ignore
     return out.set(
-      2 * w, 0, 0, -(right + left) * w,
-      0, 2 * h, 0, -(top + bottom) * h,
-      0, 0, -2 * p, -(far + near) * p,
+      2 * kx, 0, 0, -(x0 + x1) * kx,
+      0, 2 * ky, 0, -(y0 + y1) * ky,
+      0, 0, -2 * kz, -(near + far) * kz,
       0, 0, 0, 1,
     );
   }
-  const top = (near * perspectiveSlope(camera.fov)) / zoom;
-  const height = 2 * top,
-    width = camera.aspect * height;
-  const left = -0.5 * width;
-  const right = left + width,
-    bottom = top - height;
-  const x = (2 * near) / (right - left),
-    y = (2 * near) / (top - bottom);
-  const a = (right + left) / (right - left),
-    b = (top + bottom) / (top - bottom);
-  const c = -(far + near) / (far - near),
-    d = (-2 * far * near) / (far - near);
+  const hy = (near * perspectiveSlope(camera.fov)) / zoom,
+    hx = camera.aspect * hy,
+    span = near - far;
   // prettier-ignore
   return out.set(
-    x, 0, a, 0,
-    0, y, b, 0,
-    0, 0, c, d,
+    near / hx, 0, 0, 0,
+    0, near / hy, 0, 0,
+    0, 0, (near + far) / span, (2 * far * near) / span,
     0, 0, -1, 0,
   );
 }

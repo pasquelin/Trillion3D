@@ -6,48 +6,42 @@ import {
 import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts';
 import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/types.ts';
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts';
-import { barycentric } from '../../../packages/sdk-browser/src/visibility/math.ts';
-import {
-  barycentricAt,
-  signedArea,
-} from '../../../packages/sdk-browser/src/visibility/projection.ts';
+import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import { modelFloor } from '../../runner/poses.ts';
-import { mesure, stress, rapport } from '../../core/index.ts';
+import { mesure, parElement, stress, rapport } from '../../core/index.ts';
 import {
-  referenceBarycentric,
   referenceDevicePixels,
   referenceFloorOf,
   referenceNsToMs,
   referenceOutsidePlanes,
   referencePackedRowBase,
   referenceSignedArea,
-  referenceWeights,
 } from '../../oracles/browser/ts-formulas.ts';
 import { casPlans, durees, emprises, rangs, tailles, triangles } from './support/scenesFormulas.ts';
 import type { MesureCas } from '../../core/index.ts';
 
-const un = <Entree>(name: string, input: Entree, size: number): MesureCas<Entree>[] => [
+const single = <Entree>(name: string, input: Entree, size: number): MesureCas<Entree>[] => [
   { name, input, size },
 ];
-const options = { chauffe: 2, tours: 12, budgetMs: 500 };
+const options = { tours: 100, budgetMs: 500 };
+type Triangle = (typeof triangles)[number];
 
 const resPlanes = await mesure({
   name: 'box outside the six planes',
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',
-  cas: un('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
-  calcul: (liste) =>
-    liste.map((c) =>
-      frustumExcludesBox(
-        c.planes,
-        c.boite[0],
-        c.boite[1],
-        c.boite[2],
-        c.boite[3],
-        c.boite[4],
-        c.boite[5],
-      ),
+  cas: single('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
+  calcul: parElement((c: (typeof casPlans)[number]) =>
+    frustumExcludesBox(
+      c.planes,
+      c.boite[0],
+      c.boite[1],
+      c.boite[2],
+      c.boite[3],
+      c.boite[4],
+      c.boite[5],
     ),
+  ),
   attendu: (liste) =>
     liste.map((c) =>
       referenceOutsidePlanes(
@@ -66,55 +60,17 @@ const resPlanes = await mesure({
 const resArea = await mesure({
   name: 'signed screen-triangle area',
   fichier: 'packages/sdk-browser/src/visibility/projection.ts',
-  cas: un('3 000 hostile triangles', triangles, triangles.length),
-  calcul: (liste) => liste.map((t) => signedArea(t.a, t.b, t.c)),
+  cas: single('3 000 hostile triangles', triangles, triangles.length),
+  calcul: parElement((t: Triangle) => signedArea(t.a, t.b, t.c)),
   attendu: (liste) => liste.map((t) => referenceSignedArea(t.a, t.b, t.c)),
-  options,
-});
-
-const resWeights = await mesure({
-  name: 'affine barycentric weights',
-  fichier: 'packages/sdk-browser/src/visibility/projection.ts',
-  cas: un('3 000 hostile triangles', triangles, triangles.length),
-  calcul: (liste) => {
-    const output = new Float64Array(liste.length * 3);
-    for (let i = 0; i < liste.length; i++) {
-      const t = liste[i];
-      const p = barycentricAt(t.a, t.b, t.c, t.x, t.y, signedArea(t.a, t.b, t.c));
-      output[i * 3] = p.w0;
-      output[i * 3 + 1] = p.w1;
-      output[i * 3 + 2] = p.w2;
-    }
-    return output;
-  },
-  attendu: (liste) => {
-    const output = new Float64Array(liste.length * 3);
-    for (let i = 0; i < liste.length; i++) {
-      const t = liste[i];
-      const p = referenceWeights(t.a, t.b, t.c, t.x, t.y, referenceSignedArea(t.a, t.b, t.c));
-      output[i * 3] = p.w0;
-      output[i * 3 + 1] = p.w1;
-      output[i * 3 + 2] = p.w2;
-    }
-    return output;
-  },
-  options,
-});
-
-const resBary = await mesure({
-  name: 'barycentriques visbuffer',
-  fichier: 'packages/sdk-browser/src/visibility/math.ts',
-  cas: un('3 000 hostile triangles', triangles, triangles.length),
-  calcul: (liste) => liste.map((t) => barycentric(t.a, t.b, t.c, t.x, t.y)),
-  attendu: (liste) => liste.map((t) => referenceBarycentric(t.a, t.b, t.c, t.x, t.y)),
   options,
 });
 
 const resRow = await mesure({
   name: 'row-identifier foundation',
   fichier: 'packages/sdk-browser/src/webgpu/row/pageRow.ts',
-  cas: un('2 000 ranks', rangs, rangs.length),
-  calcul: (liste) => liste.map((row) => packedRowBase(row)),
+  cas: single('2 000 ranks', rangs, rangs.length),
+  calcul: parElement((row: number) => packedRowBase(row)),
   attendu: (liste) => liste.map((row) => referencePackedRowBase(row, VIS_TRIANGLE_BITS)),
   options,
 });
@@ -122,8 +78,8 @@ const resRow = await mesure({
 const resPixels = await mesure({
   name: 'device pixels from logical size',
   fichier: 'packages/sdk-browser/src/backend/common.ts',
-  cas: un('2 000 sizes and ratios', tailles, tailles.length),
-  calcul: (liste) => liste.map((t) => devicePixels(t.logical, t.ratio)),
+  cas: single('2 000 sizes and ratios', tailles, tailles.length),
+  calcul: parElement((t: (typeof tailles)[number]) => devicePixels(t.logical, t.ratio)),
   attendu: (liste) =>
     liste.map((t) => referenceDevicePixels(t.logical, t.ratio, DEFAULT_PIXEL_RATIO)),
   options,
@@ -132,8 +88,8 @@ const resPixels = await mesure({
 const resNs = await mesure({
   name: 'nanoseconds to milliseconds',
   fichier: 'packages/sdk-browser/src/gpu/timing/types.ts',
-  cas: un('2 000 durations', durees, durees.length),
-  calcul: (liste) => liste.map((ns) => nanosecondsToMs(ns)),
+  cas: single('2 000 durations', durees, durees.length),
+  calcul: parElement((ns: number) => nanosecondsToMs(ns)),
   attendu: (liste) => liste.map((ns) => referenceNsToMs(ns)),
   options,
 });
@@ -141,8 +97,8 @@ const resNs = await mesure({
 const resFloor = await mesure({
   name: 'model floor',
   fichier: 'bench/runner/poses.ts',
-  cas: un('1 000 extents', emprises, emprises.length),
-  calcul: (liste) => liste.map((b) => modelFloor(b)),
+  cas: single('1 000 extents', emprises, emprises.length),
+  calcul: parElement((b: (typeof emprises)[number]) => modelFloor(b)),
   attendu: (liste) => liste.map((b) => referenceFloorOf(b)),
   options,
 });
@@ -158,6 +114,6 @@ await stress({
 
 rapport(
   'formules-ts',
-  [resPlanes, resArea, resWeights, resBary, resRow, resPixels, resNs, resFloor],
+  [resPlanes, resArea, resRow, resPixels, resNs, resFloor],
   'each shared formula yields exactly what the copies it replaces used to yield',
 );

@@ -23,10 +23,10 @@ export function linearToSrgb8(c: number) {
   return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)));
 }
 
-/** `t` wrapped into `[0, 1[` via reference Euclidean modulo: `((t % 1) + 1) % 1`. */
+/** `t` wrapped into `[0, 1[` by Euclidean modulo: `((t % 1) + 1) % 1`. */
 const wrapUnit = (t: number) => ((t % 1) + 1) % 1;
 
-/** A component of HSL to RGB conversion, reference piecewise ramp. */
+/** A component of HSL to RGB conversion, the piecewise ramp. */
 function hueComponent(p: number, q: number, t: number) {
   if (t < 0) t += 1;
   if (t > 1) t -= 1;
@@ -39,10 +39,9 @@ function hueComponent(p: number, q: number, t: number) {
 /**
  * Hue, saturation, and lightness to three linear components written to `out[o..o+2]`.
  *
- * Reference `setHSL` term by term: wrapped hue, saturation and lightness clamped to
- * `[0, 1]`, zero saturation returned as gray, then piecewise ramp. No transfer curve
- * is applied — reference workspace is already linear, its conversion is
- * identity.
+ * The hue is wrapped into `[0, 1[`, saturation and lightness are clamped to `[0, 1]`, zero
+ * saturation gives a gray, otherwise a piecewise ramp gives each channel. No transfer curve
+ * is applied: the HSL values are taken as already linear, so the conversion is the identity.
  */
 export function hslToLinearRgb<T extends NumberSink>(
   out: T,

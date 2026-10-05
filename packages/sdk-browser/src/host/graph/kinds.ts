@@ -22,15 +22,7 @@ export const isInstancedNode = (node: object): node is HostInstancedMesh =>
 /** Any light: the core's, whatever its kind. */
 export const isLightNode = (node: object): node is Light => node instanceof Light;
 
-/** A light that aims or reaches: directional, point or spot. */
-export const isPlacedLight = (node: object): node is Light =>
-  node instanceof Light &&
-  (node.kind === 'directional' || node.kind === 'point' || node.kind === 'spot');
-
 /** The node a directional or a spot light aims at; the other kinds aim at nothing, though every
  *  light of the core's holds a target. */
 export const aimOf = (light: Light): Object3D | undefined =>
   light.kind === 'directional' || light.kind === 'spot' ? light.target : undefined;
-
-/** A texture of the graph, whatever slot of a surface holds it. */
-export { isGraphTexture } from './texture.ts';

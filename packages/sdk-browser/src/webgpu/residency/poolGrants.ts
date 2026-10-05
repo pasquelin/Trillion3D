@@ -101,16 +101,6 @@ export const grantedTexturePool = <R extends Made>(
     diagnose,
   });
 
-/** The shadow pool the device grants for `budgetBytes`, by its own rule (`shadowPoolFor`); `make`
- *  allocates its texture. */
-export const grantedShadowPool = <P extends ShrunkPool, R extends Made>(
-  device: GPUDevice,
-  budgetBytes: number,
-  draw: (budgetBytes: number) => P,
-  diagnose: Diagnose,
-  make: (pool: P) => R,
-) => grantedPool({ device, name: 'shadow', budgetBytes, draw, make, diagnose });
-
 /** A geometry pool's probe: its buffer, under the probe's label. */
 export const geometryProbe = (device: GPUDevice) => (pool: GeometryPool) =>
   createPageBuffer(device, pool.allocatedBytes, PROBE_LABEL);

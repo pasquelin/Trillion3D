@@ -1,4 +1,4 @@
-// The physically based bloom (#349): the engine's filters are the published ones, the chain of
+// The physically based bloom (#349): the engine's filters are the defined ones, the chain of
 // levels conserves energy with no threshold, and its targets are sized from the image alone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import {
 import { cpuBloom, publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
 import { BLOOM_LEVELS } from './bloomLevels.ts';
 
-test('the down and up taps are the published 13-tap filter and 3×3 tent, each of weight 1', () => {
+test('the down and up taps are the 13-tap filter and 3×3 tent, each of weight 1', () => {
   assert.deepEqual(tapWords(BLOOM_DOWN_TAPS), tapWords(publishedDownTaps()));
   assert.deepEqual(tapWords(BLOOM_UP_TAPS), tapWords(publishedUpTaps()));
   for (const taps of [BLOOM_DOWN_TAPS, BLOOM_UP_TAPS])

@@ -1,7 +1,7 @@
 // #360, #361, #362: the WebGL2 binder uploads a texture again at every version it moves to — in
 // place in the texture it holds while the size stays —, sets its sampler alone when only its
 // sampling moved, and grants anisotropy as the WebGPU path and the
-// Three witness do: to a linear magnification over a chain mixed across levels, or not at all.
+// host-library witness do: to a linear magnification over a chain mixed across levels, or not at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';

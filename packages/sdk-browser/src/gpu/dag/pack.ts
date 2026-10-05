@@ -1,5 +1,4 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
-import { translationToRenderOrigin } from '../../../../sdk-core/src/math/primitives/renderOrigin.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
@@ -69,7 +68,8 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     // none, and `rootBases` keeps the node it takes back.
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE),
-    mark = new Uint8Array(worldSlots);
+    // The whole frame word: the mark's bits, and the deformation reach above them (`markReach`).
+    mark = new Uint32Array(worldSlots);
   const records = createRecordTable();
   // Culling links, shared by the placements of one node array as the hierarchy is.
   const cutLinks: DagCutLinks[] = [];
@@ -130,6 +130,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     nodes,
     pageCones,
     worlds,
+    worldSources: roots,
     worldStretch,
     rootNodes,
     rootBases,
@@ -147,34 +148,71 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   };
 }
 
-/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`. */
+/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`, and its translation
+ *  kept in `translations` as it was read, three doubles per root: what
+ *  `rootTranslationsToRenderOrigin` subtracts the next eye from. */
 export function rootWorldsToRenderOrigin(
   worlds: Float32Array,
   roots: readonly DagRoot[],
   origin: ArrayLike<number>,
+  translations: Float64Array,
 ) {
-  for (let w = 0; w < roots.length; w++)
-    worldToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+  for (let w = 0; w < roots.length; w++) {
+    const world = roots[w].world.elements;
+    worldToRenderOrigin(worlds, world, origin, w * 16);
+    translations[w * 3] = world[12];
+    translations[w * 3 + 1] = world[13];
+    translations[w * 3 + 2] = world[14];
+  }
+}
+
+/**
+ * Whether a root's world is no longer the one `worlds` holds rebased to `origin`: the same
+ * subtraction and the same single-precision rounding as `rootWorldsToRenderOrigin`, so a pose the
+ * host left alone compares bit for bit, whatever eye the next rebase takes. Nothing is written.
+ */
+export function rootWorldsMoved(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++) {
+    const world = roots[w].world.elements,
+      at = w * 16;
+    for (let i = 0; i < 16; i++) {
+      const value = i >= 12 && i < 15 ? world[i] - origin[i - 12] : world[i];
+      if (worlds[at + i] !== Math.fround(value)) return true;
+    }
+  }
+  return false;
 }
 
 /**
  * The same loop when only the origin moved since the last `rootWorldsToRenderOrigin` into
  * `worlds`, the roots unchanged: the three translation numbers of each root, the only ones that
- * depend on the origin, rewritten by the same subtraction — the buffer ends bit for bit as a full
- * rebase would leave it.
+ * depend on the origin, rewritten by the same double subtraction on the doubles that rebase kept
+ * in `translations` — the buffer ends bit for bit as a full rebase would leave it. They are read
+ * from one flat array, not from each root's matrix: a hundred thousand roots are as many objects
+ * apart in memory, for three numbers each (#831).
  */
 export function rootTranslationsToRenderOrigin(
   worlds: Float32Array,
-  roots: readonly DagRoot[],
+  translations: Float64Array,
   origin: ArrayLike<number>,
 ) {
-  for (let w = 0; w < roots.length; w++)
-    translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+  const x = origin[0],
+    y = origin[1],
+    z = origin[2];
+  for (let t = 0, at = 12; t < translations.length; t += 3, at += 16) {
+    worlds[at] = translations[t] - x;
+    worlds[at + 1] = translations[t + 1] - y;
+    worlds[at + 2] = translations[t + 2] - z;
+  }
 }
 
 /**
  * A page's url is its placement's shared record, the placement read from the page's world word
- * (as `readiness.ts` does): nothing more is stored per page (#1235), as a cluster instance reads
+ * (as `readiness.ts` does): nothing more is stored per page (#1235), as an instance reads
  * its primitive's clusters from its base. Built outside `packDagSelection` so the reader keeps
  * only these, not the packing's working state.
  */

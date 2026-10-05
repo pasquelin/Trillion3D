@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
-import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from './requestWgsl.ts';
+import { TILE_REQUEST_WGSL } from './requestWgsl.ts';
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 import { BLEND_REQUEST_WGSL } from '../blend/requestWgsl.ts';
-import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import {
   convergeBound,
   drainsAgain,
@@ -38,9 +37,9 @@ test('a convergence image names, per pixel, the first of all its picks whose til
         named.add(pick(px + turn, choices).join());
       assert.equal(named.size, choices * PICK_BLENDS * PICK_TAPS, `pixel ${px}, ${choices} maps`);
     }
-  assert.match(FEEDBACK_RULE_WGSL, /const PICK_TURNS:u32=6u;/);
+  assert.match(TILE_REQUEST_WGSL, /const PICK_TURNS:u32=6u;/);
   assert.match(
-    FEEDBACK_RULE_WGSL,
+    TILE_REQUEST_WGSL,
     /fn everyPick\(pos:vec2f,choices:u32,turn:u32\)[^\n]*pickOf\(u32\(pos\.x\)\+u32\(pos\.y\)\+turn,choices\)/,
   );
   assert.match(
@@ -62,10 +61,6 @@ test('a convergence image names, per pixel, the first of all its picks whose til
       `${name}: its own pick otherwise`,
     );
   }
-  assert.match(
-    SHADOW_DEPTH_SHADER,
-    /for\(var turn=0u;turn<2u;turn\+\+\)\{cutoutPost\([^;]*everyPick\(in\.position\.xy,1u,turn\)\);\}/,
-  );
 });
 
 // #1016 review: the barrier converged only at the jitter of the image it replays; the still
@@ -99,18 +94,16 @@ test('a convergence always has room for a quiet round after a tile served on its
   }
 });
 
-// #1016: casters that land after the drain's last image changed nothing a plan saw, and the pages
-// a light cut drew through a coarser ancestor waited for them. The barrier ended there, and those
-// pages were drawn again during the still average, as each session's streaming happened to time
-// them. A landing after the last image now draws one more.
+// #1016: casters that land after the drain's last image changed nothing a shadow map saw. The
+// barrier ended there, and their pages were drawn again during the still average, as each
+// session's streaming happened to time them. A landing after the last image now draws one more.
 test('a page made resident after the last drain image draws one more image', () => {
   const settled = () => false;
-  assert.equal(drainsAgain(false, 7, 7, settled), false, 'nothing moved: the drain ends');
-  assert.equal(drainsAgain(false, 7, 8, settled), true, 'a landing no plan saw: one more');
-  assert.equal(drainsAgain(true, 7, 7, settled), true, 'a report taken: one more');
+  assert.equal(drainsAgain(7, 7, settled), false, 'nothing moved: the drain ends');
+  assert.equal(drainsAgain(7, 8, settled), true, 'a landing no map saw: one more');
   assert.equal(
-    drainsAgain(false, 7, 7, () => true),
+    drainsAgain(7, 7, () => true),
     true,
-    'pages unsettled: one more',
+    'shadows unsettled: one more',
   );
 });

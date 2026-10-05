@@ -14,8 +14,7 @@ export type MotionRoot = { world: MatrixElements };
 /**
  * Placement motion matrices, as the temporal pass reads them: one `mat4x4f` per root,
  * identity for a still placement, `previous · current⁻¹` — reported to the eye —
- * for one that moved since the last accumulated frame. That is what the reference keeps in
- * its instance data for dynamic objects only: here the entry exists for every root, but
+ * for one that moved since the last accumulated frame. The entry exists for every root, but
  * only those that move are rewritten, and reset to identity the frame after.
  * A CPU mirror holds the whole buffer; a frame only sends the range it touched,
  * in a single write.
@@ -116,6 +115,10 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
           touch(w);
         }
       flush();
+    },
+    /** The pose root `w` was last accumulated at, which its next world is compared with. */
+    poseOf(w: number) {
+      return previous.subarray(w * 16, w * 16 + 16);
     },
     /** History is lost: current poses become the reference, with no motion. */
     reset() {

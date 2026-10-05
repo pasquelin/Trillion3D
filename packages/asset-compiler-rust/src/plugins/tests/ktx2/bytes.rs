@@ -1,4 +1,4 @@
-//! Tiny KTX 2.0 of the golden, written here byte by byte from Khronos's public specification. No
+//! Tiny KTX 2.0 of the golden, written here byte by byte. No
 //! encoder is called: the identifier, the nine header fields, the index of the three sections
 //! and the level index are set by hand, and each block carries values whose exact decoding is
 //! known. That is the only way to assert “lossless” without taking the decoder's word for it.
@@ -145,7 +145,7 @@ pub(super) fn patched64(mut file: Vec<u8>, at: usize, value: u64) -> Vec<u8> {
 }
 
 /// A 4 × 4 BC1 block: two 565 bounds then sixteen two-bit indices. When `first` is less than
-/// `second`, the specification puts the block in three colours, and index 3 names a transparent
+/// `second`, the format puts the block in three colours, and index 3 names a transparent
 /// black texel there — that is what separates `BC1_RGB` from `BC1_RGBA`.
 pub(super) fn bc1(first: u16, second: u16, indices: [u8; 16]) -> Vec<u8> {
     let mut block = Vec::from(first.to_le_bytes());
@@ -156,7 +156,7 @@ pub(super) fn bc1(first: u16, second: u16, indices: [u8; 16]) -> Vec<u8> {
     block
 }
 
-/// An ASTC 4 × 4 “void extent” block: the specification reserves it for a unique colour, and
+/// An ASTC 4 × 4 “void extent” block: the format reserves it for a unique colour, and
 /// its four channels are written there in the open on sixteen bits each. No interpolation
 /// therefore enters the reference — the block is exactly the colour put in it.
 pub(super) fn astc_void_extent(color: [u8; 4]) -> Vec<u8> {
@@ -167,7 +167,7 @@ pub(super) fn astc_void_extent(color: [u8; 4]) -> Vec<u8> {
     block
 }
 
-/// A one-channel EAC block, written from the OpenGL ES 3.0 specification: the eight-bit base
+/// A one-channel EAC block, written by hand: the eight-bit base
 /// word, then the multiplier and the modifier table on four bits each, then sixteen three-bit
 /// indices — texel 0 in the high bits of the remaining forty-eight. Texels follow there column
 /// by column: texel `n` is at column `n / 4`, row `n % 4`.

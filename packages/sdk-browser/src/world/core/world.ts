@@ -19,6 +19,7 @@ import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
 import { worldSwitches } from './worldSwitches.ts';
 import { worldMaterialMethods } from './worldMaterialMethods.ts';
+import { worldMixerView } from './worldMixerView.ts';
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
@@ -32,7 +33,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   let camera = new Camera('perspective'),
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
-    pixelError: number | undefined,
     animating = false,
     disposed = false;
   const device = holdWorldDevice(canvas, options.renderer, (lostAt) =>
@@ -41,7 +41,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug);
-  const switches = worldSwitches(options, () => runtime, device, invalidate, diagnostic.notices);
+  const switches = worldSwitches(options, () => runtime, device, frames, diagnostic.notices);
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -52,7 +52,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         ...switches.held,
         ...sessionPools(pools),
-        pixelError,
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => (ahead(controls), runtime.beforeFrame()),
@@ -73,9 +72,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
   adopt(camera);
+  worldMixerView(scene, canvas, () => camera);
   const kind = options.controls ?? 'none';
   const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character);
-  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics.frame));
+  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics));
   const live = () => {
     if (disposed) throw new Error('World disposed');
     return runtime.explorer;
@@ -112,14 +112,16 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       exposure = value;
       runtime.displayChanged();
     },
-    /** The DAG cut's screen error, in pixels. */ get pixelError() {
-      return pixelError ?? 0;
+    /** The DAG cut's screen error, in pixels; the page's value holds over a quality preset. */
+    get pixelError() {
+      return switches.pixelError;
     },
     set pixelError(value: number) {
-      pixelError = value;
-      live()?.setPixelError(value);
-      invalidate();
+      live();
+      switches.pixelError = value;
     },
+    /** The quality: a preset, each group's level over it, and the resolution the image is drawn at. */
+    quality: switches.quality,
     /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied
      *  in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
@@ -164,9 +166,15 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
      * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
     /** Another name for `onFrame`. */ loop: frames.add,
-    /** Asks for a new frame after a change the world could not see. */ invalidate,
-    /** Draws one frame now, whoever leads the loop: clips and physics step with it. */ render() {
-      if (live()) runtime.render(() => ahead(null));
+    /** Asks the world's own loop for a new frame after a change it could not see; a world its
+     *  page leads draws at its next `render()`. */
+    invalidate,
+    /** Draws one frame, whoever leads the loop: clips and physics step with it. One the world
+     *  cannot draw yet — its session opening, a part of the engine on its way — is drawn once it
+     *  can, once however many were asked meanwhile. */
+    render() {
+      live();
+      runtime.render(() => ahead(null));
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
      *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */

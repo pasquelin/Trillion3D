@@ -7,7 +7,7 @@ import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
  * deposits the survivors in the live list (`liveWgsl.ts`), and publishes a REQUEST for each
  * one the cut wants at the host's threshold — the page and the priority the host will give it in
  * its queue (`../request.ts`). A wanted cluster that is not resident is drawn through its nearest
- * resident ancestor (`dagMask`); a light view that does so says it drew coarser (`noteCoarser`).
+ * resident ancestor (`dagMask`).
  * A page the camera does not request goes to the view ahead (`aheadWgsl.ts`).
  *
  * Kept apart from `shader.ts`, which holds the other kernels and the bind declarations.
@@ -25,20 +25,17 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
  liveAppend(entry);
- let light=isLightCut();
- let rejected=!light&&coneRejects(r,w);
+ let rejected=coneRejects(r,w);
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
  // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
  // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
  let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
- // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
- setFlag(coneCache(i),select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t),0u,light));
+ setFlag(coneCache(i),select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t));
  if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  emitOne(i,replacementPixels(cluster,pixels));
  stampUse(i);
- if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.

@@ -1,5 +1,4 @@
 import { createSynchronousCanvasCapture } from '../../../gpu/core/presentation.ts';
-import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
 import type { VisPage } from '../../../visibility/types.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts';
@@ -24,7 +23,6 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
     view: lights.store.lightingView,
     unlit: lights.store.unlit,
     exposure: lights.store.environment?.exposure ?? 1,
-    shadowPagesPending: lights.plan.counts.pendingPages,
   });
 }
 
@@ -57,9 +55,12 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   const busy = capture.capturing || frameTargetsAwaited(rt);
   if (!gpu.presenter || !gpuDevice || !gpu.displayTexture || busy)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
-  const encoder = gpuDevice.createCommandEncoder();
-  gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize);
-  gpuDevice.queue.submit([encoder.finish()]);
+  // The canvas read below already holds the image when the last frame presented it whole.
+  if (!gpu.presenter.holds(gpu.displayTexture, ...gpu.displaySize)) {
+    const encoder = gpuDevice.createCommandEncoder();
+    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize);
+    gpuDevice.queue.submit([encoder.finish()]);
+  }
   if (!gpu.synchronousCapture) {
     gpu.synchronousCapture = createSynchronousCanvasCapture();
     diag.engineDiagnostic('capture-synchronous', 'Synchronous read requested by the host', {
@@ -93,8 +94,9 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
 
-/** What the CPU raster reads of the last image: its drawn pages, their locations, camera and size. */
-const rasterView = (rt: WebgpuPagesRuntime) => {
+/** What the CPU raster oracles read of the last image: its drawn pages, their locations, camera,
+ *  size, pixel ratio and clear colour. The oracles themselves live in `bench/oracles`. */
+export const rasterView = (rt: WebgpuPagesRuntime) => {
   const { pages, packed } = drawnOpaquePages(rt);
   return {
     pages,
@@ -106,16 +108,6 @@ const rasterView = (rt: WebgpuPagesRuntime) => {
     cam: engineCameraOf(rt),
     size: rt.setup.viewport ?? rt.gpu.targetSize,
     pixelRatio: rt.setup.pixelRatio(),
+    clearColor: rt.run.clearColor,
   };
 };
-
-export function visibilityIds(rt: WebgpuPagesRuntime) {
-  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
-  return rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
-}
-
-export function rasterRgba(rt: WebgpuPagesRuntime) {
-  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
-  const ids = rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
-  return shadeVisibility(ids, pages, locations, cam, size, rt.run.clearColor, pixelRatio);
-}

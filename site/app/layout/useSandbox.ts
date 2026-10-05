@@ -2,7 +2,7 @@ import { useReducer } from 'react';
 
 /** The sandbox's edits: the source in the editor and the source last run, `null` for the
  * starting one in both, so that the state never copies a source it has not changed. */
-export interface SandboxState {
+interface SandboxState {
   edited: string | null;
   ran: string | null;
 }
@@ -11,7 +11,7 @@ type SandboxAction = { type: 'edit'; code: string } | { type: 'run' } | { type: 
 
 /** Editing changes the editor alone; Run renders what the editor holds; Reset brings both back
  * to the starting source. */
-export function sandboxReducer(state: SandboxState, action: SandboxAction): SandboxState {
+function sandboxReducer(state: SandboxState, action: SandboxAction): SandboxState {
   if (action.type === 'edit') return { ...state, edited: action.code };
   if (action.type === 'run') return { ...state, ran: state.edited };
   return { edited: null, ran: null };

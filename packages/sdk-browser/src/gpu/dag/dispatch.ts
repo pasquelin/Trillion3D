@@ -7,9 +7,10 @@ import {
 } from '../core/selection.ts';
 import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './uniforms.ts';
 import type { createDagResources } from './resources.ts';
-import { encodeDagKernels } from './encode.ts';
+import { encodeDagDifference, encodeDagKernels } from './encode.ts';
 import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts';
 import { grownListCap, listDemand, queueDagListGrowth } from './listCap.ts';
+import type { createDifferenceChain } from './differenceChain.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -39,6 +40,8 @@ export function createDagDispatch(
   resources: DagResources,
   state: DagRuntimeState,
   fail: () => void,
+  /** Where a resident cut's readbacks land, every one in the order copied (`differenceChain.ts`). */
+  chain: ReturnType<typeof createDifferenceChain>,
 ): GpuSelection['dispatch'] {
   const { device, packed, residentCut, uniformData, uniforms } = resources;
   // One readback slot, one set of arrays: the snapshot rewrites them instead of reallocating.
@@ -84,14 +87,16 @@ export function createDagDispatch(
       undoReadbackRevision = state.readbackResidencyRevision,
       undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
+    // A resident cut's copy carries its difference against the snapshot copied before it.
+    const differ = copy && residentCut;
     if (compute) {
       writeDagUniforms(uniformData, packed, next, residentCut, listCap);
       device.queue.writeBuffer(uniforms, 0, uniformData);
-      encodeDagKernels(encoder, resources);
+      encodeDagKernels(encoder, resources, differ);
       state.lastSubmitted = copySelectionUniforms(next);
       state.submittedResidencyRevision = state.residencyRevision;
       state.submittedWorldRevision = state.worldRevision;
-    }
+    } else if (differ) encodeDagDifference(encoder, resources);
     if (copy) encoder.copyBufferToBuffer(output, 0, readback[i], 0, copied);
     const captured = copy ? copySelectionUniforms(next) : undefined;
     const capturedWorldRevision = state.worldRevision,
@@ -127,6 +132,19 @@ export function createDagDispatch(
                     listDemand(bytes, drawnWordOffset),
                   )
                 : undefined;
+            // A residency that moved since makes the drawable mask a lie. A pose that moved only
+            // makes the cut a frame late, as a camera's: it keeps the revision it was cut under.
+            const adoptable = !grown && capturedResidencyRevision === state.residencyRevision;
+            // Every copy a resident cut made lands in the chain, adoptable or not: the next is
+            // taken against it.
+            if (parsed?.drawablePageIds)
+              chain.land(
+                new Uint32Array(bytes, 0, copied >>> 2),
+                listCap,
+                parsed.pageIds.length,
+                parsed.drawablePageIds.length,
+                adoptable,
+              );
             readback[i].unmap();
             if (!parsed) {
               fail();
@@ -136,9 +154,7 @@ export function createDagDispatch(
               state.grow = Math.max(state.grow, grown);
               return;
             }
-            // A residency that moved since makes the drawable mask a lie. A pose that moved only
-            // makes the cut a frame late, as a camera's: it keeps the revision it was cut under.
-            if (capturedResidencyRevision === state.residencyRevision)
+            if (adoptable)
               state.last = {
                 uniforms: captured,
                 result: parsed,

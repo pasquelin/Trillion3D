@@ -3,7 +3,7 @@
  * owner drew before the transmissive copies — clusters, opaque and blended, over the scene
  * background. The display target holds the display-encoded image, which a transmitted share
  * cannot be composed from; so the same submissions are drawn a second time here, in linear light
- * and without tone mapping, exactly as the reference renderer fills its transmission target.
+ * and without tone mapping, as a transmission target must be filled.
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 import { refuseCluster } from './refusal.ts';

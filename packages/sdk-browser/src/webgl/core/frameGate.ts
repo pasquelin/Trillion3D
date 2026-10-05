@@ -6,7 +6,7 @@ const WEBGL_HOLD_VALUES = 6;
 export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
 
 /**
- * Image gate of the engines rendered by Three: the shared core (`../../frame/gateCore.ts`), and the only
+ * Image gate of the engines rendered by a host library: the shared core (`../../frame/gateCore.ts`), and the only
  * thing that belongs to them, the signature of the image they have just produced.
  *
  * A WebGL engine submits nothing itself — the host renders the graph it holds. A held image

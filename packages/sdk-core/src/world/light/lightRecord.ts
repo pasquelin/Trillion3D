@@ -34,13 +34,17 @@ const scaled = (colour: { r: number; g: number; b: number }, scale: number) => {
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
  * or null for a kind the store does not hold or a light giving nothing. Whether it is shown — it
  * and every node above it visible — is the caller's to decide (`worldLights.ts`). `range` is the
- * page's `distance`, or `reach` — what the world derives from its own extent — when the page left
- * it unbounded.
+ * page's `distance`, or `reach` — what the world derives from its own extent seen from the lamp's
+ * world position, asked only of a lamp the page left unbounded.
  *
  * A rectangle (`rectArea`) is the store's `rect`: its radiance `intensity`, its face looking down
  * the light's `-z`, its width along the light's `x`, and no cast shadow — the store refuses one.
  */
-export function lampRecord(light: Light, id: string, reach: number): SceneLight | null {
+export function lampRecord(
+  light: Light,
+  id: string,
+  reach: (at: Vector3) => number,
+): SceneLight | null {
   if (!LAMPS.has(light.kind) || !(light.intensity > 0)) return null;
   const rectangle = light.kind === 'rectArea';
   const kind = rectangle ? 'rect' : (light.kind as SceneLight['kind']);
@@ -62,9 +66,12 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     if (!rectangle) light.target.getWorldPosition(aim).sub(eye);
     record.direction = (aim.lengthSq() > 0 ? aim.normalize() : aim.set(0, -1, 0)).toArray();
   }
-  if (kind === 'directional') return record;
+  if (kind === 'directional') {
+    if (light.angularRadius > 0) record.angularRadius = light.angularRadius;
+    return record;
+  }
   record.position = eye.toArray();
-  record.range = light.distance > 0 ? light.distance : reach;
+  record.range = light.distance > 0 ? light.distance : reach(eye);
   if (kind === 'spot') {
     record.coneAngle = Math.min(light.angle, WIDEST_CONE);
     if (light.penumbra > 0) record.penumbra = Math.min(1, light.penumbra);
@@ -120,6 +127,7 @@ export function lightFromRecord(record: SceneLight): Light {
     angle: record.coneAngle,
     penumbra: record.penumbra,
     radius: record.emitterRadius,
+    angularRadius: record.angularRadius,
   });
   node.name = record.id;
   return node;

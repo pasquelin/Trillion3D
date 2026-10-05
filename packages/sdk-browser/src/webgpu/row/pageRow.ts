@@ -1,8 +1,4 @@
-import {
-  PAGE_DEFORM_WORD,
-  PAGE_DEFORM_COUNT_WORD,
-  PAGE_DEFORM_OUTPUT_WORD,
-} from '../../visibility/types.ts';
+import { PAGE_DEFORM_WORD } from '../../visibility/types.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
 import type { Placements } from '../../page/selection/placements.ts';
@@ -18,6 +14,7 @@ import {
 import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
+  FLAG_MASK,
   frameNormalScaleY,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
@@ -26,9 +23,10 @@ import { surfaceOpacity } from '../../page/surface.ts';
 import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import type { SessionDeformation } from '../../deformation/session.ts';
-import { deformOutputWord } from '../../deformation/slotLayout.ts';
+import { writeRowDeformation } from '../../deformation/slotLayout.ts';
 import { ROW_PLACEMENT_WORD } from './rowPlacement.ts';
 import { NO_HIZ_SLOT } from './noHizSlot.ts';
+import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts';
 
 /** Row word of the geometry's first vertex in the shared pools (`PageInfo.vertexBase`). */
 export const ROW_VERTEX_BASE_WORD = 26,
@@ -42,6 +40,9 @@ export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
  *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
 export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23;
+/** True when row `row` of the table `ints` is a cutout (`FLAG_MASK`): the bit `maskKeep` tests. */
+export const rowCutout = (ints: Uint32Array, row: number) =>
+  (ints[(row * PAGE_INFO_STRIDE) / 4 + ROW_FLAGS_WORD] & FLAG_MASK) !== 0;
 /** Row word of the surface's opacity, its colour factor's alpha (`PageInfo.blendCoverage`): the
  *  light a blended caster stops, and what a cutout multiplies its alpha by (`maskKeep`). */
 export const ROW_BLEND_COVERAGE_WORD = 57;
@@ -79,6 +80,9 @@ type PageRowResources = MaterialLayers & {
    *  temporal antialiasing and the composition must read (OMB-11). Never unset: a row it no longer
    *  draws only keeps the reading variant, which is right for every image. */
   asIsShown: boolean;
+  /** Set once an opaque row's surface can emit or occlude (`surfaceEmitsOrOccludes`): the image's
+   *  resolve then writes the emission-and-occlusion layer (`emissiveAoLayer.ts`). Never unset. */
+  emissiveAoShown: boolean;
   /** The session's GPU deformation, once prepared: the record each placement's rows name. */
   deformation?: Pick<SessionDeformation, 'rowWord'>;
 };
@@ -112,6 +116,8 @@ export function createPageRowWriter(
     const mat = material.mat,
       maps = rowMaterial(mat, geo, resources);
     if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true;
+    if (!rec.transparent && !resources.emissiveAoShown && surfaceEmitsOrOccludes(mat))
+      resources.emissiveAoShown = true;
     // Row placement: its world, and its rank, where the temporal pass reads the pixel motion
     // matrix. A packed rank without a placement does not exist in a WebGPU layout: `rootOf` throws.
     const rank = rootRank(pageIndex);
@@ -143,8 +149,7 @@ export function createPageRowWriter(
     // row never culled reads none, nor does a deformed one: its box is its rest pose's.
     const deform = resources.deformation?.rowWord(rank) ?? 0;
     ints[base + PAGE_DEFORM_WORD] = deform;
-    ints[base + PAGE_DEFORM_COUNT_WORD] = rec.deformationOutput?.count ?? 0;
-    ints[base + PAGE_DEFORM_OUTPUT_WORD] = deformOutputWord(rec.deformationOutput, offsetWords);
+    writeRowDeformation(ints, base, rec.deformationOutput, offsetWords);
     ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;

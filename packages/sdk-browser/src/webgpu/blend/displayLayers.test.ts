@@ -1,6 +1,6 @@
 // #558: what is drawn in front of (or behind) a multiply surface, where the display mask is set,
-// ends as the witness (three@0.174) shows it — at least as close as develop, which blended every
-// layer in linear light. One pixel follows each system: the witness's canvas of display values,
+// ends as the reference display shows it — at least as close as develop, which blended every
+// layer in linear light. One pixel follows each system: the reference display's canvas of display values,
 // develop's lit target through the tone curve, and this branch's lit target, tint and added value
 // through the shipped route (`displayRun.fixture.ts`) and the pipelines' own blend states, composed
 // as the display filter pass composes them.
@@ -17,7 +17,7 @@ import { particleTargets } from '../../particles/particleTargets.ts';
 
 type Pixel = { lit: Rgba; tint: Rgba; add: Rgba };
 type Layer = {
-  /** The witness's canvas after the layer, from its display value `canvas`. */
+  /** The reference display's canvas after the layer, from its display value `canvas`. */
   witness: (canvas: number[]) => number[];
   /** Develop's lit target after the layer. */
   develop: (lit: Rgba) => Rgba;
@@ -93,7 +93,7 @@ function onePixel(base: Rgba, layers: Layer[], masked = 1) {
   return { witness: canvas, develop: display(lit), routed: shown };
 }
 
-/** The routed pixel is the witness's, and never farther from it than develop's, which is off. */
+/** The routed pixel is the reference display's, and never farther from it than develop's, which is off. */
 function assertWitness(name: string, base: Rgba, layers: Layer[]) {
   const { witness, develop, routed } = onePixel(base, layers);
   close(routed, witness, name, 1e-5);

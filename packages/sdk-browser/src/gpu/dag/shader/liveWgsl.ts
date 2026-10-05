@@ -1,3 +1,5 @@
+import { WORK_BLOCK_WORDS } from './floorWgsl.ts';
+
 /**
  * The list of live clusters of a frame, and the dispatch argument that sizes it.
  *
@@ -30,22 +32,21 @@
  *
  * No extra buffer: the eight storage buffers per stage ceiling is already reached. The list
  * extends `flags` after the cone cache; the live counter and their group counter extend
- * `work` after the compaction blocks, from which the dispatch argument is copied — WebGPU
- * forbids the same buffer as write and as argument in one scope.
+ * `work` after the compaction blocks, from which the arming kernel copies the dispatch argument —
+ * WebGPU forbids, in one dispatch, an argument bound writable by a group its pipeline uses
+ * (`armWgsl.ts`).
  */
 export const DAG_LIVE_WGSL = `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
-fn liveCounter()->u32{return blockCount()*4u;}
+fn liveCounter()->u32{return blockCount()*${WORK_BLOCK_WORDS}u;}
 /** The live list's dispatch argument, x then y (\`gridWgsl.ts\`). */
 fn liveGroups()->u32{return liveCounter()+1u;}
 fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].clusterCount);}
-/** \`entry\` is the candidate's, view included. A light cut also counts each view's live
- *  clusters: they bound the view's share of the drawn log (\`dagViewOffsets\`). */
+/** \`entry\` is the candidate's, view included. */
 fn liveAppend(entry:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
  if(s>=views[0u].clusterCount){dropWork();return;}
  setFlag(liveBase()+s,entry);
  if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
- if(isLightCut()){atomicAdd(&work[viewWord(0u,vi)],1u);}
 }
 fn liveAt(s:u32)->u32{return flagAt(liveBase()+s);}
 `;

@@ -10,6 +10,7 @@ import {
   impostorBakedByMesh,
   impostorTexelDepth,
   invertMatrix4,
+  multiplyMatrix4,
   planImpostors,
   type ImpostorCard,
   type ImpostorMaps,
@@ -23,8 +24,11 @@ import { core } from './borrowed.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 
-/** Floats of one card record: four corners, world, inverse world, shape, object pivot. */
+/** Floats of one card record: four corners, the draw's transform composed with the world
+ *  (`composeCardWorlds`), inverse world, shape, object pivot. */
 export const CARD_FLOATS = 56;
+/** Float offset of the composed transform in a card record. */
+const COMPOSED_AT = 16;
 
 /**
  * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
@@ -46,6 +50,8 @@ export function createImpostorCards<G>(section: ImpostorSection) {
     plan: undefined as ImpostorPlan | undefined,
     /** This image's card records, `CARD_FLOATS` each, in draw order. */
     records: new Float32Array(CARD_FLOATS * 16),
+    /** Each record's world in double, `worlds[i]` card `i`'s: composed at draw (`composeCardWorlds`). */
+    worlds: [] as Float64Array[],
     count: 0,
     /** This image's runs, `runs[0 .. runCount)`; the objects past it are kept for later images. */
     runs: [] as CardRun<G>[],
@@ -65,17 +71,44 @@ const pixelScale = [0, 0],
   ORIGIN = [0, 0, 0] as const,
   byMesh = (a: ImpostorCard, b: ImpostorCard) => a.mesh - b.mesh;
 
-/** Writes one card's record at `at`: corners, world, inverse world, shape, object pivot. */
-function writeCard(out: Float32Array, at: number, card: ImpostorCard, centre: readonly number[]) {
+/** Writes one card's record at `at` — corners, inverse world, shape, object pivot — and its world
+ *  in double into `world`; the record's composed transform is the draw's (`composeCardWorlds`). */
+function writeCard(
+  out: Float32Array,
+  at: number,
+  card: ImpostorCard,
+  centre: readonly number[],
+  world: Float64Array,
+) {
   for (let i = 0; i < 4; i++) {
     for (let k = 0; k < 3; k++) out[at + i * 4 + k] = corners[i * 3 + k];
     out[at + i * 4 + 3] = 1;
   }
-  out.set(card.world as ArrayLike<number>, at + 16);
+  world.set(card.world as ArrayLike<number>);
   out.set(invertMatrix4(inverse, card.world), at + 32);
   out.set(shape, at + 48);
   for (let k = 0; k < 3; k++) out[at + 52 + k] = centre[k];
   out[at + 55] = 1;
+}
+
+const composed = new Float64Array(16);
+
+/**
+ * Writes into the first `count` records of `out` each card's `toDraw · world`, composed in double
+ * and rounded once to single: `toDraw` is the draw's view-projection (WebGPU) or view (WebGL2). Its
+ * shader then carries the card's surface point by that one matrix. Composed per pixel in single
+ * instead, the two matrices' large translations cancel after rounding: at 1e5 m from the origin the
+ * card's depth was off by up to ~6.5e3 ULP, where the composed matrix keeps it within 2 ULP of the
+ * double reference — one product a card on the CPU against one a pixel on the GPU.
+ */
+export function composeCardWorlds(
+  out: Float32Array,
+  worlds: readonly Float64Array[],
+  count: number,
+  toDraw: Float64Array,
+) {
+  for (let i = 0; i < count; i++)
+    out.set(multiplyMatrix4(composed, toDraw, worlds[i]), i * CARD_FLOATS + COMPOSED_AT);
 }
 
 /** Sets each root's card bit to the plan's verdict (`markCard`); `moved` hears the roots whose bit
@@ -160,7 +193,8 @@ export function planImpostorCards<G>(
     shape[1] = entry.frames;
     shape[2] = entry.hemi ? 1 : 0;
     shape[3] = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)));
-    writeCard(state.records, state.count * CARD_FLOATS, card, centre);
+    const world = (state.worlds[state.count] ??= new Float64Array(16));
+    writeCard(state.records, state.count * CARD_FLOATS, card, centre, world);
     const run = state.runCount ? state.runs[state.runCount - 1] : undefined;
     if (run?.group === group) run.count++;
     else {

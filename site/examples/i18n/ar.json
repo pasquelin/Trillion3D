@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "إطار/ث",
-      "FPS (held)": "إطار/ث (متوقف)",
       "triangles": "مثلثات",
       "triangles (scene)": "مثلثات (المشهد)",
       "draw calls": "أوامر رسم",
       "pages": "صفحات",
       "geometry pool": "مخزن الأشكال",
       "lights": "أضواء",
+      "GPU memory": "ذاكرة GPU",
+      "screen images": "صور الشاشة",
+      "shadow memory": "ذاكرة الظلال",
+      "geometry memory": "ذاكرة الأشكال",
+      "texture memory": "ذاكرة الإكساء",
+      "live textures": "الإكساءات النشطة",
+      "transmission backdrop": "خلفية النفاذ",
       "GPU frame": "إطار GPU",
       "GPU frame (last)": "إطار GPU (الأخير)",
       "CPU frame": "إطار CPU",
       "page hooks": "شيفرة الصفحة",
-      "engine CPU": "CPU المحرك"
+      "engine CPU": "CPU المحرك",
+      "Statistics": "الإحصاءات",
+      "hint": "نقرة: مضغوط · سحب: نقل · المفتاح `",
+      "fps": "إطار/ث",
+      "budget": "الميزانية",
+      "held": "ثابت",
+      "last": "الأخير",
+      "others": "أخرى",
+      "Shadows": "الظلال",
+      "Scene and memory": "المشهد والذاكرة",
+      "cut and culling": "القص والاستبعاد",
+      "page preparation": "تحضير الصفحات",
+      "command encoding": "ترميز الأوامر",
+      "physics step": "خطوة الفيزياء",
+      "Cadence": "الإيقاع",
+      "{n}× refresh": "{n}× تحديث",
+      "GPU idle": "خمول GPU"
+    },
+    "shadows": {
+      "lights": "الأضواء",
+      "maps": "الخرائط",
+      "pagesRequested": "الصفحات المطلوبة",
+      "pagesAllocated": "الصفحات المخصصة",
+      "pagesCached": "الصفحات المخزنة",
+      "pagesRendered": "الصفحات المرسومة",
+      "freePages": "الصفحات الحرة",
+      "lodBias": "انحياز LOD",
+      "projectionPasses": "تمريرات الإسقاط",
+      "invalidation": "الإبطال",
+      "marking": "التعليم",
+      "pageManagement": "إدارة الصفحات",
+      "render": "الرسم",
+      "projection": "الإسقاط",
+      "transmission": "النفاذ"
+    },
+    "passes": {
+      "vsm projection": "إسقاط VSM",
+      "vsm marking": "تعليم VSM",
+      "vsm render": "رسم VSM",
+      "material surfaces": "أسطح المواد",
+      "temporal antialiasing": "تنعيم زمني",
+      "HDR composition + present": "تركيب HDR + عرض",
+      "deferred lighting": "إضاءة مؤجلة",
+      "reflection source": "مصدر الانعكاسات",
+      "HiZ pyramid": "هرم HiZ",
+      "light tiles": "مربعات الضوء",
+      "texture mips": "مستويات mip للخامات",
+      "reflection radiance mips": "مستويات mip لإشعاع الانعكاسات",
+      "reflection depth bounds mips": "مستويات mip لحدود عمق الانعكاسات"
     },
     "failure": {
       "title": "توقف هذا المثال بسبب خطأ",
@@ -1363,7 +1417,8 @@
       "credit": "شارع جرار صُمّم بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "اسحب لتدور حول التمثال النصفي. الصندوق والكرة الزجاجية يدوران على قاعدتهما الدوّارة.",
     "words": {
       "credit": "Marble Bust 01 من Rico Cilliers، Poly Haven، CC0؛ الصندوق من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "الوضع"
     }
+  },
+  "choose-your-quality": {
+    "banner": "اختر جودة ودقة ومنظرًا. احفظ إعدادًا باسم A وآخر باسم B، واضغط C للتبديل بينهما."
   }
 }

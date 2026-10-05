@@ -2,15 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
-import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibility/buffer.ts';
+import { type VisPage } from '../visibility/buffer.ts';
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { applyTemporalHiz, type HizPage, type TemporalHizState } from './hiz.ts';
 import { buildHizPyramid } from './depth.ts';
 import { filterUnoccluded } from './unoccluded.ts';
-import { visibilityDepth } from './depth.ts';
+import { visibilityDepth } from './visibilityDepth.fixture.ts';
 import { splitOccludersInto } from './split.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityLocations } from '../page/selection/placements.fixture.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
   const frontMat = G.basicSurface({ color: 0xff0000 });

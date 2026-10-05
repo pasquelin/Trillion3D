@@ -44,10 +44,15 @@ export const readGeometryAhead =
  * Two records at one address that disagreed would make one row decode index words as a page, and
  * `pageAddress` makes that impossible: a record's page is part of its address. The refusal below is
  * that invariant said out loud, on the one walk where both sides are read together.
+ *
+ * `homes` is each address's own width, its bytes padded to a word: what the pool gives the page
+ * when the whole catalogue fits (`../../gpu/page/homes.ts`), the deformation tails raised in after
+ * (`../../deformation/slotLayout.ts`).
  */
 export function describePageSlots(allPages: readonly PageRec[]) {
   const geometryUrls = new Map<string, string>(),
-    seenUrls = new Set<string>();
+    seenUrls = new Set<string>(),
+    homes = new Map<string, number>();
   let pageBytes = 4,
     maxCorners = 1,
     fromGeometryPage = 0,
@@ -67,12 +72,14 @@ export function describePageSlots(allPages: readonly PageRec[]) {
     const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes);
     const padded = n + (n % 4 ? 4 - (n % 4) : 0);
     if (padded > pageBytes) pageBytes = padded;
+    if (padded > (homes.get(address) ?? 0)) homes.set(address, padded);
     const corners = geometry ? geometry.indexCount : page.triangles * 3;
     if (corners > maxCorners) maxCorners = corners;
   }
   return {
     geometryUrls,
     pageBytes,
+    homes,
     maxCorners,
     fromGeometryPage,
     fromSourceGeometry,

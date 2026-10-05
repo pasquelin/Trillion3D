@@ -88,6 +88,7 @@ export function buildWorldSource(plan: WorldPlan) {
     material: batch.entry.material,
     rows: batch.rows!,
     name: batch.entry.material.name as string,
+    twoSided: batch.twoSided,
   });
   const mirror = buildWorldMirror({
     placed: batches.map(placedOf),

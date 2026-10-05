@@ -54,7 +54,7 @@ test('a raw determinant cancelled by compensation yields the adjugate, even on a
   // The sum of the six products of a 4×4 determinant can land on EXACT zero where the same
   // matrix, columns divided by their scale, keeps a determinant far from the threshold: the two
   // roundings are not the same. The CPU divides by the RAW determinant — that is what keeps
-  // the reference bits on every ordinary matrix — and a zero divisor yields nothing:
+  // the textbook bits on every ordinary matrix — and a zero divisor yields nothing:
   // the adjugate alone, as the engine already did before this rule. The GPU, which divides by the
   // normalised determinant, does not have this case.
   const m = echelleUniforme(1);

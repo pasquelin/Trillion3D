@@ -10,9 +10,7 @@ import { PRIMITIVE_VEC4 } from '../types.ts';
  * - the normal matrix of the world's 3x3, prepared as `invTranspose3Prep` prepares it, and whether
  *   the 3x3 is conformal (`isConformal`), the two things the normal cone reads of the primitive;
  * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own.
- * Each is the same expression on the same operands as the site that read it, so each verdict is
- * the one before. A light cut keeps computing them where it reads them: its frames hold one row
- * per view and nothing more (`../lightCut.ts`), its views have no cone and no view ahead.
+ * Each camera expression keeps its operands and order.
  */
 export const DAG_PRIMITIVE_WGSL = `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
 /** Offsets inside a primitive's values: the two \`view · world\`, the normal matrix, the planes ahead. */
@@ -22,7 +20,6 @@ fn primitiveBase(w:u32)->u32{return rangeCount()*FRAME+rowOf(w)*PRIMITIVE;}
 fn putMatrix(at:u32,m:mat4x4f){frames[at]=m[0];frames[at+1u]=m[1];frames[at+2u]=m[2];frames[at+3u]=m[3];}
 /** \`view · world\` of primitive \`w\` under the current view \`vi\`. */
 fn viewWorld(w:u32)->mat4x4f{
- if(isLightCut()){return views[vi].view*worlds[rowOf(w)];}
  let at=primitiveBase(w)+select(CAMERA_E,AHEAD_E,vi==AHEAD_VIEW);
  return mat4x4f(frames[at],frames[at+1u],frames[at+2u],frames[at+3u]);
 }

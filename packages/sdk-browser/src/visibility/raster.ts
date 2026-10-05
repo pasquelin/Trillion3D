@@ -7,7 +7,6 @@ import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
 import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
   assertVisibilityPageTriangles,
-  packVisibilityId,
   textureRgba,
   VIS_MAX_PAGES,
   VIS_TRIANGLE_MASK,
@@ -16,7 +15,6 @@ import {
 import type { EngineCamera } from '../camera/world.ts';
 import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 import type { HostAttributes } from '../host/resources.ts';
-import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
 /** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
 function vertexAlpha(
@@ -34,7 +32,7 @@ function vertexAlpha(
  * gaps (`lineDash`) at the distance its first coordinate carries, then a masked surface's cutout,
  * the base map alpha times the opacity and the vertex alpha (`maskKeep`, `./shader/pageWgsl.ts`).
  */
-function cutout(
+export function cutout(
   page: VisPage,
   tri: NonNullable<ReturnType<typeof triangleAt>>,
   mat: PageSurface,
@@ -65,19 +63,26 @@ function cutout(
   };
 }
 
-function fillIds(
-  ids: Uint32Array | undefined,
+/**
+ * A pixel leaves the triangle where an edge's numerator and the area differ in sign: that is
+ * tested before the division, which only a pixel still inside pays. The test never says out where
+ * the quotient's `w < 0` says in: past `|area| · 2^-1000` (below an area of 1, at any nonzero
+ * numerator) the quotient cannot round to -0, and a numerator nearer zero, a NaN or an infinite
+ * area are left to the division.
+ */
+function fillDepth(
   depth: Float32Array,
   width: number,
   height: number,
   a: Projected,
   b: Projected,
   c: Projected,
-  packed: number,
   keep?: (x: number, y: number, w0: number, w1: number, w2: number) => boolean,
 ) {
   const area = signedArea(a, b, c);
   if (area === 0) return;
+  const sign = area > 0 ? 1 : -1,
+    outside = -Math.abs(area) * 2 ** -1000;
   const minX = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x))),
     maxX = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)));
   const minY = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y))),
@@ -99,10 +104,14 @@ function fillIds(
     for (let x = minX; x <= maxX; x++) {
       const bx_x = bx - x,
         cx_x = cx - x;
-      const w0 = (bx_x * cy_y - cx_x * by_y) / area;
-      if (w0 < 0) continue;
+      const n0 = bx_x * cy_y - cx_x * by_y;
+      if (n0 * sign < outside) continue;
       const ax_x = ax - x;
-      const w1 = (cx_x * ay_y - ax_x * cy_y) / area;
+      const n1 = cx_x * ay_y - ax_x * cy_y;
+      if (n1 * sign < outside) continue;
+      const w0 = n0 / area;
+      if (w0 < 0) continue;
+      const w1 = n1 / area;
       if (w1 < 0) continue;
       const w2 = 1 - w0 - w1;
       if (w2 < 0) continue;
@@ -111,49 +120,19 @@ function fillIds(
         o = row + x;
       if (!depthNearer(z, depth[o])) continue;
       depth[o] = z;
-      // The pyramid reads the depth alone, so a caller with no ids pays for nothing here.
-      if (ids) ids[o] = packed;
     }
   }
 }
 
-/** CPU visbuffer: packed IDs plus NDC z (background at the far value). Engine depth is
- *  reversed, so the GREATEST wins; at equal depth, the first write stays. A line page's quads are
- *  widened at `pixelRatio` image pixels per CSS pixel, as the GPU rasters widen them. */
-export function rasterVisibility(
-  pages: VisPage[],
-  locations: PageLocations,
-  cam: EngineCamera,
-  viewport: [number, number],
-  pixelRatio = DEFAULT_PIXEL_RATIO,
-) {
-  const [width, height] = viewport,
-    ids = new Uint32Array(width * height),
-    depth = new Float32Array(width * height);
-  rasterise(pages, locations, cam, viewport, pixelRatio, ids, depth);
-  return { ids, depth };
-}
-
-export function rasterVisibilityIds(
-  pages: VisPage[],
-  locations: PageLocations,
-  cam: EngineCamera,
-  viewport: [number, number],
-  pixelRatio = DEFAULT_PIXEL_RATIO,
-) {
-  return rasterVisibility(pages, locations, cam, viewport, pixelRatio).ids;
-}
-
-/** The raster itself, into the depth every entry point hands it: the sentinel is cleared over the
- *  image's own pixels and left at the far value, whatever the buffer holds beyond them. `ids` is
- *  absent when the caller reads no id. */
+/** The raster itself, into the depth the caller hands it: the sentinel is cleared over the
+ *  image's own pixels and left at the far value, whatever the buffer holds beyond them. The CPU
+ *  image's identifiers are the oracle's (`bench/oracles/browser/cpu-image/raster.ts`). */
 function rasterise(
   pages: VisPage[],
   locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   pixelRatio: number,
-  ids: Uint32Array | undefined,
   depth: Float32Array,
 ) {
   const [width, height] = viewport,
@@ -169,7 +148,7 @@ function rasterise(
     const mat = refreshSurface(page.material),
       side = surfaceSide(mat);
     // A reflection reverses the walk direction on screen: the face to drop is the other one, as
-    // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
+    // `visBin` does for WebGPU pipelines (`frontFaceCW`). Without this
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
     const world = locationOf(locations, pageIndex).world,
@@ -184,7 +163,7 @@ function rasterise(
       const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
       const keep = cutout(page, tri, mat, color, transformed);
-      fillIds(ids, depth, width, height, tri.a, tri.b, tri.c, packVisibilityId(pageIndex, t), keep);
+      fillDepth(depth, width, height, tri.a, tri.b, tri.c, keep);
     }
   }
   for (let i = 0; i < pixels; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
@@ -209,6 +188,6 @@ export function rasterDepth(
   into: Float32Array,
 ) {
   if (into.length < viewport[0] * viewport[1]) throw new Error('HIZ_DEPTH_SIZE');
-  rasterise(pages, locations, cam, viewport, pixelRatio, undefined, into);
+  rasterise(pages, locations, cam, viewport, pixelRatio, into);
   return into;
 }

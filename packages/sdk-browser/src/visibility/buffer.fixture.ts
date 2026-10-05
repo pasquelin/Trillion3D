@@ -4,11 +4,11 @@ import type { VisPage } from './buffer.ts';
 import { triangleAt } from './math.ts';
 import { UV_GRADIENTS_WGSL } from './shader/shadeDeclWgsl.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import { unpackVisibilityId } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
 
 export function camera() {
   const cam = G.perspectiveCamera(55, 1, 0.1, 100);

@@ -75,6 +75,7 @@ const image = (niveaux: number): PartitionFrame => ({
   layerTop: 0,
   hasRest: true,
   viewMoved: false,
+  counting: false,
 });
 
 const words = new Uint32Array(UNIFORM_U32),

@@ -1,5 +1,6 @@
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
+import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts';
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS;
@@ -10,6 +11,11 @@ export function shadeLayout(device: GPUDevice) {
         binding: b.subsurface,
         visibility: fragment,
         storageTexture: { access: 'write-only', format: 'rgba16float' },
+      },
+      {
+        binding: b.receiver,
+        visibility: fragment,
+        storageTexture: { access: 'write-only', format: RECEIVER_TARGET_FORMAT },
       },
       { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
       { binding: b.cache, visibility: fragment, buffer: readOnly },
@@ -22,6 +28,8 @@ export function shadeLayout(device: GPUDevice) {
         texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
       },
       { binding: b.pageTable, visibility: fragment, buffer: readOnly },
+      // The rows' frames the resolve reads (`../../visibility/shader/shadeCacheWgsl.ts`).
+      { binding: b.shadeCache, visibility: fragment, buffer: readOnly },
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
       {

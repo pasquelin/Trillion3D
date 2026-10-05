@@ -86,11 +86,5 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  *  this many times its squared range, far above the f32 roundings of \`length\`, so
  *  \`directIncidence\` and \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;
-/** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
-fn pointFaceOf(direction:vec3f)->u32{
- let a=abs(direction);
- if(a.x>=a.y&&a.x>=a.z){return select(1u,0u,direction.x>0.0);}
- if(a.y>=a.z){return select(3u,2u,direction.y>0.0);}
- return select(5u,4u,direction.z>0.0);
-}`;
+`;
 export const DIRECT_LIGHT_WGSL = directLightWgsl();

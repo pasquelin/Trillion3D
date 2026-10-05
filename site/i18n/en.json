@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Leaves cut by alpha",
       "a-colour-ramp-in-linear-light": "Linear colour ramp",
       "the-material-family": "The material family",
+      "page-materials": "Edit materials live",
+      "a-bust-a-crate-and-a-glass-ball": "A bust, a crate, a glass ball",
       "a-texture-turned-and-tiled": "A texture turned, tiled",
       "texture-filters-compared": "Texture filters",
       "every-image-format": "Every image format",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Tone mapping compared",
       "a-first-post-effect": "A first post effect",
       "a-glow-around-lights": "Glow around lights",
+      "choose-your-quality": "Choose your quality",
       "glow-on-chosen-objects": "Selective glow",
       "depth-of-field": "Depth of field",
       "motion-blur": "Motion blur",
@@ -743,7 +746,6 @@
     "protocol": "Recorded conditions",
     "references": "Published reference points",
     "referenceNote": "Published desktop-engine numbers use their own hardware, scenes and protocols. They do not participate in the comparisons above.",
-    "referenceLink": "Read the sources and limitations",
     "commit": "Repository commit",
     "date": "Measurement date",
     "browser": "Browser",
@@ -1250,7 +1252,7 @@
       "description": "The matrices of a camera frame, allocated once and rewritten every frame: `view` (the inverse of the camera world matrix), `viewProjection`, and `planes`, the six normalised planes of that frustum."
     },
     "updateCameraFrame": {
-      "description": "Rewrites the frame: view = the inverse of `world` (zero for a singular world matrix, like the reference), view-projection = `projection · view`, and the six planes of that frustum. One depth convention crosses all three. `far` is the plane **declared by the host**: the projection has none — it is infinite, which is the whole point of reversed Z — but the frustum keeps it, otherwise a frame would suddenly gain every object the camera was not showing. Omitted or non-finite, the far plane stays unbounded."
+      "description": "Rewrites the frame: view = the inverse of `world` (zero for a singular world matrix), view-projection = `projection · view`, and the six planes of that frustum. One depth convention crosses all three. `far` is the plane **declared by the host**: the projection has none — it is infinite, which is the whole point of reversed Z — but the frustum keeps it, otherwise a frame would suddenly gain every object the camera was not showing. Omitted or non-finite, the far plane stays unbounded."
     },
     "worldToRenderOrigin": {
       "description": "Writes `world` with its translation brought back to `origin`. The subtraction happens in the precision of the inputs — the double of the engine world matrices — and writing a single-precision buffer rounds **after** it, never before: that is all that separates a sharp image from one that shivers. `at` is the rank of the first of the sixteen numbers written, so a buffer of many matrices fills without slicing a view per matrix per frame."
@@ -1283,10 +1285,10 @@
       "description": "`out = a · b`. The thirty-two inputs are read before the first write, so `out` may be `a` or `b`. Each term is the sum of four products with no initial zero — a sum started at `0` would change the sign of a negative zero. **One buffer type only, `Float64Array`, in and out**: a single caller passing a plain array would make the forty-eight access sites polymorphic and every hot loop would pay it, so a caller starting from a host matrix copies it first."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` by cofactors. An exactly zero determinant yields the zero matrix, like the reference — a caller that must distinguish this case tests the determinant, never the output. That threshold is parity with the reference, not the engine singularity rule, which applies only where a normal is transported. The sixteen inputs are read before the first write, so `out` may be `m`."
+      "description": "`out = m⁻¹` by cofactors. An exactly zero determinant yields the zero matrix — a caller that must distinguish this case tests the determinant, never the output. That threshold is the exact zero, not the engine singularity rule, which applies only where a normal is transported. The sixteen inputs are read before the first write, so `out` may be `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, the quaternion ordered `(x, y, z, w)`. The last row is written `(0, 0, 0, 1)` exactly; quaternion products are doubled by addition (`x + x`), like the reference, never multiplied by two."
+      "description": "`out = T · R · S`, the quaternion ordered `(x, y, z, w)`. The last row is written `(0, 0, 0, 1)` exactly; quaternion products are doubled by addition (`x + x`), never multiplied by two."
     },
     "decomposeMatrix4": {
       "description": "The reverse: a column's scale is its length, and a negative determinant is carried by the `x` axis alone, whichever axis was reversed at the source. A sheared matrix has no such decomposition — the rotation returned is then that of the column-normalised matrix and recomposition no longer yields `m`, a gap identical to the reference's and quantified by the bench."
@@ -1349,7 +1351,7 @@
       "description": "The six planes of the frustum of a clip matrix — a view-projection, or a projection alone for planes in view space. The first normalises them, so `a·x + b·y + c·z + d` is a signed distance; the second leaves the raw sums and differences of the rows, where the sign alone decides, with no square root or division: the form of the exact clip test, where normalising would shift the rounding. A degenerate matrix yields NaN or infinite planes without throwing."
     },
     "frustumFarPlane": {
-      "description": "The far plane of a frustum whose projection has none. The engine projection is infinite: its depth row no longer bounds anything, so the far plane is read from the **view** matrix, whose third row gives the view depth — a point is inside when `far + z >= 0`. A non-finite `far` leaves the zero plane in place, a truly unbounded far plane. `frustumPlanesToLocal` carries the planes into the local space of a transform, so a local box is tested without being transformed."
+      "description": "The far plane of a frustum whose projection has none. The engine projection is infinite: its depth row no longer bounds anything, so the far plane is read from the **view** matrix, whose third row gives the view depth — a point is inside when `far + z >= 0`. A non-finite `far` leaves the zero plane in place, a truly unbounded far plane."
     },
     "frustumExcludesBox": {
       "description": "The box against the frustum: the first is true when a plane leaves all eight corners behind. The second returns three states — 0 outside, 1 straddling, 2 entirely inside — in two passes, the first only rejecting, the second reading the most trailing corner to tell \"straddling\" from \"inside\". A subtree entirely inside saves a test on every box underneath it."
@@ -1373,7 +1375,7 @@
       "description": "Reads of the world matrix: the translation column; the rotation and scale from its decomposition, a negative determinant carried by `x` alone; the third column normalised as a direction, flipped when `cameraForward` — a camera and a light look toward their `−z`. `nodeWorldMirrorsFaces` is true when the world matrix reverses orientation, and the draw then swaps its front and back faces; it reads as-is, without update, and a zero or NaN determinant reverses nothing."
     },
     "lookAtNode": {
-      "description": "Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up, `(0, 1, 0)` in the reference. Ancestors and the node are updated first."
+      "description": "Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up, `(0, 1, 0)` by default. Ancestors and the node are updated first."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` products `out[i] = a[i] · b[i]`, all three sides given as sub-views of sixteen numbers. The sub-views are built once, never per frame; a WebAssembly kernel repeats the same formula term by term and the governor picks whichever path is measured faster."
@@ -1673,7 +1675,7 @@
       "nodes": "nodes"
     },
     "patterns": {
-      "singular": "determinant {{value}}: sixteen zeros, like the reference — test the determinant, never the output"
+      "singular": "determinant {{value}}: sixteen zeros — test the determinant, never the output"
     }
   }
 }

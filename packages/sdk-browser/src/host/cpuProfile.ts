@@ -9,5 +9,7 @@ export type HostCpuStep = 'arrivalsMs' | 'pendingMs' | 'retainMs' | 'submitMs' |
 export interface HostCpuProfile {
   cpuStep?(step: HostCpuStep, ms: number): void;
   cpuFrameEnd?(): void;
+  /** The frame's CPU time, the number the stats corner shows (`FrameMetrics.cpuFrameMs`). */
+  frameCpuMs?(ms: number): void;
   gpuImageMs?(ms: number | null, supported: boolean, reason: string | null): void;
 }

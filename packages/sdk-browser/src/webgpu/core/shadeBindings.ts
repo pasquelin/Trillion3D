@@ -11,6 +11,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
     liveResources<ShadeBindResources>({
       visView: () => rt.vis.visView,
       subsurface: () => rt.gpu.surfaces?.subsurfaceView,
+      receiver: () => rt.gpu.surfaces?.receiverView,
       cache: () => rt.gpu.cache?.buffer,
       position: () => rt.vis.concatPos,
       uv: () => rt.vis.concatUv,
@@ -19,6 +20,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       textures: () => rt.vis.textures,
       sampler: () => rt.vis.mapsSampler,
       uniform: () => rt.vis.shadeUniform,
+      shadeCache: () => rt.vis.shadeCache?.buffer,
     }),
   ));
   if (identity.entriesMoved(vis.shadeBindGroupLayout)) vis.shadeBindGroup = undefined;

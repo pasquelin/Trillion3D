@@ -2,7 +2,7 @@
  *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { hostPageSurface } from '../../host/pageObjects.ts';
-import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
+import { surfaceVariantOf, variantFields, variantKey } from '../../host/prepared/materials.ts';
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostMesh } from '../../host/resources.ts';
@@ -46,14 +46,15 @@ export function validateCreated(id: string, props: CreatedMaterial) {
 /** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
 export const PLAIN = variantKey({ vertexColors: false, flatShading: false });
 
-/** A created material's surface in the variant `attributes` ask for, cloned from its plain one
+/** A created material's surface in the variant `geometry` asks for, cloned from its plain one
  *  the first time. */
-function variantOf(variants: Map<string, GraphSurface>, attributes: Record<string, unknown>) {
-  const variant = surfaceVariantOf(attributes),
+function variantOf(variants: Map<string, GraphSurface>, geometry: HostMesh['geometry']) {
+  const variant = surfaceVariantOf(geometry),
     key = variantKey(variant);
   let surface = variants.get(key);
   if (!surface) {
-    surface = Object.assign(variants.get(PLAIN)!.clone(), variant, { needsUpdate: true });
+    const fields = variantFields(variant);
+    surface = Object.assign(variants.get(PLAIN)!.clone(), fields, { needsUpdate: true });
     variants.set(key, surface);
   }
   return surface;
@@ -67,7 +68,7 @@ export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlyS
     to = alphaModeOf(variants.get(PLAIN)!);
   let from: AlphaMode | undefined;
   for (const mesh of drawn) {
-    meshes.set(mesh, variantOf(variants, mesh.geometry.attributes));
+    meshes.set(mesh, variantOf(variants, mesh.geometry));
     const mode = alphaModeOf(firstMaterial(mesh.material)!);
     if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode;
   }

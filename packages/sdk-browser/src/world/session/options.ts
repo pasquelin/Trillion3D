@@ -87,8 +87,8 @@ export interface MeasuredWorldOptions {
    *  frame, shown meanwhile by their coarser resident level; the worst pass is published as
    *  `textureUploadPeakMs`. */
   maxTextureUploadMsPerFrame?: number;
-  /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, like the
-   *  reference's 512 MB pool; the WebGPU and WebGL2 engines both hold it. 512 MiB by default.
+  /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, a fixed
+   *  512 MB pool; the WebGPU and WebGL2 engines both hold it. 512 MiB by default.
    *  The root cover always fits; what a view asks beyond that draws coarser, never refused.
    *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
@@ -113,7 +113,7 @@ export interface MeasuredWorldOptions {
    *  that family reads blocks; a texture with no baked chain, a chain the gate refused or a
    *  cache cooked without the family stays RGBA8 in the lossless lane. */
   textureCompression?: import('../../texture/blockFormats.ts').TextureCompression;
-  /** Temporal antialiasing of the WebGPU engine, on by default as in the reference: each
+  /** Temporal antialiasing of the WebGPU engine, on by default: each
    *  frame is rendered with a fraction-of-a-pixel jitter and accumulated over the previous
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
@@ -137,7 +137,7 @@ export interface MeasuredWorldOptions {
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
-   *  every source image, what an engine that draws the host scene (the Three witness)
+   *  every source image, what an engine that draws the host scene (a host-library witness)
    *  requires; the engine still reads the baked levels, so such a session pays for the images
    *  twice and asks for them on purpose. `'cache'` holds only where every mounted backend
    *  reads those levels; where one of them samples the host images, the session reads them
@@ -165,17 +165,6 @@ export interface MeasuredWorldOptions {
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Page-by-page shadow-map invalidation. On by default; `false` restarts the whole face
-   *  as soon as an object moves in its range, as before the virtualized-shadows batch. */
-  shadowPageInvalidation?: boolean;
-  /** Shadow casters placed by a LocalToClip stored once per caster and light view (OMB-25), one
-   *  matrix-vector product per vertex. Off by default: its depths may differ by one ulp. */
-  shadowLocalToClip?: boolean;
-  /** Physical pages of the shadow pool, allocated once at the first frame a light casts and never
-   *  resized, as the reference engine's `a reference setting`, 64 KiB each: by default the most its
-   *  byte setting holds, whatever the display (`SHADOW_POOL_SETTING_BYTES`); fewer may be asked,
-   *  never more. A frame that reads more pages draws the coarser level past them. */
-  shadowPoolPages?: number;
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean;
@@ -184,9 +173,9 @@ export interface MeasuredWorldOptions {
    *  for a campaign; `'wasm'` falls back on `'js'` where the module is missing, and says so
    *  in the metrics. */
   mathPath?: MathPathMode;
-  /** Measurement EXPERIENCE (`sdk-core/screenErrorVariant.ts`): the cluster screen-error
-   *  metric. `'certifiee'` by default, ours; `'reference'` puts the simple projection of the
-   *  external reference, CPU and GPU to the same result to f32. */
+  /** A measurement experiment (`../../../../sdk-core/src/lod/screenErrorVariant.ts`): the cluster
+   *  screen-error metric. `'certifiee'` by default, the certified bound; `'reference'` the plain
+   *  projection `ε·stretch·f/depth`, CPU and GPU to the same result to f32. */
   screenError?: ScreenErrorVariant;
   logInterval?: number;
 }

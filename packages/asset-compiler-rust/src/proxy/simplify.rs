@@ -153,11 +153,6 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
     }
 }
 
-/// Reduces proxy to bounded size triangles by `size`, albedo following triangle.
-pub fn simplify(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
-    simplify_sources(triangles, albedo, size);
-}
-
 /// Original triangle supplying each subdivided cell; deduplication keeps the first source.
 pub(super) fn simplify_sources(
     triangles: &mut Vec<f32>,

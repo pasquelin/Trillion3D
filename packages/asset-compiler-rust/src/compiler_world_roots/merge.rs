@@ -97,13 +97,11 @@ impl WorldDag {
         for (slot, mut cluster) in dag.into_iter().enumerate() {
             cluster.group = cluster.group.map(|g| g + group_base);
             cluster.source = cluster.source.map(|g| g + group_base);
-            cluster.replacement = cluster.replacement.map(|r| ids[r]);
             if let Some(&id) = entered.get(slot) {
                 let target = &mut self.clusters[id];
                 target.parent_error = cluster.parent_error;
                 target.parent_sphere = cluster.parent_sphere;
                 target.group = cluster.group;
-                target.replacement = cluster.replacement;
                 continue;
             }
             cluster.indices.iter_mut().for_each(|v| *v += vertex_base);

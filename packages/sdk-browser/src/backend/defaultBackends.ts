@@ -21,7 +21,7 @@ export type BackendChoice = {
 type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>;
 
 /** The paths of a session the host left to the engine: the WebGPU page raster where a device was
- *  granted, the engine's own WebGL2 page path otherwise. The Three witnesses
+ *  granted, the engine's own WebGL2 page path otherwise. The host-library witnesses
  *  (`referenceBackend`, `exactPagesBackend`, `threeLodBackend`) are never chosen on their own
  *  merit: a host that wants one, for a comparison view or the bench, names it in
  *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
@@ -97,7 +97,7 @@ export function chooseBackends(
 /**
  * Which source images the prepared scene must read, once the paths that will draw are known. The WebGPU page
  * raster is the only backend that reads the levels the compiler baked; every other path — the
- * engine's own WebGL2 page path, chosen on a machine that grants no WebGPU device, a Three
+ * engine's own WebGL2 page path, chosen on a machine that grants no WebGPU device, a host-library
  * witness named by the host — samples `texture.image`, so a session that skipped its source
  * images would draw the one-pixel placeholder left in their place. Without `createImageBitmap`
  * no level can be read at all (`createTextureLevelReader`), and the images are again the only

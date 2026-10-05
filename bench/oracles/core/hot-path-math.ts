@@ -1,6 +1,6 @@
 // The hot-path math of sdk-core as it stood before #917, frozen: the oracles its rewrites must
 // match bit for bit (`packages/sdk-core/src/math/primitives/{cone,box}.test.ts`,
-// `packages/sdk-core/src/math/frustum/box.test.ts`), with the seeded inputs they are fed.
+// `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
 import { graine } from '../../core/measure.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 import { coneRejects } from '../../../packages/sdk-core/src/math/projectionOracles.ts';

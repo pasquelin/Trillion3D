@@ -1,5 +1,4 @@
-// #360, #361: the anisotropy cost fixture reads English options; a page error fails it in
-// `withRepoPage` (`tests/kit/server/repoPage.ts`).
+// #360, #361: the anisotropy cost measure reads English options, and checks them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anisotropyOptions } from './anisotropyCost.ts';

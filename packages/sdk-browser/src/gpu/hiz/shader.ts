@@ -1,5 +1,6 @@
 import { COMPUTE } from '../core/computeBindings.ts';
 import {
+  STATE_TALLY_WGSL,
   ST_REJECTED,
   ST_REJECTED_TRIANGLES,
   ST_TESTED,
@@ -12,9 +13,9 @@ import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
- * browser proofs READ them here — none copies them, so none can lag behind the shader. That
- * lag is what turned `hiz-webgpu.browser.ts` red: its copy had stopped at `@binding(4)` while
- * `state` entered at 5.
+ * GPU proofs READ them here — none copies them, so none can lag behind the shader. That lag is
+ * what turned the Hi-Z occlusion proof (`tests/gpu/hiz/occlusion-test.gpu.ts`) red: its copy had
+ * stopped at `@binding(4)` while `state` entered at 5.
  */
 export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] {
   return [
@@ -51,11 +52,11 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  * read level 0 there — and reduces level 1 from the texels it just read, never rereading the
  * copy. It also builds several pyramids in one dispatch, one per `z`: `uni.g` is then the stride
  * between two pyramids and each one's level 0 starts at the texel its `bounds` entry names — the
- * shadow pages' pyramids (`../shadow/pageHiz.ts`). The camera's `g` is zero: one pyramid, from
+ * several pyramids at once. The camera's `g` is zero: one pyramid, from
  * texel zero.
  */
 export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,pad0:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
+struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
@@ -65,6 +66,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 var<workgroup> hizTile:array<f32,${S ** 2}>;
+${STATE_TALLY_WGSL}
 /** A texel of the pass's source level at \`at\`: the level-0 texture, copied into the pyramid on
  *  the way, when the source sits at offset zero; else the level the previous pass wrote. */
 fn hizSource(at:u32,origin:vec2i,x:u32,y:u32)->f32{
@@ -123,25 +125,28 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
 }
 ${HIZ_HIDES_WGSL}
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;
-// rows the frame does not test were cleared before this pass. The box count is the one the
-// partition compacted: the CPU does not know it.
+// every other drawable row holds the verdict the partition wrote this frame (\`classifyRows\`).
+// The box count is the one the partition compacted: the CPU does not know it.
+// Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
 @compute @workgroup_size(64)
-fn testHiz(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=atomicLoad(&state[${ST_TESTED}u])){return;}
+fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+ if(id.x<atomicLoad(&state[${ST_TESTED}u])){testBox(id.x);}
+ flushTally(lane);
+}
+fn testBox(i:u32){
  let b=bounds[i];
  let row=b.rowAndClip>>1u;
  // A tested row the pyramid cannot judge stays drawn: kept, never an occluder — the compute
  // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
  // judged either: no reject is counted for a row that draws.
  if(pages[row].hizSlot==0xffffffffu||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
- let bias=bitcast<f32>(uni.d);
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
  // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
- let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,bias,b.coarseOffset,b.coarseWidth,b.coarseShift));
+ let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,b.coarseOffset,b.coarseWidth,b.coarseShift));
  flags[row]=select(${VERDICT_KEPT}u,${VERDICT_REJECTED}u,reject!=0u);
  if(reject!=0u){
-  atomicAdd(&state[${ST_REJECTED}u],1u);
-  atomicAdd(&state[${ST_REJECTED_TRIANGLES}u],b.triangles);
+  tallyAdd(${ST_REJECTED}u,1u);
+  tallyAdd(${ST_REJECTED_TRIANGLES}u,b.triangles);
  }
 }
 `;

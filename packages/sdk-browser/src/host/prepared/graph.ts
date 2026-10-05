@@ -18,7 +18,7 @@ import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
-import { surfaceVariantOf, type SurfaceVariant } from './materials.ts';
+import { drawnByCloth, surfaceVariantOf, type SurfaceVariant } from './materials.ts';
 import type { GraphSurface } from '../graph/surface.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
@@ -30,6 +30,8 @@ import { registerPagedSource } from './pagedSource.ts';
 import { bindSkins, clipsOf, movedNodes } from './motion.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
@@ -45,11 +47,13 @@ type Inputs = {
   pagedGeometryOf?: (mesh: number, primitive: number) => Geometry;
   geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
+  /** Whether a cloth draws the primitive (`drawnTwoSided`), once its manifest lists it. */
+  clothOf?: (mesh: number, primitive: number) => Promise<boolean>;
 };
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
 export async function preparedGraph(inputs: Inputs) {
-  const { tables, meshes, pagedFrom, geometryOf, materialOf } = inputs;
+  const { tables, meshes, pagedFrom, geometryOf, materialOf, clothOf } = inputs;
   const unique = uniqueNames();
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
@@ -120,11 +124,16 @@ export async function preparedGraph(inputs: Inputs) {
   const drawn = order.map((rank) =>
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
-      const variant = surfaceVariantOf(geometry.attributes);
-      // The pages carry the normals of the primitive they were cut from: flat only without them.
-      const cut = pagedFrom?.[rank]?.primitives[p];
-      if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
-      return { geometry, material: materialOf(primitive.material, variant) };
+      // The variant waits for the manifest to list the primitive: a cloth's is drawn on both faces.
+      const material = (clothOf?.(rank, p) ?? Promise.resolve(false)).then((cloth) => {
+        if (cloth) drawnByCloth(geometry);
+        const variant = surfaceVariantOf(geometry);
+        // The pages carry the normals of the primitive they were cut from: flat only without them.
+        const cut = pagedFrom?.[rank]?.primitives[p];
+        if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
+        return materialOf(primitive.material, variant);
+      });
+      return { geometry, material };
     }),
   );
   // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
@@ -197,4 +206,21 @@ export async function preparedGraph(inputs: Inputs) {
       if (rank !== undefined && p !== undefined)
         registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
   return { scene, ranks, nodes, placed, clips };
+}
+
+/** Whether a cloth draws primitive `primitive` of mesh `mesh`: the soft body kind the compiler
+ *  wrote into the primitive's deformation (`drawnTwoSided`), read once `listed` — the manifest
+ *  pages naming the scene's meshes held (#751), at once for a manifest read whole — has put every
+ *  primitive in `metadata.primitives`. */
+export function clothPrimitives(metadata: ClusterManifest, listed: Promise<unknown>) {
+  const cloths = listed.then(
+    () =>
+      new Set(
+        metadata.primitives
+          .filter((p) => drawnTwoSided(p.deformation?.softKind))
+          .map((p) => `${p.mesh}:${p.primitive}`),
+      ),
+  );
+  return (mesh: number, primitive: number) =>
+    cloths.then((listed) => listed.has(`${mesh}:${primitive}`));
 }

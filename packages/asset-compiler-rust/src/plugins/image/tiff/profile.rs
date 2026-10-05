@@ -6,8 +6,8 @@
 //! the library would decide in its place, and a 16-bit would come back clipped to eight
 //! without anyone having said so — exactly the loss the import policy forbids adding.
 //!
-//! Fields, types and default values follow "TIFF Revision 6.0" (Adobe Developers Association,
-//! 3 June 1992), public specification. BigTIFF is recognized by its magic number 43.
+//! Fields, types and default values are those of TIFF 6.0. BigTIFF is recognized by its magic
+//! number 43.
 use super::{DEPTH, PROFILE, UNREADABLE};
 
 /// The eight header bytes: byte order, magic number, address of the first IFD.
@@ -90,7 +90,7 @@ impl Ifd<'_> {
             .and_then(|entry| self.field(entry))
     }
 
-    /// The unique value of this tag, or the one the specification gives by default when it is
+    /// The unique value of this tag, or the one the format gives by default when it is
     /// missing.
     fn single(&self, first: usize, entries: usize, tag: u32, default: u32) -> Option<u32> {
         match self.find(first, entries, tag) {

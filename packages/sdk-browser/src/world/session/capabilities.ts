@@ -29,7 +29,7 @@ type Inputs = {
     gpuDevice?: GPUDevice;
   };
 };
-/** The anisotropy the context allows, read where the reference renderer reads it. */
+/** The anisotropy the context allows, read from the context's own extension. */
 function maxAnisotropy(gl: WebGL2RenderingContext) {
   const extension = gl.getExtension('EXT_texture_filter_anisotropic');
   return extension ? (gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number) : 0;

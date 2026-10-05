@@ -5,6 +5,7 @@ import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
 import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts';
 import type { ExplorerSession } from './session.ts';
 import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts';
+import { WEBGPU_REQUIRED_LIMITS } from '../../backend/common.ts';
 
 /** An adapter offering `offered`; its device grants exactly what was asked. */
 function adapterOffering(offered: string[], limits: Record<string, number> = {}) {
@@ -58,6 +59,26 @@ test("the device asks the adapter's own colour bytes per sample, above or below 
     });
     await requestExplorerDevice(adapter, '');
     assert.equal(limitsAsked[0].maxColorAttachmentBytesPerSample, offered);
+  }
+});
+
+// The opaque resolve with bounce binds more sampled textures in its fragment stage than WebGPU's
+// default 16: the device asks for the engine's count, never more, never above the adapter's.
+test('the device asks the sampled textures a stage binds, up to what the adapter offers', async () => {
+  const need = WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage;
+  assert.ok(need > 16, "the engine binds above WebGPU's default");
+  for (const [offered, asked] of [
+    [48, need],
+    [need, need],
+    [16, 16],
+  ]) {
+    const { adapter, limitsAsked } = adapterOffering([], {
+      maxSampledTexturesPerShaderStage: offered,
+      maxTextureDimension2D: 16384,
+    });
+    await requestExplorerDevice(adapter, '');
+    assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, asked);
+    assert.equal(limitsAsked[0].maxTextureDimension2D, 16384, 'an uncapped limit: all offered');
   }
 });
 

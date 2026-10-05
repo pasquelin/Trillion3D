@@ -15,16 +15,15 @@ texture residency is [RESIDENCY.md](RESIDENCY.md).
 A world opens one internal session on itself (`openMeasuredWorld`, `createMeasuredWorldJob`). Its
 options beyond `WorldOptions` — `maxResidentPages`, `pageFetchWorkers`, `replicaCount`, `backends`,
 `preload`, `comparisonLayout`, `comparisonPair`, `gpu`, `temporalAntialiasing`, `bounce`,
-`bounceBudgetMs`, `shadowPageInvalidation`, `shadowLocalToClip`, `shadowPoolPages`,
-`importedLights`, `textureSource`, `textureCompression`, `mathPath` — stay on it; a published world
-always runs the defaults (`shadowLocalToClip`, off, places shadow casters by a LocalToClip stored
-per caster and light view: its depths may differ by one ulp, an image of class 2). The
+`bounceBudgetMs`, `importedLights`, `textureSource`, `textureCompression`,
+`mathPath` — stay on it; a published world always runs the defaults. The
 comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render two backends to
 detached targets with the same camera: a bench and proof tool, never a performance verdict.
 `replicateInstances` instances the source 1, 4 or 9 times, sharing geometry and materials, for the
 bench. `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
 whether interactive rendering should continue; the session owns every interactive listener and
-pending callback and releases them on disposal.
+pending callback and releases them on disposal. A session without its own loop draws only when its
+host calls `render()`: `invalidate` asks nothing of it.
 
 ## Which backend renders
 
@@ -34,12 +33,12 @@ scene is read, from what the machine offers. The `backend-choice` diagnostic rep
 reads the cache's prepared scene rather than `source.gltf`), the `reason` and the `textureSource`
 settled on.
 
-| Machine | Backend that renders | Scene file read |
-| --- | --- | --- |
-| A WebGPU device was granted | `webgpu-page-raster` | `source.gltf` |
-| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
-| WebGL2, cache without one | `autonomous-pages-webgl` | `source.gltf` |
-| Neither WebGPU nor WebGL2 | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | — |
+| Machine                             | Backend that renders                                                         | Scene file read            |
+| ----------------------------------- | ---------------------------------------------------------------------------- | -------------------------- |
+| A WebGPU device was granted         | `webgpu-page-raster`                                                         | `source.gltf`              |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl`                                                     | `metadata.autonomousScene` |
+| WebGL2, cache without one           | `autonomous-pages-webgl`                                                     | `source.gltf`              |
+| Neither WebGPU nor WebGL2           | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | —                          |
 
 `autonomous-pages-webgl` decodes the cache's geometry pages itself, draws every page the cut selects
 — `submittedTriangles` equals `selectedTriangles` — and lights the scene from the cache's light
@@ -53,13 +52,16 @@ the prepared scene. The witnesses are opt-in through `backends`
 
 ## Scene and camera
 
-The host subtree is mirrored once into one engine transform tree when the scene index is built;
-each later pass enters only the pose numbers the host moved — compared bit for bit — and updates
-only the moved subtrees, so a node moved out of two thousand costs the chain under it, not the
-scene. The pose a page record, a cluster root or a transparent copy carries is a sixteen-number view
-on that tree's world buffer: rewritten in place, never copied, never stale. The local pose of drawn
-nodes and lights is hooked, so a write increments the scene revision and a frame compares one
-integer; visibility, parent and a light's numbers are compared per frame.
+Every scene node is a slot of one engine transform tree (`sdk-core/src/math/transform-tree/`): its
+position, quaternion and scale are views of the slot, and every write — a pose, a matrix set by
+hand, a reparent — lists the node once. The tree's frame pass (`pass.ts`) takes the listed nodes by
+depth and walks each one's subtree once, parents first, climbing no ancestor: a node moved out of
+two thousand costs the subtree under it, and a frame where nothing was written walks nothing. The
+pose a page record, a cluster root or a transparent copy carries is a sixteen-number view of its
+node's world matrix in that tree, stored by block so it never moves: rewritten in place, never
+copied, never stale. The local pose of drawn nodes and lights is hooked, so a write increments the
+scene revision and a frame compares one integer; visibility, parent and a light's numbers are
+compared per frame.
 
 What the engine computes — matrices, vectors, colours, its camera, the side of a material — it
 builds on `sdk-core`. A resource crosses the host boundary as the shapes of
@@ -129,7 +131,8 @@ pages load and leave — request admission, the eviction queue, the one cut rule
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
 reduction in reverse-Z); pass 2 retests the withdrawn and previously rejected rows against it. The
 previous pyramid only chooses pass 1; the current one alone judges what is rejected, conservative to
-the ulp (`tests/browser/renders/conservative-gpu-partition.browser.ts`). A test reads the first mip
+the ulp (`tests/gpu/partition/conservative-partition.gpu.ts`, excluded from the bench run until its
+port to Dawn is finished). A test reads the first mip
 whose outward-rounded footprint fits 16×16 samples; a bound outside the target or crossing the near
 plane is kept. A row kept while the view stands still stays in pass 1 until the view or a world
 moves, so a still image converges under the jitter and is held. `selectVisiblePages` and
@@ -152,7 +155,7 @@ shows one, and outside a diagnostic view, they run flagless variants, compiled b
 ACES and sRGB conversion happen at final composition, which writes the display value to the capture
 target and the canvas in one pass.
 
-The reconstruction runs one pass per **material class**, the published visibility-buffer design,
+The reconstruction runs one pass per **material class**, a visibility-buffer design,
 instead of one program that tests every feature per pixel. A class is the set of features the
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
 normal maps, vertex normals, double-sidedness, tangents, filtered sampling, vertex colours — a
@@ -161,14 +164,15 @@ the page's `COLOR_0` when its material asks for vertex colours, as the transpare
 WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which
 every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the
 reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class.
-Each frame the `Trillion3D material depth` pass writes every pixel's class as an exact depth value;
-`Trillion3D material tiles`, a compute pass, reads the visibility buffer once and lists, for each
-of the first 64 present classes, the 32 × 32 screen tiles holding one of its pixels (cluster's
-material classification, #1369); then each class draws, through one indirect draw, a quad per tile
-of its list at its depth under `depthCompare: 'equal'`, so the hardware keeps that class's pixels
-and its fragment stage reads only the maps it has. A class past the 64th, or on a device refusing
-the pass, draws one full-screen triangle, as before. A one-class image shades full screen, with no
-material depth. Counted on the atrium (`bench/runner/materialTileCount.ts`, 3456 × 2234, six
+Each frame `Trillion3D material tiles`, a compute pass, reads the visibility buffer once and lists,
+for each of the first 64 present classes, the 32 × 32 screen tiles holding one of its pixels
+(#1369); then each class draws, through one indirect draw, a quad
+per tile of its list, and its fragment stage keeps that class's pixels only — the background, a
+page past the table and another class are rejected before any write (`classAdmits`) — and reads
+only the maps it has. No material depth is written or tested: the resolve writes storage textures,
+which already made any depth test late, so the test excluded nothing the stage did not. A class
+past the 64th, or on a device refusing the pass, draws one full-screen triangle, as before. A
+one-class image shades full screen. Counted on the atrium (`bench/runner/materialTileCount.ts`, 3456 × 2234, six
 classes): 1.11–1.16 fragments rasterised per pixel, where the full-screen triangles rasterised 6.
 The `material-classes-ready` diagnostic lists the classes; the `materials` view colours each pixel
 by its class.
@@ -197,9 +201,10 @@ cost: when everything stops, edges stiffen for an image or two before reconvergi
 reaches the cut: selection, frustum and screen error read the unjittered camera. A surface capture
 and a diagnostic view render unjittered and unaccumulated. The pass's own timestamp means nothing on
 tile-based GPUs; its cost is read as an envelope difference with `temporalAntialiasing: false`.
-Its work is bounded per display pixel: a moving image's resolve reads 18 texels at the display's
-size and 27 reconstructing a frame drawn at half of it, 9 more on an uncovered pixel, each
-identifier it needs once (`bench/runner/taaFetchCount.ts`, #1369).
+Its work is bounded per display pixel: a moving image's resolve issues 23 fetches at the display's
+size and about 27 (26.97) reconstructing a frame drawn at half of it — an uncovered pixel, which
+reads no history to clamp, 16 and 20 —, 32 natively for the as-is resolve, each identifier it
+needs once (`bench/runner/taaFetchCount.ts`, #1369).
 
 **Render scale.** The options of `createWorld(canvas, { renderScale })` — a number, `'auto'` (the
 default) or `{ min, max }` within [0.5, 1], read back by `world.renderScale` — are
@@ -208,14 +213,19 @@ per axis (axes rounded to multiples of eight) while the resolve reconstructs the
 display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resampled from each texel's
 jittered sample, deringed and clamped to the YCoCg box, blended into the display-size history
 (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads add
-`log2(w / W)` to their level, so detail stays the display's. The controller follows the reference's
-dynamic resolution (`frame/scaleController.ts`): budget = the display's refresh interval, measured
-on the rAF timestamps' vsync grid over the last second, from a period several intervals share,
-a millisecond-rounded timer included (`frame/refreshClock.ts`), a steady cadence under 120 Hz
-probed once for a faster display (`frame/cadenceProbe.ts`), target 90 % of it, `s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one
-sample per image under `'auto'`), a step only past 5 % and 30 samples after the last, up only below
-80 % of the target, at once on a frame over 1.25 budgets; samples of an image drawn at another scale
-are discarded; without timestamp queries the frame interval is the cost. The render targets are made once at
+`log2(w / W)` to their level, so detail stays the display's. The controller is a dynamic resolution (`frame/scaleControl.ts`): the display's refresh `R` is measured on the rAF
+timestamps' vsync grid over the last second, from a period several intervals share, a
+millisecond-rounded timer included (`frame/refreshClock.ts`), on frames the interactive loop holds
+drawing nothing until held intervals agree. A frame meets the refresh while its GPU cost is at most
+`R` less the share of the frame the timer does not see; the controller learns that cost between
+the largest the frames met the refresh at over a second and the smallest they missed it at, tries a
+tenth below the latter, and fits the scale to the second costliest image since its last move by the
+exact area ratio, `s · √(target / cost)`, under the bounds and the memory cap. A step comes only
+past 2 % (a rise past the costs' own noise, or onto a bound) and 8 frames after the last; a still
+image only lowers the scale. Samples are the whole-frame GPU time of an image drawn at the
+controller's scale (timestamp queries), brought to the current scale by the area; without
+timestamp queries the cost is the area and the missed refreshes alone give the verdict.
+The render targets are made once at
 the bounds' maximum and each image draws in their top-left `w × h` (viewports, the Hi-Z pyramid's
 extent, the deferred and water passes, screen reflections, particles and guides read that size), so
 a scale change reallocates nothing and keeps the history. A quiet image draws at the maximum — 1
@@ -267,7 +277,7 @@ the chain or of a pass's setting counts one revision and asks for a frame.
   pass targets and hold their own resources besides — the WebGPU bloom gives every bloom pass its
   own uniform range, read at a dynamic offset. On WebGPU a chain that ends on a bloom leaves that
   bloom's last blend to the composition, once its bloom programs are compiled
-  (`deferred/compositions.ts`, #963): the composition blends the first level into the image the
+  (`packages/sdk-browser/src/lighting/deferred/compositions.ts`, #963): the composition blends the first level into the image the
   bloom read, rounded to half precision as the pass target held it, one pass and one target fewer
   for the same image. WebGL2 still draws that blend into its pass target.
 
@@ -279,26 +289,29 @@ chain empties, and counted in `gpuFrameTargetBytes` (on WebGL2, which counts no 
 chain's alone). The GPU total reserves them on the largest canvas the budget declares
 (`world.budget.canvas`, 3840 × 2160 by default: two pass targets, the WebGL2 scene target and the
 bloom levels, 250.5 MiB, `effectTargetReserve`), sized by the renderers' own rule
-(`effects/targets.ts`); the default total grows by that reserve only, from 1 686 to 1 937 MiB, and
-the geometry and texture pools keep 512 MiB each. A canvas past the declared one still renders
-whole, at full resolution: the world's diagnostic channel says `effect targets over budget`
-(`effect-targets-over-budget`) with the bytes past the reserve, each time that excess grows. A
+(`effects/targets.ts`); the default total grows by that reserve, and by the frame's own targets at
+full resolution on the canvas drawn (`defaultGpuBudget`), and the geometry and texture pools keep
+512 MiB each. A canvas past the declared one still renders whole, at full resolution, the chain's
+bytes past the reserve funded by the default total: the world's diagnostic channel says `effect
+targets over budget` (`effect-targets-over-budget`) with those bytes, each time that excess grows. A
 diagnostic view and an off-screen capture show the engine's image without the chain.
 
-**Bloom** (`effect.bloom`, `effects/bloomFilter.ts`) is the physically based one of Jimenez
-(SIGGRAPH 2014): six half-size levels at most (a declared value, the publication's), filtered down
+**Bloom** (`effect.bloom`, `effects/bloomFilter.ts`) is the physically based one:
+six half-size levels at most (a declared value), filtered down
 with the 13-tap filter, summed back up with a 3×3 tent of `radius` texels, then blended:
 `image × (1 − intensity) + Σlevels / levels × intensity`. Every filter is normalised, so each level
 carries the image's mean radiance: with no threshold, the total energy is conserved (CPU oracle,
 `effects/bloom.fixture.ts`). The WGSL and GLSL programs are generated from one tap table and read
-back against the oracle. Bytes: 8 per texel of each level, about a third of the image. Cost per
-pass: measured on the frame envelope, not by its own timestamp.
+back against the oracle. At the default radius the WebGPU tent is the same kernel in four bilinear
+taps instead of nine, laid out by hand to equal the table in doubles; only the sampler's rounding of the tap weights differs. Bytes: 8 per
+texel of each level, about a third of the image. Cost per pass: measured on the frame envelope, not
+by its own timestamp.
 
 ## Direct lighting
 
 **Any number of lights.** The light table grows with the scene — doubled when full, the GPU light
 buffer with it, rebound by every pass —: `addLight` never refuses a light for its rank. The lights
-are culled once per image into the reference engine's light grid (#1369, `lighting/tiles`): cells of 64 × 64 pixels
+are culled once per image into a light grid (#1369, `lighting/tiles`): cells of 64 × 64 pixels
 and 256 slices of depth, sixteen to a doubling of the view depth from the near plane, the last
 reaching to infinity. One workgroup per column of cells tests each light against the column's four
 sides and near plane; a light within them meets a run of the column's cells — the sphere and the
@@ -332,7 +345,8 @@ unshadowed light never runs that code, yet the registers it holds cost the light
 evaluation. That program's one light loop (`sliceLightingWgsl`) also rejects a light on its sphere
 alone, before its record is read in full, where the point lies past its range by a ten-thousandth
 of its squared range — exactly where `declaredLight` would have given zero before any shading. The
-sums are the same, bit for bit (`tests/browser/probes/narrow-resolve-gpu.ts`). The program with
+sums are the same, bit for bit (`tests/gpu/lighting/narrow-resolve.gpu.ts`), except the rectless
+program's, which differs by 1 to 3 ulp (#1369; the proof is excluded as a regression). The program with
 shadow code keeps develop's loop: there the reject's test cost a light in range 13 % it never
 repaid. Timed on the resolve (64 lamps, a million pixels, M2 Max), per light and pixel against
 develop, no shadow slot: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6 ps: a light listed past
@@ -341,8 +355,7 @@ way by a program without the rectangle's term and sampling weight (#1369), the l
 loop — its clipped polygon and fitted lobe —, whose registers every punctual light paid for; its
 twin with rectangle code compiles beside it.
 
-**A moving image samples its shadowed lights**, as the reference engine's stochastic light sampling draws a fixed few samples a
-pixel from the light grid's cell and leaves their noise to the temporal history. It weighs every
+**A moving image samples its shadowed lights**: it draws a fixed few samples a pixel from the light grid's cell and leaves their noise to the temporal history. It weighs every
 light of its cell without its shadow (the cheap part) and shades four in full, shadow included. Four
 points lie evenly along the cumulative weight from a per-pixel offset that advances by the golden
 ratio every image: a light worth a sample's share of the pixel's weight holds one or more and is
@@ -354,18 +367,18 @@ shadow bit of its count (`cellShadowed`) gates the pixel's shadow setup — its 
 eight neighbour depths, its receiver offset — and the shadow demand pass, and only a list of 5 to 64
 lights that holds a shadowed light is sampled; a list with none is summed in full as the still one
 is, bit for bit, from the same one call site (`contractLighting`,
-`tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of range 4 m in a
+`tests/gpu/lighting/sampled-resolve.gpu.ts`, #1249, excluded while #1369 holds). 200 unshadowed lamps of range 4 m in a
 sponza-sized atrium walk their cell's list once, 6.91–8.88 light evaluations per covered pixel at
 3456 × 2234, where the resolve before #1249 drew 15.7–21.0 (`bench/runner/lightTileSampledCount.ts`).
 `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint
 grain on lit surfaces where lights of different colours overlap and in penumbrae, while the camera
-moves (`tests/browser/renders/sampled-lighting.browser.ts`). What
+moves (`tests/gpu/lighting/sampled-lighting.gpu.ts`). What
 remains: a spatial denoise before the history.
 
 **Shadows are virtual shadow maps** ([SHADOWS.md](SHADOWS.md)): 128-texel pages, a sun as a
-16-level clipmap, a lamp face as a mip chain, a pool sized from the screen, pages marked by the
-pixels that read them and mapped and drawn on the GPU in that frame, a static layer so moving
-objects redraw only their own casters, and a transmittance layer for blended casters. WebGL2 has
+17-level clipmap, a point light as six maps and a spot light as one, a fixed pool of physical pages,
+pages marked by the pixels that read them and drawn on the GPU in that frame, a static slice so
+moving objects redraw only their own casters, and a transmission atlas for blended casters. WebGL2 has
 none ([SHADOWS.md](SHADOWS.md#webgl2-has-none)).
 
 `setLightingView(view)` selects what the opaque path outputs: `'lit'` (a world's view), `'unlit'`
@@ -396,7 +409,7 @@ with nothing changing, neither pass is encoded: a still scene pays nothing.
 
 **One basis.** The nine coefficients per colour a probe holds are the ones the scene environment and
 the WebGL2 light probe hold: same band order (constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`,
-`x² − y²`), same cosine-lobe factors (Ramamoorthi and Hanrahan 2001). `IRRADIANCE_TERMS`
+`x² − y²`), same cosine-lobe factors. `IRRADIANCE_TERMS`
 (`packages/sdk-core/src/scene/core/irradianceBasis.ts`) writes the projection and the evaluation
 once as shader text; CPU oracles run it against a constant sky (`πL` on every normal) and a single
 direction (the Legendre band sum). The cascades at their largest — four levels of 16³ probes, 44
@@ -449,8 +462,7 @@ live motion, a placement change (moved or newly resident reflected content, shad
 caps it at 4 samples for 24 frames instead of restarting it from one, so a moving view does not
 flicker and a stale reflection halves in three frames; a full window after that, no stale share is
 left. While its sources or camera move, a history short or clipped widens this image's spatial
-filter by the frames it lacks, up to twice its reach, as the reference's reflection denoiser does
-after its temporal pass; a still image is filtered as before (#831). A static image closes its filter window after 64 accepted frames; a changed jitter still
+filter by the frames it lacks, up to twice its reach, after its temporal pass; a still image is filtered as before (#831). A static image closes its filter window after 64 accepted frames; a changed jitter still
 reprojects until the temporal image can be held — a bounded effective weight, not infinite Monte
 Carlo convergence. Captures/replay add no duplicate samples; drawn extent changes discard the
 history; shadow-page landings advance the source epoch before resolving the same image. Transparent
@@ -468,11 +480,10 @@ fidelity and the 120 FPS (8.33 ms) full-frame target are the independent accepta
 
 Thin two-sided transmission uses an independent color, optionally textured, through the existing
 material, direct-light and bounce paths. Its WebGPU storage image costs 8 bytes per pixel only while
-such a material is active (an 8-byte stand-in otherwise); it adds no G-buffer render target. The
-model follows the public reference Two Sided Foliage description. Shadow receiver correction uses
-Boubekeur/Alexa's tangent-plane Phong projection, recomputed from the visibility buffer where the
+such a material is active (an 8-byte stand-in otherwise); it adds no G-buffer render target. Shadow receiver correction uses
+a tangent-plane Phong projection, recomputed from the visibility buffer where the
 lighting and the shadow demand read it — no per-pixel target —, without changing visible vertices,
-raster depth or silhouettes; it is separate from the Chiang et al. BRDF shadow-terminator
+raster depth or silhouettes; it is separate from a BRDF shadow-terminator
 correction.
 
 ## Fog
@@ -490,7 +501,7 @@ camera's position to the surface point:
 - height fog, `{ color, density, heightFalloff, baseHeight }`: the density
   `density · exp(−heightFalloff · (y − baseHeight))` integrated along the ray in closed form,
   `τ = density · d · (ρ(eye) − ρ(P)) / (heightFalloff · Δy)`, the two densities' mean where the
-  ratio would lose its 32-bit precision (Wenzel, SIGGRAPH 2006; Quilez, "Better fog").
+  ratio would lose its 32-bit precision.
 
 One text of the law serves both languages (`lighting/fogShader.ts`). The fog travels with the
 environment (`SceneEnvironment.fog`, `packages/sdk-core/src/scene/core/fog.ts`): two `vec4`s behind
@@ -498,7 +509,7 @@ the irradiance in the contract light buffer on WebGPU, `fogColor` and `fogLaw` u
 written only when the environment changes. The eye rides with the frame's view: `display.yzw` of
 the deferred view, `eye` of the blend view, the view space origin on WebGL2. With no fog the block's
 mode is zero and every program returns `L` untouched, one uniform branch per pixel. An unlit
-material (basic, matcap) is fogged like a lit one, its colour standing for `L`, as in the reference;
+material (basic, matcap) is fogged like a lit one, its colour standing for `L`;
 a normal or depth material and the diagnostic views, the unlit view among them, are not. Fog is a
 view-ray term, not light transport: a change of fog alone leaves the bounce probes converged (the
 store's `transportEpoch`). A world writes the fog with the lights before the next frame, like
@@ -606,11 +617,21 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   (around the moving bodies, then the eye; nearest first within the collision share, `LOADS` a
   frame, a resident tile kept half as far again); `physics/raycast.ts` asks `jolt_cast` (a batch of
   rays and shape sweeps, between two ticks) for `world.raycast(at, { exact: true })`.
-- **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a tick
-  (beyond, time is dropped: slow motion, never a spiral). Two result buffers go back and forth as
-  transferables, a tick writing straight into a free one (`tickResults.ts`), else into a staging
-  copy. It steps only while one more step's events fit, so no event is cut, and stops ticking while
-  every body sleeps and no command is queued.
+- **Worker.** `physics/physicsWorker.ts` takes the fixed steps of 1/60 s the page's frames owe it
+  (`advance`), never by a clock of its own: each frame's time, scaled and none while paused, is
+  owed in whole steps, four at most a frame (beyond, time is dropped: slow motion, never a spiral;
+  `physics/stepClock.ts`), and the page's messages run in the order it sent them — commands, keys,
+  water, steps —, so the same frames and inputs take the same steps whatever the worker's speed,
+  short of a worker so slow the frames' clock would lead its newest state by more steps than a
+  frame can draw past it: the clock then waits for it (slow motion, never a growing backlog). An
+  advance of no step, the clock standing still, runs the commands before it in place. Two
+  result buffers go back and forth as transferables, a tick writing straight into a free one
+  (`tickResults.ts`), else into a staging copy. Of every record a tick hands the page — a body's
+  pose, a vehicle's wheels, a soft body's vertices, the character's feet — its state a step before
+  is kept beside its last when the tick took both, by one rule (`recordTick.ts` `rewriteRecord`;
+  a run of no step that moved it in place leaves no step to draw it over). It steps only while one
+  more step's events fit, so no event is cut, every later message waiting behind; while every body
+  sleeps and no command is queued it takes no step, and the page, told so, sends nothing.
 - **Layouts.** `sdk-core/src/physics/layout.ts` (`PHYSICS_LAYOUT_VERSION`) holds the command, pose
   and event word layouts the module mirrors; page and worker check the protocol. A record names its
   body by engine id, slot and slot generation (moved on at each add and removal), so a late record
@@ -622,16 +643,22 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   manifold cache) are sent as `PHYSICS_BUDGET`, capacities `budget.physics.bodyPairs` and
   `contactConstraints`.
 - **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
-  sends the view, and posts the frame's commands in one message. Each moving body is drawn between
-  its last drawn pose and the tick's (`poses.ts`), over the interval at which ticks arrive, not the
-  time simulated; a late tick is extrapolated from its records' velocities, one interval at most:
-  a slow worker shows slow motion, never a held frame. Receive and draw are typed-array loops: a
+  sends the view, posts the frame's commands in one message, then the steps the frame owes. The
+  frame's time is set at its start, before the controller (`worldFrames.ts`), one step behind what
+  the frame before asked, and everything the physics draws is drawn at it by one mechanism
+  (`twoSteps.ts`): a body's pose (`poses.ts`), a vehicle's wheels, a soft body's vertices, the
+  character's feet, each between its states of the two steps that bracket that time, at the one
+  fraction of a step the session reads (`stepClock.ts` `along`) — places on the line between
+  them, turns on the arc —, the same frames drawing the same image whenever the ticks came. A
+  state the worker has not delivered yet is moved on from the last one, a body by its velocities,
+  four steps at most, until it comes. Receive and draw are typed-array loops: a
   body's position, quaternion and scale live in the placer's flat arrays
   (`ObservedComponents._share`), velocity and sleep are read from the session's arrays when asked
-  (`ObjectPhysics._state`), the lerped pose is written into the transform tree, angles derived when
-  read (`placer.ts`), and the world matrix composed straight into the body's instance-buffer row
-  (`SceneLink.seat`); the world hears each buffer's written span once (`SceneLink.placed`), so no
-  per-node world update runs. A body with no row, with children, or under a moved scene root goes
+  (`ObjectPhysics._state`), the lerped pose is written into the transform tree, its node listed for
+  the tree's frame pass, angles derived when read (`placer.ts`), and the world matrix composed
+  straight into the body's instance-buffer row (`SceneLink.seat`); the world hears each buffer's
+  written span once (`SceneLink.placed`), so the frame draws without waiting for the tree's pass.
+  A body with no row, with children, or under a moved scene root goes
   through `SceneLink.posed` like any moved node. An unchanged pose asks for no frame, so a sleeping
   world draws nothing.
 - **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
@@ -711,13 +738,7 @@ GPUs passes overlap.
 
 **CPU timing.** `cpu-timing` reports render duration, light updates, selection, residency and target
 management, encoding and submission; `transparentEncodeMs` is a subset of `encodeSubmitMs`, never
-added to it. Six named steps split the shadow work inside the encode bounds, never added to them
-(#1207): planning — `shadowPlanMs` (the plan around the scheduler), `shadowRequestsMs` (reading the
-request report), `shadowAdmissionMs` (admitting pages) — and encoding — `shadowBatchesMs` (the
-batches around their regions and passes), `shadowRegionsMs`, `shadowPassesMs`. They are filed in the
-same profile row (`cpuSteps()`, `cpu-timing`) and published per frame as `cpuShadowPlanMs`,
-`cpuShadowRequestsMs`, `cpuShadowAdmissionMs`, `cpuShadowBatchesMs`, `cpuShadowRegionsMs` and
-`cpuShadowPassesMs`; a step the frame did not run, or WebGL2 cannot time, reads `null`, never 0. The
+added to it. The
 Shadows stage's GPU time (`gpuShadowsMs`) spans exactly the shadow passes of the pass table
 (`stage/mapping.ts`, `SHADOW_STAGE_PASSES`); the light cut is its own stage (`shadowCasters`). CPU
 and GPU times are never added together.
@@ -731,45 +752,33 @@ no material surfaces and refuses it by name (`SURFACE_CAPTURE_UNSUPPORTED`).
 
 ## Proofs
 
-`pnpm run test:gpu` runs every hardware proof (`tests/browser/probes/`, `tests/browser/renders/`)
-with the repository's own Playwright and esbuild, the machine's Chrome and its WebGPU device, and
-the assets under `.mesure/assets/` ([TESTS.md](TESTS.md)). The material proof
-(`tests/browser/renders/witness-materials.browser.ts`) renders twelve fixtures against the WebGL2
-witness within one level per channel, except blending over an opaque surface, where the engine
-blends in linear radiance and the witness in display space: the fixture declares that 45-level gap
-and holds the engine inside it. The grazing fixtures are also cast on the CPU, the map's base level
-averaged along each pixel's minified axis, on the tangent its derivatives lay, and cut once
-(`tests/browser/support/groundTruth.ts`): a perfect anisotropic read, with no mip level and no
-footprint cap. The proof counts both renderers' pixels over one level from it, silhouettes aside,
-and requires the engine at 16× no farther than the witness, give or take CONTRIBUTING's tolerance:
-0 px, 4 on the foliage cut-out (#443). A successful run is not a full-scene parity verdict and
+`pnpm run test:gpu` runs every hardware proof (`tests/gpu/<area>/*.gpu.ts`) on Dawn in Node — the
+WebGPU implementation Chrome runs, on the machine's GPU, no browser — with the assets under
+`.mesure/assets/` ([TESTS.md](TESTS.md)). A successful run is not a full-scene parity verdict and
 measures no performance. The CPU shading oracle encodes linear lighting to sRGB without ACES; it
 does not replace the displayed-image comparisons. Node tests validate orchestration with GPU doubles
 and do not execute WGSL.
 
 ## Lighting: the target and the stages
 
-The end goal of this engine, and the order it is reached in: the reference's lighting — dynamic
-global illumination, reflections, shadows — at its performance, on the web. The geometry, the
+The end goal of this engine, and the order it is reached in: dynamic global illumination, reflections and shadows at desktop-class performance, on the web. The geometry, the
 temporal antialiasing and the memory budgets are the foundation. Each stage is measured before the
-next is started, and a stage out of order is not out of scope. Nothing here is copied from any
-engine: it comes from public material — SIGGRAPH talks of 2021 and 2022, published documentation —
-and from what this engine already has.
+next is started, and a stage out of order is not out of scope. It comes from what this engine already has.
 
-| Reference piece | Role | What we have today | What is missing |
-| --- | --- | --- | --- |
-| Temporal antialiasing | denoises everything stochastic | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing)) | — |
-| Screen traces | first shot of every ray: image depth and normal, almost free | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce | L1 (short bounce) |
-| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
-| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
-| Reflections | screen traces, then distance fields reading the cache | screen traces first; on a miss, with bounce on, the resident-proxy ray read in the surface cache and the probes; GGX rough lobe, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones | L4 (off-screen detail) |
-| Virtual shadow maps | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer ([SHADOWS.md](SHADOWS.md)) | — |
-| Stochastic direct lighting | few samples per pixel, denoised | a light grid of 64-pixel cells and 256 depth slices; four draws per moving pixel, exact at rest | L2 (denoise) |
+| Stage                   | What it does for the image                                                               | Today                                                                                                                                                                                                                                                                    | Missing                |
+| ----------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Temporal antialiasing   | settles every stochastic term, so a still camera converges to a clean image              | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing))                                                                                                                                                                                                 | —                      |
+| Screen traces           | first shot of every ray: reads the image's own depth and normal, at almost no cost       | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce                                                                                                                | L1 (short bounce)      |
+| Resident-proxy walk     | finds what a ray hits off screen, in software                                            | a ray walked triangle by triangle through the compiler's resident proxy (certified-error cut, BVH), in compute                                                                                                                                                           | L4 (global field)      |
+| Surface radiance        | tells what an off-screen surface sends back, refreshed under a millisecond budget        | one radiance per proxy triangle and face, swept under budget                                                                                                                                                                                                             | L4                     |
+| Probe gather            | lights a surface with the bounced light around it, filtered in time                      | cascaded order-2 spherical-harmonic probes in the world; the gather is per probe, never per screen pixel, so no per-pixel gather exists yet                                                                                                                              | L5 (per-pixel gather)  |
+| Reflections             | mirror and rough reflections: screen traces first, the proxy walk on a miss              | screen traces first; on a miss, with bounce on, the proxy ray read in the surface radiance and the probes; rough lobe sampled with the GGX distribution, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones                                       | L4 (off-screen detail) |
+| Virtual shadow maps     | shadows whose resolution follows the pixels: pages exist only where the image reads them | virtual `16 384²` texels a map (`128²`-texel pages), 17 clipmap levels a sun; physical: a fixed pool of 2 048 pages, down to an eighth when the budget is short, per-pixel mip, receiver-marked pages, a static slice ([SHADOWS.md](SHADOWS.md)); declared tuning values | —                      |
+| Stochastic direct light | few light samples per pixel, resolved over time                                          | a light grid of `64 × 64`-pixel cells (the light shader's `tileSize`) and 256 depth slices; four draws per moving pixel, exact at rest                                                                                                                                   | L2 (denoise)           |
 
 What the web imposes, and the answer:
 
-- **No hardware ray tracing**: the reference's software path — screen traces first, distance
+- **No hardware ray tracing**: the software path — screen traces first, distance
   fields next — is the one taken; the distance field is baked by the compiler, like textures, at a
   resolution fixed by the budget.
 - **Bounded, unreadable memory**: what streams enters a host-set byte reservoir, never read off the
@@ -787,11 +796,10 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
   ≤ 0.96 ms (`lights-4-no-shadows` − `unlit`); still camera: 0 page redrawn, envelope no lower.
   What remained, the sampling, is L2 — not a cascade ring.
 - **L1** — screen traces: reflections done (mirror and rough, both backends); short bounce from the
-  already-rendered HDR, depth and normal remains — the cheapest piece of the reference.
+  already-rendered HDR, depth and normal remains — the cheapest piece.
 - **L2** — sampling done (#36, 20 Sept. 2026, Emerald 2496×1404, ground view, 32 shadowed lights
   reaching one pixel), as [Direct lighting](#direct-lighting) describes: envelope 39.9 → 17.9 ms
-  GPU on a moving camera, grain in motion declared there. What remains: a spatial denoise before
-  the history, where the reference has one.
+  GPU on a moving camera, grain in motion declared there. What remains: a spatial denoise before the history.
 - **L3** — done: shadows in virtual pages from the hardware raster, only the pages seen, cached
   ([SHADOWS.md](SHADOWS.md)). The compute raster stays off; measurement kept it off.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.
@@ -800,7 +808,7 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 - **L6** — rough reflections done (GGX, [Light that bounces](#light-that-bounces)); materials
   remain.
 
-Exit criterion: on the same scene and the same machine as the reference, same image to the eye,
+Exit criterion: on the same scene and machine as a desktop-class engine, same image to the eye,
 same byte budgets, same millisecond envelope.
 
 ## GPU deformation

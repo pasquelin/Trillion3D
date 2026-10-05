@@ -4,8 +4,8 @@ import { stepThreads } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, resultWords } from './protocol.ts';
 
 /** The physics worker, started on the module that fits the page (threaded when it can share
- *  memory) with the budget and its two result buffers. */
-export function startPhysicsWorker(budget: PhysicsBudget) {
+ *  memory) with the budget, the fixed step of `step` seconds and its two result buffers. */
+export function startPhysicsWorker(budget: PhysicsBudget, step: number) {
   const worker = startModuleWorker(besideModule('physicsWorker', import.meta.url));
   const threads = stepThreads(budget.threads);
   const bytes = resultWords(budget) * 4;
@@ -20,6 +20,7 @@ export function startPhysicsWorker(budget: PhysicsBudget) {
       ).href,
       budget,
       threads,
+      step,
       buffers,
     },
     buffers,

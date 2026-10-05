@@ -26,7 +26,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 /** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them (the draw
  *  lists', none while the graph itself is hidden), its background and fog as they stand when the
  *  frame reads them. */
-const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglClusterScene => ({
+export const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglClusterScene => ({
   get lights() {
     return lights();
   },
@@ -37,17 +37,6 @@ const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglCluster
     return display.fog;
   },
 });
-const kept = new WeakMap<Scene, WebglClusterScene>();
-/** A display graph as a WebGL2 draw outside `createSceneDraw` reads it — a witness, a test page:
- *  one set of draw lists per graph, brought to the graph at each read, never a walk of its own. */
-export function keptClusterScene(display: Scene) {
-  let read = kept.get(display);
-  if (!read) {
-    const lists = createDrawLists(display, []);
-    kept.set(display, (read = sceneRead(display, () => (lists.refresh(), lists.lights))));
-  }
-  return read;
-}
 /** A drawn node, the engine's mesh, read by shape: drawn whole. */
 type DrawnNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
@@ -63,7 +52,7 @@ const NO_BATCHES: readonly never[] = [];
 
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
- * engine's program (`owner.ts`) in the order the reference draws a scene — the opaque meshes by
+ * engine's program (`owner.ts`) in the scene's draw order — the opaque meshes by
  * `renderOrder`, surface and depth, then the see-through ones and the transparent copies `copies` names, by
  * `renderOrder` and from the farthest to the nearest; the program splits them into its
  * transmission and blend passes. The lights come from the same lists, the background off the graph.

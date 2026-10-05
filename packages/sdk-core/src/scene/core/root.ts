@@ -15,9 +15,9 @@ export class SceneRoot extends SceneNode {
   }
 
   /**
-   * The storage of a node about to be built: its identifier, its transform slot and the state
-   * that owns both. `createNode` builds a plain node on it; a node kind of its own (the scene
-   * objects of `world/object3d.ts`) passes it to its constructor, then `register`s itself.
+   * The storage of a node about to be built: its identifier, its transform slot and the state that
+   * owns both. `createNode` builds a plain node on it; a node kind of its own (the scene objects of
+   * `../../world/object/object3d.ts`) passes it to its constructor, then `register`s itself.
    */
   reserve(options: SceneNodeOptions = {}) {
     this.assertAlive();

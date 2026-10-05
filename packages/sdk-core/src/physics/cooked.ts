@@ -5,7 +5,7 @@ import { JOLT_COMMIT } from './joltCommit.ts';
 /**
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
  * compiler, `packages/asset-compiler-rust/src/physics_cook/`). Its version is its own; the shapes it
- * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
+ * names are the module's binary state, readable only by the build that wrote them: the file names that
  * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
 const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
@@ -48,7 +48,7 @@ export interface CookedInstance {
 }
 
 /** A soft body a node of the model declares (`extras.physics`, the options of `obj.physics`),
- *  cooked: its `SoftBodySharedSettings` in Jolt's binary state, already at `scale`, and placed by
+ *  cooked: its `SoftBodySharedSettings` in the module's binary state, already at `scale`, and placed by
  *  the node; the matter its collider declares, when it declares one, which the friction and
  *  restitution of `physics` override, as `obj.physics` overrides its material's. */
 export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
@@ -108,12 +108,12 @@ export interface CookedBody extends Omit<CookedInstance, 'collider'> {
   shape: ImplicitShape | CookedHull;
 }
 
-/** A primitive whose collider Jolt refused: it collides with nothing, and is drawn all the same. */
+/** A primitive whose collider the module refused: it collides with nothing, and is drawn all the same. */
 interface CookRefusal {
   primitive: number;
   mesh: number;
   meshPrimitive: number;
-  /** Jolt's own error. */
+  /** The module's own error. */
   reason: string;
 }
 
@@ -149,7 +149,7 @@ export interface CookedPhysics {
 }
 
 /**
- * Reads a `physics.json` body: another format version, or shapes cooked by another Jolt, is
+ * Reads a `physics.json` body: another format version, or shapes cooked by another build, is
  * refused by name (`PHYSICS_FORMAT`), never read as something it is not.
  */
 export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhysics {

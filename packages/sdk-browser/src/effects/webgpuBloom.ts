@@ -47,16 +47,18 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   }); // clamped to the edge, the default address mode
   let texture: GPUTexture | undefined,
     uniform: GPUBuffer | undefined,
+    full: Size = [0, 0],
     sizes: Size[] = [],
     views: GPUTextureView[] = [],
     groups: GPUBindGroup[] = [],
+    blends: FusedBlend[] = [],
     inputs = new WeakMap<GPUTextureView, { level: GPUBindGroup; scene: GPUBindGroup }>(),
     blend: FusedBlend | undefined,
     packed = new Float32Array(0),
-    width = 0,
-    height = 0,
-    passes = 0,
-    dirty = false;
+    // The intensity and radius each bloom's range holds, NaN until it is written.
+    held = new Float64Array(0),
+    levelBytes = 0,
+    passes = 0;
   const levelGroup = (view: GPUTextureView) =>
     device.createBindGroup({
       layout: layouts.level,
@@ -77,31 +79,53 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     }
     return bound;
   };
+  /** The one descriptor and dynamic offset every pass begins with, rewritten in place: a pass
+   *  reads them when it begins, so a frame allocates none of them (11 passes at 6 levels). A
+   *  cleared level clears to zero, the default clear value. */
+  const attachment = { storeOp: 'store' } as GPURenderPassColorAttachment;
+  const descriptor = { label: BLOOM_PASS, colorAttachments: [attachment] },
+    offset = new Uint32Array(1);
   const release = () => {
     if (!passes) return; // free already: nothing is allocated for it
     texture?.destroy();
     uniform?.destroy();
-    texture = uniform = undefined;
+    texture = uniform = blend = undefined;
+    attachment.view = undefined as unknown as GPUTextureView; // holds no freed view
+    full = [0, 0];
     sizes = [];
     views = [];
     groups = [];
+    blends = [];
     inputs = new WeakMap();
-    width = height = passes = 0;
+    levelBytes = passes = 0;
   };
-  const put = (at: number, value: number) => {
-    dirty ||= packed[at] !== Math.fround(value);
-    packed[at] = value;
-  };
-  /** Writes one uniform slot — inverse sizes written and read, radius, blend — and notes a change. */
+  /** Writes one uniform slot: inverse sizes written and read, radius, blend. */
   const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
     const base = (index * BLOOM_UNIFORM_STRIDE) / 4;
-    put(base, 1 / out[0]);
-    put(base + 1, 1 / out[1]);
-    put(base + 2, 1 / read[0]);
-    put(base + 3, 1 / read[1]);
-    put(base + 4, radius);
-    put(base + 5, keep);
-    put(base + 6, glow);
+    packed[base] = 1 / out[0];
+    packed[base + 1] = 1 / out[1];
+    packed[base + 2] = 1 / read[0];
+    packed[base + 3] = 1 / read[1];
+    packed[base + 4] = radius;
+    packed[base + 5] = keep;
+    packed[base + 6] = glow;
+  };
+  /** Writes the `nth` bloom's range, its last slot at `last`, when its settings are not the ones
+   *  it holds: a range depends only on them and on the size, whose change makes a new buffer. */
+  const write = (nth: number, last: number, { intensity, radius }: Bloom) => {
+    if (held[2 * nth] === intensity && held[2 * nth + 1] === radius) return;
+    held[2 * nth] = intensity;
+    held[2 * nth + 1] = radius;
+    const count = sizes.length,
+      first = last + 1 - 2 * count,
+      { keep, glow } = bloomBlend(intensity, count);
+    for (let level = 0; level < count; level++)
+      slot(first + level, sizes[level], level ? sizes[level - 1] : full, radius);
+    for (let level = 0; level + 1 < count; level++)
+      slot(first + count + level, sizes[level], sizes[level + 1], radius);
+    slot(last, full, sizes[0], radius, keep, glow);
+    const at = first * BLOOM_UNIFORM_STRIDE;
+    device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * BLOOM_UNIFORM_STRIDE) / 2);
   };
   const draw = (
     encoder: GPUCommandEncoder,
@@ -111,13 +135,12 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     uniformSlot: number,
     scene?: GPUBindGroup,
   ) => {
-    const loadOp = pipeline === up ? 'load' : 'clear';
-    const pass = encoder.beginRenderPass({
-      label: BLOOM_PASS,
-      colorAttachments: [{ view, loadOp, storeOp: 'store', clearValue: [0, 0, 0, 0] }],
-    });
+    attachment.view = view;
+    attachment.loadOp = pipeline === up ? 'load' : 'clear';
+    offset[0] = uniformSlot * BLOOM_UNIFORM_STRIDE;
+    const pass = encoder.beginRenderPass(descriptor);
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, group, [uniformSlot * BLOOM_UNIFORM_STRIDE]);
+    pass.setBindGroup(0, group, offset, 0, 1);
     if (scene) pass.setBindGroup(1, scene);
     pass.draw(3);
     pass.end();
@@ -125,19 +148,19 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   return {
     /** Bytes of the level chain as allocated; zero before the first `resize`. */
     get bytes() {
-      return texture ? bloomLevelBytes(width, height) : 0;
+      return levelBytes;
     },
     /** Sizes the levels for an image and the uniform for `count` blooms; none frees them. The
      *  uniform grows with the count, and never shrinks while the size holds. */
-    resize(nextWidth: number, nextHeight: number, count: number) {
+    resize(width: number, height: number, count: number) {
       if (!count) return release();
-      if (nextWidth === width && nextHeight === height && count <= passes) return;
+      if (width === full[0] && height === full[1] && count <= passes) return;
       release();
-      width = nextWidth;
-      height = nextHeight;
+      full = [width, height];
       passes = count;
       sizes = bloomLevelSizes(width, height);
       if (!sizes.length) return;
+      levelBytes = bloomLevelBytes(width, height);
       texture = device.createTexture({
         label: `${BLOOM_PASS} levels`,
         size: { width: sizes[0][0], height: sizes[0][1] },
@@ -150,7 +173,8 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         size: passes * sizes.length * 2 * BLOOM_UNIFORM_STRIDE,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
-      packed = new Float32Array(uniform.size / 4).fill(Number.NaN);
+      packed = new Float32Array(uniform.size / 4);
+      held = new Float64Array(2 * passes).fill(Number.NaN);
       views = sizes.map((_, level) =>
         texture!.createView({ baseMipLevel: level, mipLevelCount: 1 }),
       );
@@ -167,27 +191,17 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
       const count = sizes.length;
       blend = undefined;
       if (!count) return 0;
-      const full: Size = [width, height],
-        { keep, glow } = bloomBlend(bloom.intensity, count),
-        { radius } = bloom,
-        first = nth * 2 * count,
+      const first = nth * 2 * count,
         last = first + 2 * count - 1;
-      for (let level = 0; level < count; level++)
-        slot(first + level, sizes[level], level ? sizes[level - 1] : full, radius);
-      for (let level = 0; level + 1 < count; level++)
-        slot(first + count + level, sizes[level], sizes[level + 1], radius);
-      slot(last, full, sizes[0], radius, keep, glow);
-      const at = first * BLOOM_UNIFORM_STRIDE;
-      if (dirty)
-        device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * BLOOM_UNIFORM_STRIDE) / 2);
-      dirty = false;
+      write(nth, last, bloom);
       const source = inputGroups(input);
       for (let level = 0; level < count; level++)
         draw(encoder, views[level], down, level ? groups[level - 1] : source.level, first + level);
       for (let level = count - 2; level >= 0; level--)
         draw(encoder, views[level], up, groups[level + 1], first + count + level);
       if (!output) {
-        blend = { group: groups[0], offset: last * BLOOM_UNIFORM_STRIDE };
+        // Made once per bloom and size, kept while the levels are: a frame allocates none.
+        blend = blends[nth] ??= { group: groups[0], offset: last * BLOOM_UNIFORM_STRIDE };
         return 2 * count - 1;
       }
       draw(encoder, output, composite, groups[0], last, source.scene);

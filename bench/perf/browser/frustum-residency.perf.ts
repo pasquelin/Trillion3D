@@ -1,6 +1,6 @@
 // Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
 // two computations have no prior implementation to confront; their correctness is held by
-// `packages/sdk-core/src/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
+// `bench/witnesses/three/parity/core/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
 import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts';
@@ -58,7 +58,7 @@ const clipResult = await mesure({
     { name: 'no boxes', input: vide, size: 0 },
   ],
   calcul: clipper,
-  motif: 'time only — correctness in packages/sdk-core/src/math/frustum/box.test.ts',
+  motif: 'time only — correctness in bench/witnesses/three/parity/core/math/frustum/box.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
 

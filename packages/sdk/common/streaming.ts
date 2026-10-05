@@ -8,7 +8,7 @@ export {
   EngineError,
 } from '../../sdk-core/src/contracts/cache.ts';
 export type { PageSource } from '../../sdk-core/src/contracts/cache.ts';
-export { assertManifestBinary, isBinaryManifest } from '../../sdk-core/src/manifest/binaryTypes.ts';
+export { assertManifestBinary } from '../../sdk-core/src/manifest/binaryTypes.ts';
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
@@ -22,14 +22,11 @@ export {
   blocksAcross,
   levelBlockBytes,
   PREVIEW_BASE,
-  PREVIEW_MAX_LEVELS,
   previewBlockBytes,
   previewFirstLevel,
   previewIsWhole,
   previewLastLevel,
-  previewLevelCount,
   previewLevelSize,
-  previewPixelBytes,
 } from '../../sdk-core/src/texture/previewLevels.ts';
 export {
   clusterSphereValid,
@@ -48,7 +45,6 @@ export type {
   StreamBundle,
   StreamCatalogue,
 } from '../../sdk-core/src/contracts/geometry.ts';
-export { manifestBinaryRanges } from '../../sdk-core/src/manifest/binaryLayout.ts';
 export type { Counts } from '../../sdk-core/src/manifest/binaryLayout.ts';
 export {
   createPageIntegrationPlan,
@@ -56,10 +52,7 @@ export {
   sortPages,
 } from '../../sdk-core/src/page/integrationPlan.ts';
 export type { PageIntegrationPlan } from '../../sdk-core/src/page/integrationPlan.ts';
-export {
-  decodeManifestBinary,
-  decodeManifestPreviews,
-} from '../../sdk-core/src/manifest/binaryDecode.ts';
+export { decodeManifestBinary } from '../../sdk-core/src/manifest/binaryDecode.ts';
 export {
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,

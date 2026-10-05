@@ -16,7 +16,7 @@ pub(super) fn cube(o: [f32; 3], s: [f32; 3]) -> Vec<f32> {
         .flat_map(|c| (0..3).map(move |a| o[a] + if c >> a & 1 == 1 { s[a] } else { 0.0 }))
         .collect()
 }
-/// Mass, centre and inertia of solid boxes (`corner`, `size`) at `DENSITY`, by the textbook box
+/// Mass, centre and inertia of solid boxes (`corner`, `size`) at `DENSITY`, by the closed-form box
 /// formula and the parallel-axis theorem: the analytic values the integrals must meet.
 fn boxes(list: &[([f64; 3], [f64; 3])]) -> (f64, [f64; 3], [[f64; 3]; 3]) {
     let weight = |s: &[f64; 3]| DENSITY * s[0] * s[1] * s[2];

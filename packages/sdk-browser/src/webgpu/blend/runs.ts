@@ -1,28 +1,32 @@
-import { planItem, planShared } from './plan.ts';
 import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
-import { buildBlendRuns } from './runSlicing.ts';
+import { PLAN_SHIFT } from './planEntry.ts';
 import { EXPAND_UNI } from './expandUniform.ts';
 
 /**
  * RUNS OF THE TRANSPARENT PASS: what replaces a draw per item.
  *
- * The sorted plan, farthest to nearest (`order.ts`), remains the correctness constraint:
- * a blend does not write depth, and only the order in which primitives pass the rasterizer
- * separates two surfaces. That order is GUARANTEED INSIDE A DRAW: a draw's primitives are
- * rasterized instance by instance, and in each instance vertex by vertex. A stretch of plan
- * entries that set the same pipeline and read the same buffers can therefore fit in ONE draw whose
- * instances are, in order, those of each entry.
+ * The sorted plan, farthest to nearest (`order.ts`), remains the correctness constraint: a blend
+ * does not write depth, and only the order in which primitives pass the rasterizer separates two
+ * surfaces. That order is GUARANTEED INSIDE A DRAW: a draw's primitives are rasterized instance by
+ * instance, and in each instance vertex by vertex. A stretch of plan entries that set the same
+ * pipeline and read the same buffers can therefore fit in ONE draw whose instances are, in order,
+ * those of each entry.
  *
- * A run stops on two things, and on nothing else:
- * - the pipeline changes (a single-sided neighbour, or the back and the face of an unpaged
- *   double-sided item; a paged one sets the same pipeline twice, its vertex stage culls, `plan.ts`);
- * - the item is not paged: it carries its own index, position and UV buffers, hence its own bind
- *   group, and cannot share its neighbours' draw.
- * The water surfaces (`../water/pass.ts`) merge on the same terms: their material volume is
- * read by rank in the composite, never offset per draw.
- *
- * The worst case therefore yields exactly the previous draws; the ordinary case — paged primitives
- * that share a pipeline — yields them all in one.
+ * The GPU sorts the plan (`orderWgsl.ts`) and the CPU encodes the draws without that order: WebGPU
+ * lets an indirect draw take its counts from the GPU, never its pipeline nor its bind group. The
+ * draws are therefore laid out ahead of the order, as SLOTS:
+ * - the pass's MAIN CLASS — the paged entries of its most common pipeline, which all read the one
+ *   shared bind group — paints in any order inside a draw of its own;
+ * - every other entry is an OWN entry — an unpaged item with its own buffers, or a paged one of
+ *   another pipeline — and needs a draw of its own: the CPU orders these few itself, with the GPU's
+ *   keys and rule (`sortPlan.ts`), so it knows which draw each one is;
+ * - the main class is drawn in the GAPS between own items: a gap before the first, one after each.
+ *   An item's own entries — the back and the face of an unpaged double-sided item — tie on their
+ *   key and follow each other in seed order: nothing can paint between them, and no gap does.
+ * A gap may hold no entry: a draw of no instance. A pass without a main class has only its own
+ * slots; a pass of one class has a single slot, one draw, and nothing ordered on the CPU. Once the
+ * order is known, the GPU gives each slot its run (`placeBlendSlots`) and the expansion kernel its
+ * indirect argument.
  */
 
 /**
@@ -34,57 +38,67 @@ export const INSTANCE_CULL_SHIFT = 30;
 export const INSTANCE_ITEM_MASK = (1 << INSTANCE_CULL_SHIFT) - 1;
 export const instanceWord = (item: number, vertexCull: number) =>
   (item | (vertexCull << INSTANCE_CULL_SHIFT)) >>> 0;
-export const instanceItem = (word: number) => word & INSTANCE_ITEM_MASK;
-/** A shared run belongs to no item: its bind group is that of the paged ones. */
-export const RUN_SHARED = 0xffffffff;
+
+/** Slots of a pass: one per own entry, plus a gap before each own item and after the last one
+ *  when the pass has a main class. Fixed by the plan: an item's entries stay together. */
+export const slotCount = (own: number, items: number, main: boolean) =>
+  main ? own + items + 1 : own;
 
 /**
- * Addressing stride of an instance: the power of two that separates two instances in vertex-index
- * space.
- *
- * A run's indirect draw starts at vertex `base << shift`, where `base` is the rank of its first
- * instance in the expanded list. The shader therefore finds that rank in the high bits of the
- * vertex index and its local rank in the low bits — the same trick the old plan played with the
- * item rank. `firstInstance` would have said the same thing, but WebGPU allows it in an indirect
- * draw only under an extension; `firstVertex` is always free when no vertex buffer is bound, and
- * that is the case of this pass.
+ * The slot of each own entry this frame (`ownSlots`, in paint order) and the own entry each slot
+ * draws (`slotOwns`, -1 for a gap), from the own seeds in paint order. Returns the slots.
  */
-
-/** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
- *  addressing stride lets through, and never more than the primitive carries. */
-
-/**
- * The runs of `order` sliced again from entry `at`, the first that moved; `out` holds the `count`
- * runs it had before. A run reads only its entries and the one that stopped it: runs before the
- * one holding `at - 1` stand, and that one resumes the slicing, as it may now extend.
- */
-export function resliceBlendRuns(order: Uint32Array, out: Uint32Array, count: number, at: number) {
-  if (!count || at <= 0) return buildBlendRuns(order, out);
-  // Runs are stored by increasing first entry: the last one below `at`.
-  let lo = 0;
-  for (let hi = count - 1; lo < hi;) {
-    const mid = (lo + hi + 1) >> 1;
-    if (out[mid * RUN_WORDS] < at) lo = mid;
-    else hi = mid - 1;
+export function assignOwnSlots(
+  seeds: Uint32Array,
+  ownSeeds: Uint32Array,
+  main: boolean,
+  ownSlots: Uint32Array,
+  slotOwns: Int32Array,
+) {
+  let slot = 0,
+    previous = -1;
+  for (let k = 0; k < ownSeeds.length; k++) {
+    const item = seeds[ownSeeds[k]] >>> PLAN_SHIFT;
+    if (main && item !== previous) slotOwns[slot++] = -1;
+    slotOwns[slot] = k;
+    ownSlots[k] = slot++;
+    previous = item;
   }
-  return buildBlendRuns(order, out, lo, out[lo * RUN_WORDS]);
+  if (main) slotOwns[slot++] = -1;
+  return slot;
 }
 
+/** Writes the run of slot `slot`. */
+const runAt = (out: Uint32Array, slot: number, first: number, entries: number) => {
+  out[slot * RUN_WORDS] = first;
+  out[slot * RUN_WORDS + 1] = entries;
+};
+
 /**
- * ITEM A RUN NAMES, or `RUN_SHARED` when it merges several.
- *
- * A run is ownerless only if it merges several ITEMS: the one that kept a single item — one entry,
- * or the back and the face of a double-sided paged item, always adjacent since they carry the same
- * rank (`order.ts`) — names it, and the frame can then skip encoding it altogether when the
- * frustum rejects it — exactly what a draw per item used to do. The three paths read it here:
- * encoding, the expansion kernel and its CPU model.
+ * The run of each slot, from where the paint order put each seed (`placed`) and the own entries'
+ * seeds and slots in paint order: the CPU model of `placeBlendSlots`, word for word. Each own entry
+ * writes its own slot and the gap before it, the last one the gap after it too.
  */
-export function runOwner(order: Uint32Array, first: number, entries: number) {
-  const entry = order[first],
-    item = planItem(entry);
-  return entries > 1 && planShared(entry) && planItem(order[first + entries - 1]) !== item
-    ? RUN_SHARED
-    : item;
+export function placeBlendSlots(
+  out: Uint32Array,
+  placed: Uint32Array,
+  own: { seeds: Uint32Array; slots: Uint32Array },
+  entries: number,
+  main: boolean,
+) {
+  const count = own.seeds.length;
+  if (!count && main) runAt(out, 0, 0, entries);
+  for (let k = 0; k < count; k++) {
+    const slot = own.slots[k],
+      at = placed[own.seeds[k]];
+    runAt(out, slot, at, 1);
+    if (!main) continue;
+    if (!k || slot - own.slots[k - 1] > 1) {
+      const first = k ? placed[own.seeds[k - 1]] + 1 : 0;
+      runAt(out, slot - 1, first, Math.max(0, at - first));
+    }
+    if (k === count - 1) runAt(out, slot + 1, at + 1, entries - at - 1);
+  }
 }
 
 /** Writes the expansion kernel's uniform words (`expandUniform.ts`) into `out`, at the rank each

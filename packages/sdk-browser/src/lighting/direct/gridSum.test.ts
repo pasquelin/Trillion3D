@@ -28,7 +28,7 @@ type Lamp = { centre: Vec3; radius: number; spot: boolean };
 type Sum = (...args: unknown[]) => number[];
 const PROGRAMS = [false, true].flatMap((shadowed) =>
   [false, true].map(
-    (rects) => `${directLightingWgsl(false, undefined, shadowed, rects)}${STANDARD_LIGHTING_WGSL}`,
+    (rects) => `${directLightingWgsl(false, shadowed, rects)}${STANDARD_LIGHTING_WGSL}`,
   ),
 );
 const NAMES = [
@@ -74,7 +74,13 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       // A lamp with no shadow slot: the shipped read answers one (`shadowFactor`).
       shadowFactor: () => 1,
     };
-    const names = [...NAMES, 'standardLighting', 'modelLight', 'thinTransmission'];
+    const names = [
+      ...NAMES,
+      'standardLighting',
+      'ggxDistribution',
+      'modelLight',
+      'thinTransmission',
+    ];
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope);
     const at = (slice: number[]) => sliceLighting([0.8, 0.7, 0.6], 0.2, 0.5, N, V, P, 1, slice);
     return { cell: at([2, listed.length]), every: at([K.TILE_NO_SLICE, lamps.length]), listed };

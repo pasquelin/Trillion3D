@@ -3,14 +3,14 @@ import { blendEntries } from './identity.ts';
 import { createBlendOverdraw } from './overdraw.ts';
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts';
 import type { BlendGpuItem } from './state.ts';
-import type { RankedPipelines } from './stagePipelines.ts';
-import { planPipeline } from './plan.ts';
-import { RUN_SHARED, runOwner } from './runs.ts';
-import { RUN_WORDS } from './planLayout.ts';
+import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
+import { planItem, planPipeline } from './plan.ts';
 import { itemKept } from './expandCpu.ts';
 import { routedFilter, type DisplayFilter } from './displayFilter.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
+import { directLightResources } from '../pages/prepare/lightResources.ts';
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -28,18 +28,18 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
 }
 
 /**
- * Encodes the runs of a pass into an open render pass: one `drawIndirect` per RUN, and nothing else.
+ * Encodes the slots of a pass into an open render pass: one `drawIndirect` per SLOT, and nothing
+ * else.
  *
- * A run is a stretch of sorted-plan entries that set the same pipeline and read the same
- * buffers (`runs.ts`). Draw primitives are rasterized instance by instance, in
- * order: the GPU-expanded list therefore carries each entry's instances in sequence, farthest
- * first, and the paint order is the one a draw per item used to give — without the draws. A
- * scene of paged primitives that share a pipeline fits in one draw; an unpaged item, which
- * carries its own buffers, keeps its own.
+ * The GPU ordered the pass and wrote each slot's argument (`runs.ts`); the CPU knows each slot's
+ * pipeline and buffers without that order: a slot of the main class sets the main pipeline and the
+ * paged group, an own slot sets its entry's, and the own entries' paint order is the one the CPU
+ * ranked (`order.ts`). Draw primitives are rasterized instance by instance, in order: the paint
+ * order is the one a draw per item used to give — without the draws.
  *
- * The loop does no matrix product, no material read, no frustum test: the frustum verdict is
- * set with the sort keys (`order.ts`), and all that remains here is not to encode
- * the draw of an item wholly out of view.
+ * The loop does no matrix product, no material read, no frustum test: an own entry wholly out of
+ * view is not encoded at all, as it was not per item; a main slot holds too many entries to query
+ * one by one — the GPU zeros their instances, and a draw with no instance sets nothing.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
  * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
@@ -56,8 +56,10 @@ export function drawBlendRuns(
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
-    order = blendState.orders[slice],
-    runs = blendState.runs[slice],
+    seeds = blendState.seeds[slice],
+    ownSeeds = blendState.ownSeeds[slice],
+    slotOwns = blendState.slotOwns[slice],
+    main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!;
   if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
@@ -67,24 +69,25 @@ export function drawBlendRuns(
     boundGroup: GPUBindGroup | undefined,
     encoded = 0;
   const base = blendState.planRegions[slice].args * 4;
-  for (let index = 0; index < count; index++) {
-    const at = index * RUN_WORDS,
-      entry = order[runs[at]],
-      owner = runOwner(order, runs[at], runs[at + 1]);
-    if (pipelines.skips?.(planPipeline(entry))) continue;
-    // A run that names its item decides on the frustum bit: a draw that would set no pixel is not
-    // encoded at all, as it was not per item. A run that merges several carries too many entries
-    // to query one by one — the GPU zeros their instances, and a draw with no instance sets nothing.
-    if (owner !== RUN_SHARED && !itemKept(blendState.keepPacked, owner)) continue;
+  for (let slot = 0; slot < count; slot++) {
+    const own = slotOwns[slot];
+    let pipelineRank = main,
+      item: BlendGpuItem | undefined;
+    if (own >= 0) {
+      const entry = seeds[ownSeeds[own]];
+      if (!itemKept(blendState.keepPacked, planItem(entry))) continue;
+      pipelineRank = planPipeline(entry);
+      item = items[planItem(entry)];
+    }
+    if (pipelines.skips?.(pipelineRank)) continue;
     encoded++;
-    if (boundPipeline !== planPipeline(entry)) {
-      boundPipeline = planPipeline(entry);
+    if (boundPipeline !== pipelineRank) {
+      boundPipeline = pipelineRank;
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
       const pipeline = pipelines.at(boundPipeline, !!filter, share);
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
       pass.setPipeline(pipeline);
     }
-    const item = owner === RUN_SHARED ? undefined : items[owner];
     const group =
       item && !item.paged
         ? (item.group ??= blendBindGroup(rt, device, item))
@@ -92,7 +95,7 @@ export function drawBlendRuns(
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.
     if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group));
-    pass.drawIndirect(args, base + index * 16);
+    pass.drawIndirect(args, base + slot * 16);
   }
   return encoded;
 }
@@ -101,13 +104,16 @@ export function drawBlendRuns(
  * Encodes a forward transparent pass over the lit image: the blends, or — under a diagnostic
  * view or variant, which see it as one more blend — the transmission slice. Virtual-texture
  * feedback is opened by `feedbackAttachment`, which alone knows whether a pass of the frame
- * already wrote it; the function says whether it opened a pass.
+ * already wrote it; the function says whether it opened a pass. `key`, the frame's lights' key
+ * (`directLightResources`, resolved here when not given), picks the program
+ * (`createForwardVariants`).
  */
 export function drawBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   transmissive = false,
+  key?: Partial<ContractKey>,
 ): boolean {
   const { gpu, vis, blendState } = rt,
     slice = transmissive ? 1 : 0,
@@ -119,8 +125,12 @@ export function drawBlendPass(
         : undefined;
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
-  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter);
+  // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`).
+  const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt));
+  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter, pipelines.mask);
   const share = activeAsIsShare(rt);
+  // A debug view or the temporal pass turning the share on starts its compile (`reach.ts`).
+  pipelines.reach({ share: !!share, filtered: !!filter });
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
@@ -134,8 +144,8 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
-      // Virtual-texture feedback, opened by the first pass that writes it.
-      ...(rt.feedbackAB?.target === false ? [] : [feedbackAttachment(rt)]),
+      // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
+      ...(rt.vis.writesFeedback ? [feedbackAttachment(rt)] : []),
       // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
@@ -145,7 +155,7 @@ export function drawBlendPass(
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, filter, !!share);
+  const encoded = drawBlendRuns(rt, device, pass, slice, pipelines, filter, !!share);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
@@ -159,9 +169,9 @@ function drawDisplayMask(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   filter: DisplayFilter,
+  mask: BlendModePipelines['mask'],
 ) {
-  const { gpu, run } = rt,
-    { mask } = rt.vis.blendPipelines!;
+  const { gpu, run } = rt;
   const pass = encoder.beginRenderPass({
     label: 'Trillion3D display mask',
     colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],

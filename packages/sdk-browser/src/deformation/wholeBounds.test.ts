@@ -18,7 +18,7 @@ function wholeCopy() {
   const rt = {
     blendState: { blendGpu: [item], hierarchy: { count: -1 } },
     lights: {
-      plan: {
+      changes: {
         worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>) =>
           regions.push([...Array.from(min), ...Array.from(max)]),
       },

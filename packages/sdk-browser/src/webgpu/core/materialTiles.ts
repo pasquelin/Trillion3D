@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import {
   MATERIAL_TILE_SLOTS,
@@ -8,7 +8,7 @@ import {
   MATERIAL_TILES_SHADER,
 } from '../../visibility/shader/materialTilesWgsl.ts';
 import { createWebgpuBindIdentity } from './bindIdentity.ts';
-import { MATERIAL_TILES_PASS } from '../../stage/passLabels.ts';
+import type { OpenPass } from '../../gpu/core/lazyComputePass.ts';
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16;
@@ -25,8 +25,9 @@ export function materialTileDrawLayout(device: GPUDevice) {
   });
 }
 
-/** The classification's pipeline and layout; none on a device with no compute or that refuses them
- *  (`validated`). A shader that does not compile is a defect, thrown by name. */
+/** The classification's pipelines — its draws' clear and the classification — and layout; none on
+ *  a device with no compute or that refuses them (`validated`). A shader that does not compile is
+ *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
   if (typeof device.createComputePipeline !== 'function') return undefined;
   const compute = GPUShaderStage.COMPUTE,
@@ -44,11 +45,12 @@ async function classifier(device: GPUDevice) {
         { binding: 5, visibility: compute, buffer: storage },
       ],
     });
-    const pipeline = await buildComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'classify' },
-    });
-    return { layout, pipeline };
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+    const stages = await buildComputeStages(device, pipelineLayout, module, [
+      'clearTiles',
+      'classify',
+    ]);
+    return { layout, ...stages };
   });
 }
 
@@ -59,9 +61,9 @@ export type MaterialTileInputs = { vis: GPUTextureView; pages: GPUBuffer; unifor
 /**
  * The material tiles of the image (`materialTilesWgsl.ts`): the slot table, rewritten when the
  * classes the image holds change; the tile lists, sized for the largest image yet; one indirect
- * draw per slot, cleared then counted by the classification each image. Without a classification
- * — a device that refused its pipeline — every class takes no slot and draws the full-screen
- * triangle, as before.
+ * draw per slot, cleared then counted by the classification each image, both dispatches of the
+ * caller's compute pass. Without a classification — a device that refused its pipelines — every
+ * class takes no slot and draws the full-screen triangle, as before.
  */
 export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBindGroupLayout) {
   const classify = await classifier(device);
@@ -76,11 +78,13 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
   const draws = device.createBuffer({
     label: 'Trillion3D material tile draws',
     size: MATERIAL_TILE_SLOTS * DRAW_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
   });
   const bound = createWebgpuBindIdentity();
-  let tiles: GPUBuffer | undefined,
+  let lists: GPUBuffer | undefined,
     capacity = 0,
+    tilesX = 0,
+    tilesY = 0,
     classifyGroup: GPUBindGroup | undefined,
     drawGroup: GPUBindGroup | undefined,
     held: readonly number[] = [];
@@ -94,14 +98,15 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
       held = keys.slice();
       device.queue.writeBuffer(slots, 0, slotWords);
     },
-    /** Classifies the `width` × `height` image; returns the class draws' group 1. */
-    encode(encoder: GPUCommandEncoder, width: number, height: number, inputs: MaterialTileInputs) {
-      const tilesX = materialTilesOn(width),
-        tilesY = materialTilesOn(height);
-      if (tilesX * tilesY > capacity) {
-        tiles?.destroy();
-        capacity = tilesX * tilesY;
-        tiles = device.createBuffer({
+    /** The class draws' group 1 for a `width` × `height` image, its tile lists grown to hold it. */
+    layFor(width: number, height: number) {
+      tilesX = materialTilesOn(width);
+      tilesY = materialTilesOn(height);
+      const tiles = tilesX * tilesY;
+      if (tiles > capacity) {
+        lists?.destroy();
+        capacity = tiles;
+        lists = device.createBuffer({
           label: 'Trillion3D material tile lists',
           size: capacity * MATERIAL_TILE_SLOTS * 4,
           usage: GPUBufferUsage.STORAGE,
@@ -110,15 +115,20 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
           layout: drawLayout,
           entries: [
             { binding: 0, resource: { buffer: slots } },
-            { binding: 1, resource: { buffer: tiles } },
+            { binding: 1, resource: { buffer: lists } },
           ],
         });
       }
-      if (!classify) return drawGroup!;
+      return drawGroup!;
+    },
+    /** Classifies the image `layFor` laid, as dispatches of the frame's compute pass: the draws
+     *  cleared, then one workgroup per tile. None on a device that refused the classification. */
+    encode(open: OpenPass, inputs: MaterialTileInputs) {
+      if (!classify) return;
       bound.next[0] = inputs.vis;
       bound.next[1] = inputs.pages;
       bound.next[2] = inputs.uniform;
-      bound.next[3] = tiles;
+      bound.next[3] = lists;
       if (bound.moved() || !classifyGroup)
         classifyGroup = device.createBindGroup({
           layout: classify.layout,
@@ -127,17 +137,16 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
             { binding: 1, resource: { buffer: inputs.pages } },
             { binding: 2, resource: { buffer: inputs.uniform } },
             { binding: 3, resource: { buffer: slots } },
-            { binding: 4, resource: { buffer: tiles! } },
+            { binding: 4, resource: { buffer: lists! } },
             { binding: 5, resource: { buffer: draws } },
           ],
         });
-      encoder.clearBuffer(draws);
-      const pass = encoder.beginComputePass({ label: MATERIAL_TILES_PASS });
-      pass.setPipeline(classify.pipeline);
+      const pass = open.pass;
+      pass.setPipeline(classify.clearTiles);
       pass.setBindGroup(0, classifyGroup);
+      pass.dispatchWorkgroups(1);
+      pass.setPipeline(classify.classify);
       pass.dispatchWorkgroups(tilesX, tilesY, 1);
-      pass.end();
-      return drawGroup!;
     },
     /** Draws class `at` of the keys assigned: its tiles, or the full-screen triangle past the
      *  lists. */
@@ -146,7 +155,7 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
       else pass.draw(3);
     },
     dispose() {
-      tiles?.destroy();
+      lists?.destroy();
       slots.destroy();
       draws.destroy();
     },

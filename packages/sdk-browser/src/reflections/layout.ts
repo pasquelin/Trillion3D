@@ -1,3 +1,5 @@
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
+
 const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
 export function reflectionLayout(device: GPUDevice) {
   let layout = layouts.get(device);
@@ -28,6 +30,19 @@ export function reflectionLayout(device: GPUDevice) {
   return layout;
 }
 
+/** The rough trace's third group: the record it writes of each texel's pixel (`sampleWgsl.ts`). */
+export const reflectionOwnerLayout = oncePerDevice((device) =>
+  device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.FRAGMENT,
+        storageTexture: { access: 'write-only', format: 'rg32uint' },
+      },
+    ],
+  }),
+);
+
 /** The bindings of the rough reflection resolve (`resolveWgsl.ts`). */
 export function reflectionResolveLayout(device: GPUDevice) {
   const visibility = GPUShaderStage.FRAGMENT;
@@ -47,6 +62,10 @@ export function reflectionResolveLayout(device: GPUDevice) {
       { binding: 8, visibility, buffer: { type: 'uniform' } },
       { binding: 9, visibility, buffer: { type: 'read-only-storage' } },
       { binding: 10, visibility, buffer: { type: 'read-only-storage' } },
+      // The history's moment (`historyTargets.ts`).
+      { binding: 11, visibility, texture: { sampleType: 'unfilterable-float' } },
+      // The trace's records of its texels' pixels (`sampleWgsl.ts`).
+      { binding: 12, visibility, texture: { sampleType: 'uint' } },
     ],
   });
 }

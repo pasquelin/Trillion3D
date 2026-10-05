@@ -7,16 +7,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
-import { DRAW_INDIRECT_WORDS } from '../gpu/draw/contract.ts';
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts';
-import { armCasters } from './casters.fixture.ts';
-import { createEngineCamera } from '../camera/world.ts';
 import { rootOf } from '../page/selection/placements.ts';
-import { selectCpuCasters, writeCpuCasters } from '../webgpu/shadow/cpuCasters.ts';
+import { CLUSTER_SPHERE_FLOATS } from '../webgpu/shadow/rowBuffers.ts';
+import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts';
+import { transformAffinePoint, type SceneLight } from '../../../sdk-core/src/index.ts';
+import { SUN } from '../webgpu/pages/io/memoryGrowth.fixture.ts';
 
 type Session = Awaited<ReturnType<typeof placedSession>>;
 
-/** What the image is drawn from: the rows, the draw items, the corners and the cut. */
+/** Word of a row holding its page's offset in the pool, in words: its address, not its placement. */
+const OFFSET_WORD = 24;
+
+/** What the image is drawn from: the rows, the draw items, the corners and the cut. The pool's
+ *  layout is the pool's (`gpu/page/homes.ts`): `homes` reads the offsets, which the digest leaves out. */
 function digest({ rt }: Session) {
   const { rows, drawItemWords, cornerPacked } = rt.layout;
   const hash = createHash('sha256');
@@ -31,7 +35,7 @@ function digest({ rt }: Session) {
       row * originalWords,
     );
   for (let row = 0; row < table.length; row += originalWords)
-    for (const word of [38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0;
+    for (const word of [OFFSET_WORD, 38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0;
   for (const words of [table, rows.packedPageIndex, drawItemWords, cornerPacked])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength));
   // The instances as packed ranks, rank by rank (#1235): a record serves every placement.
@@ -45,79 +49,68 @@ function digest({ rt }: Session) {
   return hash.digest('hex').slice(0, 16);
 }
 
+/** Each row's page offset, in words, at the rows the cut published. */
+const homes = ({ rt }: Session) => {
+  const { rows } = rt.layout;
+  return Array.from(
+    { length: rows.packedCount },
+    (_, row) => rows.pageTableInts![row * (PAGE_INFO_STRIDE / 4) + OFFSET_WORD],
+  );
+};
+
+/** A copy of what a buffer of the mocked device holds: what a pass that binds it reads. */
+const held = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data.slice().buffer;
+
 /**
- * The shadow casters of the scene, as the REAL CPU caster pipeline produces them: for each light
- * face, `selectCpuCasters` runs the cut from the light over the packed catalogue, keeping the
- * face's WHOLE cut in `shownPacked` and only the pages no row already draws in `casters`; then
- * `writeCpuCasters` turns those packed ranks into the row words and commands the shadow pass binds.
- * Everything is resolved through `recordOf`: the face ranks by URL, the casters by URL, the words
- * as written, and the bases, lengths and commands as they stand.
+ * What the virtual shadow maps' raster reads of each row it takes casters from (the table's
+ * `packedCount` rows, `../webgpu/pages/render/vsm/vsmEncode.ts`): the mobility word and the world
+ * sphere the session uploaded for it (`../webgpu/shadow/bounds.ts`), read back from the two buffers
+ * the raster binds, beside the box of the record the row draws and the world of its placement.
  */
-function casterDigest({ rt }: Session) {
-  const disarm = armCasters(rt);
-  const device = rt.gpu.device!;
-  selectCpuCasters(rt, device, createEngineCamera());
-  writeCpuCasters(rt, device);
-  const lists = rt.lights.cpuCasters!,
-    hash = createHash('sha256'),
-    url = (packed: number) => rt.layout.recordOf(packed)?.url ?? '?';
-  // The placement a packed rank names lives in its root (#1226): its world is hashed too, so a
-  // moved or grown placement shows through the same cut.
-  const world = (packed: number) =>
-    [12, 13, 14]
-      .map((i) =>
-        (
-          rootOf(rt.layout.selectionRoots, rt.layout.placement.rootOfPacked[packed]).world.elements[
-            i
-          ] ?? 0
-        ).toFixed(3),
-      )
-      .join(',');
-  for (let r = 0; r < lists.runs; r++) {
-    hash.update(`f${r}{`);
-    for (const packed of lists.shownPacked[r])
-      hash.update(`${packed}:${url(packed)}:${rt.layout.recordOf(packed) ? world(packed) : '?'};`);
-    hash.update('}');
-  }
-  hash.update('|c');
-  for (const packed of lists.castersPacked) hash.update(`${packed}:${url(packed)};`);
-  const written = Array.from({ length: lists.runs }, (_, r) => lists.lengths[r]).reduce(
-    (a, b) => a + b,
-    0,
+function casterRows({ rt }: Session) {
+  const { lights, layout } = rt,
+    { rows, placement, selectionRoots } = layout;
+  assert.ok(
+    lights.mobilityRows && lights.spheres,
+    'the session keeps what the shadow raster binds',
   );
-  hash.update(`|w${written}:`);
-  for (let i = 0; i < written; i++) hash.update(`${lists.words[i]};`);
-  hash.update(`|b${Array.from(lists.bases.subarray(0, lists.runs)).join(',')}`);
-  hash.update(`|l${Array.from(lists.lengths.subarray(0, lists.runs)).join(',')}`);
-  hash.update(
-    `|k${Array.from(lists.commands.subarray(0, lists.runs * DRAW_INDIRECT_WORDS)).join(',')}`,
-  );
-  const digest = hash.digest('hex').slice(0, 16);
-  disarm();
-  return digest;
+  const words = new Uint32Array(held(lights.mobilityRows)),
+    spheres = new Float32Array(held(lights.spheres.buffer));
+  return Array.from({ length: rows.packedCount }, (_, row) => {
+    const rec = rows.packedRecs[row]!,
+      rank = placement.rootOfPacked[rows.packedPageIndex[row]],
+      at = row * CLUSTER_SPHERE_FLOATS;
+    return {
+      url: rec.url,
+      min: [...rec.min],
+      max: [...rec.max],
+      world: Array.from(rootOf(selectionRoots, rank).world.elements),
+      word: words[row],
+      // The centre in split double, its float then the residue; then the radius.
+      centre: [0, 1, 2].map((axis) => spheres[at + axis] + spheres[at + 4 + axis]),
+      radius: spheres[at + 3],
+    };
+  });
 }
 
-/** The session at open, once its core node moved every placement under it, once grown. */
-async function steps() {
-  const session = await placedSession(5);
+/** The session at open, once its core node moved every placement under it, once grown: what
+ *  `look` reads of each. */
+async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
+  const session = await placedSession(5, light);
   const { core, cells, io, draw } = session;
   try {
-    const seen = [digest(session)],
-      casters = [casterDigest(session)];
+    const seen = [look(session)];
     core.position.set(0.5, 10, -0.25);
     core.rotation.set(0, 0.3, 0);
     for (let frame = 0; frame < 2; frame++) cells.frame([0, 0, 0], 100, io, noBudget);
     await draw();
     await draw();
-    seen.push(digest(session));
-    casters.push(casterDigest(session));
-    scaleDown(session);
+    seen.push(look(session));
+    await scaleDown(session);
     await draw();
     await draw();
-    seen.push(digest(session));
-    casters.push(casterDigest(session));
-    const pages = session.rt.layout.packedPages;
-    return { seen, casters, pages };
+    seen.push(look(session));
+    return seen;
   } finally {
     session.dispose();
   }
@@ -125,43 +118,55 @@ async function steps() {
 const noBudget = { admits: () => true, spend() {} };
 
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
-  // Recorded on develop at 9e1e03681, where every page carried its placement's world and row.
-  assert.deepEqual((await steps()).seen, [
-    'a050b5ea5ef71dfe',
-    'e016c9549e4d6b3e',
-    '7f19c3513fc55ccd',
+  // Recorded on develop at 7b95f02b3d, the pool's offsets left out (`OFFSET_WORD`).
+  assert.deepEqual(await steps(digest), [
+    '4c9667c088a4d0da',
+    '52cef678cafd5756',
+    'eea0d683aa3ccacb',
   ]);
 });
 
-test('each light face keeps its whole cut, and only the deduped casters leave it', async () => {
-  const session = await placedSession(5),
-    { rt } = session;
-  const disarm = armCasters(rt);
-  try {
-    selectCpuCasters(rt, rt.gpu.device!, createEngineCamera());
-    const lists = rt.lights.cpuCasters!,
-      face0 = new Set(lists.shownPacked[0]),
-      face1 = new Set(lists.shownPacked[1]),
-      drawn = new Set(rt.run.drawnPacked.slice(0, rt.run.drawn.length));
-    assert.ok(face0.size > 0 && face1.size > 0, 'both faces select from the light');
-    const shared = [...face0].filter((page) => face1.has(page) && drawn.has(page));
-    assert.ok(shared.length > 0, 'a camera-visible caster is shared by the two faces');
-    const casters = new Set(lists.castersPacked);
-    for (const page of shared)
-      assert.ok(!casters.has(page), 'a shared caster stays out of casters');
-  } finally {
-    disarm();
-    session.dispose();
-  }
+// Ground, then the two leaves' two placements each, at the homes of `pageHomes`: each page at its
+// own width, in the catalogue's order — twelve bytes a triangle, three words.
+test('each row names its page at the home the pool gave it, whatever the placement moved', async () => {
+  const [at, moved, grown] = await steps(homes);
+  assert.deepEqual(at, [0, 3, 3, 6, 6]);
+  assert.deepEqual([moved, grown], [at, at]);
 });
 
-test('the shadow casters of repeated and moved placements are those of develop', async () => {
-  // Recorded on develop at 9dc777745 with the same two sun faces and the same digest: the real
-  // `selectCpuCasters` + `writeCpuCasters` run over the packed catalogue, and the values are the
-  // ones develop produced when its cut published records instead of packed ranks.
-  assert.deepEqual((await steps()).casters, [
-    'c1cf4fb83cc9597f',
-    '2ac3fab00ccd05c7',
-    'db14422dda586392',
-  ]);
+test('the shadow raster reads each row at its own placement, moving once that placement moved', async () => {
+  // A light that casts: the shadow rows are derived only then.
+  const seen = await steps(casterRows, SUN);
+  // One record serves every placement of its primitive (#1235): the scene draws a record twice.
+  const urls = seen[0].map((row) => row.url);
+  assert.ok(new Set(urls).size < urls.length, `a record two placements draw: ${urls.join(', ')}`);
+  // One triangle a row, which casts and is no cutout.
+  const still = 3 << MOBILITY_CORNER_SHIFT;
+  const point = new Float64Array(3);
+  const place = (world: number[], at: (axis: number) => number) =>
+    Array.from(transformAffinePoint(point, world, at(0), at(1), at(2)));
+  for (const [step, rows] of seen.entries())
+    for (const [row, { url, min, max, world, word, centre, radius }] of rows.entries()) {
+      const where = `${['at open', 'moved', 'grown'][step]}, row ${row} (${url})`;
+      // The core node moved every placement under it, the ground's aside: those turn moving, the
+      // raster draws them into the dynamic slice from then on.
+      assert.equal(word, step > 0 && url !== 'ground' ? still | MOBILITY_MOVING : still, where);
+      // The sphere of the row's own placement: centred on the box it places, holding its eight
+      // corners, and never twice as wide as the farthest.
+      const middle = place(world, (axis) => (min[axis] + max[axis]) / 2);
+      for (let axis = 0; axis < 3; axis++)
+        assert.ok(
+          Math.abs(centre[axis] - middle[axis]) <= 1e-12 * Math.max(1, Math.abs(middle[axis])),
+          `${where}: centre ${centre} for ${middle}`,
+        );
+      let farthest = 0;
+      for (let corner = 0; corner < 8; corner++) {
+        const p = place(world, (axis) => ((corner >> axis) & 1 ? max : min)[axis]);
+        farthest = Math.max(farthest, Math.hypot(...p.map((v, axis) => v - centre[axis])));
+      }
+      assert.ok(
+        radius >= farthest && radius <= 2 * farthest,
+        `${where}: radius ${radius}, farthest corner ${farthest}`,
+      );
+    }
 });

@@ -33,6 +33,13 @@ export type SelectionUniforms = {
   /** The view ahead of a moving camera (`./aheadView.ts`); absent or null for a still one. */
   ahead?: AheadView | null;
 };
+/**
+ * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
+ * in hand claims for them in the GPU list the host adopted last (`../dag/differenceChain.ts`): for
+ * rank `s`, the rank its page holds there, `SELECTION_NONE` for a page one of the snapshots since
+ * did not hold. Claims, checked against the list held before they are believed.
+ */
+export type CutClaims = { asked: Uint32Array; drawn: Uint32Array };
 export type SelectionResult = {
   pageIds: number[];
   /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
@@ -76,12 +83,19 @@ export type GpuSelection = {
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
+  /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
+   *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
+  readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[];
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
    *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
   updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean;
+  /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
+   *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
+   *  them — the levels, the frustum and the raster split follow the composed poses. */
+  worldsMovedOnGpu(): void;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
-  /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
+  /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
   markWorld(world: number, mark: number): void;
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean;
@@ -97,6 +111,10 @@ export type GpuSelection = {
     shared?: GPUCommandEncoder,
   ): SelectionSubmission | undefined;
   peek(): GpuCut | null;
+  /** The host adopts `cut`, the readback in hand: the ranks it claims in the list the host held,
+   *  valid until the next readback lands — none when the host held no GPU list —; the readbacks
+   *  after it claim theirs in its lists. Nothing for any other cut. */
+  adopt(cut: GpuCut): CutClaims | undefined;
   failed(): boolean;
   flush(): Promise<SelectionResult | null>;
   dispose(): void;

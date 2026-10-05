@@ -1,14 +1,22 @@
 import { sameRenderOrigin } from '../../../camera/renderOrigin.ts';
-import { rootTranslationsToRenderOrigin, rootWorldsToRenderOrigin } from '../../../gpu/dag/pack.ts';
+import {
+  rootTranslationsToRenderOrigin,
+  rootWorldsMoved,
+  rootWorldsToRenderOrigin,
+} from '../../../gpu/dag/pack.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { followHostVisibility } from '../../../placement/hidden.ts';
 import { flipWorld } from '../../../placement/webgpuPlacements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The scene revision whose worlds a buffer last received whole: an image at the same revision
- *  only moved the eye, and rewrites the three translation numbers of each root alone. */
-const fullyRebased = new WeakMap<Float32Array, number>();
+/** The scene revision whose worlds a buffer last received whole, and each root's translation as
+ *  that rebase read it, three doubles per root: an image at the same revision only moved the eye,
+ *  and rewrites the three translation numbers of each root alone, from those doubles. Every pose
+ *  write moves the scene revision (`../../../frame/gateCore.ts`, `sceneChanged`, `sceneMoved`), so
+ *  at the same revision no root's matrix moved — the linear part the rebase leaves in place, as the
+ *  translation it kept. */
+const fullyRebased = new WeakMap<Float32Array, { scene: number; translations: Float64Array }>();
 
 /**
  * Brings the scene's world matrices to the image. A world matrix is a function of the scene alone:
@@ -33,7 +41,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       flipWorld(rt),
       rt.lights.mobility.moves,
     );
-    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max, flipped.movingOnly);
+    if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly);
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
@@ -44,24 +52,36 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
   const rebased = worldsMoved || originMoved;
   rt.timing.worldCounts.rootsRebased = rebased ? selectionRoots.length : 0;
+  // A host write while the eye moves — a light dimmed during a camera flight — sends worlds the
+  // cut finds changed, since each is brought back to the new eye: whether a pose moved is read
+  // against the previous rebase, at its own origin, before the new one overwrites it.
+  const held = fullyRebased.get(worldUpdates);
+  const posesMoved =
+    !(hostWalked && worldsMoved && originMoved) ||
+    held === undefined ||
+    rootWorldsMoved(worldUpdates, selectionRoots, run.worldUploadOrigin);
   let posted: boolean | undefined;
   if (rebased) {
-    const scene = run.gate.revisions.scene;
+    const scene = run.gate.revisions.scene,
+      count = selectionRoots.length * 3;
     run.worldUploadRevision = scene;
     run.worldUploadOrigin.set(cam.eye);
-    const translationsOnly = !worldsMoved && fullyRebased.get(worldUpdates) === scene;
+    // The doubles a rebase of these roots kept, or a table for this one to keep them in.
+    const kept = held?.translations.length === count ? held : undefined,
+      translations = kept?.translations ?? new Float64Array(count);
+    const translationsOnly = !worldsMoved && kept?.scene === scene;
     // The subtraction is done in double, the single-precision rounding comes after it.
-    if (translationsOnly) rootTranslationsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
-    else rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
+    if (translationsOnly) rootTranslationsToRenderOrigin(worldUpdates, translations, cam.eye);
+    else rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye, translations);
     posted = run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved, translationsOnly);
     // A send the cut refused — or threw on — leaves it holding older worlds: sent whole next time.
     if (posted === false) fullyRebased.delete(worldUpdates);
-    else if (!translationsOnly) fullyRebased.set(worldUpdates, scene);
+    else if (!translationsOnly) fullyRebased.set(worldUpdates, { scene, translations });
   }
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
   // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.
-  if (hostWalked && worldsMoved && posted !== false) {
+  if (hostWalked && worldsMoved && posted !== false && posesMoved) {
     rows.tableEpoch++;
     invalidateOccluderHistory(run);
   }

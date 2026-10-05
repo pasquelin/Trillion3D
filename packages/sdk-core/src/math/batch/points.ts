@@ -5,7 +5,7 @@ import { POSITION_VALUES } from './strides.ts';
  * Transforms `n` 3D points by a single 4×4 affine matrix: `out[i] = m · points[i]`.
  * `points` and `out` are stored flat with 3 floats per element.
  *
- * Repeats `transformAffinePoint`. Replaces Three.js loop: `for … v.applyMatrix4(m)`.
+ * Repeats `transformAffinePoint`.
  */
 export function transformPointsBatch(
   out: Float64Array | Float32Array,
@@ -23,7 +23,7 @@ export function transformPointsBatch(
  * Transforms `n` 3D points by `n` corresponding 4×4 affine matrices: `out[i] = mats[i] · points[i]`.
  * Useful for per-instance vertex transforms.
  *
- * Repeats `transformAffinePoint`. Replaces Three.js loop: `for … v[i].applyMatrix4(mats[i])`.
+ * Repeats `transformAffinePoint`.
  */
 export function transformPointsByMatricesBatch(
   out: Float64Array,
@@ -41,7 +41,7 @@ export function transformPointsByMatricesBatch(
  * Transforms `n` direction vectors by the 3×3 linear block of a 4×4 matrix and normalizes:
  * `out[i] = normalize(m · dirs[i])`. Translation is ignored.
  *
- * Repeats `transformDirectionVector3`. Replaces Three.js loop: `for … v.transformDirection(m)`.
+ * Repeats `transformDirectionVector3`.
  */
 export function transformDirectionsBatch(
   out: Float64Array,

@@ -1,9 +1,14 @@
 import { shadeColorAttachments } from '../pages/prepare/attachments.ts';
+import { followEmissiveAo } from '../pages/prepare/emissiveAoLayer.ts';
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import { rowsUnread } from '../row/dirty.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { type PresentClasses, markPresentClasses } from './presentClasses.ts';
-import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts';
+import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts';
+import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts';
+
+/** The resolve's compute pass, opened by the first of its modules that dispatches. */
+const materialPass = new LazyComputePass(MATERIAL_COMPUTE_PASS);
 
 export const createPresentClasses = (): PresentClasses => ({
   stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
@@ -13,73 +18,71 @@ export const createPresentClasses = (): PresentClasses => ({
 });
 
 /**
- * Surfaces of the opaque image. A prepared one-class scene shades directly and rejects background
- * in its fragment stage. Otherwise material depth writes each pixel's class, the material tiles
- * list the screen tiles each class holds (`materialTiles.ts`), then each class draws its tiles at
- * its depth under `equal`. The surfaces and feedback target are cleared once and then kept.
+ * Surfaces of the opaque image. A prepared one-class scene shades directly. Otherwise the material
+ * tiles list the screen tiles each class holds (`materialTiles.ts`), then each class draws its
+ * tiles. Either way a class's fragment stage rejects, before any write, a pixel of the background,
+ * past the page table or of another class (`classAdmits`): what a material depth tested `equal`
+ * at the class's depth used to keep, without its target or its pass. The surfaces and feedback
+ * target are cleared once and then kept.
  */
 export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
     { rows } = rt.layout,
     [width, height] = gpu.targetSize;
   // The image checked its pipelines, table and surfaces before encoding; what the resolve adds is
-  // its own target, its bind group and the class factory, and it fails by name without them.
+  // its bind group, its tiles and its classes, and it fails by name without them.
   const tiles = vis.materialTiles;
-  if (!vis.materialDepthView || !vis.shadeBindGroup || !vis.shadePipelineFor || !tiles)
-    throw new Error('MATERIAL_DEPTH_UNAVAILABLE');
+  if (!vis.shadeBindGroup || !vis.shadeClasses || !tiles)
+    throw new Error('MATERIAL_RESOLVE_UNAVAILABLE');
   const keys = markPresentClasses(
     rows.pageTableInts!,
     rows.packedCount,
     vis.presentClasses,
     rows.rowWrites,
   );
-  const key = keys.length === 1 ? keys[0] : undefined;
-  const singlePipeline = key === undefined ? undefined : vis.singleShadePipelines.get(key);
+  // Its rows are written: one that came to emit or occlude brings the layer before this resolve.
+  followEmissiveAo(rt);
+  // Read after the layer was followed: a surface that came to emit switched the classes.
+  const classes = vis.shadeClasses;
+  const key = keys.length === 1 ? keys[0] : undefined,
+    direct = key === undefined ? undefined : classes.single(key);
+  // Compiled before this image, never by it: until it is, the tiles draw the class.
+  const singlePipeline = direct?.ready ? direct.get() : undefined;
   let tileGroup: GPUBindGroup | undefined;
   if (!singlePipeline) {
-    const depthPass = encoder.beginRenderPass({
-      label: MATERIAL_DEPTH_PASS,
-      colorAttachments: [],
-      depthStencilAttachment: {
-        view: vis.materialDepthView,
-        depthClearValue: 0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-      },
-    });
-    depthPass.setViewport(0, 0, width, height, 0, 1);
-    depthPass.setPipeline(vis.materialDepthPipeline!);
-    depthPass.setBindGroup(0, vis.shadeBindGroup);
-    depthPass.draw(3);
-    depthPass.end();
     tiles.assign(keys);
-    tileGroup = tiles.encode(encoder, width, height, {
-      vis: vis.visView!,
-      pages: vis.pageTable!,
-      uniform: vis.shadeUniform!,
-    });
+    tileGroup = tiles.layFor(width, height);
   }
-  const shadeDescriptor: GPURenderPassDescriptor = {
+  // What many pixels computed alike, computed once (`../visibility/shadeCache.ts`), and the
+  // classification of the tiles: one compute pass, opened only when one of them dispatches.
+  const pass = materialPass.begin(encoder);
+  vis.shadeCache?.encode(pass, {
+    vis: vis.visView!,
+    pages: vis.pageTable!,
+    indices: gpu.cache!.buffer,
+    positions: vis.concatPos!,
+    uvs: vis.concatUv!,
+    normals: vis.concatNrm!,
+    uniform: vis.shadeUniform!,
+  });
+  if (tileGroup)
+    tiles.encode(pass, { vis: vis.visView!, pages: vis.pageTable!, uniform: vis.shadeUniform! });
+  pass.end();
+  const shadePass = encoder.beginRenderPass({
     label: MATERIAL_SURFACES_PASS,
     colorAttachments: shadeColorAttachments(rt, gpu.surfaces!),
-  };
-  if (!singlePipeline)
-    shadeDescriptor.depthStencilAttachment = { view: vis.materialDepthView, depthReadOnly: true };
-  const shadePass = encoder.beginRenderPass(shadeDescriptor);
+  });
   shadePass.setViewport(0, 0, width, height, 0, 1);
   shadePass.setBindGroup(0, vis.shadeBindGroup);
   if (tileGroup) shadePass.setBindGroup(1, tileGroup);
   for (let at = 0; at < keys.length; at++) {
-    const classKey = keys[at];
-    // A class the census did not see — a material the host changed since — compiles on its first
-    // draw, once, like the scene's classes at preparation; created outside a validation scope, a
-    // refused pipeline reaches the device's uncaptured-error path, as any mid-image creation does.
-    let pipeline = singlePipeline ?? vis.shadePipelines.get(classKey);
-    if (!pipeline) vis.shadePipelines.set(classKey, (pipeline = vis.shadePipelineFor(classKey)));
-    shadePass.setPipeline(pipeline);
+    // Each class was compiled before this image: the scene's at preparation, one a material
+    // changed into since at the frame entry that held the image on it
+    // (`../frame/framePipelines.ts`).
+    shadePass.setPipeline(singlePipeline ?? classes.of(keys[at]).get());
     if (singlePipeline) shadePass.draw(3);
     else tiles.draw(shadePass, at);
   }
   shadePass.end();
-  run.gpuDrawCalls += keys.length + (singlePipeline ? 0 : 1);
+  run.gpuDrawCalls += keys.length;
 }

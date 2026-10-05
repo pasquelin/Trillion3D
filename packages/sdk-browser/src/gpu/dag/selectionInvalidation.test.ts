@@ -56,7 +56,8 @@ test('unchanged uniforms skip a second GPU dispatch', async () => {
   fixture.geometry.dispose();
 });
 
-test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
+/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
+async function cutOnce() {
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -65,6 +66,11 @@ test('updating an instance world matrix leaves the old GPU cut one pose late', a
   assert.ok(selection);
   selection.dispatch(uniforms);
   assert.equal((await selection.flush())?.pageIds.length, 4);
+  return { fixture, dag, uniforms, selection };
+}
+
+test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
+  const { fixture, dag, uniforms, selection } = await cutOnce();
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
@@ -77,8 +83,8 @@ test('updating an instance world matrix leaves the old GPU cut one pose late', a
   fixture.geometry.dispose();
 });
 
-test('a root mark written once per change reaches the frame word the light cut reads', async () => {
-  // #456: a world mesh that stops casting leaves every GPU light cut (`markOf` in the shader).
+test('a root mark written once per change reaches the frame word the cut reads', async () => {
+  // #456: the mark a root changes reaches the kernel's `markOf` once, at the next cut.
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -171,6 +177,22 @@ test('readback from an older resident cut cannot restore an invalidated drawable
   release();
   assert.equal(await selection.flush(), null);
   assert.equal(selection.peek(), null);
+  selection.dispose();
+  fixture.geometry.dispose();
+});
+
+test('worlds the GPU rewrote are cut again once announced, never under the last CPU write', async () => {
+  // A parent's turn composed on the GPU (`../../placement/gpuCompose.ts`) changes no CPU world.
+  const { fixture, dag, uniforms, selection } = await cutOnce();
+  const [range] = selection.worldRanges;
+  const bytes = (range.buffer as unknown as { data: Uint8Array }).data;
+  new Float32Array(bytes.buffer, bytes.byteOffset, range.count * 16)[12] = 1000;
+  assert.equal(selection.updateWorlds(dag.worlds.slice()), false, 'no CPU world moved');
+  selection.dispatch(uniforms);
+  assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut');
+  selection.worldsMovedOnGpu();
+  selection.dispatch(uniforms);
+  assert.equal((await selection.flush())?.pageIds.length, 0, 'announced: the composed world');
   selection.dispose();
   fixture.geometry.dispose();
 });

@@ -24,7 +24,12 @@
  */
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts';
 import { stagedRequestsWord } from './readoutWords.ts';
-export { SELECTION_HEADER_WORDS, evictionWord, EVICTION_BURST } from './readoutWords.ts';
+export {
+  SELECTION_HEADER_WORDS,
+  evictionWord,
+  EVICTION_BURST,
+  differenceWord,
+} from './readoutWords.ts';
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */
@@ -49,7 +54,7 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
  * The readout buffer was sized on `pageCount` — the worst case, a cut that would keep
  * the whole catalogue — and the frame copy took all of it: 15.2 MiB per frame at
  * 1,992,187 clusters, for a cut that keeps about a hundredth. Measured on apple metal-3
- * (`tests/browser/probes/cut-snapshot-gpu.ts`): 1.17 ms per frame for the full readout vs
+ * (`tests/gpu/dag/cut-snapshot.gpu.ts`): 1.17 ms per frame for the full readout vs
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
  * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at
@@ -70,15 +75,30 @@ export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(lis
  *  staged requests, on their own counter (header word 6, before `OUT_AHEAD_PLACED`), so they never
  *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
 const aheadRequestCap = (listCap: number) => listCap >>> 1;
-/** Bytes of `out` with the staged requests behind, the camera's then those ahead: what the kernels
- *  write, more than the frame copies. */
+/** Word of `out` where the snapshot the next difference is taken against waits, behind the staged
+ *  requests and outside what the frame copies (`keptAt` of `shader/differenceWgsl.ts`): its two
+ *  lengths (`KEPT_HEADER_WORDS`), then the requests' pages and the drawn pages, a list each. */
+export const keptSnapshotWord = (listCap: number) =>
+  stagedRequestsWord(listCap) + listCap + aheadRequestCap(listCap);
+/** Words ahead of the kept lists: the length of each of the two. */
+export const KEPT_HEADER_WORDS = 2;
+/** Bytes of `out` with the staged requests behind, the camera's then those ahead, and the kept
+ *  snapshot: what the kernels write, more than the frame copies. */
 export const stagedOutputBytes = (listCap: number) =>
-  (stagedRequestsWord(listCap) + listCap + aheadRequestCap(listCap)) * 4;
-/** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards, three and a half
- *  words a rank (requests, drawn list, staged requests, half a staged request ahead) behind the
- *  fixed headers and eviction burst: `floor(7c / 2) <= words` is `c <= floor((2 words + 1) / 7)`. */
-export const listCapHeld = (bytes: number) =>
-  Math.max(0, Math.floor((2 * Math.floor(bytes / 4 - stagedRequestsWord(0)) + 1) / 7));
+  (keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap) * 4;
+/** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
+ *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
+ *  step with each region the readout gains. */
+export function listCapHeld(bytes: number) {
+  let low = 0,
+    high = Math.max(0, Math.floor(bytes / 4));
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (stagedOutputBytes(mid) <= bytes) low = mid;
+    else high = mid - 1;
+  }
+  return low;
+}
 /** Readback slots the cut alternates between (`dispatch.ts`): the cache reads a drawn list at
  *  most this many frames behind the GPU, plus the frame being encoded. */
 export const DAG_READBACK_SLOTS = 2;

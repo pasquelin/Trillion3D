@@ -5,6 +5,7 @@
 
 #include <Jolt/Physics/Body/BodyLock.h>
 #include <Jolt/Physics/SoftBody/SoftBodyManifold.h>
+#include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
 #include <cmath>
 
@@ -28,10 +29,13 @@ struct Touch {
 SoftBodyValidateResult Listener::OnSoftBodyContactValidate(const Body &soft, const Body &other,
                                                            SoftBodyContactSettings &settings) {
   // A sensor meets a soft body for its events alone: none wanted, it is passed by, as with no
-  // listener; any other body collides as Jolt makes it.
-  bool heard = wantsEvents(uint32_t(soft.GetUserData())) || wantsEvents(uint32_t(other.GetUserData()));
-  return !settings.mIsSensor || heard ? SoftBodyValidateResult::AcceptContact
-                                      : SoftBodyValidateResult::RejectContact;
+  // listener. The static body its pins hang inside is passed through: it would push the cloth
+  // near them out against them at every step (`hangsOn`). Any other body collides as Jolt makes it.
+  if (settings.mIsSensor) {
+    bool heard = wantsEvents(uint32_t(soft.GetUserData())) || wantsEvents(uint32_t(other.GetUserData()));
+    return heard ? SoftBodyValidateResult::AcceptContact : SoftBodyValidateResult::RejectContact;
+  }
+  return hangsOn(soft, other) ? SoftBodyValidateResult::RejectContact : SoftBodyValidateResult::AcceptContact;
 }
 
 void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &manifold) {
@@ -73,14 +77,21 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
     Vec3 point = t.count > 0 ? Vec3(com * (t.point / t.count)) : Vec3(com.GetTranslation());
     // Estimated before the solver, as a rigid pair's: the soft body's mean velocity (its last
     // step's) against the other's at the point, which no soft body pushed yet, along the vertices'
-    // mean normal, times the pair's reduced mass.
+    // mean normal, over the inverse mass the touch feels there: the vertices' as one lump, the
+    // other body's turned about its centre of mass (a vertex against a body), bounced back past the soft restitution speed `2 g dt`
+    // a substep.
     float impulse = 0;
     BodyLockRead other(locks, t.id);
     if (other.Succeeded() && t.count > 0) {
       const Body &b = other.GetBody();
       Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
-      impulse = approachImpulse(relative.Dot(normal), 1.0f / t.mass + inverseMass(b));
+      Vec3 arm = Vec3(RVec3(point) - b.GetCenterOfMassPosition()).Cross(normal);
+      float inverse = 1.0f / t.mass + inverseMass(b) + arm.Dot(inverseInertia(b).Multiply3x3(arm));
+      float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
+      float substep = world().dt / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
+      float speed = bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep);
+      impulse = inverse > 0 ? std::max(0.0f, speed) / inverse : 0.0f;
     }
     Float3 at;
     point.StoreFloat3(&at);

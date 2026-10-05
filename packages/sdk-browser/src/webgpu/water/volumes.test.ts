@@ -30,7 +30,15 @@ test("the material's glTF volume reaches the composite at the item's water rank,
   writeVolumeRecords(rt, device);
   const volume = blendState.volumePacked;
   assert.equal(volume.length, VOLUME_WORDS, 'one record: the transmissive item, at rank zero');
-  const arrondi = (value: number) => Math.round(value * 100) / 100;
-  assert.deepEqual(Array.from(volume.subarray(0, 4)).map(arrondi), [1, 1.33, 2.5, 6]);
-  assert.deepEqual(Array.from(volume.subarray(4, 7)).map(arrondi), [0.35, 0.72, 0.68]);
+  // The per-volume terms, once on the CPU: 1 / ior, Fresnel's f0, and k = log2(c) / d.
+  const rounded = (value: number) => Math.round(value * 1e4) / 1e4;
+  const [ior, distance] = [1.33, 6];
+  assert.deepEqual(
+    Array.from(volume.subarray(0, 4)).map(rounded),
+    [1, 1 / ior, 2.5, ((ior - 1) / (ior + 1)) ** 2].map(rounded),
+  );
+  assert.deepEqual(
+    Array.from(volume.subarray(4, 7)).map(rounded),
+    [0.35, 0.72, 0.68].map((c) => rounded(Math.log2(c) / distance)),
+  );
 });

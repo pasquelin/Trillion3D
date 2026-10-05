@@ -1,6 +1,6 @@
 /**
- * The fields of the surface families (`surface.ts`), grouped as the reference groups them, at
- * the values it gives a surface a scene leaves them unsaid.
+ * The fields of the surface families (`surface.ts`), grouped by what they drive, at
+ * the default values a surface takes when a scene leaves them unsaid.
  */
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
@@ -14,7 +14,7 @@ import { hostSide } from '../../scene/materialSide.ts';
 /** A colour of three linear components, as a scene or a world record declares it. */
 export const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
 
-/** The raster state every family carries, at the reference's values. */
+/** The raster state every family carries, at its default values. */
 export const raster = () => ({
   visible: true,
   side: hostSide('front'),

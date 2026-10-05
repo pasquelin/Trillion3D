@@ -4,8 +4,7 @@
  * A physical kind is the engine's own record, on a standard or physical surface
  * (`worldPhysicalSurface.ts`). Every other kind is the family of the same name — basic, Lambert,
  * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
- * WebGPU path (`surfaceModel.ts`) and a renderer of the reference library draws as it is
- * (`bench/witnesses/three/fromGraph.ts`). Lines, points and sprites are unlit: they wear a basic surface.
+ * WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it is. Lines, points and sprites are unlit: they wear a basic surface.
  */
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
@@ -68,8 +67,8 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
 }
 
 /** A dashed line's dash and gap along its distance (`lineDash`, `../../visibility/shader/lineWgsl.ts`),
- *  its `scale` folded in: the reference stretches the distance by it, the same as shortening both.
- *  A `scale` of zero or less stretches the reference's dash to infinity, a solid line: a dash of
+ *  its `scale` folded in: the distance stretches by it, the same as shortening both.
+ *  A `scale` of zero or less stretches the dash to infinity, a solid line: a dash of
  *  zero, which `lineDash` keeps whole. */
 function writeDash(surface: GraphSurface, material: Material) {
   const scale = (material.scale as number | undefined) ?? 1;
@@ -108,7 +107,7 @@ function drawLines(surface: GraphSurface, material: Material) {
   surface.polygonOffsetUnits = -depthLayerUnits(LINE_DEPTH_LAYER);
 }
 
-/** A sprite's turn in the image, as its material says it: the reference's `rotation`, 0 by
+/** A sprite's turn in the image, as its material says it: its `rotation`, 0 by
  *  default. A value, so a repaint writes it again. */
 function writeSpriteTurn(surface: GraphSurface, material: Material) {
   surface.rotation = (material.rotation as number | undefined) ?? 0;
@@ -117,7 +116,7 @@ function writeSpriteTurn(surface: GraphSurface, material: Material) {
 /**
  * The raster state of a surface that draws a sprite's quad (`drawnSprite`), which every raster
  * turns to face the camera (`../../visibility/shader/spriteWgsl.ts`): its turn, its size rule —
- * the reference's `sizeAttenuation`, true by default —, and both sides in one pass — a quad turned
+ * its `sizeAttenuation`, true by default —, and both sides in one pass — a quad turned
  * toward the camera has no back to cull. The size rule is written here only: it sets the sprite's
  * root mark, taken once when the session collects its roots (`spriteMark`), so a material that
  * changes it is a new entry and a new session, never a repaint (`worldMaterials.ts`).
@@ -129,8 +128,12 @@ function drawSprite(surface: GraphSurface, material: Material) {
   drawBothSidesOnce(surface);
 }
 
-/** What a mesh draws of its geometry: faces, line quads (`drawLines`) or a sprite's quad. */
-export type SurfaceReading = 'faces' | 'lines' | 'sprite';
+/** What a mesh draws of its geometry: faces, line quads (`drawLines`), a sprite's quad, or a
+ *  cloth's faces (`sheet`), seen from both sides: every pass that draws them — the visibility and
+ *  material passes, the shadows they cast, WebGL2 — culls neither face and turns the normal of a
+ *  back face toward the eye, off this one side. A blended cloth keeps its two passes, back then
+ *  front, as a blended double-sided surface does. */
+export type SurfaceReading = 'faces' | 'lines' | 'sprite' | 'sheet';
 
 /** The surface of a world material, with its maps and raster state, for what the mesh wearing it
  *  draws. */
@@ -159,6 +162,7 @@ export function hostSurface(
   if (composesWithBackground(material.blending)) surface.transparent = true;
   if (reading === 'lines') drawLines(surface, material);
   if (reading === 'sprite') drawSprite(surface, material);
+  if (reading === 'sheet') surface.side = hostSide('double');
   return surface;
 }
 

@@ -1,4 +1,7 @@
-import { NODE_TRS_DIRTY } from '../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import {
+  NODE_TRS_DIRTY,
+  markTransformNode,
+} from '../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { composeMatrix4At } from '../../../sdk-core/src/math/matrix/matrix4Compose.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts';
@@ -55,17 +58,16 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
   const due: number[] = [];
   /** The tree's stores, read once per batch: they are replaced when the tree grows. */
   let tp = tree.position,
-    tq = tree.quaternion,
-    flags = tree.flags;
+    tq = tree.quaternion;
   /** The listed slots into the tree and rows; its stores as locals, not reloaded at each use. */
   const commitAll = (list: Int32Array, count: number) => {
     const p = tp,
-      q = tq,
-      f = flags;
-    for (let i = 0; i < count; i++) commit(list[i], p, q, f);
+      q = tq;
+    for (let i = 0; i < count; i++) commit(list[i], p, q);
   };
-  /** Slot `index`'s pose, as its arrays hold it, into the tree's stores and its row. */
-  const commit = (index: number, sp: Float64Array, sq: Float64Array, sf: Uint8Array) => {
+  /** Slot `index`'s pose, as its arrays hold it, into the tree's stores — its node listed for the
+   *  tree's frame pass — and its row. */
+  const commit = (index: number, sp: Float64Array, sq: Float64Array) => {
     const p = index * 3,
       q = index * 4,
       n = node[index];
@@ -77,7 +79,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     sq[n * 4 + 1] = quaternion[q + 1];
     sq[n * 4 + 2] = quaternion[q + 2];
     sq[n * 4 + 3] = quaternion[q + 3];
-    sf[n] |= NODE_TRS_DIRTY;
+    markTransformNode(tree, n, NODE_TRS_DIRTY);
     if (rowOf[index] === UNASKED) seatOf(index, owner[index]!);
     const b = batchOf[index],
       row = rowOf[index];
@@ -111,7 +113,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     quaternion[q + 1] = pose[at + 4];
     quaternion[q + 2] = pose[at + 5];
     quaternion[q + 3] = pose[at + 6];
-    commit(index, tp, tq, flags);
+    commit(index, tp, tq);
   };
   /** The mesh keeps its own numbers again, as they stand. */
   const release = (mesh: Bodied) => {
@@ -174,7 +176,6 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       to.fill(-1);
       tp = tree.position;
       tq = tree.quaternion;
-      flags = tree.flags;
     },
     place,
     /** The listed slots, their poses as their arrays hold them, into the tree and their rows. */

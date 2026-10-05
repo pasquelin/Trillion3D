@@ -1,5 +1,5 @@
 import { closestSegmentTriangle, triangleNormal } from './closest.ts';
-import { forEachTriangleInBox } from './triangleQuery.ts';
+import { gatherTrianglesInBox, overlapsTriangle } from './triangleQuery.ts';
 import type { TriangleTree } from './triangleTree.ts';
 
 /**
@@ -53,6 +53,16 @@ const segment = new Float64Array(6),
   min = new Float64Array(3),
   max = new Float64Array(3);
 
+/** The triangles of the last box a capsule gathered on a tree, grown by two radii past its pass's
+ *  box, and that box. */
+type Gathered = { list: Int32Array; count: number; min: Float64Array; max: Float64Array };
+
+/** Per tree and capsule, what it gathered last: the following passes of a step (and of the next
+ *  frames, while the capsule stays inside) filter it instead of walking the tree again, and two
+ *  capsules on one tree never take each other's box. Weak: a dropped tree or capsule takes its
+ *  list with it. */
+const gathered = new WeakMap<TriangleTree, WeakMap<Capsule, Gathered>>();
+
 function placeSegment(capsule: Capsule) {
   const { feet, radius } = capsule,
     reach = Math.max(capsule.height - radius, radius);
@@ -74,18 +84,50 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
     min[k] = Math.min(segment[k], segment[3 + k]) - 2 * radius;
     max[k] = Math.max(segment[k], segment[3 + k]) + 2 * radius;
   }
+  let onTree = gathered.get(tree);
+  if (!onTree) gathered.set(tree, (onTree = new WeakMap()));
+  let near = onTree.get(capsule);
+  if (!near)
+    onTree.set(
+      capsule,
+      (near = {
+        list: new Int32Array(64),
+        count: 0,
+        min: new Float64Array(3),
+        max: new Float64Array(3),
+      }),
+    );
+  // Inside the gathered box (NaN never is), the list filtered by the box test is the tree's visit
+  // of `[min, max]`, same triangles in the same order.
+  if (!(
+    min[0] >= near.min[0] &&
+    min[1] >= near.min[1] &&
+    min[2] >= near.min[2] &&
+    max[0] <= near.max[0] &&
+    max[1] <= near.max[1] &&
+    max[2] <= near.max[2]
+  )) {
+    for (let k = 0; k < 3; k++) {
+      near.min[k] = min[k] - 2 * radius;
+      near.max[k] = max[k] + 2 * radius;
+    }
+    near.count = gatherTrianglesInBox(tree, near.min, near.max, near);
+  }
   let touched = false;
-  forEachTriangleInBox(tree, min, max, (at) => {
+  const { list, count } = near;
+  for (let i = 0; i < count; i++) {
+    const at = list[i];
+    if (!overlapsTriangle(tree.triangles, at, min, max)) continue;
     placeSegment(capsule);
     const squared = closestSegmentTriangle(closest, segment, tree.triangles, at);
-    if (squared >= radius * radius) return;
+    if (squared >= radius * radius) continue;
     const depth = squared > 0 ? separate(Math.sqrt(squared), radius) : pierced(tree, at, radius);
-    if (!(depth > 0)) return;
+    if (!(depth > 0)) continue;
     faceOf(tree, at);
     touched = true;
     contact.depth = depth;
     push(contact);
-  });
+  }
   return touched;
 }
 

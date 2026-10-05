@@ -31,6 +31,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
       dataLayer: new Map(),
       geometryBlocks: new Map(),
       asIsShown: false,
+      emissiveAoShown: false,
       deformation: { rowWord: () => 123 },
     },
     () => {},

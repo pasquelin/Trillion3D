@@ -25,7 +25,7 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
  *  path that does not exist would silently keep the bound on files the other gate never sees. */
 const RUNTIME_SOURCE =
   /^(?:packages\/(?:sdk-core|sdk-browser|sdk-node)\/src\/|packages\/page-codec\/)/;
-const TEST_FILE = /\.(?:test|fixture|perf|browser)\.m?ts$/;
+const TEST_FILE = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,
  *  and `check:cohesion` reads it instead; a test, a fixture, a script, the site, the bench and the

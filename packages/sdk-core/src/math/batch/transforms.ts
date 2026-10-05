@@ -5,10 +5,10 @@ import { decomposeMatrix4 } from '../matrix/matrix4Trs.ts';
 import { NORMAL_MATRIX_VALUES } from './strides.ts';
 
 /**
- * Inverts `n` 4×4 matrices: `out[i] = mats[i]⁻¹`. Replaces Three's `for … m.invert()`.
+ * Inverts `n` 4×4 matrices: `out[i] = mats[i]⁻¹`.
  *
  * THE ONE PLACE THIS BATCH DOES NOT REPEAT ITS UNIT FUNCTION. `invertMatrix4` answers an exactly
- * zero determinant with the zero matrix, like the reference; this batch answers it with the
+ * zero determinant with the zero matrix, as `invertMatrix4` does; this batch answers it with the
  * IDENTITY, so a caller that walks `out` without looking further multiplies by something
  * harmless instead of collapsing its scene. The substitution happens whether or not `singular`
  * is passed — the flag only tells you which elements it happened to, and a caller that must
@@ -16,7 +16,7 @@ import { NORMAL_MATRIX_VALUES } from './strides.ts';
  *
  * The test is `determinantMatrix4(mats[i]) === 0`, not the engine singularity rule: that rule
  * (`../matrix/singular.ts:21`) states it governs where a normal is transported and explicitly not the
- * inverse, whose threshold is parity with the reference. It reads the determinant rather than the
+ * inverse, whose threshold is an exact zero determinant. It reads the determinant rather than the
  * result because `invertMatrix4`'s own contract forbids reading its output — a regular inverse
  * may hold zeros where a singular one does.
  */
@@ -41,7 +41,7 @@ export function invertMatrix4Batch(
  * Computes `n` 3×3 normal matrices from 4×4 matrices: `out[i] = transpose(inverse(mats[i]))`.
  * `out` is flat with 9 floats per element.
  *
- * Repeats `normalMatrix3`. Replaces Three.js loop: `for … normalMatrix.getNormalMatrix(m)`.
+ * Repeats `normalMatrix3`.
  */
 export function normalMatrix3Batch(
   out: Float64Array,
@@ -58,7 +58,7 @@ export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts';
 /**
  * Decomposes `n` 4×4 matrices into positions, quaternions and scales.
  *
- * Repeats `decomposeMatrix4`. Replaces Three.js loop: `for … m.decompose(p, q, s)`.
+ * Repeats `decomposeMatrix4`.
  */
 export function decomposeMatrix4Batch(
   positions: readonly Float64Array[],

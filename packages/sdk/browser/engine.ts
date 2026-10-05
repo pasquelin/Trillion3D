@@ -134,7 +134,6 @@ export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';
-export type { ShadowAtlasDigest } from '../../sdk-browser/src/gpu/shadow/digest.ts';
 export {
   SOFT_AREAL_DENSITY,
   SOFT_FOOTPRINT,

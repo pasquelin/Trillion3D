@@ -8,6 +8,7 @@
 #include <Jolt/RegisterTypes.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 using namespace JPH;
@@ -114,12 +115,14 @@ extern "C" {
 
 /// Creates the physics system for at most `maxBodies` bodies, `bodyPairs` broad phase pairs and
 /// `contactConstraints` contacts per step (the budget's), stepped by `threads` threads (the
-/// caller's included; 1 steps on the caller alone). Returns 0, or 1 when called twice or past the
-/// bodies an engine id can name.
+/// caller's included; 1 steps on the caller alone) in fixed steps of `step` seconds, the page's.
+/// Returns 0, or 1 when called twice, past the bodies an engine id can name, or with a step that
+/// is not a finite number of seconds above 0.
 uint32_t jolt_init(uint32_t maxBodies, uint32_t bodyPairs, uint32_t contactConstraints,
-                   uint32_t tempBytes, uint32_t threads) {
+                   uint32_t tempBytes, uint32_t threads, float step) {
   trillion::World &w = world();
-  if (w.system || maxBodies > trillion::INDEX_MASK) return 1;
+  if (w.system || maxBodies > trillion::INDEX_MASK || !(step > 0 && std::isfinite(step))) return 1;
+  w.fixedStep = step;
   RegisterDefaultAllocator();
   Factory::sInstance = new Factory();
   RegisterTypes();
@@ -162,6 +165,7 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   w.eventWords = w.dropped = w.updateError = 0;
   w.refused.clear();
   w.diverged.clear();
+  w.recovered.clear();
   w.dt = dt;
   ++w.step;
   trillion::sendOwedLeaves();
@@ -207,6 +211,10 @@ uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
 /// The last step's bodies whose pose or vertices went non-finite, taken out: count, engine ids.
 uint32_t jolt_diverged_count() { return uint32_t(world().diverged.size()); }
 uint32_t jolt_diverged(uint32_t i) { return world().diverged[i]; }
+/// The last step's soft bodies that diverged on amplitude and were brought back to rest, kept in
+/// the simulation (`soft.cpp`): count, engine ids.
+uint32_t jolt_recovered_count() { return uint32_t(world().recovered.size()); }
+uint32_t jolt_recovered(uint32_t i) { return world().recovered[i]; }
 uint32_t jolt_error() { return world().error; }
 /// Leaves still owed from a step whose event buffer was full: the next step writes them first.
 uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }

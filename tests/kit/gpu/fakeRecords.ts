@@ -13,8 +13,13 @@ export type FakeBuffer = {
   unmap(): void;
   destroy(): void;
 };
-/** A texture as the fake creates it: its descriptor, a view that carries its format. */
+/** A texture as the fake creates it: its descriptor with its size read out, a view that carries
+ *  its format. */
 export type FakeTexture = GPUTextureDescriptor & {
+  width: number;
+  height: number;
+  depthOrArrayLayers: number;
+  mipLevelCount: number;
   createView(): { format: GPUTextureFormat };
   destroy(): void;
 };

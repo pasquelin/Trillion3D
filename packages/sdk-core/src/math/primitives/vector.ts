@@ -2,8 +2,8 @@ import type { NumberSink } from '../matrix/matrix4.ts';
 
 /**
  * 3 and 4 vectors of the math kernel: products and transforms by a column-major 4×4
- * matrix, output passed in. The formulas are those of the reference 3D
- * library, term by term and in the same order, hence the same bits.
+ * matrix, output passed in. The formulas are the plain closed forms of each product and transform,
+ * term by term and in a fixed order, hence the same bits.
  */
 
 /** `a · b` on three components read at `aAt` and `bAt`: one buffer plus an offset, never a view. */
@@ -72,7 +72,7 @@ export function transformHomogeneousPoint<T extends NumberSink>(
   return out;
 }
 
-/** Reference `v.normalize()`: each component multiplied by `1 / (length || 1)`. */
+/** Normalises the vector at `at` in place: each component is multiplied by `1 / (length || 1)`, so a zero vector stays zero. */
 export function normalizeVector3(v: NumberSink, at = 0) {
   const inverse =
     1 / (Math.sqrt(v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]) || 1);
@@ -81,7 +81,7 @@ export function normalizeVector3(v: NumberSink, at = 0) {
   v[at + 2] *= inverse;
 }
 
-/** `v.lengthSq()`: the three squares summed in the reference's order, read at `at`. */
+/** The squared length of the vector read at `at`: the three squares summed in a fixed order. */
 export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
   return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2];
 }
@@ -158,8 +158,8 @@ export function applyMatrix3Vector3<T extends NumberSink>(
 }
 
 /**
- * `v.transformDirection(m)`: the 3×3 block of an affine 4×4 applied to a direction, then the
- * reference normalisation. Translation is ignored, as for any direction vector.
+ * Applies the 3×3 block of an affine 4×4 matrix to a direction, then normalises it as
+ * `normalizeVector3` does (a zero result stays zero). Translation is ignored, as for any direction vector.
  */
 export function transformDirectionVector3<T extends NumberSink>(
   out: T,

@@ -1,9 +1,8 @@
-import { hizBuildPyramid } from '../../../../sdk-core/src/index.ts';
-import { hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.ts';
+import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.fixture.ts';
 import { pyramidBytes } from './oracle.ts';
-import { hizRejects } from '../../hiz/occlusion.ts';
 import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts';
-import type { HizBounds, HizPyramid } from '../../hiz/types.ts';
+import type { HizPyramid } from '../../hiz/types.ts';
+import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts';
 
 /** One ceil-2×2 min reduction of a packed level: the farthest of each square, the engine's depth
  *  being reversed. */
@@ -39,7 +38,11 @@ export function evaluateHizTest(packed: PackedHiz, bounds: HizBounds[], bias = 0
   return flags;
 }
 
-export type PackedHiz = { data: Float32Array; sizes: Array<[number, number]>; offsets: number[] };
+export type PackedHiz = {
+  data: Float32Array<ArrayBuffer>;
+  sizes: Array<[number, number]>;
+  offsets: number[];
+};
 
 function rowsOf(data: Float32Array, width: number, height: number) {
   const rows: number[][] = [];

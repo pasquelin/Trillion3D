@@ -81,7 +81,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
       [BUNDLE_SOURCES]: JSON.stringify({
         'trillion3d.module.js': {
           'sdk-browser/src/world/core/world.js': 900,
-          'sdk-browser/src/gpu/shadow/sizes.js': 200,
+          'sdk-browser/src/gpu/timing/queries.js': 200,
           'sdk-browser/src/webgpu/shadow/allocLayout.js': 100,
           ...sources,
         },

@@ -16,59 +16,53 @@ import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
- * own feature overrides (`materialClass.ts`), run under the material-depth test on that
- * class's pixels only. `HAS_UV`, `HAS_MAP` and the other class constants replace what used to be
+ * own feature overrides (`materialClass.ts`), kept on that class's pixels only (`classAdmits`).
+ * `HAS_UV`, `HAS_MAP` and the other class constants replace what used to be
  * tested per pixel on `page.flags`; the arithmetic of a kept path is the same, operand for operand.
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
 ${NORMAL_VIEW_COLOR_WGSL}
 ${EMISSIVE_AO_FLAG_WGSL}
-@fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- // Material depth admitted this pixel, unless the prepared one-class path guards it below.
- let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
- // A one-class image skips the material-depth pass: make exactly its background and bounds
- // rejection here, before touching the page table. The class is fixed by this pipeline.
- if(id==0u){discard;}
+/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
+ *  transmission, and its shadow receiver's offset and plane. Private, so zero at each pixel's start:
+ *  a path that finds none leaves zero, as the write before the resolve used to. */
+var<private> thinOut:vec3f;
+var<private> rcvOffset:vec3f;
+var<private> rcvPlane:vec3f;
+/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables above. */
+fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let pageIndex=(id>>8u)-1u;
- if(pageIndex>=uni.pageCount){discard;}
- // Storage writes are not attachments: reject other classes before their side effects.
- if(!SINGLE_CLASS&&pages[pageIndex].materialClass!=CLASS_KEY){discard;}
- storeSubsurface(pos.xy,vec3f(0.0));
  let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
- let h=pageHeader(page);
- let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
- let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
- var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
- // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
- if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}
- var c0=uni.viewProj*w0;var c1=uni.viewProj*w1;var c2=uni.viewProj*w2;
- // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
- if(page.lineWidth>0.0){let vp=uni.viewProj*page.world;c0=pageLine(page,h,i0,vp,c0);c1=pageLine(page,h,i1,vp,c1);c2=pageLine(page,h,i2,vp,c2);}
- let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
+ // The triangle, as the triangles pass stored it or decoded here (\`pixelTriangle\`).
+ let t=pixelTriangle(pageIndex,page,tri);
+ let w0=t.w0;let w1=t.w1;let w2=t.w2;
+ // A corner's pixel in x and y, its clip depth and w: the parts of \`framebuffer(c)\` and of \`c\`
+ // the resolve reads (\`decodeTriangle\`).
+ let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;let c0=t.p0;let c1=t.p1;let c2=t.p2;
  let p=vec2f(pos.x,pos.y);
  let area=edge(s1.xy,s2.xy,s0.xy);
  var rgb=page.baseColor.xyz;
- let bary=pixelBary(s0,s1,s2,c0,c1,c2,p,area);
+ let bary=perspectiveBary(s0,s1,s2,t.iw,p,area);
  var uv=vec2f(0.0);
  let absArea=abs(area);
  let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
-  let uva=pageUv(page,h,i0);let uvb=pageUv(page,h,i1);let uvc=pageUv(page,h,i2);
-  uv=uva*bary.x+uvb*bary.y+uvc*bary.z;
-  let g=uvGradients(s0.xy,s1.xy,s2.xy,p,uva,uvb,uvc,vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w));
+  uv=t.uva*bary.x+t.uvb*bary.y+t.uvc*bary.z;
+  let g=uvGradients(s0.xy,s1.xy,s2.xy,p,t.uva,t.uvb,t.uvc,t.iw);
   ddx=g[0];ddy=g[1];
  }
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
  // A matcap material reads its image by the view-space normal: the base map at that coordinate.
  if(model==${SURFACE_MODEL.matcap}u){
-  let it=invTranspose3Prep(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));
-  uv=matcapUv(uniteOuZero(invTranspose3Apply(it,pageNormal(page,h,i0))*bary.x+invTranspose3Apply(it,pageNormal(page,h,i1))*bary.y+invTranspose3Apply(it,pageNormal(page,h,i2))*bary.z));
+  // The row's normal matrix, as the rows pass composed it (\`rowFrame\`).
+  let it=rowFrame(pageIndex,page.world).invT;let h=pageHeader(page);let k=pageTriangle(page,h,tri);
+  uv=matcapUv(uniteOuZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
- let request=shadeRequest(page,h,pos.xy,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);
+ let request=shadeRequest(page,pos.xy,uv,ddx,ddy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
@@ -91,7 +85,7 @@ ${EMISSIVE_AO_FLAG_WGSL}
    `rgb=rgb*${lecture('colorSample', 'base')}.xyz;`,
  )}
  // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
- if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,h,i0)*bary.x+pageColor(page,h,i1)*bary.y+pageColor(page,h,i2)*bary.z).xyz;}
+ if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}
  if(uni.mode==${SHADE_MODE.wireframe}u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
   return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
@@ -108,12 +102,21 @@ ${EMISSIVE_AO_FLAG_WGSL}
   let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
-  // and only the side the screen sees it from remains. The determinant test below yields
-  // exactly that at a zero determinant — face y is screenFace — like matrixWindingCw on the CPU.
-  let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
+  // and only the side the screen sees it from remains. The determinant test of the row's frame
+  // (\`composeRowFrame\`) yields exactly that at a zero determinant — face y is screenFace — like
+  // matrixWindingCw on the CPU.
+  let face=screenFace*select(-1.0,1.0,rowFrame(pageIndex,page.world).positive);
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
-  // The three vertex normals the receiver offset reads too (\`pixelTriangleWgsl.ts\`).
-  let n=vertexNormals(page,h,corners,world3,side);let n0=n[0];let n1=n[1];let n2=n[2];
+  // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
+  let n0=t.n0;let n1=t.n1;let n2=t.n2;
+  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): \`shadowReceiver\`'s
+  // arithmetic (\`receiverOffsetWgsl.ts\`), its point on the Phong surface and its triangle's plane.
+  if(HAS_VERTEX_NORMAL&&page.sprite.y==0.0&&page.lineWidth==0.0){
+   let lit=select(1.0,face,DOUBLE_SIDED);
+   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
+   rcvOffset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
+   rcvPlane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
+  }
   var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
@@ -124,13 +127,13 @@ ${EMISSIVE_AO_FLAG_WGSL}
    let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScaleY,nrm.z);
    var T=vec3f(0.0);var B=vec3f(0.0);
    if(HAS_TANGENT){
-    let ta=vertT(page.vertexBase,i0);let tb=vertT(page.vertexBase,i1);let tc=vertT(page.vertexBase,i2);
+    let k=pageTriangle(page,pageHeaderFor(page,false),tri);
+    let ta=vertT(page.vertexBase,k.x);let tb=vertT(page.vertexBase,k.y);let tc=vertT(page.vertexBase,k.z);
     let t0=normalize(world3*ta.xyz)*side;let t1=normalize(world3*tb.xyz)*side;let t2=normalize(world3*tc.xyz)*side;
     T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
     B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
    }else{
-    let ua=pageUv(page,h,i0);
-    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,pageUv(page,h,i1)-ua,pageUv(page,h,i2)-ua);
+    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,t.uvb-t.uva,t.uvc-t.uva);
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
@@ -149,9 +152,19 @@ ${EMISSIVE_AO_FLAG_WGSL}
  if(DOUBLE_SIDED&&(page.flags&1u)!=0u){
   var thin=clamp(vec3f(page.subsurfaceRG,page.subsurfaceB),vec3f(0.0),vec3f(1.0));
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
-  if(any(thin>vec3f(0.0))){storeSubsurface(pos.xy,thin);flag|=${SUBSURFACE_FLAG}u;}
+  if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
+}
+@fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
+ let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
+ // The background, a page past the table and another class are rejected before any write.
+ if(!classAdmits(id)){discard;}
+ let surface=shadeSurface(pos,id);
+ // Each storage texel written once, the last value it used to take: zero unless the resolve set it.
+ storeSubsurface(pos.xy,thinOut);
+ storeReceiver(pos.xy,rcvOffset,rcvPlane);
+ return surface;
 }
 `;

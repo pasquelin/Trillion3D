@@ -72,7 +72,6 @@ export {
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-  frustumPlanesToLocal,
 } from '../../sdk-core/src/math/frustum/frustum.ts';
 export {
   composeMatrix4,
@@ -106,16 +105,9 @@ export {
 } from '../../sdk-core/src/math/batch/culling.ts';
 export {
   HIZ_NOTHING,
-  hizBuildPyramid,
-  hizFootprintFar,
-  hizOccluded,
-  hizReduceCeil,
-} from '../../sdk-core/src/hiz/oracles.ts';
-export {
   hizBuildFlat,
   hizFlatLayout,
   hizFlatLevels,
-  hizFootprintFarFlat,
 } from '../../sdk-core/src/hiz/pyramidFlat.ts';
 export type { HizFlat } from '../../sdk-core/src/hiz/pyramidFlat.ts';
 export {
@@ -160,10 +152,8 @@ export {
 export { matrixWindingCw } from '../../sdk-core/src/math/matrix/orientation.ts';
 export {
   nodeWorldDirection,
-  nodeWorldMirrorsFaces,
   nodeWorldPosition,
   nodeWorldQuaternion,
-  nodeWorldScale,
 } from '../../sdk-core/src/math/transform-tree/read.ts';
 export { normalMatrix3 } from '../../sdk-core/src/math/matrix/matrix3.ts';
 export {

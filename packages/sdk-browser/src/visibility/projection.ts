@@ -108,28 +108,6 @@ export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 }
 
-/**
- * The three affine barycentric weights of the point `(x, y)`, the signed area already known.
- *
- * The result is a work object reused from one call to the next: a raster reads it per pixel, and
- * allocating three numbers per pixel would cost more than the computation itself. The caller reads
- * it before the next call, or copies its fields, as `barycentric` does.
- */
-const poids = { w0: 0, w1: 0, w2: 0 };
-export function barycentricAt(
-  a: ScreenPoint,
-  b: ScreenPoint,
-  c: ScreenPoint,
-  x: number,
-  y: number,
-  area: number,
-) {
-  poids.w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area;
-  poids.w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area;
-  poids.w2 = 1 - poids.w0 - poids.w1;
-  return poids;
-}
-
 /** A projected triangle of a page placed by `world`; a line page's corners widened on screen at `pixelRatio` image
  *  pixels per CSS pixel, as every GPU raster widens them (`LineCorners`), a sprite page's turned
  *  to face the camera. */

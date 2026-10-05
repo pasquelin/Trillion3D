@@ -3,12 +3,14 @@ import { pixelFootprintOf } from '../../streaming/priority.ts';
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import { FLAG_DIAGNOSTIC_VIEW, FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { writeBlendDiagnostic } from './diagnostic.ts';
+import { stillTurn } from '../../taa/frameState.ts';
 import { directTiles } from '../pages/render/encodeLights.ts';
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** Uniform stride of the fallback path, which keeps one record per primitive. */
+/** Uniform stride at the dynamic-binding alignment: the fallback path's record per primitive, and
+ *  each expand pass's region (`expand.ts`). */
 export const UNIFORM_STRIDE = 256;
 /** Word offsets in the fallback shader's 48-word record (the stride includes alignment). */
 export const FALLBACK_UNIFORM = {
@@ -77,8 +79,8 @@ export function writeFallbackUniform(
 }
 
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size, the eye, the render pixel ratio, the texture level
- *  offset, the exposure and the display curve: 144 bytes. */
+ *  phase, the pixel scale, the target size, the eye and the image's noise turn, the render pixel
+ *  ratio, the texture level offset, the exposure and the display curve: 144 bytes. */
 export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -159,6 +161,8 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[28] = tiles[5];
   packed[29] = tiles[6];
   packed[30] = tiles[7];
+  // The turn the blended surfaces' noise takes this image (`translucentReflectionOffset`).
+  packed[31] = stillTurn(rt.gpu.temporal?.frame);
   // Render pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
   packed[32] = renderPixelRatio(rt);
   // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).

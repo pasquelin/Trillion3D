@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts';
 import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts';
-import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -70,23 +70,25 @@ export function forgetOwnMoves() {
   kept = 0;
 }
 
-/** `box` at the last seen pose `pose` and at `world`, declared: one box when the two meet. */
+/** `box` at `world` declared, and at the last seen pose `pose` when given: one box when the two
+ *  meet. */
 function declarePair(
   rt: WebgpuPagesRuntime,
   box: ArrayLike<number>,
-  pose: ArrayLike<number>,
   world: ArrayLike<number>,
   movingOnly: boolean,
+  pose?: ArrayLike<number>,
 ) {
-  const { plan } = rt.lights;
-  boxTransform(was, 0, box, 0, pose);
+  const { changes } = rt.lights;
   boxTransform(now, 0, box, 0, world);
+  if (!pose) return changes.worldChanged(nowMin, nowMax, movingOnly);
+  boxTransform(was, 0, box, 0, pose);
   let meet = true;
   for (let axis = 0; axis < 3; axis++)
     meet &&= was[axis] <= now[axis + 3] && now[axis] <= was[axis + 3];
   if (meet) boxUnionBatch(was, now, 1);
-  plan.worldChanged(wasMin, wasMax, movingOnly);
-  if (!meet) plan.worldChanged(nowMin, nowMax, movingOnly);
+  changes.worldChanged(wasMin, wasMax, movingOnly);
+  if (!meet) changes.worldChanged(nowMin, nowMax, movingOnly);
 }
 
 /** Whether record `rec` bounds the same box as `prev`: a dynamic primitive's pages all hold its
@@ -103,30 +105,64 @@ function leavesOnly(pages: readonly PageRec[]) {
   return true;
 }
 
+/** Whether `root`'s cluster boxes are all it can draw, and the plan's list still holds them apart. */
+function clustersStandFor(rt: WebgpuPagesRuntime, rank: number) {
+  const root = rt.layout.selectionRoots[rank];
+  return (
+    root.boxes === true &&
+    !root.deformation &&
+    !root.reach &&
+    4 * 2 * root.pages.length <= rt.lights.changes.room() &&
+    leavesOnly(root.pages)
+  );
+}
+
+/** Root `rank`'s cluster boxes declared at `world`, and at its last seen `pose` when given
+ *  (`declarePair`); records bounding the box of the one before them, once. */
+function declareClusters(
+  rt: WebgpuPagesRuntime,
+  rank: number,
+  world: ArrayLike<number>,
+  movingOnly: boolean,
+  pose?: ArrayLike<number>,
+) {
+  const { pages } = rt.layout.selectionRoots[rank];
+  for (let i = 0; i < pages.length; i++) {
+    const rec = pages[i];
+    if (i > 0 && sameBox(rec, pages[i - 1])) continue;
+    local.set(rec.min, 0);
+    local.set(rec.max, 3);
+    declarePair(rt, local, world, movingOnly, pose);
+  }
+}
+
+/**
+ * Root `rank` shown, hidden, or turned to cast or not where it stands (`min`, `max` its box): each
+ * cluster's box at its pose, as a move declares them below, so a root whose pieces lie apart —
+ * two drops of wax at both ends of a lamp — stales the pages under its pieces, not the room
+ * between them. Its own box when its clusters cannot stand for it.
+ */
+export function declareInPlace(
+  rt: WebgpuPagesRuntime,
+  rank: number,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  movingOnly: boolean,
+) {
+  if (!clustersStandFor(rt, rank)) return rt.lights.changes.worldChanged(min, max, movingOnly);
+  declareClusters(rt, rank, rt.layout.selectionRoots[rank].world.elements, movingOnly);
+}
+
 /**
  * Root `rank`'s own change, once in the call: each cluster's box, or its own, at its last seen pose
  * and its new one. `promoted`, its first move: its pages go stale whole.
  */
 export function declareOwnMove(rt: WebgpuPagesRuntime, rank: number, promoted: boolean) {
   if (own[rank] <= 0) return;
-  const { plan } = rt.lights,
-    root = rt.layout.selectionRoots[rank],
-    { pages } = root,
+  const root = rt.layout.selectionRoots[rank],
     pose = poses.subarray((own[rank] - 1) * 16, own[rank] * 16),
     world = root.world.elements;
   own[rank] = -own[rank];
-  const leaves =
-    root.boxes === true &&
-    !root.deformation &&
-    !root.reach &&
-    4 * 2 * pages.length <= plan.changeRoom() &&
-    leavesOnly(pages);
-  if (!leaves) return declarePair(rt, root.localBox!, pose, world, !promoted);
-  for (let i = 0; i < pages.length; i++) {
-    const rec = pages[i];
-    if (i > 0 && sameBox(rec, pages[i - 1])) continue;
-    local.set(rec.min, 0);
-    local.set(rec.max, 3);
-    declarePair(rt, local, pose, world, !promoted);
-  }
+  if (!clustersStandFor(rt, rank)) return declarePair(rt, root.localBox!, world, !promoted, pose);
+  declareClusters(rt, rank, world, !promoted, pose);
 }

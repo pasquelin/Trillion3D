@@ -11,7 +11,8 @@
 //! is its local matrix. That is the JavaScript path's rule, and it is also what keeps this kernel
 //! safe: no index outside work already done is ever read.
 
-use crate::math::{multiply_matrix4_one, MATRIX_VALUES};
+use crate::math::MATRIX_VALUES;
+use crate::math_matrix::multiply_matrix4_one;
 
 /// Floats of a position or a scale, and of a quaternion `(x, y, z, w)`.
 pub const POSITION_VALUES: usize = 3;

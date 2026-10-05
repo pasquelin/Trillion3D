@@ -1,6 +1,6 @@
 /**
  * A TEXTURE OF THE ENGINE'S OWN GRAPH: an image, the sampler state it is read with and the
- * transform of its coordinates, at the reference's values until a scene says otherwise. The
+ * transform of its coordinates, at its default values until a scene says otherwise. The
  * constants are the engine's named ones (`../surfaceConstants.ts`).
  */
 import { Matrix3 } from '../../../../sdk-core/src/world/math/matrix4.ts';

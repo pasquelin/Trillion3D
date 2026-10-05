@@ -1,7 +1,7 @@
 import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { lightsUnder, type createWorldLights } from './worldLights.ts';
+import type { createWorldLights } from './worldLights.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import type { createWorldContents } from './worldContents.ts';
 import type { WorldSceneLink } from './scene.ts';
@@ -31,14 +31,14 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
     pose(node: Object3D) {
       contents.poses.moved(node);
       if (!isLightNode(node) || node.children.length) lights.boundsMoved();
-      if (lights.held && lightsUnder(node)) parts.relight();
+      if (lights.held && lights.holds(node)) parts.relight();
       else parts.invalidate();
     },
     posed(nodes: readonly Object3D[]) {
       let relight = false;
       for (const node of nodes) {
         contents.poses.moved(node);
-        relight ||= !!lights.held && lightsUnder(node);
+        relight ||= !!lights.held && lights.holds(node);
       }
       lights.boundsMoved();
       if (relight) parts.relight();
@@ -46,9 +46,11 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
     },
     structure(parent: Object3D) {
       contents.changed(parent);
-      lights.boundsMoved();
+      lights.structure();
       schedule();
     },
+    // Its parent's `structure` follows, which schedules the resolution that reads it.
+    entered: (node: Object3D) => contents.entered(node),
     // A mesh's row carries the flag, written as a pose is; a light's is written with the lights.
     shadow(node: Object3D) {
       if (isLightNode(node)) return parts.relight();

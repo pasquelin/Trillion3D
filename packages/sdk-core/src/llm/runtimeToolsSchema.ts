@@ -21,7 +21,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   {
     name: 'trillion3d_compile_asset',
     description:
-      'Compiles a source 3D asset (FBX, OBJ, glTF) to the cluster virtualized geometry format.',
+      'Compiles a source 3D asset (FBX, OBJ, glTF) to the virtualized cluster geometry format.',
     parameters: COMPILER_OPTIONS_SCHEMA,
   },
   {

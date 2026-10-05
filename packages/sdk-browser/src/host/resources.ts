@@ -106,5 +106,5 @@ export type HostDiagnosticFactory = {
 
 /** The crossing back: a host resource handed to the library its owner wrote it with. Only a
  *  boundary file (`tests/integration/engine-without-three.test.ts`) may call it, to give the
- *  resource back; reading a contract through another engine shape is `asWholeMesh`'s. */
+ *  resource back. */
 export const asHostLibrary = <T>(resource: unknown) => resource as T;

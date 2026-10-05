@@ -10,7 +10,7 @@
 //! entry describes a project directory —, `asset.meta` — the import metadata — and sometimes
 //! `preview.png`, an editor thumbnail left aside: it is not of the project.
 //!
-//! Provenance: open archive format (POSIX 1003.1-1988 ustar, RFC 1952 for gzip), read by the
+//! Format: a gzip-compressed tar archive, read by the
 //! `tar` 0.4.46 and `flate2` 1.1.10 crates (MIT OR Apache-2.0), decompression only, `flate2` on
 //! its pure-Rust backend and `tar` without `xattr`. No editor code, SDK or library enters here,
 //! and nothing is decrypted or circumvented.
@@ -26,7 +26,7 @@ use std::{
 pub(super) static UNITYPACKAGE: UnityPackage = UnityPackage;
 pub(super) struct UnityPackage;
 
-/// gzip magic number (RFC 1952): every package starts there.
+/// gzip magic number: every package starts there.
 const GZIP_MAGIC: &[u8] = b"\x1f\x8b";
 /// Target path of the asset in the project, first line of the file.
 const PATHNAME: &str = "pathname";
@@ -165,7 +165,7 @@ fn land(from: &Path, to: &Path) -> Result<()> {
 }
 
 /// Reads what remains of the stream after the last tar entry: the gzip footer, which carries
-/// the CRC32 digest of the unpacked bytes and their count (RFC 1952). `tar` stops before it,
+/// the CRC32 digest of the unpacked bytes and their count. `tar` stops before it,
 /// and without this read a truncated package or one with a lying footer would pass as whole.
 fn ended<R: Read>(archive: tar::Archive<R>, source: &Path) -> Result<()> {
     std::io::copy(&mut archive.into_inner(), &mut std::io::sink()).map_err(unreadable(source))?;

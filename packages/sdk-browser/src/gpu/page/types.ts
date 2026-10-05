@@ -1,11 +1,12 @@
 import type { createGpuPageReader } from './reader.ts';
 import { type EvictionOrder } from './evictionOrder.ts';
+import type { PageHomes } from './homes.ts';
 
 /** One page held in the GPU page pool. */
 export interface ResidentPage {
   /** Its key. */
   key: string;
-  /** Its slot in the pool. */
+  /** Its slot in the pool: its home's rank when the pool holds the whole catalogue (`homes.ts`). */
   slot: number;
   /** Its byte offset. */
   offset: number;
@@ -18,6 +19,8 @@ export type GpuPageContext = {
   device: GPUDevice;
   pageBytes: number;
   slots: number;
+  /** Each page's own place, taken when `slots` hold the whole catalogue (`homes.ts`). */
+  homes?: PageHomes;
   buffer: GPUBuffer;
   resident: Map<string, ResidentPage>;
   pins: Set<string>;

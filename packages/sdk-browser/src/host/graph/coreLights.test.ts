@@ -12,7 +12,8 @@ import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';
 import { createLight } from '../../lighting/lightWrite.ts';
 import { light as preparedLight } from '../prepared/nodes.ts';
 import { unsupportedClusterLight, WebglClusterLights } from '../../webgl/cluster/lights.ts';
-import { aimOf, isLightNode, isPlacedLight } from './kinds.ts';
+import { aimOf, isLightNode } from './kinds.ts';
+import { isPlacedLight } from './graphLights.fixture.ts';
 import { serialOf } from './serial.ts';
 
 /** A WebGL2 context that answers every call and keeps the light records and probe uniforms. */

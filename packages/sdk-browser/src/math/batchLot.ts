@@ -10,7 +10,7 @@ import {
 
 /**
  * What all math batches share: buffer, timed execution, and interface shape.
- * The batches themselves are in `batchRuntime.ts` and `batchHierarchy.ts`.
+ * The batches themselves are in `batchRuntime.ts`.
  *
  * A batch is a BUFFER, not a function call: caller reserves blocks once, writes inputs
  * directly into returned views, calls `run()` as many times as needed, then releases buffer.
@@ -70,7 +70,6 @@ export function joue(
 }
 
 export const f64 = (bloc: ArenaBloc) => bloc.vue as Float64Array;
-export const u32 = (bloc: ArenaBloc) => bloc.vue as Uint32Array;
 export const vuesF64 = (bloc: ArenaBloc) => (bloc.vues ?? []) as readonly Float64Array[];
 
 /** The `longueur` elements of block `index`, or zero when buffer released. */

@@ -22,11 +22,11 @@ export type CookedMade = {
 
 /**
  * The cooked soft bodies of the compiled models in a scene (`physics.json` `softBodies`): each
- * one's settings fetched and handed to the simulation as Jolt restores them — a decode and a
+ * one's settings fetched and handed to the simulation as the physics module restores them — a decode and a
  * copy, nothing built on the page — at its node's place in its model, within
  * `budget.physics.softVertices`. Its matter, pull and damping are the options its node declares,
  * read as `obj.physics` reads them, and its flags those a page-built one takes (`flagsOf`), its
- * model's visibility for its own. Jolt scales no soft body once made: a model placed at another
+ * model's visibility for its own. The physics module scales no soft body once made: a model placed at another
  * scale than the one it was cooked at has its soft bodies refused, by name.
  */
 export function createCookedSoftBodies(
@@ -86,7 +86,7 @@ export function createCookedSoftBodies(
     },
     forget: held.forget,
     /** A model moved or hidden: its soft bodies carried where it now is, their simulation kept,
-     *  their flags written again; one rescaled is released and refused by name — Jolt scales no
+     *  their flags written again; one rescaled is released and refused by name — the physics module scales no
      *  soft body once made —, and made again once back at its scale. */
     moved(model: Model) {
       const opening = held.get(model);

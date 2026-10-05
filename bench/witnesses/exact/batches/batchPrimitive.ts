@@ -1,8 +1,8 @@
 import {
-  type BatchPage,
   DrawRanges,
   IndexRangeAllocator,
 } from '../../../../packages/sdk-browser/src/cluster/batchRange.ts';
+import type { BatchPage } from './batchPage.ts';
 import type {
   ClusterDrawMesh,
   ClusterGeometry,

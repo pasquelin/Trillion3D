@@ -3,17 +3,19 @@
 // Each scene has its own: a lap shared between two scenes is a polymorphic call site, and
 // the timer pays for it. Likewise, each loop is in the function where the engine holds it —
 // a loop written inline in the lap slows the others, at strictly identical work.
-import { orderBlendPasses } from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts';
+import {
+  orderBlendPasses,
+  orderEye,
+  refreshEyeKeys,
+} from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts';
 import {
   expandBlendPlan,
   itemKept,
+  orderBlendPlanCpu,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
-import {
-  instanceItem,
-  RUN_SHARED,
-  runOwner,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
-import { RUN_WORDS } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
+import { planItem } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
+import { instanceItem } from '../../../oracles/browser/instanceItem.ts';
+import { slotCapacity } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts';
 import {
   benchSide,
   glisse,
@@ -35,8 +37,8 @@ let comptes = 0;
 const appelsEncodes = () => comptes;
 
 /**
- * THE ENCODE LOOP, counted: a slice that names its item and that the frustum rejects is not
- * encoded; a slice that merges several always is (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
+ * THE ENCODE LOOP, counted: an own slot whose item the frustum rejects is not encoded; a slot of
+ * the main class always is (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
  *
  * It is in ITS function, as in the engine, where it lives in the draw pass and not in
  * ranking. Written inline in the lap, it slowed the sort the lap calls and that the
@@ -44,20 +46,21 @@ const appelsEncodes = () => comptes;
  * identical work. A bench that measures something other than the shipped form measures nothing.
  */
 function compteAppels(blendState: BenchSide['blendState']) {
-  const runs = blendState.runs[0],
-    order = blendState.orders[0],
+  const seeds = blendState.seeds[0],
+    own = blendState.ownSeeds[0],
+    slotOwns = blendState.slotOwns[0],
     keep = blendState.keepPacked,
     count = blendState.runCount[0];
   let encodes = 0;
-  for (let run = 0; run < count; run++) {
-    const at = run * RUN_WORDS,
-      owner = runOwner(order, runs[at], runs[at + 1]);
-    if (owner === RUN_SHARED || itemKept(keep, owner)) encodes++;
+  for (let slot = 0; slot < count; slot++) {
+    const rank = slotOwns[slot];
+    if (rank < 0 || itemKept(keep, planItem(seeds[own[rank]]))) encodes++;
   }
   return encodes;
 }
 
-/** The CPU-fallback expansion, reread as index ranges: what the rasterizer would see. */
+/** The CPU model of the order and its expansion, reread as index ranges: what the rasterizer would
+ *  see. */
 function etale(
   blendState: BenchSide['blendState'],
   miroir: { expanded: Uint32Array; args: Uint32Array },
@@ -65,8 +68,9 @@ function etale(
 ) {
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`.
   const items = blendState.blendGpu as unknown as BenchItem[];
+  refreshEyeKeys(blendState, orderEye(blendState));
   const instances = expandBlendPlan({
-    order: blendState.orders[0],
+    order: orderBlendPlanCpu(blendState, 0),
     runs: blendState.runs[0],
     runCount: blendState.runCount[0],
     draws: blendState.drawsPacked,
@@ -96,7 +100,7 @@ function tours(before: BenchSide, after: BenchSide) {
   const blendState = after.blendState;
   const miroir = {
     expanded: new Uint32Array(blendState.instanceCapacity * 2),
-    args: new Uint32Array(blendState.maxPlanEntries * 8),
+    args: new Uint32Array(slotCapacity(blendState.maxPlanEntries) * 4),
   };
   /** The previous path: ranking, arguments of every item, one call per entry. */
   const reference = (images: Frame[], sequence: boolean) => {
@@ -110,7 +114,7 @@ function tours(before: BenchSide, after: BenchSide) {
     }
     return output;
   };
-  /** The batch path: ranking, frustum and slices, then one call per slice. */
+  /** The batch path: frustum and own entries on the CPU, then one call per slot. */
   const optimisee = (images: Frame[], sequence: boolean) => {
     const output = [];
     for (const image of images) {
@@ -141,7 +145,7 @@ export function sceneDe(name: string, side: THREE.Side) {
 }
 export type Scene = ReturnType<typeof sceneDe>;
 
-/** The draw calls of a scene's first frame: one per plan entry before, one per slice after. */
+/** The draw calls of a scene's first frame: one per plan entry before, one per slot after. */
 export function appelsDe(scene: Scene) {
   const image = glisse[0],
     etat = scene.before;

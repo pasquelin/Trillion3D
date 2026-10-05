@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "फ़्रेम/से",
-      "FPS (held)": "फ़्रेम/से (रुका)",
       "triangles": "त्रिभुज",
       "triangles (scene)": "त्रिभुज (दृश्य)",
       "draw calls": "ड्रॉ कॉल",
       "pages": "पेज",
       "geometry pool": "ज्यामिति भंडार",
       "lights": "रोशनियाँ",
+      "GPU memory": "GPU मेमोरी",
+      "screen images": "स्क्रीन छवियाँ",
+      "shadow memory": "छाया मेमोरी",
+      "geometry memory": "ज्यामिति मेमोरी",
+      "texture memory": "टेक्सचर मेमोरी",
+      "live textures": "सक्रिय टेक्सचर",
+      "transmission backdrop": "पारगमन पृष्ठभूमि",
       "GPU frame": "GPU फ़्रेम",
       "GPU frame (last)": "GPU फ़्रेम (अंतिम)",
       "CPU frame": "CPU फ़्रेम",
       "page hooks": "पेज का कोड",
-      "engine CPU": "इंजन CPU"
+      "engine CPU": "इंजन CPU",
+      "Statistics": "आँकड़े",
+      "hint": "क्लिक: छोटा · खींचें: हिलाएँ · कुंजी `",
+      "fps": "FPS",
+      "budget": "बजट",
+      "held": "रुका",
+      "last": "पिछला",
+      "others": "अन्य",
+      "Shadows": "छायाएँ",
+      "Scene and memory": "दृश्य और मेमोरी",
+      "cut and culling": "कटाई और छँटाई",
+      "page preparation": "पेज तैयारी",
+      "command encoding": "कमांड एन्कोडिंग",
+      "physics step": "भौतिकी चरण",
+      "Cadence": "लय",
+      "{n}× refresh": "{n}× रीफ़्रेश",
+      "GPU idle": "GPU निष्क्रिय"
+    },
+    "shadows": {
+      "lights": "रोशनियाँ",
+      "maps": "मैप",
+      "pagesRequested": "माँगे गए पेज",
+      "pagesAllocated": "आवंटित पेज",
+      "pagesCached": "कैश में पेज",
+      "pagesRendered": "बनाए गए पेज",
+      "freePages": "खाली पेज",
+      "lodBias": "LOD झुकाव",
+      "projectionPasses": "प्रक्षेपण पास",
+      "invalidation": "अमान्यकरण",
+      "marking": "चिह्नांकन",
+      "pageManagement": "पेज प्रबंधन",
+      "render": "रेंडर",
+      "projection": "प्रक्षेपण",
+      "transmission": "पारगमन"
+    },
+    "passes": {
+      "vsm projection": "VSM प्रक्षेपण",
+      "vsm marking": "VSM चिह्नांकन",
+      "vsm render": "VSM रेंडर",
+      "material surfaces": "सामग्री सतहें",
+      "temporal antialiasing": "कालिक एंटीएलियासिंग",
+      "HDR composition + present": "HDR संयोजन + प्रदर्शन",
+      "deferred lighting": "विलंबित प्रकाश",
+      "reflection source": "प्रतिबिंब स्रोत",
+      "HiZ pyramid": "HiZ पिरामिड",
+      "light tiles": "प्रकाश टाइलें",
+      "texture mips": "टेक्सचर mips",
+      "reflection radiance mips": "परावर्तन रेडिएंस mips",
+      "reflection depth bounds mips": "परावर्तन गहराई सीमा mips"
     },
     "failure": {
       "title": "यह उदाहरण एक गड़बड़ी पर रुक गया",
@@ -1363,7 +1417,8 @@
       "credit": "इस उदाहरण के लिए कोड में बनाई गई कलशों की सड़क, CC0 — देखो assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "मूर्ति के चारों ओर घूमने के लिए खींचो। बक्सा और काँच की गेंद अपनी घूमती थाली पर घूमते हैं।",
     "words": {
       "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0; बक्सा W. Sitters द्वारा, CC BY 3.0 — देखो assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "मुद्रा"
     }
+  },
+  "choose-your-quality": {
+    "banner": "एक गुणवत्ता, एक रेज़ोल्यूशन और एक दृश्य चुनो। एक सेटिंग को A और दूसरी को B रखो, और उनके बीच बदलने के लिए C दबाओ।"
   }
 }

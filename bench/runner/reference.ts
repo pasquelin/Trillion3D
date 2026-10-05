@@ -93,7 +93,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
     for (const view of views) {
       const pose = options.poseAt(bounds, options.VIEWS[view].index);
       const file = `${view}.png`;
-      const payload = measurePayload(side, view, 0, pose, null, file, settings, lights, manifest);
+      const payload = measurePayload(side, 0, pose, null, file, settings, lights, manifest);
       const result = await onPage((page) =>
         withGpuIncidents(page, () =>
           page.evaluate(async (o) => {

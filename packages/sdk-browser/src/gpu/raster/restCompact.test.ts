@@ -14,7 +14,11 @@ test('tested-half compaction applies the vertex-stage predicate', () => {
   assert.ok(VIS_SHADER.includes(HIZ_REJECTED_WGSL), 'the vertex stage binds the shared predicate');
   assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL), 'compaction binds the same text');
   assert.match(VIS_SHADER, /if\(hizRejected\(page\.hizSlot\)\)/);
-  assert.match(REST_COMPACT_SHADER, /return !hizRejected\(pages\[row\]\.hizSlot\);/);
+  // An instance word's row (`INSTANCE_WORD_WGSL`).
+  assert.match(
+    REST_COMPACT_SHADER,
+    /return !hizRejected\(pages\[instanceRow\(word\)\]\.hizSlot\);/,
+  );
   assert.match(HIZ_REJECTED_WGSL, new RegExp(`==${VERDICT_REJECTED}u;`));
 });
 

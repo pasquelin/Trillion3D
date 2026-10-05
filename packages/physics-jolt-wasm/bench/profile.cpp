@@ -17,7 +17,6 @@ constexpr uint32_t SCOPES = 256;
 struct Scope {
   const char *name = nullptr;
   std::atomic<uint64_t> nanoseconds{0};
-  std::atomic<uint32_t> calls{0};
 };
 Scope scopes[SCOPES];
 std::mutex adding;
@@ -61,22 +60,16 @@ ExternalProfileMeasurement::~ExternalProfileMeasurement() {
   Open open;
   std::memcpy(&open, mUserData, sizeof(open));
   open.scope->nanoseconds += now() - open.start;
-  open.scope->calls++;
 }
 
 JPH_NAMESPACE_END
 
 extern "C" {
 
-/// The name of scope slot `i` (null when unused), its thread milliseconds and calls since the
-/// last reset.
+/// The name of scope slot `i` (null when unused) and its thread milliseconds since the last reset.
 const char *jolt_profile_name(uint32_t i) { return i < SCOPES ? scopes[i].name : nullptr; }
 double jolt_profile_ms(uint32_t i) { return scopes[i].nanoseconds / 1e6; }
-uint32_t jolt_profile_calls(uint32_t i) { return scopes[i].calls; }
 void jolt_profile_reset() {
-  for (Scope &scope : scopes) {
-    scope.nanoseconds = 0;
-    scope.calls = 0;
-  }
+  for (Scope &scope : scopes) scope.nanoseconds = 0;
 }
 }

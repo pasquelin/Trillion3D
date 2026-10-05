@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "초당 프레임",
-      "FPS (held)": "초당 프레임 (멈춤)",
       "triangles": "삼각형",
       "triangles (scene)": "삼각형 (장면)",
       "draw calls": "그리기 호출",
       "pages": "페이지",
       "geometry pool": "지오메트리 저장소",
       "lights": "조명",
+      "GPU memory": "GPU 메모리",
+      "screen images": "화면 이미지",
+      "shadow memory": "그림자 메모리",
+      "geometry memory": "지오메트리 메모리",
+      "texture memory": "텍스처 메모리",
+      "live textures": "활성 텍스처",
+      "transmission backdrop": "투과 배경",
       "GPU frame": "GPU 프레임",
       "GPU frame (last)": "GPU 프레임 (마지막)",
       "CPU frame": "CPU 프레임",
       "page hooks": "페이지 코드",
-      "engine CPU": "엔진 CPU"
+      "engine CPU": "엔진 CPU",
+      "Statistics": "통계",
+      "hint": "클릭: 간략히 · 끌기: 이동 · 키 `",
+      "fps": "FPS",
+      "budget": "예산",
+      "held": "정지",
+      "last": "마지막",
+      "others": "기타",
+      "Shadows": "그림자",
+      "Scene and memory": "장면과 메모리",
+      "cut and culling": "자르기와 컬링",
+      "page preparation": "페이지 준비",
+      "command encoding": "명령 인코딩",
+      "physics step": "물리 단계",
+      "Cadence": "케이던스",
+      "{n}× refresh": "{n}× 새로 고침",
+      "GPU idle": "GPU 유휴"
+    },
+    "shadows": {
+      "lights": "조명",
+      "maps": "맵",
+      "pagesRequested": "요청된 페이지",
+      "pagesAllocated": "할당된 페이지",
+      "pagesCached": "캐시된 페이지",
+      "pagesRendered": "그린 페이지",
+      "freePages": "빈 페이지",
+      "lodBias": "LOD 바이어스",
+      "projectionPasses": "투영 패스",
+      "invalidation": "무효화",
+      "marking": "마킹",
+      "pageManagement": "페이지 관리",
+      "render": "렌더",
+      "projection": "투영",
+      "transmission": "투과"
+    },
+    "passes": {
+      "vsm projection": "VSM 투영",
+      "vsm marking": "VSM 마킹",
+      "vsm render": "VSM 렌더",
+      "material surfaces": "재질 표면",
+      "temporal antialiasing": "시간적 안티에일리어싱",
+      "HDR composition + present": "HDR 합성 + 표시",
+      "deferred lighting": "지연 조명",
+      "reflection source": "반사 소스",
+      "HiZ pyramid": "HiZ 피라미드",
+      "light tiles": "조명 타일",
+      "texture mips": "텍스처 밉",
+      "reflection radiance mips": "반사 휘도 mip",
+      "reflection depth bounds mips": "반사 깊이 경계 mip"
     },
     "failure": {
       "title": "이 예제는 오류로 멈췄어",
@@ -1363,7 +1417,8 @@
       "credit": "이 예제를 위해 코드로 만든 항아리 거리, CC0 — assets/examples/CREDITS.md 참고"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "끌어서 흉상 주위를 돌아 봐. 상자와 유리 공이 회전판 위에서 돌아.",
     "words": {
       "credit": "Marble Bust 01, 제작 Rico Cilliers, Poly Haven, CC0; 상자 제작 W. Sitters, CC BY 3.0 — assets/examples/CREDITS.md 참고"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "포즈"
     }
+  },
+  "choose-your-quality": {
+    "banner": "화질, 해상도, 시점을 골라 봐. 설정 하나는 A로, 다른 하나는 B로 저장하고 C를 눌러 둘을 바꿔 봐."
   }
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  PHYSICS_STEP,
   ASLEEP_BIT,
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
@@ -66,7 +67,7 @@ test('a body past the bodies budget is refused with PHYSICS_BUDGET', () => {
   const host = {} as PhysicsHost;
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 1 };
   const state = createPhysicsPoses(1, scene).state;
-  const bodies = createPhysicsBodies(new CommandWriter(), budget, host, scene, state);
+  const bodies = createPhysicsBodies(new CommandWriter(), budget, host, scene, state, PHYSICS_STEP);
   const crates = [0, 1].map(() => {
     const crate = new Mesh(box(), new Material('meshStandard'));
     crate.physics = 'dynamic';
@@ -88,7 +89,7 @@ test('a world without physics starts no worker; enabling it starts one', async (
       started.push(url);
     }
     postMessage(message: { type: string }) {
-      if (message.type === 'clock' || message.type === 'water') clocks.push(message);
+      if (message.type === 'water') clocks.push(message);
     }
     terminate() {}
   } as unknown as typeof Worker;
@@ -104,16 +105,17 @@ test('a world without physics starts no worker; enabling it starts one', async (
     physics.handle.enabled = true;
     await loaded();
     assert.equal(started.length, 1);
-    assert.deepEqual(clocks[0], { type: 'water', water: lake, epoch: 1 });
+    assert.deepEqual(clocks[0], { type: 'water', water: lake, at: 0 }, 'its waves at 0 s now');
     assert.equal(physics.handle.waterSurface?.height(5, -3), 2, 'still water drawn at its level');
     physics.handle.water = null;
     assert.equal(physics.handle.waterSurface, null);
-    assert.deepEqual(clocks.at(-1), { type: 'water', water: null, epoch: 2 });
+    assert.deepEqual(clocks.at(-1), { type: 'water', water: null, at: 0 });
     const steep = { direction: [1, 0], wavelength: 1, amplitude: 1, steepness: 2 } as const;
     assert.throws(() => (physics.handle.water = { waves: [steep], level: 0 }), RangeError);
-    // A time scale of 0 stands still: the worker is paused, never scheduled infinitely far.
+    // A time scale of 0 stands still: a frame then owes nothing and asks for no other.
     physics.handle.timeScale = 0;
-    assert.deepEqual(clocks.at(-1), { type: 'clock', paused: true, timeScale: 0 });
+    physics.time(1);
+    assert.equal(physics.frame(), false);
     assert.throws(() => (physics.handle.timeScale = -1), RangeError);
     physics.dispose();
   } finally {

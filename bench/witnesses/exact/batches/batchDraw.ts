@@ -9,9 +9,9 @@ import {
 import type { ClusterBatchStats, ClusterDrawOwner } from './batches.ts';
 import { firstMaterial } from '../../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
-import { keptClusterScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 import type { Scene } from '../../../../packages/sdk-browser/src/world/core/scene.ts';
 import type { Object3D } from '../../../../packages/sdk-core/src/world/object/object3d.ts';
+import { keptClusterScene } from '../keptClusterScene.ts';
 
 /** A scene copy of the witness: a mesh of no graph, its world resolved by the draw itself. */
 export type BatchCopy = SceneCopy & Pick<Object3D, 'updateWorldMatrix'>;

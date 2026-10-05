@@ -95,8 +95,12 @@ export function createWebgpuCutAdopter(options: {
       delta.hold();
       drawnDelta.hold();
     } else {
-      delta.apply(cut.result.pageIds);
-      drawnDelta.apply(cut.result.drawablePageIds);
+      // Each list read off the ranks its readback claims in the list held, then held: the
+      // readbacks after it claim theirs in it (`../../gpu/dag/differenceChain.ts`).
+      const { pageIds, drawablePageIds } = cut.result,
+        claims = selection?.adopt(cut);
+      delta.apply(pageIds, pageIds.length, claims?.asked);
+      drawnDelta.apply(drawablePageIds, drawablePageIds.length, claims?.drawn);
       lastCut = cut;
     }
     // The packed ranks of the desired cut, rank by rank beside its records (#1235): held or applied,

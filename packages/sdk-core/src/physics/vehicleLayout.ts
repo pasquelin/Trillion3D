@@ -3,7 +3,7 @@
  * `PHYSICS_LAYOUT_VERSION` (`layout.ts`), which a change here bumps.
  */
 
-/** Vehicle kinds of the VEHICLE command, each on Jolt's `VehicleConstraint` and its controller. */
+/** Vehicle kinds of the VEHICLE command, each on the module's `VehicleConstraint` and its controller. */
 export const VEHICLE = { car: 0, motorcycle: 1, tracked: 2 } as const;
 export const TORQUE_POINTS = 5;
 export const MAX_GEARS = 6;

@@ -24,6 +24,9 @@ void physicalFrame(vec3 N){
   float face=faceSides==2&&!flatShaded?(gl_FrontFacing?1.0:-1.0):1.0;
   coatNormal=normalize(coat.T*face*mapped.x+coat.B*face*mapped.y+coatNormal*mapped.z);
  }
+ // The frame serves the anisotropic lobes alone, which read it only when physicalRead.x > 0: never
+ // without a positive strength factor. A uniform branch, so its derivatives stay defined.
+ if(!(physical.x>0.0))return;
  CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(texcoord0),dFdy(texcoord0));
  vec3 T=frame.T-N*dot(N,frame.T);
  if(dot(T,T)<1e-12){vec3 axis=abs(N.z)<0.999?vec3(0.0,0.0,1.0):vec3(0.0,1.0,0.0);T=cross(axis,N);}

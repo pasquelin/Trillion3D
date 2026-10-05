@@ -3,8 +3,7 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three';
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts';
-import { orderPendingUrls } from '../../../../packages/sdk-browser/src/streaming/priority.ts';
-import { linearToSrgb8 } from '../../../../packages/sdk-browser/src/visibility/math.ts';
+import { linearToSrgb8 } from '../../../../packages/sdk-core/src/math/primitives/color.ts';
 import { projectVisibilityVertex } from '../../../../packages/sdk-browser/src/visibility/projection.ts';
 import {
   setWindingEpoch,
@@ -12,23 +11,17 @@ import {
 } from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
 import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts';
 import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts';
-import { shadowPoolSide } from '../../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
-import type { PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/selection.ts';
 import * as ancien from '../../../oracles/browser/core-math.ts';
-import { referenceOrder } from '../../../oracles/browser/core-math-priority.ts';
+import { SPHERE_FLOATS, referenceClusterSphere } from '../../../oracles/browser/lamp-shadows.ts';
 import { affines, matrices, points } from './scenesCore.ts';
 import { enregistrements, octets } from './scenesCoreConsumers.ts';
-import { essaie, ligne } from './coreLine.ts';
-import {
-  createEngineCamera,
-  readCameraWorld,
-} from '../../../../packages/sdk-browser/src/camera/world.ts';
+import { ligne } from './coreLine.ts';
+import { parElement } from '../../../core/index.ts';
 
 // One light, so `store.count` holds and `noteResidenceChange` actually notes a change; its
-// scheduler's `representationChanged` is replaced per case below to capture the bounds it is
+// change list's `representationChanged` is replaced per case below to capture the bounds it is
 // called with, instead of applying them.
-const lumieres = createWebgpuLightState(shadowPoolSide(1280, 720));
+const lumieres = createWebgpuLightState();
 lumieres.store.add({
   id: 'l0',
   kind: 'point',
@@ -40,33 +33,37 @@ lumieres.store.add({
 });
 
 export async function lignesConsommateursBrowser() {
-  const { liste, roots, ranks, camera, echelle } = enregistrements;
-  // The engine order reads the camera it owns; the oracle keeps that of the host library.
-  const vue = readCameraWorld(createEngineCamera(), camera);
-  const paquets = [];
-  for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
-  // Each batch's records, located by their original rank (#1235): a batch-local index no longer
-  // names the placement, one record may serve several.
-  const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i),
-    located = (batch: readonly PageRec[]): PageLocations => ({
-      roots,
-      packed: batch.map((rec) => ranks.get(rec) ?? 0),
-      rootOfPacked,
-    });
+  const { liste, roots, ranks } = enregistrements;
+  // Each record is placed by its original rank (#1235).
+  const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i);
   const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
   const vuesProjetees = matrices.map((e) => ({ viewProjection: e }));
-  return [
-    await ligne(
-      'streaming queue: rendered order',
-      'packages/sdk-browser/src/streaming/priority.ts',
-      'hostile records, in batches of 30',
-      paquets,
-      (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
-      (l) => l.map((p) => essaie(() => orderPendingUrls(p, located(p), vue, echelle, []))),
+  // The engine side's inputs and outputs, built once and never under the clock: each vertex's
+  // model matrix and rank, each case's box, each sRGB pair.
+  const modeles = affines.slice(0, 60).map((m) => new THREE.Matrix4().fromArray(m));
+  const sommets = modeles.flatMap((_, i) => points.slice(0, 40).map((_, v) => [i, v] as const));
+  const boites = liste.map((): number[] => []),
+    encodages = octets.map(() => [0, 0]);
+  // Built once, so the timed call reuses its output array instead of building one.
+  const projected = parElement(([i, v]: readonly [number, number]) =>
+    projectVisibilityVertex(
+      modeles[i],
+      attribut,
+      v,
+      vuesProjetees[(i * 11) % vuesProjetees.length],
+      1280,
+      720,
     ),
+  );
+  let cible: number[] = [];
+  Object.assign(lumieres.changes, {
+    representationChanged: (min: ArrayLike<number>, max: ArrayLike<number>) =>
+      void cible.push(min[0], min[1], min[2], max[0], max[1], max[2]),
+  });
+  return [
     await ligne(
       'world-space cluster sphere for shadows',
       'packages/sdk-browser/src/webgpu/shadow/bounds.ts',
@@ -74,19 +71,18 @@ export async function lignesConsommateursBrowser() {
       liste,
       (l) =>
         l.map((r) => {
-          const s = new Float32Array(4);
-          ancien.referenceClusterSphere(r, s, 0);
-          return [s[0] - s[3], s[1] - s[3], s[2] - s[3], s[0] + s[3], s[1] + s[3], s[2] + s[3]];
+          // The split-double sphere since 16729c858f: centre = high + low, conservative radius.
+          const s = new Float32Array(SPHERE_FLOATS);
+          referenceClusterSphere(r, s, 0);
+          const [x, y, z, rayon] = [s[0] + s[4], s[1] + s[5], s[2] + s[6], s[3]];
+          return [x - rayon, y - rayon, z - rayon, x + rayon, y + rayon, z + rayon];
         }),
-      (l) =>
-        l.map((r) => {
-          let boite: number[] | undefined;
-          lumieres.plan.representationChanged = (min, max) => {
-            boite = [...Array.from(min), ...Array.from(max)];
-          };
-          noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r);
-          return boite ?? [];
-        }),
+      parElement((r: (typeof liste)[number], i) => {
+        cible = boites[i];
+        cible.length = 0;
+        noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r);
+        return cible;
+      }),
     ),
     await ligne(
       'winding order of a cluster',
@@ -94,11 +90,10 @@ export async function lignesConsommateursBrowser() {
       'hostile matrices',
       matrices,
       (l) => l.map((e) => ancien.referenceWindingCw(e)),
-      (l) =>
-        l.map((e, i) => {
-          setWindingEpoch(i + 1);
-          return windingCw(hostileRoots, i);
-        }),
+      parElement((_: Float64Array, i) => {
+        setWindingEpoch(i + 1);
+        return windingCw(hostileRoots, i);
+      }),
     ),
     await ligne(
       'projected vertex of the visibility buffer',
@@ -120,30 +115,20 @@ export async function lignesConsommateursBrowser() {
               ),
             ),
         ),
-      (l) =>
-        l.flatMap((m, i) =>
-          points
-            .slice(0, 40)
-            .map((_, v) =>
-              projectVisibilityVertex(
-                new THREE.Matrix4().fromArray(m),
-                attribut,
-                v,
-                vuesProjetees[(i * 11) % vuesProjetees.length],
-                1280,
-                720,
-              ),
-            ),
-        ),
+      () => projected(sommets),
     ),
     await ligne(
       'sRGB: byte table and 8-bit encoding',
-      'packages/sdk-browser/src/visibility/math.ts',
+      'packages/sdk-core/src/math/primitives/color.ts',
       '256 bytes and hostile values',
       octets,
       (l) =>
         l.map((c, i) => [ancien.referenceSrgb8Linear(i % 256), ancien.referenceLinearToSrgb8(c)]),
-      (l) => l.map((c, i) => [srgbToLinear((i % 256) / 255), linearToSrgb8(c)]),
+      parElement((c: number, i) => {
+        const sortie = encodages[i];
+        [sortie[0], sortie[1]] = [srgbToLinear((i % 256) / 255), linearToSrgb8(c)];
+        return sortie;
+      }),
     ),
   ];
 }

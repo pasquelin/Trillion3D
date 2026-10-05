@@ -14,7 +14,7 @@ const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
  * heard — a pose written (`pose`, `posed`), a child added or taken (`structure`, on the parent) —
  * never on the whole graph again. The graph's first pass walks it whole.
  *
- * INVARIANT: after `run()` every node under `scene` holds the world matrix `scene.updateMatrixWorld()`
+ * INVARIANT: after `run()` every node under `scene` holds the world matrix a full recomposition of the scene
  * would give it, bit for bit. The tree recomputes a walked node only when an input changed, and
  * every input change is heard: a pose setter tells the link (`objectPose.ts`), a reparent the
  * parent's `structure`, and whoever writes a matrix in place tells the link itself (`setHostPose`).

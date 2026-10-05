@@ -11,7 +11,7 @@ import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { graine, mesure, parElement, stress, rapport } from '../../core/index.ts';
 import {
   referenceAddCpuSteps,
   referenceDirectLightTimings,
@@ -45,21 +45,21 @@ const mesureCpu = await mesure({
   attendu: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
 });
 
-// A sample carries known passes, one unknown pass — which joins "geometry" — and, once
-// in ten, a `null` duration that leaves its stage unmeasured.
+// A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow
+// map pass — which joins "shadows" by its label's prefix — and, once in ten, a `null` duration
+// that leaves its stage unmeasured. Half the timed passes carry their own share of the image, as a
+// WebGPU timer gives it: a stage adds that share, not the pass's whole span.
 const ETIQUETTES = [
   'Trillion3D DAG selection',
   'Trillion3D partition',
-  'Trillion3D HiZ pyramid',
+  'Trillion3D HiZ',
   'Trillion3D material surfaces v1',
-  'Trillion3D shadow atlas v1',
   'Trillion3D shadow cull',
   'Trillion3D shadow page pyramids',
   'Trillion3D shadow occlusion',
-  'Trillion3D shadow static layer v1',
-  'Trillion3D light cut',
+  'vsm.pass',
   'Trillion3D light tiles v1',
-  'Trillion3D bounce probes v1',
+  'Trillion3D bounce v1',
   'Trillion3D deferred lighting',
   'Trillion3D HDR composition + present',
   'Trillion3D unknown pass',
@@ -68,10 +68,15 @@ const releve = (passes: number): GpuPassTimings => ({
   frame: 0,
   totalMs: null,
   truncated: false,
-  passes: Array.from({ length: passes }, (_, i) => ({
-    name: ETIQUETTES[i % ETIQUETTES.length],
-    gpuMs: alea() < 0.1 ? null : alea() * 2,
-  })),
+  passes: Array.from({ length: passes }, (_, i) => {
+    const gpuMs = alea() < 0.1 ? null : alea() * 2;
+    const ownMs = gpuMs !== null && alea() < 0.5 ? alea() * gpuMs : undefined;
+    return {
+      name: ETIQUETTES[i % ETIQUETTES.length],
+      gpuMs,
+      ...(ownMs === undefined ? {} : { ownMs }),
+    };
+  }),
 });
 const releves = (n: number, passes: number): GpuPassTimings[] =>
   Array.from({ length: n }, () => releve(passes));
@@ -97,7 +102,7 @@ const mesureEclairage = await mesure({
   name: 'direct-lighting durations',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
-  calcul: (input: GpuPassTimings[]) => input.map(directLightTimings),
+  calcul: parElement((sample: GpuPassTimings) => directLightTimings(sample)),
   attendu: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),
 });
 

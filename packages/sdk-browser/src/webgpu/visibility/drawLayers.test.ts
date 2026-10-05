@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
-import { BASE_SLOTS, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from '../../gpu/draw/draw.ts';
+import {
+  BASE_SLOTS,
+  DRAW_ITEM_U32,
+  HALF_SLOTS,
+  MAX_DRAW_SLOTS,
+  slotCount,
+} from '../../gpu/draw/draw.ts';
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -95,25 +101,27 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
     },
     gpu: { cache: { buffer: {} } },
     run: { gpuDrawCalls: 0 },
-    layout: { rows: { packedCount: 0 } },
+    layout: { rows: { packedCount: 0 }, itemWordsHold: createDrawItemWordsHold(1) },
   } as unknown as WebgpuPagesRuntime;
 
   drawVis(rt, device, pass, false, true);
 
-  // The call count now depends only on the slots: three cull modes per layer, each at its own
-  // indirect offset. An empty slot draws zero instances, the GPU knows that alone.
+  // The call count depends only on the slots: each layer's occluder half, its opaque then its
+  // cutout bins, each at its own indirect offset. An empty slot draws zero instances, the GPU knows
+  // that alone.
+  const half = Array.from({ length: HALF_SLOTS }, (_, bin) => bin);
   assert.deepEqual(
     drawCalls,
-    [0, 16, 32, BASE_SLOTS * 16, (BASE_SLOTS + 1) * 16, (BASE_SLOTS + 2) * 16],
-    'the three slots of each layer are drawn in layer order',
+    [...half, ...half.map((bin) => BASE_SLOTS + bin)].map((slot) => slot * 16),
+    'the slots of each layer are drawn in layer order',
   );
-  assert.equal(rt.run.gpuDrawCalls, 6);
+  assert.equal(rt.run.gpuDrawCalls, 2 * HALF_SLOTS);
 });
 
 // uniforms.ts
 test('visUniformSlots grows the visibility uniform slot count with the scene’s coplanar layers', () => {
   assert.equal(visUniformSlots({ drawLayerSlots: 1 } as WebgpuVisState), slotCount(1) + 1);
-  assert.equal(visUniformSlots({ drawLayerSlots: 1 } as WebgpuVisState), 7);
+  assert.equal(visUniformSlots({ drawLayerSlots: 1 } as WebgpuVisState), BASE_SLOTS + 1);
   assert.equal(visUniformSlots({ drawLayerSlots: 3 } as WebgpuVisState), slotCount(3) + 1);
 });
 
@@ -122,7 +130,7 @@ test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the 
   const { device } = fakeDevice();
   const uniformSlots = visUniformSlots({ drawLayerSlots: 3 } as WebgpuVisState);
   const shaders = await createWebgpuVisibilityShaders(device, 8, uniformSlots);
-  assert.equal(uniformSlots, 19);
+  assert.equal(uniformSlots, 3 * BASE_SLOTS + 1);
   assert.equal((shaders.visUniform as unknown as { size: number }).size, uniformSlots * 256);
 });
 

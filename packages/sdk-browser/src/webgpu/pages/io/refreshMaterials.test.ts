@@ -74,7 +74,9 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     fixture.material.alphaTest = 0.5;
     fixture.material.needsUpdate = true;
     backend.refreshMaterials?.(true, { surfaces: [fixture.material], from: 'opaque', to: 'mask' });
+    // The masked class is asked at the next frame entry, the image held until it compiled.
     backend.render(camera());
+    await backend.flush?.();
     assert.equal(masked(), true, 'every row of the material cuts at its cutoff');
   } finally {
     backend.dispose();
@@ -98,9 +100,8 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   const runtime = {
     lights: {
       store: { count: 1 },
-      shadows: {},
       mobility: { moves: () => false },
-      plan: { worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]) },
+      changes: { worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]) },
     },
     layout: {
       rows: {

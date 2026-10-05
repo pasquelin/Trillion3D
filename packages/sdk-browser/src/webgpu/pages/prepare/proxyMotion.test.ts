@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { syncLightingProxies, syncPageProxy } from './proxyMotion.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-test('borrowed far shadows follow off-move-on and late loads without duplicate epoch work', () => {
+test('borrowed proxies follow off-move-on and late loads without duplicate epoch work', () => {
   let observed = -1,
     updates = 0,
     refreshes = 0;
@@ -18,18 +18,17 @@ test('borrowed far shadows follow off-move-on and late loads without duplicate e
   };
   const rt = {
     setup: {
-      source: { traverse() {} },
+      source: { traverse() {}, _alive: true },
       worlds: { of: () => ({ elements: matrix }), refresh: () => refreshes++ },
     },
     run: { gate: { revisions: { scene: 1 } } },
     bounce: { wanted: false, probes: moving },
-    sunFar: { borrowed: true, gpu: { proxy: moving } },
   } as unknown as WebgpuPagesRuntime;
   syncLightingProxies(rt);
   matrix[12] = 40;
   rt.run.gate.revisions.scene++;
   syncLightingProxies(rt);
-  assert.equal(observed, 40, 'off bounce still updates the borrowed shadow geometry');
+  assert.equal(observed, 40, 'off bounce still updates the kept proxy');
   rt.bounce.wanted = true;
   syncLightingProxies(rt);
   assert.equal(updates, 2, 'toggle alone does not repeat geometry work');

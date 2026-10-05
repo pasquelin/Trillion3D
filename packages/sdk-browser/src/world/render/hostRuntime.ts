@@ -28,7 +28,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     center,
     bounds,
     radius,
-    homeOffset,
   } = prepared;
   const { geometryUrls, streamer } = pageSources;
   const { gpuDevice, webglSurface } = resources;
@@ -109,6 +108,8 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
       const arriving = !!families || !!loading || !!streaming.promise;
       return arriving || streaming.arrivals.pending > 0 || !!pending || !!cells;
     },
+    /** The interactive loop's frame began: whether the engine holds it to measure the display. */
+    measureFrame: () => state.active.measureFrame?.() === true,
     /** The engine's camera pages made resident so far, when it counts them. */
     landings: () => state.active.landings?.(),
     capture,
@@ -124,7 +125,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     webglSurface,
     viewport,
     context,
-    homeOffset,
     lookAtTarget,
     radius,
     hostedControls,

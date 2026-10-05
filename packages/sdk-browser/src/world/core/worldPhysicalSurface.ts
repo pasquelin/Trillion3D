@@ -28,7 +28,7 @@ const physicalFamily = (material: Material) =>
     : 'standard';
 
 /** Writes a physical kind's family and physical fields into its surface: a surface that moves
- *  to the physical family takes its extensions first, at the reference's values. */
+ *  to the physical family takes its extensions first, at their default values. */
 export function writePhysical(surface: GraphSurface, material: Material) {
   const family = physicalFamily(material);
   (surface.subsurfaceColor as Material['subsurfaceColor']).copy(material.subsurfaceColor);

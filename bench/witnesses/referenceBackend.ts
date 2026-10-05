@@ -6,13 +6,11 @@ import { baseCapabilities } from './capabilities.ts';
 import { hostBackground, lighting } from './three/displayObjects.ts';
 import { sceneLightingApi } from '../../packages/sdk-browser/src/lighting/sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './three/sceneAdapter.ts';
-import {
-  applyMeshDiagnostic,
-  disposeTriangleGeometry,
-} from '../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { disposeTriangleGeometry } from '../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import type { BackendFactory } from '../../packages/sdk-browser/src/backend/types.ts';
 import type { DiagnosticMode } from '../../packages/sdk-core/src/index.ts';
 import * as THREE from 'three';
+import { applyMeshDiagnostic } from './applyMeshDiagnostic.ts';
 
 export const referenceBackend: BackendFactory = ({
   source,

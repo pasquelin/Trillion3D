@@ -125,9 +125,9 @@ export class Camera extends Object3D {
     if (this._projectionMatrix) referenceProjection(this._projectionMatrix, this);
     this._link?.pose(this);
   }
-  /** The projection the optics compose, in the reference's depth convention with a finite far
-   *  plane, for a renderer that draws with it; every optic write composes it again. The world
-   *  draws with its own (`engineCamera.ts`). */
+  /** The projection the optics compose onto the clip cube, depth −1 on the near plane to 1 on a
+   *  finite far plane, for a renderer that draws with it; every optic write composes it again.
+   *  The world draws with its own (`engineCamera.ts`). */
   get projectionMatrix(): Matrix4 {
     return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this));
   }

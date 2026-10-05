@@ -55,26 +55,11 @@
         { direction: [1, -0.8], wavelength: 2.3, amplitude: 0.04, steepness: 0.1 },
       ];
 
-      // The surface: a plain grid, each point carried where the waves put it, every frame.
-      const sheet = geometry.plane(WIDE, DEEP, 112, 80);
-      // Rewritten every frame: uploaded in place, never cut into pages again.
-      sheet.usage = 'dynamic';
-      const rest = Float32Array.from(sheet.attributes.position.array);
-      const sea = object.mesh(sheet, material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' }));
+      // The surface: a plain grid laid flat on the water. Lying on its rest plane, it is the
+      // water's own: the GPU carries each of its points where the waves put it, every frame.
+      const sea = object.mesh(geometry.plane(WIDE, DEEP, 112, 80), material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' }));
+      sea.rotation.x = -Math.PI / 2;
       world.scene.add(sea);
-      const point = new Float64Array(3), normal = new Float64Array(3);
-      const drawSurface = (surface) => {
-        const position = sheet.attributes.position, normals = sheet.attributes.normal;
-        for (let v = 0; v < rest.length / 3; v++) {
-          // The plane stands in x and y: its y is the world's −z once laid flat.
-          const x = rest[v * 3], z = -rest[v * 3 + 1];
-          surface.point(x, z, point);
-          surface.normal(x, z, normal);
-          position.setXYZ(v, point[0], point[1], point[2]);
-          normals.setXYZ(v, normal[0], normal[1], normal[2]);
-        }
-        position.needsUpdate = normals.needsUpdate = true;
-      };
 
       // What floats and what does not is the matter's density against the water's (kg/m³).
       const matters = {
@@ -164,6 +149,7 @@
       // Set again, the water's waves would start over: they go on from where they are.
       const pour = ({ level, waves, density, current }) => {
         const now = world.physics.waterSurface?.wavesNow();
+        sea.position.y = level;
         world.physics.water = {
           level,
           density,
@@ -171,7 +157,7 @@
           waves: SWELL.map((wave, i) => ({ ...wave, amplitude: wave.amplitude * waves, steepness: wave.steepness * Math.min(1, waves), phase: now?.[i].phase ?? 0 })),
         };
       };
-      const settings = controls(
+      controls(
         {
           level: [0.2, 3.8, 2.4, 0.1],
           waves: [0, 2, 1, 0.05],
@@ -189,12 +175,6 @@
       );
       fill();
 
-      world.onFrame(() => {
-        const surface = world.physics.waterSurface;
-        if (surface) drawSurface(surface);
-        // Moving water asks for the next frame; still water is drawn once and rests.
-        if (settings.waves > 0) world.invalidate();
-      });
       physicsReadouts(world, ['bodies', 'awake', 'step']);
     </script>
   </body>

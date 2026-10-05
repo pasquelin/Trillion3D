@@ -1,7 +1,6 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts';
 import { interactiveOptions } from './interactiveOptions.ts';
-import { drawnOnArrival } from './familyUse.ts';
 import { startInteractiveExplorer } from './interactive.ts';
 import { releaseOwned } from './lifecycle.ts';
 import { loadExplorerManifest } from './manifest.ts';
@@ -90,13 +89,11 @@ export async function openMeasuredWorld(
       preparationMs: performance.now() - preparationStart,
       moveNamed: source?.moveNamed,
     });
+    // A change asks the session's own loop for a frame; without one, the host draws (`render`)
+    // and a change asks nothing.
     const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
-      : drawnOnArrival(
-          runtime.familiesPending,
-          () => explorer.render(),
-          () => runtime.state.disposed,
-        );
+      : () => {};
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
     const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias;
     const capture = referenceCapture(explorer.capture, reference, shadowBias);

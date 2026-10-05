@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
-import { hostWorldChainInto } from '../../host/world/chain.ts';
+import { chainWorld } from '../../../../../tests/kit/assert/chainWorld.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import { cellUrl, everywhere, io, noBudget, opened, settled, world } from './cells.fixture.ts';
 import { sizedWhole } from './cells.fixture.ts';
@@ -30,14 +30,14 @@ test('a row holds the world matrix the engine composes for the same node under i
   const child = new Object3D();
   pose(child, node(5000, 0));
   core.add(child);
-  const expected = [...hostWorldChainInto(new Float64Array(16), child)];
+  const expected = [...chainWorld(child)];
   const rows = links[1].placements!;
   const at = [0, 1, 2].find((index) => row(rows, index)[12] === expected[12])!;
   assert.deepEqual(row(rows, at), expected, 'the same bits as a host node there');
   // The parent moves: the rows under it follow before the next frame.
   core.position.set(0, 20, 0);
   cells.frame([0, 0, 0], everywhere, port, noBudget);
-  assert.deepEqual(row(rows, at), [...hostWorldChainInto(new Float64Array(16), child)]);
+  assert.deepEqual(row(rows, at), [...chainWorld(child)]);
 });
 
 test('a cell past its reach gives its rows back, parked, for the next cell to take', async () => {

@@ -114,7 +114,7 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
 
 // Index pages are content-addressed: two clusters whose index bytes are identical are published
 // under one url, while the compiler writes each of them its own quantized page. The pool is
-// addressed by that page, so each takes a slot of its own and decodes its own geometry — one slot
+// addressed by that page, so each takes a place of its own and decodes its own geometry — one place
 // for the two would have made one of them draw the other's triangle.
 test('two clusters sharing an index page each keep their own page and draw', async () => {
   installGpuGlobals();
@@ -135,18 +135,20 @@ test('two clusters sharing an index page each keep their own page and draw', asy
     assert.equal(geometryPages(events).context.fromGeometryPage, 2, 'both draw from their page');
     assert.equal(backend.metrics().submittedTriangles, 2, 'both clusters are drawn');
     const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')!;
-    const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
-    const width = Number(geometryPages(events).context.slotBytes);
-    const held = Array.from({ length: pool.data.byteLength / width }, (_, at) =>
-      hex(pool.data.subarray(at * width, (at + 1) * width)),
-    );
-    // Each page opens a slot of its own: under one address, one of the two would be missing.
-    const at = fixture.encoded.map((page) => held.findIndex((s) => s.startsWith(hex(page.data))));
+    // A pool that holds the whole catalogue lays each page at its own width, one after the other
+    // (`pageHomes`); a smaller one, in slots of the widest. Either way a page is found by its bytes.
+    const bytes = Buffer.from(pool.data.buffer, pool.data.byteOffset, pool.data.byteLength);
+    const at = fixture.encoded.map((page) => bytes.indexOf(page.data));
+    // Each page opens a place of its own: under one address, one of the two would be missing.
     assert.ok(
-      at.every((slot) => slot >= 0),
+      at.every((offset) => offset >= 0),
       'both pages are in the pool',
     );
-    assert.notEqual(at[0], at[1], 'each page holds a slot of its own');
+    const [one, other] = fixture.encoded.map((page) => page.data.byteLength);
+    assert.ok(
+      at[0] + one <= at[1] || at[1] + other <= at[0],
+      'each page holds a place of its own: the two do not overlap',
+    );
   } finally {
     await disposePagedQuad(backend, fixture);
   }

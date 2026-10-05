@@ -2,7 +2,7 @@
 // The CDN bundle, a step of `pnpm run build` after the `tsc` output it bundles: the browser entry
 // as one minified ES module, `dist/trillion3d.module.js`, with its source map. Beside it, at the
 // root of `dist/`, what it starts or fetches by its own URL (`besideModule`, `import.meta.url`):
-// the three workers, each one standalone module, the WebAssembly modules, and the optional
+// the four workers, each one standalone module, the WebAssembly modules, and the optional
 // families' chunks, fetched on first use (`bundle-fold.ts`). A page loads it with one import.
 import {
   copyFileSync,
@@ -25,6 +25,7 @@ const WORKERS = [
   'sdk-browser/src/page/decode/pageDecodeWorker.js',
   'sdk-browser/src/page/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
+  'sdk-browser/src/math/animationWorker.js',
 ];
 const MODULES = [
   'sdk-browser/src/page/decode/pageCodec.wasm',

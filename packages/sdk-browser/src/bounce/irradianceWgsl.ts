@@ -23,7 +23,7 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
   if(all(lit==vec3f(0.0))){continue;}
   if(light.params.z>0.5){
    let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-   if(proxyBlocked(offset,incidence.xyz,span,false)){continue;}
+   if(proxyBlocked(offset,incidence.xyz,span)){continue;}
   }
   total+=lit;
  }

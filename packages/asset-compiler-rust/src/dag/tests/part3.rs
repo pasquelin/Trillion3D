@@ -135,7 +135,7 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
         "a plane must still coarsen"
     );
     // A collapse inside a plane displaces no surface, so no level may lift it by as much as the
-    // distance between two of its own vertices, the only length the sheet carries. meshoptimizer
+    // distance between two of its own vertices, the only length the sheet carries. The simplifier
     // 0.25 accumulates its error over the collapses rather than remeasuring it, so what it reports
     // on a plane is not exactly nil; it stays two orders of magnitude under the step.
     let step = 1.0;

@@ -1,15 +1,9 @@
 import { meshes as objects } from '../../scene/meshes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
-import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { pagesBounds, sceneBoundsLot } from './pagesBounds.ts';
 import { replicateInstances } from '../../scene/replicateInstances.ts';
 import { hostWorldBounds } from '../../host/world/bounds.ts';
-import { hostWorldLot } from '../../host/world/tree.ts';
-import {
-  EngineError,
-  MATRIX_VALUES,
-  type ClusterManifest,
-} from '../../../../sdk-core/src/index.ts';
+import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
@@ -23,13 +17,11 @@ import { createPartitionCells } from '../../scene/partition/cells.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-
-/** World matrix of a mesh at load, reused from mesh to mesh. */
-const monde = new Float64Array(MATRIX_VALUES);
+import { hostWorldPlacements } from '../../host/world/placements.ts';
 
 /** A mesh of the prepared scene with no geometry pages, and no rows whose box bounds it before
  *  its pages are read (#751): the autonomous scene is incomplete. */
-function manquante(): never {
+function missingPages(): never {
   throw new EngineError(
     'AUTONOMOUS_ASSOCIATION_MISSING',
     'Prepared scene primitive has no geometry pages',
@@ -62,7 +54,7 @@ export async function loadPreparedScene(
   // The compute path the host asked for holds FROM LOAD: the governor receives it before the
   // first lot, and `configureExplorer` will tell it again without changing anything. Module
   // load starts here and overlaps with the scene's, which lasts much longer.
-  const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
+  const mathBatch = prepareMathBatch(options.mathPath ?? 'auto');
   // The scene is built from the cache alone: its tables, the binary of the document it draws and
   // the images they locate. Images whose chain is baked are not read: a white pixel stands in
   // their place, and the engine reads their levels from the cache — which it does either way.
@@ -80,7 +72,9 @@ export async function loadPreparedScene(
     message: 'Read the scene tables',
   });
   const skipBaked = options.textureSource !== 'host';
-  // The manifest pages the node table needs are read while the scene builds, which reads none.
+  // The manifest pages the node table needs are read while the scene builds, which reads none
+  // until its surfaces pick their variants: a cloth's primitive is drawn on both faces.
+  const listed = options.pages?.hold(tables.meshPages);
   const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
       tables,
@@ -91,9 +85,10 @@ export async function loadPreparedScene(
       signal,
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
+      listed,
     }),
     openWorldRoots(metadata, base, signal, options.meter),
-    options.pages?.hold(tables.meshPages),
+    listed,
   ]);
   // The world top is pinned; a scene not partitioned is one cell, placed for its whole life.
   if (!tables.partition) await worldRoots?.hold(0);
@@ -137,34 +132,31 @@ export async function loadPreparedScene(
     buildMs: performance.now() - buildAt,
   });
   registerSource(source);
-  // No non-finite pose enters the engine: each mesh world matrix is computed once by the
-  // engine, from the host's local poses. Without this refusal, a host NaN would come out as
-  // a darkened surface at the bottom of the lighting shader, far from its cause.
-  for (const mesh of objects(source))
-    assertFiniteTransform(hostWorldChainInto(monde, mesh), mesh.name);
+  // No non-finite pose enters the engine: each mesh world matrix is read from the transform tree
+  // after one frame pass. Without this refusal, a host NaN would come out as a darkened surface
+  // at the bottom of the lighting shader, far from its cause.
+  const worlds = hostWorldPlacements(source);
+  for (const mesh of objects(source)) assertFiniteTransform(worlds.of(mesh).elements, mesh.name);
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
-  await calculEnLot;
+  await mathBatch;
   // Load buffers, reserved before they are written and returned as soon as they are read:
   // scene bounds — exact pages of an autonomous scene, host boxes otherwise, and only when
   // replication asks for them — then replica matrices. Reserve by lot, never per frame.
-  const bornes =
+  const boundsLot =
     autonomous || replicas > 1
       ? await sceneBoundsLot(source, associations, metadata, autonomous)
       : null;
-  // Buffer of the world matrices the engine composes itself, at the subtree size.
-  const mondes = !autonomous && replicas > 1 ? await hostWorldLot(source) : null;
   const preparedBounds = autonomous
-    ? pagesBounds(source, associations, metadata, manquante, undefined, bornes)
+    ? pagesBounds(source, associations, metadata, missingPages, undefined, boundsLot)
     : replicas > 1
-      ? hostWorldBounds(source, undefined, bornes, mondes)
+      ? hostWorldBounds(source, undefined, boundsLot)
       : undefined;
-  mondes?.release();
   const instances =
     replicas > 1 ? await createMultiplyLot(replicas * objects(source).length) : null;
   source = replicateInstances(source, associations, replicas, preparedBounds, instances);
   instances?.release();
-  bornes?.release();
+  boundsLot?.release();
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);

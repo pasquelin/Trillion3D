@@ -6,14 +6,13 @@ import { surfaceCacheTexels } from './sizes.ts';
 import type { GpuBounceProxy } from './proxy.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { BOUNCE_SURFACE_PASS } from '../stage/passLabels.ts';
+import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
- *  cache — the two atlases of `atlas.ts`. The proxy is writable because its header carries
- *  `atomic` counters; this pass writes nothing there. */
+ *  cache — the two atlases of `atlas.ts`. */
 const SURFACE_TYPES: BounceSlot[] = [
   'uniform',
-  'storage',
+  'read-only-storage',
   'read-only-storage',
   'read-only-storage',
   'atlas-array',
@@ -62,7 +61,7 @@ export async function createGpuBounceSurface(
   const layout = bounceLayout(device, SURFACE_TYPES);
   let pipeline: GPUComputePipeline;
   try {
-    pipeline = device.createComputePipeline({
+    pipeline = await buildComputePipeline(device, {
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateSurface' },
     });
@@ -115,19 +114,17 @@ export async function createGpuBounceSurface(
     },
     /**
      * Encodes a cell batch whose size is the fraction of the ceiling the millisecond budget
-     * kept. The pass carries its label: it is measured separately.
+     * kept, as a dispatch of the bounce's open compute `pass`, before the probes read the cache.
      */
-    encode(encoder: GPUCommandEncoder, load: number) {
+    encode(pass: GPUComputePassEncoder, load: number) {
       batch = bounceBatchOf(ceiling, load);
       words[0] = cursor;
       words[1] = batch;
       words[2] = texels;
       device.queue.writeBuffer(span, 0, words);
-      const pass = encoder.beginComputePass({ label: BOUNCE_SURFACE_PASS });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, groupOf(lights()));
       pass.dispatchWorkgroups(Math.ceil(batch / SURFACE_WORKGROUP), 1, 1);
-      pass.end();
       updated = batch;
       cursor += batch;
       if (cursor >= texels) {

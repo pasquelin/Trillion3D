@@ -18,7 +18,7 @@
 
 /** The WGSL, on the planes `dagPrepare` left in `frames` (`shader/primitiveWgsl.ts`): the
  *  camera's in its row — `slotOf` under view 0, whatever view `vi` names when the view ahead asks —,
- *  those ahead behind it. The two views share their far plane's kind (`../../core/aheadView.ts`). */
+ *  those ahead behind it. The two views share their far plane's kind (`../core/aheadView.ts`). */
 export const DAG_AHEAD_DUE_WGSL = `fn cameraPlanes(w:u32)->u32{return rowOf(w)*FRAME;}
 fn planeReach(p:vec4f,bmin:vec3f,bmax:vec3f)->f32{
  let n=length(p.xyz);if(!(n>0.0)){return 0.0;}

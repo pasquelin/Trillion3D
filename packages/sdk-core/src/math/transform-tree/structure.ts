@@ -1,6 +1,12 @@
 import { EngineError } from '../../contracts/cache.ts';
-import { NODE_LOCAL_CHANGED, assertNode, type TransformTree } from './transformTree.ts';
-import { linkTransformNode, nextInSubtree, unlinkTransformNode } from './links.ts';
+import {
+  NODE_LISTED,
+  NODE_LOCAL_CHANGED,
+  assertNode,
+  markTransformNode,
+  type TransformTree,
+} from './transformTree.ts';
+import { hangDepths, linkTransformNode, nextInSubtree, unlinkTransformNode } from './links.ts';
 
 /**
  * Hierarchy structure: subtree walk, removal, release, reparenting. Every operation reads the
@@ -54,18 +60,20 @@ export function releaseTransformNode(tree: TransformTree, node: number) {
   unlinkTransformNode(tree, node);
   for (let child = tree.firstChild[node]; child >= 0; child = tree.nextSibling[child]) {
     tree.parent[child] = -1;
-    tree.flags[child] |= NODE_LOCAL_CHANGED;
+    markTransformNode(tree, child, NODE_LOCAL_CHANGED);
+    hangDepths(tree, child);
   }
   freeNode(tree, node);
 }
 
+/** A freed slot keeps only its place in `listed`, which the frame pass skips. */
 function freeNode(tree: TransformTree, node: number) {
-  tree.flags[node] = 0;
+  tree.flags[node] &= NODE_LISTED;
   tree.free[tree.freeCount++] = node;
 }
 
 /**
- * Attaches `node` to `parent` (`-1`: root), like the reference `add`: matrices do not move
+ * Attaches `node` to `parent` (`-1`: root): matrices do not move
  * until the next update. Throws if `parent` is `node` or one of its descendants.
  */
 export function reparentTransformNode(tree: TransformTree, node: number, parent: number) {
@@ -80,5 +88,5 @@ export function reparentTransformNode(tree: TransformTree, node: number, parent:
   if (tree.parent[node] === parent) return;
   unlinkTransformNode(tree, node);
   linkTransformNode(tree, node, parent);
-  tree.flags[node] |= NODE_LOCAL_CHANGED;
+  markTransformNode(tree, node, NODE_LOCAL_CHANGED);
 }

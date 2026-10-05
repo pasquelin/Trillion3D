@@ -25,10 +25,6 @@ export function streamCutResidency(
   const { run, services } = rt,
     { rows } = rt.layout,
     marks = rt.timing.marks;
-  // What the light cuts asked for last time they reported: the lower tier, served after this cut.
-  const lightCut = rt.lights.lightCut,
-    asked = lightCut?.reports.takeRequests();
-  if (asked) services.shadowTier.offerIds(asked);
   // Never throttled: past the budget the queue keeps the coarsest pages the readback asks for, and
   // the rest is drawn by its nearest resident ancestor (`../../residency/requestAdmission.ts`).
   services.residency.queueGpuCutResidency(selection.peek());

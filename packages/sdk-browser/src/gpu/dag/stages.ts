@@ -5,7 +5,7 @@ import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
  *  (`GROUP_WIDTH`, `shader/gridWgsl.ts`). The real-GPU compile probe builds exactly these
- *  (`tests/browser/probes/dag-kernels-compile-gpu.ts`). All compile together, off the thread. */
+ *  (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
 export async function createDagStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
@@ -33,9 +33,10 @@ export async function createDagStages(
       'dagMask',
       'dagDrawPrefix',
       'dagDrawScatter',
-      'dagViewOffsets',
       'dagSortRequests',
       'dagListEvictions',
+      'dagCutDifference',
+      'dagCutKeep',
     ],
     constants,
   );
@@ -50,8 +51,9 @@ export async function createDagStages(
     maskPipeline: stage.dagMask,
     drawPrefixPipeline: stage.dagDrawPrefix,
     drawScatterPipeline: stage.dagDrawScatter,
-    viewOffsetsPipeline: stage.dagViewOffsets,
     requestSortPipeline: stage.dagSortRequests,
     evictPipeline: stage.dagListEvictions,
+    differencePipeline: stage.dagCutDifference,
+    keepPipeline: stage.dagCutKeep,
   };
 }

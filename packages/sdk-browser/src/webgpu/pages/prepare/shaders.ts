@@ -3,6 +3,7 @@ import { TRIANGLE_PALETTE_WGSL } from '../../../diagnostic/trianglePalette.ts';
 import { clusterDecodeWgsl } from '../../../cluster/decodeWgsl.ts';
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../../visibility/shader/lineWgsl.ts';
 import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
+import { SRGB_ENCODE_WGSL } from '../../../texture/srgbEncode.ts';
 
 /** The surface colour carries its alpha: the opaque draw writes 1 there, a transparent one its
  *  opacity, which the blend pipeline of its mode reads (`BLEND_EQUATIONS`).
@@ -56,7 +57,7 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  return out;
 }${ACES_WGSL}
-fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
+${SRGB_ENCODE_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut)->@location(0) vec4f{
  if((uni.mode&${FALLBACK_WIREFRAME}u)!=0u){

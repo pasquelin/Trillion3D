@@ -64,11 +64,9 @@ fn wrapRepete(wrap:u32)->bool{return (wrap&${WRAP_REPEATS}u)!=0u;}
 fn wrapReplie(uv:vec2f,wrap:u32)->vec2f{
  return vec2f(wrapCoord(uv.x,false,(wrap&${WRAP_S_MIRROR}u)!=0u),wrapCoord(uv.y,false,(wrap&${WRAP_T_MIRROR}u)!=0u));
 }
-// Known, uncorrected limit: the half-texel is taken on textureDimensions(maps_i,0), the period
-// of level 0, while textureSampleGrad reads the level the gradient chooses. Under minification,
-// a mip level's seam therefore still reads the clamped edge; only magnification is corrected.
-// Lifting it is not done here: the atlas compiler must lay, per level, a gutter of replicated
-// edge texels, so the sampler itself yields the seam colour at every level.
+// texels is the size of the level being read: a mip level's seam is half of ITS texel wide, so the
+// atlas reads fold each level on its own size (../webgpu/tile/wgsl.ts, the Level read), and the seam
+// under minification mixes the last texel and the first as the hardware sampler does at that level.
 fn wrapAxis(t:f32,repeat:bool,mirror:bool,texels:f32)->vec4f{
  let c=wrapCoord(t,repeat,mirror);
  let demi=0.5/texels;

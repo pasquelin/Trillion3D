@@ -1,4 +1,4 @@
-// #364: a sprite is a picture that always faces the camera, as the reference's `Sprite`. The real
+// #364: a sprite is a picture that always faces the camera. The real
 // text of both shaders and its CPU twin turn its quad toward the image, and every raster that
 // draws a sprite reads that one text.
 import test from 'node:test';
@@ -7,7 +7,6 @@ import { SPRITE_GLSL, SPRITE_WGSL, spriteAt } from './spriteWgsl.ts';
 import { runShaderText } from './shaderText.fixture.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { rasterVisibilityIds } from '../buffer.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { locatedBy } from '../../page/selection/placements.fixture.ts';
 import { hostSurface } from '../../world/core/worldSurface.ts';
@@ -16,6 +15,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { MaterialParameters } from '../../../../sdk-core/src/world/material/material.ts';
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
 
 /** The engine camera at `eye`, looking at the origin: 55° of field on a square image. */
 function camera(eye: number[]) {
@@ -76,7 +76,7 @@ for (const [language, run] of Object.entries(RUNS))
   });
 
 // The corner lies in the image plane at its origin's depth, as far from it on screen as the
-// reference's `projectionMatrix · (mvPosition + offset)` puts it, whatever the sprite's turn.
+// projection of its view-space origin plus the corner offset puts it, whatever the sprite's turn.
 test('a corner stays at its origin depth, turned in the image plane only', () => {
   for (const c of CASES) {
     const cam = camera(c.eye),

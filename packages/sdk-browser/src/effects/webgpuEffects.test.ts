@@ -9,20 +9,25 @@ import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { createWebgpuEffects } from './webgpuEffects.ts';
 
 /** An encoder that records the passes begun on it, their target and the dynamic offset of
- *  their first bind group. */
+ *  their first bind group, as each begins, and every descriptor and offset array it was handed. */
 function recorder() {
   const passes: { label?: string; load: string; view: unknown; offset?: number }[] = [];
+  const handed = new Set<unknown>();
   const encoder = {
     beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
       const [color] = descriptor.colorAttachments as GPURenderPassColorAttachment[];
       const pass = { label: descriptor.label, load: color.loadOp, view: color.view } as const;
       passes.push(pass);
-      const setBindGroup = (index: number, _group: unknown, offsets?: number[]) =>
-        void (index || Object.assign(pass, { offset: offsets?.[0] }));
+      handed.add(descriptor);
+      const setBindGroup = (index: number, _group: unknown, offsets?: Uint32Array) => {
+        if (index) return;
+        handed.add(offsets);
+        Object.assign(pass, { offset: offsets?.[0] });
+      };
       return { setPipeline() {}, setBindGroup, draw() {}, end() {} };
     },
   } as unknown as GPUCommandEncoder;
-  return { encoder, passes };
+  return { encoder, passes, handed };
 }
 
 const input = { input: true } as unknown as GPUTextureView;
@@ -129,7 +134,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
 
 test('a fused chain leaves its last blend to the composition: one pass and one target fewer (#963)', async () => {
   const { gpu, effects } = await loaded();
-  const { encoder, passes } = recorder();
+  const { encoder, passes, handed } = recorder();
   const bloom = effect.bloom({ intensity: 0.5 });
   effects.encode(encoder, [bloom], input, 64, 32);
   await effects.settled();
@@ -147,6 +152,10 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   assert.equal(effects.draws, 2 * levels - 1);
   assert.ok(passes.every((pass) => pass.view !== input && pass.label === 'Trillion3D bloom'));
   assert.equal(effects.blend!.offset, (2 * levels - 1) * 256, 'the blend reads its own slot');
+  const fused = effects.blend;
+  effects.encode(encoder, [bloom], input, 64, 32, true);
+  assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame');
+  assert.equal(handed.size, 2, 'every pass began with one descriptor and one offset array');
   assert.equal(gpu.destroyed.length, 1, 'the pass target is given back');
   assert.equal(effects.bytes, bloomLevelBytes(64, 32));
   // Two blooms: the first writes the one target left, the second blends it in the composition.

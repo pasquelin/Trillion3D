@@ -6,6 +6,7 @@ import * as grants from '../../residency/poolGrants.ts';
 import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { textureBytesBeside } from './memory.ts';
+import { prepareHostReductions } from '../../../texture/mips.ts';
 
 /** The append each session runs last: the next one draws its lane from the pool that one left. */
 const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>();
@@ -88,6 +89,9 @@ async function appendNow(
     streamer.resize(pool.layers);
     pools.pool = pool;
   }
+  // A host texture's mips reduce on the device: what they take compiled before its tail does.
+  if (entry.source.kind === 'host') await prepareHostReductions(device, encoding, [kind]);
+  rt.signal.throwIfAborted();
   const started = performance.now(),
     before = { ...streamer.counters };
   let slot: number;

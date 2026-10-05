@@ -110,7 +110,7 @@ export class WebglClusterLights {
     this.records.reserve((lights.length + 1) * 4);
     lists.reserve(lights.length + 1);
     const data = this.records.data;
-    // The reference's order: the points, the spots, the suns, the rectangles, the shadow casters
+    // The filing order: the points, the spots, the suns, the rectangles, the shadow casters
     // first within a kind; the ambient lights are one irradiance, summed here.
     inReferenceOrder(lights, writeLight);
     if (ambient[3]) {
@@ -135,7 +135,7 @@ export class WebglClusterLights {
         inner = Math.cos(light.angle * (1 - light.penumbra));
       }
       if (kind === 0 || kind === 2) {
-        // Toward the light, in view space, unit: the reference's direction, normalised once here
+        // Toward the light, in view space, unit: the light's direction, normalised once here
         // and read as is by the program.
         const target = light.target.matrixWorld.elements;
         const x = px - target[12],
@@ -173,7 +173,7 @@ export class WebglClusterLights {
         axis(base + 12, matrix, 0, light.width / 2, light.height / 2);
         return;
       }
-      // The colour scaled by the intensity here, in double precision, as the reference uploads it.
+      // The colour scaled by the intensity here, in double precision before it is uploaded.
       const i = light.intensity;
       write(base + 8, light.color.r * i, light.color.g * i, light.color.b * i, 1);
       write(base + 4, dx, dy, dz, kind);

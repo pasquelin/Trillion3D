@@ -2,8 +2,32 @@ import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts';
 
+/** How a program traces a lobe rougher than a mirror: a cone (`filtered`) beside the mirror ray
+ *  (`mirror`), or its own march of the mirror ray itself (`march`), which takes neither. */
+export type ScreenLobe =
+  | {
+      /** The cone's colour and the share of the lobe it left to the fallback. */
+      filtered?: string;
+      /** The function that resolves the mirror ray, `(P,N,R)`: by default the full walk, a miss on
+       *  the program's fallback at the roughness floor. */
+      mirror?: string;
+      march?: never;
+    }
+  | {
+      /** The program's march of the mirror ray, `(P,R)`: a hit's colour with a non-zero alpha, or a
+       *  zero alpha for a miss. The full walk (`screenReflection`) traces that same ray with its own
+       *  crossing test, so where
+       *  `mirrorWeight` lies strictly between 0 and 1 — the roughness floor to one roughness step of
+       *  the lobe table above it (`MIRROR_TRANSITION_END`) — the walk alone traces it, never both:
+       *  a hit is the walk's colour, a miss mixes by that weight the fallbacks at the roughness and
+       *  at the floor. */
+      march: string;
+      filtered?: never;
+      mirror?: never;
+    };
+
 /** What differs between the programs that resolve a screen reflection. */
-export interface ScreenRadiance {
+export type ScreenRadiance = ScreenLobe & {
   /** The entry the program's `mirrorLighting` calls. */
   name: string;
   /** True where this pass traces nothing. */
@@ -12,14 +36,11 @@ export interface ScreenRadiance {
   fallback: (rough: string) => string;
   /** Statements run first, before any trace. */
   head?: string;
-  /** The cone's colour and the share of the lobe it left to the fallback. */
-  filtered?: string;
-  /** The function that resolves the mirror ray, `(P,N,R)`: by default the full walk, a miss on the
-   *  program's fallback at the roughness floor. */
-  mirror?: string;
-}
+  /** The roughness the trace fades out at, from half of it on: by default the opaque cutoff. */
+  maxRoughness?: string;
+};
 
-/** Screen reflections resolved per pixel in either graphics API (#1341): the reference engine's roughness fade,
+/** Screen reflections resolved per pixel in either graphics API (#1341): a roughness fade,
  *  the whole trace up to half the maximum roughness and none from it on; a missed ray, the lobe
  *  share a cone left and every faded pixel read the program's fallback once, never black. */
 export function screenRadianceShader(
@@ -29,14 +50,28 @@ export function screenRadianceShader(
     disabled,
     fallback,
     head = '',
-    filtered = 'filteredResolvedReflection(P,R,rough)',
+    filtered = 'filteredResolvedReflection(P,N,R,rough)',
+    march,
     mirror,
+    maxRoughness = SCREEN_REFLECTION_MAX_ROUGHNESS,
   }: ScreenRadiance,
 ) {
+  const { lobe, transition } = march
+    ? {
+        lobe: `var hit:vec4f;
+ if(weight>0.0){hit=screenReflection(P,R);}else{hit=${march}(P,R);}
+ var filtered:vec4f=vec4f(0.0,0.0,0.0,1.0);
+ if(hit.a!=0.0){filtered=vec4f(hit.rgb,0.0);}`,
+        transition: `if(weight>0.0&&filtered.a>0.0){traced=mix(traced,${fallback(ROUGHNESS_FLOOR)},weight);}`,
+      }
+    : {
+        lobe: `var filtered:vec4f=${filtered};`,
+        transition: 'if(weight>0.0){traced=mix(traced,resolvedReflectionRay(P,N,R),weight);}',
+      };
   return shaderLanguage(
     `
 fn screenReflectionFade(rough:f32)->f32{
- return clamp(2.0-2.0*rough/${SCREEN_REFLECTION_MAX_ROUGHNESS},0.0,1.0);
+ return clamp(2.0-2.0*rough/${maxRoughness},0.0,1.0);
 }
 fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{${
       mirror
@@ -47,8 +82,8 @@ fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{${
  return ${fallback(ROUGHNESS_FLOOR)};`
     }
 }
-fn filteredResolvedReflection(P:vec3f,R:vec3f,rough:f32)->vec4f{
- var hit:vec4f=screenReflectionCone(P,R,rough);
+fn filteredResolvedReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{
+ var hit:vec4f=screenReflectionCone(P,N,R,rough);
  return vec4f(hit.rgb,max(1.0-hit.a,0.0));
 }
 fn ${name}(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
@@ -57,11 +92,11 @@ fn ${name}(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(${disabled}||fade==0.0){return ${fallback('rough')};}
  var weight:f32=mirrorWeight(rough);
  if(weight==1.0){return resolvedReflectionRay(P,N,R);}
- var filtered:vec4f=${filtered};
+ ${lobe}
  var fallback:vec3f=vec3f(0.0);
  if(filtered.a>0.0||fade<1.0){fallback=${fallback('rough')};}
  var traced:vec3f=filtered.rgb+filtered.a*fallback;
- if(weight>0.0){traced=mix(traced,resolvedReflectionRay(P,N,R),weight);}
+ ${transition}
  if(fade==1.0){return traced;}
  return mix(fallback,traced,fade);
 }`,

@@ -1,10 +1,11 @@
 // The fields the host may write that no hook may touch — the node's own flags, a matrix set
 // by hand, a light's numbers — are compared per frame to what was last read: a write is taken
-// once, the same value read again is nothing, and the reference's own walk writes nothing new.
+// once, the same value read again is nothing, and the host's own walk writes nothing new.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../graph/graph.fixture.ts';
 import { scan, snapshot, type WatchVerdict } from './scan.ts';
+import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts';
 
 function scene() {
   const parent = new G.Group();
@@ -107,4 +108,19 @@ test("the reference's own walk over automatic nodes is nothing: a still scene st
     parent.updateMatrixWorld(true);
     assert.deepEqual(states.map(scan), [0, 0, 0]);
   }
+});
+
+test('a frozen matrix scanned frame after frame lists nothing; a write kept behind the getter is taken', () => {
+  const node = new G.Group();
+  node.matrixAutoUpdate = false;
+  const kept = node.matrix,
+    tree = G.Object3D._treeOf(node),
+    state = snapshot(node);
+  updateTransformTree(tree);
+  for (let frame = 0; frame < 3; frame++) assert.equal(scan(state), 0);
+  assert.equal(updateTransformTree(tree), 0, 'reads walk nothing');
+  kept.elements[12] = 3;
+  assert.equal(scan(state), 'moved');
+  assert.equal(updateTransformTree(tree), 1, 'the change found is walked');
+  assert.equal(node.matrixWorld.elements[12], 3);
 });

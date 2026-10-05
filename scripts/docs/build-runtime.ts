@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { inlineModules } from './inline-modules.ts';
 
 /** The two modules an example page imports, `../runtime/<name>.js`. */
-export const RUNTIME_ENTRIES = {
+const RUNTIME_ENTRIES = {
   engine: 'packages/sdk-browser/src/index.ts',
   // The examples' own panels and pieces, imported beside the engine; they bundle nothing of it,
   // and a piece builds with the engine families the page hands it.
@@ -26,6 +26,8 @@ export async function buildRuntime(root: string, outdir: string) {
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
       // The physics worker, spawned only by a world that turns physics on.
       physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
+      // The animation worker, started only by a world whose clips play at a fixed step.
+      animationWorker: 'packages/sdk-browser/src/math/animationWorker.ts',
       ...RUNTIME_ENTRIES,
     },
     outdir,

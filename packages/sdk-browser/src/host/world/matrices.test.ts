@@ -1,13 +1,10 @@
-// matrices.ts: READ boundary of the host graph. Two subjects here — a node's local pose,
-// read by the engine and compared bit-exact (Object.is) to Three's `updateMatrix` on hostile poses
-// (negative, non-uniform, zero scales, `-0`, half-turn, matrix set by hand), and refusal of a
-// non-finite pose. Update of the HOST scene remains compared to `updateMatrixWorld(true)`: it
-// still serves its own readers.
+// matrices.ts: READ boundary of the host graph: refusal of a non-finite pose. Update of the HOST
+// scene remains compared to the host's own full update: it still serves its own readers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../graph/graph.fixture.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { assertFiniteTransform, hostLocalInto, resolveHostSubtree } from './matrices.ts';
+import { assertFiniteTransform, resolveHostSubtree } from './matrices.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
@@ -78,67 +75,6 @@ test('resolveHostSubtree does not walk parents: a stale ancestor is not recomput
   assertBits(racine.matrixWorld.elements, perimee);
   assertBits(racine.matrixWorld.elements, ref.racine.matrixWorld.elements);
   assertBits(enfant.matrixWorld.elements, ref.enfant.matrixWorld.elements);
-});
-
-/** Poses the reference composes: negative, zero, `-0`, half-turn, non-uniform scales. */
-const POSES: [number[], number[], number[]][] = [
-  [
-    [0, 0, 0],
-    [0, 0, 0, 1],
-    [1, 1, 1],
-  ],
-  [
-    [-0, -0, -0],
-    [0, 1, 0, 0],
-    [-1, 2, 0.5],
-  ],
-  [
-    [3, -4, 5],
-    [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
-    [0, 1, 1],
-  ],
-  [
-    [1e150, -1e150, 1e-300],
-    [0.5, 0.5, 0.5, 0.5],
-    [-2, 3, 0.25],
-  ],
-  [
-    [10, 20, 30],
-    [0, 0, 0, 1],
-    [1e-300, 1, -1],
-  ],
-];
-
-test('hostLocalInto yields updateMatrix’s local matrix, bit-exact, on hostile poses', () => {
-  const obtenu = new Float64Array(16);
-  for (const [position, quaternion, echelle] of POSES) {
-    const node = new G.Object3D();
-    node.position.fromArray(position);
-    node.quaternion.fromArray(quaternion);
-    node.scale.fromArray(echelle);
-    hostLocalInto(obtenu, node);
-    node.updateMatrix(); // the reference composes the SAME pose
-    assertBits(obtenu, node.matrix.elements);
-  }
-});
-
-test('hostLocalInto yields the SET matrix when the host cut recomposition, without ever recomposing it', () => {
-  const node = new G.Object3D();
-  node.matrixAutoUpdate = false;
-  // A shear: no translation-rotation-scale pose yields it, so recomposing would show.
-  node.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -3, 0, 0, 0, 0, 0, 0, 0, 1);
-  node.position.set(100, 100, 100); // pose contradicting the matrix: it must not be read
-  const obtenu = new Float64Array(16);
-  hostLocalInto(obtenu, node);
-  assertBits(obtenu, node.matrix.elements);
-});
-
-test('hostLocalInto writes nothing into the host node: its local matrix stays the one it carried', () => {
-  const node = new G.Object3D();
-  node.position.set(1, 2, 3);
-  const avant = node.matrix.elements.slice(); // identity: `updateMatrix` has never been called
-  hostLocalInto(new Float64Array(16), node);
-  assertBits(node.matrix.elements, avant);
 });
 
 // Case 4 of the singular-normal convention (singular-normals batch): a non-finite pose never

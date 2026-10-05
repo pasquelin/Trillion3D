@@ -1,5 +1,5 @@
 import { DEFORMATION_ROW_TEXELS } from '../../deformation/textureBytes.ts';
-import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import { grown } from '../../../../sdk-core/src/math/transform-tree/storage.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { refuseCluster } from './refusal.ts';
 import type { RefusedPool } from '../../residency/outOfMemory.ts';
@@ -13,11 +13,16 @@ export const LIGHT_ROW_TEXELS = DEFORMATION_ROW_TEXELS;
 export const LIGHT_DATA_UNIT = LTC_UNIT + 3;
 export const LIGHT_LIST_UNIT = LTC_UNIT + 4;
 
+/** The row's index bits: a row is a power of two texels, so an index folds by mask and shift. */
+const LIGHT_ROW_SHIFT = Math.log2(LIGHT_ROW_TEXELS);
+if (!Number.isInteger(LIGHT_ROW_SHIFT)) throw new Error('LIGHT_ROW_TEXELS_NOT_A_POWER_OF_TWO');
+
 /** How the program reads the two textures: a light's `k`th record vec4, the `t`th integer of the
  *  lists (`./lightLists.ts`). The program declares its integers and integer samplers high
- *  precision, as indices need. */
+ *  precision, as indices need. An index is never negative, so its mask and shift are its signed
+ *  remainder and quotient by the row. */
 export const LIGHT_TEXTURE_GLSL = `uniform highp sampler2D lightData;uniform highp isampler2D lightList;
-ivec2 lightTexel(int t){return ivec2(t%${LIGHT_ROW_TEXELS},t/${LIGHT_ROW_TEXELS});}
+ivec2 lightTexel(int t){return ivec2(t&${LIGHT_ROW_TEXELS - 1},t>>${LIGHT_ROW_SHIFT});}
 vec4 lightRecord(int light,int k){return texelFetch(lightData,lightTexel(light*4+k),0);}
 int listEntry(int t){return texelFetch(lightList,lightTexel(t),0).r;}`;
 

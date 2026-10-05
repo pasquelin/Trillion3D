@@ -113,9 +113,10 @@ struct World {
   std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
-  /** This step's bodies (engine ids) whose shape was refused, and whose pose or vertices went
-   *  non-finite (sent nothing, taken out); then its enters the buffer dropped. */
-  std::vector<uint32_t> refused, diverged;
+  /** This step's bodies (engine ids) whose shape was refused, whose pose or vertices went
+   *  non-finite (sent nothing, taken out), and the soft bodies that diverged on amplitude and were
+   *  brought back to rest (`soft.cpp`); then its enters the buffer dropped. */
+  std::vector<uint32_t> refused, diverged, recovered;
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
@@ -126,6 +127,9 @@ struct World {
   uint32_t updateError = 0;
   uint32_t step = 0;
   float dt = 0;
+  /** The page's fixed step, s (`jolt_init`): what a soft body's bend floor and calm are reckoned
+   *  with (`soft.cpp`), whatever a command's own step. */
+  float fixedStep = 0;
 };
 
 World &world();
@@ -195,17 +199,27 @@ void driveVehicles(float dt);
 /// Writes the vehicles' state once the bodies have stepped.
 void writeVehicles();
 
-/// The soft bodies' command (`soft.cpp`, softLayout.ts): its fixed words, then per vertex
+/// The soft bodies' command (`soft.cpp`, softCommands.ts): its fixed words, then per vertex
 /// `SOFT_VERTEX_WORDS` (`words.h`), then its triangle corners, then a cooked body's settings bytes.
 constexpr uint32_t SOFT = 24, SOFT_WORDS = 22;
 /// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
 bool addSoft(const uint32_t *w);
 /// Moves the soft body in `slot` at once to `position` and `rotation`: its vertices carried
-/// as they lie, their simulation kept, and written back in the frame of that new place.
+/// as they lie, their simulation kept, and written back in the frame of that new place; carried
+/// further than `SOFT_TELEPORT` (`soft.cpp`), it starts again at rest in its rest shape there.
 void teleportSoft(const Slot &slot, JPH::Vec3 position, JPH::Quat rotation);
+/// Holds the soft body in `slot`, or every one, to the pull it is under now — its speed, and the
+/// spread of its velocities past which it diverged (`soft.cpp`) —: after its gravity scale, or the
+/// gravity, changed.
+void holdSoft(const Slot &slot);
+void holdSofts();
 /// Writes the vertices of the soft bodies the step moved, once the bodies have stepped.
 void writeSoft();
 /// After a collision step, the leaves of the soft pairs a soft body it moved no longer touches.
 void leaveSoft();
+/// Whether `soft`'s pins hang inside `other`, a static body its bounds met: the cloth near a pin
+/// starts in its shape. Such a support is passed through (`softContacts.cpp`). Called during
+/// `Update`, on the one thread that collides `soft`.
+bool hangsOn(const JPH::Body &soft, const JPH::Body &other);
 
 }  // namespace trillion

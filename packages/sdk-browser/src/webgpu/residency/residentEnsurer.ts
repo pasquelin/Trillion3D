@@ -27,8 +27,6 @@ type EnsureOptions = {
   lowerTiers: () => readonly LowerList[];
   /** Starts a page's bytes read ahead of its admission, at PRIORITY_PREFETCH for the lower tiers. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
-  /** True when the camera rests at the last plan's view; absent, still. */
-  still?: () => boolean;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -44,7 +42,6 @@ export function createWebgpuResidentEnsurer({
   traceDiagnostic,
   lowerTiers,
   prefetch,
-  still = () => true,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`): past it a job yields a task,
    *  past `STREAMING_SHARES_PER_FRAME` of a visible page a frame, and opens a new share. */
@@ -64,12 +61,11 @@ export function createWebgpuResidentEnsurer({
     parentsOf,
   });
   /**
-   * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
-   * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
-   * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. At rest the tier settles on the list's
-   * first pages the unpinned slots hold, never on arrivals (#1016); moving, it keeps every page
-   * the list still names, so a wanted caster is never evicted and reloaded each frame.
+   * What the camera left: the lower tiers' pages — the pages ahead of the camera —, loaded only
+   * into slots nobody holds — free, or taken by a page no tier wants. They are never pinned: a
+   * camera page evicts them, they never evict a camera page, and an object on screen is never
+   * coarsened for a view to come. A tier keeps every page its list still names, so a wanted page is
+   * never evicted and reloaded each frame (#1016).
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -82,11 +78,9 @@ export function createWebgpuResidentEnsurer({
       const key = tracking.keyOf(rec);
       return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec);
     };
-    const slots = cache.unpinnedSlots(),
-      cap = still() ? slots : Infinity;
-    let spare = slots;
-    for (let i = 0, kept = 0; i < lower.length && kept < cap; i++)
-      if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) spare--;
+    let spare = cache.unpinnedSlots();
+    for (let i = 0; i < lower.length; i++)
+      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) spare--;
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
@@ -173,9 +167,9 @@ export function createWebgpuResidentEnsurer({
           budget.spend();
         } catch (error) {
           if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
-          // Pool full of pages the image holds: like the reference streamer, the burst stops there,
-          // without dropping anything. What stays wanted displays through its resident ancestor; cut
-          // admission (`admitGpuCut`) only reports that the image asks for more than the slots hold.
+          // Pool full of pages the image holds: the burst stops there, without dropping anything.
+          // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
+          // only reports that the image asks for more than the slots hold.
           full = true;
           break;
         }

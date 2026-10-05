@@ -2,8 +2,7 @@
 // ranks the same scene with (`orderBlendPasses`'s `cull`), the audit's CPU-17 equivalence harness.
 import { notDrawn } from '../../placement/hidden.ts';
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
-import type { blendSceneOf } from './plan.fixture.ts';
-import { RUN_WORDS } from './planLayout.ts';
+import { paintOutcome, type blendSceneOf } from './plan.fixture.ts';
 
 type BlendState = ReturnType<typeof blendSceneOf>;
 
@@ -50,9 +49,6 @@ export function outcome(blendState: BlendState, rejected: number) {
     keep: Array.from(blendState.keepPacked),
     keepMoved: blendState.keepMoved,
     water: blendState.transmissiveInView,
-    orders: blendState.orders.map((order) => Array.from(order)),
-    runs: blendState.runs.map((runs, p) =>
-      Array.from(runs.subarray(0, blendState.runCount[p] * RUN_WORDS)),
-    ),
+    ...paintOutcome(blendState),
   };
 }

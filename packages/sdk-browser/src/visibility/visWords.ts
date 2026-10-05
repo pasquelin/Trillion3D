@@ -1,5 +1,3 @@
-export const VIS_INVALID = 0;
-
 /**
  * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
  *

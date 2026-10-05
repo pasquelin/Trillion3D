@@ -37,7 +37,7 @@ const LOADS = 2;
  * tiles load around every moving body first, then around the eye up to the active range — the
  * camera's draw distance, the scene's own —, nearest first, and leave once no longer wanted. A
  * scene is never refused for its size: a tile that does not fit waits, the farther ones leaving
- * for it. A tile is restored from Jolt's binary state, never rebuilt; so are the bodies its nodes
+ * for it. A tile is restored from the module's binary state, never rebuilt; so are the bodies its nodes
  * declare (`cookedBodies.ts`), made as it opens.
  */
 export function createTileStreamer(

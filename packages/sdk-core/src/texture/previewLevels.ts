@@ -12,8 +12,6 @@ import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryForma
 
 /** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64;
-/** Levels an entry carries at most: 64, 32, 16, 8, 4, 2, 1. */
-export const PREVIEW_MAX_LEVELS = 7;
 
 /** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {
@@ -35,11 +33,6 @@ export function previewFirstLevel(width: number, height: number) {
 /** Last level carried: the one where both sides are one texel. */
 export function previewLastLevel(width: number, height: number) {
   return 31 - Math.clz32(Math.max(1, width, height));
-}
-
-/** Levels carried by an entry, from the finest to 1×1 included. */
-export function previewLevelCount(width: number, height: number) {
-  return previewLastLevel(width, height) - previewFirstLevel(width, height) + 1;
 }
 
 /** Blocks along `texels`, the last one padded by the edge when the side is not a multiple. */
@@ -71,11 +64,6 @@ export function previewGeometry(width: number, height: number) {
     blockBytes += levelBlockBytes(...size);
   }
   return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes };
-}
-
-/** RGBA8 bytes of every carried level, concatenated from finest to coarsest. */
-export function previewPixelBytes(width: number, height: number) {
-  return previewGeometry(width, height).pixelBytes;
 }
 
 /** Block-compressed bytes of every carried level, concatenated from finest to coarsest. */

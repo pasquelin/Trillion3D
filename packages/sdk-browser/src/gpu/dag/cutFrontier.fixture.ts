@@ -18,12 +18,8 @@
  * format. Both descents are launched from here so the difference is measured, not deduced.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
-import {
-  dagNodeFloor,
-  dagNodeVerdict,
-  dagViewFrames,
-  projectedError,
-} from './oracle/math.fixture.ts';
+import { dagViewFrames, projectedError } from './oracle/math.fixture.ts';
+import { dagNodeFloor, dagNodeVerdict } from './oracle/nodeVerdict.fixture.ts';
 import { bandError, bandSphere, dagRecords, worldOf } from './records.fixture.ts';
 import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './nodeLayout.ts';
 import type { SelectionUniforms } from '../core/selection.ts';

@@ -44,7 +44,7 @@ pub(super) fn mesh_json(
             for &corner in &scratch[..count] {
                 let c = corner as usize;
                 // A vertex is what it is worth, not the index the file gives it: an
-                // FBX that writes normals and UVs corner by corner (the reference engine, Blender)
+                // FBX that writes normals and UVs corner by corner (as most exporters do)
                 // would otherwise come out as three vertices per triangle, none
                 // shared, and the DAG simplifier — which locks any point present in
                 // more than two copies — would reduce nothing.

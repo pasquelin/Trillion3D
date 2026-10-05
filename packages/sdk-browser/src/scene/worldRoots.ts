@@ -126,7 +126,7 @@ export async function openWorldRoots(
     }
   };
   /** A bundle's pages: the pinned top's and a placed cell's from what is held, any other read and
-   *  verified for the one request (the GPU page pool keeps what it uploads, as cluster's does). */
+   *  verified for the one request (the GPU page pool keeps what it uploads). */
   const bundlePages = (bundle: number) =>
     bundle < table.pinned
       ? Promise.resolve(topBundles[bundle])

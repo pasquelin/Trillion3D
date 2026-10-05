@@ -49,7 +49,8 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
     return { error: `the pose did not hold in ${REFERENCE_HOLD_LIMIT} frames: ${lost.join('; ')}` };
   const { factor, approximations, tiles } = reference;
   // The image: the engine's own renderer, captured tile by tile (`referenceTiles.ts`). Refused by
-  // name while the shadow pool runs below its full size (`referenceTilesCapture`).
+  // name while the shadows draw coarser than they ask, their page pool short
+  // (`referenceTilesCapture`).
   const rgba = await captureReference();
   const response = await measure.posterCapture(
     options.captureFile,

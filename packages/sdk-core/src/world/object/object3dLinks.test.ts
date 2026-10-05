@@ -146,3 +146,46 @@ test('destroy invalidates handles for the whole detached subtree', () => {
     (error: any) => error.code === 'STALE_SCENE_NODE',
   );
 });
+
+test('an add refused part way still tells the world what it changed, and names entering nodes', () => {
+  const scene = new Object3D(),
+    group = new Object3D(),
+    child = new Object3D(),
+    leaf = new Object3D(),
+    { world, structure } = link(),
+    entered: Object3D[] = [];
+  world.entered = (node) => entered.push(node);
+  scene._link = world;
+  scene.add(group);
+  child.add(leaf);
+  structure.length = entered.length = 0;
+  // `scene` under its own child is a cycle: refused once `child` already moved in.
+  assert.throws(() => group.add(child, scene), { code: 'TRANSFORM_CYCLE' });
+  sameNodes(structure, [group]);
+  sameNodes(entered, [child, leaf]);
+  assert.ok(child.parent === group && leaf._link === world);
+});
+
+test('an add refused as a ring moves nothing, even across two links', () => {
+  const scene = new Object3D(),
+    group = new Object3D(),
+    inner = new Object3D();
+  scene._link = link().world;
+  scene.add(group);
+  group.add(inner);
+  inner._link = link().world; // another owner's link on the child
+  assert.throws(() => inner.add(group), { code: 'TRANSFORM_CYCLE' });
+  assert.ok(group.parent === scene && group._link === scene._link, 'still where it was');
+});
+
+test('an add refused by a destroyed parent leaves the object in its world', () => {
+  const scene = new Object3D(),
+    gone = new Object3D(),
+    node = new Object3D();
+  scene._link = link().world;
+  scene.add(node);
+  gone._link = link().world;
+  gone.destroy();
+  assert.throws(() => gone.add(node), { code: 'STALE_SCENE_NODE' });
+  assert.ok(node.parent === scene && node._link === scene._link);
+});

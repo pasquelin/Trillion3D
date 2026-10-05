@@ -25,10 +25,6 @@ test('skeleton palettes keep joint order, explicit binds, mesh transforms and ou
   assert.deepEqual([...out.slice(27)], [99, 99, 99]);
   assert.deepEqual([...out.slice(3, 15)], [1, 0, 0, -1, 0, 1, 0, -2, 0, 0, 1, -3]);
   assert.deepEqual([...out.slice(15, 27)], [1, 0, 0, -1, 0, 1, 0, -2, 0, 0, 1, -3]);
-  const worlds = [new Matrix4().makeTranslation(8, 9, 10), new Matrix4().makeTranslation(-1, 1, 1)];
-  skeleton.palette(new Matrix4().elements, out, 0, worlds);
-  assert.deepEqual([...out.slice(0, 12)], [1, 0, 0, 6, 0, 1, 0, 6, 0, 0, 1, 6]);
-  assert.deepEqual([...out.slice(12, 24)], [1, 0, 0, 3, 0, 1, 0, -4, 0, 0, 1, -5]);
   const explicit = new Skeleton([a, b], [...new Matrix4().elements, ...new Matrix4().elements, 99]);
   assert.equal(explicit.boneInverses.length, 32);
   assert.deepEqual(

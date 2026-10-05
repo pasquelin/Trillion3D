@@ -1,7 +1,7 @@
 /**
  * THE CARD PROGRAM ON WEBGL2 (#1336): the impostor drawn as a masked surface lit by the WebGL2
- * path's one lighting formula, as the reference draws its impostor material in the forward base
- * pass of its mobile renderer. The vertex stage reads the card's record (`CARD_FLOATS`, the WebGPU
+ * path's one lighting formula, in the forward base
+ * pass. The vertex stage reads the card's record (`CARD_FLOATS`, the WebGPU
  * card's layout, `impostor/cards.ts`) from a float texture by its instance, takes its four corners —
  * turned to the camera on the CPU by the shared `spriteAt` (`impostor/card.ts`) — and derives once
  * per card what every pixel shares, as `card_vs` does (`webgpu/impostor/cardWgsl.ts`). The fragment
@@ -21,9 +21,10 @@ import { core } from '../../impostor/borrowed.ts';
 export const CARD_TEXELS = CARD_FLOATS / 4;
 
 /** The card records, `LIGHT_ROW_TEXELS` a row as every float texture of the path, and the image's
- *  view: read by both stages. */
+ *  view: read by both stages. A record index is never negative and the row a power of two, so it
+ *  folds by mask and shift, as the light texture's (`lightTexel`). */
 const cardRecordGlsl = () => `uniform highp sampler2D impostorCards;uniform mat4 cardView;
-vec4 cardRecord(int card,int k){int t=card*${CARD_TEXELS}+k;return texelFetch(impostorCards,ivec2(t%${core.LIGHT_ROW_TEXELS},t/${core.LIGHT_ROW_TEXELS}),0);}
+vec4 cardRecord(int card,int k){int t=card*${CARD_TEXELS}+k;return texelFetch(impostorCards,ivec2(t&${core.LIGHT_ROW_TEXELS - 1},t>>${Math.log2(core.LIGHT_ROW_TEXELS)}),0);}
 mat4 cardMatrix(int card,int k){return mat4(cardRecord(card,k),cardRecord(card,k+1),cardRecord(card,k+2),cardRecord(card,k+3));}`;
 
 /** What the vertex stage hands each pixel: the corner in object space, pivot-relative, then the
@@ -76,7 +77,7 @@ const cardSurface = () => `void main(){
  ImpBlend b=impBlend(impTap(cardAb.xy,cardX0,cardN0,eye,ray,radius,cell,lod),impTap(cardAb.zw,cardX1,cardN1,eye,ray,radius,cell,lod),
   impTap(cardCell.xy,cardX2,cardN2,eye,ray,radius,cell,lod),cardWeightsLod.xyz,lod);
  if(b.colour.a<${CARD_COVERAGE_CUT})discard;
- vec4 viewPoint=cardView*(cardMatrix(cardIndex,4)*vec4(b.point+cardRecord(cardIndex,13).xyz,1.0));
+ vec4 viewPoint=cardMatrix(cardIndex,4)*vec4(b.point+cardRecord(cardIndex,13).xyz,1.0);
  vec4 clip=projectionMatrix*viewPoint;gl_FragDepth=clip.z/clip.w*0.5+0.5;
  viewPosition=viewPoint.xyz;toEye=-viewPosition;texcoord0=texcoord1=vec2(0.0);vertexColor=vec4(1.0);
  vec4 base=vec4(b.colour.rgb,1.0);float metal=clamp(b.orm.z,0.0,1.0);

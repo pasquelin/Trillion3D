@@ -1,12 +1,16 @@
 import {
   NODE_ALIVE,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
 } from '../../math/transform-tree/transformTree.ts';
-import { removeTransformNode, reparentTransformNode } from './nodeEdits.ts';
+import {
+  noteNodeWrite,
+  removeTransformNode,
+  reparentTransformNode,
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+} from './nodeEdits.ts';
 import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
 import { attachSceneNode } from './nodeAttach.ts';
 import { copySceneNodeState } from './nodeCopy.ts';
@@ -35,8 +39,10 @@ export class SceneNode {
     this.visibleState = visible;
   }
 
-  /** Root that owns this node and its transform storage. */
-  get root(): SceneRoot {
+  /** False once destroyed: a holder of nodes across a frame reads it first. */ get _alive() {
+    return this.#alive;
+  }
+  /** Root that owns this node and its transform storage. */ get root(): SceneRoot {
     return this.state.root as SceneRoot;
   }
   /** Whether it is drawn. */ get visible() {
@@ -45,7 +51,9 @@ export class SceneNode {
   }
   set visible(value: boolean) {
     this.assertAlive();
-    this.visibleState = sceneNodeVisibility(value, false);
+    const visible = sceneNodeVisibility(value, false);
+    if (visible !== this.visibleState) noteNodeWrite();
+    this.visibleState = visible;
   }
   /** Parent in the scene, or null while detached. */
   get parent(): SceneNode | null {
@@ -170,7 +178,6 @@ export class SceneNode {
     if (!this.#alive || !(this.state.tree.flags[this.index] & NODE_ALIVE))
       sceneNodeFail('STALE_SCENE_NODE', `Scene node ${this.id} was destroyed`, { id: this.id });
   }
-
   private assertCompatible(node: SceneNode) {
     this.assertAlive();
     node.assertAlive();
@@ -186,7 +193,6 @@ export class SceneNode {
     this.childNodes.splice(this.childNodes.lastIndexOf(child) >>> 0, 1);
     this.childView = child.parentNode = null;
   }
-
   private invalidate() {
     const pending: SceneNode[] = [this];
     while (pending.length) {

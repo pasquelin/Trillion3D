@@ -1,5 +1,5 @@
-// Debug views are output untouched (#365): the reference never exposes nor tone maps its normal
-// or depth material, so on WebGPU a normal or depth surface carries one flag through the resolve
+// Debug views are output untouched (#365): a normal or depth material is never exposed nor tone
+// mapped, so on WebGPU a normal or depth surface carries one flag through the resolve
 // and the lighting pass, and the composition keeps exposure and the display curve off it — from
 // the surface flag of a still image, from the share the temporal pass accumulated beside the
 // colour of a jittered one. Every expression is read out of the shipped shader text and evaluated
@@ -114,9 +114,11 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
     new RegExp(`let asIs=f32\\(textureLoad\\(flags,at,0\\)\\.r==${AS_IS_FLAG}u\\);`),
   );
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
+  // The share's channel is followed by the flicker gradient, the still weight (none at native
+  // size) and the history count (`../taa/layers.ts`). In motion the weights' `tone` is the exposure.
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),tag,0\.0,0\.0\)\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),gradient[^,]*,0\.0,[^;]*\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
@@ -124,7 +126,8 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
     'kept',
     'share',
     'keptShare',
-    `const toYcocg=(rgb)=>({x:rgb});const clamped={x:kept};
+    `const toYcocg=(rgb)=>({x:rgb});const clamped={x:kept};const lumaNow=filtered;
+     const view={tsr:{x:1}};const tone=view.tsr.x;
      const wc=${wcOf.replace('filtered.rgb', 'filtered')};const wh=${whOf};
      return [${colorOf},${shareOf}];`,
   ) as (...args: number[]) => [number, number];

@@ -39,8 +39,6 @@ export interface BenchSettings {
   movingLight: boolean;
   importedLights: boolean;
   sun: boolean;
-  shadowPages: boolean;
-  shadowDigest: boolean;
   movingNode: string | null;
   movingNodeRadius: number;
   movingCamera: boolean;

@@ -1,71 +1,68 @@
-// #990: a session disposed while its work is pending — the static shadow layer the first move
-// allocates, its pyramids and occlusion test — cancels that work silently: the released device
-// makes it throw, and that is its cancellation, not a failure. A device that fails under a live
-// session still reports by name.
+// #990: a session disposed with shadows drawn frees what its virtual shadow maps hold — the page
+// tables, the physical pool, the passes' buffers and targets — silently. A device that refuses
+// the maps under a live session still says why, and the frame is lit without them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { along, camera } from '../testScenes.fixture.ts';
 import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts';
-import { SHADOW_LAYER_PASS } from '../../../stage/passLabels.ts';
 
-/** A caster over a floor, lit by the sun, moved once: its static layer is on its way. `fail`
- *  breaks the device's layouts from then on; `dispose` closes the session before it lands; `late`
- *  closes it once the layer is made, while its occlusion test is being made. Returns what the
- *  session said, and whether every static layer made was freed. */
-async function pendingStaticLayer(end: 'dispose' | 'fail' | 'late') {
-  const said: string[] = [];
+/** What the virtual shadow maps made on `gpu`: their buffers and textures, by label. */
+const vsmResources = (gpu: { buffers: unknown[]; textures: unknown[] }) =>
+  ([...gpu.buffers, ...gpu.textures] as { label?: string; destroyed?: boolean }[]).filter(
+    ({ label }) => label?.startsWith('vsm.'),
+  );
+
+/** A caster over a floor, lit by the sun, drawn then moved once: its shadow maps are made. */
+async function drawnShadows(refuse = false) {
+  const said: string[] = [],
+    lit: Record<string, unknown>[] = [];
   const { backend, gpu } = await floorCasterBackend(SUN, {
     diagnosticDetail: 'summary',
-    onDiagnostic: ({ phase }) => void said.push(phase),
+    onDiagnostic: ({ phase, context }) => {
+      said.push(phase);
+      if (phase === 'direct-lighting-frame') lit.push(context);
+    },
   });
+  if (refuse) {
+    const device = gpu.device as unknown as { createBuffer: (d: GPUBufferDescriptor) => unknown };
+    const make = device.createBuffer.bind(device);
+    device.createBuffer = (descriptor) => {
+      if (descriptor.label?.startsWith('vsm.')) throw new Error('out of memory');
+      return make(descriptor);
+    };
+  }
   const view = camera();
   backend.render(view);
   await backend.flush?.();
   backend.setTransform!('caster', along(0.1));
   backend.render(view);
-  said.length = 0;
-  if (end === 'fail')
-    (gpu.device as unknown as { createBindGroupLayout: () => never }).createBindGroupLayout =
-      () => {
-        throw new Error('device failed');
-      };
-  else if (end === 'dispose') void backend.dispose();
-  else {
-    const device = gpu.device as unknown as { createBuffer: (d: GPUBufferDescriptor) => unknown };
-    const make = device.createBuffer.bind(device);
-    device.createBuffer = (descriptor) => {
-      if (descriptor.label?.startsWith('Trillion3D shadow visible casters')) void backend.dispose();
-      return make(descriptor);
-    };
-  }
-  for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0));
-  if (end === 'fail') void backend.dispose();
-  const layers = gpu.textures.filter(({ label }) => label?.startsWith(SHADOW_LAYER_PASS));
-  assert.ok(layers.length, 'a static layer was on its way');
-  return { said, freed: layers.every(({ destroyed }) => destroyed) };
+  await backend.flush?.();
+  return { backend, gpu, said, lit };
 }
 
-test('a session disposed before its static shadow layer lands says nothing', async (t) => {
+test('a disposed session frees every virtual shadow map resource, and says nothing', async (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
-  const { said, freed } = await pendingStaticLayer('dispose');
-  assert.deepEqual(said, []);
-  assert.ok(freed, 'the layer on its way is freed');
+  const { backend, gpu, said } = await drawnShadows();
+  const made = vsmResources(gpu);
+  assert.ok(made.length, 'the shadow maps were made');
+  said.length = 0;
+  await backend.dispose();
+  for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0));
   assert.deepEqual(
-    warned.mock.calls.map((call) => call.arguments[0]),
+    made.filter(({ destroyed }) => !destroyed).map(({ label }) => label),
     [],
+    'every map resource freed',
   );
-});
-
-test('a static layer that lands after its session is disposed is freed, silently', async (t) => {
-  const warned = t.mock.method(console, 'warn', () => {});
-  const { said, freed } = await pendingStaticLayer('late');
   assert.deepEqual(said, []);
-  assert.ok(freed, 'the layer that landed is freed');
   assert.equal(warned.mock.callCount(), 0);
 });
 
-test('a device that fails under a live session still reports the static layer by name', async (t) => {
+test('a device that refuses the virtual shadow maps under a live session says why', async (t) => {
   t.mock.method(console, 'warn', () => {});
-  assert.ok((await pendingStaticLayer('fail')).said.includes('shadow-static-layer-unavailable'));
+  const { backend, lit } = await drawnShadows(true);
+  assert.equal(lit.length, 1, 'the frame is lit without them');
+  assert.match(String(lit[0].unavailable), /virtual shadow maps unavailable: .*out of memory/);
+  assert.equal(backend.metrics().shadowVsmLights, null, 'no maps half made');
+  await backend.dispose();
 });

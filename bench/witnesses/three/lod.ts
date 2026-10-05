@@ -8,15 +8,13 @@ import { hostBackground, lighting } from './displayObjects.ts';
 import { DEFAULT_CLEAR_COLOR } from '../../../packages/sdk-browser/src/backend/common.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';
-import {
-  applyMeshDiagnostic,
-  disposeTriangleGeometry,
-} from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
+import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../packages/sdk-core/src/index.ts';
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './sceneAdapter.ts';
+import { applyMeshDiagnostic } from '../applyMeshDiagnostic.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
 const HORS_PORTEE = [

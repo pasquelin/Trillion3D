@@ -27,28 +27,9 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
     a.range === b.range &&
     a.coneAngle === b.coneAngle &&
     a.penumbra === b.penumbra &&
+    a.angularRadius === b.angularRadius &&
     a.emitterRadius === b.emitterRadius &&
     sameVector(a.color, b.color) &&
-    sameVector(a.position, b.position) &&
-    sameVector(a.direction, b.direction) &&
-    sameVector(a.right, b.right) &&
-    sameVector(a.size, b.size)
-  );
-}
-
-/**
- * True when two validated lights cast the same shadow depth: what places, aims and bounds its
- * projection — kind, position, direction, range, cone, a rect's frame and size —, whether it casts
- * at all, and the emitter sphere the depth excludes. Intensity, colour and penumbra only weigh
- * what the shading reads: a change of those neither re-poses the light's shadow nor withdraws a page.
- */
-export function sameShadowShape(a: SceneLight, b: SceneLight) {
-  return (
-    a.kind === b.kind &&
-    a.castsShadow === b.castsShadow &&
-    a.range === b.range &&
-    a.coneAngle === b.coneAngle &&
-    a.emitterRadius === b.emitterRadius &&
     sameVector(a.position, b.position) &&
     sameVector(a.direction, b.direction) &&
     sameVector(a.right, b.right) &&

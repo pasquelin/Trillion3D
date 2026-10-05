@@ -62,7 +62,7 @@ function createResources(gl: WebGL2RenderingContext) {
 /**
  * WebGL2's render scale (#834): the scale the engine's `renderScaleControl` picks — its bounds'
  * maximum on a still image (`frameHeld`), which the kept image then is, the controller's while it
- * moves (`imageScale`) —, the image drawn at it in the top-left of a target made at that maximum,
+ * moves (`wanted`) —, the image drawn at it in the top-left of a target made at that maximum,
  * and resampled to the display with Lanczos-2 (`../../webgl/core/resampleGlsl.ts`). WebGL2 keeps no
  * history: no jitter, no reconstruction, which is why its default minimum is 1
  * (`autonomousRenderScale`). A comparison side or a capture (`target`), a context without
@@ -81,13 +81,15 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
     /** The scale of the image last drawn on the surface, and of the one kept: what a held frame shows. */
     drawn = 1,
     kept = 1;
+  /** The size the image last begun was drawn at: the destination's, or below it. */
+  const size: [number, number] = [0, 0];
   return {
     /** The scale `backend` draws this image at; `undefined` without a control, into a `target`
      *  or without the chain (a capture), all at the display's size. */
     scaleOf(backend: RenderBackend, target: unknown, chained: boolean) {
       const control = backend.renderScaleControl;
       if (!control || target || !chained) return undefined;
-      const scale = control.imageScale(backend.frameHeld === true);
+      const scale = backend.frameHeld === true ? control.bounds.max : control.wanted();
       return scale < 1 && !halfFloatTargets(gl) ? 1 : scale;
     },
     /** Whether the kept image was drawn at `scale`, what a held frame put back must show. */
@@ -109,6 +111,8 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
       // A draw that threw after the last `begin` left its redirect behind: never resampled now.
       drawn = 1;
       if (drawing) drawing = output.displayWidth = undefined;
+      size[0] = output.width;
+      size[1] = output.height;
       const control = backend.renderScaleControl;
       if (!control || scale === undefined) return false;
       if (control.bounds.min >= 1 && held.alive()) held.current()!.release();
@@ -125,6 +129,8 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
       output.displayWidth = width;
       output.width = renderExtent(width, scale);
       output.height = renderExtent(height, scale);
+      size[0] = output.width;
+      size[1] = output.height;
       gl.bindFramebuffer(gl.FRAMEBUFFER, output.framebuffer);
       gl.viewport(0, 0, output.width, output.height);
       clearWebglTarget(gl, clear);
@@ -168,6 +174,8 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
       gl.bindVertexArray(null);
       gl.enable(gl.DITHER);
     },
+    /** The size the last image was drawn at, `null` before one. */
+    size: () => (size[0] ? size : null),
     /** Bytes of the target the image is drawn below the display in. */
     bytes: () => (held.alive() ? held.current()!.bytes : 0),
     dispose: () => held.dispose(),

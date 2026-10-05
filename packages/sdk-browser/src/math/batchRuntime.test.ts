@@ -1,7 +1,7 @@
 // Initial two batch computation kernels (`batchRuntime.ts`), JavaScript path vs
-// WebAssembly path, on small purely hostile batches from `bench/casLotsWasm.ts` (negative scales,
+// WebAssembly path, on small purely hostile batches (negative scales,
 // shear, zero `w`, NaN, ±0, infinities, 1e308, 5e-324): exact same bits on both sides down to
-// `Object.is` — same notion of equality that `bench/m5.bench.ts` uses for full benchmark, here
+// `Object.is` — same notion of equality that `wasm-batches.perf.ts` uses for the full benchmark, here
 // on a batch small enough to run in `pnpm test`.
 import test from 'node:test';
 import assert from 'node:assert/strict';

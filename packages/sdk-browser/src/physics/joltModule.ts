@@ -23,6 +23,7 @@ interface JoltExports {
     contactConstraints: number,
     tempBytes: number,
     threads: number,
+    step: number,
   ): number;
   jolt_buffer(which: number, words: number): number;
   jolt_step(commandWords: number, dt: number): number;
@@ -33,6 +34,8 @@ interface JoltExports {
   jolt_refused(i: number): number;
   jolt_diverged_count(): number;
   jolt_diverged(i: number): number;
+  jolt_recovered_count(): number;
+  jolt_recovered(i: number): number;
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
@@ -52,12 +55,12 @@ interface JoltExports {
   jolt_concurrency(count: number): number;
 }
 
-/** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
+/** Bytes of the physics module's per-step scratch allocator, taken from the memory budget. */
 const TEMP_BYTES = 16 * 1024 * 1024;
 const PAGE = 65536;
 /** Pages the module declares as its initial memory (`-sINITIAL_MEMORY`, CMakeLists.txt). */
 const INITIAL_PAGES = 512;
-/** The budget each bit of `jolt_update_error` names (Jolt's `EPhysicsUpdateError`: the manifold
+/** The budget each bit of `jolt_update_error` names (`EPhysicsUpdateError`: the manifold
  *  cache is sized from both). */
 const UPDATE_ERRORS = ['bodyPairs and contactConstraints', 'bodyPairs', 'contactConstraints'];
 
@@ -95,15 +98,22 @@ export async function openJolt(
 
 /**
  * Starts an opened module for a budget's bodies, pairs and contacts, stepped by `threads` threads
- * (those it was opened with). A step that would need more than `budget.memoryBytes` fails.
+ * (those it was opened with) in fixed steps of `step` seconds, the page's (`start.step`): what a
+ * soft body's bend floor and calm are reckoned with (`soft.cpp`). A step that would need more
+ * than `budget.memoryBytes` fails.
  */
-export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget, threads = 1) {
+export function startJolt(
+  { exports, memory }: OpenedJolt,
+  budget: PhysicsBudget,
+  threads: number,
+  step: number,
+) {
   const jolt = exports as unknown as JoltExports;
   if (budget.bodies > BODY_INDEX)
     throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`);
   jolt._initialize();
   const { bodies, bodyPairs, contactConstraints } = budget;
-  if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads) !== 0)
+  if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads, step) !== 0)
     throw new EngineError('PHYSICS_FAILED', 'Physics: the module did not start.');
   const outOfMemory = () =>
     new EngineError('PHYSICS_BUDGET', 'Physics budget "memoryBytes" exceeded.');
@@ -114,6 +124,8 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
   if (!commands || !poses || !events) throw outOfMemory();
   const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE;
   return {
+    /** The fixed step it was started at, s. */
+    fixedStep: step,
     /** Copies `count` of `words` into the command buffer, runs them, steps `dt` seconds; returns
      *  the pose count. */
     step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
@@ -146,6 +158,10 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
     diverged: () =>
       Array.from({ length: jolt.jolt_diverged_count() }, (_, i) => jolt.jolt_diverged(i)),
+    /** The engine ids of the soft bodies the last step found diverged on amplitude and brought
+     *  back to a good state: kept in the simulation (`soft.cpp`). */
+    recovered: () =>
+      Array.from({ length: jolt.jolt_recovered_count() }, (_, i) => jolt.jolt_recovered(i)),
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),

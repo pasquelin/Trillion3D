@@ -10,7 +10,7 @@ import {
   upscalePhases,
 } from './jitter.ts';
 import { renderExtent } from '../frame/renderScaleOption.ts';
-import { halton } from './halton.ts';
+import { halton } from '../../../sdk-core/src/math/primitives/halton.ts';
 
 test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
   assert.deepEqual(
@@ -27,7 +27,8 @@ test('the Halton sequence starts with the known terms and stays in [0, 1)', () =
   }
 });
 
-test('eight distinct jitters, centred in the pixel, deterministic and cyclic', () => {
+test('a prime number of distinct jitters, centred in the pixel, deterministic and cyclic', () => {
+  assert.equal(TAA_SAMPLES, 11, 'eleven at native size: eight positions raised to a prime');
   const out = new Float64Array(2),
     vues = new Set<string>();
   let sx = 0,
@@ -45,7 +46,22 @@ test('eight distinct jitters, centred in the pixel, deterministic and cyclic', (
   // The same rank yields the same jitter, and the cycle closes: that is what makes two runs
   // identical and the A/A witness possible.
   assert.deepEqual([...taaJitter(3, out)], [...taaJitter(3 + TAA_SAMPLES, new Float64Array(2))]);
-  assert.equal(taaStillFrames(TAA_SAMPLES), 2 * TAA_SAMPLES);
+  // A hold closes a whole number of cycles, the first with 64 draws: six cycles of eleven.
+  assert.equal(taaStillFrames(TAA_SAMPLES), 6 * TAA_SAMPLES);
+});
+
+test('a still hold is a whole number of cycles of at least 64 images, at every phase count', () => {
+  for (const [phases, frames] of [
+    [11, 66],
+    [17, 68],
+    [19, 76],
+    [37, 74],
+    [131, 131],
+  ]) {
+    assert.equal(taaStillFrames(phases), frames, `${phases} phases`);
+    assert.equal(frames % phases, 0);
+    assert.ok(frames >= 64);
+  }
 });
 
 test('jitter is a translation in clip space, zero when the offset is zero', () => {
@@ -71,12 +87,15 @@ test('jitter is a translation in clip space, zero when the offset is zero', () =
 });
 
 // #816: the boss's display, drawn at 67 % and 50 % per axis, reconstructed to it.
-test('jitter phases follow the render-to-display ratio, distinct and stratified at every scale', () => {
+test('jitter phases follow the render-to-display ratio, a prime, distinct and stratified at every scale', () => {
   const display = 3456;
-  assert.equal(upscalePhases(display, display), TAA_SAMPLES, 'eight at native size, as before');
+  assert.equal(upscalePhases(display, display), TAA_SAMPLES, 'eleven at native size');
+  assert.equal(upscalePhases(4000, display), TAA_SAMPLES, 'eleven above it');
+  // 8 · (display / render)², rounded, then the next prime from eleven: 11, 17 and 37.
   for (const [scale, expected] of [
-    [0.67, 17],
-    [0.5, 32],
+    [0.75, 17],
+    [0.67, 19],
+    [0.5, 37],
   ]) {
     const phases = upscalePhases(renderExtent(display, scale), display);
     assert.equal(phases, expected, `${phases} phases at ${scale}`);
@@ -90,8 +109,10 @@ test('jitter phases follow the render-to-display ratio, distinct and stratified 
       quadrants[(x < 0 ? 0 : 1) + (y < 0 ? 0 : 2)]++;
     }
     assert.equal(seen.size, phases, 'no two phases share a position');
-    // Stratified: each quarter of the render pixel — a display pixel at half scale — gets its share.
-    for (const count of quadrants) assert.ok(Math.abs(count - phases / 4) <= 1, `${quadrants}`);
+    // Stratified: each half of the render pixel across gets its half to one (base 2), each quarter
+    // — a display pixel at half scale — its share to two (base 3 splits in thirds, not halves).
+    assert.ok(Math.abs(quadrants[0] + quadrants[2] - phases / 2) <= 1, `${quadrants}`);
+    for (const count of quadrants) assert.ok(Math.abs(count - phases / 4) <= 2, `${quadrants}`);
   }
 });
 

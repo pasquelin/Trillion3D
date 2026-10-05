@@ -188,6 +188,8 @@ export function createFrameComposer(
   /** Bytes of the chain's targets, the particles' depth copy and the target an image drawn below
    *  the display is drawn in, on this context. */
   compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0) + scaled.bytes();
+  /** The size the last image was drawn at, below the display or not. */
+  compose.renderSize = scaled.size;
   compose.dispose = () => {
     present.dispose();
     scaled.dispose();

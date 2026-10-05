@@ -1,5 +1,6 @@
 import { scissorTo } from './bounds.ts';
 import { createWaterFreeze } from './freeze.ts';
+import { createWaterDepthRestore } from './depthRestore.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { drawBlendRuns } from '../blend/draw.ts';
 import { feedbackAttachment, surfaceColorAttachments } from '../pages/prepare/attachments.ts';
@@ -13,6 +14,13 @@ import { createWaterCompositeLayout, createWaterComposites } from './pipelines.t
 import { routedFilter } from '../blend/displayFilter.ts';
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 import { WATER_SURFACE_PASS, WATER_COMPOSITE_PASS } from './passLabels.ts';
+import { waterSurfaceTargets } from './surfaceTargets.ts';
+import { createReach, type Reach } from '../blend/reach.ts';
+import {
+  createForwardVariants,
+  type ContractKey,
+  type ForwardLit,
+} from '../../lighting/deferred/contractVariants.ts';
 
 /**
  * The frame side of the water pass: the composite program, and everything an image reuses as long
@@ -21,15 +29,32 @@ import { WATER_SURFACE_PASS, WATER_COMPOSITE_PASS } from './passLabels.ts';
  * when the shadow atlas or the probe grid arrive: `bind` writes their identities and rebuilds only
  * when one moved, so a still frame builds and allocates nothing.
  */
-export async function createWaterFrame(device: GPUDevice, sunWindow?: number, unbounded = false) {
+export async function createWaterFrame(
+  device: GPUDevice,
+  unbounded = false,
+  feedback = true,
+  lit?: ForwardLit,
+  reach: Reach = createReach({ modes: [], share: false, filtered: false }),
+) {
   const layout = createWaterCompositeLayout(device);
-  const composites = await createWaterComposites(device, layout, sunWindow, unbounded);
-  const freeze = await createWaterFreeze(device);
+  // The opaque depth's restore: the surface pass's first draw, on its targets.
+  // The composite lit with the code the scene's lights need (`createForwardVariants`).
+  const [compositesOf, restore] = await Promise.all([
+    createForwardVariants(
+      (key) => createWaterComposites(device, layout, unbounded, key, reach),
+      lit,
+    ),
+    createWaterDepthRestore(device, waterSurfaceTargets(feedback)),
+  ]);
+  const freeze = createWaterFreeze();
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
+  // Cleared, then restored over the surface rectangle by the pass's first draw: the only texels a
+  // surface draw tests and the composite reads (where the word is set).
   const surfaceDepth: GPURenderPassDepthStencilAttachment = {
     view: undefined as unknown as GPUTextureView,
-    depthLoadOp: 'load',
+    depthLoadOp: 'clear',
+    depthClearValue: 0,
     depthStoreOp: 'store',
   };
   // The three material surfaces, the water word — cleared: zero says "no water here" to the
@@ -40,7 +65,8 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
     storeOp: 'store',
     clearValue: [0, 0, 0, 0],
   };
-  const attachments: GPURenderPassColorAttachment[] = [];
+  // The water's scene keeps every surface layer (\`wantsEmissiveAo\`): no slot is empty.
+  const attachments: Array<GPURenderPassColorAttachment | null> = [];
   const surfacePass: GPURenderPassDescriptor = {
     label: WATER_SURFACE_PASS,
     colorAttachments: attachments,
@@ -94,9 +120,11 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
       next[15] = lighting.shadowTransmittance;
       next[16] = lighting.surfaceCache;
       next[17] = gpu.colorView;
+      next[18] = lighting.shadowTranslucentDepth;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
-      freeze.bind(gpu.hdrTexture, backdrop, gpu.depthTexture, gpu.depthView, gpu.allocatedSize);
+      freeze.bind(gpu.hdrTexture, backdrop);
+      restore.bind(gpu.depthView);
       surfaceDepth.view = backdrop.waterDepthView;
       target.view = gpu.hdrView;
       word.view = gpu.colorView;
@@ -116,10 +144,14 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
           { binding: b.directLights, resource: { buffer: lighting.directLights } },
           { binding: b.tileLights, resource: { buffer: lighting.tileLights } },
           { binding: b.shadowData, resource: { buffer: lighting.shadowData } },
-          { binding: b.shadowAtlas, resource: lighting.shadowAtlas },
-          { binding: b.shadowSampler, resource: lighting.shadowSampler },
+          // The virtual shadow maps on the contract's numbers (`CONTRACT_VSM_BINDINGS`).
+          { binding: b.shadowAtlas, resource: { buffer: lighting.shadowAtlas } },
+          { binding: b.shadowSampler, resource: { buffer: lighting.shadowSampler } },
           { binding: b.shadowTransmittance, resource: lighting.shadowTransmittance },
-          { binding: b.shadowTranslucentDepth, resource: lighting.shadowTranslucentDepth },
+          {
+            binding: b.shadowTranslucentDepth,
+            resource: { buffer: lighting.shadowTranslucentDepth },
+          },
           { binding: b.bounceGrid, resource: { buffer: lighting.bounceGrid } },
           { binding: b.probes, resource: lighting.probes },
           { binding: b.proxy, resource: { buffer: lighting.proxy } },
@@ -134,7 +166,8 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
     },
     /**
      * Encodes the water pass on the image the blends left. The backdrop is frozen (`freeze.ts`) —
-     * the lit image copied, the opaque depth copied into the depth the surface stage tests —, the
+     * the lit image copied, the opaque depth restored, by the surface pass's first draw, into the
+     * depth the surface stage tests —, the
      * transmissive surfaces draw into the opaque resolve's material surfaces, free since that
      * resolve consumed them, and the water word into the display colour the composition writes
      * later — the surface flags stay the opaque resolve's, read by temporal antialiasing and the
@@ -144,17 +177,24 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
      * mask is set), and, when the frame has a share, its coverage as the reactive value the blends
      * and particles also write (`asIsShare.ts`). Both passes are scissored to the kept surfaces
      * (`bounds.ts`); the word clear stays full-target, a scissor does not bound a load clear.
+     * The composite is the program of the frame's lights' `key` (`createForwardVariants`).
      * Returns the surface draws encoded.
      */
-    encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
+    encode(
+      rt: WebgpuPagesRuntime,
+      encoder: GPUCommandEncoder,
+      pipelines: BlendPipelines,
+      key: Partial<ContractKey>,
+    ) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
       const rect = freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize);
-      if (freeze.restored) rt.run.gpuDrawCalls++;
-      if (rt.feedbackAB?.target !== false) attachments[4] = feedbackAttachment(rt);
+      if (rt.vis.writesFeedback) attachments[4] = feedbackAttachment(rt);
       else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
       pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1);
       scissorTo(pass, rect);
+      restore.draw(pass);
+      rt.run.gpuDrawCalls++;
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
       const share = activeAsIsShare(rt),
@@ -167,7 +207,7 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
           : plain;
       const composite = encoder.beginRenderPass(compositePass);
       scissorTo(composite, rect);
-      composite.setPipeline(composites.at(!!filter, !!share));
+      composite.setPipeline(compositesOf(key).at(!!filter, !!share));
       composite.setBindGroup(0, group);
       if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
       if (filter) composite.setBindGroup(2, filter.maskGroup);
@@ -176,7 +216,7 @@ export async function createWaterFrame(device: GPUDevice, sunWindow?: number, un
       return encoded;
     },
     dispose() {
-      freeze.dispose();
+      restore.dispose();
       group = undefined;
       surfaces = undefined;
     },

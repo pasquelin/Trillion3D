@@ -117,59 +117,67 @@ export function targets(gpu: WebgpuGpuState) {
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(
-        [
-          'slices',
-          'atlasView',
-          'sampler',
-          'bounceGrid',
-          'probes',
-          'tiles',
-          'proxy',
-          'surfaceCache',
-        ].map((k) => [k, placeholder()]),
+        ['bounceGrid', 'probes', 'tiles', 'proxy', 'surfaceCache'].map((k) => [k, placeholder()]),
       ),
     },
   });
 }
 
+/** One pass as the replay records it. */
+const recordOf = (descriptor: GPURenderPassDescriptor) => ({
+  label: descriptor.label!,
+  drawn: [] as number[],
+  writes: [...descriptor.colorAttachments].map((attachment) => attachment?.view),
+  // The frame rewrites its descriptors in place: kept as they were when the pass began.
+  descriptor: structuredClone(descriptor),
+  scissors: [] as number[][],
+  commands: [] as string[],
+});
+
+/** The pipelines of every rank and every key a replayed pass draws with. */
+const anyPipelines = (): unknown => ({ at: () => ({}), lit: anyPipelines, reach: () => undefined });
 /**
  * A frame to replay the transparent passes into: a runtime whose bind groups are already built
  * on the placeholders — the tests observe draw order, not group construction —, and a recording
- * encoder that keeps each pass's label, the views it writes and the items it set, and counts the
- * texture copies.
+ * encoder that keeps each pass's label, the views it writes, the items it set, its descriptor as
+ * begun, its scissors and its commands (`pipeline:<fragment entry>`, `draw`, `indirect`), and the
+ * texture copies, counted and as made.
  */
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
-  const passes: { label: string; drawn: number[]; writes: unknown[] }[] = [];
+  const passes: ReturnType<typeof recordOf>[] = [];
   const items = blendState.blendGpu;
-  const counters = { copies: 0 };
+  const counters = { copies: 0 },
+    copies: unknown[] = [];
   const encoder = {
-    beginRenderPass: ({ label, colorAttachments }: GPURenderPassDescriptor) => {
-      const drawn: number[] = [];
-      const writes = [...colorAttachments].map((attachment) => attachment?.view);
-      passes.push({ label: label!, drawn, writes });
+    beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
+      const { drawn, scissors, commands } = passes[passes.push(recordOf(descriptor)) - 1];
       return {
         setViewport() {},
-        setScissorRect() {},
+        setScissorRect: (...rect: number[]) => scissors.push(rect),
         setBindGroup(_slot: number, group: GPUBindGroup) {
           const rank = items.findIndex((item) => item.group === group);
           if (rank >= 0) drawn.push(rank);
         },
-        setPipeline() {},
-        draw() {},
-        drawIndirect() {},
+        setPipeline: (p: GPURenderPipelineDescriptor) =>
+          commands.push(`pipeline:${p.fragment?.entryPoint}`),
+        draw: () => commands.push('draw'),
+        drawIndirect: () => commands.push('indirect'),
         end() {},
       };
     },
-    copyTextureToTexture: () => counters.copies++,
+    copyTextureToTexture: (a: unknown, b: unknown, size: unknown) => {
+      counters.copies++;
+      copies.push(structuredClone({ a, b, size }));
+    },
   } as unknown as GPUCommandEncoder;
   const rt = {
-    vis: { visEnabled: true, blendPipelines: [{}, {}, {}] },
+    // A textured scene: its pipelines write the feedback.
+    vis: { visEnabled: true, blendPipelines: anyPipelines(), writesFeedback: true },
     gpu,
     capture: { capturing: false },
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.
-    sunFar: { gpu: undefined },
     blendState,
     run: {
       diagnostic: 'beauty',
@@ -188,5 +196,5 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   for (const item of items) item.group = {} as GPUBindGroup;
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;
-  return { rt, encoder, passes, counters };
+  return { rt, encoder, passes, counters, copies };
 }

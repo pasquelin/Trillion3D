@@ -51,7 +51,7 @@ test('the first move after the lock is granted is dropped: the cursor jump never
   surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 });
   controls.update(0);
   assert.deepEqual(looking(), [1, 0, 0]);
-  // The examples proof's look (#527): every move after the dropped one counts, so the reverse,
+  // Every move after the dropped one counts (#527), so the reverse,
   // in four steps, lands on the very head the lock started from.
   for (let step = 0; step < 4; step++)
     surface.fire('pointermove', { pointerId: 1, movementX: -50, movementY: 0 });
@@ -119,4 +119,18 @@ test('first person turns 0.002 radians per pixel until `lookSpeed` is set', () =
   surface.fire('pointermove', { pointerId: 1, movementX: 100, movementY: 0 });
   controls.update(0);
   assert.equal(round(Math.atan2(facing(camera)[0], -facing(camera)[2])), round(0.2));
+});
+
+test('first person reads back a host pose off unit length at its pitch, near the zenith too', () => {
+  const { camera, controls } = steered(createFirstPersonCameraControls);
+  controls.update(0);
+  // A look 1.5707 radians up, its quaternion 1e-7 short of unit length, as a float32 pose is.
+  const pitch = 1.5707,
+    scale = 1 - 1e-7;
+  camera.quaternion.set(Math.sin(pitch / 2) * scale, 0, 0, Math.cos(pitch / 2) * scale);
+  controls.update(0);
+  // The arc sine of the forward height read it 5.4e-4 radians low; its elevation, 2e-7.
+  const [x, y, z] = facing(camera);
+  const read = Math.atan2(y, Math.hypot(x, z));
+  assert.ok(Math.abs(read - pitch) < 3e-7, `${read - pitch}`);
 });

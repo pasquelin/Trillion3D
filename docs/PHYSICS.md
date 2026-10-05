@@ -16,7 +16,7 @@ world.scene.add(floor, crate);
 crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
 ```
 
-Without physics, no byte of Jolt or its page code is fetched; they and the worker's WebAssembly
+Without physics, no byte of the physics module or its page code is fetched; they and the worker's WebAssembly
 module load when physics is first enabled, bodies set before queued.
 
 ## World
@@ -37,11 +37,17 @@ each is also a live property of `world.physics`.
 **Water.** Each step the worker fits a plane of the waves to every piece under `water` and pushes it
 by the weight of water displaced, so a body lighter than water floats; the drags set how fast it
 settles, never where; setting or removing water wakes every dynamic body.
-`world.physics.waterSurface` reads the same waves at the simulation's time, to draw them (running
-while bodies sleep, still when paused): `height(x, z)`, `point(x, z, out)` (where a grid's rest
-point is carried), `normal(x, z, out)`, `wavesNow()` (the waves with their phases, so water set
-again goes on from there). Example: [floating crates](../site/examples/floating-crates.html), its
-sea uploaded in place every frame (#573).
+`world.physics.waterSurface` reads the same waves at the simulation's time (running while bodies
+sleep, still when paused): `height(x, z)`, `point(x, z, out)` (where a grid's rest point is
+carried), `normal(x, z, out)`, `wavesNow()` (the waves with their phases, so water set again goes
+on from there); set again, the water is the same surface, carried by the new waves. **Drawn
+water**: a mesh that lies flat on the water at its `level` — a plane turned flat and placed there,
+its world box flat to a float32 step — is the water's surface: the engine sets its `mesh.waves` to
+`waterSurface` and the GPU moves each vertex where the waves carry it, on the physics' clock, with
+no vertex written on the page; moved off the level, it is released. A body, or a geometry the
+page rewrites (`usage: 'dynamic'`), is never carried, and `mesh.waves = null` (or a surface of the
+page's own) keeps a mesh out. Example: [floating
+crates](../site/examples/floating-crates.html).
 
 ## Bodies
 
@@ -71,14 +77,14 @@ sensor, ccd, decorative, friction, restitution, damping }`.
 - **Events.** `on('contact' | 'enter' | 'leave')` gives the other object, an impulse estimate
   (approach speed times the pair's reduced mass) and the point. After `Update`, contact records
   merge in a canonical order no thread decides: by body pair key (lower engine index first), each
-  pair's events as Jolt ran them — not Jolt's callback order. A full buffer's carried `leave` events
+  pair's events as the simulation ran them — not the engine's callback order. A full buffer's carried `leave` events
   and a removed body's come before the merge, a soft body's after it. Any pool size gives the single
   thread's order (`contactThreads.test.ts`).
 
 ## Joints
 
 `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` joins two bodies, or a body
-and the world (`b` is `null`), with Jolt's constraints; `world.physics.add(j)` and `remove(j)` put
+and the world (`b` is `null`), with the module's constraints; `world.physics.add(j)` and `remove(j)` put
 it in and out. It exists while both bodies are simulated, made again when one returns.
 
 | Option | Meaning |
@@ -113,7 +119,7 @@ A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`. Example:
   over `b`'s), the other way round; `joint.rackAndPinion(pinion, rack, { axis, axisB, ratio })`
   slides the rack along `axisB` by `1 / ratio` metres per pinion radian (`ratio` is 1 / its radius).
   Each gear, pinion and rack needs its own hinge or slider, the body as its `a`, about the same
-  axis; Jolt reads them to keep the teeth in phase over any run: always for a rack and pinion; for a
+  axis; the simulation reads them to keep the teeth in phase over any run: always for a rack and pinion; for a
   gear when `ratio` or `1 / ratio` is whole (it wraps each hinge's angle to one turn); any other
   gear ties speeds only and may slip a fraction of a tooth under load. Example: [gears and
   pulleys](../site/examples/gears-and-pulleys.html).
@@ -121,16 +127,16 @@ A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`. Example:
 ## Vehicles
 
 `vehicle.car | motorcycle | tracked(body, { wheels, ...spec })` puts a dynamic body on wheels with
-Jolt's vehicle constraint — engine, automatic gearbox, differentials, suspension, anti-roll bars;
+The module's vehicle constraint — engine, automatic gearbox, differentials, suspension, anti-roll bars;
 `world.physics.add(v)` makes it once its body is simulated, `remove(v)` leaves the body wheelless.
 
 - **Wheels** are meshes, children of the body, placed at their centre as they rest on flat ground,
-  axle along the body's x; radius and width come from their bounds, and each tick turns, steers and
-  lifts them on the suspension.
-- **Body.** As in Jolt's vehicle samples, the centre of mass is lowered to the shape's bottom,
+  axle along the body's x; radius and width come from their bounds, and each step turns, steers and
+  lifts them on the suspension, drawn at the bodies' time as the body is.
+- **Body.** As in the module's own vehicle samples, the centre of mass is lowered to the shape's bottom,
   midway between the wheels, and restored when the vehicle leaves. While a vehicle, its running gear
   is solid: a box over the wheels' footprint, from the body's bottom to their lowest point raised by
-  the suspension travel, joins its shape, so no body slips under it among the wheels (Jolt only
+  the suspension travel, joins its shape, so no body slips under it among the wheels (the module only
   casts them); mass and inertia stay the shape's. The body faces −z; the forward wheels steer.
 - **Kinds.** A car: three wheels or more, one differential per driven axle
   (`drive: 'front' | 'rear' | 'all'`), handbrake on the rear. A motorcycle: two, rear-driven,
@@ -158,7 +164,7 @@ Example: [drive a car](../site/examples/drive-a-car.html).
 ## Soft bodies
 
 `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch, bend }` simulates each
-vertex on Jolt's soft bodies.
+vertex on the module's soft bodies.
 
 - **Shape.** A cloth is its triangles; a rope its vertices in order, each joined to the next; a
   volume its closed, outward triangles held up by the gas inside (`pressure`, Pa above the air's at
@@ -168,36 +174,80 @@ vertex on Jolt's soft bodies.
   cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm polyamide rope (`SOFT_LINEAR_DENSITY`,
   0.065 kg/m).
 - **Stiffness.** `stretch` and `bend` are compliances, the inverse of stiffness, for a pulled edge
-  and a bent fold (Jolt's defaults: 0 never stretches, `Infinity` folds freely). A pinned cloth with
-  `stretch` 0 keeps each free vertex within its rest distance of the nearest pin (Jolt's long range
+  and a bent fold (the module's defaults: 0 never stretches, `Infinity` folds freely). A pinned cloth with
+  `stretch` 0 keeps each free vertex within its rest distance of the nearest pin (the module's long range
   attachments), so a large one never stretches without end; one given stretch keeps its give.
 - **Pressure.** A volume's default rests its weight on a quarter of its mean cross-section
   (`SOFT_FOOTPRINT`, declared), or the most its skin holds if less. A pressure past what the skin
   holds within a tenth of its rest volume throws `RangeError`: edges give by their `stretch` and by
-  the solver's own compliance (a substep squared over a vertex's mass), so a light, finely cut skin
-  holds less.
+  the solver's own compliance (a substep of the page's step squared over a vertex's mass), so a
+  light, finely cut skin holds less, and a finer step more. A compiled model's volume is reckoned
+  at the engine's step (`PHYSICS_STEP`): it is cooked before any page steps it.
 - **Options.** `friction`, `restitution`, `gravityScale` and `damping: { linear }` act per vertex as
   on a rigid body; `shape`, `sensor`, `ccd`, `decorative` and angular damping throw `RangeError`
   (vertices do not turn). No velocity, impulse, joint or vehicle.
-- **Place.** A direct child of the scene; moved by the page, it is carried with its vertices, its
-  simulation kept; placed at another scale than it was made at, it is refused (`PHYSICS_FAILED`)
-  and leaves the simulation until back at that scale (Jolt scales no soft body once made), as a
-  compiled model's cooked one does; hidden, its vertices are not sent.
+- **Damping.** A soft body that declares none loses a hundredth of its speed each step of 60 Hz
+  (`SOFT_DAMPING`, `−ln(0.99)·60` = 0.603 per second), whatever its type, mass or size: a swing
+  settles within seconds, and it falls at most at `g / 0.603`, 16.3 m/s. A declared value wins, 0
+  included; a saved scene leaves the default out.
+- **Thickness.** Its vertices keep 1 cm from what they collide with (the module's vertex radius): a cloth
+  laid on a surface rests 1 cm above it.
+- **Bends.** No bend is stiffer than the solver resolves: its compliance is at least a fifth of the
+  one its four vertices' masses give over a substep (`h²·Σ wᵢ|∇ᵢθ|²`, XPBD's own), so it corrects at
+  most five sixths of the angle it is off per substep. A stiffer one overshoots: a flag's
+  `bend: 0.001` on vertices of 0.7 g, loaded in its own plane, folded its triangles through each
+  other and flapped until it ran away. Floored, that flag's bends give at least 1.5 to 16 rad/(N·m)
+  (squares of 6 cm, at 60 Hz) and it comes to rest; a cloth clamped along an edge and bent stiff
+  still stands out. A softer bend is kept as declared. The floor is applied when the body is made,
+  over a substep of the page's step (a finer step resolves stiffer bends), cooked bodies included;
+  the cooked bytes are unchanged.
+- **Speed.** The module holds each vertex under the faster of two speeds: the fall from a hundred times
+  the body's size (the diagonal of its rest bounds) under its pull, 59 m/s for a 1.8 m flag, and its
+  fall through its own damping, `pull / damping` (500 m/s, the module's own bound, with none). The pull is
+  the gravity times its scale, never less than 9.81 m/s², read again whenever either changes:
+  neither a swing nor a body falling whole is ever held back.
+- **Place.** A direct child of the scene. Moved by the page, it is carried with its vertices, pins
+  included, its shape and motion kept and no motion induced by the move; moved more than 3 m at
+  once, it starts again at rest in its rest shape at its new place. A slow frame changes nothing:
+  the worker steps a fixed 1/60 s, four steps at most a frame. Placed at another scale than it
+  was made at, it is refused (`PHYSICS_FAILED`) and leaves the simulation until back at that scale
+  (the module scales no soft body once made), as a compiled model's cooked one does; hidden, its vertices
+  are not sent.
+- **Support.** A static body that the cloth near a pin starts inside (the rest midpoint of an edge
+  from a pin lies 1 mm deep in its shape) is passed through by that soft body, which it would
+  otherwise push out against its own pins at every step. It is judged once per pair, again when
+  either is moved, and forgotten when the body leaves. Pins on a surface keep colliding with it: a
+  flag pinned on its pole's surface still wraps round the pole (the module's filter is per body, not per
+  vertex).
 - **Divergence.** A body, soft or rigid, whose vertices or pose go non-finite sends none: it keeps
   its last finite one on screen and leaves the simulation with `PHYSICS_DIVERGED` (the mesh named).
+  A soft body has also diverged when its vertices go apart, the spread of their velocities, at
+  twice the speed of a fall from a hundred times its size for half a second, or when its bounds pass
+  three times their rest diagonal while one of its edges is pulled past five times its rest length
+  (a rope coiled at rest hangs out to its length with whole edges: no divergence). It stays in the
+  simulation: brought back at rest to the state it kept a quarter to half a second before (its rest
+  shape, at its pins or around its centre of mass, when it kept none), then calmed for 2 s, damped
+  so that it falls no faster than a quarter of its mean edge per step. The page counts it in
+  `world.physics.stats.softRecoveries` and hears a non-fatal `PHYSICS_DIVERGED` naming it, at most
+  once a second. The module finds a soft body's collision planes once per step for its five substeps, so
+  a fine cloth draped over a sharp edge or corner can still throw itself apart: a 1.5 m cloth of
+  44 × 44 squares dropped on a 1 m box is brought back once and rests on it. That is a limit of
+  the module's solver, counted and named, not hidden.
 - **Collisions.** Rigid bodies and the character collide with its vertices: the character is turned
   aside or stopped, never pushing it; a rigid body much heavier than the skin can push between its
-  vertices; soft bodies pass through each other (Jolt collides them with rigid bodies only).
-  `on('contact' | 'enter' | 'leave')` works on either side, from Jolt's soft-body contact listener:
+  vertices; soft bodies pass through each other (the module collides them with rigid bodies only).
+  `on('contact' | 'enter' | 'leave')` works on either side, from the module's soft-body contact listener:
   the point is the mean of the touching vertices, the impulse estimated from their mean velocity and
   mass, a pair stays entered while both rest; a sensor reports without stopping it.
-- **Drawing.** `mesh.physics.vertices` reads the vertices as the last tick left them, `x, y, z` per
-  geometry vertex in the geometry's frame; the geometry is dynamic, drawn where the last step left
-  it ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame), #573).
+- **Drawing.** `mesh.physics.vertices` reads the vertices as they are drawn, `x, y, z` per geometry
+  vertex in the geometry's frame, at the bodies' time: between the places the two steps that
+  bracket it left them, as a body is drawn; the geometry is dynamic
+  ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame), #573).
 
 ## Stillness, distance and view
 
-A sleeping body sends nothing; once all sleep, the worker stops ticking and no frame is drawn.
+A sleeping body sends nothing; once all sleep, the worker takes no step, the page sends it nothing
+and no frame is drawn.
 Beyond `world.physics.simulationRange` a body freezes, velocities kept, until it returns. Out of
 view or hidden it sends no pose but keeps falling (its pose on falling asleep is sent). `decorative`
 bodies meet the static world only, are simulated only in range and view, and leave once asleep, the
@@ -215,7 +265,7 @@ mesh resting in place (set `physics` again to resume), their joints broken (`j.b
 | `bodyPairs` | 65536 | body pairs per step |
 | `contactConstraints` | 32768 | contacts per step |
 | `contactEvents` | 4096 | contact events per step |
-| `threads` | 8 | Jolt's thread pool, the worker's included, on a cross-origin isolated page (one elsewhere), at most the logical cores minus the page's own; the worker times its steps and uses fewer threads while more only contend; Jolt computes the same step on any count |
+| `threads` | 8 | the module's thread pool, the worker's included, on a cross-origin isolated page (one elsewhere), at most the logical cores minus the page's own; the worker times its steps and uses fewer threads while more only contend; the module computes the same step on any count |
 | `softVertices` | 16384 (four cloths of 64 × 64) | every soft body's vertices at once |
 
 | Case | Refusal |
@@ -236,11 +286,11 @@ clock: never added together.
 ## Compiled models
 
 A model loaded with `scene.load()` collides with its own triangles once physics is on: the compiler
-cooked them (`physics.json`, [FORMAT.md](FORMAT.md)), and tiles stream in from Jolt's binary state
+cooked them (`physics.json`, [FORMAT.md](FORMAT.md)), and tiles stream in from the module's binary state
 around every moving body and the eye up to the simulation range, nearest first, within half of
 `budget.physics.memoryBytes`, leaving as they move away (a tile stays until half as far again as it
 came in). No scene is refused for its size: a tile that does not fit waits, the farthest leaving for
-it. Another format or Jolt's cook is refused (`PHYSICS_FORMAT`); a model compiled before the cook
+it. Another format or another engine build's cook is refused (`PHYSICS_FORMAT`); a model compiled before the cook
 collides nowhere. A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
 `world.physics.error` ([Files over HTTP](SDK.md#files-over-http)); a model leaving the scene drops
 its pending reads, no error.
@@ -254,7 +304,7 @@ pushing what it meets (under a dynamic one, as that body carries its node); a dy
 its node and what hangs under it drawn where the simulation puts them, that subtree's tiles leaving
 and ground streaming in around it; moved by the page with its model or node, it is put where the
 node is then drawn. In a partitioned model, whose cache numbers nodes otherwise, it is held
-kinematic and asleep where drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
+kinematic and asleep where drawn. A shape the module cannot make at the body's scale is `PHYSICS_FAILED`
 naming its node, which stays static ground; a body refused at a rescale is made again at another
 scale.
 

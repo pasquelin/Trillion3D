@@ -6,36 +6,34 @@ import {
   previewFirstLevel,
   previewGeometry,
   previewLastLevel,
-  previewLevelCount,
   previewLevelSize,
-  previewPixelBytes,
 } from './previewLevels.ts';
 import { referenceExpectedGeometry } from '../../../../bench/oracles/core/preview-texture.ts';
 
 // Behaviour 5: the TypeScript geometry is the exact mirror of
 // `packages/asset-compiler-rust/src/texture_preview/levels.rs`, checked here on the same cases —
 // a texture that already fits under the base, an odd texture, a non-square texture.
-test('previewFirstLevel/Last/Count/Size/PixelBytes match the Rust geometry on the same cases', () => {
+test('previewFirstLevel/Last/Size and previewGeometry match the Rust geometry on the same cases', () => {
   // 4×4: already fits under the base, three levels down to 1×1.
   assert.equal(previewFirstLevel(4, 4), 0);
   assert.equal(previewLastLevel(4, 4), 2);
-  assert.equal(previewLevelCount(4, 4), 3);
-  assert.equal(previewPixelBytes(4, 4), 84);
+  assert.equal(previewGeometry(4, 4).levelCount, 3);
+  assert.equal(previewGeometry(4, 4).pixelBytes, 84);
 
   // 17×9: odd and dissimilar dimensions, five levels.
   assert.equal(previewFirstLevel(17, 9), 0);
   assert.equal(previewLastLevel(17, 9), 4);
-  assert.equal(previewLevelCount(17, 9), 5);
+  assert.equal(previewGeometry(17, 9).levelCount, 5);
   assert.deepEqual(previewLevelSize(17, 9, 1), [8, 4]);
   assert.deepEqual(previewLevelSize(17, 9, 4), [1, 1]);
-  assert.equal(previewPixelBytes(17, 9), 784);
+  assert.equal(previewGeometry(17, 9).pixelBytes, 784);
 
   // 128×64: non-square, seven sides exceeding the base by a single step.
   assert.equal(previewFirstLevel(128, 64), 1);
   assert.equal(previewLastLevel(128, 64), 7);
-  assert.equal(previewLevelCount(128, 64), 7);
+  assert.equal(previewGeometry(128, 64).levelCount, 7);
   assert.deepEqual(previewLevelSize(128, 64, 1), [64, 32]);
-  assert.equal(previewPixelBytes(128, 64), 10_924);
+  assert.equal(previewGeometry(128, 64).pixelBytes, 10_924);
 });
 
 // G11: `previewGeometry` computes the first and last level once then derives the

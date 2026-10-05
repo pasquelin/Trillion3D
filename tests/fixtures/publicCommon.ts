@@ -8,8 +8,6 @@ import {
   type SceneNodeOptions,
   type SceneRoot,
   type SceneState,
-  type TransportOptions,
-  type TransportResult,
 } from 'trillion3d';
 
 export const home: CameraPose = {
@@ -20,10 +18,6 @@ export const home: CameraPose = {
   far: 100,
 };
 export const statusOf = <T>(snapshot: JobSnapshot<T>) => snapshot.status;
-export const transportOptions: TransportOptions = {
-  onProgress: (progress) => progress.completed / progress.total,
-};
-export const transportIterations = (result: TransportResult) => result.iterations;
 const sceneOptions: SceneNodeOptions = { id: 'typed-root' };
 const scene: SceneRoot = createSceneRoot(sceneOptions);
 const child: SceneNode = scene.createNode({ id: 'typed-child' });

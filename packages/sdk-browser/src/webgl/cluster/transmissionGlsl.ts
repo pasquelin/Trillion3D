@@ -3,7 +3,7 @@
  * backdrop samplers and two functions. A fragment the `transmissive` flag does not carry never
  * calls them, so the image of every other material does not move by a pixel.
  *
- * Same model as the engine's WebGPU blend shader (`webgpuTransmissionWgsl.ts`), on the imported
+ * Same model as the engine's WebGPU blend shader (`../../webgpu/blend/shader.ts`), on the imported
  * material alone — `KHR_materials_transmission`, `KHR_materials_ior`, `KHR_materials_volume` —
  * and on the declared lights the rest of the program reads. Depth here is the host projection's
  * forward window depth, so "behind the glass" is "greater".

@@ -51,7 +51,7 @@ export class Geometry {
   maxBounds: Box3 | null = null;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
-  /** Who built it, world or host: whether its normalised lists read as stored (`readsStored`). */
+  /** Who built it, the world or the application: whether its normalised lists read as stored (`readsStored`). */
   _owner: 'world' | 'host' = 'world';
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {

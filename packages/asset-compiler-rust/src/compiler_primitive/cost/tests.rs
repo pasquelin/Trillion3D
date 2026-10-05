@@ -76,7 +76,6 @@ fn page_constants_are_the_page_record() {
         parent_error: 1.0,
         sphere: [0.0; 4],
         parent_sphere: [0.0; 4],
-        replacement: Some(0),
         source_rank: 0,
         group: Some(0),
         source: Some(0),

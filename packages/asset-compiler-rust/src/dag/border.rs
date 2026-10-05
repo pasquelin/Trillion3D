@@ -2,7 +2,7 @@
 //! groups still meet, and what is locked extra when they do not.
 
 /// Triangles whose three corners differ. A triangle with two coinciding corners —
-/// two copies of the same position, once welded — has no area: meshoptimizer
+/// two copies of the same position, once welded — has no area: the simplifier
 /// drops it, and a vertex that existed only there is not a lost border (measured:
 /// 238 triangles of 2 465 in a group, and the three "lost" locks that blocked its
 /// retry had no live triangle).

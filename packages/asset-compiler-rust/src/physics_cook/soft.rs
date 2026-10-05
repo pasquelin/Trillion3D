@@ -21,7 +21,7 @@ const KINDS: [&str; 3] = ["cloth", "rope", "volume"];
 
 /// The kind of soft body a node declares and its options; `None` when it declares a rigid body or
 /// nothing, and is then static ground.
-fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
+pub(crate) fn declared_soft(node: &Value) -> Option<(&'static str, &Value)> {
     let option = node.pointer("/extras/physics")?;
     let kind = option.get("type").and_then(Value::as_str)?;
     Some((KINDS.into_iter().find(|k| *k == kind)?, option))

@@ -13,10 +13,3 @@ export async function sha256Hex(bytes: ArrayBuffer) {
   for (let i = 0; i < digested.length; i++) hex += HEX[digested[i]];
   return hex;
 }
-
-/** The same string, from bytes already hashed: what the bench compares term for term. */
-export function toHex(digested: Uint8Array) {
-  let hex = '';
-  for (let i = 0; i < digested.length; i++) hex += HEX[digested[i]];
-  return hex;
-}

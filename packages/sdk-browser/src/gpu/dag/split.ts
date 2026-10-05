@@ -4,7 +4,7 @@ import { DAG_NODE_FLOATS } from './types.ts';
 import type { DagPartTable } from './shader/bindings.ts';
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts';
 
-/** How a camera cut and its light cut lay their tables: `flagCuts`, the flag sections each part of
+/** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
 export type DagSplit = {
   clusters: TableSplit;
@@ -16,10 +16,8 @@ export type DagSplit = {
 /** Bytes of one element of each table the kernel reads by record: a `Cluster`, a `CullNode`, a
  *  word. */
 export const ELEMENT_BYTES = { clusters: CLUSTER_WORDS * 4, nodes: DAG_NODE_FLOATS * 4, cold: 4 };
-/** The draw mask's section, and the candidate list's behind the cone words and the live list:
- *  what a reader outside the kernel binds. */
-export const MASK_SECTION = 1,
-  CANDIDATE_SECTION = MASK_SECTION + 3;
+/** The draw mask's section: what a reader outside the kernel binds. */
+export const MASK_SECTION = 1;
 
 /** Words of each part of a `flags` of `words` in all, cut at `cuts`. */
 export function flagPartWords(
@@ -45,9 +43,8 @@ export function flagLocation(
 }
 
 /**
- * The split of a camera cut on this device. The flag sections are cut on the larger of the
- * camera's queues and a one-view light cut's, so both cuts share one text and one layout; a light
- * cut of more views fits them, or runs fewer (`lightCutCapacity.ts`).
+ * The split of a camera cut on this device. The flag sections are cut on queues of the larger of
+ * the node count and the primitive count, never smaller than the camera's own.
  */
 export function dagSplit(
   limits: Parameters<typeof storageBufferCap>[0],

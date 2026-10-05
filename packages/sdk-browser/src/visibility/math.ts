@@ -1,21 +1,6 @@
-import type { HostAttribute } from '../host/resources.ts';
-import { srgbToLinear, type Texture, type WrapMode } from '../../../sdk-core/src/index.ts';
+import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts';
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts';
 import type { Projected } from './projection.ts';
-import { barycentricAt, signedArea } from './projection.ts';
-import { textureRgba } from './types.ts';
-
-export function backgroundRgb(background: number) {
-  return [(background >> 16) & 255, (background >> 8) & 255, background & 255];
-}
-
-export function barycentric(a: Projected, b: Projected, c: Projected, x: number, y: number) {
-  const area = signedArea(a, b, c);
-  if (area === 0) return null;
-  const { w0, w1, w2 } = barycentricAt(a, b, c, x, y, area);
-  if (w0 < 0 || w1 < 0 || w2 < 0) return null;
-  return { w0, w1, w2, area };
-}
 
 export function perspectiveBary(
   a: Projected,
@@ -31,22 +16,6 @@ export function perspectiveBary(
   return { w0: a0 / sum, w1: a1 / sum, w2: a2 / sum };
 }
 
-export function attr2(
-  attribute: HostAttribute | undefined,
-  i0: number,
-  i1: number,
-  i2: number,
-  w0: number,
-  w1: number,
-  w2: number,
-): [number, number] {
-  if (!attribute) return [0, 0];
-  return [
-    attribute.getX(i0) * w0 + attribute.getX(i1) * w1 + attribute.getX(i2) * w2,
-    attribute.getY(i0) * w0 + attribute.getY(i1) * w1 + attribute.getY(i2) * w2,
-  ];
-}
-
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
 export function wrapTexel(t: number, size: number, wrap: WrapMode) {
   const p = wrap === 'mirror' ? 2 : 1;
@@ -55,12 +24,6 @@ export function wrapTexel(t: number, size: number, wrap: WrapMode) {
   return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i));
 }
 
-/** sRGB → linear has only 256 possible antecedents: a texture byte divided by 255. The table
- *  carries exactly the values the per-pixel computation produced, on the same operands. */
-const SRGB8_LINEAIRE = new Float64Array(256);
-for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
-
-export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
 /** The projected triangle of a page, which the projection owns (`./projection.ts`). */
 export { triangleAt } from './projection.ts';
 
@@ -93,25 +56,6 @@ export function mapTexel(
 
 /** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it. */
 export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255);
-
-/** The colour of the texel a map reads, bytes as both GPU paths upload them — times their alpha
- *  under `premultiplyAlpha` (an alpha of 255 leaves them as they are) —, each read through `of`. */
-function sampled(map: Texture, u: number, v: number, of: (byte: number) => number) {
-  const image = textureRgba(map);
-  if (!image) return [1, 1, 1] as [number, number, number];
-  const d = image.data,
-    i = mapTexel(image, map, u, v),
-    a = map.premultiplyAlpha ? d[i + 3] : 255;
-  return [
-    of(premultipliedByte(d[i], a)),
-    of(premultipliedByte(d[i + 1], a)),
-    of(premultipliedByte(d[i + 2], a)),
-  ] as [number, number, number];
-}
-const srgbByte = (byte: number) => SRGB8_LINEAIRE[byte] ?? NaN,
-  linearByte = (byte: number) => byte / 255;
-export const sampleMap = (map: Texture, u: number, v: number) => sampled(map, u, v, srgbByte);
-export const sampleLinear = (map: Texture, u: number, v: number) => sampled(map, u, v, linearByte);
 
 /** ×31 polynomial by code points. `hashId` (../diagnostic/colors.ts) walks UTF-16 units: same
  *  polynomial, two walks, two results outside the BMP — not two copies of one. */

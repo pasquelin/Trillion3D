@@ -1,21 +1,35 @@
 import type { Engine } from './engineTypes.ts';
-import { spread, type ProfiledWorld } from './profile.ts';
-import { ms, unitLines } from './statUnit.ts';
-import { kitWord, labelOf, language } from './words.ts';
+import type { ProfiledWorld } from './profile.ts';
+import { ms } from './statUnit.ts';
+import type { Cadence } from './cadence.ts';
+import type { StatsCorner } from './statsLayout.ts';
+import { language } from './words.ts';
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
  *  Any other counter the frame publishes rides along under its own name (`shadowLines`). */
-interface FrameCounters {
+export interface FrameCounters {
   selectedTriangles?: number | null;
   drawCalls?: number | null;
   residentPages?: number | null;
   geometryPoolBytes?: number | null;
   lightsActive?: number | null;
+  /** The GPU memory the engine holds, all and by kind (`MEMORY`). */
+  gpuAllocatedBytes?: number | null;
+  gpuFrameTargetBytes?: number | null;
+  shadowPoolBytes?: number | null;
+  geometryPoolAllocatedBytes?: number | null;
+  texturePoolBytes?: number | null;
+  textureLiveBytes?: number | null;
+  transmissionBackdropBytes?: number | null;
   gpuFrameMs?: number | null;
   /** The frame's GPU passes, each with its own share where the device has timestamps. */
   gpuPassMs?: { passes: NonNullable<Engine.FrameMetrics['gpuPassMs']>['passes'] } | null;
   /** The frame's CPU time on the main thread. */
   cpuFrameMs?: number | null;
+  /** The display's cadence and the device's idle between two images (`cadence.ts`). */
+  rafIntervalMs?: number | null;
+  displayRefreshMs?: number | null;
+  gpuIdleMs?: number | null;
 }
 
 /** A node of the scene as far as counting its triangles goes. */
@@ -34,6 +48,7 @@ export interface StatsWorld extends ProfiledWorld<{ metrics: FrameCounters }> {
 
 /** One reading of the corner: every counter measured, or `null` when it was not. */
 export interface StatsSample extends FrameCounters {
+  /** Frames a second over the last second; `null` before the first rate and while `held`. */
   fps: number | null;
   held: boolean;
   /** True before the first sample, from a held image until the next device sample, without
@@ -42,46 +57,62 @@ export interface StatsSample extends FrameCounters {
   sceneTriangles: number | null;
   /** The CPU side of the half second: the frame's median and each stage (`statUnit.ts`). */
   cpu?: { frameMs: number | null; stages: [name: string, ms: number][] };
+  /** How the last second's frames held the display, `null` before it is measured (`cadence.ts`). */
+  cadence?: Cadence | null;
 }
 
+/** A counter as the corner prints it: rounded, grouped in the page's language. */
 const count = (value: number) => Math.round(value).toLocaleString(language());
-/**
- * The shadow counters of a frame, read from the names the engine publishes (`shadow…`): a
- * counter measured shows, zero included — zero is what a still scene must read —, and one the
- * engine does not hold (`null`, or absent) has no line. A duration (`…Ms`) prints in ms.
- */
-export function shadowLines(frame: object): [string, string][] {
-  const lines: [string, string][] = [];
-  for (const [key, value] of Object.entries(frame)) {
-    if (!/^shadows?[A-Z]/.test(key) || typeof value !== 'number') continue;
-    if (key.endsWith('Ms')) lines.push([labelOf(key.slice(0, -2)), ms(value)]);
-    else lines.push([labelOf(key), count(value)]);
-  }
-  return lines;
-}
+/** Bytes as the corner prints them: in MiB, one decimal. */
+const mib = (bytes: number) => `${(bytes / 2 ** 20).toFixed(1)} MiB`;
+
+/** The GPU memory the engine publishes, all then by kind, under the corner's English label. */
+const MEMORY = [
+  ['GPU memory', 'gpuAllocatedBytes'],
+  ['screen images', 'gpuFrameTargetBytes'],
+  ['shadow memory', 'shadowPoolBytes'],
+  ['geometry memory', 'geometryPoolAllocatedBytes'],
+  ['texture memory', 'texturePoolBytes'],
+  ['live textures', 'textureLiveBytes'],
+  ['transmission backdrop', 'transmissionBackdropBytes'],
+] as const satisfies readonly (readonly [string, keyof FrameCounters])[];
+const MEMORY_KEYS: ReadonlySet<string> = new Set(MEMORY.map(([, key]) => key));
+
+/** A counter's value as the corner prints it, by its name's unit: a duration (`…Ms`) in ms, a
+ *  size (`…Bytes`) in MiB, any other a count. */
+export const counterValue = (key: string, value: number) =>
+  key.endsWith('Ms') ? ms(value) : key.endsWith('Bytes') ? mib(value) : count(value);
 
 /**
- * The lines the corner shows, English label then value; the corner shows each label in the page's
- * language, `kit.stats.<label>` of the examples' words (`words.ts`). A counter the engine did not
- * measure has no line at all, never a dash, and no zero but a shadow counter's (`shadowLines`);
- * the triangles fall back to the scene's own count, named so, when the frame does not measure
- * them; a still image keeps its last rate, marked held, and its last GPU time, marked last.
- */
-export function statLines(sample: StatsSample): [string, string][] {
+ * The shadow counters of a frame, read from the names the engine publishes (`shadow…`), with
+ * their numbers: a counter measured shows, zero included — zero is what a still scene must read —,
+ * and one the engine does not hold (`null`, or absent) has none. The shadows' share of the GPU
+ * memory is the memory lines' (`MEMORY`), not theirs. */
+export function shadowCounters(frame: object): [key: string, value: number][] {
+  const counters: [string, number][] = [];
+  for (const [key, value] of Object.entries(frame))
+    if (/^shadows?[A-Z]/.test(key) && typeof value === 'number' && !MEMORY_KEYS.has(key))
+      counters.push([key, value]);
+  return counters;
+}
+
+/** The scene and memory counters of the corner: triangles (the scene's own count, named so, when
+ *  the frame does not measure them), draw calls, pages, pool, lights, then the GPU memory all and
+ *  by kind (`MEMORY`), each only when the engine publishes it: never a dash, never a zero. */
+export function sceneLines(sample: StatsSample): [string, string][] {
   const lines: [string, string][] = [];
-  if (sample.fps !== null)
-    lines.push([sample.held ? 'FPS (held)' : 'FPS', String(Math.round(sample.fps))]);
   if (sample.selectedTriangles) lines.push(['triangles', count(sample.selectedTriangles)]);
   else if (sample.selectedTriangles == null && sample.sceneTriangles)
     lines.push(['triangles (scene)', count(sample.sceneTriangles)]);
   if (sample.drawCalls) lines.push(['draw calls', count(sample.drawCalls)]);
   if (sample.residentPages) lines.push(['pages', count(sample.residentPages)]);
-  if (sample.geometryPoolBytes)
-    lines.push(['geometry pool', `${(sample.geometryPoolBytes / 2 ** 20).toFixed(1)} MiB`]);
+  if (sample.geometryPoolBytes) lines.push(['geometry pool', mib(sample.geometryPoolBytes)]);
   if (sample.lightsActive) lines.push(['lights', count(sample.lightsActive)]);
-  if (sample.gpuFrameMs != null)
-    lines.push([sample.gpuFrameLast ? 'GPU frame (last)' : 'GPU frame', ms(sample.gpuFrameMs)]);
-  return [...lines, ...unitLines(sample), ...shadowLines(sample)];
+  for (const [label, key] of MEMORY) {
+    const bytes = sample[key];
+    if (bytes) lines.push([label, mib(bytes)]);
+  }
+  return lines;
 }
 
 /** Frames a second from the times frames were drawn, in ms: `null` from fewer than two. */
@@ -100,9 +131,13 @@ export function sceneTriangles(scene: SceneNode): number {
   return total;
 }
 
-/** Where the corner may sit: the bottom left by default, the top left for an example whose own
- *  display takes the bottom of the frame. */
-export const statsCorners = { 'bottom-left': 'bottom-3 start-3', 'top-left': 'top-3 start-3' };
+/** The classes of each corner the panel may sit in, for the examples' card (`statsCard`). */
+export const statsCorners: Record<StatsCorner, string> = {
+  'bottom-left': 'bottom-3 start-3',
+  'top-left': 'top-3 start-3',
+  'bottom-right': 'bottom-3 end-3',
+  'top-right': 'top-3 end-3',
+};
 
 /** The corner's card, and the look of its labels and values: one look for the examples' corner
  *  and the scene editor's. */
@@ -110,81 +145,3 @@ export const STATS_CARD =
   'pointer-events-none absolute grid grid-cols-[auto_auto] gap-x-3 rounded-box bg-base-100/60 px-3 py-2 font-mono text-[11px] leading-4 opacity-90 backdrop-blur';
 export const STATS_TERM = 'opacity-70';
 export const STATS_VALUE = 'text-end tabular-nums';
-
-/** Where the corner reads the CPU: whether it does now (not while the panel is hidden or the
- *  page profiles), and the frame's CPU stages since the last read, `null` when none is measured. */
-export interface CpuSource {
-  open(): boolean;
-  stages(): [string, number][] | null;
-}
-
-/**
- * Watches `world`: counts the frames it draws and keeps the engine's counters of the last one,
- * and twice a second hands `show` the corner's lines — `extra` added — when they changed, each
- * label in the page's language (a profiled engine step keeps its identifier). While `cpu` is
- * open, it keeps each frame's CPU time for the half second's median, and reads the CPU stages
- * `cpu` gives (`engineStages`); closed, it keeps and reads nothing of the CPU. Returns what stops
- * it.
- */
-export function watchStats(
-  world: StatsWorld,
-  show: (lines: [string, string][]) => void,
-  extra: () => [string, string][] = () => [],
-  cpu: CpuSource = { open: () => true, stages: () => null },
-) {
-  const drawn: number[] = [],
-    cpuFrameMs: number[] = [];
-  let last: FrameCounters = {},
-    fps: number | null = null,
-    gpuFrameMs: number | null = null,
-    cpuWasOpen = false,
-    shown = '';
-  const unhook = world.onFrame(({ metrics }) => {
-    drawn.push(performance.now());
-    last = metrics;
-    // The engine hands the same metrics every frame: the corner keeps the number, not the object.
-    if (metrics.cpuFrameMs != null && cpu.open()) cpuFrameMs.push(metrics.cpuFrameMs);
-    // A held image times nothing: the corner keeps the GPU time last measured.
-    if (metrics.gpuFrameMs != null) gpuFrameMs = metrics.gpuFrameMs;
-  });
-  const timer = setInterval(() => {
-    const now = performance.now();
-    while (drawn.length && drawn[0] < now - 1000) drawn.shift();
-    // The rate is read from the intervals between the frames of the last second; with fewer
-    // than two, the image stands still and the corner keeps the rate it last read.
-    const held = drawn.length < 2;
-    if (!held) fps = rate(drawn);
-    const sample: StatsSample = {
-      ...last,
-      fps,
-      held: held && fps !== null,
-      sceneTriangles: null,
-      gpuFrameMs,
-      gpuFrameLast: last.gpuFrameMs == null,
-    };
-    const cpuOpen = cpu.open();
-    if (cpuOpen) {
-      // The engine's window ran on while the corner was closed: its first read after opening
-      // spans that time, so it only opens the window again and is not shown.
-      const stages = cpu.stages();
-      sample.cpu = {
-        frameMs: spread(cpuFrameMs.splice(0))?.p50 ?? null,
-        stages: (cpuWasOpen && stages) || [],
-      };
-    } else cpuFrameMs.length = 0;
-    cpuWasOpen = cpuOpen;
-    if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
-    const lines = [...statLines(sample), ...extra()].map(([label, value]): [string, string] => [
-        kitWord('stats', label, label),
-        value,
-      ]),
-      key = lines.join('\n');
-    if (key === shown) return;
-    shown = key;
-    show(lines);
-  }, 500);
-  return () => {
-    clearInterval(timer);
-    if (typeof unhook === 'function') unhook();
-  };
-}

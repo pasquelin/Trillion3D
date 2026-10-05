@@ -18,10 +18,9 @@ import {
 
 /** What the page hears of the character after a tick (`PhysicsResults.character`). */
 export interface CharacterReport {
-  feet: [number, number, number];
-  /** Metres per second relative to what the body stands on, and in the world (for drawing). */
+  /** Metres per second relative to what the body stands on. Its feet come apart, as a record
+   *  drawn as the bodies are (`PhysicsResults.feet`). */
   velocity: [number, number, number];
-  motion: [number, number, number];
   grounded: boolean;
   /** The downward speed of the tick's landing, m/s; -1 when it did not land. */
   landed: number;
@@ -33,7 +32,7 @@ export interface CharacterReport {
  * THE CHARACTER IN THE PHYSICS WORKER. Each fixed step, the drive shared with the triangle
  * backend (`sdk-core/src/collision/characterDrive.ts`) turns the page's last input into the
  * velocity of the step — the speed gathered, the jump, the arc of gravity in closed form, sent as
- * the step's mean velocity so a jump reaches the same apex — and Jolt's virtual character moves
+ * the step's mean velocity so a jump reaches the same apex — and the module's virtual character moves
  * the capsule by it (`physics-jolt-wasm/src/character.cpp`). The state it hands back decides the
  * landings, a floor walked off, a ceiling met, and the friction of the floor the next steps push
  * on: ice glides, stone grips. The page's input reaches the next step: at most one
@@ -151,9 +150,7 @@ export function createCharacterDriver() {
       if (!settings || reported) return null;
       reported = true;
       const out: CharacterReport = {
-        feet: [feet[0], feet[1], feet[2]],
         velocity: [velocity[0], velocity[1], velocity[2]],
-        motion: [motion[0], motion[1], motion[2]],
         grounded: drive.grounded,
         landed,
         jumps,

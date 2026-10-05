@@ -10,9 +10,9 @@ const KIND_ORDER = [1, 2, 0, WEBGL_RECT_KIND];
 const SHADOW_CASTERS_FIRST = [true, false];
 
 /**
- * Visits the direct lights in the order the reference files them: the points, the spots, the
+ * Visits the direct lights in the order the engine files them: the points, the spots, the
  * suns, the rectangles, and within a kind the ones that cast a shadow first, each group in the
- * graph's order — the stable sort the reference applies before it files the lights by kind.
+ * graph's order — the stable sort applied before it files the lights by kind.
  * Nothing is allocated: the program uploads its lights every frame.
  */
 export function inReferenceOrder<T extends OrderedLight>(

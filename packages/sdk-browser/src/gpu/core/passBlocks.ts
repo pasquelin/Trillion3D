@@ -23,8 +23,10 @@ export type GpuPassBlockTotals = {
  *
  * `null` everywhere for a missing or truncated sample, and `null` for a block whose pass has no
  * usable duration: a partial sum would pass for a measurement. `null` also for a block the frame
- * never ran — a zero would read as "measured at zero". The three blocks sum to the sample's
- * `totalMs` when all three are measured, and are never added to a CPU duration.
+ * never ran — a zero would read as "measured at zero". Each block adds its passes' own shares
+ * (`gpuTotalsBy`): the three sum to the time the timed passes cover when all three are measured —
+ * the sample's `totalMs` only where the device overlaps no pass —, and are never added to a CPU
+ * duration.
  */
 export function gpuPassBlockTotals(sample: GpuPassTimings | null | undefined): GpuPassBlockTotals {
   const totals = gpuTotalsBy(sample, gpuPassBlockOf);

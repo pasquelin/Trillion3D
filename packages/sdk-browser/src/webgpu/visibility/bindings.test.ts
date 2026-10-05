@@ -33,6 +33,7 @@ function mount() {
     pageTable: {},
     visUniform: {},
     shadeUniform: {},
+    shadeCache: { buffer: {} },
     zeroFlags: {},
     gpuHiz: { flags: {} },
     textures: { color: { views, pages }, data: { views: dataViews, pages } },
@@ -45,7 +46,7 @@ function mount() {
     visIdentity: createWebgpuBindIdentity(),
     shadeIdentity: createWebgpuBindIdentity(),
   };
-  const gpu = { cache: { buffer: {} }, surfaces: { subsurfaceView: {} } };
+  const gpu = { cache: { buffer: {} }, surfaces: { subsurfaceView: {}, receiverView: {} } };
   const rt = { vis, gpu, run: {} } as unknown as WebgpuPagesRuntime;
   const ensure = () => {
     ensureWebgpuVisibilityBindings(rt, device);

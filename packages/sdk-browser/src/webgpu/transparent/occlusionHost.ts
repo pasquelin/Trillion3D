@@ -5,6 +5,8 @@ import { packPageCorners } from '../visibility/corners.ts';
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 import { rootOf } from '../../page/selection/placements.ts';
 
+type Table = NonNullable<WebgpuPagesRuntime['blendState']['table']>;
+
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
  *
@@ -37,20 +39,40 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
  * its page's world matrix changes, and the table's age names exactly that moment: a moving camera
  * rewrites none. The doubles are those of `pageCornersInto`, each carried by two single-precision
  * values — the rounding and its residue. The entries never culled (`neverCulled`) leave with them,
- * one bit each.
+ * one bit each. A table of the same age sends again only the entries whose pages a rewrite bounded
+ * elsewhere (`occlusionMoved`, #573): a sea rewritten each frame sends its own, no other.
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   const { blendState, layout } = rt,
-    { table, occlusion } = blendState;
+    { table, occlusion, occlusionMoved: moved } = blendState;
   if (!table || !occlusion) return;
-  const epoch = layout.rows.tableEpoch;
-  if (blendState.occlusionEpoch === epoch) return;
-  blendState.occlusionEpoch = epoch;
-  const packed = blendState.occlusionCorners,
+  const epoch = layout.rows.tableEpoch,
+    last = table.capacity - 1;
+  if (blendState.occlusionEpoch === epoch) {
+    const to = Math.min(moved.to, last);
+    if (to >= moved.from) {
+      packEntries(rt, table, moved.from, to);
+      occlusion.uploadCorners(blendState.occlusionCorners, moved.from, to);
+    }
+  } else {
+    blendState.occlusionEpoch = epoch;
+    occlusion.unculledBits.fill(0);
+    packEntries(rt, table, 0, last);
+    occlusion.uploadCorners(blendState.occlusionCorners, 0, last);
+    occlusion.uploadUnculled();
+  }
+  moved.from = Infinity;
+  moved.to = -1;
+}
+
+/** Packs the corners of `table`'s entries `from` to `to`, and sets the bit of each one never
+ *  culled. */
+function packEntries(rt: WebgpuPagesRuntime, table: Table, from: number, to: number) {
+  const { blendState, layout } = rt,
+    packed = blendState.occlusionCorners,
     { recordOf, selectionRoots, placement } = layout,
-    bits = occlusion.unculledBits;
-  bits.fill(0);
-  for (let entry = 0; entry < table.capacity; entry++) {
+    bits = blendState.occlusion!.unculledBits;
+  for (let entry = from; entry <= to; entry++) {
     const base = entry * CORNER_VALUES,
       page = table.pageOfEntry[entry];
     // An alignment entry names no page: its corners stay zero, and compaction drops it even before
@@ -66,9 +88,8 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packPageCorners(packed, base, rec, rootOf(selectionRoots, placement.rootOfPacked[page]).world);
+    const root = rootOf(selectionRoots, placement.rootOfPacked[page]);
+    packPageCorners(packed, base, rec, root.world, root.reach);
     if (neverCulled(rec.material)) bits[entry >> 5] |= 1 << (entry & 31);
   }
-  occlusion.uploadCorners(packed, 0, table.capacity - 1);
-  occlusion.uploadUnculled();
 }

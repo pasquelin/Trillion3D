@@ -7,8 +7,11 @@ export type Vec = Array<number | boolean>;
 /** A column-major 4×4 matrix. */
 export class Mat {
   readonly m: readonly number[];
+  readonly [column: number]: readonly number[];
   constructor(m: readonly number[]) {
     this.m = m;
+    for (let column = 0; column < 4; column++)
+      Object.defineProperty(this, column, { value: m.slice(column * 4, column * 4 + 4) });
   }
 }
 type Value = number | boolean | Vec | Mat;
@@ -17,7 +20,7 @@ type Scalar = number | boolean;
 const LETTERS = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 } as Record<string, number>;
 
 /** `f` applied component by component, scalars broadcast to the vectors' size. */
-const each =
+export const each =
   (f: (...parts: Scalar[]) => Scalar) =>
   (...args: Value[]): Value => {
     const size = args.find(Array.isArray)?.length;
@@ -65,8 +68,26 @@ function $sw(value: Vec | Record<string, unknown>, name: string) {
   return parts.length === 1 ? parts[0] : parts;
 }
 
+/** The JavaScript text assigning `value` to the translated `target`: through `$set` where the
+ *  target is a swizzle's one component, through its pointer's `set` where it is `*p`. */
+export const assigned = (target: string, value: string) => {
+  const part = /^\$sw\((.*),"(\w)"\)$/.exec(target),
+    pointer = /^\$deref\((.*)\)$/.exec(target);
+  if (pointer) return `${pointer[1]}.set(${value})`;
+  return part ? `$set(${part[1]},"${part[2]}",${value})` : `${target}=${value}`;
+};
+
+/** A copy of a value: a vector's or an array's elements, a structure's members (a matrix is never
+ *  written in place). */
+const $cp = <T>(value: T): T =>
+  Array.isArray(value)
+    ? (value.map($cp) as T)
+    : value?.constructor === Object
+      ? (Object.fromEntries(Object.entries(value).map(([k, v]) => [k, $cp(v)])) as T)
+      : value;
+
 /** A vector constructor: its arguments flattened, one scalar splat to `size`. */
-const vector =
+export const vector =
   (size: number, convert: (x: Scalar) => number) =>
   (...args: Value[]) => {
     const flat = (args as Array<Scalar | Vec>).flat().map(convert);
@@ -95,16 +116,35 @@ export const builtins = {
   $b,
   $sw,
   $ref: (get: Ref['get'], set: Ref['set']): Ref => ({ get, set }),
+  $deref: (p: Ref) => p.get(),
+  // WGSL's values are copies: what a name holds is never another name's.
+  $cp,
+  // A vector's one component (`step.x=1`, `c.a=0`), or a structure's member of that name.
+  $set: (base: Vec | Record<string, unknown>, name: string, value: Value) => {
+    if (Array.isArray(base)) base[LETTERS[name]] = value as Scalar;
+    else base[name] = value;
+  },
   atomicAdd: (p: Ref, value: number) => swap(p, p.get() + value),
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
+  atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
+  atomicAnd: (p: Ref, value: number) => swap(p, (p.get() & value) >>> 0),
+  countOneBits: each((x) => {
+    let count = 0;
+    for (let v = n(x) >>> 0; v; v &= v - 1) count++;
+    return count;
+  }),
+  // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
+  firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),
   vec2i: vector(2, int),
+  vec4i: vector(4, int),
   vec2u: vector(2, (x) => int(x) >>> 0),
   vec3u: vector(3, (x) => int(x) >>> 0),
+  vec4u: vector(4, (x) => int(x) >>> 0),
   bitcast_u32: toBits,
   bitcast_vec3u: toBits,
   bitcast_f32: toFloat,
@@ -117,6 +157,8 @@ export const builtins = {
   saturate: numeric((x) => Math.min(Math.max(x, 0), 1)),
   abs: numeric(Math.abs),
   floor: numeric(Math.floor),
+  fract: numeric((x) => x - Math.floor(x)),
+  sign: numeric(Math.sign),
   ceil: numeric(Math.ceil),
   // WGSL rounds half to even: only whole numbers and near-whole ones are rounded here.
   round: numeric(Math.round),

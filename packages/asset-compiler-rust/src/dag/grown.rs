@@ -5,7 +5,7 @@ use super::placed::Local;
 use super::welds::{Columns, Welds};
 use super::{DagAttributes, GroupReduction, GroupReductionInput};
 use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
-use std::collections::HashMap;
+use crate::shared_math::WordMap;
 
 /// The source's positions and carried attributes followed by every placed vertex. The pages,
 /// the cook's checks, the collider and the proxy read these; `source.bin` never does.
@@ -131,7 +131,7 @@ impl Local<'_> {
                 .filter(|(a, _)| by(a.flag))
                 .map(|(a, v)| ((&v[..], a.width), (&a.values[..], a.width)))
                 .unzip();
-            let mut seen: HashMap<Vec<u32>, u32> = HashMap::new();
+            let mut seen: WordMap<Vec<u32>, u32> = WordMap::default();
             let mut out = Vec::with_capacity(origins.len());
             for (k, &g) in origins.iter().enumerate() {
                 let g = g as usize;
@@ -153,7 +153,7 @@ impl Local<'_> {
             true => {
                 let uv = |flag| flag == FLAG_UV || flag == FLAG_UV1;
                 let weld_seam = canonical(uv, input.weld_seam);
-                let mut split: HashMap<u32, (u32, bool)> = HashMap::new();
+                let mut split: WordMap<u32, (u32, bool)> = WordMap::default();
                 for (&w, &s) in weld.iter().zip(&weld_seam) {
                     let entry = split.entry(w).or_insert((s, false));
                     entry.1 |= entry.0 != s;

@@ -16,24 +16,8 @@ import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpu
 import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
 import { dagDeviceRefusal } from './deviceRefusal.ts';
-import { createDagLightCut, type DagLightCut } from './lightCut.ts';
 export { packDagSelection } from './pack.ts';
 export type { PackedDag } from './types.ts';
-
-const lightCuts = new WeakMap<
-  GpuSelection,
-  { resources: NonNullable<Awaited<ReturnType<typeof createDagResources>>>; cut?: DagLightCut }
->();
-
-/**
- * The same cut seen from the lights (`lightCut.ts`), on the resources of `selection`: created at
- * the first call, kept for the life of the selection, whose dispose releases it.
- */
-export function lightCutOf(selection: GpuSelection) {
-  const entry = lightCuts.get(selection);
-  if (!entry) return undefined;
-  return (entry.cut ??= createDagLightCut(entry.resources));
-}
 
 export async function createGpuDagSelection(
   device: GPUDevice,
@@ -61,7 +45,5 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut creation failed');
     return undefined;
   }
-  const selection = createDagRuntime(resources);
-  lightCuts.set(selection, { resources, cut: undefined });
-  return selection;
+  return createDagRuntime(resources);
 }

@@ -51,8 +51,7 @@ for (const language of ['wgsl', 'glsl'] as const)
       }
   });
 
-// #348, lead decision: `linewidth` counts CSS pixels, as the reference's `LineMaterial` (its
-// `resolution` is the CSS size). The image draws `width × pixelRatio` of its own pixels.
+// #348, lead decision: `linewidth` counts CSS pixels, not the image's own pixels. The image draws `width × pixelRatio` of its own pixels.
 for (const language of ['wgsl', 'glsl'] as const)
   test(`${language}: the drawn width is the CSS width times the pixel ratio`, () => {
     for (const pixelRatio of [1, 1.5, 2]) {

@@ -43,7 +43,7 @@ test('transparent page batches preserve source order across exact and coarse cut
   backend.render(camera);
   assert.equal(draws().length, 1);
   // Double-sided transparent: the record carries the source material itself, and draws the two
-  // passes the reference renderer orders — back faces then front faces — read at the draw.
+  // passes the engine orders — back faces then front faces — read at the draw.
   assert.equal(draws()[0].material, material);
   assert.deepEqual(drawPasses(draws()[0].material), ['back', 'front']);
   assert.deepEqual(drawnIndices(draws()[0]), [0, 1, 2, 0, 2, 3, 0, 3, 4]);

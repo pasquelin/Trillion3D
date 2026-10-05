@@ -6,7 +6,9 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts';
 export const WATER_SURFACE_WGSL = `
 struct WaterOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) word:vec4f,@location(4) request:u32,}
 @fragment fn fsWater(in:VSOut,@builtin(front_facing) front:bool)->WaterOut{
- let s=blendSurface(in,front);
+ let g=blendGrads(in);let base=blendBase(in,g);
+ if(!blendKeeps(in,base,front)){discard;return WaterOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
+ let s=blendSurface(in,front,g,base);
  let opacity=u32(round(clamp(s.alpha,0.0,1.0)*65535.0));
  return WaterOut(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),unpack4x8unorm((in.water&${WATER_MAX_ITEMS}u)|(opacity<<${WATER_RANK_SHIFT}u)),s.request);
 }

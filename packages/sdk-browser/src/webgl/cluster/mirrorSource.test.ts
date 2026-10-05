@@ -6,7 +6,7 @@ import { readDegraded } from './validation.ts';
 import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
-import { clusterWebglCompatibility } from './compatibility.ts';
+import { clusterWebglCompatibility } from '../../../../../bench/witnesses/exact/clusterCompatibility.ts';
 
 test('WebGL reflection captures leave with the last screen-traced receiver: a matte one reads the environment', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),

@@ -161,36 +161,14 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
   assert.deepEqual([...cache.resident.keys()].sort(), ['a', 'b', 'c']);
 });
 
-// Past the pool, the casters left resident are the list's first, whatever an earlier pose left
-// behind: two sessions at one pose draw every shadow from the same clusters (#1016).
-test('past the pool, the tier holds its first casters whatever was resident before', async () => {
-  const pages = ['a', 'b', 'c'].map(pageOf);
-  const tracking = createWebgpuPageTracking(pages);
-  const resident = async (history: string[]) => {
-    const cache = lruCache(2);
-    for (const url of history) await cache.load(url);
-    await tierEnsurer(tracking, cache, () => pages)([], 1, 1);
-    return [...cache.resident.keys()].sort();
-  };
-  assert.deepEqual(await resident([]), ['a', 'b']);
-  assert.deepEqual(await resident(['c']), ['a', 'b'], 'the last caster left by a move leaves');
-});
-
-// #1016 measure ko: while the camera moves the light cuts remake the tier's list with every
-// report. A caster the list still names keeps its slot then, so no wanted caster is evicted and
-// reloaded every frame; only a still pose settles on the list's first pages.
-test("a moving camera's tier keeps a caster its list still names", async () => {
+// #1016 measure ko: a tier's list is remade with every report. A page the list still names keeps
+// its slot, so no wanted page is evicted and reloaded every frame.
+test('a tier keeps a page its list still names', async () => {
   const pages = ['a', 'b', 'c'].map(pageOf);
   const tracking = createWebgpuPageTracking(pages);
   const cache = lruCache(2);
   await cache.load('c');
-  await tierEnsurer(
-    tracking,
-    cache,
-    () => pages,
-    () => [],
-    () => false,
-  )([], 1, 1);
+  await tierEnsurer(tracking, cache, () => pages)([], 1, 1);
   assert.deepEqual(
     [...cache.resident.keys()].sort(),
     ['a', 'c'],

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPasses.ts';
 import * as passTable from '../gpu/core/passBlocks.ts';
 import { families } from '../host/families.ts';
-import { SHADOW_PASS } from '../stage/passLabels.ts';
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts';
+
+const SHADOW_PASS = `${VSM_PASS_PREFIX}pass`;
 
 test('the public pass mapping reads the debug code: unknown, unmeasured until it arrives', async () => {
   const sample = {

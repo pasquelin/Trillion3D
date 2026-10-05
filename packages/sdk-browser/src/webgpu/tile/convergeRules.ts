@@ -24,13 +24,8 @@ export const texturesConverged = (
   reading: boolean,
 ) => quiet >= phases && (image + 1) % phases === 0 && (!pending || !reading);
 
-/** True while the drain draws one more image: a report taken, whose casters may still load; a
- *  page made or unmade resident after the last image (`seen`, `now`: the pool's residency
- *  revision), which no plan saw yet — the pages it stales, those a light cut drew coarser among
- *  them, are drawn again before the still average, not during it (#1016); or pages unsettled. */
-export const drainsAgain = (
-  offered: boolean,
-  seen: unknown,
-  now: unknown,
-  unsettled: () => boolean,
-) => offered || seen !== now || unsettled();
+/** True while the drain draws one more image: a page made or unmade resident after the last image
+ *  (`seen`, `now`: the pool's residency revision), which no shadow map saw yet — the pages it
+ *  stales are drawn again before the still average, not during it (#1016); or shadows unsettled. */
+export const drainsAgain = (seen: unknown, now: unknown, unsettled: () => boolean) =>
+  seen !== now || unsettled();

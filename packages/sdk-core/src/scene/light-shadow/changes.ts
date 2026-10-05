@@ -11,7 +11,7 @@ const readMin = new Float64Array(3),
 
 /**
  * What has moved in the world since the last frame, as world boxes. Each is kept **apart**: a
- * box stales only the pages it covers in each light view (`invalidate.ts`), and a box joining two
+ * box stales only the pages it covers in each light view, and a box joining two
  * movers at both ends of the scene would stale every page between them, while nothing there
  * changed (#525).
  *
@@ -35,11 +35,11 @@ const readMin = new Float64Array(3),
  * cut, whatever the history (#159). A representation change of objects already moving is held
  * in a union of its own, released as a moving box: the static layer never held them (#993).
  *
- * A **residency** change is the one representation change that enters at once (#831): a page
- * drawn before a finer form of its caster arrived holds a caster that no longer matches the
- * receiver the camera now draws, a coarse surface standing above the fine one, read as dark
- * patches cut straight along page edges while a drive lasts. the reference engine invalidates the cached pages
- * cluster streaming changes the same way; the pages stay read until redrawn, within the budget.
+ * A **residency** change is the one representation change that enters at once (#831): a page drawn
+ * before a finer form of its caster arrived holds a caster that no longer matches the receiver the
+ * camera now draws, a coarse surface standing above the fine one, read as dark patches cut straight
+ * along page edges while a drive lasts. The cached pages stay read until redrawn, within the
+ * budget.
  */
 /** Boxes the list holds apart at least: each is projected in every light view it may reach at the
  *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and

@@ -3,10 +3,14 @@ import { QUERY_SET_SIZE } from './querySetSize.ts';
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
 export const PART_ALIGN = 32;
 
-export type TimingResources = { sets: GPUQuerySet[]; resolve: GPUBuffer; read: GPUBuffer };
+/** Readbacks in flight at most: a sampled image's, and the next image's, read beside it so the
+ *  idle between the two is measured (`timeline.ts`). */
+export const READBACKS = 2;
 
-/** Allocate all resources together — `queryCount` timestamps over as many sets as they take —; a
- *  failed allocation releases every earlier one. */
+export type TimingResources = { sets: GPUQuerySet[]; resolve: GPUBuffer; reads: GPUBuffer[] };
+
+/** Allocate all resources together — `queryCount` timestamps over as many sets as they take, and a
+ *  readback per image in flight —; a failed allocation releases every earlier one. */
 export function createTimingResources(device: GPUDevice, queryCount: number): TimingResources {
   const made: Array<GPUQuerySet | GPUBuffer> = [];
   try {
@@ -24,13 +28,17 @@ export function createTimingResources(device: GPUDevice, queryCount: number): Ti
       usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
     });
     made.push(resolve);
-    const read = device.createBuffer({
-      label: 'Trillion3D timestamp readback',
-      size: bytes,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
-    made.push(read);
-    return { sets, resolve, read };
+    const reads: GPUBuffer[] = [];
+    for (let i = 0; i < READBACKS; i++) {
+      const read = device.createBuffer({
+        label: 'Trillion3D timestamp readback',
+        size: bytes,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      made.push(read);
+      reads.push(read);
+    }
+    return { sets, resolve, reads };
   } catch (error) {
     for (const resource of made) resource.destroy();
     throw error;
@@ -39,8 +47,14 @@ export function createTimingResources(device: GPUDevice, queryCount: number): Ti
 
 /** One encoder of the image: its first timestamp, once it timed a pass, and its passes' names. */
 export type TimingPart = { slot: number; base: number; names: string[]; resolved: boolean };
-/** The image's timestamps: the next free one, and the part that took the last. */
-export type TimingImage = { truncated: boolean; cursor: number; latest?: TimingPart };
+/** The image's timestamps: the next free one, the part that took the last, and the readback its
+ *  parts copy into. */
+export type TimingImage = {
+  truncated: boolean;
+  cursor: number;
+  latest?: TimingPart;
+  read: GPUBuffer;
+};
 
 /**
  * Attach timestamp writes to every pass and resolve them when the encoder finishes. The image's
@@ -55,7 +69,7 @@ export function instrumentTimingEncoder(
   resources: TimingResources,
   queryCount: number,
 ): GPUCommandEncoder {
-  const { sets, resolve, read } = resources;
+  const { sets, resolve } = resources;
   return new Proxy(encoder, {
     get(target, key) {
       if (key === 'beginRenderPass' || key === 'beginComputePass')
@@ -97,7 +111,7 @@ export function instrumentTimingEncoder(
             target.copyBufferToBuffer(
               resolve,
               part.base * 8,
-              read,
+              image.read,
               part.base * 8,
               (end - part.base) * 8,
             );

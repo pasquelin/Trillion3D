@@ -2,7 +2,6 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
-import { followBlendedCasting } from '../../shadow/transmittanceGrant.ts';
 import {
   blendMoves,
   isAssignment,
@@ -21,10 +20,11 @@ import type { PageRec } from '../../../page/selection/selection.ts';
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and
  * cutoff the row writer rereads off the surface (`../../row/pageRowMaterial.ts`), a resolve class
- * the census missed compiling at its first draw (`../../core/materialPasses.ts`): a material moves
- * between them in place. Blended clusters are laid out at open — after the opaque ones in the
- * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
- * no cluster enters or leaves them inside the session, nor takes another surface (#847).
+ * a material changed into compiled before the image that draws it
+ * (`../../frame/framePipelines.ts`): a material moves between them in place. Blended clusters are
+ * laid out at open — after the opaque ones in the cluster catalogue, with no geometry page, in the
+ * transparent table and its forward copies — and no cluster enters or leaves them inside the
+ * session, nor takes another surface (#847).
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[]) =>
   unpagedRefusal(pages, alpha) ||
@@ -48,11 +48,11 @@ export const materialEpoch = (rt: WebgpuPagesRuntime) => materialEpochs.get(rt) 
 /**
  * Host surfaces rewritten in place (#335). When their values moved, every row is written again at
  * the next frame, and the writer rereads each surface whose version moved
- * (`row/pageRowConstants.ts`); only values and pictures changed, so no resolve class did. When
- * only their textures moved (`values` false) — a video's frame, a canvas redrawn, a sampling —, no
- * row reads them: the render follows the headers and copies a moved picture into the pool itself
- * (`../render/render.ts`, `../../tile/live.ts`, #362), which releases a held image, and the row
- * table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
+ * (`row/pageRowConstants.ts`); a resolve class one of them moved into is compiled before the image
+ * that draws it (`shadeCensus`). When only their textures moved (`values` false) — a video's
+ * frame, a canvas redrawn, a sampling —, no row reads them: the render follows the headers and
+ * copies a moved picture into the pool itself (`../render/render.ts`, `../../tile/live.ts`, #362),
+ * which releases a held image, and the row table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
  * at the old one, and false asks the owner for a new session. Surfaces whose alpha moved (`alpha`)
  * — between opaque and masked, or to another cutoff — cut their shadow otherwise: the shadow pages
  * over their rows are drawn again. Those pages land in other pool slots than a session opened on the
@@ -72,12 +72,12 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   }
   if (values) {
     rt.layout.rows.tableEpoch++;
+    // The next frame entry takes the census again (`../../frame/framePipelines.ts`).
+    rt.vis.shadeCensus?.moved();
     materialEpochs.set(rt, materialEpoch(rt) + 1);
     // The scene revision moved: the next image writes the transparent records again, once
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
     rt.run.gate.sceneMoved();
-    // A blended surface turned casting asks its transmittance layer before the next frame.
-    followBlendedCasting(rt);
   }
   const textures = rt.vis.textures;
   if (!textures) return true;
@@ -94,4 +94,5 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
 export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
   for (const rec of recordsOfMeshes(rt.setup.allPages, meshes))
     wearDeclaration(rec, meshes.get(rec.sourceMesh!) as HostMaterials);
+  rt.vis.shadeCensus?.moved(true);
 }

@@ -72,7 +72,7 @@ function live(
   return { x: state[1], y: state[2], z: state[3], top, xs, events };
 }
 
-test('the Jolt character climbs a step up to its step height and is stopped by a higher one', async () => {
+test('the module character climbs a step up to its step height and is stopped by a higher one', async () => {
   const low = await world([block(1, 0, [7, 0.15, 0], [5, 0.15, 5])]);
   const onLow = live(low, 1.5, EAST);
   assert.ok(Math.abs(onLow.y - 0.3) < 0.02 && onLow.x > 1.6, `on the 0.3 m step: ${onLow.y}`);
@@ -81,7 +81,7 @@ test('the Jolt character climbs a step up to its step height and is stopped by a
   assert.ok(blocked.y < 0.05 && blocked.x < 2, `before the 0.8 m wall: ${blocked.x}`);
 });
 
-test('the Jolt character walks up a slope below its steepest and not up one above', async () => {
+test('the module character walks up a slope below its steepest and not up one above', async () => {
   const ramp = (degrees: number) => {
     const half = (degrees * Math.PI) / 360;
     // A slab turned about z, rising toward +x, its top surface through the origin's height.
@@ -93,7 +93,7 @@ test('the Jolt character walks up a slope below its steepest and not up one abov
   assert.ok(steep.y < 0.5, `not up the 60° slope: ${steep.y}`);
 });
 
-test('the Jolt character rides a moving platform and jumps to the same apex', async () => {
+test('the module character rides a moving platform and jumps to the same apex', async () => {
   const deck = block(1, 1, [0, 0.1, 0], [2, 0.1, 2]);
   const scene = await world([deck], [0, 0.2, 0]);
   live(scene, 0.5, STILL);
@@ -113,7 +113,7 @@ test('the Jolt character rides a moving platform and jumps to the same apex', as
   assert.ok(Math.abs(top - ground - apex) < 0.05, `apex ${top - ground} for ${apex}`);
 });
 
-test('the Jolt character glides to a stop over the friction of the floor it stands on', async () => {
+test('the module character glides to a stop over the friction of the floor it stands on', async () => {
   const v = HUMAN_BODY.walkSpeed;
   for (const { friction } of [PHYSICS_MATERIALS.stone, PHYSICS_MATERIALS.ice]) {
     const scene = await world([], [-45, 0, 0], friction);
@@ -125,7 +125,7 @@ test('the Jolt character glides to a stop over the friction of the floor it stan
   }
 });
 
-test('the Jolt character pushes a crate lighter than its strength', async () => {
+test('the module character pushes a crate lighter than its strength', async () => {
   // A 0.6 m cardboard box, too high to step onto: 32 kg, 160 N of friction under a 250 N push.
   const crate = { ...block(1, 2, [1.5, 0.3, 0], [0.3, 0.3, 0.3]), density: 150 };
   const { xs } = live(await world([crate]), 2, EAST);

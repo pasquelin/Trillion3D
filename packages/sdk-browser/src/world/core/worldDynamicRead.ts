@@ -66,9 +66,7 @@ export function readInPlace(
   if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false;
   if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false;
   if (!position || position.count * 3 !== next.positions.length) return false;
-  for (let v = 0; v < position.count; v++)
-    for (let c = 0; c < 3; c++)
-      next.positions[v * 3 + c] = c < position.itemSize ? position.getComponent(v, c) : 0;
+  position.readInto(next.positions, 0, 3, 0, position.count, 3, 0);
   // Every other list as `drawnTriangles` reads it; missing normals are made below.
   for (let l = 1; l < LISTS.length; l++) {
     const [field, name, width] = LISTS[l],

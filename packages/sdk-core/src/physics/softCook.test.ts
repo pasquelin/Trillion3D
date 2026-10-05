@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { plane } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
+import { PHYSICS_STEP } from './options.ts';
 import { softBodyOf, type SoftBodyOptions } from './soft.ts';
 import { softSettings } from './softSettings.ts';
 
@@ -53,7 +54,7 @@ test('the compiler cooks the same soft record the page builds: vertices, masses,
   const cooked = await cookedRecords();
   assert.equal(cooked.length, cases.length);
   cases.forEach(([geometry, scale, options], i) => {
-    const built = softBodyOf(geometry, scale, softSettings(options));
+    const built = softBodyOf(geometry, scale, softSettings(options), PHYSICS_STEP);
     assert.deepEqual(cooked[i].vertices, Array.from(built.vertices), `${options.type} vertices`);
     assert.deepEqual(cooked[i].indices, Array.from(built.indices), `${options.type} corners`);
     assert.equal(cooked[i].pressure, built.pressure, `${options.type} pressure`);

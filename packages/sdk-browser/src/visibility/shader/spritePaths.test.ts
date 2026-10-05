@@ -1,6 +1,6 @@
 // #364: every path that draws a sprite turns its quad with the one text (`spriteWgsl.ts`), reads
 // the sprite's words where its row, item or uniform carries them. The shadow passes draw no
-// sprite, as the reference's casts none, because no light cut selects one
+// sprite, since a sprite casts no shadow, because no light cut selects one
 // (`spriteShadowCut.test.ts`): their vertex stage reads no sprite word. A surface that is no sprite carries zeros and draws as
 // before: its expressions stay, character for character, what they were.
 import test from 'node:test';
@@ -11,7 +11,6 @@ import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
-import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
@@ -63,11 +62,6 @@ test('every WebGPU raster turns a sprite page, the shadow vertex stage is as bef
   assert.ok(
     SHADE_SHADER.includes(
       ' if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}\n var c0=uni.viewProj*w0;',
-    ),
-  );
-  assert.ok(
-    SHADOW_DEPTH_SHADER.includes(
-      ' if(vertexIndex>=page.indexCount||kind!=blended){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}',
     ),
   );
 });

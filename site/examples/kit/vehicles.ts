@@ -6,7 +6,7 @@ type World = Pick<Engine.World, 'camera' | 'raycast'>;
 /** A vehicle built: its body and collision shape, mass, wheels and their radius, where the
  *  camera chases it from (`eye`, in the body's frame) and how high above its centre it looks
  *  (`aim`), and the driver `world.controls.vehicle` takes and `world.physics` simulates. */
-export interface BuiltVehicle extends Hulled {
+interface BuiltVehicle extends Hulled {
   mass: number;
   radius: number;
   wheels: Mesh[];
@@ -126,7 +126,9 @@ export function vehicles(
 
   // The camera follows from behind, eased so a bump never shakes it.
   const eye = math.vector3(),
-    aim = math.vector3();
+    aim = math.vector3(),
+    target = math.vector3();
+  let aimReady = false;
   const chase = (built: BuiltVehicle, delta: number) => {
     const { body } = built;
     eye
@@ -135,8 +137,11 @@ export function vehicles(
       .add(body.position);
     eye.y = Math.max(eye.y, body.position.y + 1);
     world.camera.position.lerp(eye, 1 - Math.exp(-delta * 5));
-    aim.copy(body.position);
-    aim.y += built.aim;
+    target.copy(body.position);
+    target.y += built.aim;
+    if (aimReady) aim.lerp(target, 1 - Math.exp(-delta * 5));
+    else aim.copy(target);
+    aimReady = true;
     world.camera.lookAt(aim);
   };
   return { car, motorcycle, tracked, park, right, chase, groundAt };

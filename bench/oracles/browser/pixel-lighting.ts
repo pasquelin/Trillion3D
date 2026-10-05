@@ -1,14 +1,10 @@
-// Oracle for point G3: `packages/sdk-browser/src/visibility/shader/lighting.ts` before batch G, copied as-is. Hemispheric
+// Oracle for point G3: `bench/oracles/browser/cpu-image/lighting.ts` before batch G, copied as-is. Hemispheric
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
-import {
-  attr2,
-  sampleLinear,
-  sampleMap,
-  triangleAt,
-} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { attr2, sampleLinear, sampleMap } from './cpu-image/math.ts';
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const normalScratch = new THREE.Matrix3();

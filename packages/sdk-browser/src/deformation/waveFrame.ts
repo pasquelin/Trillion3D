@@ -2,15 +2,14 @@ import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.
 import type { Deformed } from './frame.ts';
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts';
 import { WAVE_FLOATS } from './layout.ts';
+import { sameElements } from '../math/matrixElements.ts';
+import { leastStretchOf } from '../scene/partition/boxes.ts';
 
 const inverse = new Float64Array(16);
 
-/** The smallest length a unit vector of the placement's frame takes in the world: a world
- *  distance over it is at least the object distance it came from (no shear in a scene pose). */
-function smallestScale(m: ArrayLike<number>) {
-  const column = (c: number) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
-  return Math.min(column(0), column(1), column(2));
-}
+/** What a placement's wave reach is read from, held per placement: the sixteen floats of the world
+ *  matrix it was read for, then the least that matrix stretches a distance (`leastStretchOf`). */
+export const WAVE_STRETCH_FLOATS = 17;
 
 const value = (model: Waves, w: number, c: number) => {
   if (w >= model.count) return c === 0 ? 1 : 0;
@@ -47,20 +46,24 @@ export function wavesChanged(block: Float32Array, entry: Deformed, world: number
   return false;
 }
 
-/** Write full current/previous world-space wave controls, including both matrix inverses. */
+/** Write full current/previous world-space wave controls, including both matrix inverses. Returns
+ *  how far the waves carry a vertex in the placement's frame; `held` (`WAVE_STRETCH_FLOATS`) keeps
+ *  the world matrix's least stretch, read again only when one of its floats moved. */
 export function writeWaves(
   block: Float32Array,
   entry: Deformed,
   world: number,
   wave: number,
   first: boolean,
+  held: Float64Array,
 ) {
   const model = entry.mesh.waves!.waveModel;
   block.copyWithin(world + 32, world, world + 32);
   const size = entry.shape.waves * WAVE_FLOATS;
   block.copyWithin(wave + size, wave, wave + size);
-  block.set(entry.world.elements, world);
-  invertMatrix4(inverse, entry.world.elements);
+  const elements = entry.world.elements;
+  block.set(elements, world);
+  invertMatrix4(inverse, elements);
   block.set(inverse, world + 16);
   let crest = 0;
   for (let w = 0; w < entry.shape.waves; w++) {
@@ -73,5 +76,13 @@ export function writeWaves(
     block.copyWithin(world + 32, world, world + 32);
     block.copyWithin(wave + size, wave, wave + size);
   }
-  return crest / smallestScale(entry.world.elements);
+  // The waves move a vertex by at most `crest` in the world, and the inverse carries a world
+  // distance d to at most d / σmin in the placement's frame: σmin, the least singular value, which
+  // a shear makes shorter than every column (a child turned 45° under a parent scaled (1, ¼, 1):
+  // columns 0.73 long, σmin ¼).
+  if (!sameElements(held, elements)) {
+    held.set(elements);
+    held[16] = leastStretchOf(elements, inverse);
+  }
+  return crest / held[16];
 }

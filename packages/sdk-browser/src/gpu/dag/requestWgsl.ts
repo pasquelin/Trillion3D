@@ -29,5 +29,6 @@ fn aheadPriority(pixels:f32,due:f32)->u32{
  return REQUEST_AHEAD|((${REQUEST_DUE_STEPS - 1}u-late)<<${REQUEST_AHEAD_ERROR_BITS}u)|errorStep(pixels,${REQUEST_AHEAD_SCALE}.0,${AHEAD_ERROR_MAX});
 }
 fn packRequest(page:u32,priority:u32)->u32{return (priority<<PAGE_BITS)|page;}
+fn requestPage(word:u32)->u32{return word&((1u<<PAGE_BITS)-1u);}
 fn requestWordRank(word:u32)->u32{return (word>>PAGE_BITS)^REQUEST_AHEAD;}
 `;

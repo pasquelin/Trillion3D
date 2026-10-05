@@ -54,8 +54,8 @@ export function evaluateDagSelectionKernel(
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms);
   const { pixelError } = frames;
-  // The view ahead of a moving camera (`../shader/aheadWgsl.ts`): a light cut never has one.
-  const ahead = uniforms.ahead && !uniforms.light ? uniforms.ahead : null;
+  // The view ahead of a moving camera (`../shader/aheadWgsl.ts`).
+  const ahead = uniforms.ahead ?? null;
   const aheadFrames = ahead
     ? dagViewFrames(packed, { ...uniforms, planes: ahead.planes, view: ahead.view })
     : undefined;
@@ -67,7 +67,6 @@ export function evaluateDagSelectionKernel(
       records,
       nodeFlags: flags,
       ...f,
-      light: uniforms.light,
       rule,
     });
   const camera = predicates(frames, nodeFlags);

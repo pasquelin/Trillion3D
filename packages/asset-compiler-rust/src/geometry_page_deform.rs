@@ -3,8 +3,8 @@
 //! bounds of the shared codec (`trillion3d_page_codec::deform`), written from the primitive's
 //! `JOINTS_n`, `WEIGHTS_n` and `targets`.
 use crate::geometry_page_cells::Cell;
+use crate::shared_math::WordMap;
 use crate::{CompilerError, Result};
-use std::collections::HashMap;
 use trillion3d_page_codec::deform::{Morph, Skin, MAX_MORPH_TARGETS, RAW_F32, WEIGHT_BITS};
 use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE};
@@ -21,8 +21,9 @@ pub struct Deformation {
     pub skin: Option<(Vec<u32>, Vec<f32>)>,
     pub influences: usize,
     pub targets: Vec<MorphTarget>,
-    /// The index stream names welded simulation vertices instead of bone joints.
-    pub soft_source: bool,
+    /// The soft body kind the node declares (`cloth`, `rope`, `volume`) when the index stream
+    /// names its welded simulation vertices instead of bone joints.
+    pub soft_source: Option<&'static str>,
 }
 /// A page's deformation: its records, and per local vertex the fields its streams hold — all
 /// joint offsets and float32 weights, then six displacement cells per target.
@@ -65,7 +66,7 @@ impl PageDeformation {
 /// Each vertex's cells with the rank of its deformation fields among the distinct rows, and
 /// those rows by rank: two vertices then merge only when they also deform alike.
 pub fn join(cells: Vec<Cell>, fields: &[Vec<u32>]) -> (Vec<Cell>, Vec<&[u32]>) {
-    let mut ranks = HashMap::<&[u32], u32>::new();
+    let mut ranks = WordMap::<&[u32], u32>::default();
     let mut table = Vec::new();
     let cells = (cells.into_iter().zip(fields))
         .map(|(cell, row)| {
@@ -137,7 +138,7 @@ pub fn page_deformation(
         skin,
         morphs,
         fields,
-        soft_source: deformation.soft_source,
+        soft_source: deformation.soft_source.is_some(),
     })
 }
 

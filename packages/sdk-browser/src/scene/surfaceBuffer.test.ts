@@ -15,31 +15,29 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   const { device } = fakeDevice({ limits: { maxTextureDimension2D: 1024 } });
   assert.throws(() => checkSurfaceSize(device, 0, 10), /INVALID_SURFACE_SIZE/);
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/);
-  assert.equal(checkSurfaceSize(device, 100, 100), 250000);
-  assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 25, 'targets follow resolution');
+  assert.equal(checkSurfaceSize(device, 100, 100), 330000);
+  assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 33, 'targets follow resolution');
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 53 + 9 * 4 + (9 + 4 + 1) * 8 + 8,
-    'material depth counts with the targets; odd Hi-Z levels must reserve ceil dimensions',
+    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, odd levels at ceil dimensions',
   );
 });
 
-test('the per-pixel frame holds no receiver-offset target: 25 B/px, the 37 before less 12 (#1410)', () => {
-  const before = 37,
-    offset = 12;
-  assert.equal(SURFACE_BYTES_PER_PIXEL, before - offset);
+test('the per-pixel frame holds the shadow receiver target: 25 B/px and its 8', () => {
+  assert.equal(SURFACE_BYTES_PER_PIXEL, 25 + 8);
   const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } });
   const surface = createSurfaceBuffer(gpu.device, 3840, 2160);
   assert.equal(surface.allocationBytes, 3840 * 2160 * SURFACE_BYTES_PER_PIXEL + 8);
   assert.equal(gpu.buffers.length, 0, 'no per-pixel buffer beside the targets');
   assert.equal(
     gpu.textures.length,
-    5,
-    'disabled transmission has one 1×1 texture, no extra attachment',
+    6,
+    'disabled transmission has one 1×1 texture, beside the receiver target',
   );
   surface.dispose();
   surface.dispose();
-  assert.equal(gpu.destroyed.length, 5, 'five textures, each exactly once');
+  assert.equal(gpu.destroyed.length, 6, 'six textures, each exactly once');
 });
 
 test('a partial surface allocation failure destroys all textures already allocated', () => {

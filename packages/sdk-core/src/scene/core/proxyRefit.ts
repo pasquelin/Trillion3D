@@ -1,7 +1,8 @@
 import type { SceneProxyColumns } from '../../contracts/proxy.ts';
-import { proxyTriangleBoxes } from './proxyBoxes.ts';
+import { proxyBoxesExtent, proxyTriangleBoxes } from './proxyBoxes.ts';
 
-const rounded = new Float32Array(1);
+const rounded = new Float32Array(1),
+  NO_LEAF = 0xffffffff;
 const bits = new Uint32Array(rounded.buffer);
 /** Round a bound outwards, including negative zero and subnormals. */
 function outward(value: number, upper: boolean) {
@@ -25,6 +26,24 @@ export function createProxyRefit(data: SceneProxyColumns) {
   const errors = new Float64Array(triangleGroups.length * 3);
   const changed = new Uint8Array(triangleGroups.length);
   const nodeChanged = new Uint8Array(nodeBounds.length / 6);
+  // The node whose leaf child holds each triangle, so a refit marks the leaves of the moved
+  // triangles instead of scanning every leaf of the tree. The topology never changes (a refit
+  // rewrites only quantized bytes; `proxyLeaves.ts` only flags present slots). A triangle in two
+  // leaves, which no build makes, keeps the scan: `shared`.
+  const leafNode = new Uint32Array(triangleGroups.length).fill(NO_LEAF),
+    leafDirty = new Uint8Array(nodeChanged.length);
+  let shared = false;
+  for (let at = 0; at < nodeChildren.length; at += 3) {
+    const flags = nodeChildren[at + 1];
+    if (flags >>> 24 === 0) continue;
+    const node = Math.floor(at / 12),
+      first = nodeChildren[at + 2],
+      end = Math.min(first + ((flags >>> 16) & 255), leafNode.length);
+    for (let t = first; t < end; t++) {
+      shared ||= leafNode[t] !== NO_LEAF && leafNode[t] !== node;
+      leafNode[t] = node;
+    }
+  }
   // Nodes whose effective box left the built tree: a refitted node, and each inner child it
   // requantizes. Only those can enter a ray the built tree kept out, so they bound the extra
   // steps a moved tree may take. Kept once marked: a settled pose keeps the refitted topology.
@@ -41,14 +60,18 @@ export function createProxyRefit(data: SceneProxyColumns) {
   const refit = (groups: ReadonlySet<number>, transforms: Float32Array, extent: number[]) => {
     changed.fill(0);
     nodeChanged.fill(0);
+    leafDirty.fill(0);
     for (const group of groups)
       for (let rank = starts[group]; rank < starts[group + 1]; rank++) {
         const t = slots[rank];
         changed[t] = 1;
+        if (leafNode[t] !== NO_LEAF) leafDirty[leafNode[t]] = 1;
         const at = t * 6;
-        errors.fill(0, t * 3, t * 3 + 3);
-        bounds.fill(Infinity, at, at + 3);
-        bounds.fill(-Infinity, at + 3, at + 6);
+        for (let a = 0; a < 3; a++) {
+          errors[t * 3 + a] = 0;
+          bounds[at + a] = Infinity;
+          bounds[at + a + 3] = -Infinity;
+        }
         for (let owner = groupOffsets[group]; owner < groupOffsets[group + 1]; owner++) {
           const matrix = owners[owner * 2] * 16;
           for (let v = 0; v < 3; v++)
@@ -70,15 +93,16 @@ export function createProxyRefit(data: SceneProxyColumns) {
         }
       }
     for (let node = nodeChanged.length - 1; node >= 0; node--) {
-      let dirty = false;
-      for (let slot = 0; slot < 4; slot++) {
+      // Dirty: a leaf child holds a moved triangle, or an inner child was refitted.
+      let dirty = leafDirty[node] === 1;
+      for (let slot = 0; !dirty && slot < 4; slot++) {
         const at = node * 12 + slot * 3,
           flags = nodeChildren[at + 1];
         if (flags >>> 24 === 0) continue;
         const count = (flags >>> 16) & 255,
           first = nodeChildren[at + 2];
-        if (count === 0) dirty ||= !!nodeChanged[first];
-        else for (let t = first; t < first + count; t++) dirty ||= !!changed[t];
+        if (count === 0) dirty = nodeChanged[first] === 1;
+        else if (shared) for (let t = first; t < first + count; t++) dirty ||= !!changed[t];
       }
       if (!dirty) continue;
       nodeChanged[node] = 1;
@@ -129,14 +153,7 @@ export function createProxyRefit(data: SceneProxyColumns) {
       }
     }
     // Tight geometry extent drives the existing cascade planner, not padded traversal boxes.
-    extent.fill(0);
-    if (bounds.length)
-      for (let a = 0; a < 6; a++) {
-        let value = a < 3 ? Infinity : -Infinity;
-        for (let t = 0; t < triangleGroups.length; t++)
-          value = a < 3 ? Math.min(value, bounds[t * 6 + a]) : Math.max(value, bounds[t * 6 + a]);
-        extent[a] = value;
-      }
+    proxyBoxesExtent(bounds, triangleGroups.length, extent);
   };
   return Object.assign(refit, {
     /** World bounds of each triangle over all its owners, six per triangle, and the moved ones. */
@@ -151,6 +168,8 @@ export function createProxyRefit(data: SceneProxyColumns) {
       errors.byteLength +
       bounds.byteLength +
       changed.byteLength +
+      leafNode.byteLength +
+      leafDirty.byteLength +
       nodeChanged.byteLength +
       grown.byteLength +
       boxes.byteLength +

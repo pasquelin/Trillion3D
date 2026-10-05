@@ -1,11 +1,6 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { EngineError, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
-import {
-  DEFAULT_FOV,
-  DEFAULT_HEIGHT,
-  DEFAULT_PIXEL_RATIO,
-  DEFAULT_WIDTH,
-} from '../backend/common.ts';
+import { EngineError } from '../../../sdk-core/src/index.ts';
+import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../backend/common.ts';
 import {
   assertFullShadowPool,
   referenceTilePlan,
@@ -22,8 +17,9 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenc
  * - `temporalReuse`: no temporal antialiasing, no jitter, no history — one frame is the image;
  * - `probeBudget`: bounced light traces every probe at its per-frame ceiling, and the held frame a
  *   capture waits for is one whose probes converged (`unsettledMask`, `bounceProbes`);
- * - `shadowResolution`: shadows at the pool's full size; a pool the device shrank
- *   (`shadowResolutionBias` above 0) refuses the capture by name, never passes for the reference;
+ * - `shadowResolution`: shadows at the level they ask, from the full page pool; a pool the GPU
+ *   budget shrank, or a full one whose fill raised the maps' resolution bias
+ *   (`shadowResolutionBias` above 0), refuses the capture by name, never passes for the reference;
  * - `supersampling`: the frame drawn as tiles, each at `factor` samples per output pixel and axis
  *   and the most the portable texture side holds, box-filtered back in linear light and assembled
  *   (`referenceTiles.ts`);
@@ -32,21 +28,6 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenc
  * A still frame already shades every light of its tile (`LIGHT_SETTINGS.samplesPerPixel` samples a
  * moving one only): the capture is of a held, still frame.
  */
-
-/**
- * Pages a side of a clipmap level a view of `height` device pixels at vertical field `fov` needs
- * so every pixel reads the finest level: a pixel at the top edge sits `height / tan(fov/2)` device
- * pixels from the camera axis, and a window of `pages` reaches `pages · shadowPage / 2` each way
- * (`contracts.ts`, `sunLevels.ts`). Rounded up to an even window — `sunLevels` centres it on the
- * camera by whole pages — and never below the ordinary constant. Derived from the session's own
- * canvas and field (`world/session/backends.ts`); at the boss's case, 1117 CSS at DPR 2 and 55°:
- * 2234 / tan(27.5°) = 4291, so `pages · 64 ≥ 4291` gives 68.
- */
-export function referenceSunWindow(height: number, fov = DEFAULT_FOV) {
-  const extent = height / Math.tan((fov * Math.PI) / 360);
-  const pages = Math.ceil((2 * extent) / LIGHT_SETTINGS.shadowPage);
-  return Math.max(LIGHT_SETTINGS.sunLevelPages, pages + (pages % 2));
-}
 
 /** What the reference mode of an open session draws: the tiles it is drawn in, at which factor,
  *  and every approximation it names. */
@@ -90,9 +71,10 @@ export function referenceOptions(options: MeasuredWorldOptions): {
 }
 
 /**
- * The session's `capture` in reference mode: the drawn frame, refused while the shadow pool runs
- * below its full size. The canvas is at the display — the tiles are drawn aside — so nothing is
- * resolved here. Outside reference mode, `capture` itself.
+ * The session's `capture` in reference mode: the drawn frame, refused while the shadows draw
+ * coarser than they ask, their page pool short (`assertFullShadowPool`). The canvas is at the
+ * display — the tiles are drawn aside — so nothing is resolved here. Outside reference mode,
+ * `capture` itself.
  */
 export function referenceCapture(
   capture: () => Uint8Array,

@@ -67,19 +67,36 @@ function copySurfaces(
     },
   };
   const encoder = gpuDevice.createCommandEncoder();
-  const from = [
-      gpu.surfaces.baseMetal,
-      gpu.surfaces.normalRough,
-      gpu.surfaces.emissiveAo,
-      gpu.surfaces.flags,
-      gpu.depthTexture,
-    ],
-    to = [owned.baseMetal, owned.normalRough, owned.emissiveAo, owned.flags, depth];
-  for (let i = 0; i < from.length; i++)
-    encoder.copyTextureToTexture({ texture: from[i] }, { texture: to[i] }, [
+  // A view without the emission-and-occlusion layer holds `(0, 0, 0, 1)` in every texel of it
+  // (`SurfaceBuffer.hasEmissiveAo`): the owned layer is cleared to that, never copied from the 1×1.
+  const layer = gpu.surfaces.hasEmissiveAo,
+    { surfaces } = gpu;
+  const copies = [
+    [surfaces.baseMetal, owned.baseMetal],
+    [surfaces.normalRough, owned.normalRough],
+    ...(layer ? [[surfaces.emissiveAo, owned.emissiveAo]] : []),
+    [surfaces.flags, owned.flags],
+    [gpu.depthTexture, depth],
+  ] as const;
+  for (const [from, to] of copies)
+    encoder.copyTextureToTexture({ texture: from }, { texture: to }, [
       options.width,
       options.height,
     ]);
+  if (!layer)
+    encoder
+      .beginRenderPass({
+        label: 'Trillion3D capture emission and occlusion',
+        colorAttachments: [
+          {
+            view: owned.emissiveAo.createView(),
+            loadOp: 'clear',
+            clearValue: [0, 0, 0, 1],
+            storeOp: 'store',
+          },
+        ],
+      })
+      .end();
   encoder.copyTextureToTexture(
     { texture: gpu.surfaces.subsurface },
     { texture: owned.subsurface },

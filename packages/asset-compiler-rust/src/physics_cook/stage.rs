@@ -40,7 +40,7 @@ pub(crate) fn trs(m: &Mat4) -> Option<([f64; 3], [f64; 4], [f64; 3])> {
     {
         return None;
     }
-    // Rotation matrix to quaternion (Shoemake), columns `r[c]`, element (row, col) = r[col][row].
+    // Rotation matrix to quaternion (branch on the largest of the trace and the diagonal), columns `r[c]`, element (row, col) = r[col][row].
     let e = |row: usize, col: usize| r[col][row];
     let trace = e(0, 0) + e(1, 1) + e(2, 2);
     let q = if trace > 0.0 {

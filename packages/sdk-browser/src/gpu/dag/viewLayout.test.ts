@@ -4,10 +4,9 @@ import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from 
 import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { writeDagUniforms } from './uniforms.ts';
-import { createDagOutputScratch } from './uniforms.ts';
 
-test('the block holds the sixty-four words the uniform array strides by', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 64);
+test('the block holds the ninety-two words the uniform array strides by', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 92);
   // The array is allocated from the same number the kernels index by: one source, no drift.
   assert.equal(DAG_VIEW_WORDS, VIEW_BLOCK_WORDS);
 });
@@ -30,16 +29,13 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['cameraStretch', 51],
     ['listCap', 52],
     ['perspective', 53],
-    ['viewFlags', 54],
-    ['pageRows', 55],
-    // `pageMask` is a vec2<u32>: two words at an eight-byte alignment.
-    ['pageMask', 56],
-    ['clipScale', 58],
-    ['clipPad', 59],
-    ['viewCount', 60],
-    ['viewCapacity', 61],
-    ['queueCap', 62],
-    ['ahead', 63],
+    ['viewCount', 54],
+    ['viewCapacity', 55],
+    ['queueCap', 56],
+    ['ahead', 57],
+    ['lightOriginHigh', 60],
+    ['lightOriginLow', 64],
+    ['lightPlanes', 68],
   ];
   for (const [field, word] of asWritten) assert.equal(viewWord(field), word, field);
 });
@@ -51,8 +47,8 @@ test('a vec3 never starts inside a sixteen-byte boundary, which is the rule that
   assert.equal(viewWord('cameraWorld') + 2, 50);
   assert.equal(viewWord('cameraStretch'), 51);
   // A vec2 takes two words at a two-word alignment, never one.
-  assert.equal(viewWord('pageMask') % 2, 0);
-  assert.equal(viewWord('pageMask') + 1, 57);
+  assert.equal(viewWord('pixelScale') % 2, 0);
+  assert.equal(viewWord('pixelScale') + 2, viewWord('pixelError'));
 });
 
 test('the struct the kernels bind is the one the table describes, in order', () => {
@@ -60,8 +56,9 @@ test('the struct the kernels bind is the one the table describes, in order', () 
     VIEW_UNIFORM_STRUCT,
     'struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,' +
       'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,' +
-      'cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,' +
-      'clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}',
+      'cameraStretch:f32,listCap:u32,perspective:f32,' +
+      'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,' +
+      'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,}',
   );
   // And the shipped shader carries that exact struct, not a copy of it.
   assert.ok(DAG_SELECTION_SHADER.includes(VIEW_UNIFORM_STRUCT));
@@ -69,12 +66,12 @@ test('the struct the kernels bind is the one the table describes, in order', () 
 });
 
 test('a field the table does not name is a type error, not a lookup that returns undefined', () => {
-  // `viewWord` takes the union of the table's names, so `viewWord('pageRow')` and
+  // `viewWord` takes the union of the table's names, so `viewWord('pageRows')` and
   // `viewWord('cameraWrold')` do not compile — checked by `tsc` on this file, which is why they are
   // spelled here as strings the compiler sees. The runtime guard below is what a JavaScript caller
   // reaches, and it names the field rather than writing into word `undefined`.
   const asText = viewWord as (field: string) => number;
-  assert.throws(() => asText('pageRow'), /pageRow is not a field/);
+  assert.throws(() => asText('pageRows'), /pageRows is not a field/);
   assert.throws(() => asText(''), /is not a field/);
 });
 
@@ -109,8 +106,6 @@ test('the host writes each field at the word the kernels read, values unchanged'
   assert.equal(ints[viewWord('residentCut')], 1);
   assert.equal(ints[viewWord('listCap')], 64);
   // A camera sends no light, so the light-only words stay at zero, as the struct's zero value.
-  assert.equal(ints[viewWord('viewFlags')], 0);
-  assert.equal(ints[viewWord('pageRows')], 0);
   assert.equal(ints[viewWord('ahead')], 0);
   // The planes and the matrix are copied whole, at their own first words.
   assert.equal(target[0], 0.5);
@@ -144,38 +139,4 @@ test('a view ahead fills block one and raises the word that says it is there', (
   assert.equal(target[at + viewWord('view')], 9);
   assert.equal(new Uint32Array(target.buffer)[viewWord('ahead')], 1);
   assert.equal(new Uint32Array(target.buffer)[AHEAD * VIEW_BLOCK_WORDS + viewWord('ahead')], 0);
-});
-
-test('a light cut fills the words a camera leaves at zero', () => {
-  const target = new Float32Array(VIEW_BLOCK_WORDS);
-  const uniforms = {
-    planes: new Float32Array(24),
-    view: new Float32Array(16),
-    pixelScale: [1, 1],
-    pixelError: 0.5,
-    near: 0.1,
-    cameraStretch: 1,
-    light: { rows: 5, mask: [0b1010, 0b0101], clipScale: 2, clipPad: 3 },
-  } as never;
-  writeDagUniforms(
-    target,
-    { pageCount: 4, nodeCount: 6, worldCount: 7 } as never,
-    uniforms,
-    false,
-    16,
-    { count: 2, capacity: 3, queueCap: 5, append: true },
-  );
-  const ints = new Uint32Array(target.buffer);
-  assert.equal(ints[viewWord('pageRows')], 5);
-  assert.equal(ints[viewWord('pageMask')], 0b1010);
-  assert.equal(ints[viewWord('pageMask') + 1], 0b0101);
-  assert.equal(target[viewWord('clipScale')], 2);
-  assert.equal(target[viewWord('clipPad')], 3);
-  assert.equal(ints[viewWord('viewCount')], 2);
-  assert.equal(ints[viewWord('viewCapacity')], 3);
-  assert.equal(ints[viewWord('queueCap')], 5);
-  // `VIEW_LIGHT | VIEW_PAGES | VIEW_APPEND`, the three bits the pages kernel reads.
-  assert.notEqual(ints[viewWord('viewFlags')], 0);
-  // The scratch is a readback detail, unchanged by the layout.
-  assert.deepEqual(createDagOutputScratch().result.lodLevel, 0);
 });

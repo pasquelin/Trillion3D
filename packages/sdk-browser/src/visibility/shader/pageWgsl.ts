@@ -1,6 +1,7 @@
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts';
+import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts';
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -38,10 +39,13 @@ export const PAGE_BINDING = {
   slotOffsets: `@group(0) @binding(${VIS_BINDINGS.slotOffsets}) var<storage, read> slotOffsets:array<u32>;`,
 } as const;
 
-/** Page rank of an instance: direct in an explicit draw, via the slot table in indirect. */
-export const PAGE_LOOKUP_WGSL = `fn drawPage(instanceIndex:u32)->u32{
- if(uni.indirect!=0u){return instances[slotOffsets[uni.drawSlot]+instanceIndex];}
- return instanceIndex;
+/** Page row and first corner of an instance: its instance word in indirect (\`INSTANCE_WORD_WGSL\`),
+ *  its row from corner zero in an explicit draw. */
+export const PAGE_LOOKUP_WGSL = `${INSTANCE_WORD_WGSL}
+fn drawBatch(instanceIndex:u32)->vec2u{
+ if(uni.indirect==0u){return vec2u(instanceIndex,0u);}
+ let word=instances[slotOffsets[uni.drawSlot]+instanceIndex];
+ return vec2u(instanceRow(word),instanceCorner(word));
 }`;
 
 /** Position of a page vertex in its local space. */
@@ -93,9 +97,9 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * hard cut accumulates into the pixel's coverage of the alpha as read (`cutoutConverges.test.ts`).
  *
  * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
- * that reads none: the reference multiplies the diffuse alpha by it before its alpha test, and by
+ * that reads none: the diffuse alpha is multiplied by it before the alpha test, and by
  * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
- * Shadows pass one, as the reference's depth material reads no vertex colour.
+ * Shadows pass one: a depth pass reads no vertex colour.
  *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and

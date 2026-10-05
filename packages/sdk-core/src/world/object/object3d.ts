@@ -1,8 +1,9 @@
 import { TransformNode } from './transformNode.ts';
 import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
 import { copyObject, findByName } from './objectCopy.ts';
-import { bindPose, readPose } from './objectPose.ts';
+import { bindPose, readPose, releasePose } from './objectPose.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
+import { noteNodeWrite } from '../../scene/core/nodeEdits.ts';
 import * as read from '../../math/transform-tree/read.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Euler } from '../math/euler.ts';
@@ -38,7 +39,7 @@ export class Object3D extends TransformNode {
     const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
     collectSlot(this, slot);
-    bindPose(this);
+    bindPose(this, slot.state.tree);
   }
   /** The world this node is drawn by; set on attach, cleared on detach. */ get _link() {
     return this._linkedTo;
@@ -56,8 +57,9 @@ export class Object3D extends TransformNode {
     return super.visible;
   }
   override set visible(value: boolean) {
+    const was = super.visible;
     super.visible = value;
-    this._link?.pose(this);
+    if (super.visible !== was) this._link?.pose(this);
   }
   private _castShadow = false;
   /** Whether the node casts shadows: a mesh does unless set `false`, a light only when set `true`.
@@ -67,6 +69,7 @@ export class Object3D extends TransformNode {
   }
   set castShadow(value: boolean) {
     if (value === this._castShadow) return;
+    noteNodeWrite();
     this._castShadow = value;
     this._link?.shadow?.(this);
   }
@@ -80,23 +83,45 @@ export class Object3D extends TransformNode {
   protected get looksDownNegativeZ() {
     return false;
   }
-  /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
-    for (const object of objects) {
-      if (object === this) continue;
-      if (object.parent?._link !== this._link) object.parent?.remove(object); // its world hears it go
-      super.add(object);
-      object.traverse((node) => (node._link = this._link));
+  /** Makes objects children of this node. The world hears every parent whose children changed —
+   *  a moved object's former one too —, those an add made before a refusal included. */
+  override add(...objects: Object3D[]) {
+    const link = this._link;
+    try {
+      for (const object of objects) {
+        if (object === this) continue;
+        const former = object.parent;
+        // Every refusal — a ring, a stale node, another root — comes before anything moves.
+        super.add(object);
+        if (former && former !== this) {
+          const left = former._link;
+          // The world it left hears it go; one in this same world hears its former parent changed.
+          if (left !== link) object.traverse((node) => (node._link = null));
+          left?.structure(former);
+        }
+        // A node entering the world is read whole again: what it gained while out of it included.
+        object.traverse((node) => {
+          if (node._link === link) return;
+          node._link = link;
+          link?.entered?.(node);
+        });
+      }
+    } finally {
+      link?.structure(this);
     }
-    this._link?.structure(this);
     return this;
   }
-  /** Takes children off this node. */ override remove(...objects: Object3D[]) {
-    for (const object of objects) {
-      if (object.parent !== this) continue;
-      super.remove(object);
-      object.traverse((node) => (node._link = null));
+  /** Takes children off this node; its world hears it, a refusal on the way or not. */
+  override remove(...objects: Object3D[]) {
+    try {
+      for (const object of objects) {
+        if (object.parent !== this) continue;
+        super.remove(object);
+        object.traverse((node) => (node._link = null));
+      }
+    } finally {
+      this._link?.structure(this);
     }
-    this._link?.structure(this);
     return this;
   }
   /** Adds `child` where it stands (`SceneNode.attach`). */
@@ -108,7 +133,10 @@ export class Object3D extends TransformNode {
   }
   /** Frees it and all below it now, not when collected; off its world. */ override destroy() {
     this.removeFromParent();
-    this.traverse(uncollectSlot);
+    this.traverse((node) => {
+      uncollectSlot(node);
+      releasePose(node, this.state.tree);
+    });
     super.destroy();
   }
   /** Takes the node off its parent. */ removeFromParent() {
@@ -160,6 +188,7 @@ export class Object3D extends TransformNode {
     if (typeof x === 'number') aim.set(x, y, z);
     else aim.copy(x);
     const tree = this.state.tree;
+    this.takeChainStorage();
     lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ);
     readPose(this, tree);
   }
@@ -184,6 +213,7 @@ export class Object3D extends TransformNode {
     return this;
   }
   /** The way the node faces in the world. */ getWorldDirection(out = new Vector3()) {
+    this.takeChainStorage();
     const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ);
     return out.set(d[0], d[1], d[2]);
   }

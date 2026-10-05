@@ -5,9 +5,8 @@ import {
   MOTION,
   POSE_WORDS,
   SHAPE,
-  type BodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
-import { type CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts';
+import type { BodyRecord, CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts';
 import type { JoltModule } from './joltModule.ts';
 import { createWaterStep } from './water.ts';
 
@@ -94,7 +93,7 @@ export function runWater(jolt: JoltModule, water: WaterSpec, scene: Uint32Array,
   const ms: number[] = [];
   for (let s = 0; s < steps; s++) {
     const t = performance.now();
-    const count = step.step(jolt, null, 1 / 60);
+    const count = step.step(jolt, null, 1 / 60, s);
     ms.push(performance.now() - t);
     const words = jolt.poses(count);
     for (let r = 0; r < count; r++) {

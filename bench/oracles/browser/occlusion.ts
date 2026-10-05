@@ -1,4 +1,4 @@
-// Pure oracles for A3 and A4, side-effect free: `occlusion.bench.ts` measures them, unit tests
+// Pure oracles for A3 and A4, side-effect free: `occlusion.perf.ts` measures them, unit tests
 // import them as reference.
 import * as THREE from 'three';
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
@@ -9,13 +9,9 @@ import {
   projectBoxInto,
 } from '../../../packages/sdk-browser/src/hiz/corners.ts';
 import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts';
-import { hizRejects } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
-import type {
-  HizBounds,
-  HizPage,
-  HizPyramid,
-} from '../../../packages/sdk-browser/src/hiz/types.ts';
+import type { HizPage, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
 import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
+import { hizRejects, type HizBounds } from './hizRejects.ts';
 
 /** A page with the world of its root, which pages carried before #1226. */
 type Placed = HizPage & { matrix: MatrixElements };

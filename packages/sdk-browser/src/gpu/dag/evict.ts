@@ -20,7 +20,7 @@ export { KEY_PAGE_BITS };
 export const EVICT_LEVELS = 32,
   EVICT_AGES = (LEVEL_MAX + 1) / EVICT_LEVELS;
 
-/** Writes the key column at `words[at]`, one word per page in packing order (`../layout.ts`). */
+/** Writes the key column at `words[at]`, one word per page in packing order (`layout.ts`). */
 export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at: number) {
   const first = new Map<string, number>();
   let page = 0;

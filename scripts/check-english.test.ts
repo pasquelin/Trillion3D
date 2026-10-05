@@ -27,7 +27,7 @@ test('the perf measurement format is excepted only as keys and only in its own f
   );
   assert.deepEqual(frenchWords('const temoin = 1; // le fichier', format), ['temoin', 'fichier']);
   assert.deepEqual(frenchWords('s.temoinAA; witnessTemoin: 1;', format), ['temoin', 'temoin']);
-  assert.deepEqual(frenchWords('gpu.resultats; temoin: 1;', 'tests/browser/probes/a.ts'), [
+  assert.deepEqual(frenchWords('gpu.resultats; temoin: 1;', 'tests/gpu/probes/a.ts'), [
     'resultats',
     'temoin',
   ]);

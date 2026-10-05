@@ -8,11 +8,12 @@ import {
 type DeformationResource = GPUBuffer | GPUTextureView;
 import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
 import { DEFORMATION_PASS } from './pass.ts';
+import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
 
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {
   const layout = device.createBindGroupLayout({ entries: deformationBindings() });
-  const pipeline = await device.createComputePipelineAsync({
+  const pipeline = await buildComputePipeline(device, {
     label: DEFORMATION_PASS,
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: {

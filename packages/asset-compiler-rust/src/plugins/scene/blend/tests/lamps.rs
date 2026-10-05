@@ -1,7 +1,7 @@
 //! Lamps of the `blend` driver, proven on an SDNA written here.
 //!
 //! The repository's CC0 fixture holds no lamp, and the repository does not build `.blend` files:
-//! as for the old header layout, the file is therefore written from the public description of
+//! as for the old header layout, the file is therefore written from the structure of
 //! the format — an SDNA of a single `Lamp` structure, and a data block typed by it. That is
 //! exactly what the driver will read from a real file: the same structure, asked for by the same
 //! field names.

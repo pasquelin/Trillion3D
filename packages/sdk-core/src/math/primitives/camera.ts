@@ -19,16 +19,18 @@ import { invertMatrix4 } from '../matrix/matrix4Inverse.ts';
  * value. Far plane no longer enters the formula — no `far - near` in denominator,
  * hence nothing to tune and nothing that saturates: `ndc = near / distance`.
  *
- * Neither offset view (`setViewOffset`) nor film offset: the engine sets none. An orthographic
- * camera composes `orthographicProjection`, below, in the same depth convention.
+ * The perspective looks straight down its axis: no shift of the picture off that axis enters
+ * here. An orthographic camera composes `orthographicProjection`, below, in the same depth
+ * convention.
  */
 
-const DEG2RAD = Math.PI / 180;
+// Radians in half a degree: a field of `fov` degrees opens `fov` of them on each side of the axis.
+const HALF_DEGREE = Math.PI / 360;
 
 /** Half the height a perspective camera of vertical field `fov` degrees, zoomed by `zoom`, sees
  *  one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a pixel's size read it. */
 export function perspectiveSlope(fov: number, zoom = 1) {
-  return Math.tan(DEG2RAD * 0.5 * fov) / zoom;
+  return Math.tan(fov * HALF_DEGREE) / zoom;
 }
 
 type Box = { left: number; right: number; top: number; bottom: number };
@@ -69,30 +71,19 @@ export function perspectiveProjection<T extends NumberSink>(
   near: number,
   zoom: number,
 ) {
-  const top = (near * perspectiveSlope(fov)) / zoom; // this order, bit for bit the reference's
-  const height = 2 * top,
-    width = aspect * height;
-  const left = -0.5 * width,
-    right = left + width,
-    bottom = top - height;
-  out[0] = (2 * near) / (right - left);
-  out[1] = 0;
-  out[2] = 0;
-  out[3] = 0;
-  out[4] = 0;
-  out[5] = (2 * near) / (top - bottom);
-  out[6] = 0;
-  out[7] = 0;
-  out[8] = (right + left) / (right - left);
-  out[9] = (top + bottom) / (top - bottom);
-  // `z_clip = near` and `w_clip = -z_view`: normalized depth equals `near / distance`,
-  // which equals 1 at near plane and approaches 0 without reaching it.
-  out[10] = 0;
+  // The eye looks down −z: a view point (X, Y, Z) lies δ = −Z ahead, and clip w = δ divides it
+  // by that distance. Through the near plane it lands at (X, Y) · near / δ, inside a rectangle
+  // centred on the axis, of half height hy = near · tan(fov / 2) / zoom and half width
+  // hx = aspect · hy. Its edges must reach ±1, so clip x = (near / hx) X and clip y = (near / hy) Y;
+  // centred, neither reads Z. Clip z = near for every point, so depth z / w = near / δ: 1 on the
+  // near plane, falling towards 0 with distance and never reaching it.
+  const hy = (near * perspectiveSlope(fov)) / zoom, // this rounding order is fixed, bit for bit
+    hx = aspect * hy;
+  for (let i = 0; i < 16; i++) out[i] = 0;
+  out[0] = near / hx;
+  out[5] = near / hy;
   out[11] = -1;
-  out[12] = 0;
-  out[13] = 0;
   out[14] = near;
-  out[15] = 0;
   return out;
 }
 
@@ -110,21 +101,28 @@ export function orthographicProjection<T extends NumberSink>(
   near: number,
   far: number,
 ) {
+  // w = 1: nothing shrinks with distance. Each axis carries its faces lo and hi onto −1 and 1,
+  // v ↦ (2v − (lo + hi)) / (hi − lo): a scale and an offset over the box's extent on that axis.
+  // Depth counts δ = −z ahead and falls linearly from 1 at `near` to 0 at `far`, over the
+  // extent dz = far − near: (far − δ) / dz = z / dz + far / dz.
+  const dx = right - left,
+    dy = top - bottom,
+    dz = far - near;
   for (let i = 0; i < 16; i++) out[i] = 0;
-  out[0] = 2 / (right - left);
-  out[5] = 2 / (top - bottom);
-  out[10] = 1 / (far - near);
+  out[0] = 2 / dx;
+  out[5] = 2 / dy;
+  out[10] = 1 / dz;
   // `+ 0` keeps a centred box's offsets at +0, never −0.
-  out[12] = -(right + left) / (right - left) + 0;
-  out[13] = -(top + bottom) / (top - bottom) + 0;
-  out[14] = far / (far - near);
+  out[12] = -(left + right) / dx + 0;
+  out[13] = -(bottom + top) / dy + 0;
+  out[14] = far / dz;
   out[15] = 1;
   return out;
 }
 
 /** Matrices of a camera frame, allocated once and rewritten each frame. */
 export interface CameraFrame {
-  /** View: inverse of camera world matrix (`matrixWorldInverse`). */
+  /** View: inverse of the camera world matrix. */
   view: Float64Array;
   /** Projection × view. */
   viewProjection: Float64Array;
@@ -142,8 +140,7 @@ export function createCameraFrame(): CameraFrame {
 }
 
 /**
- * Rewrites frame: view = inverse of `world` (zero for a singular world matrix, like
- * reference), view-projection = `projection · view`, and the six planes of this
+ * Rewrites frame: view = inverse of `world` (zero for a singular world matrix), view-projection = `projection · view`, and the six planes of this
  * view-projection frustum. A single depth convention crosses all three.
  *
  * `far` is the far plane DECLARED by host. Projection has none — it is infinite,

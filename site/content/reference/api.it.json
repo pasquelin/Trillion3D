@@ -39,17 +39,18 @@
   },
   "addTransformNode": {
     "summary": "Aggiunge un nodo sotto `parent` (`-1` per una radice) e restituisce il suo indice.",
-    "description": "Stato di un oggetto nuovo della referenza: posizione nulla, rotazione identità, scala 1, matrici identità, aggiornamento automatico."
+    "description": "Il nuovo nodo parte con posizione zero, rotazione identità, scala 1, matrici identità e aggiornamento automatico."
   },
   "addUniformIrradiance": {
     "summary": "Aggiunge a `sh` un'irradianza uniforme `rgb` — la stessa per ogni normale."
   },
   "adjugateFactor": {
-    "summary": "LA DECISIONE, nella forma esatta del kernel WGSL (`invTranspose3Prep`): il fattore che moltiplica l'aggiunta della parte lineare. — `1 / determinant`, la matrice è REGOLARE: la trasposta dell'inversa, bit per bit come la referenza.",
+    "summary": "LA DECISIONE, nella forma esatta del kernel WGSL (`invTranspose3Prep`): il fattore che moltiplica l'aggiunta della parte lineare. — `1 / determinant`, la matrice è REGOLARE: la trasposta dell'inversa, ai bit da manuale.",
     "description": "Il determinante ricevuto è il determinante GREZZO che il chiamante già possiede; solo la decisione legge il determinante normalizzato, quindi una matrice regolare dà esattamente ciò che dava prima. — `1`, la matrice è SINGOLARE: l'aggiunta così com'è, senza fattore — varrebbe ±∞. È il prodotto vettoriale degli spigoli trasformati, a meno di un fattore positivo che il consumatore cancella normalizzando. Un determinante grezzo ESATTAMENTE NULLO capita anche qui, anche quando la forma è regolare: la somma dei suoi sei prodotti può annullarsi per compensazione dove la versione normalizzata non si annulla, e un divisore nullo non dà nulla di utilizzabile. È il caso che il motore già trattava così, aggiunta a parte, e continua a essere trattato così — la GPU, che divide per il determinante NORMALIZZATO, non ha questo caso e allora dà la trasposta dell'inversa. — `null`, la scala non è né finita né strettamente positiva: l'aggiunta stessa non vale più nulla e deve essere SOSTITUITA da zero, come il `select(z, cross(…), finite)` del kernel. Un termine NaN non si ripara moltiplicandolo per zero, da cui `null` invece di un fattore nullo."
   },
   "advanceMixers": {
-    "summary": "Fa avanzare i mixer la cui radice è sotto `scene`; vero finché almeno uno di essi sta ancora suonando."
+    "summary": "Fa avanzare i mixer la cui radice è sotto `scene`; vero finché almeno uno di essi sta ancora suonando.",
+    "description": "Un frame su un passo (`period`) chiede il campione successivo di ogni azione un passo più avanti: dopo un frame che il display ha scartato, il successivo è di nuovo un passo, e il suo campione è stato richiesto."
   },
   "AlphaMode": {
     "summary": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
@@ -207,9 +208,6 @@
       "createdAt": "Quando è stato creato."
     }
   },
-  "barycentric": {
-    "summary": "Coordinate baricentriche 2D di un punto in un triangolo."
-  },
   "basisMatrix4": {
     "summary": "`out = [u | v | n | origin]`: le tre colonne di una base, poi la sua origine — `makeBasis` seguito da `setPosition`."
   },
@@ -297,10 +295,6 @@
       "jobs": "L'esito di ciascuna attività."
     }
   },
-  "biasedDepthBits": {
-    "summary": "Lo stesso scarto applicato direttamente ai bit di una profondità float32, per la rasterizzazione software, che confronta chiavi intere ordinate invece di fare un test di profondità.",
-    "description": "Per una profondità in [0, 1], la sequenza di bit IEEE-754 cresce con il valore, e la profondità del motore è invertita — più vicino significa più grande —, quindi avvicinare un cluster alla camera equivale a SOMMARE quel numero di bit finali; il risultato è limitato ai bit di 1,0 affinché un cluster sul piano vicino non possa mai superare il piano vicino."
-  },
   "blending": {
     "summary": "Come una superficie si compone con ciò che sta dietro."
   },
@@ -328,7 +322,7 @@
     "parameters": {
       "options": "Ciò che una pagina può passare a `effect.bloom`.",
       "options.intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
-      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è la larghezza propria del filtro."
     },
     "members": {
       "kind": "Quale passata integrata è.",
@@ -341,7 +335,7 @@
     "summary": "Ciò che una pagina può passare a `effect.bloom`.",
     "members": {
       "intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
-      "radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+      "radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è la larghezza propria del filtro."
     }
   },
   "blocksAcross": {
@@ -504,7 +498,7 @@
   },
   "boxTransformUnionBatch": {
     "summary": "Trasforma `n` scatole con `n` matrici e le riunisce in `into` in un solo passaggio, senza allocazione.",
-    "description": "Ripete `boxTransform` poi `boxUnion`. Sostituisce il ciclo di Three.js: `Box3.setFromObject`."
+    "description": "Ripete `boxTransform` poi `boxUnion`. Un solo riquadro attorno a molti oggetti."
   },
   "boxUnion": {
     "summary": "Unione della scatola con un'altra data dai suoi sei limiti."
@@ -697,23 +691,20 @@
       "right": "Bordo destro del riquadro ortografico.",
       "top": "Bordo superiore del riquadro ortografico.",
       "bottom": "Bordo inferiore del riquadro ortografico.",
-      "fitAspect": "Un box ortografico alto quanto dichiarato e largo quanto lo rende la forma dell’immagine.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
+      "fitAspect": "Un box ortografico alto quanto dichiarato e largo quanto lo rende la forma dell’immagine.",
       "copy": "Prende i valori di nodo di `source` e, da una camera, la sua ottica; la propria `projection` resta.",
       "updateProjectionMatrix": "Ricompone `projectionMatrix`; ogni scrittura dell’ottica lo fa già, e ridisegna.",
-      "projectionMatrix": "La proiezione che compone l’ottica, nella convenzione di profondità del riferimento con un piano lontano finito, per un renderer che disegna con essa; ogni scrittura dell’ottica la ricompone. Il mondo disegna con la propria (`engineCamera.ts`).",
+      "projectionMatrix": "La proiezione che le ottiche compongono sul cubo di clip, profondità −1 sul piano vicino fino a 1 su un piano lontano finito, per un renderer che disegna con essa; ogni scrittura di un'ottica la compone di nuovo. Il mondo disegna con la propria (`engineCamera.ts`).",
       "matrixWorldInverse": "L’inversa della matrice del mondo come composta per ultima: la vista che legge un renderer.",
       "rayThrough": "Il raggio del mondo che passa per un punto dell'immagine, secondo la proiezione propria del motore (`engineCamera.ts`): dall'occhio lungo la vista per una telecamera prospettica, dritto lungo la vista dalla scatola per una ortografica. La sua direzione è un vettore unitario.",
       "set": "Posiziona l'occhio a `pose.position`, rivolto verso `pose.target`, con il campo indicato."
     }
   },
-  "CAMERA_SCENARIOS": {
-    "summary": "I percorsi di camera che un banco di prova può rieseguire, ciascuno con ciò che misura."
-  },
   "CameraFrame": {
     "summary": "Le matrici di un fotogramma di camera, allocate una volta e riscritte a ogni fotogramma.",
     "members": {
-      "view": "Vista: l'inversa della matrice della camera nel mondo (`matrixWorldInverse`).",
+      "view": "Vista: inversa della matrice del mondo della camera.",
       "viewProjection": "Proiezione × vista.",
       "planes": "I sei piani normalizzati del frustum di `viewProjection`, disposti come `frustumPlanesFromMatrix`."
     }
@@ -965,9 +956,6 @@
   "ColumnKind": {
     "summary": "Come è disposta una colonna del manifesto binario."
   },
-  "compact": {
-    "summary": "Compattazione di dati a partire da un array di predicati binari (0 o 1)."
-  },
   "compareImages": {
     "summary": "Confronto di due immagini RGBA: numero di pixel diversi, errore massimo su un canale, e RMSE."
   },
@@ -1065,7 +1053,7 @@
   },
   "composeMatrix4Batch": {
     "summary": "Compone `n` matrici.",
-    "description": "Due forme, e solo due: tutto piatto, o tutto in `n` sotto-viste — `../batch/batch.ts` spiega perché una matrice viaggia come sotto-vista. La forma è fissata PRIMA del ciclo, mai al suo interno: un ternario per elemento costa il 6% su duecentomila composizioni, misurato contro il ciclo proprio di Three tramite `three-vs-core-batch-matrices.perf.ts`. Ripete `composeMatrix4`; sostituisce il `for … m.compose(p, q, s)` di Three."
+    "description": "Due forme, e solo due: tutto piatto, o tutto come `n` sotto-viste — `../batch/batch.ts` spiega perché una matrice viaggia come sotto-vista. La forma si decide PRIMA del ciclo, mai al suo interno: un ternario per elemento costa il 6% su duecentomila composizioni, misurato dal benchmark delle matrici batch. Ripete `composeMatrix4`, su `n` matrici."
   },
   "CONE_LENGTH_RATIO": {
     "summary": "Tolleranze del rifiuto per cono, condivise dal riflesso lato processore (`packages/sdk-browser/src/page/cone/cone.ts`) e dallo shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza entro `CONE_LENGTH_RATIO` e sono ortogonali entro `CONE_ORTHO_EPS`, in relativo; un cono di angolo ≥ `HALF_PI` non rifiuta mai.",
@@ -1162,9 +1150,6 @@
       "options.onProgress": "Chiamato a ogni evento."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Copie indipendenti per chi anima ogni controllo separatamente."
-  },
   "createDiagnosticChannel": {
     "summary": "Consegna limitata e asincrona delle diagnostiche per host browser.",
     "description": "`emit` si limita ad aggiungere il record già creato e a pianificare un microtask. Non chiama mai codice utente e non serializza mai un record. Questo tiene gli osservatori fuori da una chiamata di rendering misurata; `flush` è il punto di sincronizzazione esplicito dell'host per i report di preparazione e streaming.",
@@ -1186,9 +1171,6 @@
   },
   "createJob": {
     "summary": "Nessun timer, nessun DOM, nessun file né interfaccia."
-  },
-  "createLightingScene": {
-    "summary": "Un angolo di porta nullo chiude l'apertura; PI/2 fa ruotare l'anta nella stanza a sinistra."
   },
   "createPageIntegrationPlan": {
     "summary": "Buffer di un piano, dimensionati per la richiesta più grande del catalogo."
@@ -1225,10 +1207,6 @@
       "options.visible": "Se i consumatori del rendering includono questo nodo. Vero per impostazione predefinita."
     }
   },
-  "createShadowPlan": {
-    "summary": "Lo scheduler delle ombre delle mappe virtuali.",
-    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
-  },
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
     "parameters": {
@@ -1245,21 +1223,6 @@
   "createTransformTree": {
     "summary": "Una gerarchia vuota, pronta per `capacity` nodi senza crescere."
   },
-  "createTransport": {
-    "summary": "Un esperimento di trasporto campionato denso, non un risolutore gerarchico.",
-    "description": "Entrambe le modalità usano gli stessi raggi. Il riutilizzo mantiene in cache le intersezioni con i rettangoli immobili, poi testa ogni rettangolo che si muove nella sua NUOVA posizione. Rimuovere un vecchio ostacolo ripristina quindi l'impatto immobile in cache senza luce obsoleta. I pezzi sorgente che si muovono rilanciano i propri raggi. La sfera è un ostacolo di visibilità che assorbe; i pezzi specchio devono avere una riflessione diffusa nulla. Nessuno dei due trasporta luce speculare verso il diffuso.",
-    "parameters": {
-      "options": "Come gira il risolutore del rimbalzo di luce.",
-      "options.raysPerPatch": "Raggi deterministici totali per pezzo; quattro punti di partenza si dividono questo budget.",
-      "options.maxIterations": "Giri massimi del risolutore.",
-      "options.tolerance": "Limite assoluto dell'errore di radianza nella norma del massimo, per l'operatore campionato.",
-      "options.warmStart": "Riutilizza la radianza precedente in modalità riutilizzo (vero per impostazione predefinita). Falso dà a entrambe le modalità lo stesso punto di partenza del risolutore.",
-      "options.maxBytes": "Memoria massima che può usare.",
-      "options.now": "Il suo orologio.",
-      "options.cancelled": "Chiede se bisogna fermarsi.",
-      "options.onProgress": "Ascolta il suo avanzamento."
-    }
-  },
   "createWorld": {
     "summary": "Crea un mondo: la scena, la camera, il motore di rendering e il ciclo di una vista, disegnata non appena sa come.",
     "parameters": {
@@ -1273,7 +1236,8 @@
       "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
       "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`.",
-      "options.debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito."
+      "options.debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito.",
+      "options.quality": "La qualità: un preset, gruppi con livelli propri, la risoluzione (`world.quality`)."
     }
   },
   "crossVector3": {
@@ -1392,9 +1356,6 @@
   "decodeManifestBinary": {
     "summary": "Ricostruisce, a partire da un manifesto binario, il manifesto completo letto da un motore."
   },
-  "decodeManifestPreviews": {
-    "summary": "Solo le miniature, senza produrre le pagine: ciò che una revisione di immagini deve leggere."
-  },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
     "description": "Undici parole little-endian di intestazione precedono geometria condivisa o indipendente, colonne dell’albero e proprietà versionata. `docs/FORMAT.md` definisce conteggi e colonne. Lunghezze errate vengono rifiutate prima di qualsiasi raggio."
@@ -1404,7 +1365,7 @@
   },
   "decomposeMatrix4Batch": {
     "summary": "Scompone `n` matrici 4×4 in posizioni, quaternioni e dimensioni.",
-    "description": "Ripete `decomposeMatrix4`. Sostituisce il ciclo di Three.js: `for … m.decompose(p, q, s)`."
+    "description": "Ripete `decomposeMatrix4`."
   },
   "DEFAULT_SCOPE": {
     "summary": "L'ambito con cui viene compilato un modello quando non se ne nomina nessuno: per pagine."
@@ -1424,7 +1385,7 @@
     "summary": "Verifica con cosa può disegnare questa macchina, e dice perché quando non può."
   },
   "determinantMatrix4": {
-    "summary": "Determinante 4×4, sviluppato lungo l'ultima riga come la referenza, parentesi e segni unari inclusi."
+    "summary": "Determinante di una matrice 4×4 colonna per colonna, sviluppato lungo l'ultima riga in un ordine fisso di termini e segni; 0 per una matrice singolare."
   },
   "diagnostic": {
     "summary": "La famiglia `diagnostic`: guardare il motore al lavoro.",
@@ -1450,12 +1411,6 @@
   },
   "diagnostic.transparentOcclusion": {
     "summary": "Verifica quali superfici trasparenti il test di occlusione ha mantenuto o rifiutato.",
-    "parameters": {
-      "world": "Il mondo da verificare."
-    }
-  },
-  "diagnostic.shadowAtlas": {
-    "summary": "Un riepilogo di ciò che contiene l'atlante delle ombre in questo fotogramma.",
     "parameters": {
       "world": "Il mondo da verificare."
     }
@@ -1537,18 +1492,15 @@
   "dotVector3": {
     "summary": "`a · b` su tre componenti lette in `aAt` e `bAt`: un buffer più un offset, mai una vista."
   },
-  "edge": {
-    "summary": "Funzione di spigolo 2D (prodotto vettoriale 2D)."
-  },
   "effect": {
     "summary": "La famiglia `effect`: le passate che `world.effects` disegna sull’immagine."
   },
   "effect.bloom": {
     "summary": "Un bagliore attorno a ciò che è luminoso, sull’immagine lineare prima del tone mapping.",
     "parameters": {
-      "options": "`intensity` e `radius`; i valori pubblicati se assenti.",
+      "options": "`intensity` e `radius`; i valori predefiniti se assenti.",
       "options.intensity": "Parte dell’immagine sostituita dal suo bagliore, da 0 (nessuna) a 1 (solo il bagliore).",
-      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è il filtro pubblicato."
+      "options.radius": "Estensione del bagliore a ogni livello, in texel di quel livello; 1 è la larghezza propria del filtro."
     }
   },
   "emptyIrradiance": {
@@ -1649,8 +1601,8 @@
       "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare.",
       "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla.",
-      "REFERENCE_SHADOWS_REDUCED": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`).",
-      "REFERENCE_INTERACTIVE": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`)."
+      "REFERENCE_SHADOWS_REDUCED": "L’immagine di riferimento è stata rifiutata: le sue ombre sono disegnate più grossolane di quanto chiedono, il loro pool di pagine corto (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’immagine di riferimento è stata rifiutata: le sue ombre sono disegnate più grossolane di quanto chiedono, il loro pool di pagine corto (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -1670,9 +1622,6 @@
       "stopAutoLog": "Ferma la visualizzazione.",
       "dispose": "Ferma e dimentica tutto."
     }
-  },
-  "environmentLights": {
-    "summary": "Vero quando l'ambiente illumina qualcosa: un coefficiente non è nullo."
   },
   "Euler": {
     "summary": "Tre angoli in radianti, applicati nell'ordine `order` (intrinseco, la prima lettera la più esterna).",
@@ -1698,9 +1647,6 @@
       "z": "Da dietro in avanti.",
       "order": "L'ordine in cui si applicano i tre giri, come `'XYZ'`."
     }
-  },
-  "exclusiveScan": {
-    "summary": "Somma prefisso esclusiva."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
     "summary": "Schema JSON completo che documenta tutte le opzioni di avvio dell'esploratore Trillion3D (MeasuredWorldOptions).",
@@ -1732,9 +1678,6 @@
   },
   "EffectStage": {
     "summary": "Dove si colloca una passata rispetto alla curva di visualizzazione: sulla radianza lineare della scena, prima che esposizione e curva la portino nell’intervallo di visualizzazione, o sull’immagine mostrata che hanno prodotto."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF e un buffer binario separato in little-endian; gli adattatori gestiscono il salvataggio."
   },
   "ExtrudeOptions": {
     "summary": "Come `geometry.extrude` spinge una forma piatta per farne un solido.",
@@ -1808,8 +1751,8 @@
     "summary": "Ciò che riceve un hook di fotogramma: i secondi dall'ultimo fotogramma e dall'inizio del mondo.",
     "description": "L'unico oggetto del mondo, riscritto a ogni fotogramma: un hook che vuole conservare un valore lo copia.",
     "members": {
-      "delta": "Secondi dal fotogramma precedente.",
-      "time": "Secondi dall'inizio del mondo.",
+      "delta": "Secondi di cui il mondo è avanzato dal fotogramma precedente — ciò che le sue clip e i suoi controller hanno integrato —, al massimo due intervalli di fotogramma dopo una pausa; 0 per il primo.",
+      "time": "Secondi dall'inizio del mondo, all'istante del fotogramma (`worldFrameGrid.ts`).",
       "frame": "Quanti fotogrammi ha disegnato il mondo.",
       "metrics": "Cosa è costato l'ultimo fotogramma: triangoli, pagine, tempo."
     }
@@ -1866,7 +1809,11 @@
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
       "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
       "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
-      "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto."
+      "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto.",
+      "displayRefreshMs": "L’intervallo di aggiornamento del display, in ms, come il motore lo ha misurato sui timestamp rAF dei suoi frame (l’orologio del budget della scala di render); null finché non ne trova uno.",
+      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query` (#1451).",
+      "renderHeight": "Altezza in pixel con cui l’immagine è stata disegnata, accanto a `renderWidth`.",
+      "renderWidth": "Larghezza in pixel con cui l’immagine è stata disegnata, prima che l’antialiasing temporale o il ricampionamento la ricostruissero sul display: quella del display con una scala di render di 1. Null prima di un’immagine."
     }
   },
   "FramePass": {
@@ -1907,10 +1854,6 @@
   },
   "frustumPlanesFromMatrix": {
     "summary": "I sei piani normalizzati del frustum di una matrice di clip — una vista-proiezione, o una proiezione da sola per piani nello spazio di vista."
-  },
-  "frustumPlanesToLocal": {
-    "summary": "Riporta i piani nello spazio locale di una trasformazione `m` (4×4, colonna per colonna): ogni piano `p` diventa `p · m`, quindi un punto locale `q` dà `p · (m q)`.",
-    "description": "Una scatola locale può quindi essere testata senza essere trasformata."
   },
   "GeminiFunctionDeclaration": {
     "summary": "Uno strumento nella forma letta dall'API di Gemini.",
@@ -2186,8 +2129,8 @@
     }
   },
   "GpuFrameMs": {
-    "summary": "Durata GPU di un fotogramma: la somma delle sue durate per invio, ciascuna dall'inizio del primo pass alla fine dell'ultimo pass di un buffer di comandi, secondo i timestamp del dispositivo stesso.",
-    "description": "Un invio è un'esecuzione GPU unitaria, quindi i pass che il dispositivo esegue contemporaneamente sono nella sua durata una sola volta — a differenza di `gpuPassMs.totalMs`, una somma di pass, che conta una sovrapposizione due volte. Il tempo dell'host tra due invii dello stesso fotogramma NON c'è; `gpuHostGapMs` lo porta da solo. Nullo quando un pass del fotogramma non è stato misurato, la lista è stata troncata, o il dispositivo non sa fare timestamp."
+    "summary": "Durata GPU di un fotogramma: il tempo che coprono le sue durate per invio, ciascuna dall'inizio del primo pass alla fine dell'ultimo pass di un buffer di comandi, secondo i timestamp del dispositivo stesso.",
+    "description": "Un invio è un'esecuzione GPU unitaria, quindi i pass che il dispositivo esegue contemporaneamente sono nella sua durata una sola volta, e due invii che si sovrappongono sono coperti una sola volta — a differenza di `gpuPassMs.totalMs`, una somma di pass, che conta una sovrapposizione due volte. Il tempo dell'host tra due invii dello stesso fotogramma NON c'è; `gpuHostGapMs` lo porta da solo. Solo i pass con una coppia di timestamp valida formano le durate: un pass che il driver ha saltato non ne ha scritto nessuno (`unwritten-timestamps`) e uno la cui coppia non si può leggere (`invalid-timestamps`) non ne ha, e nessuno dei due annulla i pass che sono stati eseguiti; il secondo può cadere fuori dalle durate, che allora sono un limite inferiore (`gpuPassMs.passes` lo nomina). Nullo quando la lista è stata troncata, quando nessun pass del fotogramma ha una coppia valida, o il dispositivo non sa fare timestamp."
   },
   "GpuMemoryFrameMetrics": {
     "summary": "Impronta di memoria pubblicata dal motore per le allocazioni sul dispositivo grafico.",
@@ -2236,7 +2179,7 @@
       "name": "Il nome del pass.",
       "gpuMs": "Tempo GPU del pass.",
       "ownMs": "Il suo tempo meno quanto coperto da un passaggio iniziato prima (WebGPU).",
-      "reason": "Perché non è stato misurato."
+      "reason": "Perché non è stato misurato; `unwritten-timestamps`: un pass vuoto che il driver ha saltato e che non ne ha scritto nessuno; `invalid-timestamps`: una coppia a cui manca un timestamp o la cui fine precede l'inizio."
     }
   },
   "GpuPassTimings": {
@@ -2402,13 +2345,9 @@
     "summary": "Piramide completa a partire dalla profondità del buffer di visibilità.",
     "description": "`into` viene riscritto, mai riallocato."
   },
-  "hizBuildPyramid": {
-    "summary": "Piramide completa in 2×2 arrotondata verso l'alto.",
-    "description": "Il livello 0 è la profondità sorgente; l'ultimo livello è 1×1."
-  },
   "HizFlat": {
     "summary": "La piramide Hi-Z per fotogramma: un unico `Float32Array` per tutti i livelli, un offset e una dimensione per livello.",
-    "description": "I valori sono quelli del buffer di visibilità, già in precisione singola, e la riduzione mantiene il PIÙ LONTANO di un quadrato 2×2 — un minimo, essendo la profondità del motore invertita: nulla viene arrotondato, la disposizione piatta restituisce esattamente ciò che restituiva la piramide di array annidati, senza allocare una riga per riga e per fotogramma. Riflesso di produzione di `hizReduceCeil` (oracles.ts), che resta l'oracolo: due implementazioni volute della stessa riduzione, contrapposte in un test di equivalenza.",
+    "description": "I valori sono quelli del buffer di visibilità, già in precisione singola, e la riduzione mantiene il PIÙ LONTANO di un quadrato 2×2 — un minimo, essendo la profondità del motore invertita: nulla viene arrotondato, la disposizione piatta restituisce esattamente ciò che restituiva la piramide di array annidati, senza allocare una riga per riga e per fotogramma. Riflesso di produzione di `hizReduceCeil` (oracles.fixture.ts), che resta l'oracolo: due implementazioni volute della stessa riduzione, contrapposte in un test di equivalenza.",
     "members": {
       "data": "Le profondità di ogni livello.",
       "offsets": "Dove inizia ogni livello.",
@@ -2423,20 +2362,6 @@
   },
   "hizFlatLevels": {
     "summary": "Numero di livelli di un fotogramma: l'ultimo è 1×1."
-  },
-  "hizFootprintFar": {
-    "summary": "Profondità dell'ostacolo più lontano che copre il rettangolo di pixel di livello 0 semiaperto [x0,x1)×[y0,y1).",
-    "description": "I rettangoli vuoti o fuori limite restituiscono `HIZ_NOTHING` per non poter nascondere nulla."
-  },
-  "hizFootprintFarFlat": {
-    "summary": "Profondità dell'ostacolo più lontano sul rettangolo di pixel di livello 0 semiaperto [x0,x1)x[y0,y1).",
-    "description": "Rettangolo vuoto o fuori campo: `HIZ_NOTHING`, che non può nascondere nulla."
-  },
-  "hizOccluded": {
-    "summary": "Profondità invertita: la scatola è nascosta se il suo limite più vicino è ancora dietro l'ostacolo più lontano della sua impronta, margine incluso."
-  },
-  "hizReduceCeil": {
-    "summary": "Riduzione prudente della piramide Hi-Z: la profondità PIÙ LONTANA di un quadrato 2×2 (il valore più piccolo in profondità invertita)."
   },
   "holdCameraWorld": {
     "summary": "Copia una camera del motore in un'altra, che mantiene quindi la vista bit per bit."
@@ -2457,8 +2382,9 @@
   },
   "HostCamera": {
     "summary": "LA CAMERA CHE L'HOST DÀ AL MOTORE, nominata dalla sua forma e da questo unico file.",
-    "description": "Ciò che il motore ne LEGGE: la posa nel mondo che risolve il proprio grafo, e l'ottica che dichiara. Ciò che il motore vi SCRIVE: nulla di ciò che scrive un'IMMAGINE. Le impostazioni di posa, `lookAt` e la matrice che un ripristino di campagna rimette a posto sono i gesti propri dell'host — inquadratura, ritorno al punto di partenza, controlli, la vista da cui proviene una misurazione — che l'esploratore compie per l'host al confine; un'immagine non li tocca mai. `updateWorldMatrix` viene chiamato per aggiornare la matrice del mondo, antenati inclusi. Qualsiasi oggetto dell'host di questa forma soddisfa il contratto, indipendentemente dalla libreria da cui proviene. PERCHÉ `lookAt` PRENDE UN `ControlVector` E NON TRE NUMERI DI SOLA LETTURA. Una libreria host punta una camera con un proprio vettore e lo distingue da una terna di numeri tramite un proprio flag; se le si dà un semplice letterale `{ x, y, z }`, legge l'oggetto come il primo numero e compone una matrice del mondo di `NaN`. Richiedere tutto il vocabolario di un vettore — che nessun letterale soddisfa e che ogni punto host di questo pacchetto già offre (`hostGraphObjects.hostPoint`) — riporta questo sotto il controllo del compilatore senza nominare alcuna libreria.",
+    "description": "Ciò che il motore ne LEGGE: la posa nel mondo che risolve il proprio grafo, e l'ottica che dichiara. Ciò che il motore vi SCRIVE: nulla di ciò che scrive un FRAME. Le impostazioni di posa, `lookAt` e la matrice che un ripristino di campagna rimette a posto sono i gesti propri dell'host — inquadratura, ritorno al punto di partenza, controlli, la vista da cui proviene una misurazione — che l'esploratore compie per l'host al confine; un frame non li tocca mai. All'aggiornamento della matrice del mondo dell'host si chiede di rendere aggiornata la matrice del mondo, antenati inclusi. Qualsiasi oggetto dell'host di questa forma soddisfa il contratto, indipendentemente dalla classe da cui proviene. PERCHÉ `lookAt` PRENDE UN `ControlVector` E NON TRE NUMERI DI SOLA LETTURA. Una classe camera dell'applicazione punta una camera con un proprio vettore e lo distingue da una terna di numeri tramite un proprio flag; se le si dà un semplice letterale `{ x, y, z }`, legge l'oggetto come il primo numero e compone una matrice del mondo di `NaN`. Richiedere tutto il vocabolario di un vettore — che nessun letterale soddisfa e che ogni punto host di questo pacchetto già offre (`hostGraphObjects.hostPoint`) — riporta questo sotto il controllo del compilatore senza nominare alcuna libreria.",
     "members": {
+      "temporalRevision": "Incrementato dall’host quando una posa discontinua deve scartare la cronologia temporale.",
       "position": "Posa LOCALE, così come la tiene l'host: ciò che scrivono i suoi controlli, mai ciò che legge un'immagine.",
       "quaternion": "Come è ruotata.",
       "fov": "L'ottica dichiarata dall'host; il motore ne compone la propria proiezione.",
@@ -2641,9 +2567,6 @@
   "invertMatrix4Batch": {
     "summary": "Inverte `n` matrici 4×4: `out[i] = mats[i]⁻¹`."
   },
-  "isBinaryManifest": {
-    "summary": "Se un manifesto conserva le sue lunghe liste in un file binario."
-  },
   "JobProgress": {
     "summary": "Fino a dove è arrivata un'attività.",
     "members": {
@@ -2700,7 +2623,7 @@
     }
   },
   "lengthSqVector3": {
-    "summary": "`v.lengthSq()`: i tre quadrati sommati nell'ordine della referenza, letti in `at`."
+    "summary": "La lunghezza al quadrato del vettore letto in `at`: i tre quadrati sommati in un ordine fisso."
   },
   "levelBlockBytes": {
     "summary": "Byte di un livello di `width`×`height` una volta compresso in blocchi: blocchi 4×4 interi di sedici byte, un lato che non è multiplo di quattro completato dal suo bordo — uguale in entrambi i formati di blocchi."
@@ -2725,7 +2648,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.directional": {
@@ -2745,7 +2669,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.point": {
@@ -2765,7 +2690,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.spot": {
@@ -2785,7 +2711,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.hemisphere": {
@@ -2805,7 +2732,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.rectArea": {
@@ -2825,7 +2753,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "light.probe": {
@@ -2845,7 +2774,8 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "Light": {
@@ -2866,11 +2796,12 @@
       "p.width": "Larghezza di una luce rettangolare.",
       "p.height": "Altezza di una luce rettangolare.",
       "p.radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "p.sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "p.angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     },
     "members": {
       "isLight": "Sempre `true`: distingue una luce da qualsiasi altro oggetto.",
-      "color": "Il colore della luce; cambialo sul posto con `set`.",
+      "color": "Il colore della luce; cambialo sul posto con `set`, oppure annuncia i canali scritti direttamente con `needsUpdate = true`.",
       "groundColor": "Il colore che viene dal basso di una luce emisferica.",
       "target": "Il nodo illuminato da una luce direzionale o da uno spot; spostalo per puntare.",
       "sh": "I coefficienti di una sonda (`LightParameters.sh`); scritti sul posto, poi `needsUpdate`.",
@@ -2884,8 +2815,9 @@
       "radius": "Raggio della sfera che emette; `emitterRadius` nella memorizzazione del motore.",
       "kind": "Che tipo di luce è: `'point'`, `'spot'`, `'directional'`…",
       "copy": "Prende i valori di nodo di `source` e, da una luce, i suoi numeri, colori, coefficienti e mira; il proprio `kind` resta.",
-      "needsUpdate": "`light.needsUpdate = true` dopo aver scritto `sh` sul posto: il mondo lo rilegge.",
-      "lookAt": "Punta con la luce verso un punto del mondo: una luce direzionale o uno spot vi sposta il proprio `target` — la sua direzione ne deriva —, e il nodo ruota anch'esso, il che orienta un rettangolo."
+      "needsUpdate": "`light.needsUpdate = true` dopo aver scritto `sh` sul posto, o `r`, `g`, `b` di un colore direttamente: la scrittura viene contata (`nodeWrites`), e il mondo e il controllo della scena la rileggono.",
+      "lookAt": "Punta con la luce verso un punto del mondo: una luce direzionale o uno spot vi sposta il proprio `target` — la sua direzione ne deriva —, e il nodo ruota anch'esso, il che orienta un rettangolo.",
+      "angularRadius": "Raggio angolare del disco di una luce direzionale, in radianti: la dimensione della sua ombra morbida; 0 dà ombre dure. Un sole usa per impostazione predefinita il disco solare (`LIGHT_SETTINGS.sunAngularRadius`)."
     }
   },
   "LIGHT_FIELD": {
@@ -2904,7 +2836,8 @@
       "cosInner": "Il cono interno di uno spot, dove inizia la sua penombra: il bordo del cono stesso quando non ne ha una.",
       "halfWidth": "L'asse di mezza larghezza di un rettangolo — `right` per metà della sua larghezza —, poi la sua mezza altezza.",
       "halfHeight": "La metà dell'altezza di un rettangolo.",
-      "emitterRadius": "Raggio della sorgente di una luce puntiforme o spot; condivide i componenti di forma riservati ai rettangoli."
+      "emitterRadius": "Raggio della sorgente di una luce puntiforme o spot; condivide i componenti di forma riservati ai rettangoli.",
+      "angularRadius": "Raggio angolare direzionale in radianti, che condivide la corsia del raggio di sorgente locale."
     }
   },
   "LIGHT_KIND": {
@@ -2928,16 +2861,15 @@
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",
       "pcfTaps": "Campionamenti PCF per pixel e per luce con ombra (X2).",
       "spotEdgeSoftness": "Larghezza del bordo sfumato del cono di uno spot, in unità di coseno: contro l'effetto a scalini.",
-      "sunFarShadowOffsetMetres": "Scarto dell'origine del raggio d'ombra lontana lungo la normale, in metri. Serve solo a lasciare il piano della superficie illuminata; il vero rimedio contro l'autoombreggiatura è la partenza lungo il raggio, più in basso.",
-      "sunFarShadowStartCells": "Partenza del raggio d'ombra lontana lungo la propria direzione, in celle del proxy. Il punto illuminato viene dalla geometria fine, l'ostacolo dal proxy grossolano: dove il proxy è sopra la vera superficie, un raggio partito da zero toccherebbe la superficie che illumina. Una cella del proxy è la scala sotto la quale il proxy non dice nulla; partire da lì evita questo falso contatto senza inventare un'ombra. La conseguenza è nominata: un ostacolo a meno di una cella lungo il raggio non porta ombra lontana, e questa resta ai livelli di clipmap.",
       "shadowNearFraction": "Piano vicino di una fetta: una quota della portata, mai meno di questa soglia minima.",
       "shadowNearMin": "Distanza d'ombra più vicina.",
       "shadowNormalOffsetTexels": "Scarto del punto di campionamento lungo la normale, in texel della mappa letta: mezzo texel, il margine per ciò che non è il piano del ricevitore — la sua curvatura dentro un texel, l'arrotondamento delle due profondità. La pendenza del ricevitore è coperta da un margine di profondità sulla portata del PCF, e oltre i 45° da uno scarto ulteriore, negli stessi texel (`shadowDepthMargin`, `shadowNormalTexels`): nessun bias è una lunghezza della scena.",
-      "shadowPagesPerBatch": "Pagine d’ombra che un lotto GPU disegna: la dimensione dei buffer di un lotto. Un fotogramma disegna le pagine che marca in tanti lotti quanti servono, al massimo il suo riempimento statico, un trentaduesimo del pool per fotogramma; le altre sono disegnate nei fotogrammi successivi e nel frattempo lette al livello più grossolano.",
       "lampFaceSize": "Lato del mip più fine di una faccia di lampada, in texel: 32 × 32 pagine da 128 (il pool: `shadowPoolSize`).",
       "shadowRequestCap": "Pagine virtuali che l’ombreggiatura può chiedere per fotogramma; le altre richiedono al fotogramma successivo.",
       "sunLevels": "Livelli di clipmap di una luce direzionale. Il livello `L` ha texel di `2^L` metri, e un pixel legge il livello il cui texel non supera la propria impronta: sedici livelli coprono un rapporto lontano/vicino di 2^15. Oltre l’ultimo livello subentra l’ombra lontana.",
-      "sunLevelPages": "Pagine per lato dell’estensione di un livello di clipmap attorno alla camera. È una capacità, non una regolazione: ogni pixel legge la propria densità finché `height / tan(halfFovY)` resta entro `sunLevelPages · shadowPage / 2` = 4096 (una tela 4K con campo verticale di 55°); oltre, i pixel esterni leggono il livello successivo, a metà densità."
+      "sunLevelPages": "Pagine per lato dell’estensione di un livello di clipmap attorno alla camera. È una capacità, non una regolazione: ogni pixel legge la propria densità finché `height / tan(halfFovY)` resta entro `sunLevelPages · shadowPage / 2` = 4096 (una tela 4K con campo verticale di 55°); oltre, i pixel esterni leggono il livello successivo, a metà densità.",
+      "sunAngularRadius": "Raggio angolare del disco solare in radianti; zero richiede esplicitamente ombre dure.",
+      "translucentShadowFilter": "Come una superficie miscelata e l’acqua leggono la shadow map virtuale di una luce: 0, una lettura puntuale; 1, sedici campioni filtrati a un texel di distanza, ogni texel con il proprio bias del piano ricevente e la propria trasmissione dei caster traslucidi; 2, raggi nella shadow map da un breve scostamento di schermo, con i conteggi di raggi della proiezione opaca, con dither. Una parola del blocco uniform delle shadow map su cui gli shader si ramificano (`writeVsmUniforms`): cambiarla non ricompila nulla, e una modalità inutilizzata costa solo il suo codice. Le superfici opache leggono la loro maschera proiettata in ogni modalità."
     }
   },
   "LightingCapabilities": {
@@ -2949,16 +2881,6 @@
       "shadows": "Le luci di questo motore portano ombre.",
       "transforms": "`setTransform` sposta davvero un nodo nominato in questo motore.",
       "reason": "Ciò che il motore non fa e perché, in una frase; assente quando tutto viene applicato."
-    }
-  },
-  "LightingSceneLight": {
-    "summary": "RGB lineare e centro del pannello nel mondo.",
-    "description": "Un'intensità nulla mantiene il pannello presente.",
-    "members": {
-      "id": "Il nome della luce.",
-      "color": "Il suo colore, in RGB lineare.",
-      "intensity": "La sua forza.",
-      "position": "Il centro del pannello."
     }
   },
   "LightParameters": {
@@ -2977,7 +2899,8 @@
       "width": "Larghezza di una luce rettangolare.",
       "height": "Altezza di una luce rettangolare.",
       "radius": "Raggio della sfera che emette da una luce puntiforme o da uno spot: la dimensione della sua ombra morbida.",
-      "sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme."
+      "sh": "L'irradianza di una sonda: 27 numeri, nove coefficienti RGB di armoniche sferiche nell'ordine delle bande di `scene/core/environment.ts`, moltiplicati per `intensity`. Se assente, la sonda è uniforme.",
+      "angularRadius": "Raggio angolare della sorgente direzionale, in radianti."
     }
   },
   "linearPartDeterminant": {
@@ -2995,7 +2918,7 @@
   },
   "linearToSrgbBatch": {
     "summary": "Converte `n` valori di canale lineari in sRGB codificato: `out[i] = linearToSrgb(values[i])`.",
-    "description": "Ripete `linearToSrgb`. Sostituisce il ciclo di Three.js: `for … color.convertLinearToSRGB()`. Stessa differenza dichiarata di sopra, più ampia su questo lato della curva: limitata da `LINEAR_SRGB_REFERENCE_GAP`, calcolata nello stesso file."
+    "description": "Ripete `linearToSrgb`. Stessa differenza dichiarata di sopra, più ampia da questo lato della curva: limitata da `LINEAR_SRGB_REFERENCE_GAP`, derivato nello stesso file."
   },
   "LlmToolFormat": {
     "summary": "Formato standard delle definizioni di strumenti per gli LLM."
@@ -3077,9 +3000,6 @@
   "lookAtNode": {
     "summary": "Ruota `node` verso il punto del mondo `(x, y, z)`."
   },
-  "makeCameraPath": {
-    "summary": "Un elenco di pose di camera lungo un percorso nominato, a partire da una posa iniziale."
-  },
   "MANIFEST_BINARY_MAGIC": {
     "summary": "'W','G','M','B' letti come u32 little-endian."
   },
@@ -3103,12 +3023,9 @@
       "texturePreviewAstcBytes": "Byte della colonna di blocchi ASTC."
     }
   },
-  "manifestBinaryRanges": {
-    "summary": "Intervalli di byte di ogni colonna, nell'ordine fisso di questa versione."
-  },
   "markNodeWorldNeedsUpdate": {
-    "summary": "`matrixWorldNeedsUpdate`.",
-    "description": "Un nodo la cui ricomposizione è disattivata porta una matrice locale che nessuno ricompone, e impostare quella matrice non attiva alcun flag di ambito: una regola che parte dall'alto la mancherebbe. Questo è il contrassegno che pone la referenza in questo caso, e l'unico mezzo per porlo qui."
+    "summary": "il contrassegno di matrice del mondo da aggiornare.",
+    "description": "Un nodo la cui ricomposizione è disattivata porta una matrice locale che nessuno ricompone, e impostare quella matrice non segna alcun flag di raggiungibilità: una regola che parte più in alto la salterebbe. Questo è il contrassegno che la visita semplice imposta in quel caso, e l'unico modo di impostarlo qui."
   },
   "material": {
     "summary": "La famiglia `material`: la materia da sola.",
@@ -4041,7 +3958,7 @@
   },
   "MathPath": {
     "summary": "Le due vie portate.",
-    "description": "JavaScript è la referenza e la soluzione di ripiego; Wasm è la via accelerata."
+    "description": "JavaScript è la base di partenza e il ripiego; Wasm è quello accelerato."
   },
   "MathPathMetrics": {
     "summary": "Stato del regolatore per l'intera sessione.",
@@ -4200,17 +4117,17 @@
     "description": "Sostituire l'uno o l'altro, o scrivere nell'uno o nell'altro, raggiunge il mondo: i cambiamenti della geometria e del materiale sono ascoltati finché questa mesh li porta.",
     "members": {
       "isMesh": "Sempre `true`: distingue una mesh da qualsiasi altro oggetto.",
-      "primitive": "Come vengono letti i vertici della geometria: triangoli, punti o linee.",
-      "geometry": "La forma della mesh; fornisci un'altra geometria per cambiarla.",
-      "material": "Il materiale della mesh, o uno per gruppo; fornisci un altro per cambiarlo.",
-      "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una.",
-      "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria.",
       "morphTargetInfluences": "Il peso di ogni target di morph, quando la geometria ne dichiara.",
       "morphTargetDictionary": "Il rango di ogni target di morph per nome.",
-      "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",
-      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria.",
       "skeleton": "Ossa indicate da `skinIndex` e `skinWeight`, valutate sulla GPU a ogni frame.",
-      "waves": "Parametri delle onde condivisi con `WaterSurface`, per GPU e galleggiamento."
+      "waves": "La superficie d'acqua le cui onde la portano (`world.physics.waterSurface`): ogni vertice, un punto a riposo del piano al livello della superficie, viene spostato sulla GPU dove le onde portano quel punto — i numeri che il galleggiamento legge (#357, #422). Se non impostata, una mesh che giace piatta sull'acqua del mondo al suo livello ne è portata, e viene impostata su di essa; `null`, mai.",
+      "primitive": "Come vengono letti i vertici della geometria: triangoli, punti o linee.",
+      "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",
+      "geometry": "La forma della mesh; fornisci un'altra geometria per cambiarla.",
+      "material": "Il materiale della mesh, o uno per gruppo; fornisci un altro per cambiarlo.",
+      "physics": "La mesh come corpo della fisica del mondo, `null` se non lo è. Imposta `'static'`, `'dynamic'`, `'kinematic'` o opzioni; la forma è dedotta dalla geometria.",
+      "copy": "Prende i valori di `source`, e copie dei suoi figli salvo indicazione contraria.",
+      "localBounds": "La scatola del contenuto proprio di questo nodo, nel suo sistema locale; un semplice nodo non ne ha una."
     }
   },
   "metric": {
@@ -4247,7 +4164,7 @@
       "clipAction": "L'azione che riproduce `clip`.",
       "play": "Riproduce `clip` subito.",
       "stopAll": "Ferma ogni azione.",
-      "update": "Fa avanzare ogni azione in corso di `seconds`, poi scrive in ogni proprietà la miscela ponderata dei campioni delle sue azioni sul suo valore a riposo."
+      "update": "Fa avanzare ogni azione in corso di `seconds`, poi scrive in ogni proprietà la miscela pesata dei campioni delle sue azioni sul suo valore a riposo — a meno che la vista della sua scena non mantenga la posa scritta per ultima entro mezzo pixel da quella miscela (`mixerHold.ts`): allora avanzano solo i tempi."
     }
   },
   "ModelRecord": {
@@ -4283,20 +4200,13 @@
   },
   "nodeWorldDirection": {
     "summary": "Direzione nel mondo: la terza colonna normalizzata (una colonna nulla resta nulla).",
-    "description": "`cameraForward` la inverte, come la camera di referenza: una camera guarda verso il proprio `−z`."
-  },
-  "nodeWorldMirrorsFaces": {
-    "summary": "Vero quando la matrice del mondo inverte l'orientamento — determinante negativo, uno o tre assi specchiati: il disegno scambia allora le sue facce anteriore e posteriore.",
-    "description": "Letto così com'è, senza aggiornamento, come `matrixWorld.determinant()`. Un determinante nullo o NaN non inverte nulla."
+    "description": "`cameraForward` lo inverte: una camera guarda verso il suo `−z`."
   },
   "nodeWorldPosition": {
     "summary": "Posizione nel mondo: la colonna di traslazione della matrice del mondo."
   },
   "nodeWorldQuaternion": {
     "summary": "Rotazione nel mondo `(x, y, z, w)`, tratta dalla scomposizione della matrice del mondo."
-  },
-  "nodeWorldScale": {
-    "summary": "Dimensione nel mondo, tratta dalla scomposizione: un determinante negativo è portato da `x` da solo."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Una matrice 3×3 delle normali."
@@ -4306,17 +4216,18 @@
     "description": "Le colonne sono divise PRIMA del prodotto, mai il determinante grezzo diviso per il cubo della scala: `t³` esonda oltre 1e103 e scompare sotto 1e-103, esattamente dove questa regola deve decidere. Una scala nulla, infinita o NaN dà `NaN`, che nessun confronto `> threshold` accetta."
   },
   "normalizeQuaternion": {
-    "summary": "Riporta un quaternione alla lunghezza uno, affinché una successione di piccole rotazioni non derivi."
+    "summary": "Riporta un quaternione alla lunghezza uno, affinché una successione di piccole rotazioni non derivi.",
+    "description": "La lunghezza è la radice quadrata dei quattro quadrati sommati come li somma `hypot4` (Kahan), senza il suo ridimensionamento per la magnitudine maggiore: entro `SQUARED_MIN`..`SQUARED_MAX` quel ridimensionamento aggiunge solo arrotondamenti — quattro divisioni in ingresso e un prodotto in uscita. Rispetto al `q / |q|` esatto, non peggiore della lunghezza ridimensionata su qualsiasi famiglia di input misurata e migliore sulla maggior parte (massimo 2,7 → 2,3 ULP, media 0,73 → 0,64 su quaternioni quasi unitari), e più economica di quattro divisioni. Fuori da quell’intervallo — zero, un NaN, un infinito, magnitudini vicine ai limiti — la lunghezza è quella di `hypot4`, come prima."
   },
   "normalizeVector3": {
-    "summary": "`v.normalize()` di referenza: ogni componente moltiplicata per `1 / (length || 1)`."
+    "summary": "Normalizza sul posto il vettore in `at`: ogni componente è moltiplicata per `1 / (length || 1)`, così un vettore nullo resta nullo."
   },
   "normalMatrix3": {
     "summary": "`out = transpose(inverse(blocco 3×3 di m))`, colonna per colonna su nove numeri: la matrice che porta le normali di una superficie trasformata da `m`, taglio e scala non uniforme inclusi."
   },
   "normalMatrix3Batch": {
     "summary": "Calcola `n` matrici delle normali 3×3 a partire da matrici 4×4: `out[i] = transpose(inverse(mats[i]))`.",
-    "description": "`out` è piatto con 9 float per elemento. Ripete `normalMatrix3`. Sostituisce il ciclo di Three.js: `for … normalMatrix.getNormalMatrix(m)`."
+    "description": "`out` è piatto con 9 float per elemento. Ripete `normalMatrix3`."
   },
   "NumberSink": {
     "summary": "Ciò che accetta un'uscita: `Float32Array`, `Float64Array` o un semplice array."
@@ -4385,16 +4296,16 @@
       "quaternion": "Come è ruotato il nodo, in quaternione.",
       "scale": "Come è allungato il nodo su ogni asse.",
       "up": "Dove è l'alto per `lookAt`.",
-      "castShadow": "Se il nodo proietta ombre: una mesh lo fa a meno che non sia impostata a `false`, una luce solo se impostata a `true`. Una mesh impostata a `false` riceve comunque le ombre degli altri.",
       "receiveShadow": "Se le ombre cadono sul nodo.",
       "renderOrder": "Ordine di disegno tra le cose trasparenti.",
       "frustumCulled": "Se un renderer può saltarlo fuori dalla vista.",
       "userData": "Spazio libero per i dati della pagina.",
       "visible": "Se il nodo e i suoi figli vengono disegnati.",
+      "castShadow": "Se il nodo proietta ombre: una mesh lo fa a meno che non sia impostata a `false`, una luce solo se impostata a `true`. Una mesh impostata a `false` riceve comunque le ombre degli altri.",
       "parent": "Il genitore nella scena, o null se è staccato.",
       "children": "Figli collegati nell'ordine di aggiunta. La lista restituita non può essere modificata.",
-      "add": "Rende oggetti figli di questo nodo.",
-      "remove": "Rimuove figli da questo nodo.",
+      "add": "Rende degli oggetti figli di questo nodo. Il mondo viene a sapere di ogni genitore i cui figli sono cambiati — anche quello precedente di un oggetto spostato —, compresi quelli che un'aggiunta ha toccato prima di un rifiuto.",
+      "remove": "Toglie dei figli da questo nodo; il suo mondo lo viene a sapere, ci sia stato o no un rifiuto lungo il percorso.",
       "attach": "Aggiunge `child` dove si trova (`SceneNode.attach`).",
       "destroy": "Libera subito il nodo e tutto ciò che sta sotto, invece che alla loro raccolta.",
       "removeFromParent": "Rimuove il nodo dal suo genitore.",
@@ -4431,11 +4342,11 @@
     "summary": "Ciò che `obj.physics` accetta per un corpo morbido: i suoi vertici sono simulati uno a uno.",
     "description": "La sua materia e la sua attrazione come quelle di un corpo rigido; niente smorzamento angolare, forma, sensore, CCD né detriti.",
     "members": {
-      "damping": "La quota della velocità dei suoi vertici persa al secondo, `dv/dt = −c·v`, 0 o più.",
+      "damping": "La quota della velocità dei suoi vertici persa al secondo, `dv/dt = −c·v`, 0 e oltre. Se omesso, `SOFT_DAMPING`: un centesimo di esso a ogni passo di 60 Hz, 0,603.",
       "pins": "Indici dei vertici della geometria tenuti dove sono: l’asta di una bandiera, il gancio di una corda.",
       "mass": "Chilogrammi, ripartiti sui vertici secondo l’area (una corda: la lunghezza) che ciascuno regge; se omessi, `SOFT_AREAL_DENSITY` per m² (una corda: `SOFT_LINEAR_DENSITY` per m).",
       "stretch": "Quanto cede uno spigolo quando è tirato, m/N (l’inverso della sua rigidezza): 0 non si allunga mai.",
-      "bend": "Quanto cede quando è piegato, rad/(N·m) (una corda: m/N); `Infinity` si piega liberamente."
+      "bend": "Quanto cede quando è piegato, rad/(N·m) (una corda: m/N); `Infinity` si piega liberamente. La piega di un tessuto o di un volume non è mai più rigida di quanto il solver risolve in un sottopasso — la cedevolezza dei quattro vertici che sposta, `h²·Σ wᵢ|∇Cᵢ|²`: da 7 a 80 per cotone in quadrati di 6 cm —; se più rigida, viene tenuta a quel valore, che altrimenti aggiungerebbe energia (una bandiera rigida con poca aria che sventola per sempre)."
     }
   },
   "SoftBodyOptions": {
@@ -4463,14 +4374,17 @@
     }
   },
   "TransformNode": {
-    "summary": "Un nodo di scena letto attraverso le matrici del riferimento, tenuto nell’albero delle trasformazioni del motore.",
+    "summary": "Un nodo di scena letto tramite matrici di forma host, tenuto nell'albero di trasformazione del motore.",
     "members": {
       "name": "Un nome per ritrovare il nodo.",
       "matrix": "La matrice locale, una vista sul posto di questo nodo nell'albero delle trasformazioni.",
+      "setLocalMatrix": "Imposta la sua matrice locale; anche lo storage proprio a cui un chiamante punta `matrix.elements` la riceve, così i due non sono mai in disaccordo (`takeStorage` mantiene quello dello storage quando si sposta).",
+      "setAutoUpdate": "Se la sua matrice segue la sua posa; disattivato, lo storage proprio a cui punta `matrix.elements` è da ora la posa (`takeStorage`).",
       "matrixWorld": "Matrice nel mondo così come composta l'ultima volta (`updateMatrixWorld`), una vista sull'albero.",
       "matrixAutoUpdate": "Falso quando `matrix` È la posa e nulla la ricompone.",
-      "matrixWorldNeedsUpdate": "Impostato quando la matrice locale è cambiata e la matrice del mondo non l’ha seguita.",
-      "updateMatrixWorld": "Compone la matrice nel mondo di questo nodo e dei suoi discendenti, prendendo quella del genitore così com'è.",
+      "matrixWorldNeedsUpdate": "Impostato quando la matrice locale è cambiata e la matrice del mondo non l'ha seguita. Impostarlo è il modo di annunciare i numeri scritti direttamente in un `matrix.elements` conservato da una lettura precedente, o in uno storage proprio: la scrittura viene contata (`nodeWrites`), e il controllo della scena la legge.",
+      "updateWorldMatrix": "Aggiorna la sua matrice del mondo, dopo aver preso per primo lo storage proprio della catena (`takeChainStorage`).",
+      "updateMatrixWorld": "Risolve le matrici del mondo del sottoalbero, prendendo il genitore di questo nodo così com'è.",
       "getWorldPosition": "Dove si trova il nodo nel mondo.",
       "getWorldQuaternion": "Come è ruotato il nodo nel mondo.",
       "localToWorld": "Un punto dal sistema del nodo, nel mondo.",
@@ -4522,10 +4436,6 @@
   "orthographicProjection": {
     "summary": "Proiezione ortografica della scatola `[left, right] × [bottom, top]` tra `near` e `far`, nella stessa profondità INVERTITA: `near` si proietta a 1 e `far` a 0 — un'ortografia ha un piano lontano finito, essendo la profondità affine alla distanza.",
     "description": "La scatola può essere scostata dall'asse (`left ≠ −right`)."
-  },
-  "packDrawIndirect": {
-    "summary": "`drawIndirect` di WebGPU (non indicizzato): 16 byte.",
-    "description": "Non `drawIndexedIndirect`."
   },
   "page": {
     "summary": "La famiglia `page`: la geometria tagliata in pagine, che entrano ed escono dalla memoria secondo ciò che legge l'immagine.",
@@ -4813,20 +4723,6 @@
       "clips": "1 quando la riga porta il flag di taglio, e quindi non può mai essere rifiutata."
     }
   },
-  "Patch": {
-    "summary": "u e v coprono tutta la cella; cross(u, v) punta secondo la normale.",
-    "members": {
-      "id": "Il numero del pezzo.",
-      "surface": "Il numero della sua superficie.",
-      "center": "Il suo centro.",
-      "normal": "In quale direzione è ruotato.",
-      "u": "Il suo primo lato.",
-      "v": "Il suo secondo lato.",
-      "area": "La sua area.",
-      "albedo": "Quanta luce restituisce.",
-      "emission": "La luce che emette."
-    }
-  },
   "Path": {
     "summary": "Segmenti diritti per ogni punto, parametrizzati dalla lunghezza dell'arco.",
     "members": {
@@ -4913,10 +4809,6 @@
   "planPageIntegration": {
     "summary": "Piano di integrazione di un pacchetto arrivato, calcolato solo a partire dagli interi del catalogo.",
     "description": "Per ogni record: la prima parola di indice che occupa nel pacchetto e il numero di parole che vi occupa — esattamente ciò che finora copriva la vista sul pacchetto, agli stessi bit, poiché è la stessa divisione intera per quattro e lo stesso prodotto per tre. Una richiesta che porta solo una pagina prende tutto il pacchetto: il suo offset vale `-1` nel foglio. I ranghi di pagine vengono restituiti distinti e crescenti: è l'ordine in cui il registro di residenza li nomina, e ordinare una lista quasi sempre già ordinata non sposta nulla. Un record fuori tabella (`-1`) non ne fa parte."
-  },
-  "POINT_FACE_AXES": {
-    "summary": "I sei assi di una luce puntiforme, nell'ordine ritrovato dallo shader a partire dall'asse principale della direzione luce → punto: +X, −X, +Y, −Y, +Z, −Z.",
-    "description": "L'ordine fa parte del contratto, non è un dettaglio."
   },
   "POINT_FACES": {
     "summary": "Facce della fetta di una luce puntiforme: sei."
@@ -5053,9 +4945,6 @@
   "PREVIEW_LOSSLESS_FORMAT": {
     "summary": "Il formato di file senza perdita accanto alle famiglie di blocchi."
   },
-  "PREVIEW_MAX_LEVELS": {
-    "summary": "Livelli portati al massimo da una voce: 64, 32, 16, 8, 4, 2, 1."
-  },
   "previewBlockBytes": {
     "summary": "Byte compressi in blocchi di ogni livello portato, dal più fine al più grossolano, uno dopo l'altro."
   },
@@ -5069,14 +4958,8 @@
   "previewLastLevel": {
     "summary": "Ultimo livello portato: quello in cui entrambi i lati fanno un texel."
   },
-  "previewLevelCount": {
-    "summary": "Livelli portati da una voce, dal più fine fino a 1×1 incluso."
-  },
   "previewLevelSize": {
     "summary": "Dimensioni del livello `level` di un'immagine di `width`×`height`."
-  },
-  "previewPixelBytes": {
-    "summary": "Byte RGBA8 di ogni livello portato, dal più fine al più grossolano, uno dopo l'altro."
   },
   "Primitive-common": {
     "summary": "Una parte di mesh di un modello compilato, con le sue pagine e la sua gerarchia.",
@@ -5232,24 +5115,21 @@
     "summary": "Copia la camera dell'host nella camera del motore, antenati risolti."
   },
   "referenceScreenError": {
-    "summary": "Errore sullo schermo della referenza esterna: `(error × stretch) × focal / w`, infinito quando il centro non raggiunge il piano vicino; `w` è il peso di clip della profondità del centro, la profondità stessa sotto una proiezione in prospettiva (`perspective` = 1) e 1 sotto una proiezione ortografica (0, `screenErrorBound.ts`).",
+    "summary": "Errore su schermo della variante `reference`: `(error × stretch) × focal / w`, infinito quando il centro non raggiunge il piano vicino; `w` è il peso di clip della profondità del centro, la profondità stessa con una proiezione prospettica (`perspective` = 1) e 1 con una ortografica (0, `screenErrorBound.ts`).",
     "description": "Riflesso WGSL in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, stessi operandi e stesso ordine, in f32. Il chiamante ha già trattato un errore nullo o infinito."
-  },
-  "regionRect": {
-    "summary": "Rettangolo normalizzato di una regione di pagina nella sua faccia: `y` scende nel sistema di riferimento del disegno."
   },
   "removeTransformNode": {
     "summary": "Rimuove `node` e tutti i suoi discendenti; i loro indici verranno riutilizzati.",
     "description": "Per staccare un sottoalbero mantenendolo, `reparentTransformNode(tree, node, -1)`."
   },
   "reparentTransformNode": {
-    "summary": "Collega `node` a `parent` (`-1`: radice), come l'`add` della referenza: le matrici non si muovono prima del prossimo aggiornamento."
+    "summary": "Collega `node` a `parent` (`-1`: radice): le matrici non si muovono fino al prossimo aggiornamento."
   },
   "ResidentPage": {
     "summary": "Una pagina mantenuta nella riserva di pagine GPU.",
     "members": {
       "key": "La sua chiave.",
-      "slot": "Il suo posto nella riserva.",
+      "slot": "Il suo slot nel serbatoio: il rango della sua sede quando il serbatoio contiene l'intero catalogo (`homes.ts`).",
       "offset": "Il suo offset in byte.",
       "bytes": "La sua dimensione.",
       "generation": "Quante volte il suo posto è stato riutilizzato."
@@ -5309,14 +5189,6 @@
   },
   "scaleVector3": {
     "summary": "`v.multiplyScalar(s)`: le tre componenti di `out` moltiplicate sul posto."
-  },
-  "Scene-common": {
-    "summary": "La scena di prova del risolutore sperimentale del rimbalzo di luce: superfici tagliate in pezzi.",
-    "members": {
-      "surfaces": "Le sue superfici.",
-      "patches": "I suoi pezzi.",
-      "sphere": "Una sfera brillante, opzionale."
-    }
   },
   "Scene": {
     "summary": "La radice della scena di un mondo: vi si aggiungono oggetti, vi si carica un modello compilato, e ciò che riempie l'immagine dietro di essi è `background`.",
@@ -5394,7 +5266,8 @@
       "emitterRadius": "Solo punto e spot: il raggio, in metri, dell'involucro che contiene la sorgente. Una vera luce è sempre alloggiata in qualcosa — vetro di lanterna, riflettore, paralume — e questo involucro è una geometria come un'altra: senza questo campo, entra nella mappa d'ombra della propria luce e la spegne. I frammenti all’interno di questa sfera non proiettano ombre; il piano vicino della mappa continua a dipendere dalla portata. Per una luce puntiforme, questo raggio determina anche la dimensione della sorgente del filtro che rende le ombre più nette vicino al contatto. È una proprietà della luce, mai un nome di oggetto o un tipo di materiale: il motore conosce solo superfici. Strettamente positivo e strettamente minore della portata; assente, nulla cambia.",
       "right": "Solo rettangolo: l'asse unitario lungo la sua larghezza, perpendicolare a `direction`.",
       "size": "Solo rettangolo: la sua larghezza e altezza, in metri.",
-      "castsShadow": "Se proietta ombre."
+      "castsShadow": "Se proietta ombre.",
+      "angularRadius": "Solo direzionale: raggio angolare del disco della sorgente in radianti; se assente, è una sorgente puntiforme ideale."
     }
   },
   "SceneLightingView": {
@@ -5421,7 +5294,7 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
-      "transportEpoch": "Aumenta con l’epoca, tranne per un cambio della sola nebbia: la nebbia è un termine del raggio di vista, non del trasporto della luce, quindi ciò che tiene in cache la luce trasportata (le sonde di rimbalzo) la conserva.",
+      "transportEpoch": "Incrementato con l'epoca, tranne che per una modifica della sola nebbia o della sola fetta d'ombra: la nebbia è un termine del raggio di vista e una fetta è dove si indirizzano le mappe di una luce, nessuno dei due è trasporto di luce, quindi ciò che mette in cache la luce trasportata (le sonde di rimbalzo, la cronologia dei riflessi) lo conserva.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
       "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",
@@ -5432,7 +5305,7 @@
       "set": "Cambia una luce.",
       "remove": "Rimuove una luce.",
       "setEnvironment": "Imposta l'ambiente.",
-      "assignSlice": "Registra la fetta di atlante occupata da una luce, senza toccare il resto dei suoi campi. La revisione della memorizzazione sale solo se la fetta è davvero cambiata: altrimenti nulla viene inviato alla GPU.",
+      "assignSlice": "Registra la fetta d'atlante che una luce occupa, senza toccare il resto dei suoi campi. La revisione dello store sale solo se la fetta è davvero cambiata: altrimenti nulla viene inviato alla GPU. Il trasporto di luce resta com'era (`transportEpoch`): ciò che le mappe contengono muove la versione propria delle ombre, mai i loro indirizzi.",
       "capacity": "Posti che la tabella tiene: il buffer GPU delle luci è lungo così."
     }
   },
@@ -5440,10 +5313,11 @@
     "summary": "Ciò che un nodo riporta al mondo a cui è agganciato: una posa si è mossa, l'albero è cambiato, un contenuto è cambiato.",
     "members": {
       "pose": "Un nodo si è mosso.",
+      "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta.",
       "structure": "Un nodo ha guadagnato o perso figli.",
+      "entered": "Un nodo è entrato in questo mondo: segnalato una volta per ogni nodo del sottoalbero che un'aggiunta porta dentro, così che un nodo uscito e rientrato nella stessa raffica abbia i suoi figli riletti — compresi quelli guadagnati mentre era fuori dal mondo. Un nodo che il mondo non ha mai conosciuto viene letto insieme al suo genitore.",
       "content": "La forma o il materiale di un nodo è cambiato.",
       "shadow": "Il `castShadow` di un nodo è cambiato: nulla si è mosso.",
-      "posed": "Molti nodi si sono mossi insieme, scritti direttamente nel loro albero (i corpi della fisica): segnalato una volta.",
       "seat": "La riga da cui il nodo è disegnato, o `null`: sedici float per colonne da `row * 16` in `batch.rows.matrices`, letti sul posto dal renderer. Chi posiziona nodi a migliaia (la fisica) vi scrive le loro matrici mondo, valide finché `seatEpoch` non cambia, e indica le righe scritte con `placed`.",
       "seatEpoch": "Cambia quando una riga viene presa, liberata o riallocata: ogni risposta precedente di `seat` è superata.",
       "placed": "Le righe da `from` a `to` di `batch` sono state scritte tramite `seat`: disegnate al prossimo fotogramma."
@@ -5530,7 +5404,7 @@
     "members": {
       "version": "Versione del modello di scena.",
       "createNode": "Crea un nuovo nodo.",
-      "reserve": "La memorizzazione di un nodo sul punto di essere costruito: il suo identificativo, il suo posto di trasformazione e lo stato che possiede entrambi. `createNode` vi costruisce un semplice nodo; un tipo di nodo proprio (gli oggetti di scena di `world/object3d.ts`) lo passa al proprio costruttore, poi si registra con `register`.",
+      "reserve": "Lo spazio di un nodo che sta per essere costruito: il suo identificatore, il suo slot di trasformazione e lo stato che possiede entrambi. `createNode` costruisce su di esso un nodo semplice; un tipo di nodo proprio (gli oggetti di scena di `../../world/object/object3d.ts`) lo passa al suo costruttore, poi chiama `register` su di sé.",
       "register": "Rende accessibile un nodo costruito su `reserve` tramite il suo indice e il suo identificativo.",
       "node": "Il nodo nominato `id`."
     }
@@ -5549,24 +5423,24 @@
   },
   "screenErrorBound": {
     "summary": "Errore sullo schermo certificato di un cluster (C4): un limite superiore, in pixel, dello spostamento sullo schermo di qualsiasi punto di una sfera mosso al massimo di ε, sotto proiezione in prospettiva, fuori asse incluso.",
-    "description": "Sistema di riferimento della vista: l'occhio all'origine, che guarda verso −z, profondità d = −z; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). La primitiva passa in vista tramite un'applicazione affine di allungamento massimo s: la sfera dell'oggetto (c, r) è nella sfera di vista (C, ρ = r·s), uno spostamento dell'oggetto di al massimo ε diventa uno spostamento Δ di al massimo δ = ε·s. 1. Un punto P = (x, y, d) della sfera va in P' = P + Δ, di profondità d' = d + Δd. Con q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. L'applicazione Δ ↦ Δxy − q·Δd ha norma √(1 + |q|²) (autovalori di I + q·qᵀ: 1 e 1 + |q|²); quindi, qualunque sia la direzione di Δ — perpendicolare all'asse, in profondità verso la camera o allontanandosi, obliqua —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Sulla sfera: d ≥ m = −C_z − ρ, la profondità minima; |(x, y)| ≤ ℓ + ρ, dove ℓ = |(C_x, C_y)| è la distanza del centro dall'asse di vista; quindi |q| ≤ (ℓ + ρ)/m, e d' ≥ m − δ. 3. Se m − δ > near (quindi > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Altrimenti la sfera, o uno dei suoi punti spostati, raggiunge il piano vicino: l'infinito, che raffina. Monotonia del taglio: m è l'infimo della profondità sulla sfera e ℓ + ρ il supremo della distanza dall'asse; una sfera contenuta in un'altra annuncia quindi meno, un errore più grande di più. Lungo il raggio (C → k·C, k > 1, profondità del centro C_d > 0), (kℓ + ρ)/(k·C_d − ρ) e 1/(k·C_d − ρ − δ) decrescono: l'errore annunciato decresce con la distanza. I due limiti del passo 2 provengono da due punti diversi della sfera: E è stretto per una piccola sfera, largo quando la sfera sfiora il piano vicino lontano dall'asse (`tests/browser/probes/screen-error-bound.ts`). UNA CAMERA, UNA FORMULA. `perspective` è il peso clip-w della camera: un punto alla profondità di vista d ha w = perspective·d + (1 − perspective) — 1 per una proiezione in prospettiva (w = d, tutto quanto sopra), 0 per una proiezione ortografica (w = 1: q = 0, e uno spostamento muove il pixel di f·δ qualunque sia la profondità). Il limite si scrive su w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), raggiungendosi il piano vicino quando w_{m−δ} ≤ p·near. A p = 1 ogni operazione è quella di sopra, bit per bit (un prodotto per 1 e una somma con 0 sono esatti). Nessuna protezione qui: il chiamante ha già trattato un errore nullo, infinito o non valido. Una profondità o una distanza dall'asse non finita dà l'infinito. L'ordine delle operazioni, (δ·f)/m poi un fattore √/(m − δ) ≥ 1, mantiene il risultato arrotondato al di sopra della soglia minima `errorFloorAt` di sdk-browser. Riflesso WGSL: `projected` di `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, stessi operandi, stesso ordine."
+    "description": "Sistema di riferimento della vista: l'occhio all'origine, che guarda verso −z, profondità d = −z; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). La primitiva passa in vista tramite un'applicazione affine di allungamento massimo s: la sfera dell'oggetto (c, r) è nella sfera di vista (C, ρ = r·s), uno spostamento dell'oggetto di al massimo ε diventa uno spostamento Δ di al massimo δ = ε·s. 1. Un punto P = (x, y, d) della sfera va in P' = P + Δ, di profondità d' = d + Δd. Con q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. L'applicazione Δ ↦ Δxy − q·Δd ha norma √(1 + |q|²) (autovalori di I + q·qᵀ: 1 e 1 + |q|²); quindi, qualunque sia la direzione di Δ — perpendicolare all'asse, in profondità verso la camera o allontanandosi, obliqua —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Sulla sfera: d ≥ m = −C_z − ρ, la profondità minima; |(x, y)| ≤ ℓ + ρ, dove ℓ = |(C_x, C_y)| è la distanza del centro dall'asse di vista; quindi |q| ≤ (ℓ + ρ)/m, e d' ≥ m − δ. 3. Se m − δ > near (quindi > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Altrimenti la sfera, o uno dei suoi punti spostati, raggiunge il piano vicino: l'infinito, che raffina. Monotonia del taglio: m è l'infimo della profondità sulla sfera e ℓ + ρ il supremo della distanza dall'asse; una sfera contenuta in un'altra annuncia quindi meno, un errore più grande di più. Lungo il raggio (C → k·C, k > 1, profondità del centro C_d > 0), (kℓ + ρ)/(k·C_d − ρ) e 1/(k·C_d − ρ − δ) decrescono: l'errore annunciato decresce con la distanza. I due limiti del passo 2 provengono da due punti diversi della sfera: E è stretto per una piccola sfera, largo quando la sfera sfiora il piano vicino lontano dall'asse (`screenErrorDisplacement.test.ts`). UNA CAMERA, UNA FORMULA. `perspective` è il peso clip-w della camera: un punto alla profondità di vista d ha w = perspective·d + (1 − perspective) — 1 per una proiezione in prospettiva (w = d, tutto quanto sopra), 0 per una proiezione ortografica (w = 1: q = 0, e uno spostamento muove il pixel di f·δ qualunque sia la profondità). Il limite si scrive su w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), raggiungendosi il piano vicino quando w_{m−δ} ≤ p·near. A p = 1 ogni operazione è quella di sopra, bit per bit (un prodotto per 1 e una somma con 0 sono esatti). Nessuna protezione qui: il chiamante ha già trattato un errore nullo, infinito o non valido. Una profondità o una distanza dall'asse non finita dà l'infinito. L'ordine delle operazioni, (δ·f)/m poi un fattore √/(m − δ) ≥ 1, mantiene il risultato arrotondato al di sopra della soglia minima `errorFloorAt` di sdk-browser. Riflesso WGSL: `projected` di `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, stessi operandi, stesso ordine."
   },
   "screenErrorVariant": {
     "summary": "La variante in vigore."
   },
   "ScreenErrorVariant": {
-    "summary": "Come viene misurato l'errore sullo schermo di un cluster: il limite dimostrato, o la formula di referenza."
+    "summary": "Come si misura l'errore su schermo di un cluster: il limite dimostrato, o la formula semplice."
   },
   "SDK_VERSION": {
     "summary": "La versione del pacchetto di questo motore."
   },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
-    "description": "Nient'altro da contrassegnare riaccendendolo: una matrice locale che differisce dalla sua composizione porta già `NODE_TRS_DIRTY`, posto da `setNodeLocalMatrix` o da un'impostazione di posa."
+    "description": "Nient'altro da contrassegnare quando lo si riattiva: una matrice locale che differisce dalla sua composizione porta già `NODE_TRS_DIRTY`, impostato da `setNodeLocalMatrix` o da un setter di posa. In ogni caso il nodo viene elencato: è cambiato il modo in cui si forma la sua matrice locale."
   },
   "setNodeLocalMatrix": {
     "summary": "Imposta la matrice locale.",
-    "description": "In aggiornamento automatico, il prossimo aggiornamento la ricompone a partire da posizione, rotazione e dimensione, così come la referenza sovrascrive `matrix`."
+    "description": "Con l'aggiornamento automatico, il prossimo aggiornamento la ricompone da posizione, rotazione e scala, come fa una scrittura dell'intera matrice."
   },
   "setNodePosition": {
     "summary": "Sposta un nodo di un albero di trasformazioni a `(x, y, z)` rispetto al suo genitore."
@@ -5581,27 +5455,8 @@
     "summary": "Imposta la variante per l'intera pagina.",
     "description": "`null`/`undefined` ripristina la nostra: nessuna sessione la eredita."
   },
-  "SHADOW_CULL_FLOATS": {
-    "summary": "Float di un volume di culling: centro e piano lontano, asse della faccia e semiangolo, poi — per un box, segnalato da un semiangolo negativo — gli altri due assi con le loro semiestensioni, poi la parola che dice quali proiettori disegna la regione, la vista del taglio di luce che li ha scelti, i texel per metro di una pagina del sole (`underTexel`, `cullShader.ts`), e uno di riempimento."
-  },
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."
-  },
-  "ShadowAsks": {
-    "summary": "Voci che l’host chiede all’allocatore GPU, accanto a ciò che chiedono i pixel (`floors`).",
-    "members": {
-      "entries": "Le voci richieste, al massimo le prime `count`.",
-      "count": "Quante di `entries` sono riempite."
-    }
-  },
-  "ShadowAtlasDigest": {
-    "summary": "Ciò che pubblica una lettura dell'atlante delle ombre: la sua dimensione, ciò che vi è scritto, la sua impronta.",
-    "members": {
-      "size": "Lato dell'atlante, in texel.",
-      "texels": "Texel usati.",
-      "written": "Texel la cui profondità non è lo zero di origine: ciò che occupano realmente le mappe.",
-      "hash": "Impronta FNV-1a a 32 bit delle profondità grezze, bit per bit."
-    }
   },
   "ShadowFrameMetrics": {
     "summary": "Contatori di illuminazione e ombra di un fotogramma, separati da `FrameMetrics` per responsabilità.",
@@ -5609,27 +5464,6 @@
     "members": {
       "lightsActive": "Luci del contratto `SceneLight` che l'immagine ha illuminato. Nullo per un motore che le ignora.",
       "lightsSampled": "Vero quando l'illuminazione di questo fotogramma è girata in modalità campionata — un fotogramma in movimento accumulato su una cronologia, dove un pixel con più luci di `samplesPerPixel` ne illumina una parte estratta a sorte —, falso quando ogni pixel ha illuminato ogni luce, come fa un fotogramma fermo. Nullo per un motore che ignora le luci.",
-      "shadowsUpdated": "Luci d’ombra con una pagina disegnata da questo fotogramma. Zero è il valore normale di una scena ferma: una luce fissa conserva le sue pagine.",
-      "shadowFacesDrawn": "Viste di luce in cui ha disegnato il passaggio ombre — un livello di clipmap del sole, una faccia di lampada a un mip —, e le draw call effettivamente codificate. Null su un motore che non disegna ombre.",
-      "shadowDrawCalls": "Chiamate di disegno dell'ombra.",
-      "shadowRenderPasses": "Passate di rendering aperte dalla passata delle ombre: strato statico, pool e trasmittanza, una per strato disegnato, per lotto.",
-      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
-      "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
-      "shadowPagesPending": "Pagine d'ombra in attesa.",
-      "shadowBatches": "Lotti d’ombra che l’immagine ha disegnato: conteggi dell’host su ciò che ha codificato, mai letti in uno shader, come i conteggi seguenti. Null per un motore senza atlante delle ombre.",
-      "shadowLayersDrawn": "Livelli del pool in cui hanno disegnato i passaggi d’ombra dell’immagine.",
-      "shadowPagesRestored": "Pagine disegnate da una copia del loro livello statico, rasterizzando solo i proiettori in movimento.",
-      "shadowPagesRasterized": "Pagine i cui proiettori statici sono stati rasterizzati di nuovo; con quelle ripristinate, ogni pagina disegnata.",
-      "shadowRestoreCopies": "Copie di pagine dal livello statico: una pagina ripristinata, o una pagina disegnata per intero sul suo livello.",
-      "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
-      "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
-      "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
-      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
-      "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
-      "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
-      "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
-      "shadowCutCoarsePages": "Pagine che il fotogramma rimanda a essere ridisegnate perché una vista ha disegnato un cluster più grossolano di quanto volesse, rilasciate quando la residenza ha portato quello più fine, che la camera si muova o no: un conteggio per fotogramma, come le chiamate di disegno del fotogramma (#831).",
-      "shadowCutViewLimit": "Viste di luce in cui un lotto del taglio dalla luce disegna ora: il tetto finché un lotto non scarta, poi ciò che ci sta.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
       "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
@@ -5639,62 +5473,24 @@
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
       "gpuLightingMs": "Tempo GPU dell'illuminazione.",
-      "cpuShadowPlanMs": "Tempo CPU del piano delle ombre dell’immagine, attorno al pianificatore: un passo con nome del profilo CPU (`cpuSteps()`, `cpu-timing`), come i cinque seguenti. Ciascuno è `null` quando l’immagine non l’ha eseguito — nessuna luce, un’immagine trattenuta — o su un motore che non sa misurarlo (WebGL2), mai 0. Fanno parte del tempo di codifica, mai sommati a esso.",
-      "cpuShadowRequestsMs": "Tempo CPU della lettura del rapporto delle richieste d’ombra tornato.",
-      "cpuShadowAdmissionMs": "Tempo CPU dell’ammissione delle pagine scadute che l’immagine legge.",
-      "cpuShadowBatchesMs": "Tempo CPU dei lotti d’ombra attorno alle loro regioni e passaggi: preparazione, conferme, copia delle richieste.",
-      "cpuShadowRegionsMs": "Tempo CPU della scrittura delle regioni di ogni lotto d’ombra: uniform delle facce e record delle pagine.",
-      "cpuShadowPassesMs": "Tempo CPU della codifica dei passaggi di ogni lotto d’ombra: proiettori, cancellazioni e ripristini, disegni.",
-      "shadowLightCuts": "Tagli di cluster eseguiti dalle luci: uno per vista di luce disegnata, zero in un fotogramma fermo.",
-      "shadowPagesRequested": "Pagine d’ombra virtuali lette dall’immagine, come le ha nominate il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
-      "shadowPagesCached": "Di queste, pagine lette direttamente dal pool: aggiornate, senza disegno.",
-      "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
-      "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
-      "shadowPeakBytes": "Il massimo di byte GPU che la quota di memoria delle ombre ha tenuto insieme, strati tardivi compresi. Null finché la prima immagine non dimensiona il pool.",
-      "shadowResolutionBias": "Dimezzamenti dei byte del pool delle ombre causati dai rifiuti di memoria del dispositivo; 0 normalmente.",
-      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
-      "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
-      "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
-      "shadowCastersRejected": "Proiettori d’ombra che il culling per pagina ha testato senza mantenerli — fuori dal volume della pagina per cui sono stati testati —, nello stesso fotogramma campionato; `null` finché non torna un campione.",
-      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
+      "shadowResolutionBias": "Di quanto le ombre sono disegnate più grossolane di quanto chiedono a causa del loro pool di pagine: i dimezzamenti che il budget GPU ha tolto al pool pieno, più i livelli di cui il suo riempimento ha alzato il bias di risoluzione di ogni mappa (`shadowVsmLodBias`). 0 normalmente; sopra 0, la modalità di riferimento rifiuta la sua cattura (`REFERENCE_SHADOWS_REDUCED`). Null finché nessuna mappa d’ombra gira.",
+      "shadowVsmFreePages": "Pagine fisiche libere nell’ultimo messaggio di stato del pool.",
+      "shadowVsmInvalidationMs": "Tempo GPU dell’invalidazione delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmLights": "Shadow map virtuali: luci ombreggiate in questo frame.",
+      "shadowVsmLodBias": "Il bias di LOD di risoluzione globale impostato dal carico del pool.",
+      "shadowVsmMaps": "Shadow map virtuali di questo frame, complete e a pagina singola.",
+      "shadowVsmMarkingMs": "Tempo GPU della marcatura delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmPageManagementMs": "Tempo GPU della gestione delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmPagesAllocated": "Pagine appena allocate in questo frame; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesCached": "Pagine richieste trovate nella cache, statiche e dinamiche; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesRendered": "Pagine cancellate e poi renderizzate in questo frame; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesRequested": "Pagine che il frame ha marcato come richieste; rilette con qualche frame di ritardo.",
+      "shadowVsmProjectionMs": "Tempo GPU della proiezione delle ombre, in ms, dai tempi dei pass.",
+      "shadowVsmProjectionPasses": "Pass di proiezione di questo frame, quattro luci ciascuno.",
+      "shadowVsmRenderMs": "Tempo GPU del rendering delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmTransmissionMs": "Tempo GPU dell’atlante di trasmissione dei caster traslucidi (cancellazione, disegno, risoluzione), in ms."
     }
-  },
-  "ShadowPlan": {
-    "summary": "Il lavoro d’ombra del fotogramma: quali pagine virtuali vengono disegnate.",
-    "members": {
-      "counts": "Ciò che ha fatto l’ultimo piano, in pagine.",
-      "spent": "Millisecondi CPU che l’ultimo piano ha speso a leggere il rapporto delle richieste e ad ammettere le pagine.",
-      "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
-      "changeRoom": "Riquadri che la lista tiene ancora separati prima del traboccamento.",
-      "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
-      "residencyChanged": "Un oggetto che proietta ombra è entrato in residenza o ne è uscito: la sua scatola rende obsolete le sue pagine al piano successivo, lette fino al nuovo disegno, che la camera si muova o no (#831).",
-      "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
-      "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",
-      "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: l’unione trattenuta entra subito nella lista.",
-      "setPageInvalidation": "Disattiva l’invalidazione per pagina: un oggetto in movimento invalida ogni pagina delle luci che tocca. Attiva per impostazione predefinita.",
-      "pageInvalidation": "Se un oggetto in movimento invalida solo le pagine coperte dal suo box.",
-      "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge l’ultimo rapporto, ammette ogni pagina da disegnare.",
-      "reissue": "Le pagine del fotogramma da `from` in poi non hanno potuto essere codificate: restano scadute, in attesa, e il fotogramma successivo le disegna.",
-      "reset": "Ricomincia.",
-      "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra, e la loro origine di rendering (`thresholds.ts`).",
-      "table": "La tabella delle pagine: una parola per pagina virtuale, e l’intervallo che ogni luce vi occupa.",
-      "pool": "Le pagine fisiche del pool e la pagina virtuale che ognuna contiene.",
-      "sun": "Il clipmap di ogni sole: il suo riferimento, intervallo di profondità, livello più fine ed estensioni.",
-      "records": "Le fette d’ombra, una per luce che proietta ombra.",
-      "requests": "I rapporti di richieste riletti: ciò che l’ultimo ha nominato, assegnato o rifiutato.",
-      "admission": "Le pagine di questo fotogramma, vista di luce per vista di luce.",
-      "stamp": "Ciò che ombreggiatura, luci e vista passano all’immagine successiva: un rapporto timbrato con esso che non nomina nulla di nuovo prova che l’immagine legge solo ciò che è disegnato.",
-      "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
-      "receive": "È tornato un rapporto di richieste: l’elenco di pagine della GPU conta subito (`gpu.hear`), il resto lo legge il piano successivo.",
-      "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
-      "size": "Il pool alla dimensione concessa dal dispositivo (`webgpu/shadow/poolSize.ts`), una volta, prima che una pagina sia mappata: non viene mai ridimensionato dopo, quindi nessuna pagina cambia posto (#831).",
-      "sunWindow": "Pagine per lato del clipmap di un sole con cui gira una sessione (`referenceMode.ts`).",
-      "gpu": "L’allocazione della GPU (`mirror.ts`): se colloca le pagine e cosa le chiede l’host."
-    }
-  },
-  "ShadowStaleReason": {
-    "summary": "Perché una pagina d’ombra è diventata obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Ciò che il pianificatore sa della vista: una camera, non una matrice, per restare senza dipendenza.",
@@ -5839,10 +5635,6 @@
       "roots": "Quante radici."
     }
   },
-  "solveTransportOracle": {
-    "summary": "Risoluzione lineare diretta indipendente; non chiama mai il risolutore iterativo.",
-    "description": "Il lavoro è fuori dalle misure."
-  },
   "sortPages": {
     "summary": "Ordinamento crescente sul posto dell'inizio di un array di indici di pagine.",
     "description": "Le liste ordinate qui contengono quasi sempre alcune decine di voci già in ordine: l'inserimento allora non sposta nulla e non alloca nulla. Una lista lunga — la coda delle pagine in attesa del proprio foglio durante una raffica di arrivi — passa per l'ordinamento di array tipizzati, in n log n, al prezzo di una sola vista sull'inizio dell'array."
@@ -5877,7 +5669,7 @@
   },
   "sphereFromBoundsBatch": {
     "summary": "Calcola le sfere avvolgenti di `n` scatole.",
-    "description": "`out` riceve 4 float per elemento (centro x, y, z, raggio). Ripete `sphereFromBounds`. Sostituisce il ciclo di Three.js: `for … box.getBoundingSphere(s)`."
+    "description": "`out` riceve 4 float per elemento (centro x, y, z, raggio). Ripete `sphereFromBounds`. Cicla su `n` riquadri."
   },
   "Spherical": {
     "summary": "Una direzione e una distanza, secondo la convenzione di `spherical.ts`.",
@@ -5891,7 +5683,7 @@
     }
   },
   "SplineCurve": {
-    "summary": "Una curva morbida che passa per ogni punto: Catmull-Rom centripeta, chiusa su richiesta.",
+    "summary": "Una spline cubica per i suoi punti la cui tangente in ciascun punto è la metà della differenza dei suoi vicini, chiusa su richiesta.",
     "members": {
       "points": "I punti per cui passa la curva.",
       "closed": "Se la curva torna al suo primo punto.",
@@ -5990,21 +5782,6 @@
   "summarize": {
     "summary": "La media, la mediana, il 95° percentile, il 99° percentile e il peggiore di una lista di tempi."
   },
-  "Surface": {
-    "summary": "origin è un angolo; u e v coprono tutto il rettangolo.",
-    "members": {
-      "id": "Il nome della superficie.",
-      "origin": "Un angolo.",
-      "u": "Il primo lato da quell'angolo.",
-      "v": "Il secondo lato da quell'angolo.",
-      "albedo": "Quanta luce restituisce, per colore.",
-      "emission": "Luce che emette, per colore.",
-      "kind": "Opaco o specchio.",
-      "moving": "Se si muove.",
-      "columns": "Pezzi in larghezza.",
-      "rows": "Pezzi verso l'alto."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "Dati di superficie per pixel di un'immagine, mantenuti sulla GPU: profondità, normali, materiale.",
     "members": {
@@ -6020,7 +5797,10 @@
       "dispose": "La libera.",
       "subsurface": "Colore indipendente di trasmissione delle superfici sottili; texture di zeri 1×1 quando disattivato.",
       "subsurfaceView": "Vista della texture di trasmissione delle superfici sottili.",
-      "hasSubsurface": "Indica se la trasmissione delle superfici sottili dispone di un target a dimensione piena."
+      "hasSubsurface": "Indica se la trasmissione delle superfici sottili dispone di un target a dimensione piena.",
+      "hasEmissiveAo": "Se il livello di emissione e occlusione ha i suoi pixel; altrimenti un `(0, 0, 0, 1)` da 1×1.",
+      "receiver": "Il ricevitore d’ombra di ogni pixel (`../visibility/shader/receiverTargetWgsl.ts`).",
+      "receiverView": "La vista di `receiver` che il pass di shading scrive e l’illuminazione legge."
     }
   },
   "SurfaceCapture": {
@@ -6447,7 +6227,9 @@
       "field": "Il campo di `owner` che scrive.",
       "key": "La chiave a cui si è fermato l'ultimo campione.",
       "value": "I numeri di un campione.",
-      "reference": "Posa di riferimento della prima chiave per le azioni additive."
+      "reference": "Posa di riferimento della prima chiave per le azioni additive.",
+      "arc": "L’arco della rotazione tra la chiave `arcKey` e la successiva (`slerpArc`): mantenuto finché i campioni restano tra queste due chiavi; le chiavi di una clip non vengono mai riscritte.",
+      "arcKey": "La chiave da cui parte l’arco."
     }
   },
   "TrackKind": {
@@ -6458,10 +6240,10 @@
   },
   "transformDirectionsBatch": {
     "summary": "Trasforma `n` vettori di direzione tramite il blocco lineare 3×3 di una matrice 4×4 e li normalizza: `out[i] = normalize(m · dirs[i])`.",
-    "description": "La traslazione viene ignorata. Ripete `transformDirectionVector3`. Sostituisce il ciclo di Three.js: `for … v.transformDirection(m)`."
+    "description": "La traslazione è ignorata. Ripete `transformDirectionVector3`."
   },
   "transformDirectionVector3": {
-    "summary": "`v.transformDirection(m)`: il blocco 3×3 di una 4×4 affine applicato a una direzione, poi la normalizzazione di referenza."
+    "summary": "Applica il blocco 3×3 di una matrice 4×4 affine a una direzione, poi la normalizza come fa `normalizeVector3` (un risultato nullo resta nullo)."
   },
   "transformHomogeneousPoint": {
     "summary": "`out[outOffset..outOffset + 3] = M · (x, y, z, 1)`, le quattro componenti omogenee e senza divisione: il punto nello spazio di clip quando `M` è una vista-proiezione."
@@ -6471,11 +6253,11 @@
   },
   "transformPointsByMatricesBatch": {
     "summary": "Trasforma `n` punti 3D tramite `n` matrici affini 4×4 corrispondenti: `out[i] = mats[i] · points[i]`.",
-    "description": "Utile per trasformare i vertici istanza per istanza. Ripete `transformAffinePoint`. Sostituisce il ciclo di Three.js: `for … v[i].applyMatrix4(mats[i])`."
+    "description": "Utile per le trasformazioni dei vertici per istanza. Ripete `transformAffinePoint`."
   },
   "TransformTree": {
-    "summary": "Gerarchia di trasformazioni del motore, orientata ai dati: un nodo è un indice in array piatti — genitore, flag, posizione, quaternione `(x, y, z, w)`, dimensione, matrice locale e matrice del mondo colonna per colonna.",
-    "description": "`localViews[i]` e `worldViews[i]` sono viste di sedici numeri su `local` e `world`, create alla crescita e mai durante un aggiornamento: la GPU legge l'intero buffer, le formule dei kernel leggono la vista di un nodo. Le scritture passano dai setter, che contrassegnano ciò che cambiano. Una crescita sostituisce ogni array: un chiamante rilegge `tree.world` o `tree.worldViews` dopo un'aggiunta. Ogni nodo elenca i suoi figli: una visita di sottoalbero non legge mai fuori dal sottoalbero (`links.ts`).",
+    "summary": "Gerarchia di trasformazioni del motore, orientata ai dati: un nodo è un indice in array piatti — genitore, flag, profondità, posizione, quaternione `(x, y, z, w)`, dimensione — e due viste di sedici numeri, la sua matrice locale e la sua matrice del mondo colonna per colonna (`localViews[i]`, `worldViews[i]`), allocate a blocchi man mano che l'albero cresce e mai spostate: la vista di una matrice è del suo nodo per tutta la vita dello slot.",
+    "description": "Le scritture passano dai setter, che contrassegnano ciò che cambiano ed elencano il nodo una sola volta (`listed`): il passaggio di frame (`pass.ts`) aggiorna le matrici del mondo dei nodi elencati e dei loro sottoalberi, ogni nodo una volta, i genitori per primi, e nient'altro. Ogni nodo elenca i suoi figli, così una visita di sottoalbero non legge mai fuori dal sottoalbero (`links.ts`). Una crescita sostituisce gli altri array: un chiamante rilegge `tree.position` o `tree.flags` dopo un'aggiunta.",
     "members": {
       "capacity": "Quanti nodi entrano prima che cresca.",
       "end": "Indici serviti: ogni nodo vivo è sotto questo limite.",
@@ -6484,10 +6266,8 @@
       "position": "Posizioni, tre per nodo.",
       "quaternion": "Rotazioni, quattro per nodo.",
       "scale": "Dimensioni, tre per nodo.",
-      "local": "Matrici locali, sedici per nodo.",
-      "world": "Matrici nel mondo, sedici per nodo.",
-      "localViews": "Una vista per nodo su `local`.",
-      "worldViews": "Una vista per nodo su `world`.",
+      "localViews": "Una vista per nodo della sua matrice locale.",
+      "worldViews": "Una vista per nodo della sua matrice del mondo.",
       "version": "Numero di ricalcoli della matrice del mondo, e quello del genitore all'ultimo ricalcolo.",
       "seen": "La versione del genitore vista per ultima da ogni nodo.",
       "free": "Indici liberati, riutilizzati prima di ingrandire `end`.",
@@ -6496,9 +6276,15 @@
       "lastChild": "Ultimo figlio, dove si collega un aggancio.",
       "nextSibling": "Figlio successivo dello stesso genitore.",
       "previousSibling": "Figlio precedente dello stesso genitore.",
+      "depth": "Il numero di antenati di ogni nodo: il passaggio di frame prende con esso i genitori prima dei figli.",
+      "listed": "I nodi che un input ha cambiato dall'ultimo passaggio di frame, ciascuno una sola volta (`NODE_LISTED`).",
+      "listedCount": "Quanti nodi contiene `listed`.",
+      "order": "I nodi elencati per profondità, e il conteggio di ogni profondità: la memoria di lavoro del passaggio di frame, la seconda estesa fino al nodo elencato più profondo.",
+      "buckets": "Quanti nodi elencati contiene ogni profondità, contati come offset cumulativi in `order`.",
       "chain": "Buffer della catena di antenati.",
       "stamp": "Buffer dei timbri: ciò che una visita passa da un genitore ai suoi figli.",
-      "call": "Numero del percorso in corso."
+      "call": "Numero del percorso in corso.",
+      "grew": "Avvisato quando l’albero cresce, con gli store di posizione, rotazione e scala che ha sostituito: un proprietario che ne tiene delle viste le punta sui nuovi (`world/object/objectPose.ts`)."
     }
   },
   "TransparentOcclusionAudit": {
@@ -6517,63 +6303,6 @@
       "examined": "Voci esaminate dal test: tutte quelle che nominano una pagina."
     }
   },
-  "TransportOptions": {
-    "summary": "Come gira il risolutore del rimbalzo di luce.",
-    "members": {
-      "raysPerPatch": "Raggi deterministici totali per pezzo; quattro punti di partenza si dividono questo budget.",
-      "maxIterations": "Giri massimi del risolutore.",
-      "tolerance": "Limite assoluto dell'errore di radianza nella norma del massimo, per l'operatore campionato.",
-      "warmStart": "Riutilizza la radianza precedente in modalità riutilizzo (vero per impostazione predefinita). Falso dà a entrambe le modalità lo stesso punto di partenza del risolutore.",
-      "maxBytes": "Memoria massima che può usare.",
-      "now": "Il suo orologio.",
-      "cancelled": "Chiede se bisogna fermarsi.",
-      "onProgress": "Ascolta il suo avanzamento."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Fino a dove è arrivato il risolutore del rimbalzo di luce.",
-    "members": {
-      "eventVersion": "Versione del formato degli eventi.",
-      "stage": "La fase in corso.",
-      "completed": "Lavoro fatto.",
-      "total": "Lavoro totale."
-    }
-  },
-  "TransportResult": {
-    "summary": "Ciò che ha trovato il risolutore del rimbalzo di luce: la luce su ogni pezzo, e il suo costo.",
-    "members": {
-      "formatVersion": "Versione del formato dei dati.",
-      "mode": "Rifatto, o riutilizzato.",
-      "radiance": "Array mantenuti dallo stato, sovrascritti dai successivi aggiornamenti. Copiali prima di conservare un'immagine.",
-      "irradiance": "Irradianza ricevuta da tutte le superfici campionate, pannello emissivo incluso.",
-      "indirectIrradiance": "Irradianza ricevuta dopo almeno una riflessione diffusa: pi * matrix * (radiance - source).",
-      "timings": "Tempo impiegato, per fase.",
-      "raysTraced": "Raggi le cui intersezioni con la scena immobile sono state ricalcolate.",
-      "raysReused": "Intersezioni immobili riutilizzate; gli ostacoli in movimento hanno comunque potuto essere testati.",
-      "movingRayTests": "Test contro le cose che si muovono.",
-      "staticSurfaceTests": "Test contro le superfici immobili.",
-      "totalRays": "Raggi totali.",
-      "rowsUpdated": "Righe ricalcolate.",
-      "iterations": "Giri del risolutore.",
-      "residual": "Errore residuo.",
-      "errorBound": "Errore massimo possibile.",
-      "contraction": "Velocità di convergenza.",
-      "converged": "Se ha raggiunto la tolleranza.",
-      "bytes": "Solo gli array tipizzati posseduti, senza gli oggetti JS né i dati di scena del chiamante.",
-      "unsupported": "Ciò che ancora non fa."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Il problema del rimbalzo di luce, congelato: come si vedono i pezzi tra loro.",
-    "members": {
-      "formatVersion": "Versione del formato dei dati.",
-      "algorithmVersion": "Versione dell'algoritmo.",
-      "patchCount": "Pezzi totali.",
-      "matrix": "Fattori di forma disposti per righe: E = pi * matrix * radiance.",
-      "source": "La luce emessa da ogni pezzo.",
-      "albedo": "La luce restituita da ogni pezzo."
-    }
-  },
   "Triangle": {
     "summary": "Tre angoli, ruotati in senso antiorario per la faccia anteriore.",
     "members": {
@@ -6589,20 +6318,20 @@
   },
   "uniformScaleMatrix4": {
     "summary": "`out` = dimensione uniforme `s` posizionata a `center` — `makeScale(s, s, s)` seguito da `setPosition`.",
-    "description": "Sedici scritture, ogni indice una costante: un ciclo di azzeramento più la diagonale costa il 4% in più di Three."
+    "description": "Sedici scritture, ogni indice una costante: un ciclo di azzeramento seguito dalla diagonale costa il 4% in più."
   },
   "UNSPLIT_PASS": {
     "summary": "Disposizione di una primitiva non tagliata mantenuta dal compilatore fuori dal DAG di cluster: mesh intera, ordine della sorgente mantenuto.",
     "description": "La trasmissione richiede questo percorso; mai il nome di un oggetto."
   },
   "updateCameraFrame": {
-    "summary": "Riscrive l'immagine: vista = inversa di `world` (nulla per una matrice del mondo singolare, come la referenza), vista-proiezione = `projection · view`, e i sei piani di questo frustum di vista-proiezione."
+    "summary": "Riscrive frame: view = inversa di `world` (zero per una matrice del mondo singolare), view-projection = `projection · view`, e i sei piani del frustum di questa view-projection."
   },
   "updateNodeMatrixWorld": {
-    "summary": "`node.updateMatrixWorld(force)`: il nodo e tutto il suo sottoalbero, genitori prima."
+    "summary": "L'aggiornamento del sottoalbero di `node` con `force`: il nodo e tutto il suo sottoalbero, i genitori per primi, e quanti nodi ha percorso — il sottoalbero, qualunque altra cosa condivida l'albero."
   },
   "updateNodeWorldMatrix": {
-    "summary": "`node.updateWorldMatrix(updateParents, updateChildren)`: gli antenati dalla radice a `node` se richiesto, il nodo, poi tutto il suo sottoalbero se richiesto."
+    "summary": "L'aggiornamento del nodo con `updateParents` e `updateChildren`: gli antenati dalla radice verso `node` se richiesti, il nodo, poi tutto il suo sottoalbero se richiesto."
   },
   "userNotice": {
     "summary": "I nomi dei motori di rendering e i dettagli di errori catturati non diventano mai un'interfaccia ordinaria."
@@ -6620,9 +6349,6 @@
   "validateSceneLight": {
     "summary": "Verifica una luce e ne restituisce una copia normalizzata.",
     "description": "Una luce rifiutata non entra mai nel buffer: il contratto non accetta né intensità negativa, né portata nulla, né spot senza direzione, né luce direzionale che pretenda di avere una posizione o una portata."
-  },
-  "Vec3": {
-    "summary": "Geometria condivisa dal risolutore di trasporto sperimentale e dalla sua scena di prova nel browser."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` o un vettore, letto come tre numeri."
@@ -6806,7 +6532,7 @@
     "summary": "Esposizione della scena, il moltiplicatore applicato dall'illuminazione prima della visualizzazione."
   },
   "world.pixelError": {
-    "summary": "L'errore sullo schermo del taglio del DAG, in pixel."
+    "summary": "L'errore a schermo del taglio del DAG, in pixel; il valore della pagina prevale su un preset di qualità."
   },
   "world.bounce": {
     "summary": "La luce che rimbalza sulle superfici, tracciata contro il proxy residente; spenta per impostazione predefinita.",
@@ -6832,10 +6558,10 @@
       "texturePool": "Byte di memoria GPU riservati alle pagine di texture, `null` su un motore senza serbatoio di texture (WebGL2); impostalo per cambiare l’involucro, entro ciò che `gpu` lascia accanto alle ombre, alle sonde di rimbalzo e al serbatoio di geometria.",
       "physics": "I limiti della fisica (corpi, corpi decorativi, memoria), letti una volta all’avvio; superarne uno solleva `PHYSICS_BUDGET`.",
       "raycastTrees": "Byte di memoria CPU che `raycast` tiene per gli alberi di triangoli, condivisi da tutti i mondi della pagina; oltre, l’albero usato meno di recente viene scartato. Impostalo per cambiare l’involucro.",
-      "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Un totale inferiore alle tre quote fisse — il serbatoio delle ombre, le sonde di rimbalzo e i bersagli degli effetti — viene rifiutato (`GPU_BUDGET_UNDER_SHADOW_POOL`). Mai letto dalla macchina.",
-      "canvas": "Il canvas più grande che il mondo dichiara, in pixel del buffer di disegno: i bersagli della catena di effetti sono riservati alla sua dimensione (`split.effectTargets`); 3840 × 2160 per impostazione predefinita, e il `gpu` predefinito cresce solo di questa riserva. Impostalo per ridistribuire ogni serbatoio secondo la regola. Un canvas disegnato più grande viene comunque reso per intero: la diagnostica dice `effect targets over budget` con i byte oltre la riserva.",
-      "cpu": "Byte di memoria CPU che il mondo può occupare: prima lo specchio host della tabella delle pagine d’ombra, poi le pagine decodificate, le loro tabelle di manifesto, la loro coda di trasferimenti e le tabelle di taglio del motore insieme. Una modifica si applica subito: le pagine escono per ultimo uso finché non stanno nel totale. Un totale che non supera lo specchio viene rifiutato (`CPU_BUDGET_UNDER_SHADOW_MIRROR`). Mai letto dalla macchina.",
-      "split": "Come si dividono i due totali: il serbatoio delle ombre e le sonde di rimbalzo al loro massimo, i bersagli della catena di effetti sul `canvas` dichiarato, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; lo specchio host della tabella delle ombre, poi la cache delle pagine decodificate prende il resto del totale CPU, intero, e al suo interno la sessione in corso riserva le sue tabelle di manifesto, la sua coda di trasferimenti e le tabelle di taglio del motore. Ciò che dà la regola, prima di un serbatoio impostato da solo."
+      "gpu": "Byte di memoria GPU che il mondo può occupare, tutti i serbatoi insieme; impostalo per ridisegnare ogni serbatoio secondo la regola di ripartizione (`split`). Un totale inferiore alle tre quote fisse — il serbatoio delle ombre, le sonde di rimbalzo e i bersagli degli effetti — viene rifiutato (`GPU_BUDGET_UNDER_SHADOW_POOL`). Mai letto dalla macchina. Se non impostato, vale il totale predefinito (`defaultGpuBudget`): le quote fisse, i bersagli del fotogramma a piena risoluzione sul canvas disegnato una volta che una sessione li detiene, poi i due serbatoi ai loro valori predefiniti — il fotogramma a riposo non è mai disegnato sotto il display per mancanza di memoria. Se impostato, vale il totale della pagina: oltre di esso, il fotogramma è disegnato un ottavo più in basso.",
+      "canvas": "Il canvas più grande che il mondo dichiara, in pixel del buffer di disegno: i bersagli della catena di effetti sono riservati alla sua dimensione (`split.effectTargets`); 3840 × 2160 per impostazione predefinita, e il `gpu` predefinito cresce di questa riserva. Impostalo per ridistribuire ogni serbatoio secondo la regola. Un canvas disegnato più grande viene comunque reso per intero — il `gpu` predefinito finanzia i byte di una catena oltre la riserva —: la diagnostica dice `effect targets over budget` con quei byte.",
+      "cpu": "Byte di memoria CPU che il mondo può occupare: le pagine decodificate, le loro tabelle di manifesto, la loro coda di trasferimenti e le tabelle di taglio del motore insieme. Una modifica si applica subito: le pagine escono per ultimo uso finché non stanno nel totale. Mai letto dalla macchina.",
+      "split": "Come si dividono i due totali: il serbatoio delle ombre e le sonde di rimbalzo al loro massimo, i bersagli della catena di effetti sul `canvas` dichiarato, poi metà ciascuno ai serbatoi di geometria e texture, limitati al loro tetto; la cache delle pagine decodificate prende l'intero totale CPU, e al suo interno la sessione in corso riserva le sue tabelle di manifesto, la sua coda di trasferimenti e le tabelle di taglio del motore. Ciò che dà la regola, prima di un serbatoio impostato da solo."
     }
   },
   "world.diagnostic": {
@@ -6892,10 +6618,11 @@
     "returns": "Una funzione che ferma l'hook."
   },
   "world.invalidate": {
-    "summary": "Richiede un nuovo fotogramma dopo un cambiamento che il mondo non ha potuto vedere."
+    "summary": "Chiede un nuovo fotogramma al ciclo proprio del mondo dopo una modifica che non ha potuto vedere; un mondo guidato dalla sua pagina disegna al prossimo `render()`."
   },
   "world.render": {
-    "summary": "Disegna subito un fotogramma, chiunque sia il maestro del ciclo: le clip e la fisica avanzano con esso."
+    "summary": "Disegna un fotogramma, chiunque guidi il ciclo: clip e fisica avanzano con esso.",
+    "description": "Un fotogramma che il mondo non può ancora disegnare — la sua sessione in apertura, una parte del motore in arrivo — viene disegnato appena può, una sola volta, per quanti ne siano stati chiesti nel frattempo."
   },
   "world.resize": {
     "summary": "Dice al mondo che il canvas ha cambiato dimensione; senza valore, legge la dimensione del canvas.",
@@ -6979,27 +6706,6 @@
       "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
       "lightsActive": "Luci del contratto `SceneLight` che l'immagine ha illuminato. Nullo per un motore che le ignora.",
       "lightsSampled": "Vero quando l'illuminazione di questo fotogramma è girata in modalità campionata — un fotogramma in movimento accumulato su una cronologia, dove un pixel con più luci di `samplesPerPixel` ne illumina una parte estratta a sorte —, falso quando ogni pixel ha illuminato ogni luce, come fa un fotogramma fermo. Nullo per un motore che ignora le luci.",
-      "shadowsUpdated": "Luci d’ombra con una pagina disegnata da questo fotogramma. Zero è il valore normale di una scena ferma: una luce fissa conserva le sue pagine.",
-      "shadowFacesDrawn": "Viste di luce in cui ha disegnato il passaggio ombre — un livello di clipmap del sole, una faccia di lampada a un mip —, e le draw call effettivamente codificate. Null su un motore che non disegna ombre.",
-      "shadowDrawCalls": "Chiamate di disegno dell'ombra.",
-      "shadowRenderPasses": "Passate di rendering aperte dalla passata delle ombre: strato statico, pool e trasmittanza, una per strato disegnato, per lotto.",
-      "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
-      "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
-      "shadowPagesPending": "Pagine d'ombra in attesa.",
-      "shadowBatches": "Lotti d’ombra che l’immagine ha disegnato: conteggi dell’host su ciò che ha codificato, mai letti in uno shader, come i conteggi seguenti. Null per un motore senza atlante delle ombre.",
-      "shadowLayersDrawn": "Livelli del pool in cui hanno disegnato i passaggi d’ombra dell’immagine.",
-      "shadowPagesRestored": "Pagine disegnate da una copia del loro livello statico, rasterizzando solo i proiettori in movimento.",
-      "shadowPagesRasterized": "Pagine i cui proiettori statici sono stati rasterizzati di nuovo; con quelle ripristinate, ogni pagina disegnata.",
-      "shadowRestoreCopies": "Copie di pagine dal livello statico: una pagina ripristinata, o una pagina disegnata per intero sul suo livello.",
-      "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
-      "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
-      "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
-      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
-      "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
-      "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
-      "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
-      "shadowCutCoarsePages": "Pagine che il fotogramma rimanda a essere ridisegnate perché una vista ha disegnato un cluster più grossolano di quanto volesse, rilasciate quando la residenza ha portato quello più fine, che la camera si muova o no: un conteggio per fotogramma, come le chiamate di disegno del fotogramma (#831).",
-      "shadowCutViewLimit": "Viste di luce in cui un lotto del taglio dalla luce disegna ora: il tetto finché un lotto non scarta, poi ciò che ci sta.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
       "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
@@ -7009,12 +6715,6 @@
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
       "gpuLightingMs": "Tempo GPU dell'illuminazione.",
-      "cpuShadowPlanMs": "Tempo CPU del piano delle ombre dell’immagine, attorno al pianificatore: un passo con nome del profilo CPU (`cpuSteps()`, `cpu-timing`), come i cinque seguenti. Ciascuno è `null` quando l’immagine non l’ha eseguito — nessuna luce, un’immagine trattenuta — o su un motore che non sa misurarlo (WebGL2), mai 0. Fanno parte del tempo di codifica, mai sommati a esso.",
-      "cpuShadowRequestsMs": "Tempo CPU della lettura del rapporto delle richieste d’ombra tornato.",
-      "cpuShadowAdmissionMs": "Tempo CPU dell’ammissione delle pagine scadute che l’immagine legge.",
-      "cpuShadowBatchesMs": "Tempo CPU dei lotti d’ombra attorno alle loro regioni e passaggi: preparazione, conferme, copia delle richieste.",
-      "cpuShadowRegionsMs": "Tempo CPU della scrittura delle regioni di ogni lotto d’ombra: uniform delle facce e record delle pagine.",
-      "cpuShadowPassesMs": "Tempo CPU della codifica dei passaggi di ogni lotto d’ombra: proiettori, cancellazioni e ripristini, disegni.",
       "hizTestedClusters": "Ciò che ha fatto il test di occlusione su un fotogramma: i cluster che gli sono stati dati, quelli che ha eliminato, e quelli la cui impronta sullo schermo al livello 0 supera il kernel di sedici texel e quindi rispondono da un mip più grossolano. `hiz*Triangles` sono i triangoli di questi stessi cluster. Sul percorso GPU, descrivono un fotogramma PIÙ VECCHIO di quello che li renderizza — `hizCountedFrame` dice quale —, come `gpuPassMs`, e due fotogrammi vicini portano spesso la stessa misura. Nessuno è stimato: `null` per un motore che non testa l'occlusione, su un dispositivo i cui verdetti non possono essere riletti, e finché nessun fotogramma è stato contato.",
       "hizRejectedClusters": "Cluster nascosti.",
       "hizOversizedClusters": "Cluster troppo grandi per essere testati.",
@@ -7054,21 +6754,29 @@
       "geometryPoolSaturated": "Pagine richieste dal fotogramma attuale oltre il numero di slot del pool.",
       "texturePoolClamp": "Motivo del limite del pool di texture: `minimum`, `device-limit`.",
       "hizCulled": "Cluster che il test di occlusione ha trovato nascosti in questo fotogramma; `null` dove il percorso non li conta.",
-      "shadowLightCuts": "Tagli di cluster eseguiti dalle luci: uno per vista di luce disegnata, zero in un fotogramma fermo.",
-      "shadowPagesRequested": "Pagine d’ombra virtuali lette dall’immagine, come le ha nominate il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
-      "shadowPagesCached": "Di queste, pagine lette direttamente dal pool: aggiornate, senza disegno.",
-      "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
-      "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
-      "shadowPeakBytes": "Il massimo di byte GPU che la quota di memoria delle ombre ha tenuto insieme, strati tardivi compresi. Null finché la prima immagine non dimensiona il pool.",
-      "shadowResolutionBias": "Dimezzamenti dei byte del pool delle ombre causati dai rifiuti di memoria del dispositivo; 0 normalmente.",
-      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
-      "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
-      "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
-      "shadowCastersRejected": "Proiettori d’ombra che il culling per pagina ha testato senza mantenerli — fuori dal volume della pagina per cui sono stati testati —, nello stesso fotogramma campionato; `null` finché non torna un campione.",
-      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione.",
+      "shadowResolutionBias": "Di quanto le ombre sono disegnate più grossolane di quanto chiedono a causa del loro pool di pagine: i dimezzamenti che il budget GPU ha tolto al pool pieno, più i livelli di cui il suo riempimento ha alzato il bias di risoluzione di ogni mappa (`shadowVsmLodBias`). 0 normalmente; sopra 0, la modalità di riferimento rifiuta la sua cattura (`REFERENCE_SHADOWS_REDUCED`). Null finché nessuna mappa d’ombra gira.",
       "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
-      "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto."
+      "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto.",
+      "displayRefreshMs": "L’intervallo di aggiornamento del display, in ms, come il motore lo ha misurato sui timestamp rAF dei suoi frame (l’orologio del budget della scala di render); null finché non ne trova uno.",
+      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query` (#1451).",
+      "renderHeight": "Altezza in pixel con cui l’immagine è stata disegnata, accanto a `renderWidth`.",
+      "renderWidth": "Larghezza in pixel con cui l’immagine è stata disegnata, prima che l’antialiasing temporale o il ricampionamento la ricostruissero sul display: quella del display con una scala di render di 1. Null prima di un’immagine.",
+      "shadowVsmFreePages": "Pagine fisiche libere nell’ultimo messaggio di stato del pool.",
+      "shadowVsmInvalidationMs": "Tempo GPU dell’invalidazione delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmLights": "Shadow map virtuali: luci ombreggiate in questo frame.",
+      "shadowVsmLodBias": "Il bias di LOD di risoluzione globale impostato dal carico del pool.",
+      "shadowVsmMaps": "Shadow map virtuali di questo frame, complete e a pagina singola.",
+      "shadowVsmMarkingMs": "Tempo GPU della marcatura delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmPageManagementMs": "Tempo GPU della gestione delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmPagesAllocated": "Pagine appena allocate in questo frame; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesCached": "Pagine richieste trovate nella cache, statiche e dinamiche; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesRendered": "Pagine cancellate e poi renderizzate in questo frame; rilette con qualche frame di ritardo.",
+      "shadowVsmPagesRequested": "Pagine che il frame ha marcato come richieste; rilette con qualche frame di ritardo.",
+      "shadowVsmProjectionMs": "Tempo GPU della proiezione delle ombre, in ms, dai tempi dei pass.",
+      "shadowVsmProjectionPasses": "Pass di proiezione di questo frame, quattro luci ciascuno.",
+      "shadowVsmRenderMs": "Tempo GPU del rendering delle pagine, in ms, dai tempi dei pass.",
+      "shadowVsmTransmissionMs": "Tempo GPU dell’atlante di trasmissione dei caster traslucidi (cancellazione, disegno, risoluzione), in ms."
     }
   },
   "WorldOptions": {
@@ -7082,7 +6790,8 @@
       "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
       "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa. Su WebGPU anche un’immagine ferma è disegnata a quella scala e ricostruita dalle sue fasi di jitter; su WebGL2 è disegnata al massimo. Cambiata poi con `world.renderScale`.",
-      "debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito."
+      "debug": "La modalità di debug, gli strumenti di una build di sviluppo rispetto a una di distribuzione: i fotogrammi vengono registrati nel profilo dei passi CPU (`world.cpuSteps`) e nel rapporto dei fotogrammi solo in essa. Appartiene alla pagina, come `?profile` nel suo indirizzo la attiva; `world.diagnostic.debug` la cambia in seguito.",
+      "quality": "La qualità: un preset, gruppi con livelli propri, la risoluzione (`world.quality`)."
     }
   },
   "RenderScale": {
@@ -7125,10 +6834,6 @@
   },
   "writeEngineCamera": {
     "summary": "Deduce tutto ciò che legge un'immagine a partire da `into.world`, già impostata, e dall'ottica dichiarata: la proiezione nella convenzione di profondità del motore, poi la vista, la vista-proiezione e i sei piani del frustum (`updateCameraFrame`), il sistema di rendering (`renderOrigin.ts`) e l'occhio."
-  },
-  "writeFace": {
-    "summary": "Scrive la matrice vista-proiezione di una faccia di lampada al suo posto in `matrices` e, se il culling è armato, il volume che oppone al rettangolo `rect` di quella faccia.",
-    "description": "Entrambi partono dallo stesso asse e dallo stesso campo — un solo calcolo, quindi nessun rischio che mirino in direzioni diverse. Un punto prende l’asse `POINT_FACE_AXES` e 90°; uno spot prende la sua direzione e il suo cono allargato. Il raggio dell’emettitore non tocca né la proiezione né il culling: la sua esclusione è esattamente una sfera, scritta dove si scrive la profondità d’ombra. `rect` è la parte della faccia da disegnare, in coordinate normalizzate; `FULL_FACE` per impostazione predefinita. Un cluster la cui sfera nel mondo non tocca né la portata né questo volume non può scrivervi nulla: la proiezione e il viewport lo scarterebbero comunque, quindi il culling è esatto."
   },
   "XYLike": {
     "summary": "Qualsiasi cosa abbia una `x` e una `y`: un punto 2D letto dai suoi campi.",
@@ -7177,8 +6882,8 @@
     "summary": "Cosa riceve un hook prima del fotogramma: i secondi che i controller hanno appena integrato, e dall'inizio del mondo.",
     "description": "L'unico oggetto del mondo, riscritto a ogni fotogramma: un hook che vuole conservare un valore lo copia.",
     "members": {
-      "delta": "Secondi dal fotogramma precedente, al massimo due intervalli di fotogramma dopo una pausa; 0 al primo.",
-      "time": "Secondi dall'inizio del mondo."
+      "delta": "Secondi di cui il mondo è avanzato dal fotogramma precedente — ciò che le sue clip e i suoi controller hanno integrato —, al massimo due intervalli di fotogramma dopo una pausa; 0 per il primo.",
+      "time": "Secondi dall'inizio del mondo, all'istante del fotogramma (`worldFrameGrid.ts`)."
     }
   },
   "Capsule": {
@@ -7432,7 +7137,7 @@
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
       "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (congelati oltre, così com’erano, e nessuna tessera di collisione caricata); `null` segue `camera.far`.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
-      "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
+      "waterSurface": "La superficie dell'acqua all'ora della simulazione: le onde che il galleggiamento legge, gli stessi numeri (`height`, `point`, `normal`). Una mesh che giace sul suo piano a riposo, o il cui `mesh.waves` è questa superficie, viene disegnata portata da essa, sulla GPU.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
       "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`, `FAMILY_LOAD_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
@@ -7491,7 +7196,7 @@
       "sensor": "Se il corpo segnala solo i contatti.",
       "ccd": "Se la collisione continua è attiva.",
       "decorative": "Se il corpo è un detrito decorativo.",
-      "damping": "La quota della sua velocità persa da sé ogni secondo, lineare e angolare (`dv/dt = −c·v`).",
+      "damping": "La quota della sua velocità che perde da sé al secondo, lineare e angolare (`dv/dt = −c·v`); un corpo morbido che non ne dichiara, `SOFT_DAMPING`.",
       "velocity": "Velocità lineare, m/s, come l’ha lasciata l’ultimo passo; scrivila per lanciare il corpo.",
       "asleep": "Se il corpo dorme: fermo, e non più simulato finché qualcosa non lo sveglia.",
       "mass": "Massa in chilogrammi; `undefined` prende la densità del materiale per il volume.",
@@ -7583,7 +7288,7 @@
   "WaterSpec": {
     "summary": "Una massa d’acqua in cui galleggiano i corpi, come la riceve `world.physics.water`.",
     "members": {
-      "waves": "Le onde di Gerstner della superficie; nessuna per acqua ferma.",
+      "waves": "Le onde trocoidali della superficie; nessuna per acqua ferma.",
       "level": "Altezza della superficie a riposo, in metri.",
       "density": "kg/m³; 1000, acqua dolce, come predefinito.",
       "linearDrag": "Coefficiente di resistenza quadratico: quanto in fretta un corpo si assesta, mai dove; 0.5 come predefinito.",
@@ -7594,15 +7299,15 @@
   "WaterSurface": {
     "summary": "La superficie dell’acqua come la pagina la legge per disegnarla (`world.physics.waterSurface`): il modello di onde che il galleggiamento legge nel worker di fisica, gli stessi numeri, all’ora della simulazione.",
     "members": {
+      "time": "Secondi simulati da quando l’acqua è stata impostata: l’orologio delle onde.",
       "level": "Altezza della superficie a riposo, in metri.",
       "crest": "Punto più alto che una cresta raggiunge sopra `level`, in metri.",
-      "time": "Secondi simulati da quando l’acqua è stata impostata: l’orologio delle onde.",
       "setTime": "Regola le onde a `t` secondi simulati.",
       "height": "Altezza della superficie sopra il punto del mondo `(x, z)`, in metri.",
       "point": "Il punto del mondo `[x, y, z]` a cui è portato il punto a riposo `(x, level, z)`, in `out`: una griglia mossa punto per punto è la superficie, creste nitide quanto le onde.",
       "wavesNow": "Le onde dichiarate, ogni fase portata a questo istante: reimpostate in `world.physics.water` (le cui onde ripartono da 0 s), la superficie prosegue da dove si trova invece di saltare.",
-      "normal": "Normale unitaria `[x, y, z]` della superficie nel punto a riposo `(x, z)`, in `out`.",
-      "waveModel": "Gli stessi valori delle onde e lo stesso tempo per GPU e fisica."
+      "waveModel": "Le onde stesse, all'ora di `time`: ciò che lo stadio di deformazione della GPU legge per disegnare una mesh che la superficie porta (`mesh.waves`, #357), gli stessi numeri che legge il galleggiamento.",
+      "normal": "Normale unitaria `[x, y, z]` della superficie nel punto a riposo `(x, z)`, in `out`."
     }
   },
   "WaveSpec": {
@@ -7625,14 +7330,15 @@
       "mainMs": "Millisecondi di pagina presi dalla fisica nell’ultimo fotogramma (la fase CPU `physics`).",
       "poses": "Pose restituite dall’ultimo tick.",
       "events": "Eventi di contatto restituiti dall’ultimo tick.",
-      "droppedEvents": "Eventi `enter` scartati dall’avvio della fisica, oltre `budget.physics.contactEvents` in un passo (il loro `leave` non è mai inviato)."
+      "droppedEvents": "Eventi `enter` scartati dall’avvio della fisica, oltre `budget.physics.contactEvents` in un passo (il loro `leave` non è mai inviato).",
+      "softRecoveries": "Corpi morbidi riportati a riposo al loro ultimo stato valido (in mancanza, alla forma di riposo) da quando la fisica è partita, ogni volta che uno è divergito in ampiezza; sollevano anche un `PHYSICS_DIVERGED` che li nomina e non ferma nulla, al massimo una volta al secondo."
     }
   },
   "PhysicsType": {
     "summary": "Come si muove un corpo: mai, dalla pagina (`kinematic`, spingendo ciò che incontra) o dalla simulazione."
   },
   "WorldPhysics": {
-    "summary": "`world.physics`, la fisica del mondo.",
+    "summary": "La fisica del mondo: `world.physics`.",
     "members": {
       "enabled": "Se i corpi sono simulati. Accenderla carica la fisica la prima volta.",
       "gravity": "Gravità in m/s², un vettore vivo; imposta una preimpostazione (`'earth'`, `'moon'`, `'mars'`, `'none'`) o un vettore.",
@@ -7640,7 +7346,7 @@
       "timeScale": "Secondi simulati per secondo reale: 0.25 è il rallentatore.",
       "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (congelati oltre, così com’erano, e nessuna tessera di collisione caricata); `null` segue `camera.far`.",
       "water": "L’acqua in cui galleggiano i corpi: livello, onde, densità e resistenze. Un corpo più leggero dell’acqua galleggia, spinto dal peso dell’acqua che sposta.",
-      "waterSurface": "La superficie dell’acqua all’ora della simulazione, per disegnarla: le onde lette dal galleggiamento, gli stessi numeri (`height`, `point`, `normal`).",
+      "waterSurface": "La superficie dell'acqua all'ora della simulazione: le onde che il galleggiamento legge, gli stessi numeri (`height`, `point`, `normal`). Una mesh che giace sul suo piano a riposo, o il cui `mesh.waves` è questa superficie, viene disegnata portata da essa, sulla GPU.",
       "stats": "Conteggi ed entrambi gli orologi: millisecondi del worker per passo, millisecondi della pagina per fotogramma.",
       "error": "L’ultimo errore della fisica (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`, `FAMILY_LOAD_FAILED`), oppure `null`. Un errore che ha fermato la simulazione disattiva `enabled`.",
       "add": "Aggiunge un giunto (`joint.hinge(door, frame, …)` e simili): viene creato appena entrambi i corpi sono simulati e tiene finché non viene tolto o si rompe.",
@@ -7653,32 +7359,6 @@
       "budget": "Limiti fissi, letti una volta all’avvio della fisica.",
       "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "La gravità del mondo: una preimpostazione o un vettore."
-    }
-  },
-  "SHADOW_RECORD_FLOATS": {
-    "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
-  },
-  "ShadowPoolSnapshot": {
-    "summary": "Il pool dell’allocatore GPU dopo l’allocazione di un frame (`webgpu/shadow/allocWgsl.ts`).",
-    "members": {
-      "owner": "La voce mappata da ogni pagina fisica, −1 per una pagina libera.",
-      "requested": "Il frame in cui ogni pagina è stata richiesta l’ultima volta.",
-      "gpuDrawn": "1 dove il disegno proprio della GPU contiene la profondità della pagina (#831); se assente, nessuna è nota.",
-      "allocated": "Pagine mappate da quel frame, e voci per cui non aveva una pagina.",
-      "refused": "Voci per cui quel frame non aveva una pagina.",
-      "drawn": "Pagine che quel frame ha elencato per la GPU da disegnare (`listDraw`).",
-      "listings": "Pagine elencate da ogni frame dall’inizio del pool: si muove con la lista di qualsiasi frame, persa o no la sua istantanea."
-    }
-  },
-  "ShadowRequestReport": {
-    "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",
-    "members": {
-      "frame": "Fotogramma la cui ombreggiatura ha scritto il rapporto.",
-      "layoutEpoch": "Disposizione della tabella con cui quel fotogramma ha letto (`ShadowTable.layoutEpoch`).",
-      "stamp": "Il timbro del piano quando quel fotogramma è stato codificato (`ShadowPlan.stamp`).",
-      "count": "Voci richieste, forse più di quante ne contenga `entries`: le altre richiedono al fotogramma successivo.",
-      "entries": "Le voci richieste, al massimo le prime `count`.",
-      "pool": "Il pool dell’allocatore GPU dopo l’allocazione di quel fotogramma, quando alloca la GPU."
     }
   },
   "VehicleDriver": {
@@ -7698,21 +7378,20 @@
     }
   },
   "GraphSurface": {
+    "summary": "Una superficie: i parametri di una famiglia, ai suoi valori predefiniti se la scena non ha detto altro.",
+    "description": "La sua versione è incrementata da `needsUpdate`, che ogni lettore confronta.",
     "members": {
-      "version": "Incrementato dall'host a ogni cambiamento: ciò che una riga in cache confronta per rifare i propri campi.",
       "uuid": "Un nome unico della superficie.",
       "name": "Il suo nome.",
+      "version": "Incrementato dall'host a ogni cambiamento: ciò che una riga in cache confronta per rifare i propri campi.",
       "userData": "Spazio libero per i dati di chi ha costruito la superficie.",
       "kind": "Che cosa è la risorsa; `family` dice quale superficie.",
-      "family": "La famiglia a cui appartiene.",
-      "needsUpdate": "`needsUpdate = true` dopo una modifica: ogni lettore riprende i campi.",
-      "copy": "Prende ogni parametro di `source`, colori e vettori copiati, texture condivise.",
-      "clone": "Una superficie della stessa famiglia con gli stessi parametri.",
       "visible": "Se viene disegnata.",
       "side": "Quali facce, secondo la costante dell'host.",
       "forceSinglePass": "L'host disegna una superficie trasparente a due facce in un unico pass invece che dietro poi davanti.",
       "vertexColors": "Se i colori dei vertici la tingono.",
       "toneMapped": "Se si applica la curva di visualizzazione.",
+      "depthTest": "Se esegue il test di profondità.",
       "depthWrite": "Se scrive la profondità.",
       "depthFunc": "Il confronto del test di profondità.",
       "colorWrite": "Se scrive il colore.",
@@ -7723,10 +7402,11 @@
       "opacity": "Quanto è opaca.",
       "alphaTest": "Alfa sotto il quale i pixel scompaiono.",
       "transparentShadow": "Se proietta un’ombra quando è miscelata; se non indicato, non ne proietta.",
-      "depthTest": "Se esegue il test di profondità."
-    },
-    "summary": "Una superficie: i parametri di una famiglia, ai valori del riferimento salvo che la scena dica altro.",
-    "description": "La sua versione è incrementata da `needsUpdate`, che ogni lettore confronta."
+      "family": "La famiglia a cui appartiene.",
+      "needsUpdate": "`needsUpdate = true` dopo una modifica: ogni lettore riprende i campi.",
+      "copy": "Prende ogni parametro di `source`, colori e vettori copiati, texture condivise.",
+      "clone": "Una superficie della stessa famiglia con gli stessi parametri."
+    }
   },
   "GraphTexture": {
     "members": {
@@ -7791,7 +7471,7 @@
     }
   },
   "JointKind": {
-    "summary": "I giunti tra corpi, ciascuno uno dei vincoli di Jolt."
+    "summary": "I giunti tra i corpi, ciascuno un vincolo proprio del modulo."
   },
   "JointLimits": {
     "summary": "Quanto può muoversi un giunto: radianti per un cardine o una rotazione, metri per un giunto prismatico, una distanza o la fune di una carrucola, il semiangolo del cono (`max`) per un cono.",
@@ -7873,6 +7553,7 @@
       "count": "Quanti vertici descrivono i numeri.",
       "stored": "Il numero `component` del vertice `index` così com’è memorizzato; un intero normalizzato non scalato.",
       "getComponent": "Il numero `component` del vertice `index`, letto come il numero che rappresenta.",
+      "readInto": "I numeri da `0` a `width − 1` dei vertici da `from` a `from + n − 1` in `out`, a distanza `stride` a partire da `at`: ciascuno è il numero che legge `getComponent`, oppure quello memorizzato con `stored` (una lista normalizzata letta come i suoi numeri memorizzati), `pad` oltre quelli propri del vertice. Una lista i cui numeri memorizzati sono quelli letti, disposta un vertice dopo l’altro alla larghezza letta, viene copiata per intero.",
       "setComponent": "Scrive il numero `component` del vertice `index`.",
       "getX": "Il primo numero del vertice `i`.",
       "getY": "Il secondo numero del vertice `i`.",
@@ -7895,7 +7576,7 @@
     }
   },
   "Vehicle": {
-    "summary": "Un veicolo: un corpo portato su ruote dal vincolo di veicolo di Jolt, con motore, cambio, differenziali, sospensioni e barre antirollio, creato da `vehicle.*` e aggiunto alla simulazione da `world.physics.add`.",
+    "summary": "Un veicolo: un corpo portato da ruote dal vincolo di veicolo del modulo, con il suo motore, cambio, differenziali, sospensioni e barre antirollio, creato da `vehicle.*` e aggiunto alla simulazione da `world.physics.add`.",
     "description": "È un `VehicleDriver`: `world.controls.vehicle = car` lo guida.",
     "parameters": {
       "options": "Ciò che accetta `vehicle.*`: le ruote, e quanti valori della macchina si vuole (`VehicleSpec`).",
@@ -7909,7 +7590,7 @@
       "options.finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
       "options.shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
       "options.shiftDownRPM": "E scala sotto questo valore, in giri/min.",
-      "options.clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
+      "options.clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i suoi cingoli senza frizione (il controller cingolato).",
       "options.suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
       "options.suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
       "options.suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
@@ -7934,7 +7615,7 @@
     }
   },
   "VehicleKind": {
-    "summary": "I veicoli della fisica, ciascuno sul vincolo di veicolo di Jolt."
+    "summary": "I veicoli della fisica, ciascuno sul vincolo di veicolo del modulo."
   },
   "VehicleOptions": {
     "summary": "Ciò che accetta `vehicle.*`: le ruote, e quanti valori della macchina si vuole (`VehicleSpec`).",
@@ -7954,7 +7635,7 @@
       "finalDrive": "Il rapporto al ponte (la riduzione alla ruota motrice di un cingolato).",
       "shiftUpRPM": "Il cambio sale di marcia oltre questo valore, in giri/min.",
       "shiftDownRPM": "E scala sotto questo valore, in giri/min.",
-      "clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i cingoli senza frizione (il controller cingolato di Jolt).",
+      "clutch": "Coppia della frizione per rad/s di slittamento, N·m·s; solo auto e moto, rifiutata su un veicolo cingolato: il suo motore muove i suoi cingoli senza frizione (il controller cingolato).",
       "suspensionFrequency": "Frequenza delle sospensioni, in Hz.",
       "suspensionDamping": "Rapporto di smorzamento, da 0 (nessuno) a 1 (critico).",
       "suspensionTravel": "Escursione della ruota dalla massima estensione alla massima compressione, m; più lunga dell'abbassamento che la frequenza delle sospensioni chiede sulla Terra, `9.81 / (2π suspensionFrequency)²`, altrimenti rifiutata: oltre, la scocca poggia sui tamponi.",
@@ -7985,7 +7666,7 @@
   },
   "Sprite": {
     "summary": "Un’immagine piatta sempre rivolta verso la camera: un quadrato di un’unità che ogni renderer ruota verso l’immagine mentre disegna, attorno alla posizione dello sprite.",
-    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell’immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra. Come lo `Sprite` di riferimento, che accetta solo uno `SpriteMaterial`, indossa solo un `material.sprite`: qualsiasi altro materiale, passato o assegnato, lancia un `TypeError` che ne nomina il tipo.",
+    "description": "La sua dimensione è la sua scala nel mondo su `x` e `y`; la sua rotazione nel piano dell'immagine è la `rotation` del suo materiale; la sua rotazione propria non viene letta. Uno sprite non proietta ombra. Indossa solo un `material.sprite`: qualunque altro materiale, dato o impostato, lancia un `TypeError` che ne nomina il tipo.",
     "members": {
       "isSprite": "Sempre `true`: distingue uno sprite da qualsiasi altra mesh.",
       "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore.",
@@ -8111,10 +7792,12 @@
   "Skeleton": {
     "summary": "Le ossa che deformano una mesh e le matrici di legame inverse, dallo spazio della mesh a quello di ciascun osso.",
     "description": "L’indice di articolazione di un vertice indica `bones`. Senza matrici inverse, la posa delle ossa alla creazione definisce la posa di legame.",
-    "members.isSkeleton": "Sempre `true`: identifica uno scheletro.",
-    "members.bones": "I nodi articolati, nell’ordine delle articolazioni.",
-    "members.boneInverses": "Sedici numeri per osso, per colonne: l’inversa della matrice globale nella posa di legame.",
-    "members.palette": "Scrive in `out`, da `at`, le righe di `meshWorld⁻¹ · boneWorld · boneInverse` per ogni articolazione. La palette trasforma i vertici legati nello spazio locale della mesh; segue la trasformazione globale della mesh. `boneWorlds` fornisce le matrici globali del lettore, altrimenti si usano quelle delle ossa."
+    "members": {
+      "isSkeleton": "Sempre `true`: identifica uno scheletro.",
+      "bones": "I nodi articolati, nell’ordine delle articolazioni.",
+      "boneInverses": "Sedici numeri per osso, per colonne: l’inversa della matrice globale nella posa di legame.",
+      "palette": "Scrive in `out`, a partire da `at`, la palette di una mesh posta in `meshWorld`: per ogni giunto, le righe di `meshWorld⁻¹ · boneWorld · boneInverse`, che portano un vertice della mesh in posa di bind là dove il suo osso lo porta, nel sistema di riferimento della mesh stessa — così il posizionamento della mesh, applicato dopo, la disegna dove sta l'osso, qualunque sia la posa del nodo della mesh. Il mondo di ogni osso è quello che il suo nodo tiene (`matrixWorld`)."
+    }
   },
   "Waves": {
     "summary": "Onde di Gerstner il cui tempo è impostato da `setTime`.",
@@ -8125,6 +7808,7 @@
     "members.phasesAt": "Fase di ogni onda a `t` secondi, ridotta a [0, 2π) in doppia precisione.",
     "members.setTime": "Imposta il tempo a `t` secondi; la superficie precedente corrisponde a `setTime(t - dt)`.",
     "members.offset": "Scrive in `out` lo spostamento `[x, y, z]` del punto a riposo `(x, 0, z)`.",
+    "members.displacementBox": "Il riquadro in cui giace ogni spostamento di un punto a riposo del rettangolo `[x0, x1] × [z0, z1]`, prima il suo angolo minimo poi il massimo, in `out`: per ogni onda, la sua fase copre l’estensione del rettangolo lungo la sua direzione, nella quale seno e coseno restano entro il minimo e il massimo dei loro estremi e delle creste e dei ventri che l’intervallo contiene; la somma dei riquadri delle onde contiene la somma. Si sommano `count` onde, le prime: ciò che serve a un record dimensionato per meno.",
     "members.normal": "Scrive in `out` la normale unitaria `[x, y, z]` al punto a riposo `(x, z)`.",
     "members.count": "Numero di onde sommate.",
     "members.dirX": "Componente x normalizzata della direzione di ogni onda.",
@@ -8262,9 +7946,6 @@
   "assertImpostorSection": {
     "summary": "Lancia il rifiuto di cache con nome che la sezione porta, o la restituisce invariata."
   },
-  "cellWeights": {
-    "summary": "I tre fotogrammi che una vista alla posizione di griglia `g` fonde, e i loro pesi baricentrici."
-  },
   "drawsImpostor": {
     "summary": "Se l'impostore disegna a `viewDepth`, la profondità di vista del perno in metri."
   },
@@ -8290,18 +7971,23 @@
   "impostorTriangleDepth": {
     "summary": "`z_tri`: la profondità da cui i `rootTriangles` della radice superano i pixel che copre."
   },
-  "octDecode": {
-    "summary": "Coordinate di griglia `f ∈ [0, 1]²` di ritorno a una direzione unitaria, l'inversa di `octEncode`."
-  },
-  "octEncode": {
-    "summary": "Direzione `d` verso il piano `[-1, 1]²`: l'ottaedro completo, o l'emi-ottaedro superiore."
-  },
   "planImpostors": {
     "summary": "Pianifica lo strato di impostori per una vista: ogni radice la cui mesh ha una voce cotta e la cui commutazione tiene produce una scheda ed è contrassegnata come soppressa.",
-    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine. `into`, un piano restituito da una vista precedente, viene ripianificato sul posto: il suo `switched` e le sue card vengono riutilizzati, così un runtime che pianifica ogni immagine non alloca più nulla una volta stabilizzato il numero di card."
+    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine. `into`, un piano restituito da una vista precedente, viene ripianificato sul posto: il suo `switched`, le sue card e i numeri di commutazione delle sue radici (`SwitchTable`) vengono riutilizzati, così un runtime che pianifica ogni immagine non alloca più nulla una volta stabilizzato il numero di card, e di ogni radice legge solo il pivot finché non ruota o non cambia scala."
   },
   "validateImpostorSection": {
     "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",
     "description": "Una sezione assente non è un errore: una cache precedente disegna ogni mesh per intero, come prima. Una presente è rifiutata in blocco quando la sua versione è ignota o una voce `baked` manca dei numeri che servono alla sua commutazione e alla sua scheda."
+  },
+  "world.quality": {
+    "members": {
+      "get": "Il livello a cui è disegnato `group`: quello della pagina, altrimenti quello del preset.",
+      "levels": "I preset, i livelli di ogni gruppo con il valore di ogni impostazione che scrivono, e le modalità di risoluzione con la loro scala.",
+      "preset": "Il preset che ogni gruppo segue, `'custom'` quando un gruppo impostato dalla pagina ne differisce. In scrittura, i gruppi che la pagina non ha impostato prendono il livello del preset.",
+      "renderSize": "La dimensione in pixel con cui è stata disegnata l’ultima immagine (`FrameMetrics.renderWidth`, `renderHeight`), prima di essere ricostruita sul display; `null` prima di una.",
+      "resolution": "La risoluzione richiesta dalla pagina (`QualityResolution`), tramite la scala di render: una scala senza modalità propria si legge come quella della modalità nativa con quella `scale`.",
+      "set": "Imposta `group` a `level` sopra il preset, che nessun preset successivo cambia; `'preset'` restituisce il gruppo al preset."
+    },
+    "summary": "La qualità: un preset, il livello di ogni gruppo sopra di esso e la risoluzione a cui è disegnata l’immagine."
   }
 }

@@ -1,4 +1,3 @@
-import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
 import type { CharacterBody } from '../../../sdk-core/src/collision/characterBody.ts';
 import {
   HUMAN_BODY,
@@ -7,25 +6,33 @@ import {
   type CharacterSettings,
 } from '../../../sdk-core/src/collision/characterSettings.ts';
 import type { CharacterReport } from './characterDriver.ts';
-import type { ToPhysics } from './protocol.ts';
+import type { TickRecords, ToPhysics } from './protocol.ts';
+import { createTwoSteps, eachRecord, lerpInto } from './twoSteps.ts';
 
 /** The session's end of the character (`PhysicsSession.character`). */
 export interface CharacterPort {
   send(message: ToPhysics): void;
-  hear: ((report: CharacterReport) => void) | null;
+  /** Each tick of `steps` fixed steps: its report (`null` when the character did not step) and
+   *  its feet (`PhysicsResults.feet`). */
+  hear: ((report: CharacterReport | null, feet: TickRecords | null, steps: number) => void) | null;
+  /** The fraction of a step the frame's time stands at, as the session draws everything at it
+   *  (`along`). */
+  at(): number;
 }
 
 /**
  * The session's end of the character: what the body sends before the world's first commands have
  * gone is held until they have (`flush`), so the worker never steps a body before the world it
  * stands in; from then on it is sent at once, the keys included, whenever the page reads them.
+ * `at` is the session's reading of the frame's time.
  */
-export function createCharacterPort(post: (message: ToPhysics) => void) {
+export function createCharacterPort(post: (message: ToPhysics) => void, at: () => number) {
   const held: ToPhysics[] = [];
   let open = false;
   return {
     send: (message: ToPhysics) => (open ? post(message) : void held.push(message)),
     hear: null as CharacterPort['hear'],
+    at,
     flush() {
       open = true;
       held.splice(0).forEach(post);
@@ -36,25 +43,27 @@ export function createCharacterPort(post: (message: ToPhysics) => void) {
 const NAMES = Object.keys(HUMAN_BODY) as (keyof CharacterSettings)[];
 
 /**
- * A CHARACTER WHOSE BODY IS JOLT'S, in the world's physics worker (`characterDriver.ts`): the
+ * A CHARACTER WHOSE BODY IS THE MODULE'S, in the world's physics worker (`characterDriver.ts`): the
  * same `CharacterBody` the controller drives, with the same settings, but the capsule meets every
  * body of the simulation — it climbs steps and slopes, rides what it stands on, pushes crates with
  * `pushStrength` and is pushed back. The page sends its keys when they change and draws the feet
- * the worker last reported, moved on by their velocity for the time since — never more than one
- * step ahead — so the drawn body is neither late nor jumping between reports.
+ * as the bodies are drawn, between their two states (`twoSteps.ts`) at the frame's time (`at`):
+ * the eye that follows it follows the simulated trajectory, never a clock of its own.
  */
 export function createPhysicsCharacter(
   port: CharacterPort,
   settings: CharacterSettings,
 ): CharacterBody {
+  /** The newest feet, and their two states (`twoSteps.ts`) one key holds. */
   const feet = new Float64Array(3),
+    states = { from: new Float64Array(3), to: new Float64Array(3) },
+    { from, to } = states,
+    steps2 = createTwoSteps(1),
     velocity = new Float64Array(3),
-    motion = new Float64Array(3),
     drawn = new Float64Array(3),
     sent: Partial<CharacterSettings> = {},
     keys: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
   let grounded = false,
-    heard = 0,
     presses = 0,
     landed = -1,
     jumps = 0;
@@ -70,14 +79,20 @@ export function createPhysicsCharacter(
     Object.assign(sent, next);
     port.send({ type: 'character', settings: next, feet: at });
   };
-  port.hear = (report) => {
-    feet.set(report.feet);
-    velocity.set(report.velocity);
-    motion.set(report.motion);
-    grounded = report.grounded;
-    landed = Math.max(landed, report.landed);
-    jumps += report.jumps;
-    heard = performance.now();
+  port.hear = (report, records, steps) => {
+    if (report) {
+      velocity.set(report.velocity);
+      grounded = report.grounded;
+      landed = Math.max(landed, report.landed);
+      jumps += report.jumps;
+    }
+    steps2.begin(steps);
+    if (records)
+      eachRecord(records, 2, 3, (_, newest, before) => {
+        if (steps2.record(0, states, newest, before, false)) feet.set(newest);
+      });
+    // A stepped tick that did not move them leaves them where their last step did.
+    steps2.end(() => from.set(to));
   };
   return {
     feet,
@@ -87,8 +102,9 @@ export function createPhysicsCharacter(
     },
     place(x, y, z) {
       [feet[0], feet[1], feet[2]] = [x, y, z];
+      from.set(feet);
+      to.set(feet);
       velocity.fill(0);
-      motion.fill(0);
       configure([x, y, z]);
     },
     pressJump() {
@@ -107,8 +123,7 @@ export function createPhysicsCharacter(
       for (; jumps > 0; jumps--) events.onJump?.();
       if (landed >= 0) events.onLand?.(landed);
       landed = -1;
-      const ahead = Math.min(Math.max(0, (performance.now() - heard) / 1000), PHYSICS_STEP);
-      for (let k = 0; k < 3; k++) drawn[k] = feet[k] + motion[k] * ahead;
+      lerpInto(drawn, from, to, port.at());
       return drawn;
     },
     dispose() {

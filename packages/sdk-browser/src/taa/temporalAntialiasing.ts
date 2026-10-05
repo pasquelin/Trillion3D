@@ -1,5 +1,5 @@
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts';
-import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
+import { MOIRE_FORMAT, SHARE_FORMAT, createTaaResolves, resolveTargetUsage } from './resolve.ts';
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts';
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts';
@@ -10,16 +10,17 @@ import { TAA_PASS } from '../stage/passLabels.ts';
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;
-/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares, tags and
- *  still weights (`SHARE_FORMAT`). */
-export const TAA_HISTORY_BYTES_PER_PIXEL = 24;
+/** Both ping-pong histories: colour, share/flicker gradient/still weight/count, full
+ *  identity/depth, and the flicker measure (`shadingHistoryWgsl.ts`). */
+export const TAA_HISTORY_BYTES_PER_PIXEL = 48;
 
 /**
- * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,
- * one read and the other written each frame, and composition reads the one just written. Targets
- * follow the display size (`resize`); bind groups are rebuilt when an input changes identity, never
- * per frame. With `upscale`, the resolves that reconstruct a frame drawn below the display are
- * compiled at once (`upscales`).
+ * Temporal antialiasing pass: two histories in ping-pong, each a colour, its share target, its
+ * geometry and its flicker measure (`TAA_HISTORY_BYTES_PER_PIXEL`), one read and the other
+ * written each frame, and composition reads the one just written. Targets follow the display size
+ * (`resize`); bind groups are rebuilt when an input changes identity, never per frame. With
+ * `upscale`, the resolves that reconstruct a frame drawn below the display are compiled at once
+ * (`upscales`). The resolve is a fullscreen draw into the targets.
  */
 export async function createTemporalAntialiasing(
   device: GPUDevice,
@@ -28,7 +29,7 @@ export async function createTemporalAntialiasing(
 ) {
   const resolves = await createTaaResolves(device, upscale);
   const motion = createPlacementMotion(device, roots);
-  const filterHistory = createTaaFilterHistory(device);
+  const filterHistory = createTaaFilterHistory(device, resolveTargetUsage());
   const uniform = device.createBuffer({
     label: 'Trillion3D TAA view v1',
     size: TAA_VIEW_BYTES,
@@ -38,6 +39,12 @@ export async function createTemporalAntialiasing(
     label: 'Trillion3D TAA history sampler',
     magFilter: 'linear',
     minFilter: 'linear',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+  });
+  // Nearest and clamped to the edge: what the resolve's gathers read through, the edge their clamp.
+  const texelSampler = device.createSampler({
+    label: 'Trillion3D TAA texel sampler',
     addressModeU: 'clamp-to-edge',
     addressModeV: 'clamp-to-edge',
   });
@@ -51,6 +58,8 @@ export async function createTemporalAntialiasing(
   const noReactiveView = noReactive.createView();
   const textures: GPUTexture[] = [],
     images: AccumulatedImage[] = [],
+    geometry: GPUTextureView[] = [],
+    shading: GPUTextureView[] = [],
     groups: (GPUBindGroup | undefined)[] = [undefined, undefined];
   let width = 0,
     height = 0,
@@ -62,7 +71,7 @@ export async function createTemporalAntialiasing(
   const dropTargets = () => {
     for (const texture of textures) texture.destroy();
     textures.length = 0;
-    images.length = 0;
+    images.length = geometry.length = shading.length = 0;
     groups[0] = groups[1] = undefined;
     filterHistory.drop();
   };
@@ -87,12 +96,14 @@ export async function createTemporalAntialiasing(
       const { frame } = this;
       saved.read = read;
       saved.sample = frame.sample;
+      saved.stochasticSample = frame.stochasticSample;
       saved.stillFrames = frame.stillFrames;
       saved.hasHistory = frame.hasHistory;
       saved.sceneSeen = frame.sceneSeen;
       saved.quiet = quiet;
       saved.sampledRank = frame.sampledRank;
       saved.previousViewProjection.set(frame.previousViewProjection);
+      saved.previousEye.set(frame.previousEye);
       filterHistory.checkpoint();
     },
     /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
@@ -100,11 +111,13 @@ export async function createTemporalAntialiasing(
       const { frame } = this;
       read = saved.read;
       frame.sample = saved.sample;
+      frame.stochasticSample = saved.stochasticSample;
       frame.stillFrames = saved.stillFrames;
       frame.hasHistory = saved.hasHistory;
       frame.sceneSeen = saved.sceneSeen;
       frame.sampledRank = saved.sampledRank;
       frame.previousViewProjection.set(saved.previousViewProjection);
+      frame.previousEye.set(saved.previousEye);
       filterHistory.replay();
       return saved.quiet;
     },
@@ -113,18 +126,21 @@ export async function createTemporalAntialiasing(
       if (w === width && h === height && images.length === 2) return false;
       dropTargets();
       [width, height] = [w, h];
-      const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      const usage = resolveTargetUsage(),
         size = { width: w, height: h };
       const target = (label: string, format: GPUTextureFormat) => {
         const texture = device.createTexture({ label, size, format, usage });
         textures.push(texture);
         return texture.createView();
       };
-      for (let i = 0; i < 2; i++)
+      for (let i = 0; i < 2; i++) {
+        geometry.push(target(`Trillion3D TAA geometry ${i}`, 'rg32uint'));
+        shading.push(target(`Trillion3D TAA flicker ${i}`, MOIRE_FORMAT));
         images.push({
           color: target(`Trillion3D TAA history ${i}`, 'rgba16float'),
           share: target(`Trillion3D TAA as-is share ${i}`, SHARE_FORMAT),
         });
+      }
       bound = undefined;
       return true;
     },
@@ -138,13 +154,24 @@ export async function createTemporalAntialiasing(
       const twin = inputs.filter && resolves.filtered(kind, !!inputs.upscale);
       // Until its twin is compiled, the image resolves no layer: composition reads the raw ones.
       if (!twin) inputs.filter = undefined;
-      const resolve = twin || set[kind];
+      // Without a reactive value, the resolve that reads none once compiled: the same words.
+      const quiet = !twin && !inputs.reactive && resolves.unreactive(kind, !!inputs.upscale);
+      const resolve = twin || quiet || set[kind];
       filterHistory.follow(inputs.filter, width, height);
+      const { layout } = resolve;
       if (!bound || INPUTS.some((key) => bound![key] !== inputs[key])) {
         bound = { ...inputs };
-        const { layout } = resolve;
         for (let i = 0; i < 2; i++) {
-          const entries = taaGroupEntries(inputs, images[i], sampler, uniform, noReactiveView);
+          const entries = taaGroupEntries(
+            inputs,
+            images[i],
+            sampler,
+            texelSampler,
+            uniform,
+            noReactiveView,
+            geometry[i],
+            shading[i],
+          );
           entries.push(...filterHistory.entries(inputs.filter, i));
           groups[i] = device.createBindGroup({ layout, entries });
         }
@@ -154,7 +181,9 @@ export async function createTemporalAntialiasing(
         filter = inputs.filter && filterHistory.target(write);
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
-        colorAttachments: [color, share, ...(filter ?? [])].map((view) => ({ view, ...CLEAR })),
+        colorAttachments: [color, share, geometry[write], shading[write], ...(filter ?? [])].map(
+          (view) => ({ view, ...CLEAR }),
+        ),
       });
       pass.setPipeline(resolve.pipeline);
       pass.setBindGroup(0, groups[read]!);

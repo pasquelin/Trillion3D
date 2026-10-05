@@ -20,6 +20,7 @@ import {
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import {
   DeadNodeWorker,
+  FlakyNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
 } from '../../../../../bench/oracles/browser/pageDecodeNodeWorker.ts';
@@ -31,14 +32,14 @@ async function page() {
   return data as Uint8Array;
 }
 
-function avecCoeurs<T>(n: number, run: () => Promise<T>) {
-  const precedent = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+function withCores<T>(n: number, run: () => Promise<T>) {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   Object.defineProperty(globalThis, 'navigator', {
     value: { hardwareConcurrency: n },
     configurable: true,
   });
   return run().finally(() => {
-    if (precedent) Object.defineProperty(globalThis, 'navigator', precedent);
+    if (previous) Object.defineProperty(globalThis, 'navigator', previous);
   });
 }
 
@@ -46,13 +47,13 @@ function avecCoeurs<T>(n: number, run: () => Promise<T>) {
  *  deadline. The only reliable way to know that the startup trial — asynchronous, never awaited —
  *  has settled. The deadline is wide: a Node worker takes a few hundred milliseconds to start on a
  *  loaded CI runner, and the loop stops at the first served decode. */
-async function jusquAuPool(delaiMs = 10_000) {
-  const limite = Date.now() + delaiMs;
+async function untilPoolServes(waitMs = 10_000) {
+  const endsAt = Date.now() + waitMs;
   do {
     await decodePageOffThread(await page());
     if (pageDecodeStats().offThread! > 0) return true;
     await new Promise((r) => setTimeout(r, 10));
-  } while (Date.now() < limite);
+  } while (Date.now() < endsAt);
   return false;
 }
 
@@ -68,23 +69,23 @@ test('with no decode, metrics are null, not zero', () => {
 
 test('a resident page is never detached: its partial view is copied, not transferred', async () => {
   releasePageDecoders(); // no `Worker` here: force the fallback onto the main thread (`ownBuffer`).
-  const donnees = await page();
-  const accueil = new Uint8Array(donnees.byteLength + 16);
-  accueil.set(donnees, 8); // a partial view, like a page-cache entry.
-  const vue = accueil.subarray(8, 8 + donnees.byteLength);
-  const decodee = await decodePageOffThread(vue);
-  assert.equal(decodee.vertexCount, 3);
-  assert.equal(accueil.buffer.byteLength, donnees.byteLength + 16, 'the cache buffer moved');
-  for (let i = 0; i < donnees.byteLength; i++)
-    assert.equal(vue[i], donnees[i], `byte ${i} altered`);
+  const pageData = await page();
+  const cacheEntry = new Uint8Array(pageData.byteLength + 16);
+  cacheEntry.set(pageData, 8); // a partial view, like a page-cache entry.
+  const partialView = cacheEntry.subarray(8, 8 + pageData.byteLength);
+  const decoded = await decodePageOffThread(partialView);
+  assert.equal(decoded.vertexCount, 3);
+  assert.equal(cacheEntry.buffer.byteLength, pageData.byteLength + 16, 'the cache buffer moved');
+  for (let i = 0; i < pageData.byteLength; i++)
+    assert.equal(partialView[i], pageData[i], `byte ${i} altered`);
 });
 
 test('pool size is bounded by cores, the cap and admission, and is readable in the metrics', () =>
   withNodeWorkerShim(NodeDomWorker, () =>
-    avecCoeurs(8, async () => {
+    withCores(8, async () => {
       releasePageDecoders();
       configurePageDecoders(2);
-      assert.ok(await jusquAuPool(), 'the pool should eventually serve a decode');
+      assert.ok(await untilPoolServes(), 'the pool should eventually serve a decode');
       assert.equal(pageDecodeStats().workers, pageDecodeWorkerCount(8, 2));
       releasePageDecoders();
     }),
@@ -94,9 +95,9 @@ test('a worker dead at startup never prevents decode from finishing, nor does it
   withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeDomWorker, async () => {
     releasePageDecoders();
     configurePageDecoders(1);
-    const decodee = await decodePageOffThread(await page());
-    assert.equal(decodee.vertexCount, 3);
-    assert.equal(await jusquAuPool(500), false, 'a dead pool must never end up serving');
+    const decoded = await decodePageOffThread(await page());
+    assert.equal(decoded.vertexCount, 3);
+    assert.equal(await untilPoolServes(500), false, 'a dead pool must never end up serving');
     assert.equal(pageDecodeStats().workers, 0);
     releasePageDecoders();
   }));
@@ -111,7 +112,7 @@ test('the startup probe is never awaited: the first call goes through the main t
       0,
       'the first call must not have waited for the pool',
     );
-    assert.ok(await jusquAuPool(), 'once started, the pool must eventually serve a call');
+    assert.ok(await untilPoolServes(), 'once started, the pool must eventually serve a call');
     releasePageDecoders();
   }));
 
@@ -119,16 +120,34 @@ test('a freshly verified page is transferred: its original buffer empties after 
   withNodeWorkerShim(NodeDomWorker, async () => {
     releasePageDecoders();
     configurePageDecoders(1);
-    assert.ok(await jusquAuPool(), 'the pool must be ready before the verification that counts');
-    const donnees = await page();
-    const source = donnees.slice().buffer as ArrayBuffer;
-    const { sha256, source: rendu } = await verifyPageBytes(source);
+    assert.ok(
+      await untilPoolServes(),
+      'the pool must be ready before the verification that counts',
+    );
+    const pageData = await page();
+    const source = pageData.slice().buffer as ArrayBuffer;
+    const { sha256, source: returned } = await verifyPageBytes(source);
     assert.equal(
       source.byteLength,
       0,
       'the handed-over buffer must be detached after the transfer',
     );
-    assert.equal(rendu.byteLength, donnees.byteLength);
+    assert.equal(returned.byteLength, pageData.byteLength);
     assert.equal(sha256.length, 64);
+    releasePageDecoders();
+  }));
+
+test('a verify whose worker vanished before taking the bytes is done on the main thread', () =>
+  withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeDomWorker, async () => {
+    releasePageDecoders();
+    configurePageDecoders(1);
+    const pageData = await page();
+    // The first call opens the pool and is served on the main thread; the probe answers.
+    await verifyPageBytes(pageData.slice().buffer as ArrayBuffer);
+    await new Promise((r) => setTimeout(r, 0));
+    // The worker dies on this one without taking its buffer: the bytes are whole.
+    const { sha256, source } = await verifyPageBytes(pageData.slice().buffer as ArrayBuffer);
+    assert.equal(sha256.length, 64);
+    assert.equal(source.byteLength, pageData.byteLength);
     releasePageDecoders();
   }));

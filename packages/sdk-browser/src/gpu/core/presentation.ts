@@ -5,12 +5,22 @@ import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 import { createPresentAt, type PresentRect } from './presentAt.ts';
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts';
 /** Source is already display encoded. No second tone map or color conversion. A canvas that keeps
- *  its image across sessions (`canvasHandover.ts`) is configured at the first present only. */
+ *  its image across sessions (`canvasHandover.ts`) is configured at the first present only.
+ *
+ *  The canvas keeps the image last presented into it: WebGPU replaces its drawing buffer only when
+ *  a new texture is taken (`getCurrentTexture`), when it is configured or when it is sized. So the
+ *  presenter knows which display image, at which size, the canvas holds (`holds`), and a held frame
+ *  that would copy that same image again encodes nothing. */
 export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement) {
   const context = canvas.getContext('webgpu');
   if (!context) throw new Error('WEBGPU_CANVAS_UNAVAILABLE');
   const format: GPUTextureFormat = 'bgra8unorm';
-  let configured = false;
+  let configured = false,
+    // The image the whole canvas holds, at its size: nothing once anything else may have reached it.
+    heldImage: GPUTexture | undefined,
+    heldWidth = 0,
+    heldHeight = 0;
+  const forget = () => void (heldImage = undefined);
   const configure = () => {
     if (configured) return;
     // Configuring blanks the canvas: the image of a closed session stays until this one draws.
@@ -49,16 +59,37 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       // The canvas texture the whole image was last drawn into: a view is placed on it alone.
       shown: GPUTexture | undefined;
     const presentAt = createPresentAt(device, layout, format);
+    /** The whole canvas's texture this frame, blank until a composition fills it (`composed`). */
     const targetView = (width: number, height: number) => {
       configure();
+      forget();
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
       shown = context.getCurrentTexture();
       return shown.createView();
     };
+    /** `image`, `width` × `height`, was just drawn over the whole canvas: the canvas holds it. */
+    const composed = (image: GPUTexture, width: number, height: number) => {
+      heldImage = image;
+      heldWidth = width;
+      heldHeight = height;
+    };
     return {
       canvas,
       targetView,
+      composed,
+      /** Whether the canvas still shows `image` whole, at `width` × `height` and at that size. */
+      holds: (image: GPUTexture, width: number, height: number) =>
+        heldImage === image &&
+        heldWidth === width &&
+        heldHeight === height &&
+        canvas.width === width &&
+        canvas.height === height,
+      /** What the canvas shows is no longer known: sized by its owner, or a frame was drawn. */
+      forget,
+      /** Compiles off the frame what presents a view placed at a rectangle of the canvas: asked
+       *  when the first one is added, before it presents. */
+      preparePlaced: presentAt.prepare,
       /** The image over the whole canvas, sized to it; at `at`, a persistent view's rectangle of
        *  the canvas, which keeps its size and what else it shows this frame. */
       present(
@@ -70,10 +101,13 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       ) {
         if (at) {
           // Not this frame's whole image (its targets still asked, say): the canvas keeps the
-          // last frame it showed, never a blank one with this view alone on it.
+          // last frame it showed, never a blank one with this view alone on it. Either way the
+          // canvas no longer holds one image whole.
+          forget();
           if (!configured) return;
           const current = context.getCurrentTexture();
-          if (current === shown) presentAt(encoder, current.createView(), image, at, canvas);
+          if (current === shown)
+            presentAt.present(encoder, current.createView(), image, at, canvas);
           return;
         }
         const view = targetView(width, height);
@@ -92,12 +126,14 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         pass.setBindGroup(0, group!);
         pass.draw(3);
         pass.end();
+        composed(image, width, height);
       },
       /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this
        *  device — at once, or once no session follows on a kept canvas (`closeCanvasImage`). */
       dispose() {
         group = undefined;
         texture = shown = undefined;
+        forget();
         if (!configured) return;
         closeCanvasImage(canvas, () => {
           context.unconfigure();

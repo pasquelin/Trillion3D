@@ -3,16 +3,11 @@ import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../../page/cone/cone.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { SelectionUniforms } from '../core/selection.ts';
-import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import type { ClusterStructureIndex } from '../../page/selection/types.ts';
 import type { CullingLinks } from '../../page/cut/links.ts';
 
-/**
- * The view one run of the kernel serves: a camera's uniforms, or a shadow face's with `light`, the
- * pages it redraws this frame (`lightCut.ts`). A box covering none of them is dropped, and no
- * normal cone rejects, since every face of a caster writes depth.
- */
-export type DagViewUniforms = SelectionUniforms & { light?: LightPages };
+/** The view one run of the kernel serves: the camera's uniforms. */
+export type DagViewUniforms = SelectionUniforms;
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
  *  sphere, the floor and a flags word (`packNodes.ts`). */
@@ -47,8 +42,8 @@ export type DagRoot = {
   flat?: boolean;
   /** A parked instance-buffer row: packed with the others, and deposited in no queue. */
   parked?: boolean;
-  /** Its root mark (`ClusterRoot.mark`): left out of a light cut when it casts no shadow, open to
-   *  a camera's when never culled. */
+  /** Its root mark (`ClusterRoot.mark`): a root its impostor card draws opens no descent, one never
+   *  culled takes planes no box leaves. */
   mark?: number;
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
    *  among all placements of a primitive; without them, the layout derives them itself. */
@@ -77,13 +72,17 @@ export type PackedDag = {
   /** Working table (one placement word per page), residency bits, then the unique cold records. */
   pageCones: Float32Array;
   worlds: Float32Array;
+  /** Live double-precision placements; light selection reads them before camera rebasing rounds. */
+  worldSources?: readonly Pick<DagRoot, 'world'>[];
   worldStretch: Float32Array;
   /** Root node of each primitive, from which the level descent starts; `SELECTION_NONE` without. */
   rootNodes: Uint32Array;
   /** Root node of each primitive, parked or not: what `rootNodes` takes back when a row returns. */
   rootBases: Uint32Array;
-  /** One per primitive: its root's mark (`DagRoot.mark`), else 0. */
-  mark: Uint8Array;
+  /** One per primitive: the word the kernel reads its mark from — its root's mark (`DagRoot.mark`)
+   *  in the low sixteen bits, the deformation reach as a half float above (`markReach`) —, as
+   *  `markWorld` last wrote it, else the root's mark. */
+  mark: Uint32Array;
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */
@@ -103,19 +102,4 @@ export type PackedDag = {
   /** The world DAG, when packed (#1333): its placement and its `origins`, which the cut's
    *  residency mirrors (`worldMirror.ts`, #1332). */
   world?: { root: number; origins: Int32Array };
-};
-
-/**
- * Where a light cut leaves the pages its views draw, in the order its mask kernel appended them:
- * catalogue indices from word `offset` of `buffer`, view `v`'s range starting `work[offsetWord + v]`
- * words further and holding `work[countWord + v]` of them — both known on the GPU alone —, and
- * `work[groupsWord]` the most sixty-four-wide groups any view drew.
- */
-export type DrawnLog = {
-  buffer: GPUBuffer;
-  offset: number;
-  work: GPUBuffer;
-  offsetWord: number;
-  countWord: number;
-  groupsWord: number;
 };

@@ -12,7 +12,7 @@ const model = new Float64Array(16),
   product = new Float64Array(16);
 
 /** `pose = transform · model`, sixteen floats in and sixteen floats out: no host library
- *  composes anything here, and the result is the one the reference computes, bit for bit.
+ *  composes anything here, and the result is the plain product, bit for bit.
  *
  *  `pose` is the mutable shape, `from` the read-only one, and the callers pass fields their own
  *  records declare as `MatrixElements`. TypeScript does not weigh `readonly` when it checks

@@ -8,12 +8,7 @@ import {
   PROXY_NODE_FLOATS,
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
-import {
-  PROXY_CASTLESS_WORD,
-  PROXY_LAYOUT_WORD,
-  PROXY_REVISION_WORD,
-  PROXY_STEPS_WORD,
-} from './nodeWgsl.ts';
+import { PROXY_LAYOUT_WORD, PROXY_REVISION_WORD, PROXY_STEPS_WORD } from './nodeWgsl.ts';
 import { PROXY_HEADER_WORDS } from './sizes.ts';
 
 /** Ranks of the columns a sync rewrites. */
@@ -21,8 +16,7 @@ const TRIANGLES = 0,
   BOUNDS = 1,
   CHILDREN = 2,
   GROUPS = 3,
-  TRANSFORMS = 6,
-  CASTLESS = 7;
+  TRANSFORMS = 6;
 /** Columns motion rewrites whole: node bounds, node children and owner transforms. */
 const MOVING_COLUMNS = [BOUNDS, CHILDREN, TRANSFORMS];
 
@@ -61,8 +55,6 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     words(data?.groupOffsets ?? new Uint32Array(0)),
     words(data?.owners ?? new Uint32Array(0)),
     words(motion.transforms),
-    // One bit per group, set when every owner of the group casts no shadow (`castless`).
-    new Uint32Array(Math.ceil(proxy.groups / 32)),
   ];
   // Start rank of each column, counted from the first word after the header: that is what the
   // shader adds to a triangle or node index.
@@ -83,8 +75,7 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   // fit in one buffer: the same value, from the same source.
   mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS;
   for (let index = 0; index < columns.length; index++) {
-    const word = index < 3 ? PROXY_LAYOUT_WORD + 1 + index : 9 + index;
-    mapped[index === CASTLESS ? PROXY_CASTLESS_WORD : word] = starts[index];
+    mapped[PROXY_LAYOUT_WORD + 1 + index] = starts[index];
     mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index]);
   }
   /** Visited nodes per ray: the built tree's bound, plus each node motion let into a ray. */
@@ -145,27 +136,6 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       tail[1] = steps();
       device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail);
       return change;
-    },
-    /**
-     * Marks the groups whose every owner casts no shadow (`castsNone` of each owner's source node
-     * and of the mesh it places, `-1` for none, #966), which the far sun's shadow ray passes; true
-     * when a mark changed, then uploaded.
-     */
-    castless(castsNone: (source: number, mesh: number) => boolean) {
-      const { groupOffsets, owners, sourceMeshes } = data,
-        marks = new Uint32Array(columns[CASTLESS].length);
-      for (let group = 0; group < proxy.groups; group++) {
-        let none = true;
-        for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++) {
-          const source = owners[owner * 2];
-          none = castsNone(source, sourceMeshes[source] ?? -1);
-        }
-        if (none) marks[group >> 5] |= 1 << (group & 31);
-      }
-      if (marks.every((word, at) => word === columns[CASTLESS][at])) return false;
-      columns[CASTLESS].set(marks);
-      write(CASTLESS);
-      return true;
     },
     get errorMetres() {
       return motion.errorMetres;

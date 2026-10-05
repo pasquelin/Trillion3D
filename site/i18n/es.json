@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Hojas recortadas por alfa",
       "a-colour-ramp-in-linear-light": "Degradado lineal",
       "the-material-family": "La familia de materiales",
+      "page-materials": "Editar materiales en vivo",
+      "a-bust-a-crate-and-a-glass-ball": "Un busto, una caja, una bola de cristal",
       "a-texture-turned-and-tiled": "Textura girada, repetida",
       "texture-filters-compared": "Filtros de textura",
       "every-image-format": "Todos los formatos de imagen",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Tone mapping comparado",
       "a-first-post-effect": "Un primer efecto de posproceso",
       "a-glow-around-lights": "Halo alrededor de las luces",
+      "choose-your-quality": "Elegir la calidad",
       "glow-on-chosen-objects": "Halo selectivo",
       "depth-of-field": "Profundidad de campo",
       "motion-blur": "Desenfoque de movimiento",
@@ -743,7 +746,6 @@
     "protocol": "Condiciones registradas",
     "references": "Puntos de referencia publicados",
     "referenceNote": "Las cifras publicadas de los motores de escritorio usan su propio hardware, sus propias escenas y sus propios protocolos. No participan en las comparaciones anteriores.",
-    "referenceLink": "Leer las fuentes y las limitaciones",
     "commit": "Commit del repositorio",
     "date": "Fecha de la medición",
     "browser": "Navegador",
@@ -1250,7 +1252,7 @@
       "description": "Las matrices de un fotograma de cámara, asignadas una vez y reescritas en cada fotograma: `view` (la inversa de la matriz del mundo de la cámara), `viewProjection`, y `planes`, los seis planos normalizados de ese frustum."
     },
     "updateCameraFrame": {
-      "description": "Reescribe el fotograma: vista = la inversa de `world` (cero para una matriz del mundo singular, como la referencia), vista-proyección = `projection · view`, y los seis planos de ese frustum. Una convención de profundidad atraviesa las tres. `far` es el plano **declarado por el host**: la proyección no tiene ninguno — es infinita, que es todo el sentido de la profundidad invertida — pero el frustum lo conserva, si no un fotograma ganaría de repente todos los objetos que la cámara no mostraba. Ausente o no finito, el plano lejano permanece sin límite."
+      "description": "Reescribe el fotograma: vista = la inversa de `world` (cero para una matriz del mundo singular), vista-proyección = `projection · view`, y los seis planos de ese frustum. Una convención de profundidad atraviesa las tres. `far` es el plano **declarado por el host**: la proyección no tiene ninguno — es infinita, que es todo el sentido de la profundidad invertida — pero el frustum lo conserva, si no un fotograma ganaría de repente todos los objetos que la cámara no mostraba. Ausente o no finito, el plano lejano permanece sin límite."
     },
     "worldToRenderOrigin": {
       "description": "Escribe `world` con su traslación referida a `origin`. La resta ocurre en la precisión de las entradas — el doble de las matrices del mundo del motor —, y escribir un búfer de precisión simple redondea **después**, nunca antes: eso es todo lo que separa una imagen nítida de una que tiembla. `at` es el rango del primero de los dieciséis números escritos, así que un búfer de muchas matrices se llena sin cortar una vista por matriz y por fotograma."
@@ -1283,10 +1285,10 @@
       "description": "`out = a · b`. Las treinta y dos entradas se leen antes de la primera escritura, así que `out` puede ser `a` o `b`. Cada término es la suma de cuatro productos sin cero inicial — una suma iniciada en `0` cambiaría el signo de un cero negativo. **Un solo tipo de búfer, `Float64Array`, entrada y salida**: un solo llamador que pasara un array simple haría polimórficos los cuarenta y ocho puntos de acceso y cada bucle caliente lo pagaría, así que un llamador que parte de una matriz del host la copia primero."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` por cofactores. Un determinante exactamente nulo da la matriz nula, como la referencia — un llamador que deba distinguir este caso prueba el determinante, nunca la salida. Ese umbral es paridad con la referencia, no la regla de singularidad del motor, que solo se aplica donde se transporta una normal. Las dieciséis entradas se leen antes de la primera escritura, así que `out` puede ser `m`."
+      "description": "`out = m⁻¹` por cofactores. Un determinante exactamente nulo da la matriz nula — un llamador que deba distinguir este caso prueba el determinante, nunca la salida. Ese umbral es el cero exacto, no la regla de singularidad del motor, que solo se aplica donde se transporta una normal. Las dieciséis entradas se leen antes de la primera escritura, así que `out` puede ser `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, el cuaternión ordenado `(x, y, z, w)`. La última fila se escribe exactamente `(0, 0, 0, 1)`; los productos de cuaterniones se duplican por suma (`x + x`), como la referencia, nunca multiplicados por dos."
+      "description": "`out = T · R · S`, el cuaternión ordenado `(x, y, z, w)`. La última fila se escribe exactamente `(0, 0, 0, 1)`; los productos de cuaterniones se duplican por suma (`x + x`), nunca multiplicados por dos."
     },
     "decomposeMatrix4": {
       "description": "La inversa: la escala de una columna es su longitud, y un determinante negativo lo lleva solo el eje `x`, sea cual sea el eje invertido en la fuente. Una matriz cizallada no tiene tal descomposición — la rotación devuelta es entonces la de la matriz normalizada por columnas y recomponerla ya no da `m`, una brecha idéntica a la de la referencia y cuantificada por el banco."
@@ -1349,7 +1351,7 @@
       "description": "Los seis planos del frustum de una matriz de recorte — una vista-proyección, o una proyección sola para planos en el espacio de vista. La primera los normaliza, así que `a·x + b·y + c·z + d` es una distancia con signo; la segunda deja las sumas y diferencias brutas de las filas, donde solo el signo decide, sin raíz cuadrada ni división: la forma de la prueba de recorte exacta, donde normalizar desplazaría el redondeo. Una matriz degenerada da planos NaN o infinitos sin lanzar error."
     },
     "frustumFarPlane": {
-      "description": "El plano lejano de un frustum cuya proyección no tiene ninguno. La proyección del motor es infinita: su fila de profundidad ya no acota nada, así que el plano lejano se lee de la matriz de **vista**, cuya tercera fila da la profundidad de vista — un punto está dentro cuando `far + z >= 0`. Un `far` no finito deja el plano nulo en su sitio, un plano lejano verdaderamente sin límite. `frustumPlanesToLocal` lleva los planos al espacio local de una transformación, así que una caja local se prueba sin transformarse."
+      "description": "El plano lejano de un frustum cuya proyección no tiene ninguno. La proyección del motor es infinita: su fila de profundidad ya no acota nada, así que el plano lejano se lee de la matriz de **vista**, cuya tercera fila da la profundidad de vista — un punto está dentro cuando `far + z >= 0`. Un `far` no finito deja el plano nulo en su sitio, un plano lejano verdaderamente sin límite."
     },
     "frustumExcludesBox": {
       "description": "La caja contra el frustum: la primera es verdadera cuando un plano deja las ocho esquinas detrás. La segunda devuelve tres estados — 0 fuera, 1 a caballo, 2 totalmente dentro — en dos pasadas, la primera solo rechazando, la segunda leyendo la esquina más trasera para distinguir «a caballo» de «dentro». Un subárbol totalmente dentro ahorra una prueba para cada caja debajo de él."
@@ -1373,7 +1375,7 @@
       "description": "Lecturas de la matriz del mundo: la columna de traslación; la rotación y la escala de su descomposición, un determinante negativo llevado solo por `x`; la tercera columna normalizada como dirección, invertida cuando `cameraForward` — una cámara y una luz miran hacia su `−z`. `nodeWorldMirrorsFaces` es verdadero cuando la matriz del mundo invierte la orientación, y el dibujo intercambia entonces sus caras delantera y trasera; se lee tal cual, sin actualizar, y un determinante nulo o NaN no invierte nada."
     },
     "lookAtNode": {
-      "description": "Gira `node` hacia el punto del mundo `(x, y, z)`. `viewer` es verdadero para una cámara o una luz, que miran hacia su `−z`, falso para un objeto, que presenta su `+z`. `up` es el arriba del nodo, `(0, 1, 0)` en la referencia. Los ancestros y el nodo se actualizan primero."
+      "description": "Gira `node` hacia el punto del mundo `(x, y, z)`. `viewer` es verdadero para una cámara o una luz, que miran hacia su `−z`, falso para un objeto, que presenta su `+z`. `up` es el arriba del nodo, `(0, 1, 0)` por defecto. Los ancestros y el nodo se actualizan primero."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` productos `out[i] = a[i] · b[i]`, los tres lados dados como subvistas de dieciséis números. Las subvistas se construyen una vez, nunca por fotograma; un núcleo WebAssembly repite la misma fórmula término por término y el regulador elige el camino medido más rápido."
@@ -1673,7 +1675,7 @@
       "nodes": "nodos"
     },
     "patterns": {
-      "singular": "determinante {{value}}: dieciséis ceros, como la referencia — prueba el determinante, nunca la salida"
+      "singular": "determinante {{value}}: dieciséis ceros — prueba el determinante, nunca la salida"
     }
   }
 }

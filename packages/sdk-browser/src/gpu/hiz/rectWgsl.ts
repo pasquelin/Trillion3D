@@ -10,7 +10,7 @@ import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
  * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
  * `hiddenByPyramid` below, the only reader outside this module.
  */
-export const HIZ_LEVEL_WGSL = `
+const HIZ_LEVEL_WGSL = `
 /** Mirror of \`premierNiveau\` (../../hiz/occlusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
@@ -45,11 +45,10 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
 
 /**
  * Whether the farthest depth of a box's footprint in a pyramid mip — in reverse-Z, the MINIMUM —
- * hides the box's nearest: `nearest < min(texels) - bias`, verdict for verdict, in fewer reads.
+ * hides the box's nearest: `nearest < min(texels)`, verdict for verdict, in fewer reads.
  *
  * `texelsHide` asks every texel of an INCLUSIVE rectangle and stops at the first that does not
- * hide: the minimum can only go down from there, so no later texel brings the verdict back. And
- * `x - bias` rounds monotonically, so `min(t) - bias` is `min(t - bias)`.
+ * hide: the minimum can only go down from there, so no later texel brings the verdict back.
  *
  * `pyramidHides` first reads the rectangle `shift` mips up (`hizCoarseLevel`), where it spans at
  * most 2×2 texels: a coarse texel is the minimum of every finer texel under it, so when the coarse
@@ -58,20 +57,20 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  * The host kernel declares `pyramid`, the only buffer these functions read.
  */
 export const HIZ_HIDES_WGSL = `
-fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32,bias:f32)->bool{
+fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32)->bool{
  for(var y=y0;y<=y1;y++){
   for(var x=x0;x<=x1;x++){
-   if(!(nearest<pyramid[offset+u32(y)*width+u32(x)]-bias)){return false;}
+   if(!(nearest<pyramid[offset+u32(y)*width+u32(x)])){return false;}
   }
  }
  return true;
 }
-fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest:f32,bias:f32,
+fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest:f32,
  coarseOffset:u32,coarseWidth:u32,shift:u32)->bool{
  if(maxX<minX||maxY<minY){return false;}
  if(maxX+1-minX>${HIZ_KERNEL_TEXELS}||maxY+1-minY>${HIZ_KERNEL_TEXELS}){return false;}
- if(shift>0u&&texelsHide(minX>>shift,minY>>shift,maxX>>shift,maxY>>shift,coarseOffset,coarseWidth,nearest,bias)){return true;}
- return texelsHide(minX,minY,maxX,maxY,offset,width,nearest,bias);
+ if(shift>0u&&texelsHide(minX>>shift,minY>>shift,maxX>>shift,maxY>>shift,coarseOffset,coarseWidth,nearest)){return true;}
+ return texelsHide(minX,minY,maxX,maxY,offset,width,nearest);
 }
 `;
 
@@ -93,7 +92,7 @@ fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
  if(pick.y==0u){return false;}
  let l=pick.x;let c=pick.z;
  return pyramidHides(x0>>l,y0>>l,x1>>l,y1>>l,
-  uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,0.0,
+  uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,
   uni.levelOffset[c>>2u][c&3u],uni.levelWidth[c>>2u][c&3u],c-l);
 }
 `;

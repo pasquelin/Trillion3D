@@ -1,6 +1,6 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './temporalAntialiasing.ts';
-import { dropTaaHistory, forgetTaaHistory } from './frame.ts';
+import { restartTaaAverage } from './landing.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { isCancelled } from '../backend/common.ts';
@@ -38,27 +38,31 @@ async function rigTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice
 
 /**
  * Turns the pass on or off during the session, no session reopened; the history is dropped
- * either way. Off, the next image is sampled at the pixel centre and the program is kept, so that
- * on again is immediate. On in a session opened without it, the program is rigged in the
- * background and the images stay unjittered until it is ready. The capability says which the
- * image is.
+ * either way. Off, the next image is sampled at the pixel centre, the history's targets are
+ * released — no byte of them is kept off — and the program is kept, so that on again is
+ * immediate: the targets are made again at the view's size, the first image a cut. On in a session
+ * opened without it, the program is rigged in the background and the images stay unjittered until
+ * it is ready. The capability says which the image is. The frame's own targets stay as they are
+ * (`../webgpu/pages/state/renderScale.ts`): switching on remakes none; switching off remakes them
+ * only where they were made below the display's size, at its size, the images off drawn at it.
  */
 export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolean) {
   const { gpu, capabilities } = rt,
     // The pass is the main view's: a capture drawn aside meanwhile holds none.
-    { temporal } = mainViewGpu(rt);
+    main = mainViewGpu(rt),
+    { temporal } = main;
   if (gpu.temporalWanted === on) return;
   gpu.temporalWanted = on;
   // A barrier (`settlePose`) before the next ordinary image replays the checkpoint: it must not
   // bring back the history of the images before the switch, on any view.
-  for (const history of [
-    temporal,
-    ...rt.views.persistent.map((view) => viewGpu(rt, view).temporal),
-  ]) {
-    forgetTaaHistory(history);
+  for (const view of [main, ...rt.views.persistent.map((persistent) => viewGpu(rt, persistent))]) {
+    const history = view.temporal;
+    restartTaaAverage(history?.frame);
     if (!history) continue;
     history.frame.sampledRank = 0;
     history.checkpoint(false);
+    if (on) joinTargets(view);
+    else releaseHistory(view);
   }
   if (on && temporal) {
     for (const item of TAA_CAPABILITIES) grantCapability(capabilities, item);
@@ -87,8 +91,16 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
  *  unallocated, `makeTargets` counts it. */
 function joinTargets(gpu: WebgpuView['gpu']) {
   const { temporal } = gpu;
-  if (temporal && gpu.colorTexture && temporal.resize(...gpu.displaySize))
+  if (temporal && gpu.hdrTexture && temporal.resize(...gpu.displaySize))
     gpu.targetBytes += temporal.historyBytes;
+}
+
+/** The history leaves the view's targets, its bytes with it; the pass and its programs stay. */
+function releaseHistory(gpu: WebgpuView['gpu']) {
+  const { temporal } = gpu;
+  if (!temporal) return;
+  gpu.targetBytes = Math.max(0, gpu.targetBytes - temporal.historyBytes);
+  temporal.release();
 }
 
 /** A persistent view's own pass and history, when the main view accumulates: never another
@@ -121,15 +133,16 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
 
 /**
  * History targets for the display size, and their bytes. They follow resolution
- * like the other targets: no budget makes them leave. A surface capture renders from
- * another camera and does not accumulate: its targets do not touch the view's history,
+ * like the other targets: no budget makes them leave; switched off, they are not made
+ * (`setWebgpuTemporalAntialiasing` makes them when it is on again). A surface capture renders
+ * from another camera and does not accumulate: its targets do not touch the view's history,
  * which stays whole for the frame that follows restore.
  */
 export function ensureTaaTargets(rt: WebgpuPagesRuntime, width: number, height: number) {
   const temporal = rt.gpu.temporal;
-  if (!temporal) return 0;
+  if (!temporal || !rt.gpu.temporalWanted) return 0;
   // Under a capture, the capture's reserve already carries history: it is not counted twice.
   if (rt.capture.capturing) return 0;
-  if (temporal.resize(width, height)) dropTaaHistory(rt);
+  if (temporal.resize(width, height)) restartTaaAverage(rt.gpu.temporal?.frame);
   return width * height * TAA_HISTORY_BYTES_PER_PIXEL;
 }

@@ -143,3 +143,36 @@ test('a plan planned again in place reuses its switched array and its cards', ()
   assert.equal(plan.cards.length, 0);
   assert.deepEqual([...plan.switched], [0]);
 });
+
+test('off the view axis a root switches only where one atlas texel stays within a pixel', () => {
+  // At view depth z and distance d the projection stretches a displacement at the pivot by at most
+  // f·d/z² (its Jacobian's largest singular value), so the texel of 2R/r_f metres covers
+  // (2R/r_f)·f·d/z² pixels, and an area grows by f²·d/z³: the pixels the root covers.
+  const rock = { objectRadius: 2, rootTriangles: 50000, coverage: 0.8, frameSide: 64 };
+  const sharp = { ...section, meshes: [bakedMesh(3, 'rock', rock)] };
+  const decide = (x: number, z: number) =>
+    planImpostors([{ mesh: 3, world: world(x, 0, -z) }], sharp, IDENTITY_VIEW, FOCAL).switched[0];
+  const depth = impostorSwitchDepth(rock, FOCAL);
+  assert.deepEqual([decide(0, depth), decide(0, depth * (1 - 1e-12))], [1, 0], 'on the axis, z_s');
+  for (const q of [0.25, 0.6, 1.03, 1.18]) {
+    // At d = z_s a texel spans 1+q² pixels; the switch waits for z = √(1+q²)·z_s, d = (1+q²)·z_s.
+    const z = depth * Math.sqrt(1 + q * q) * (1 + 1e-9);
+    const onAxis = (depth / Math.sqrt(1 + q * q)) * (1 + 1e-9); // d just past z_s, as before
+    assert.equal(decide(q * onAxis, onAxis), 0, `q ${q}: the distance alone no longer switches`);
+    assert.equal(decide(q * z, z), 1, `q ${q}: switched once (2R/r_f)·f·d/z² ≤ 1`);
+    assert.equal(decide(q * z * (1 - 1e-6), z * (1 - 1e-6)), 0, `q ${q}: whole just nearer`);
+    const pixels = ((2 * rock.objectRadius) / rock.frameSide) * FOCAL * Math.hypot(q * z, z);
+    assert.ok(pixels / (z * z) <= 1, `q ${q}: at most one pixel per texel`);
+  }
+  // A triangle-bound tree covers c·π·R²·f²·d/z³ pixels: T reaches them at z·√(z/d) = z_tri.
+  const tree = impostorSwitchDepth(TREE, FOCAL),
+    q = 1,
+    z = tree * Math.sqrt(Math.SQRT2) * (1 + 1e-9);
+  const plan = (x: number, at: number) =>
+    planImpostors([{ mesh: 1, world: world(x, 0, -at) }], section, IDENTITY_VIEW, FOCAL)
+      .switched[0];
+  assert.deepEqual([plan(q * z, z), plan(q * z * (1 - 1e-6), z * (1 - 1e-6))], [1, 0]);
+  // Behind the eye, its mirror in front.
+  assert.equal(plan(q * z, -z), 1);
+  assert.equal(plan(q * z * (1 - 1e-6), -z * (1 - 1e-6)), 0);
+});

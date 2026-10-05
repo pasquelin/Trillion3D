@@ -96,3 +96,26 @@ test('the upscaling resolve clamps the layers to their box and mixes their writt
   };
   assertLayers(frame, false, (x, y) => owed({ ...frame, color: checker }, x, y, 'box'));
 });
+
+// Where no filtering surface covers the pixel its layers are (1, 0) all round: a box of one value,
+// which clamps any history to it. Its history is not read there, the layers still that value.
+test('a layer whose box is one value reads none of its history', () => {
+  const unread = () => {
+    throw new Error('a layer history read');
+  };
+  for (const native of [false, true]) {
+    const frame: UpscaleFrame = {
+      render: native ? [6, 6] : [4, 4],
+      display: [6, 6],
+      jitter: JITTER,
+      color: () => flat,
+      layer: () => [0.4, 0.4, 0.4, 1],
+      moving: !native,
+      reactive: () => 0.25,
+      history: () => flat,
+      layerHistory: unread,
+    };
+    for (const layer of upscaleRun(frame, true, true, native)(2, 3).layers)
+      near(layer, [0.4, 0.4, 0.4, 1], 'the one value');
+  }
+});

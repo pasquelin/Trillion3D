@@ -7,7 +7,7 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
  * Every corner of a quad sits on an endpoint of its segment, and its normal carries the segment's
  * direction, signed by the side it moves to. A raster projects the corner, then moves it
  * perpendicular to the segment AS SEEN ON SCREEN by half the surface's `lineWidth`. The width is in
- * CSS pixels, as the reference's `LineMaterial` counts it (its `resolution` is the CSS size): the
+ * CSS pixels, never the image's own: the
  * image draws `lineWidth × pixelRatio` of its own pixels, the host's pixel ratio read each frame.
  * The line keeps that width at every distance, and its depth stays the segment's own.
  * The screen direction is the derivative of the projected point along the segment,
@@ -70,8 +70,7 @@ export function lineClip(
  * THE DASH: whether a pixel of a dashed line is drawn. `at` is the distance along the line of
  * the pixel, in world units — the first texture coordinate a dashed line's quads carry, the
  * running length of its segments (`drawnTriangles`, sdk-core `drawn.ts`) — and `dash` its
- * `(dashSize, gapSize)`. The line repeats a dash then a gap from its first vertex, as the
- * reference's `LineDashedMaterial` does: a pixel whose distance modulo `dashSize + gapSize` passes
+ * `(dashSize, gapSize)`. The line repeats a dash then a gap from its first vertex: a pixel whose distance modulo `dashSize + gapSize` passes
  * `dashSize` is in a gap, and every raster discards it. A dash of zero keeps every pixel: that is
  * a line that is not dashed. The rasters read it through the cutout (`maskKeep`, `pageWgsl.ts`),
  * the transparent pass and the opaque fallback in their fragment stage, the CPU raster by `lineDash`.

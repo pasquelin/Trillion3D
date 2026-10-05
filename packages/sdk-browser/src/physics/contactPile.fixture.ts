@@ -1,11 +1,11 @@
 /**
- * The contact scene the threaded module is proved on, in Node (`contactThreads.test.ts`) and in a
- * cross-origin isolated page (`tests/browser/renders/physics-threaded-contacts.browser.ts`): free of
- * Node, it takes any started module. Its merged records come in the engine's canonical pair-key
- * order (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not Jolt's callback order; a
- * removed body's leaves come before that merge and a cloth's after it.
+ * The contact scene the threaded module is proved on (`contactThreads.test.ts`): it takes any
+ * started module. Its merged records come in the engine's canonical pair-key order (`contacts.cpp`,
+ * route (b), the boss's yes of 29 Sept.), not the module's callback order; a removed body's leaves
+ * come before that merge and a cloth's after it.
  */
 import {
+  PHYSICS_STEP,
   CommandWriter,
   EVENT_WORDS,
   FLAG,
@@ -63,7 +63,7 @@ export function pile(
   }
   if (cloth) {
     const settings = softSettings({ type: 'cloth', pins: [0, 10, 110, 120] });
-    const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings);
+    const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings, PHYSICS_STEP);
     const place = {
       id: id(50),
       position: [0, 0.8, 0],

@@ -77,7 +77,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   const opened = writes();
   await follow(textures);
   assert.equal(writes(), opened, 'nothing moved: nothing written');
-  // Three's order as often as the other: `needsUpdate` first, the filter after it.
+  // A host sets either order as often as the other: `needsUpdate` first, the filter after it.
   colour.needsUpdate = true;
   colour.minFilter = G.HOST_FILTER_NEAREST_MIP_NEAREST;
   colour.anisotropy = 8;

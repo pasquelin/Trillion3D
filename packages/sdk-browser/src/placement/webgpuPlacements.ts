@@ -1,5 +1,6 @@
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
 import {
+  declareInPlace,
   declareOwnMove,
   forgetOwnMoves,
   noteOwnMove,
@@ -7,7 +8,7 @@ import {
 } from '../webgpu/pages/render/movedClusters.ts';
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { followPlacementRows, MOVE_NONE } from './update.ts';
+import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED } from './update.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
 
 /** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
@@ -15,6 +16,8 @@ export const flipWorld =
   (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
     rt.run.gpuSelection?.parkWorld(rank, !!root.parked);
     rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0);
+    // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them.
+    rt.lights.mobility.touch(rank);
   };
 
 /**
@@ -45,19 +48,24 @@ export function updateWebgpuPlacements(
     from,
     to,
     flipWorld(rt),
-    (rank, world, forced) => {
+    (rank, world) => {
       // Weighed once: a pose that moved is noted at its last pose, then taken as a move.
-      if (!forced && mobility.poseOf(rank)) {
-        if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE;
-        noteOwnMove(rt, rank);
-        forced = true;
-      }
-      return mobility.move(rank, world, forced);
+      if (!mobility.poseOf(rank)) return mobility.move(rank, world);
+      if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE;
+      noteOwnMove(rt, rank);
+      return mobility.move(rank, world, true);
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
-    (min, max, movingOnly, rank, moveOnly) => {
+    (min, max, movingOnly, rank, moveOnly, move) => {
       if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly);
-      else lights.plan.worldChanged(min, max, movingOnly);
+      // A root shown or hidden in place is still as it was: the static slice holds it unless it
+      // moves already, and its clusters say which pages it covers (`declareInPlace`).
+      else if (move === MOVE_NONE) declareInPlace(rt, rank, min, max, mobility.moves(rank));
+      // A first move — of a root parked past the static threshold too, whose box
+      // was last made at a pose rounded again at rest, so it declares its row's — leaves the
+      // static slice: the invalidation uses the cache state from before the update.
+      // Moving before this update: moving now, and not by this first move.
+      else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank));
       staleTemporalBox(run.temporalHizState, min, max);
     },
   );

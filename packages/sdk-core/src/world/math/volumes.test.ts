@@ -119,3 +119,11 @@ test('an off-centre frustum holds what its planes enclose, on every axis', () =>
   for (const outside of [v(-1.2, 1.2, 0.6), v(-1.2, -1.2, -0.6), v(1.2, -1.2, 0.6)])
     assert.equal(frustum.containsPoint(outside), false);
 });
+
+test('a ray along a face plane of a box enters it at the box, or misses it beside the box', () => {
+  const box = new Box3(v(0, 0, 0), v(1, 1, 1));
+  const along = (z: number) => new Ray(v(-5, 0, z), v(1, 0, 0)).intersectBox(box)?.toArray();
+  assert.deepEqual(along(0.5), [0, 0, 0.5], 'entry at t = 5, not the exit at t = 6');
+  assert.equal(along(2), undefined, 'beside the box: no hit');
+  assert.deepEqual(new Ray(v(0.5, 0, 0.5), v(1, 0, 0)).intersectBox(box)?.toArray(), [1, 0, 0.5]);
+});

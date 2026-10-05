@@ -53,8 +53,7 @@ function hostBackend(
   return Object.assign(frame, { held, reads });
 }
 
-/** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path and the
- *  light cuts ask it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
+/** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path asks it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
 export function cpuBackend(
   dag: RuleDag,
   threshold: number,

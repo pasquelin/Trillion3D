@@ -1,9 +1,20 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { filtersDisplay } from './equations.ts';
 import { buildBlendHierarchy } from './hierarchy.ts';
-import { RUN_WORDS, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts';
+import {
+  EXPAND_PASSES,
+  RUN_WORDS,
+  blendChunkWords,
+  blendVertexShift,
+  planRegions,
+  slotCapacity,
+} from './planLayout.ts';
+import { slotCount } from './runs.ts';
+import { FRAME_EYE_WORDS, NOT_OWN, orderFrameWords } from './orderWgsl.ts';
+import { ORDER_STEP_STRIDE, orderStepCount, planOrderSteps } from './orderSteps.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 import {
   PLAN_PIPELINE_MASK,
@@ -27,7 +38,7 @@ export const planVertexCull = (entry: number) =>
   entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE;
 /** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry);
-export const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
+const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
 /** No paged primitive behind this item: it draws its own indices, in chunks. */
 export const DRAW_UNPAGED = 0xffffffff;
 /** Plan entries an item can set at most: the back and the face of a double-sided material. */
@@ -112,13 +123,21 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.drawsPacked = draws;
   blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5));
   buildBlendHierarchy(blendState);
-  // Same worst case for the plan tables and its runs, and for the same reason.
+  // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES;
   blendState.maxPlanEntries = entries;
   blendState.planRegions = planRegions(entries);
-  blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
-  // New runs buffers hold none of the old runs: the next ranking slices them whole.
+  const slots = slotCapacity(entries) * RUN_WORDS;
+  blendState.runs = [new Uint32Array(slots), new Uint32Array(slots)];
   blendState.runCount.fill(0);
+  blendState.orderKeys = new Float64Array(Math.max(1, items.length));
+  blendState.ownRanks = new Uint32Array(items.length);
+  blendState.frameDoubles = new Float64Array(Math.ceil(orderFrameWords(items.length, entries) / 2));
+  blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer);
+  blendState.orderStepWords = new Uint32Array(
+    EXPAND_PASSES * orderStepCount(entries) * (ORDER_STEP_STRIDE / 4),
+  );
+  blendState.planMoved = true;
 }
 
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
@@ -144,7 +163,7 @@ function sidesOf(item: BlendGpuItem) {
 
 /**
  * Encoding plan, rebuilt when the scene has changed matrices — and never per frame. An entry
- * carries the item rank and the pipeline to set, so neither ranking nor run slicing reads a
+ * carries the item rank and the pipeline to set, so neither the order nor the slots read a
  * material.
  */
 export function refreshBlendPlan(blendState: BlendState) {
@@ -156,12 +175,14 @@ export function refreshBlendPlan(blendState: BlendState) {
   let blendTriangles = 0,
     transmissionTriangles = 0,
     filters = false;
+  const modes = new Set<Blending>();
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
     const sides = sidesOf(item),
       vertexCull = !!item.paged && sides.length === MAX_SIDES;
     filters ||= filtersDisplay(BLEND_MODES[Math.floor(sides[0] / 3)]);
+    modes.add(BLEND_MODES[Math.floor(sides[0] / 3)]);
     for (const side of sides) {
       into.push(planEntry(i, side, !!item.paged, vertexCull));
       if (item.paged) continue;
@@ -169,13 +190,79 @@ export function refreshBlendPlan(blendState: BlendState) {
       else blendTriangles += item.count / 3;
     }
   }
-  // Paint order starts again from source order, the only time it is seeded; per-frame ranking
-  // takes it back in place. Nothing of the unranked plan is kept: nobody rereads it.
-  blendState.orders = [Uint32Array.from(blend), Uint32Array.from(transmission)];
-  // The old runs describe the old orders: the next ranking slices the new ones whole.
-  blendState.runCount.fill(0);
-  blendState.orderMoved[0] = blendState.orderMoved[1] = true;
+  blendState.seeds = [Uint32Array.from(blend), Uint32Array.from(transmission)];
+  splitBlendClasses(blendState);
+  planBlendOrder(blendState);
   blendState.blendTriangles = blendTriangles;
   blendState.transmissionTriangles = transmissionTriangles;
   blendState.filtersDisplay = filters;
+  blendState.planModes = [...modes];
+}
+
+/**
+ * Each pass's MAIN CLASS — the shared entries of its most common pipeline, the lowest on a tie —
+ * and its OWN entries, every other one, each its own draw slot (`runs.ts`). An item's entries
+ * share its class: a paged double-sided item sets one pipeline for both sides (VERTEX CULL), an
+ * unpaged one is never shared; they are consecutive seeds, which is how its own items are counted.
+ * The own entries start in source order, the order the CPU then keeps sorting in place.
+ */
+function splitBlendClasses(blendState: BlendState) {
+  const ranks = blendState.ownRanks.fill(NOT_OWN),
+    owned: number[] = [];
+  for (let pass = 0; pass < EXPAND_PASSES; pass++) {
+    const seeds = blendState.seeds[pass],
+      shared = new Array<number>(PLAN_PIPELINE_MASK + 1).fill(0);
+    for (const entry of seeds) if (planShared(entry)) shared[planPipeline(entry)]++;
+    const most = Math.max(...shared),
+      main = most ? shared.indexOf(most) : -1;
+    const own: number[] = [];
+    let items = 0;
+    for (let seed = 0; seed < seeds.length; seed++) {
+      const entry = seeds[seed];
+      if (planShared(entry) && planPipeline(entry) === main) continue;
+      own.push(seed);
+      const item = planItem(entry);
+      if (ranks[item] === NOT_OWN) ranks[item] = owned.push(item) - 1;
+      if (own.length === 1 || planItem(seeds[own[own.length - 2]]) !== item) items++;
+    }
+    blendState.mainPipeline[pass] = main;
+    blendState.ownSeeds[pass] = Uint32Array.from(own);
+    blendState.ownSlots[pass] = new Uint32Array(own.length);
+    const slots = seeds.length ? slotCount(own.length, items, main >= 0) : 0;
+    blendState.slotOwns[pass] = new Int32Array(slots);
+    blendState.slotCounts[pass] = slots;
+  }
+  blendState.ownItems = Uint32Array.from(owned);
+}
+
+/** Where the frame data puts the own keys and seeds, and the order kernel's dispatches. */
+function planBlendOrder(blendState: BlendState) {
+  const layout = blendState.frameLayout;
+  layout.ownKeys = FRAME_EYE_WORDS;
+  let at = layout.ownKeys + 2 * blendState.ownItems.length;
+  let step = 0;
+  for (let pass = 0; pass < EXPAND_PASSES; pass++) {
+    layout.ownSeeds[pass] = at;
+    layout.ownSlots[pass] = at + blendState.ownSeeds[pass].length;
+    at += 2 * blendState.ownSeeds[pass].length;
+    const entries = blendState.seeds[pass].length;
+    blendState.orderSteps[pass] = entries
+      ? planOrderSteps(
+          {
+            entries,
+            ownCount: blendState.ownSeeds[pass].length,
+            main: blendState.mainPipeline[pass] >= 0,
+            region: blendState.planRegions[pass],
+            ownSeedBase: layout.ownSeeds[pass],
+            ownSlotBase: layout.ownSlots[pass],
+            ownKeyBase: layout.ownKeys,
+          },
+          blendState.orderStepWords,
+          step,
+        )
+      : [];
+    step += blendState.orderSteps[pass].length;
+  }
+  layout.words = at;
+  blendState.planMoved = true;
 }

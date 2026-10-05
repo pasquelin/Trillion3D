@@ -15,7 +15,7 @@ import {
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/browser/probes/cameraRig.ts';
+} from '../../../../tests/gpu/kit/cameraRig.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 const VIEWPORT: [number, number] = [800, 600];

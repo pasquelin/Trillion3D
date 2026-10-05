@@ -29,7 +29,7 @@ const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
 struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
 ${BOUNCE_NODE_WGSL}
 ${PROXY_OWNER_WGSL}
-/** Möller–Trumbore, two-sided: a wall has no front or back for light. */
+/** The ray–triangle intersection, two-sided: a wall has no front or back for light. */
 fn triangleHit(index:u32,owner:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
  let a=proxyOwnerVertex(index,0u,owner);
  let edge0=proxyOwnerVertex(index,1u,owner)-a;
@@ -94,9 +94,8 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  }
  return best;
 }
-/** True as soon as a triangle cuts the segment: a shadow does not need the nearest. With
- *  casters, the triangles whose every owner casts no shadow let it through (proxyCastless). */
-fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32,casters:bool)->bool{
+/** True as soon as a triangle cuts the segment: a shadow does not need the nearest. */
+fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
  if(proxyNodeCount()==0u){return false;}
  let inverse=rayInverse(direction);
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
@@ -116,7 +115,6 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32,casters:bool)->bool{
      for(var k=0u;k<LEAF_TRIANGLES;k++){
       if(k>=child.count){break;}
       let index=child.offset+k;
-      if(casters&&proxyCastless(index)){continue;}
       let owners=proxyOwners(index,child.owned);
       for(var owner=owners.x;owner<owners.y;owner++){
        if(triangleHit(index,owner,origin,direction,limit)<limit){return true;}

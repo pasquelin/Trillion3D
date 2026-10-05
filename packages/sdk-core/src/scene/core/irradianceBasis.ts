@@ -6,9 +6,8 @@
  * ascending).
  *
  * A radiance `L(ω)` projects to `L_k = ∫ L(ω) · basis_k · polynomial_k(ω) dω`; the irradiance
- * at a normal is `E(n) = Σ L_k · band_k · polynomial_k(n)`, the cosine-lobe convolution of
- * Ramamoorthi and Hanrahan ("An Efficient Representation for Irradiance Environment Maps",
- * SIGGRAPH 2001, eq. 12–13): `band_k = Â_l · basis_k` with `Â_0 = π`, `Â_1 = 2π/3`, `Â_2 = π/4`.
+ * at a normal is `E(n) = Σ L_k · band_k · polynomial_k(n)`, the convolution with the clamped
+ * cosine lobe: `band_k = Â_l · basis_k` with `Â_0 = π`, `Â_1 = 2π/3`, `Â_2 = π/4`.
  */
 import { IRRADIANCE_TERMS } from './irradianceTerms.ts';
 

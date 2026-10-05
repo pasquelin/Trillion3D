@@ -169,7 +169,6 @@ export async function mesurerThree(
     rafIntervalMs,
     importedLights: null,
     witnessLights: { count: lampes.size, shadows, ids: [...lampes.keys()], bare: true },
-    shadowAtlas: null,
     movingNode: null,
     stageProfile: null,
     gpuPassSamples: [],

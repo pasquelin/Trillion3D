@@ -16,7 +16,9 @@ const LINEAR_DENSITY: f64 = 0.065;
 /// (`SOFT_FOOTPRINT`), and a volume keeps within this share of its rest volume (`SOFT_MAX_SWELL`).
 const FOOTPRINT: f64 = 0.25;
 const MAX_SWELL: f64 = 0.1;
-/// The worker's step (`PHYSICS_STEP`), Jolt's substeps of a soft body per step, and Earth's pull.
+/// The step a cooked volume's skin is reckoned at (`heldPressure`): the engine's fixed step
+/// (`PHYSICS_STEP`), the page's unless its address asks another, for a volume is cooked before any
+/// page steps it; the solver's substeps of a soft body per step, and Earth's pull.
 const STEP: f64 = 1.0 / 60.0;
 const SUBSTEPS: f64 = 5.0;
 const EARTH: f64 = 9.81;
@@ -40,7 +42,7 @@ pub(super) struct SoftRecord {
     pub pressure: f64,
 }
 
-/// The most gauge pressure a volume's skin holds within `MAX_SWELL` (`heldPressure`).
+/// The most gauge pressure a volume's skin holds within `MAX_SWELL` (`heldPressure`), at `STEP`.
 fn held_pressure(vertex_mass: f64, area: f64, stretch: f64) -> f64 {
     let dt = STEP / SUBSTEPS;
     let radius = (area / (4.0 * std::f64::consts::PI)).sqrt();

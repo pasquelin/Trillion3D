@@ -1,41 +1,22 @@
-import { createWaterDepthRestore } from './depthRestore.ts';
 import type { WaterBounds } from './bounds.ts';
 
 /**
- * The backdrop freeze of the water pass: the lit image copied within the refraction reach, the
- * opaque depth copied into the depth the surface stage tests. WebGPU copies a depth texture only
- * whole: under a partial surface rectangle the depth is restored texel by texel within it
- * (`depthRestore.ts`). Without active bounds (`bounds.ts`), both cover what the image draws: the
- * full target, or its top-left below it (`../pages/state/renderScale.ts`), restored then too.
+ * The backdrop freeze of the water pass: the lit image copied within the refraction reach. Without
+ * active bounds (`bounds.ts`), it covers what the image draws: the full target, or its top-left
+ * below it (`../pages/state/renderScale.ts`). The opaque depth the surface stage tests is restored
+ * by the surface pass's first draw (`frame.ts`).
  * The descriptors are the frame's, rewritten in place: a frame allocates nothing.
  */
-export async function createWaterFreeze(device: GPUDevice) {
-  const restore = await createWaterDepthRestore(device);
+export function createWaterFreeze() {
   const origin = { x: 0, y: 0 },
     size = { width: 1, height: 1 },
-    // The targets' size: a whole-texture depth copy covers it.
-    extent = { width: 1, height: 1 },
     full = new Float64Array(4);
   const from = { texture: undefined as unknown as GPUTexture, origin },
-    color = { texture: undefined as unknown as GPUTexture, origin },
-    depth = { texture: undefined as unknown as GPUTexture },
-    waterDepth = { texture: undefined as unknown as GPUTexture };
-  const freeze = {
-    /** Whether the last freeze drew the depth restore pass. */
-    restored: false,
-    bind(
-      hdr: GPUTexture,
-      backdrop: { color: GPUTexture; waterDepth: GPUTexture; waterDepthView: GPUTextureView },
-      opaque: GPUTexture,
-      opaqueView: GPUTextureView,
-      target: readonly number[],
-    ) {
+    color = { texture: undefined as unknown as GPUTexture, origin };
+  return {
+    bind(hdr: GPUTexture, backdrop: { color: GPUTexture }) {
       from.texture = hdr;
       color.texture = backdrop.color;
-      depth.texture = opaque;
-      waterDepth.texture = backdrop.waterDepth;
-      [extent.width, extent.height] = target;
-      restore.bind(opaqueView, backdrop.waterDepthView);
     },
     /** Encodes the freeze; returns the surface rectangle the surface and composite passes scissor. */
     encode(encoder: GPUCommandEncoder, bounds: WaterBounds, [width, height]: readonly number[]) {
@@ -51,15 +32,7 @@ export async function createWaterFreeze(device: GPUDevice) {
       size.width = copied[2] - copied[0];
       size.height = copied[3] - copied[1];
       encoder.copyTextureToTexture(from, color, size);
-      freeze.restored =
-        rect[0] !== 0 || rect[1] !== 0 || rect[2] !== extent.width || rect[3] !== extent.height;
-      if (freeze.restored) restore.encode(encoder, rect);
-      else encoder.copyTextureToTexture(depth, waterDepth, extent);
       return rect;
     },
-    dispose() {
-      restore.dispose();
-    },
   };
-  return freeze;
 }

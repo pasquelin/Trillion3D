@@ -75,7 +75,6 @@ pub(super) fn cluster(level: usize, lod_error: f64, parent_error: f64) -> DagClu
         parent_error,
         sphere: [0.0; 4],
         parent_sphere: [0.0; 4],
-        replacement: None,
         source_rank: 0,
         group: None,
         source: None,

@@ -26,7 +26,7 @@ export const LARGE_SPAN = TILE * LARGE_TILES - 1;
 export const FINE_SPAN = FINE_SIDE - 1;
 
 /**
- * The reference's small/large split: a triangle whose screen box, clamped to the frame, does not
+ * The small/large split: a triangle whose screen box, clamped to the frame, does not
  * exceed `computeSpan` pixels goes to the compute raster, the others to hardware. Zero: hardware
  * draws everything. `COMPUTE_ALL` is a mode, not an infinite span: compute then also takes
  * triangles a vertex puts behind the near plane, which a threshold always leaves to hardware,

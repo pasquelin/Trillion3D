@@ -15,7 +15,8 @@ const TEXELS = 2 * PARTICLE_ROW,
   FLOAT = { depth: false, float: true };
 
 /** The WGSL step texel by texel: the slot's particle, or the record the ring gives it this image,
- *  moved when alive; the half of it this texel holds is written. */
+ *  moved when alive by the same exact constant-acceleration step; the half of it this texel holds
+ *  is written. */
 const PARTICLES_GLSL = `#version 300 es
 precision highp float;
 precision highp int;
@@ -35,7 +36,10 @@ void main() {
   bool born = k < uRing.y;
   vec4 p = born ? texel(staged, 2 * k) : texel(state, 2 * i);
   vec4 v = born ? texel(staged, 2 * k + 1) : texel(state, 2 * i + 1);
-  if (p.w < v.w) { v.xyz += uStep.xyz * uStep.w; p.xyz += v.xyz * uStep.w; p.w += uStep.w; }
+  if (p.w < v.w) {
+    vec3 gain = uStep.xyz * uStep.w;
+    p.xyz += (v.xyz + .5 * gain) * uStep.w; v.xyz += gain; p.w += uStep.w;
+  }
   color = (t & 1) == 0 ? p : v;
 }`;
 

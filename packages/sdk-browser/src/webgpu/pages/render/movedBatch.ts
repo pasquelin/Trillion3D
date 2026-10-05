@@ -12,7 +12,7 @@ import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedCl
 import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
 import { appendRootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
-import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -98,10 +98,10 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
  *  between them. The Hi-Z takes the union of every root's, `moved`. */
 function declareMove(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (boxIsEmpty(moved, 0)) return;
-  const { plan } = rt.lights;
+  const { changes } = rt.lights;
   const still = boxEquals(before, 0, after, 0);
-  if (!boxIsEmpty(before, 0)) plan.worldChanged(beforeMin, beforeMax, !promoted);
-  if (!boxIsEmpty(after, 0) && !still) plan.worldChanged(afterMin, afterMax, !promoted);
+  if (!boxIsEmpty(before, 0)) changes.worldChanged(beforeMin, beforeMax, !promoted);
+  if (!boxIsEmpty(after, 0) && !still) changes.worldChanged(afterMin, afterMax, !promoted);
   staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
 }
 

@@ -62,9 +62,8 @@ type V = number[];
 const cross = builtins.cross as (a: V, b: V) => V,
   dot = builtins.dot as (a: V, b: V) => number;
 const det3 = (m: V[]) => dot(m[0], cross(m[1], m[2]));
-/** A page's world, a matrix the WGSL both multiplies and reads by column. */
-const world = (m: V) =>
-  Object.assign(new Mat(m), { 0: m.slice(0, 4), 1: m.slice(4, 8), 2: m.slice(8, 12) });
+/** A page's world, a matrix the WGSL both multiplies and reads by column: `Mat` holds both. */
+const world = (m: V) => new Mat(m);
 
 // A curved patch — a sphere's cap facing the camera, its normals radial: the penumbra fixture.
 const positions: V[] = [],
@@ -143,7 +142,9 @@ const HELPERS = [
   'edge',
   'baryWeights',
   'pixelBary',
+  'perspectiveBary',
   'vertexNormals',
+  'transformedNormals',
   'uniteOuZero',
   'shadingPointOffset',
 ];

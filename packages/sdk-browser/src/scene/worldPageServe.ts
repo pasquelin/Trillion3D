@@ -61,7 +61,7 @@ type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>;
 type View = 'read' | 'attributes' | 'whole';
 
 /** How many bundles may wait for the other GPU view of one of their pages, by default: the
- *  streamer's pending budget (as cluster caps its pending page requests), never a scene's. */
+ *  streamer's pending budget (capped like its pending page requests), never a scene's. */
 const WORLD_PENDING_BUNDLES = 64;
 
 /**

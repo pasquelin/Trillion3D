@@ -8,8 +8,8 @@ import {
   HIT_WORDS,
   PHYSICS_MATERIALS,
   SHAPE,
-  type BodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
+import type { BodyRecord } from '../../../sdk-core/src/physics/bodyRecord.ts';
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { castDown, startModule } from './module.fixture.ts';
@@ -19,11 +19,11 @@ import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
- *  from (0, 0) to (2, 1) along x, in native Jolt's binary state. */
+ *  from (0, 0) to (2, 1) along x, in the native engine's binary state. */
 const golden = () =>
   readFile(new URL('../../../../tests/fixtures/physics/ramp-tile.bin', import.meta.url));
 
-test('a tile cooked by native Jolt is restored in the module, collides, and answers a ray exactly', async () => {
+test('a tile cooked natively is restored in the module, collides, and answers a ray exactly', async () => {
   const jolt = await startModule();
   const writer = new CommandWriter();
   writer.gravity([0, -9.81, 0]);

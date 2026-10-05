@@ -1,7 +1,6 @@
 import { askedTableRows, rowScratch } from './layout.ts';
 import { grownTableRows, viewRowsFor } from '../../row/tableRows.ts';
 import { pageTableBuffer } from '../render/pageTable.ts';
-import { followOcclusion } from './lightResources.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts';
@@ -30,7 +29,7 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
  * cuts' casters behind them —, or the blended casters found none left: past four fifths of the
  * rows the view holds, they rise a quarter above them and the table grows after them, in place, as a
  * larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
- * never the placements a scene repeats its pages on, as cluster's visible-cluster list is what its
+ * never the placements a scene repeats its pages on, as the visible-cluster list is what its
  * cut emits. Until the growth is granted, the image draws the rows the table holds.
  */
 export function followCutRows(rt: WebgpuPagesRuntime, asked: number) {
@@ -135,7 +134,6 @@ function follow(rt: WebgpuPagesRuntime) {
     vis.pageTable.destroy();
     vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength);
   }
-  followOcclusion(rt);
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state);
   if (gpuDraw && gpuHiz)
     vis.gpuRestCompact?.rebind({

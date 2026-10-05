@@ -3,9 +3,9 @@
  * test hands the engine, made of `./` and the core's numbers — never of a rendering library.
  *
  * The classes are re-exported as they are; the builders below cover the few that a test declares
- * with the reference's argument lists (a camera by its optics, a light by its colour and range, a
- * raw texture by its texels, a box by its sizes), each at the reference's defaults, so a
- * test reads as it did and the engine receives only objects of its own graph.
+ * by positional arguments (a camera by its optics, a light by its colour and range, a raw texture
+ * by its texels, a box by its sizes), each with fixed defaults, so a test reads in one line and the
+ * engine receives only objects of its own graph.
  */
 import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts';
@@ -82,7 +82,7 @@ export const basicSurface = (parameters?: SurfaceParameters) => surface('basic',
 export const standardSurface = (parameters?: SurfaceParameters) => surface('standard', parameters);
 export const physicalSurface = (parameters?: SurfaceParameters) => surface('physical', parameters);
 
-/** A surface whose colours may be given as a number or a CSS name, as the reference takes them. */
+/** A surface whose colours may be given as a number or a CSS name. */
 function surface(family: GraphSurfaceFamily, parameters: SurfaceParameters = {}) {
   const made = new GraphSurface(family);
   const colours: SurfaceParameters = {};
@@ -136,7 +136,7 @@ export function canvasTexture(canvas: unknown) {
 }
 
 /**
- * A copy of the core's primitive, stored as the reference stores its own: 32-bit
+ * A copy of the core's primitive, stored in 32-bit
  * floats per vertex, a 16- or 32-bit triangle list, and its groups.
  */
 function graphGeometry(source: Geometry) {
@@ -156,7 +156,7 @@ export const planeGeometry = (...sizes: Parameters<typeof plane>) => graphGeomet
 export const sphereGeometry = (...sizes: Parameters<typeof sphere>) =>
   graphGeometry(sphere(...sizes));
 
-/** A triangle list as the reference stores one: 16-bit while every vertex fits, else 32-bit. */
+/** A triangle list stored in 16-bit while every vertex fits, else 32-bit. */
 export const indices = (list: readonly number[]) =>
   new BufferAttribute(
     list.some((i) => i >= 65535) ? new Uint32Array(list) : new Uint16Array(list),

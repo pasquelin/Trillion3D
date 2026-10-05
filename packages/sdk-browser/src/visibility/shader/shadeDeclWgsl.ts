@@ -1,6 +1,8 @@
+import { FULLSCREEN_X_WGSL, FULLSCREEN_Y_WGSL } from '../../math/fullscreenTriangle.ts';
 import {
   FRAMEBUFFER_WGSL,
   PIXEL_BARY_WGSL,
+  PIXEL_TRIANGLE_WGSL,
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
 } from './pixelTriangleWgsl.ts';
@@ -26,6 +28,9 @@ import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
 import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts';
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
+import { SHADING_POINT_WGSL } from './shadingPoint.ts';
+import { receiverStoreWgsl } from './receiverTargetWgsl.ts';
+import { shadeCacheReadWgsl } from './shadeCacheWgsl.ts';
 
 /**
  * Screen gradients (per pixel in x, then y) of the perspective-correct coordinate at `p` in the
@@ -48,14 +53,15 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
 
 /**
  * Declarations of the surface resolve: its bindings, the page reads, the atlas reads, the tile
- * request, the class overrides, and the two full-screen stages every class pass shares — the
- * vertex at the class depth, and the material-depth export that writes each pixel's class.
+ * request, the class overrides, and the full-screen vertex stage every class pass shares.
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.subsurface}) var subsurfaceOutput:texture_storage_2d<rgba16float,write>;
 fn storeSubsurface(pos:vec2f,color:vec3f){
  if(all(vec2u(pos)<textureDimensions(subsurfaceOutput))){textureStore(subsurfaceOutput,vec2i(pos),vec4f(color,1.0));}
 }
+${receiverStoreWgsl(SHADE_BINDINGS.receiver)}
+${SHADING_POINT_WGSL}
 ${SHADE_UNI_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
@@ -82,7 +88,9 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
+${shadeCacheReadWgsl(SHADE_BINDINGS.shadeCache)}
 ${VERTEX_NORMALS_WGSL}
+${PIXEL_TRIANGLE_WGSL}
 ${COTANGENT_FRAME_WGSL}
 ${SURFACE_MODEL_SHADE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
@@ -94,14 +102,10 @@ fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0)
 /** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 ${FRAMEBUFFER_WGSL}
-/** Full-screen triangle at the class depth: the depth test keeps the class's pixels only. */
+/** Full-screen triangle: the fragment stage keeps the class's pixels only (\`classAdmits\`). */
 fn classTriangle(i:u32)->vec4f{
- let x=f32(i32(i&1u)*4-1);let y=f32(i32(i>>1u)*4-1);return vec4f(x,y,CLASS_DEPTH,1.0);
+ let x=${FULLSCREEN_X_WGSL};let y=${FULLSCREEN_Y_WGSL};return vec4f(x,y,0.0,1.0);
 }
 @vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return classTriangle(i);}
 ${MATERIAL_TILE_DRAW_WGSL}
-/** Material depth: the class of the pixel's page, zero on the background. */
-@fragment fn material_depth_fs(@builtin(position) pos:vec4f)->@builtin(frag_depth) f32{
- return materialClassDepth(textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r);
-}
 `;

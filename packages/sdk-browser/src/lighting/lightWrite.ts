@@ -6,7 +6,7 @@ import { numbered } from '../host/graph/serial.ts';
 /**
  * ONE CONTRACT LIGHT AS A LIGHT OF THE ENGINE'S OWN GRAPH: the WebGL2 path's translation of the
  * store (`contractLights.ts`), light by light, into the core's `Light`, read by the cluster
- * program (`../../webgl/cluster/lights.ts`).
+ * program (`../webgl/cluster/lights.ts`).
  */
 
 /** Eye distance of a directional: it has no position, only its direction counts. */
@@ -21,7 +21,7 @@ function applyColor(light: Light, source: SceneLight) {
 /**
  * Penumbra that reproduces the contract cone edge. The WebGPU path softens the cone between
  * `cos(half-angle)` and the larger of `cos(half-angle) + spotEdgeSoftness` and the declared
- * penumbra's inner cosine; the reference softens between `cos(angle)` and `cos(angle · (1 − penumbra))`.
+ * penumbra's inner cosine; the WebGL2 path softens between `cos(angle)` and `cos(angle · (1 − penumbra))`.
  * Equating the cosines gives this penumbra — the same transition, not a neighbouring one. A
  * closed cone takes the limit, 1: both paths then light nothing off the axis, and 0/0 is no NaN.
  */

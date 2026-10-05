@@ -24,7 +24,7 @@ export const observatorySky = {
 
 /** The paving stones' pitch and size, in metres, and how many stones run out from the centre
  *  along x and z; they lie on the court's slab, and the rest of the court stands on them. */
-export const paving = { pitch: 2, size: [1.92, 0.08, 1.92], stones: [5, 4] };
+const paving = { pitch: 2, size: [1.92, 0.08, 1.92], stones: [5, 4] };
 
 /** Solstice Court: an original, deterministic observatory, not a historical reconstruction.
  *  Every part stands on the one under it: its height is read from that part's top. */

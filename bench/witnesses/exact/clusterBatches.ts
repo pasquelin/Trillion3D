@@ -8,11 +8,11 @@ import type {
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { ClusterBatches, type BatchPage } from './batches/batches.ts';
-import { clusterWebglCompatibility } from '../../../packages/sdk-browser/src/webgl/cluster/compatibility.ts';
 import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts';
 import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 import { degradedHearer } from '../../../packages/sdk-browser/src/world/diagnostic/materialNotices.ts';
-import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import { clusterWebglCompatibility } from './clusterCompatibility.ts';
+import { keptClusterScene } from './keptClusterScene.ts';
 
 type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
 type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {

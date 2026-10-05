@@ -2,7 +2,7 @@ use super::*;
 use crate::dag::border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
 
 /// `grid` grid exploded into soup: three vertices per triangle, none shared. Form
-/// of FBX whose attributes are written corner by corner, on which meshoptimizer
+/// of FBX whose attributes are written corner by corner, on which the simplifier
 /// reduces nothing until positions welded.
 fn soup(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (positions, indices) = grid(n);

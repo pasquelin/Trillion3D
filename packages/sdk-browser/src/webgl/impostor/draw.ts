@@ -1,10 +1,11 @@
 import type { WebglClusterLights } from '../cluster/lights.ts';
-import { CARD_FLOATS, type ImpostorCards } from '../../impostor/cards.ts';
+import { CARD_FLOATS, composeCardWorlds, type ImpostorCards } from '../../impostor/cards.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import { ATLAS_SAMPLERS, CARD_TEXELS, cardFragment, cardVertex } from './cardGlsl.ts';
 import type { WebglAtlas } from './feed.ts';
 import type { CardPass } from './pass.ts';
 import { core } from '../../impostor/borrowed.ts';
+import { sameElements } from '../../math/matrixElements.ts';
 
 /** One card program — the display's or the effect chain's linear variant. */
 function createCardProgram(gl: WebGL2RenderingContext, linear: boolean) {
@@ -27,8 +28,9 @@ const view = new Float32Array(16);
  * THE CARD DRAW ON WEBGL2 (#1336): the image's cards (`impostor/cards.ts`) drawn by the card
  * program (`cardGlsl.ts`) into the pass the cluster program draws, one instanced draw per mesh
  * atlas, as on WebGPU. Its two programs, the display's and the linear one, are made with it: one
- * that does not compile or link throws here, never in a draw. The records go up once an image, into
- * a float texture as the light records do (`WebglLightTexture`, lent by the core with the cluster
+ * that does not compile or link throws here, never in a draw. The records go up once an image and
+ * again for each other camera that draws them — the mirror capture's —, each card's world composed
+ * with the camera's view in double (`composeCardWorlds`), into a float texture as the light records do (`WebglLightTexture`, lent by the core with the cluster
  * program's pieces, `lent.ts`); the program's lights are those the cluster program uploaded for the
  * pass, their uniforms sent again. A card is opaque: depth-tested and written, never blended or
  * culled. The caller binds its own program again and forgets its cached state after
@@ -53,6 +55,7 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext) {
       'texture',
     );
   const vao = gl.createVertexArray();
+  const sentView = new Float64Array(16);
   let sent: unknown;
   return {
     /** Draws `cards`' image `image` with `camera`, in a pass `pass` describes; false without
@@ -69,10 +72,12 @@ export function createWebglCardDraw(gl: WebGL2RenderingContext) {
       if (!count) return false;
       const card = toLinear ? linear : display;
       gl.useProgram(card.program);
-      if (sent !== image) {
+      if (sent !== image || !sameElements(sentView, camera.view)) {
         records.reserve(count * CARD_TEXELS);
         records.data.set(cards.records.subarray(0, count * CARD_FLOATS));
+        composeCardWorlds(records.data, cards.worlds, count, camera.view);
         records.upload(count * CARD_TEXELS);
+        sentView.set(camera.view);
         sent = image;
       } else records.bind();
       const at = card.at;

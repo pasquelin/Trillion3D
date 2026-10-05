@@ -8,6 +8,8 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
 /** The world's notices, where nothing here is said. */
 const silent = { once() {}, say() {} };
+/** No frame drawn yet. */
+const unseen = { last: null };
 
 /** An open session that records the switches written into it. */
 function session(draws = true) {
@@ -26,16 +28,14 @@ test('temporal antialiasing is given to the session and switched in place', () =
   const open = session(false);
   let renewed = 0,
     invalidated = 0;
-  const runtime = { explorer: null as MeasuredWorld | null, renew: () => void renewed++ };
+  const runtime = {
+    explorer: null as MeasuredWorld | null,
+    renew: () => void renewed++,
+    invalidate: () => void invalidated++,
+  };
   const device = { renderer: 'webgpu' as const };
   const options = { temporalAntialiasing: false };
-  const switches = worldSwitches(
-    options,
-    () => runtime,
-    device,
-    () => void invalidated++,
-    silent,
-  );
+  const switches = worldSwitches(options, () => runtime, device, unseen, silent);
   assert.equal(sessionOptions(options, switches.held).temporalAntialiasing, false);
   assert.equal(switches.temporalAntialiasing, false, 'before a session: what the page asked');
   runtime.explorer = open.explorer;
@@ -48,14 +48,8 @@ test('temporal antialiasing is given to the session and switched in place', () =
 });
 
 test('temporal antialiasing reads false on WebGL2 and as the session draws it', () => {
-  const runtime = { explorer: null as MeasuredWorld | null, renew() {} };
-  const switches = worldSwitches(
-    {},
-    () => runtime,
-    { renderer: 'webgl2' },
-    () => {},
-    silent,
-  );
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} };
+  const switches = worldSwitches({}, () => runtime, { renderer: 'webgl2' }, unseen, silent);
   assert.equal(switches.held.temporalAntialiasing, true, 'on by default');
   assert.equal(switches.temporalAntialiasing, false, 'WebGL2 has none');
   runtime.explorer = session(false).explorer;
@@ -68,14 +62,15 @@ test('the effect chain is given to every session, and a change of it asks for a 
   let renewed = 0,
     invalidated = 0;
   const said: string[] = [];
-  const runtime = { explorer: null as MeasuredWorld | null, renew: () => void renewed++ };
-  const switches = worldSwitches(
-    {},
-    () => runtime,
-    { renderer: 'webgpu' },
-    () => void invalidated++,
-    { once: (kind) => void said.push(kind), say: (kind) => void said.push(kind) },
-  );
+  const runtime = {
+    explorer: null as MeasuredWorld | null,
+    renew: () => void renewed++,
+    invalidate: () => void invalidated++,
+  };
+  const switches = worldSwitches({}, () => runtime, { renderer: 'webgpu' }, unseen, {
+    once: (kind) => void said.push(kind),
+    say: (kind) => void said.push(kind),
+  });
   const chain = switches.held.effects;
   assert.equal(sessionOptions({}, switches.held).effects, chain);
   chain.add(effect.bloom());
@@ -91,4 +86,34 @@ test('the effect chain is given to every session, and a change of it asks for a 
   // #558: so is a WebGL2 session's light that asks for a shadow it draws not.
   sessionOptions({}, switches.held).shadowsRefused!(['sun']);
   assert.deepEqual(said, ['effects-refused-blending', 'material-degraded', 'shadows-refused']);
+});
+
+// S32: the page's switches are settings of the world's registry, at the page's priority; each is
+// written into the open session once its resolved value changes, and no preset overwrites it.
+test('the screen error and the bounce are the page’s settings, applied once each', () => {
+  const errors: number[] = [];
+  const explorer = {
+    setPixelError: (value: number) => void errors.push(value),
+    setBounce: () => true,
+  } as unknown as MeasuredWorld;
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} };
+  const switches = worldSwitches({}, () => runtime, { renderer: 'webgpu' }, unseen, silent);
+  assert.equal(sessionOptions({}, switches.held).pixelError, 0, 'the source cut by default');
+  runtime.explorer = explorer;
+  switches.pixelError = 2;
+  switches.pixelError = 2;
+  assert.deepEqual(errors, [2], 'written once, into the open session');
+  assert.equal(sessionOptions({}, switches.held).pixelError, 2, 'kept on reopen');
+  switches.bounce = true;
+  switches.settings.set('bounce', false, 'quality');
+  assert.equal(switches.bounce, true, 'a preset does not overwrite the page');
+});
+
+test('the resolution asked at creation is the render scale, unless the page gives one', () => {
+  const runtime = { explorer: null, renew() {}, invalidate() {} };
+  const made = (options: Parameters<typeof worldSwitches>[0]) =>
+    worldSwitches(options, () => runtime, { renderer: 'webgpu' }, unseen, silent).held;
+  assert.equal(made({}).renderScale, 'auto');
+  assert.equal(made({ quality: { resolution: { mode: 'fast' } } }).renderScale, 0.5);
+  assert.equal(made({ renderScale: 1, quality: { resolution: { mode: 'fast' } } }).renderScale, 1);
 });

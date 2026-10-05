@@ -6,7 +6,7 @@
  * yet settled is `null` too. Zero would say "measured at zero".
  */
 
-/** The two paths carried. JavaScript is the reference and the fallback; Wasm is the accelerated one. */
+/** The two paths carried. JavaScript is the baseline and the fallback; Wasm is the accelerated one. */
 export type MathPath = 'js' | 'wasm';
 /** What a host asks for: a path imposed for a campaign, or arbitration by measurement. */
 export type MathPathMode = MathPath | 'auto';

@@ -97,7 +97,7 @@ pub(super) fn folded_span(
 
 /// The group's triangles with every copy of a position on its open border — an edge one triangle
 /// alone uses —, but a locked one, pointed at the first copy, and what that costs.
-/// meshoptimizer keeps a seam corner on an open border where it is: a sheet of one chart per quad
+/// The simplifier keeps a seam corner on an open border where it is: a sheet of one chart per quad
 /// keeps its whole outline. One copy there slides along the border like any border vertex, its
 /// coordinates solved; the copies it replaces cost their largest coordinate step times their
 /// set's density, a distance on the surface like the rest of the group's error.
@@ -107,7 +107,7 @@ pub(super) fn open_border_welded(
     densities: &[f64],
 ) -> (Vec<u32>, f64) {
     let weld = |v: u32| input.weld[v as usize];
-    let mut edges: HashMap<u64, u32> = HashMap::new();
+    let mut edges: WordMap<u64, u32> = WordMap::default();
     for tri in live.as_chunks::<3>().0 {
         for k in 0..3 {
             *edges
@@ -115,13 +115,13 @@ pub(super) fn open_border_welded(
                 .or_default() += 1;
         }
     }
-    let open: HashSet<u32> = edges
+    let open: WordSet<u32> = edges
         .into_iter()
         .filter(|&(_, uses)| uses == 1)
         .flat_map(|(key, _)| [(key >> 32) as u32, key as u32])
         .collect();
     let uv_sets = input.attributes.uv_sets();
-    let mut first: HashMap<u32, u32> = HashMap::new();
+    let mut first: WordMap<u32, u32> = WordMap::default();
     let mut error = 0.0_f64;
     let corners = live.iter().map(|&v| {
         let w = weld(v);

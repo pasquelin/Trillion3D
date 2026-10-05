@@ -110,20 +110,17 @@ export const ensurerOptions = (
   lowerTiers: () => [],
 });
 
-/** An ensurer over `cache` whose caster tier is `casterPages`, whose tier ahead is `aheadPages`, and
- *  whose pose `still` says the camera rests (the default, a settled tier). */
+/** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */
 export const tierEnsurer = (
   tracking: ReturnType<typeof createWebgpuPageTracking>,
   cache: unknown,
-  casterPages: () => readonly PageRec[],
-  aheadPages: () => readonly PageRec[] = () => [],
-  still?: () => boolean,
+  firstPages: () => readonly PageRec[],
+  nextPages: () => readonly PageRec[] = () => [],
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
-    still,
     lowerTiers: () =>
-      [casterPages(), aheadPages()].map((pages) => ({
+      [firstPages(), nextPages()].map((pages) => ({
         pages,
         has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
         revision: 0,

@@ -9,7 +9,7 @@
  *
  * An object root has no page of its own in the world DAG: its placed object draws it. It is
  * resident only while that object is placed (`place`, its `origin`) and every root of the cover
- * its placement packs is resident, as an the reference engine HLOD stays shown until its cell's actors are loaded
+ * its placement packs is resident, as a cell's coarse stand-in stays shown until its objects are loaded
  * and drawable. So the cut keeps a cell's super-root while its objects are not drawable — no hole
  * when a cell comes near —, and reads the object roots, never the super-root, once they are —
  * the cut's own `parent stands in for its children` term, no second path (rule 7). A placement

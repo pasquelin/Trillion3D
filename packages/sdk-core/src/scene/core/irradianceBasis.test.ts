@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { irradianceShader, radianceProjectionShader } from './irradianceBasis.ts';
 import { IRRADIANCE_TERMS } from './irradianceTerms.ts';
+import { IRRADIANCE_BAND } from './environment.ts';
 
 type Vector = { x: number; y: number; z: number };
 
@@ -47,6 +48,23 @@ const unit = (x: number, y: number, z: number) => {
 };
 const normals = [unit(0, 0, 1), unit(1, 0, 0), unit(0, -1, 0), unit(1, 2, -3), unit(-2, 1, 1)];
 
+test('each band factor is its closed form, to the last bit of a double', () => {
+  const closed = {
+    constant: Math.sqrt(Math.PI) / 2,
+    linear: Math.sqrt(Math.PI / 3),
+    quadraticCross: Math.sqrt(15 * Math.PI) / 8,
+    quadraticZ: Math.sqrt(5 * Math.PI) / 16,
+    quadraticDifference: Math.sqrt(15 * Math.PI) / 16,
+  };
+  // `Math.PI` and the root each round once: the literal may sit one unit of the last place away.
+  for (const [band, value] of Object.entries(closed))
+    assert.ok(
+      Math.abs(IRRADIANCE_BAND[band as keyof typeof closed] - value) <= Number.EPSILON * value,
+      band,
+    );
+  assert.equal(IRRADIANCE_BAND.quadraticDifference, IRRADIANCE_BAND.quadraticCross / 2);
+});
+
 test('a constant sky of radiance L gives the irradiance πL on every normal', () => {
   const sky = [1, 0.5, 2];
   const directions = sphere(20_000);
@@ -61,7 +79,7 @@ test('a constant sky of radiance L gives the irradiance πL on every normal', ()
 
 test('a single direction gives the order-2 truncation of its clamped cosine', () => {
   // A directional source of power Φ projects to `Φ · Y_k(s)`. Its irradiance at a normal is the
-  // band sum `Φ · Σ_l Â_l (2l + 1) / 4π · P_l(n·s)` (Ramamoorthi and Hanrahan 2001, eq. 7–8),
+  // band sum `Φ · Σ_l Â_l (2l + 1) / 4π · P_l(n·s)`,
   // written with Legendre polynomials rather than the basis the engine evaluates.
   const power = [3, 1, 0.25];
   const source = unit(0.3, -0.5, 0.8);

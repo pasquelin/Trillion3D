@@ -3,7 +3,7 @@ import type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
 import type { ShadowFrameMetrics } from './shadowMetrics.ts';
 import type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 import type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
-export type { ShadowFrameMetrics, ShadowStaleReason } from './shadowMetrics.ts';
+export type { ShadowFrameMetrics } from './shadowMetrics.ts';
 export type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 export type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
 export type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
@@ -12,7 +12,9 @@ export interface GpuPassTiming {
   /** The pass's name. */ name: string;
   /** GPU time of the pass. */ gpuMs: number | null;
   /** Its time less what a pass begun earlier covered (WebGPU). */ ownMs?: number;
-  /** Why it went unmeasured. */ reason?: string;
+  /** Why it went unmeasured; `unwritten-timestamps`: an empty pass the driver skipped, which wrote none;
+   *  `invalid-timestamps`: a pair with a timestamp missing or the end before the beginning. */
+  reason?: string;
 }
 /**
  * GPU durations of one image, pass by pass, as the device reported them. `totalMs` sums the listed
@@ -27,17 +29,32 @@ export interface GpuPassTimings {
   /** Why timing failed. */ error?: string;
 }
 /**
- * GPU duration of one image: the sum of its per-submission spans, each span being the earliest pass
- * beginning to the latest pass end of one command buffer, from the device's own timestamps. A
+ * GPU duration of one image: the time its per-submission spans cover, each span being the earliest
+ * pass beginning to the latest pass end of one command buffer, from the device's own timestamps. A
  * submission is one contiguous GPU execution, so passes the device runs concurrently are inside its
- * span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host
- * time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone.
- * Null when a pass of the image went unmeasured, the list was truncated, or no timestamp query exists.
+ * span once, and two submissions it overlaps are covered once — unlike `gpuPassMs.totalMs`, a sum of
+ * passes, which counts an overlap twice. The host time between two submissions of the same image is
+ * NOT in here; `gpuHostGapMs` carries it alone. Only the passes with a valid timestamp pair make the
+ * spans: a pass the driver skipped wrote none (`unwritten-timestamps`) and one whose pair cannot be
+ * read (`invalid-timestamps`) has none, and neither voids the passes that ran; the second may lie
+ * outside the spans, which are then a lower bound (`gpuPassMs.passes` names it). Null when the list
+ * was truncated, when no pass of the image has a valid pair, or when no timestamp query exists.
  */
 export type GpuFrameMs = number | null;
 /** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
   extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
-  /** Time between two frames. */ rafIntervalMs: number | null;
+  /** Time between two frames, ms: from the rAF timestamp of the frame drawn before this one to its
+   *  own, frames held for the readbacks spanned, so a whole number of `displayRefreshMs` on a
+   *  display that keeps its grid. Null before two frames and after a pause. */
+  rafIntervalMs: number | null;
+  /** The display's refresh interval, ms, as the engine measured it on its frames' rAF timestamps
+   *  (the render-scale budget's clock); null until it found one. */
+  displayRefreshMs?: number | null;
+  /** Width in pixels the image was drawn at, before temporal antialiasing or the resample rebuilt
+   *  it to the display: the display's own at a render scale of 1. Null before an image. */
+  renderWidth?: number | null;
+  /** Height in pixels the image was drawn at, beside `renderWidth`. */
+  renderHeight?: number | null;
   /** CPU time of the frame. */ cpuFrameMs: number;
   /** CPU time to send the work. */ cpuSubmitMs: number | null;
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
@@ -133,6 +150,12 @@ export type GpuFrameMs = number | null;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
   gpuHostGapMs?: number | null;
+  /** Device idle before the last sampled image, ms: from the last timestamp of the image before it
+   *  to its own first, the gap `gpuHostGapMs` cannot hold (an image that submits once carries none
+   *  of it). Null when the image before it, or this one, was not timed whole (a pass left untimed,
+   *  or one whose timestamps could not be read; a pass the driver skipped does not count), past a
+   *  pause, and without `timestamp-query` (#1451). */
+  gpuIdleMs?: number | null;
   /** Why the GPU device was lost; null while it holds. */ gpuDeviceLost?: string | null;
   /** Triangles of clusters the published cut names but the frame cannot draw — no resident page and no
    *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend

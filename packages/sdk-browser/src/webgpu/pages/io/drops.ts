@@ -55,8 +55,6 @@ export function dropGpuSelection(rt: WebgpuPagesRuntime) {
   rt.run.gate.resourcesChanged();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
-  // The light cut shares the selection's buffers, and leaves with them.
-  rt.lights.lightCut = undefined;
   rt.capabilities.gpuDriven = false;
 }
 
@@ -106,12 +104,12 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visPipelineFrontCw = undefined;
   vis.visLayerPipelines.length = 0;
   vis.drawLayerSlots = 1;
-  vis.materialDepthPipeline = undefined;
-  vis.shadePipelines.clear();
-  vis.shadePipelineFor = undefined;
-  vis.singleShadePipelines.clear();
+  vis.shadeClasses = undefined;
+  vis.shadeCensus = undefined;
   vis.materialTiles?.dispose();
   vis.materialTiles = undefined;
+  vis.shadeCache?.dispose();
+  vis.shadeCache = undefined;
   vis.shadeBindGroupLayout = undefined;
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;
@@ -119,6 +117,9 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.blendPipelines = undefined;
   rt.blendState.water?.frame.dispose();
   rt.blendState.water = undefined;
+  // The feedback variant compiling or compiled aside goes with the pipelines it was to replace.
+  vis.feedbackAside?.set?.water?.frame.dispose();
+  vis.feedbackAside = undefined;
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
   vis.gpuRaster?.dispose();

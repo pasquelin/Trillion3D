@@ -95,7 +95,11 @@ export interface DuelParams<Sortie extends ArrayLike<number> = Float64Array> {
   size?: number;
   three: () => void;
   oracle: () => Sortie;
-  core: () => Sortie;
+  /** The engine's operation: it returns the flat result, unless `readCore` reads it. */
+  core: () => unknown;
+  /** Reads the engine's result untimed, when `core` leaves it in objects rather than returning it
+   *  flat: the chronometer then times the operation alone on both sides, as `oracle` does Three's. */
+  readCore?: () => Sortie;
   tolerance?: number;
   motif?: string | null;
   /** The declared exception where sdk-core is allowed to run slower than Three, by how much and why. */
@@ -109,10 +113,12 @@ export interface DuelParams<Sortie extends ArrayLike<number> = Float64Array> {
  * with it, the largest absolute difference must stay under it and the line counts the values that
  * differ. `motif` names what the comparison leaves out, when it leaves something out.
  *
- * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
- * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the `vs witness` column
- * prints — and the ceiling and the reason go on the line. It is a declaration, not a waiver: the
- * ceiling still fails the test, and a line without `slower` is gated on its best time and must win.
+ * `slower` is for the one case where the two sides do not compute the same thing:
+ * `{ atMost, reason }` lets the engine reach `atMost` times Three on the paired median quotient —
+ * the statistic the `vs witness` column prints — and the ceiling and the reason go on the line.
+ * It is a declaration, not a waiver: the ceiling still fails the test, and a line without
+ * `slower` must win on that same quotient, never on a best time the table hides. The two sides'
+ * samples are interleaved, their order alternating every round (`bench/core/chrono.ts`).
  */
 export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   name,
@@ -121,31 +127,38 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   three,
   oracle,
   core,
+  readCore,
   tolerance,
   motif,
   slower,
 }: DuelParams<Sortie>) {
   let maxAbs = 0;
-  const differences = (ref: Sortie, obt: Sortie, chemin: string) => {
-    const c = compteur();
+  const differences = (expected: unknown, actual: unknown, path: string) => {
+    const [ref, obt] = [expected as Sortie, actual as Sortie],
+      c = compteur();
     // The strict path refuses a length mismatch; the tolerant path must not let one through.
     if (ref.length !== obt.length) maxAbs = Infinity;
     for (let i = 0; i < ref.length; i++) {
-      note(c, ref[i], obt[i], `${chemin}[${i}]`);
+      note(c, ref[i], obt[i], `${path}[${i}]`);
       maxAbs = Math.max(maxAbs, Math.abs(ref[i] - obt[i]));
     }
     return c;
   };
-  const engine = await mesure<null, Sortie>({
+  // With `readCore`, each side returns a token of its own and the read happens after the clock.
+  const tokens = readCore ? { core: {}, three: {} } : null;
+  const engine = await mesure<null, unknown>({
     name,
     fichier,
     cas: [{ name, size, input: null }],
     temoin: three,
-    calcul: core,
+    calcul: tokens ? () => (core(), tokens.core) : core,
     attendu: () => {
       three();
-      return oracle();
+      return tokens ? tokens.three : oracle();
     },
+    ...(tokens && readCore
+      ? { lecture: (_: null, side: unknown) => (side === tokens.core ? readCore() : oracle()) }
+      : {}),
     motif,
     ...(tolerance === undefined ? {} : { differences }),
   });
@@ -161,22 +174,15 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
     assert.ok(t, `${name}: Three.js witness produced no measurement`);
-    if (slower) {
-      // The median ratio the `vs witness` column prints, read as a quotient so that a witness
-      // without a median (`ecartTemoin` null) fails the gate instead of reading as 1.
-      assert.ok(c.medianeMs !== null, `${name}: sdk-core produced no median`);
-      const ratio = c.medianeMs / t.medianeMs;
-      assert.ok(
-        ratio <= slower.atMost,
-        `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${slower.atMost}× (${slower.reason})`,
-      );
-    } else {
-      assert.ok(c.minMs !== null, `${name}: sdk-core produced no measurement`);
-      assert.ok(
-        c.minMs <= t.minMs,
-        `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
-      );
-    }
+    // The paired median quotient the `vs witness` column prints, `1 + ecartTemoin`: a witness
+    // without one (`ecartTemoin` null) fails the gate instead of reading as 1.
+    const ratio = c.ecartTemoin === null ? NaN : 1 + c.ecartTemoin;
+    const ceiling = slower?.atMost ?? 1;
+    assert.ok(
+      ratio <= ceiling,
+      `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${ceiling}×` +
+        (slower ? ` (${slower.reason})` : ''),
+    );
   });
   return engine;
 }

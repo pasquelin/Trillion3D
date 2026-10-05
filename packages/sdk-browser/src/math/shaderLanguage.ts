@@ -11,6 +11,7 @@ export function shaderLanguage(source: string, language: 'wgsl' | 'glsl') {
     .replace(/\bvec([234])i\b/g, 'ivec$1')
     .replace(/\bf32\b/g, 'float')
     .replace(/\bi32\b/g, 'int')
+    .replace(/\bu32\b/g, 'uint')
     .replace(/\b(\d+)u\b/g, '$1')
     .replace('any(pixel<ivec2(0))', 'any(lessThan(pixel,ivec2(0)))')
     .replace('any(pixel>=ivec2(size))', 'any(greaterThanEqual(pixel,ivec2(size)))')

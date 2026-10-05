@@ -3,8 +3,8 @@
  *
  * The centre is the midpoint of the bounds, `(min + max) * 0.5`; the radius is half the diagonal,
  * `‖max − min‖ * 0.5`, the length being `Math.sqrt(x² + y² + z²)`. An empty box — an upper bound
- * below its lower bound — yields the empty sphere, zero centre and radius `-1`. This is the
- * Three.js box arithmetic term by term: the same bits, NaN, signed zeros and infinities included.
+ * below its lower bound — yields the empty sphere, zero centre and radius `-1`. The arithmetic
+ * is the box's, term by term: the same bits, NaN, signed zeros and infinities included.
  */
 export function sphereFromBounds(
   out: Float64Array,

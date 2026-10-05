@@ -2,7 +2,14 @@ import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
 import { entriesReady } from '../../core/bindIdentity.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
-import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
+import {
+  BASE_SLOTS,
+  BIN_BACK,
+  BIN_FRONT,
+  BIN_NONE,
+  CULL_BINS,
+  HALF_SLOTS,
+} from '../../../gpu/draw/draw.ts';
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts';
 import { screenErrorColor } from '../../../diagnostic/colors.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
@@ -14,7 +21,8 @@ import type { WebgpuPagesCore } from '../runtime.ts';
 /** The layout's selection roots, ranked by `rootOfPacked` (#1235). */
 type Roots = Parameters<typeof windingCw>[0];
 
-/** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
+/** Layer 0's pipelines by half and face mode: the three untested ones, then their Hi-Z-tested
+ *  twins. */
 const VIS_SLOTS = [
   'visPipelineBack',
   'visPipelineNone',
@@ -41,13 +49,16 @@ const visCullSlot = (rec: PageRec, rootRank: number, roots: Roots) => {
 };
 
 /** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
- *  its depth bias. A slot's face rank is its `bin`. */
+ *  its depth bias. A slot's face rank is its bin's face mode: a cutout slot draws with its face
+ *  mode's pipeline, an opaque one with that pipeline's twin (`drawVis`). */
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   const { vis } = rt;
   const layer = Math.floor(slot / BASE_SLOTS),
-    within = slot % BASE_SLOTS;
-  if (layer === 0) return vis[VIS_SLOTS[within]];
-  return vis.visLayerPipelines[visLayerPipelineIndex(layer, within >= 3, within % 3)];
+    within = slot % BASE_SLOTS,
+    rest = within >= HALF_SLOTS,
+    cull = within % CULL_BINS;
+  if (layer === 0) return vis[VIS_SLOTS[(rest ? CULL_BINS : 0) + cull]];
+  return vis.visLayerPipelines[visLayerPipelineIndex(layer, rest, cull)];
 }
 
 /** Pipeline of a cluster drawn WITHOUT indirect compaction. That path does not know the tested

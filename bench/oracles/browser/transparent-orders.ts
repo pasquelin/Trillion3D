@@ -1,8 +1,8 @@
 // The path from BEFORE the "transparents in a few orders" batch, copied as-is: ranking
 // that posed only keys, indirect arguments rewritten per item and per frame, and the
 // encode loop that posed one `drawIndirect` per plan entry while retesting the frustum
-// entry by entry. The two files that carried them — `webgpuBlendArgs.ts` and
-// `webgpuBlendSelect.ts` — no longer exist: these copies are all that remains of them,
+// entry by entry. The two files that carried them — the blend arguments and the
+// blend selection — no longer exist: these copies are all that remains of them,
 // and that is their reason to be.
 //
 // This is the oracle: these copies are wanted duplicates, and the bench compares their

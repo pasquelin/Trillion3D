@@ -15,13 +15,16 @@ import {
   CONTRACT_SHADOW_BINDINGS,
   declaredLightingWgsl,
 } from '../../lighting/direct/lightingWgsl.ts';
+import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts';
-import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
+import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
 import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts';
+import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -41,7 +44,7 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  proxy: SUN_FAR_PROXY_BINDING,
+  proxy: RESIDENT_PROXY_BINDING,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
@@ -66,17 +69,28 @@ export const WATER_BINDINGS = {
  * opaque scene begins.** The refracted ray travels the declared thickness, or the distance to the
  * frozen backdrop under the pixel when that is shorter, and both the exit it is reread at and the
  * attenuation follow that distance — a block just below a basin's surface is displaced and tinted
- * by its own depth, not by the basin's, as the single-layer water of the reference does. The
+ * by its own depth, not by the basin's, unlike a single-layer water. The
  * exit is one screen-space sample, checked against the surface depth, never a march: a ray that
  * crosses an object before its exit does not see it, a known limit shared with the forward pass.
  * And the share transmitted through an empty backdrop keeps that emptiness as coverage, so the
  * display background shows through a surface in front of nothing instead of a black radiance.
  * Its mirror ray is bounded (`BOUNDED_SCREEN_REFLECTION_WGSL`, #1279), but in a reference session:
  * `unbounded`, the whole walk and the proxy ray (`reflectionTrace`, `frame/referenceMode.ts`).
+ * The surface's lit colour, which only the share the material does not transmit, `(1-t)·alpha`,
+ * carries into the composite: at full transmission (`t` = 1) that share is zero, `0·alpha·lit` an
+ * exact zero whatever finite colour `lit` holds, and the bounce walk, the environment and the
+ * emission are not evaluated — the colour and coverage are the same numbers, a zero's sign aside
+ * (`litShare.test.ts`). The declared lights stay one walk for both sums (`declaredLightingPair`):
+ * their specular is the reflection's.
+ * Its light loop is without the shadow or the rectangle code `key` leaves out
+ * (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`).
  */
-export const waterCompositeShader = (pages?: number, unbounded = false) => `${VIEW_WGSL}
+export const waterCompositeShader = (
+  unbounded = false,
+  key: Partial<ContractKey> = {},
+) => `${VIEW_WGSL}
 ${BLEND_VIEW_WGSL}
-struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
+struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,}
 ${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
 ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
@@ -84,10 +98,11 @@ ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData, WATER_BINDINGS.shadowTransmittance, pages)}
+${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowTransmittance, undefined, true, !key.unshadowed, !key.rectless, shadowKindsOf(key))}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
 ${bounceReflectionWgsl(WATER_BINDINGS.surface)}
 ${WATER_UNPACK_WGSL}
+${VOLUME_LAW_WGSL}
 ${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
 ${WATER_SHADOW_READ_WGSL}
@@ -111,7 +126,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  // distance to the backdrop under this pixel when that is shorter. A block just below the surface
  // is displaced and tinted by its own depth, not by the basin's.
  let path=min(vol.thickness,backdropDistance(P,straight,vol.thickness));
- let refracted=refract(-V,N,1.0/max(vol.ior,1e-3));
+ let refracted=refract(-V,N,vol.eta);
  var chosen=straight;
  if(dot(refracted,refracted)>1e-8&&path>0.0){
   let exit=exitPixel(P,normalize(refracted),path,straight,size);
@@ -119,13 +134,8 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
   // water: the straight sample is read instead. Depth is reversed, so "behind" is "smaller".
   chosen=select(straight,exit,textureLoad(backdropDepth,exit,0)<=fragZ);
  }
- var attenuation=vec3f(1.0);
- if(vol.attenuationDistance>0.0){
-  let sigma=-log(clamp(vol.attenuationColor.rgb,vec3f(1e-5),vec3f(1.0)))/vol.attenuationDistance;
-  attenuation=exp(-sigma*path);
- }
  let sample=textureLoad(backdrop,chosen,0);
- return Transmitted(sample.rgb*attenuation,sample.a);
+ return Transmitted(sample.rgb*volumeTransmittance(vol.attenuation.rgb,path),sample.a);
 }
 fn waterColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
@@ -138,9 +148,10 @@ fn waterColor(pixel:vec4f)->vec4f{
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- // Shadows read where the marks asked (\`shadowReadWgsl.ts\`, #1412); the normal of the side we
- // look from, else refraction would go the wrong way and Fresnel yield a black mirror.
+ // Shadows read at the pixel's own footprint (\`shadowReadWgsl.ts\`, #1412); the normal of the side
+ // we look from, else refraction would go the wrong way and Fresnel yield a black mirror.
  shadowFootprint=waterShadowFootprint(pixel.xy,fragZ,P);
+ shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
  let V=waterViewDirection(P);
  let Nv=waterFacing(normal.xyz,V);
  let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);
@@ -151,15 +162,18 @@ fn waterColor(pixel:vec4f)->vec4f{
  var lit=base.rgb;
  var reflected=vec3f(0.0);
  let t=clamp(vol.transmission,0.0,1.0);
- let f0=pow((vol.ior-1.0)/(vol.ior+1.0),2.0);
- let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
+ // Fresnel by the fifth-power approximation, as two squares and a product.
+ let grazing=clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0);let grazing2=grazing*grazing;
+ let F=vol.f0+(1.0-vol.f0)*(grazing2*grazing2*grazing);
  if(!unlit){
-  lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ)+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;
+  // One walk of the declared lights, two sums: the surface's, and the null albedo's below.
+  let declared=declaredLightingPair(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ);
+  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;}
   // What the mirror direction sees, weighted by Fresnel — the engine's one reflection model: the
   // proxy traced at the roughness floor, the probe irradiance over π above it, exactly zero without
   // bounce — and the specular of the declared lights on a null albedo: the diffuse lobe cancels,
   // the dielectric specular lobe stays.
-  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy,fragZ);
+  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declared.specular;
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,
@@ -170,7 +184,7 @@ fn waterColor(pixel:vec4f)->vec4f{
  let premultiplied=t*((1.0-F)*base.rgb*through.color+reflected)+(1.0-t)*alpha*lit;
  // Seen through the fog between the eye and the surface, as every surface is.
  let color=premultiplied/max(a,1e-4);
- return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||vol.attenuationColor.w!=0.0),a);
+ return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||vol.attenuation.w!=0.0),a);
 }
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{return waterColor(pixel);}
 struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}

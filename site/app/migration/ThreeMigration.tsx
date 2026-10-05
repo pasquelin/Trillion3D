@@ -4,7 +4,7 @@ import { Inline } from '../ui/Prose.tsx';
 import { Split } from '../ui/Split.tsx';
 import { sectionGaps } from '../ui/sectionGaps.ts';
 import threeProgram from '../../content/migration/three-scene.txt';
-import engineProgram from '../../examples/migrating-from-three.html';
+import engineProgram from '../../examples/a-bust-a-crate-and-a-glass-ball.html';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
 
@@ -32,7 +32,7 @@ export function ThreeMigration({ entry, locale }: { entry: PortalEntry; locale: 
           <CodeBlock
             code={engineProgram}
             locale={locale}
-            label="Trillion3D · examples/migrating-from-three.html"
+            label="Trillion3D · examples/a-bust-a-crate-and-a-glass-ball.html"
             language="html"
             gaps={engineGaps}
             whole

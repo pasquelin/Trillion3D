@@ -1,6 +1,6 @@
 // The frame composer: one engine's frame on the surface or a target — bind, present a surface
 // the engine drew itself or clear and ask the engine to draw, keep the complete frame, put a
-// held one back. What it clears with and what it tells the engine are what the reference's host
+// held one back. What it clears with and what it tells the engine are what the host's own
 // pass did before it.
 import test from 'node:test';
 import assert from 'node:assert/strict';

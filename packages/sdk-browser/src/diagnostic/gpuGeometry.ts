@@ -9,25 +9,28 @@ import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts';
  * production image by construction.
  */
 
-/** The two flat raster stages: without a mask test, then with no fragment at all. */
+/** The raster stage with no fragment at all. The one without a mask test is production's
+ *  \`vis_opaque_fs\`, which every slot without a cutout row draws with. */
 export const DIAGNOSTIC_VIS_WGSL = `
-@fragment fn vis_hiz_plat_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
-@fragment fn vis_plat_fs(in:VSOut)->@location(0) u32{return in.id;}
 @fragment fn vis_hiz_jete_fs(in:VSOut)->VisHizOut{discard;var out:VisHizOut;out.id=0u;out.depth=0.0;return out;}
 @fragment fn vis_jete_fs(in:VSOut)->@location(0) u32{discard;return 0u;}`;
 
-/** The two flat resolve stages: reading nothing, then reading only the identifier. */
+/** The two flat resolve stages: reading only the pixel's class (`classAdmits`, which every
+ *  resolve stage asks: no depth target keeps another class's pixels), then the identifier. */
 export const DIAGNOSTIC_SHADE_WGSL = `
-@fragment fn shade_plat_fs()->SurfaceOut{return diagnosticSurface(vec3f(0.5),0u);}
+@fragment fn shade_plat_fs(@builtin(position) pos:vec4f)->SurfaceOut{
+ if(!classAdmits(textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r)){discard;}
+ return diagnosticSurface(vec3f(0.5),0u);
+}
 @fragment fn shade_ids_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  let packed=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;
- if(packed==0u){return emptySurface();}
+ if(!classAdmits(packed)){discard;}
  return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0),0u);
 }`;
 
 /** Raster-stage suffix (`vis_<suffix>_fs`, `vis_hiz_<suffix>_fs`) that each variant imposes. */
 const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
-  'geometry-flat': 'plat',
+  'geometry-flat': 'opaque',
   'geometry-vertices': 'jete',
 };
 
@@ -51,6 +54,10 @@ export function visVariantFragment(hiz: boolean, variant?: DiagnosticGpuVariant)
     stage = variant && VIS_STAGE[variant];
   return stage ? `${base}_${stage}_fs` : `${base}_fs`;
 }
+
+/** The raster stage without a mask test: production's on a draw that holds no cutout row
+ *  (`../webgpu/visibility/pipelines.ts`), and `geometry-flat`'s on every draw. */
+export const visOpaqueFragment = (hiz: boolean) => visVariantFragment(hiz, 'geometry-flat');
 
 /** Fragment stage of surface resolve for the requested variant. */
 export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>

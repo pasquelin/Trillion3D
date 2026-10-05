@@ -1,4 +1,5 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
+import { heldHomes } from './homes.ts';
 
 /** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires; it copies them at once. */
 const tail = new Uint8Array(4);
@@ -55,6 +56,16 @@ function leastRecentVictim({ resident, pins }: GpuPageContext) {
   return undefined;
 }
 
+/** `key`'s home when the pool holds the whole catalogue (`homes.ts`), `undefined` in fixed slots;
+ *  a key the catalogue does not name has no place there, and is refused by name. */
+export function homeOf(context: GpuPageContext, key: string) {
+  const homes = heldHomes(context.homes, context.slots);
+  if (!homes) return undefined;
+  const home = homes.homes.get(key);
+  if (!home) throw new Error('PAGE_HOME_MISSING');
+  return home;
+}
+
 /** Reserves a slot, evicts only an unpinned page, and uploads one complete fixed-size GPU slot. */
 export function commitGpuPage(
   context: GpuPageContext,
@@ -66,8 +77,12 @@ export function commitGpuPage(
   const { device, buffer, pageBytes, reader } = context;
   const { emit, now, report } = reader;
   state.bytesRead += bytes.byteLength;
+  // A pool that holds the whole catalogue has a home for each page: no slot to choose, none to
+  // take back; `free` counts the homes still empty.
+  const home = homeOf(context, key);
   let slot = free.pop();
-  if (slot === undefined) {
+  if (home) slot = home.rank;
+  else if (slot === undefined) {
     const ordered = !!context.eviction.order;
     const victim = ordered ? orderedVictim(context) : leastRecentVictim(context);
     if (!victim) {
@@ -84,7 +99,8 @@ export function commitGpuPage(
     evictResident(context, victim, 'capacity');
     slot = victim.slot;
   }
-  const uploadStarted = now();
+  const uploadStarted = now(),
+    offset = home ? home.offset : slot * pageBytes;
   // A slot is the size of the scene's LARGEST cluster. Writing the whole slot would charge every
   // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
   // reads the slot's tail: a page-table row names its offset and triangle count, and the
@@ -95,19 +111,18 @@ export function commitGpuPage(
   const size = bytes.byteLength,
     body = size & ~3,
     padded = (size + 3) & ~3;
-  if (body > 0)
-    device.queue.writeBuffer(buffer, slot * pageBytes, bytes as Uint8Array<ArrayBuffer>, 0, body);
+  if (body > 0) device.queue.writeBuffer(buffer, offset, bytes as Uint8Array<ArrayBuffer>, 0, body);
   if (padded !== body) {
     tail.fill(0);
     tail.set(bytes.subarray(body));
-    device.queue.writeBuffer(buffer, slot * pageBytes + body, tail, 0, 4);
+    device.queue.writeBuffer(buffer, offset + body, tail, 0, 4);
   }
   const uploadDurationMs = report ? performance.now() - uploadStarted : null;
   state.uploadedBytes += padded;
   const page = {
     key,
     slot,
-    offset: slot * pageBytes,
+    offset,
     bytes: bytes.byteLength,
     generation: ++state.generation,
   };
@@ -118,7 +133,7 @@ export function commitGpuPage(
     version: 1,
     key,
     slot,
-    offset: slot * pageBytes,
+    offset,
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
     uploadedBytes: padded,

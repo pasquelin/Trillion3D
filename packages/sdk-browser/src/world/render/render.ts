@@ -144,6 +144,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     fillMetrics(state.active);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
+    (state.active as HostCpuProfile).frameCpuMs?.(metricsScratch.cpuFrameMs);
     // Submitted triangles of this frame: those the engine counted, and only those. `null` when
     // it has not counted them — a zero published here would read as an empty frame, and that is
     // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.

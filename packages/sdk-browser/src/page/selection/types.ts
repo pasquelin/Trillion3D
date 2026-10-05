@@ -6,6 +6,18 @@ import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/links.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 
+/** The box a dynamic page's vertices are in this frame (#573), local: its least then greatest
+ *  corner (`../../world/core/pageMotion.ts`). */
+export type MovedBox = { readonly min: number[]; readonly max: number[] };
+
+/** Where a page's deformation results lie (`PageRec.deformationOutput`), `count` vertices of them;
+ *  `pool` names the float-pool block's geometry and placement world. */
+export type DeformationOutput = {
+  from: number;
+  count: number;
+  pool?: { attributes: HostAttributes; world?: MatrixElements };
+};
+
 export type PageRec = {
   id: number;
   url: string;
@@ -25,6 +37,11 @@ export type PageRec = {
   recut?: Uint8Array;
   min: number[];
   max: number[];
+  /** Where a dynamic page's vertices are this frame (#573), set by each rewrite its session takes
+   *  (`webgpu/pages/render/movedGeometry.ts`): every bound of its row — shadow sphere, occlusion
+   *  corners, level-of-detail sphere — reads it in place of `min` and `max` grown by its root's
+   *  `reach` (`rowBox`). Shared, as the record, by every placement: they draw the same vertices. */
+  moved?: MovedBox;
   role?: 'exact' | 'coarse';
   /** Flat DAG cut, copied from the page. Absent on caches without a per-cluster error. */
   level?: number;
@@ -56,8 +73,11 @@ export type PageRec = {
   declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;
-  /** GPU deformation output in this page's cache slot, in words from its start (#357). */
-  deformationOutput?: { from: number; count: number };
+  /** GPU deformation output (#357): in this page's cache slot, in words from its start; or, for a
+   *  page drawn from the float pool (`pool`), one block of its geometry's vertices in that pool,
+   *  `from` its first float, shared by every page of its geometry and placement
+   *  (`../../deformation/slotLayout.ts`). */
+  deformationOutput?: DeformationOutput;
   sourceOrder?: number;
   renderOrder: number;
   cone?: NormalCone;

@@ -71,6 +71,8 @@ export function createExplorerViewportApi(inputs: Inputs) {
       else {
         canvas.width = devicePixels(width, options.pixelRatio);
         canvas.height = devicePixels(height, options.pixelRatio);
+        // Sizing a canvas blanks it, to the same size too: the engine's image is to be presented.
+        getActive().canvasResized?.();
       }
       camera.aspect = width / height;
       camera.updateProjectionMatrix();

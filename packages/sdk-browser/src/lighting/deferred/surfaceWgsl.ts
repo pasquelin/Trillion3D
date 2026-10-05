@@ -15,17 +15,24 @@ export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){
 export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
 
 /**
- * What a shadow read needs of its pixel: its footprint and point unjittered, whence its shadow level
- * (#1363); whether its lane asks for pages (a lane in the target asks per subgroup); its receiver,
- * moved by its shading-point offset, and its triangle's plane the bias follows (`shadowReceiver`,
- * from the visibility buffer, #1410, #831).
+ * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
+ * (`vsmMaskPixel`), and, where the frame holds translucent casters, what their transmission's
+ * point read takes (`vsmShadowFactor`, its one reader in the resolve): the pixel's footprint at its
+ * unjittered centre, whence its view (#1363), and its receiver, moved by its shading-point offset,
+ * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer, #1410,
+ * #831). The mask carries the opaque shadow from the receiver the projection read
+ * (`vsm/projectionWgsl.ts`): without translucent casters nothing reads the rest, so a pixel loads
+ * none of its eight neighbour depths nor its receiver offset.
  * Set only where the pixel's cell lists a shadowed light (`cellShadowed`, #1369): nothing else reads
- * it, so a pixel of another cell loads none of its eight neighbour depths nor its receiver offset.
+ * it.
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
- let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
- shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
- let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
+ vsmMaskAt(coord);
+ if(vsmTranslucentCasters()){
+  shadowFootprint=pixelFootprint(coord,pixel.xy,z,P);
+  shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,z));
+  let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
+ }
 }`;
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}

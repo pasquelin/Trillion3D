@@ -5,6 +5,7 @@
 //! (`geometry_page_positions_tests.rs`) and of `positions.test.ts`.
 
 use super::*;
+use crate::bits::oct_decode;
 use crate::bits::tests::random_field;
 use crate::triangles::{BLOCK, WIDTH_BITS};
 

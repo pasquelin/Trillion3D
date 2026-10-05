@@ -1,8 +1,10 @@
-//! Region simplification that solves what it keeps: meshoptimizer's `simplifyWithUpdate`
-//! (Hoppe 1999). The collapses are ranked as `qem::simplify_with_locked_vertices` ranks them —
+//! Region simplification that moves what it keeps, by the linked `meshopt` simplifier's
+//! `simplifyWithUpdate`: the library accumulates the quadrics and solves the positions and attributes;
+//! this module prepares the region, its locks and weights. The collapses are ranked as
+//! `qem::simplify_with_locked_vertices` ranks them —
 //! absolute error, the weighed attributes counted, permissive across unprotected seams — then
-//! every surviving vertex that is neither locked nor on an open border is moved to the minimum
-//! of its accumulated quadric, and each of its copies' attributes solved at that point. A seam corner written under several texture coordinates can then collapse, all
+//! every surviving vertex that is neither locked nor on an open border is moved by the library to the
+//! minimum of its accumulated quadric, and each of its copies' attributes solved at that point. A seam corner written under several texture coordinates can then collapse, all
 //! its copies moving together, each keeping a coordinate of its own.
 use crate::qem::{compact_attributes, compact_region, region_extent, Attribute, VERTEX_LOCK};
 use crate::{invalid, Result};
@@ -20,7 +22,7 @@ pub struct Region {
     /// The weighed attributes, interleaved in the order of `attributes`.
     pub source_values: Vec<f32>,
     weights: Vec<f32>,
-    /// The extent meshoptimizer normalises the positions by (`qem::region_extent`).
+    /// The extent the simplifier normalises the positions by (`qem::region_extent`).
     extent: f64,
 }
 
@@ -104,7 +106,7 @@ impl Region {
             .iter()
             .map(|&v| u8::from(locked(v)) * VERTEX_LOCK)
             .collect();
-        // meshoptimizer rewrites the indices, positions and values it is handed: each solve
+        // The simplifier rewrites the indices, positions and values it is handed: each solve
         // starts from fresh copies, the region's own stay the source.
         let mut indices = self.compact.clone();
         let (mut solved, mut values) = (self.source.clone(), self.source_values.clone());
@@ -135,7 +137,7 @@ impl Region {
             return None;
         }
         indices.truncate(count);
-        // meshoptimizer writes every survivor it did not lock back through its own rescaling, a
+        // The simplifier writes every survivor it did not lock back through its own rescaling, a
         // few ulps off where it solved nothing: such a value is the source's, and the vertex
         // stays one.
         snap(&mut solved, &self.source, self.extent as f32);

@@ -1,6 +1,6 @@
 // The world's vehicles: Jolt's own `VehicleConstraint` on a body, driven by its wheeled, motorcycle
 // or tracked controller — engine, gearbox, differentials, suspension and anti-roll bars are
-// Jolt's, never rewritten. Here only the driver's pedals and wheel become the controller's input,
+// the physics module's, never rewritten. Here only the driver's pedals and wheel become the controller's input,
 // and each step's wheels are written back for the page to draw. Word layouts:
 // `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
 #include "binding.h"
@@ -34,9 +34,9 @@ const Vec3 FORWARD(0, 0, -1), UP(0, 1, 0), RIGHT(1, 0, 0);
 /// Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES), m/s².
 constexpr float STANDARD_GRAVITY = 9.80665f;
 /// Below this forward speed a vehicle stands still: the brake pedal then backs it up, and a
-/// tracked vehicle steered turns on the spot (m/s; Jolt's vehicle samples, 0.1 and 1).
+/// tracked vehicle steered turns on the spot (m/s; 0.1 and 1).
 constexpr float STOPPED = 0.1f, PIVOT = 1.0f;
-/// A motorcycle's lean controller rights it at Jolt's own sample's natural frequency and damping
+/// A motorcycle's lean controller rights it at a natural frequency and damping
 /// ratio — 5,000 N·m/rad and 1,000 N·m·s on a body of 32 kg·m² about its roll axis — for any
 /// body's roll inertia: rad/s, and a ratio.
 constexpr float LEAN_OMEGA = 12.5f, LEAN_DAMPING = 1.25f;
@@ -91,7 +91,7 @@ int partnerOf(const std::vector<const uint32_t *> &wheels, size_t i, uint32_t wa
 /// `mass` kilograms.
 void powertrainOf(VehicleEngineSettings &engine, VehicleTransmissionSettings &gearbox, const uint32_t *s, float mass) {
   engine.mMaxTorque = f32(s) * mass;
-  // Jolt's own engine is 0.5 kg·m² for 500 N·m; an engine's inertia, and the friction its
+  // The physics module's default engine is 0.5 kg·m² for 500 N·m; an engine's inertia, and the friction its
   // damping stands for, grow with its size (vehicleSpec.ts ENGINE).
   engine.mInertia = 0.5f * engine.mMaxTorque / 500.0f;
   engine.mMinRPM = f32(s + 1);
@@ -142,10 +142,13 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicl
       wv->mMaxHandBrakeTorque = role & HANDBRAKE ? 2 * lock * radius : 0.0f;
       wheel = wv;
     }
-    // Jolt makes each spring as stiff as its frequency asks of the body's mass as felt at that
-    // wheel; under its share of the weight it sags `share g / (felt (2π f)²)`. The suspension
-    // hangs from one radius above the wheel at full bump, and the wheel rests where that sag
-    // leaves it: the centre the page placed it at.
+    // Each spring is as stiff as its frequency asks of the body's mass as felt at that wheel,
+    // about the centre of mass; under its share of the weight it sags `share g / (felt (2π f)²)`.
+    // The suspension hangs from one radius above the wheel at full bump, and the wheel rests where
+    // that sag leaves it: the centre the page placed it at. The stiffness and damping are handed
+    // to Jolt as they are: its own frequency mode takes the arm from the body's origin
+    // (`VehicleConstraint.cpp`, `SetupVelocityConstraint`), millimetres off once `lower` moved the
+    // centre of mass between the wheels.
     Vec3 arm = (vec3(p) - body.GetShape()->GetCenterOfMass()).Cross(-UP);
     float felt = 1.0f / (motion.GetInverseMass() + arm.Dot(inverse.Multiply3x3(arm)));
     felts.push_back(felt);
@@ -153,7 +156,8 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicl
     wheel->mSuspensionMinLength = radius;
     wheel->mSuspensionMaxLength = radius + travel;
     wheel->mPosition = vec3(p) + UP * std::max(radius, radius + travel - sag);
-    wheel->mSuspensionSpring = SpringSettings(ESpringMode::FrequencyAndDamping, frequency, damping);
+    wheel->mSuspensionSpring = SpringSettings(ESpringMode::StiffnessAndDamping, felt * omega * omega,
+                                              2 * felt * damping * omega);
     wheel->mWheelForward = FORWARD;
     wheel->mRadius = radius;
     wheel->mWidth = f32(p + 4);
@@ -224,8 +228,7 @@ void reshape(Body &body, const Shape *shape, const Shape *mass) {
 }
 
 /// The body of the VEHICLE command `w` made a vehicle's. Its centre of mass is lowered to the
-/// bottom of its shape, midway between its wheels along and across, as Jolt's vehicle samples
-/// build theirs (`OffsetCenterOfMassShape`): a body of even density has it at mid-height, where a
+/// bottom of its shape, midway between its wheels along and across (`OffsetCenterOfMassShape`): a body of even density has it at mid-height, where a
 /// machine's heavy engine, floor and axles are not. And its running gear is made solid: Jolt only
 /// casts its wheels, so another body would slip under the body among them. A box over the wheels'
 /// footprint, from the body's bottom down to their lowest point raised by the suspension's travel
@@ -281,8 +284,8 @@ void add(const uint32_t *w) {
   lower(lock.GetBody(), w);
   vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody(), vehicle));
   if (w[2] == TRACKED) vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterRay(MOVING, UP));
-  // A motorcycle's tyre is rounded across (the whole half width as convex radius, as Jolt's
-  // motorcycle sample casts it): leaned, it rolls on its shoulder rather than on an edge.
+  // A motorcycle's tyre is rounded across (the whole half width as convex radius, as the
+  // motorcycle's cast does): leaned, it rolls on its shoulder rather than on an edge.
   else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
   onBody.add(slotIndex, index);
@@ -336,7 +339,7 @@ float holdParked(Vehicle &v) {
 
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
-/// inner track, or turns on the spot at a standstill (Jolt's vehicle samples). Parked — not driven
+/// inner track, or turns on the spot at a standstill. Parked — not driven
 /// since it was made or since it last stood still with its pedals released — a vehicle holds its
 /// brakes: set down on a slope it stays where it landed instead of rolling down it forever, and
 /// Jolt lets it sleep (`parkedVehicles.test.ts`). Driven then released, it coasts until it stops.
@@ -361,7 +364,7 @@ void applyInput(Vehicle &v, float dt) {
     return;
   }
   if (v.parked) brake = holdParked(v);
-  // Leaned, a motorcycle brakes less, or it slides out from under its rider (Jolt's sample).
+  // Leaned, a motorcycle brakes less, or it slides out from under its rider.
   if (v.kind == MOTORCYCLE && brake > 0) {
     Vec3 up = body.GetRotation() * UP, ahead = body.GetRotation() * FORWARD;
     float lean = std::abs(-world().system->GetGravity().NormalizedOr(-UP).Cross(up).Dot(ahead));
@@ -405,7 +408,7 @@ void driveVehicles(float dt) {
     if (!vehicle.constraint) continue;
     setBars(vehicle, dt);
     applyInput(vehicle, dt);
-    // Past its rest writes, its wheels are not cast while inactive (0; Jolt's default 1 casts every
+    // Past its rest writes, its wheels are not cast while inactive (0; the default 1 casts every
     // step): the running gear is part of the body's own shape (`lower`), so what moves into the
     // wheels meets the body and wakes it, and the wheels are cast again once it is awake.
     vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);

@@ -65,8 +65,9 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    const rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]] ?? -1;
-    packPageCorners(cornerPacked, base, rec, rootOf(rt.layout.selectionRoots, rank).world);
+    const rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]] ?? -1,
+      root = rootOf(rt.layout.selectionRoots, rank);
+    packPageCorners(cornerPacked, base, rec, root.world, root.reach);
   }
   rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
 }
@@ -74,7 +75,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 const pageCorners = new Float64Array(BOX_CORNER_VALUES);
 
 /**
- * The eight world corners of `page` placed by `world`, derived by `pageCornersInto`, written in `packed` from `base`.
+ * The eight world corners of `page` placed by `world` and grown by `reach`, derived by `pageCornersInto`, written in `packed` from `base`.
  * Each coordinate leaves in two words: the single-precision rounding, then what it left. The sum of
  * the two represents the original double to within a squared ulp.
  */
@@ -83,8 +84,9 @@ export function packPageCorners(
   base: number,
   page: HizPage,
   world: MatrixElements,
+  reach = 0,
 ) {
-  pageCornersInto(pageCorners, 0, page, world);
+  pageCornersInto(pageCorners, 0, page, world, reach);
   for (let k = 0; k < 8; k++)
     for (let axis = 0; axis < 3; axis++)
       writeSplitDouble(

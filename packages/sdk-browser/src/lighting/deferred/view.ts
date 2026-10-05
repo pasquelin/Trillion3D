@@ -22,8 +22,8 @@ export function createDeferredView(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4);
-  const setJitter = (jitter: ArrayLike<number> | null) =>
-    void shadowJitterWords(jitter, packed, JITTER_WORD);
+  const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>
+    void shadowJitterWords(jitter, packed, JITTER_WORD, phase);
   setJitter(null);
   return {
     buffer,

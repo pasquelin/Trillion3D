@@ -33,3 +33,33 @@ test('a refused probe snapshot releases the entire new probe bundle, preserving 
     gpu.textures.every((texture) => texture.label !== 'Trillion3D bounce probes snapshot v3'),
   );
 });
+
+test('a level is cleared in the probes and in their snapshot by one pass, the two staying equal', () => {
+  const gpu = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 28, maxBufferSize: 1 << 28 },
+  });
+  const proxy = ownedProxy();
+  const storage = createProbeStorage(
+    gpu.device,
+    proxy,
+    createBounceCascades(proxy.bounds),
+    16,
+    [11, 1, 3],
+  );
+  // The descriptor is reused: each pass's attachments are read as it begins.
+  const cleared: unknown[][] = [];
+  const encoder = {
+    beginRenderPass: (d: GPURenderPassDescriptor) => (
+      cleared.push([...d.colorAttachments].map((a) => [a!.view, a!.loadOp])),
+      { end() {} }
+    ),
+  } as unknown as GPUCommandEncoder;
+  storage.clearLevels(encoder, 0b101);
+  assert.deepEqual(
+    cleared,
+    [0, 2].map((level) => [
+      [storage.views.levels[level], 'clear'],
+      [storage.views.snapshotLevels[level], 'clear'],
+    ]),
+  );
+});

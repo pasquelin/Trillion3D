@@ -2,7 +2,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
-import { rootedUnder } from '../../host/world/chain.ts';
+import { rootedUnder } from '../../host/world/rooted.ts';
 
 /**
  * Who a world's scene draws — its meshes and its loaded models —, kept up to date from the
@@ -28,19 +28,27 @@ export function createWorldMembers(scene: Object3D) {
       }
       if ((child as LoadedModel).isLoadedModel) models.add(child as LoadedModel);
     });
-  const leave = (node: Object3D, removed: Mesh[]) =>
-    node.traverse((child) => {
-      known.delete(child);
-      lit ||= isLightNode(child);
-      if (meshes.delete(child as Mesh)) removed.push(child as Mesh);
-      models.delete(child as LoadedModel);
-    });
+  /** What left with `node`: the subtree as it was known, never read again from the node, which may
+   *  be destroyed by now. */
+  const leave = (node: Object3D, removed: Mesh[]) => {
+    const children = known.get(node) ?? [];
+    known.delete(node);
+    lit ||= isLightNode(node);
+    if (meshes.delete(node as Mesh)) removed.push(node as Mesh);
+    models.delete(node as LoadedModel);
+    for (const child of children) leave(child, removed);
+  };
   return {
     meshes,
     models,
     /** `parent`'s children changed: compared at the next `take`. */
     changed(parent: Object3D) {
       changed.add(parent);
+    },
+    /** `node` entered the scene: compared at the next `take` when it is known — it left and came
+     *  back since —, otherwise entered whole with its parent, at no cost of its own. */
+    entered(node: Object3D) {
+      if (known.has(node)) changed.add(node);
     },
     /**
      * What entered the scene and what left it since the last call. Every subtree that left any
@@ -51,18 +59,23 @@ export function createWorldMembers(scene: Object3D) {
       const added: Mesh[] = [],
         removed: Mesh[] = [];
       lit = false;
-      const diffs = [...changed].map((parent) => ({
-        parent,
-        before: known.get(parent) ?? [],
-        now: rooted(parent) ? parent.children : [],
-      }));
+      // A parent destroyed since it was heard holds nothing in the scene any more.
+      const diffs = [...changed].map((parent) => {
+        const inScene = parent._alive && rooted(parent);
+        return {
+          parent,
+          inScene,
+          before: known.get(parent) ?? [],
+          now: inScene ? parent.children : [],
+        };
+      });
       changed.clear();
       for (const { before, now } of diffs) {
         const kept = new Set(now);
         for (const child of before) if (!kept.has(child)) leave(child, removed);
       }
-      for (const { parent, before, now } of diffs) {
-        if (!rooted(parent)) continue;
+      for (const { parent, inScene, before, now } of diffs) {
+        if (!inScene) continue;
         const held = new Set(before);
         for (const child of now) if (!held.has(child)) enter(child, added);
         known.set(parent, now);

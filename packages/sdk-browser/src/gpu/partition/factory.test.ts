@@ -31,6 +31,7 @@ function frame(rows: number): PartitionFrame {
     layerTop: 0,
     hasRest: true,
     viewMoved: false,
+    counting: false,
   };
 }
 
@@ -98,11 +99,11 @@ test('the projection rebinds the pyramid when its identity changes, and only the
     bufferGroups(bindGroups).filter((group) => PARTITION_BINDING.pyramid in group);
   assert.equal(projectGroups().length, 1, 'one projection group at creation');
   assert.equal(projectGroups()[0][PARTITION_BINDING.pyramid], pyramid);
-  partition.encode(encoder(), frame(4));
-  partition.encode(encoder(), frame(4));
+  partition.beginFrame(encoder(), frame(4));
+  partition.beginFrame(encoder(), frame(4));
   assert.equal(projectGroups().length, 1, 'the same pyramid is not rebound');
   pyramid = buffer('pyramid B');
-  partition.encode(encoder(), frame(4));
+  partition.beginFrame(encoder(), frame(4));
   assert.equal(projectGroups().length, 2, 'a resized pyramid gets a new group');
   assert.equal(projectGroups()[1][PARTITION_BINDING.pyramid], pyramid);
   partition.dispose();
@@ -131,13 +132,13 @@ test('rows rewritten since the last image are cleared run by run, once', async (
       .splice(0)
       .filter(([target]) => target === partition.rowData)
       .map(([, offset, size]) => [offset / rowBytes, size / rowBytes]);
-  partition.encode(clearing(), frame(64));
+  partition.beginFrame(clearing(), frame(64));
   assert.deepEqual(rowRuns(), [], 'nothing rewritten: nothing cleared');
   partition.forgetRows(10, 12);
   partition.forgetRows(20, 20);
   partition.forgetRows(5, 3);
   partition.forgetRows(60, 90);
-  partition.encode(clearing(), frame(64));
+  partition.beginFrame(clearing(), frame(64));
   assert.deepEqual(
     rowRuns(),
     [
@@ -147,7 +148,7 @@ test('rows rewritten since the last image are cleared run by run, once', async (
     ],
     'each run alone, none of the rows between them, bounded to the buffer',
   );
-  partition.encode(clearing(), frame(64));
+  partition.beginFrame(clearing(), frame(64));
   assert.deepEqual(rowRuns(), [], 'forgotten once, then remembered as projected again');
   partition.dispose();
 });

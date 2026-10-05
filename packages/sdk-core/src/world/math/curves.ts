@@ -1,5 +1,6 @@
 import { Vector2 } from './vector2.ts';
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts';
+import { splineSpan } from './splineSpan.ts';
 
 /** A parametric curve over `t ∈ [0, 1]`. */
 export abstract class Curve {
@@ -15,6 +16,8 @@ export abstract class Curve {
   }
   /** Unit tangent by a central difference: the curve owes no derivative of its own. */
   getTangent(t: number, out = new Vector3()) {
+    // Both points in new vectors, never in `out`: `Vector3.set` skips a write equal by `===`, so a
+    // point at the origin written there would keep the signed zeros `out` held, and the tangent too.
     const h = 1e-4,
       a = this.getPoint(Math.max(0, t - h)),
       b = this.getPoint(Math.min(1, t + h));
@@ -22,18 +25,23 @@ export abstract class Curve {
   }
   /** How long the curve is, measured over `divisions` pieces. */
   getLength(divisions = 200) {
+    // Two vectors take the points in turn; a distance squares its differences, so the sign of a
+    // zero kept by a reused vector never reaches it.
     let length = 0,
-      last = this.getPoint(0);
+      last = this.getPoint(0),
+      next = new Vector3();
     for (let i = 1; i <= divisions; i++) {
-      const next = this.getPoint(i / divisions);
+      next = this.getPoint(i / divisions, next);
       length += next.distanceTo(last);
+      const free = last;
       last = next;
+      next = free;
     }
     return length;
   }
 }
 
-/** A smooth curve through every point: centripetal Catmull–Rom, closed on request. */
+/** A cubic spline through its points whose tangent at each point is half the difference of its neighbours, closed on request. */
 export class SplineCurve extends Curve {
   /** The points the curve passes through. */
   points: Vector3[];
@@ -46,10 +54,11 @@ export class SplineCurve extends Curve {
   }
   /** The point at `t` on the smooth curve. */
   getPoint(t: number, out = new Vector3()) {
-    const n = this.points.length;
+    const { points, closed } = this,
+      n = points.length;
     // Stryker disable next-line ConditionalExpression: one point: all four neighbours are it
-    if (n === 1) return out.copy(this.points[0]);
-    const span = this.closed ? n : n - 1;
+    if (n === 1) return out.copy(points[0]);
+    const span = closed ? n : n - 1;
     const p = Math.min(Math.max(t, 0), 1) * span;
     let i = Math.floor(p),
       w = p - i;
@@ -58,22 +67,24 @@ export class SplineCurve extends Curve {
       i = span - 1;
       w = 1;
     }
-    const at = (k: number) =>
-      this.closed ? this.points[(k + n) % n] : this.points[Math.min(Math.max(k, 0), n - 1)];
-    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
-    const axis = (a: number, b: number, c: number, d: number) => {
-      const t0 = (c - a) * 0.5,
-        t1 = (d - b) * 0.5,
-        w2 = w * w,
-        w3 = w2 * w;
-      return (2 * b - 2 * c + t0 + t1) * w3 + (-3 * b + 3 * c - 2 * t0 - t1) * w2 + t0 * w + b;
-    };
+    const a = pointAt(points, closed, i - 1),
+      b = pointAt(points, closed, i),
+      c = pointAt(points, closed, i + 1),
+      d = pointAt(points, closed, i + 2),
+      w2 = w * w,
+      w3 = w2 * w;
     return out.set(
-      axis(p0.x, p1.x, p2.x, p3.x),
-      axis(p0.y, p1.y, p2.y, p3.y),
-      axis(p0.z, p1.z, p2.z, p3.z),
+      splineSpan(a.x, b.x, c.x, d.x, w, w2, w3),
+      splineSpan(a.y, b.y, c.y, d.y, w, w2, w3),
+      splineSpan(a.z, b.z, c.z, d.z, w, w2, w3),
     );
   }
+}
+
+/** Point `k` of a spline: wrapped round a closed one; an open one repeats its end past it. */
+function pointAt(points: readonly Vector3[], closed: boolean, k: number) {
+  const n = points.length;
+  return points[closed ? (k + n) % n : Math.min(Math.max(k, 0), n - 1)];
 }
 
 /** Straight segments through every point, parameterised by arc length. */

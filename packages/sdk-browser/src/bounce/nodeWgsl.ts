@@ -7,45 +7,36 @@ import {
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
  *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
-/** The four shadow-ray settings, at the front: offset, start, range, presence. */
-export const PROXY_PARAM_FLOATS = 4;
-/** The count flag, then the two counters of the counted frame, in bytes from the start. */
-export const PROXY_COUNTING_OFFSET = PROXY_PARAM_FLOATS * 4;
-export const PROXY_COUNT_OFFSET = PROXY_COUNTING_OFFSET + 4;
-export const PROXY_COUNTS = 2;
 /** Rank of the first layout word: node count, then the three start ranks. */
-export const PROXY_LAYOUT_WORD = 7;
-/** Start rank of the column of groups that cast no shadow, one bit per group (`proxy.ts`). */
-export const PROXY_CASTLESS_WORD = 11;
+export const PROXY_LAYOUT_WORD = 4;
 /** Revision of the owner poses. */
-export const PROXY_REVISION_WORD = 16;
+export const PROXY_REVISION_WORD = 12;
 /** Visited nodes a ray may take, derived from the tree (`proxy.ts`), after the revision word. */
 export const PROXY_STEPS_WORD = PROXY_REVISION_WORD + 1;
+
+/** Binding rank of the resident proxy in the deferred-resolution layout. */
+export const RESIDENT_PROXY_BINDING = 13;
 
 /**
  * Declaration of the resident proxy at the binding slot the calling pass gives it. The three
  * passes that traverse it — probes, surface cache, and the two lighting passes — read the
  * same structure at the same word ranks: one way to describe the proxy.
  *
- * `writable` says whether the pass may write the two count counters, and nothing else: the
- * rest of the header and the three columns are read on both sides. A pass that does not
- * count takes the read-only declaration, where the counters become ordinary `u32` — an
- * `atomic` is not declared in a `read` binding. This is not a style preference: on a
- * tile-based GPU, **a storage binding writable from the fragment stage forbids early
- * depth rejection** for the whole pipeline, because the side effect must happen even
- * when depth would discard the fragment. The blend pass pays that early rejection in
- * full; it therefore takes the read-only declaration.
+ * The binding is read-only for every pass: nothing in the header or the columns is written from
+ * a shader. This is not a style preference: on a tile-based GPU, **a storage binding writable
+ * from the fragment stage forbids early depth rejection** for the whole pipeline, because the
+ * side effect must happen even when depth would discard the fragment.
  */
-export const residentProxyWgsl = (binding: number, writable = true) => `
+export const residentProxyWgsl = (binding: number) => `
 struct ResidentProxy{
  offsetMetres:f32,startMetres:f32,maxMetres:f32,present:f32,
- counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
- trianglesWord:u32,boundsWord:u32,childrenWord:u32,castlessWord:u32,
+ nodeCount:u32,
+ trianglesWord:u32,boundsWord:u32,childrenWord:u32,
  groupsWord:u32,rangesWord:u32,ownersWord:u32,transformsWord:u32,
- revision:u32,steps:u32,pad1:u32,pad2:u32,
+ revision:u32,steps:u32,pad1:u32,pad2:u32,pad3:u32,
  words:array<u32>,
 }
-@group(0) @binding(${binding}) var<storage,${writable ? 'read_write' : 'read'}> proxy:ResidentProxy;`;
+@group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`;
 
 /**
  * What a proxy node carries, and how a ray reads it: a triangle's vertices, a node's exact

@@ -175,10 +175,14 @@ test('the affine part of the transform is carried, and flagged when it is not th
 // a seam or leaves its period folds each tap alone, as a one-tap read does.
 test('an anisotropic line is folded once when it stays in its period', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true);
-  assert.match(shaded, /let line=foldLine\(r,s\.wrap,s\.size\);/);
+  // The seam test reaches half a texel of the coarsest level read, whose seam is the widest.
   assert.match(
     shaded,
-    /if\(line\.dir\.x==0\.0\)\{[^}]*colorSampleTap\(s,r\.uv\+r\.axis\*tapOffset\(i,n\)/,
+    /let line=foldLine\(r,s\.wrap,s\.size,levelSize\(s\.size,u32\(ceil\(r\.lod\)\)\)\);/,
+  );
+  assert.match(
+    shaded,
+    /if\(line\.dir\.x==0\.0\)\{[^}]*colorSampleAt\(s,r\.uv\+r\.axis\*tapOffset\(i,n\)/,
   );
   assert.match(
     shaded,

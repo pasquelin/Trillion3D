@@ -1,5 +1,6 @@
 import { PHYSICAL_MAP_UNIT } from '../webgl/cluster/physicalMaps.ts';
-import { RADIANCE_REDUCTION_GLSL } from '../texture/radianceReduction.ts';
+import { cellReductionGlsl } from '../texture/cellReduction.ts';
+import { reflectionPlaneShader } from './traceShader.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 import {
   FULLSCREEN_VERTEX,
@@ -39,18 +40,25 @@ export class WebglReflectionPyramid {
     const load =
       rule === 'bounds'
         ? 'vec4(uintBitsToFloat(texelFetch(source,p,0).rg),0.0,1.0)'
-        : rule === 'depth'
-          ? '(texelFetch(source,p,0).r==1.0?vec4(1.0,0.0,0.0,0.0):vec4(vec2(texelFetch(source,p,0).r),0.0,1.0))'
-          : 'texelFetch(source,p,0)';
+        : 'texelFetch(source,p,0)';
+    // The depth's first level: a pixel's range is the depth its surface reaches over it,
+    // as the WebGPU bounds start (`boundsPyramidWgsl.ts`); the clear depth, one here, holds none.
+    const read =
+      rule === 'depth'
+        ? `float reflectionDepthAt(ivec2 p){return texelFetch(source,p,0).r;}
+vec2 reflectionSize(){return vec2(extent.xy);}
+float reflectionClearDepth(){return 1.0;}
+${reflectionPlaneShader('glsl')}
+vec4 mipRead(ivec2 p){return vec4(reflectionPixelBounds(p),0.0,1.0);}`
+        : `vec4 mipRead(ivec2 p){return ${load};}`;
     const code = `#version 300 es
 precision highp float;precision highp int;
 uniform highp ${rule === 'bounds' ? 'usampler2D' : 'sampler2D'} source;
 uniform ivec4 extent;
-const bool bounds=${bounds};
-vec4 mipRead(ivec2 p){return ${load};}
-${RADIANCE_REDUCTION_GLSL}
+${read}
+${cellReductionGlsl(bounds)}
 out ${bounds ? 'uvec2' : 'vec4'} color;
-void main(){color=${bounds ? 'floatBitsToUint(radianceReduction(ivec2(gl_FragCoord.xy)).rg)' : 'radianceReduction(ivec2(gl_FragCoord.xy))'};}`;
+void main(){color=${bounds ? 'floatBitsToUint(cellReduction(ivec2(gl_FragCoord.xy)).rg)' : 'cellReduction(ivec2(gl_FragCoord.xy))'};}`;
     const program = createWebglProgram(this.gl, FULLSCREEN_VERTEX, code);
     held = {
       program,

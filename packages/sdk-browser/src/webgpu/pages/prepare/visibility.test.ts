@@ -43,6 +43,8 @@ async function waterFailures(device: GPUDevice) {
     context: {},
     run: { diagnostic: 'beauty' },
     gpu: {},
+    // No light: the blends' first program is the one with every light code path.
+    lights: { store: { count: 0, unlit: false } },
   } as unknown as WebgpuPagesRuntime;
   await assert.rejects(prepareWebgpuVisibility(rt, device), STOP);
   return { failures, water: rt.blendState.water };

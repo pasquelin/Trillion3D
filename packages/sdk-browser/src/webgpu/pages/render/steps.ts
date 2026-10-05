@@ -63,7 +63,7 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
     clearColor: `#${rt.run.clearColor.toString(16).padStart(6, '0')}`,
     targetSize: gpu.targetSize,
     visibilityBuffer: vis.visEnabled,
-    visibilityReady: !!(vis.visPipelineBack && vis.materialDepthPipeline && vis.visView),
+    visibilityReady: !!(vis.visPipelineBack && vis.shadeClasses && vis.visView),
     selectedPages: run.shown.length,
     drawnPages: run.drawn.length,
   };

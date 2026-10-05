@@ -10,7 +10,7 @@ import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
 /**
  * Behaviour: skipping the source images follows what will DRAW, never the option alone. Only
  * the WebGPU page raster reads the levels the compiler baked; the engine's own WebGL2 page
- * path — the default on a machine that grants no WebGPU device — and the Three witnesses
+ * path — the default on a machine that grants no WebGPU device — and the host-library witnesses
  * sample `texture.image`, and a session that skipped its images would draw the one-pixel
  * placeholder. No machine loses its textures, so `'cache'` resolves back to `'host'` there.
  */

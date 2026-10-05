@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  * EVERY GPU BUFFER SIZED BY ROW, made for `drawSlots` visibility rows and `casterSlots` rows in
  * all (`growTables.ts`): the page table, the zero flags, the fallback uniforms for a pool of
  * `slots` slots, the draw compact, the Hi-Z verdicts, the partition, the tested half's work
- * buffer at its bound, the shadow cull and its occlusion test, the spheres and the mobility words.
+ * buffer at its bound, the spheres and the mobility words.
  * Each only where the session has it, each at the size its next use keeps — nothing is made
  * after the commit —, committed in the order the later ones read the earlier.
  */
@@ -26,9 +26,8 @@ export function gpuGrowth(
   const { vis, lights, gpu } = rt,
     { gpuDraw: draw, gpuHiz: hiz } = vis,
     pageTable = rt.layout.rows.pageTableFloats,
-    // The kept lists grow past what they hold alone: rows the GPU pages' pairs grew them to
-    // (`pairGrowth.ts`) are kept, never made again at the same size.
-    cullGrows = !!lights.cull && casterSlots > lights.cull.capacity;
+    // The draw compact's entries, `perRow` a visibility row: the tested half's copy and rows.
+    compacted = drawSlots * (draw?.perRow ?? 1);
   const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE;
   const uniform =
     gpu.uniformBuffer && gpu.uniformBuffer.size < uniformBytes
@@ -62,10 +61,7 @@ export function gpuGrowth(
         restBits: draw.restBitsBuffer,
         slotUsed: draw.slotUsedBuffer,
       })),
-    vis.gpuRestCompact?.growWork(drawSlots, restSlotCount(vis.drawLayerSlots), drawSlots),
-    cullGrows ? lights.cull?.grow(casterSlots) : undefined,
-    cullGrows ? lights.occlusion?.grow(casterSlots) : undefined,
-    cullGrows ? lights.bins?.grow(casterSlots) : undefined,
+    vis.gpuRestCompact?.growWork(compacted, restSlotCount(vis.drawLayerSlots), compacted),
     ...growShadowRows(lights, device, casterSlots),
   ]);
 }

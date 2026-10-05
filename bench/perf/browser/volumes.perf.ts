@@ -4,7 +4,8 @@ import { casBoites } from './support/volumeBoxCases.ts';
 import { casTronc } from './support/volumeFrustumCases.ts';
 import { boxEmpty } from '../../../packages/sdk-core/src/index.ts';
 
-const options = { chauffe: 1, tours: 10, budgetMs: 500 };
+// Warm-up and the round floor are the harness's (`bench/core/chrono.ts`).
+const options = { tours: 30, budgetMs: 500 };
 const tousLesCas = [...casBoites, ...casTronc];
 
 // A computation without `reference` is measured without an oracle, and its line publishes the

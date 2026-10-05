@@ -26,7 +26,7 @@ ${SAMPLING_FOOTPRINT_WGSL}
 /** The centre of the texel a coordinate falls in, for a nearest read; the coordinate otherwise. */
 fn pickTexel(texel:vec2f,nearest:bool)->vec2f{return select(texel,floor(texel)+0.5,nearest);}
 /** One axis of a tap line folded once (\`foldLine\`): the folded centre, the direction the taps run
- *  in the folded period, and 1 when the whole line, half a texel around, stays in one period. */
+ *  in the folded period, and 1 when the whole line, \`reach\` around its centre, stays in one period. */
 fn foldAxis(t:f32,reach:f32,repeat:bool,mirror:bool)->vec3f{
  if(!repeat&&!mirror){return vec3f(t,1.0,select(0.0,1.0,t-reach>=0.0&&t+reach<=1.0));}
  let k=floor(t);
@@ -35,10 +35,12 @@ fn foldAxis(t:f32,reach:f32,repeat:bool,mirror:bool)->vec3f{
  return vec3f(select(t-k,1.0-(t-k),odd),select(1.0,-1.0,odd),select(0.0,1.0,inside));
 }
 /** A tap line folded once by its addressing: \`dir.x\` zero when it leaves its period or meets a
- *  seam, where each tap folds itself. */
+ *  seam, where each tap folds itself. The line reaches half a texel past its ends; on a repeating
+ *  axis, half a texel of \`seam\`, the coarsest level the read mixes, whose seam is the widest. */
 struct FoldedLine{uv:vec2f,dir:vec2f,}
-fn foldLine(r:TileRead,wrap:u32,size:vec2f)->FoldedLine{
- let reach=abs(r.axis)*0.5+0.5/size;
+fn foldLine(r:TileRead,wrap:u32,size:vec2f,seam:vec2f)->FoldedLine{
+ let half=abs(r.axis)*0.5;
+ let reach=select(half+0.5/size,half+0.5/seam,vec2<bool>((wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_T_REPEAT}u)!=0u));
  let x=foldAxis(r.uv.x,reach.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u);
  let y=foldAxis(r.uv.y,reach.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u);
  return FoldedLine(vec2f(x.x,y.x),vec2f(x.y,y.y)*x.z*y.z);
@@ -78,11 +80,11 @@ fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
 }`;
 
 /**
- * Public atlas read, `name(slot, uv, ddx, ddy, sampled)`: the header is read once, then a single
- * read off a seam, four mixed on the seam of a repeating period, where the sampler's rule would
- * mix the last texel and the first: it is the read that wraps, not the coordinate — by the
- * addressing nibble of the texture's header. `name + 'At'` is the read that `name` dispatches,
- * `name + 'Tap'` one read of it.
+ * Public atlas read, `name(slot, uv, ddx, ddy, sampled)`: the header is read once, then each level
+ * read wraps by the addressing nibble of the texture's header (`${k}Level`, `wgsl.ts`) — a single
+ * fetch off a seam, four mixed on the seam of a repeating period at that level's size, where the
+ * sampler's rule would mix the last texel and the first: it is the read that wraps, not the
+ * coordinate. `name + 'At'` is one read at a level of detail, which `name` dispatches.
  *
  * `sampled` is the page's or the item's, never the texture's: a class override in the resolve
  * (`HAS_SAMPLING`), which the compiler folds, a flag of the draw elsewhere (`FLAG_SAMPLED`). False,
@@ -95,15 +97,14 @@ fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
  * shadow passes, which only compares a threshold — takes one tap at the isotropic level.
  */
 export const atlasReadWgsl = (name: string, k: string, out: string, anisotropic: boolean) => {
-  const at = `${name}At`,
-    tap = `${name}Tap`;
+  const at = `${name}At`;
   const taps = anisotropic
     ? `fn ${name}Taps(s:TileSlot,r:TileRead)->${out}{
  let n=r.taps;
- let line=foldLine(r,s.wrap,s.size);
+ let line=foldLine(r,s.wrap,s.size,levelSize(s.size,u32(ceil(r.lod))));
  if(line.dir.x==0.0){
   var sum=${out}();
-  for(var i=0u;i<n;i++){sum+=${tap}(s,r.uv+r.axis*tapOffset(i,n),r.lod,r.nearest);}
+  for(var i=0u;i<n;i++){sum+=${at}(s,r.uv+r.axis*tapOffset(i,n),r.lod,r.nearest);}
   return sum/f32(n);
  }
  let step=r.axis*line.dir;
@@ -114,28 +115,18 @@ export const atlasReadWgsl = (name: string, k: string, out: string, anisotropic:
 }
 `
     : '';
-  return `fn ${tap}(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->${out}{
- if(!wrapRepete(s.wrap)){return ${at}(s,wrapReplie(uv,s.wrap),lod,nearest);}
- let t=wrapUv(uv,s.wrap,s.size);
- if(!t.couture||nearest){return ${at}(s,t.proche,lod,nearest);}
- let s00=${at}(s,t.proche,lod,nearest);
- let s10=${at}(s,vec2f(t.loin.x,t.proche.y),lod,nearest);
- let s01=${at}(s,vec2f(t.proche.x,t.loin.y),lod,nearest);
- let s11=${at}(s,t.loin,lod,nearest);
- return mix(mix(s00,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
-}
-${taps}fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->${out}{
+  return `${taps}fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->${out}{
  let r=${k}Footprint(slot,s,uv,ddx,ddy,${anisotropic});
 ${
   anisotropic
     ? ` if(r.taps>1u){return ${name}Taps(s,r);}
 `
     : ''
-} return ${tap}(s,r.uv,r.lod,r.nearest);
+} return ${at}(s,r.uv,r.lod,r.nearest);
 }
 fn ${name}(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->${out}{
  let s=${k}Slot(slot);
  if(sampled){return ${name}Sampled(slot,s,uv,ddx,ddy);}
- return ${tap}(s,uv,slotLod(s,ddx,ddy),false);
+ return ${at}(s,uv,slotLod(s,ddx,ddy),false);
 }`;
 };

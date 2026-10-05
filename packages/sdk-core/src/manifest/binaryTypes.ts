@@ -91,16 +91,6 @@ const COUNT_KEYS = {
 } as const;
 type CountKey = keyof typeof COUNT_KEYS;
 
-/** Whether a manifest keeps its long lists in a binary file. */
-export function isBinaryManifest(value: { binary?: unknown }): boolean {
-  const binary = value.binary;
-  return (
-    !!binary &&
-    typeof binary === 'object' &&
-    !Array.isArray(binary) &&
-    typeof (binary as { url?: unknown }).url === 'string'
-  );
-}
 /** Rejects a sidecar this build cannot read, before any byte is fetched. */
 export function assertManifestBinary(binary: unknown): asserts binary is ManifestBinaryDescriptor {
   if (!binary || typeof binary !== 'object' || Array.isArray(binary))

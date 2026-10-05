@@ -7,7 +7,7 @@
  * frame sets it; a sandbox sets it on its `<base>`), else the browser's, else English. A word
  * the dictionary lacks falls back on what the code gives: a humanised key, an identifier.
  */
-export interface WordTree {
+interface WordTree {
   [key: string]: string | WordTree;
 }
 
@@ -29,7 +29,7 @@ export const exampleId = (url: URL = address()) =>
 
 /** The language asked for: `?lang=` on `url`, else the first of `preferred` (the browser's),
  * reduced to its two letters. */
-export function requestedLanguage(url: URL, preferred: readonly string[]): string {
+function requestedLanguage(url: URL, preferred: readonly string[]): string {
   const asked = url.searchParams.get('lang') ?? preferred[0] ?? 'en';
   return asked.toLowerCase().split('-')[0] || 'en';
 }
@@ -71,7 +71,7 @@ export function words(id = exampleId()) {
 }
 
 /** Uses `dictionary` in the language `language`: what `loadWords` does once fetched. */
-export function useWords(dictionary: WordTree, language: string) {
+function useWords(dictionary: WordTree, language: string) {
   tree = dictionary;
   code = language;
 }

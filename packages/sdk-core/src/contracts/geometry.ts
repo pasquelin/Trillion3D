@@ -8,6 +8,7 @@ import type {
   PrimitiveQuantization,
 } from '../page/contracts.ts';
 import type { TexturePreview } from '../texture/previewContracts.ts';
+import type { SoftBodyType } from '../physics/soft.ts';
 export type { TexturePreview };
 
 /** One cluster of a compiled model: a small piece of triangles the engine loads on its own. */
@@ -153,6 +154,8 @@ export interface StreamCatalogue {
     targets: number[];
     softVertices?: number;
     softSourceIds?: number[];
+    /** The soft body kind its node declares, when a soft body draws it (`drawnTwoSided`). */
+    softKind?: SoftBodyType;
   } | null;
   /** What the mesh's edges and corners look like. */ topology?: {
     triangles: number;

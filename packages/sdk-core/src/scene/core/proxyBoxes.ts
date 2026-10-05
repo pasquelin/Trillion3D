@@ -16,3 +16,33 @@ export function proxyTriangleBoxes(triangles: Float32Array) {
     }
   return boxes;
 }
+
+/**
+ * `extent` = the bounds of the first `count` boxes (zeros when there are no boxes), in one pass
+ * with six accumulators: min and max are exact and order-free, NaN and signed zeros included, so it
+ * is the per-axis passes' result to the bit.
+ */
+export function proxyBoxesExtent(boxes: Float64Array, count: number, extent: number[]) {
+  extent.fill(0);
+  if (!boxes.length) return;
+  let x0 = Infinity,
+    y0 = Infinity,
+    z0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity,
+    z1 = -Infinity;
+  for (let b = 0; b < count * 6; b += 6) {
+    x0 = Math.min(x0, boxes[b]);
+    y0 = Math.min(y0, boxes[b + 1]);
+    z0 = Math.min(z0, boxes[b + 2]);
+    x1 = Math.max(x1, boxes[b + 3]);
+    y1 = Math.max(y1, boxes[b + 4]);
+    z1 = Math.max(z1, boxes[b + 5]);
+  }
+  extent[0] = x0;
+  extent[1] = y0;
+  extent[2] = z0;
+  extent[3] = x1;
+  extent[4] = y1;
+  extent[5] = z1;
+}

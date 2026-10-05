@@ -70,11 +70,33 @@ fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  if(present){*at+=(count*bits+31u)/32u;}
  return start;
 }
-fn clusterHeader(base:u32)->ClusterHeader{
+// The header's corners and positions: what a raster reads of a row that draws no surface
+// attribute, nine of the twenty-three words a whole header reads and five of its fifteen streams.
+// \`links\` is where the link stream starts, present or not; \`clusterSurfaceHeader\` does the rest.
+fn clusterPointHeader(base:u32)->ClusterHeader{
  var h:ClusterHeader;
- h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];h.flags=${buffer}[base+4u];
+ h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
  let p=${buffer}[base+5u];h.posBits=clusterWidths(p).xyz;h.posStep=clusterStep(p);
  h.posMin=vec3f(bitcast<f32>(${buffer}[base+6u]),bitcast<f32>(${buffer}[base+7u]),bitcast<f32>(${buffer}[base+8u]));
+ h.indexBits=clusterBitsFor(h.vertexCount-1u);
+ let cornerBits=${buffer}[base+21u];
+ h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
+ h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
+ h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
+ // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
+ let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
+ let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
+ h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
+ h.corners=clusterStream(true,cornerBits,1u,&at);
+ h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
+ h.links=at;
+ return h;
+}
+// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
+// the links, the same words and the same arithmetic as one decode of the whole.
+fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
+ var h=point;
+ h.flags=${buffer}[base+4u];
  let t=${buffer}[base+9u];h.uvBits=clusterWidths(t).xy;h.uvStep=clusterStep(t);
  h.uvMin=vec2f(bitcast<f32>(${buffer}[base+10u]),bitcast<f32>(${buffer}[base+11u]));
  let s=${buffer}[base+12u];h.uv1Bits=clusterWidths(s).xy;h.uv1Step=clusterStep(s);
@@ -82,18 +104,9 @@ fn clusterHeader(base:u32)->ClusterHeader{
  let c=${buffer}[base+15u];h.colorBits=clusterWidths(c);h.colorStep=clusterStep(c);
  h.colorMin=vec4f(bitcast<f32>(${buffer}[base+16u]),bitcast<f32>(${buffer}[base+17u]),bitcast<f32>(${buffer}[base+18u]),bitcast<f32>(${buffer}[base+19u]));
  h.quantizationError=bitcast<f32>(${buffer}[base+20u]);
- h.indexBits=clusterBitsFor(h.vertexCount-1u);
- let cornerBits=${buffer}[base+21u];
- h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
- h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
- h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
- // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
- h.influences=${buffer}[base+24u];let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
- let n=h.vertexCount;let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
- h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
- h.corners=clusterStream(true,cornerBits,1u,&at);
- h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
- h.links=clusterStream(stored<n,n,h.linkBits,&at);
+ h.influences=${buffer}[base+24u];
+ let n=h.vertexCount;var at=h.links;
+ clusterStream(h.positionCount<n,n,h.linkBits,&at);
  h.normal=clusterStream((h.flags&1u)!=0u,n,16u,&at);
  let hasUv=(h.flags&2u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
  let hasUv1=(h.flags&4u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
@@ -102,6 +115,8 @@ fn clusterHeader(base:u32)->ClusterHeader{
  h.skin=at;
  return h;
 }
+// The whole header, once per cluster.
+fn clusterHeader(base:u32)->ClusterHeader{return clusterSurfaceHeader(clusterPointHeader(base),base);}
 // Bits \`at\` to \`at+bits\` of the two words \`lo\`, \`hi\` read as one 64-bit window, \`bits\` at most 24.
 fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
@@ -145,10 +160,6 @@ fn clusterPosition(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
 fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
  return vec2f(clusterGrid(base,h.uv.x,vertex,h.uvBits.x,h.uvMin.x,h.uvStep),
   clusterGrid(base,h.uv.y,vertex,h.uvBits.y,h.uvMin.y,h.uvStep));
-}
-fn clusterUv1(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
- return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),
-  clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
 }
 // Two octahedral bytes back to a unit vector.
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{

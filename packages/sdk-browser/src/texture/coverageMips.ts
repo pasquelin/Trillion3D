@@ -2,17 +2,20 @@ import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { COVERAGE_WGSL } from './mipsWgsl.ts';
 import { levelSize } from './tiles.ts';
 import { TEXTURE_COVERAGE_PASS } from './coveragePass.ts';
+import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts';
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024;
 
 type CoverageProgram = {
   layout: GPUBindGroupLayout;
-  count: GPUComputePipeline;
-  pick: GPUComputePipeline;
+  count: PreparedPipeline<GPUComputePipeline>;
+  pick: PreparedPipeline<GPUComputePipeline>;
 };
 const programs = new WeakMap<GPUDevice, CoverageProgram>();
 
+/** The counts' program, built once per device — the shared one (`sharedGpuDevice`), as the mips'
+ *  (`mips.ts`) —, its two pipelines compiled off the thread (`prepareCoveragePipelines`). */
 function coverageProgram(device: GPUDevice): CoverageProgram {
   const held = programs.get(device);
   if (held) return held;
@@ -27,10 +30,17 @@ function coverageProgram(device: GPUDevice): CoverageProgram {
   const module = device.createShaderModule({ code: COVERAGE_WGSL }),
     pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const pipeline = (entryPoint: string) =>
-    device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+    preparedComputePipeline(device, { layout: pipelineLayout, compute: { module, entryPoint } });
   const built = { layout, count: pipeline('count'), pick: pipeline('choose') };
   programs.set(device, built);
   return built;
+}
+
+/** Compiles off the thread, before a colour texture's mips cut its coverage, the counts' two
+ *  pipelines on `device`'s shared cache. */
+export function prepareCoveragePipelines(device: GPUDevice) {
+  const { count, pick } = coverageProgram(sharedGpuDevice(device));
+  return Promise.all([count.prepare(), pick.prepare()]).then(() => {});
 }
 
 /** What a chain's counts read: its size, its levels' views, the uniform blocks of
@@ -65,7 +75,7 @@ export function countCoverage(
       ],
     });
   const pass = encoder.beginComputePass({ label: TEXTURE_COVERAGE_PASS });
-  pass.setPipeline(count);
+  pass.setPipeline(count.get());
   const dispatch = ([w, h]: [number, number]) =>
     pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
   if (level === 1) {
@@ -74,7 +84,7 @@ export function countCoverage(
   }
   pass.setBindGroup(0, group(level, level - 1));
   dispatch(levelSize(width, height, level));
-  pass.setPipeline(pick);
+  pass.setPipeline(pick.get());
   pass.dispatchWorkgroups(1);
   pass.end();
   // `t` lands in the block's fourth word, the `extent.w` its reduction scales by.

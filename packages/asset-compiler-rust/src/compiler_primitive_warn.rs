@@ -1,5 +1,5 @@
 //! Warnings of a primitive's DAG: a DAG that did not rise is never published in
-//! silence. The reference does not let a mesh without a root go out — the coarsest
+//! silence. A mesh without a root is never let out — the coarsest
 //! level is what draws in the distance — and on 18 Sept. 2026 a scene went out
 //! with 70 primitives of 101 without any coarse level, all counted in
 //! `clusters.json` and nothing said.

@@ -25,7 +25,7 @@ export class InstancedMesh<M extends object = Material> extends Mesh<M> {
   protected override blank(): this {
     return new InstancedMesh(this.geometry, this.material, this.instanceMatrix.count) as this;
   }
-  /** The reference's copy: the placements' matrices and their count come along. */
+  /** The copy: the placements' matrices and their count come along. */
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
     if (!(source instanceof InstancedMesh)) return this;

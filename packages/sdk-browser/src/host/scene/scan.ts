@@ -13,9 +13,10 @@ const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 
 /**
  * What a watched node holds outside its hooked pose, as last read. These are the node's own
- * data fields — the reference writes them itself on its walk — so no hook may sit on them
- * without dropping the node into dictionary mode: they are compared per frame, a few values
- * per node, and a matrix set by hand is compared whole while the node is frozen.
+ * data fields — the host writes them itself on its walk — so no hook may sit on them
+ * without dropping the node into dictionary mode: they are compared when the engine's write
+ * count moved (`watch.ts`), a few values per node, and a matrix set by hand is compared whole
+ * while the node is frozen.
  */
 export interface NodeState {
   node: Object3D;
@@ -59,7 +60,7 @@ export function snapshot(node: Object3D): NodeState {
     castShadow: node.castShadow,
     parent: node.parent,
     auto: node.matrixAutoUpdate,
-    matrix: node.matrixAutoUpdate ? null : Float64Array.from(node.matrix.elements),
+    matrix: node.matrixAutoUpdate ? null : Float64Array.from(node._matrixElements),
     light: lit,
   };
 }
@@ -76,13 +77,12 @@ function scanLight(light: Light, held: Float64Array): boolean {
   return moved;
 }
 
-/** Compares the node to its state and takes what moved: what the reference's walk writes is
- *  read back as it stands, so a still scene reads the same values frame after frame. */
+/** Compares the node to its state and takes what moved: what the host's walk writes is
+ *  read back as it stands, so a write of the value already held moves nothing. */
 export function scan(state: NodeState): WatchVerdict {
   const node = state.node,
     // One read each, into a local: `parent` and `visible` are getters that check the node is
-    // still alive, and this walk runs on every watched node, twice in an image where the GPU cut
-    // walks back into the CPU one.
+    // still alive, and this walk runs on every watched node once the write count moved.
     parent = node.parent,
     visible = node.visible,
     castShadow = node.castShadow,
@@ -96,10 +96,13 @@ export function scan(state: NodeState): WatchVerdict {
   if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = auto;
-    state.matrix = auto ? null : Float64Array.from(node.matrix.elements);
+    state.matrix = auto ? null : Float64Array.from(node._matrixElements);
     moved = true;
-  } else if (state.matrix && !sameElements(state.matrix, node.matrix.elements)) {
-    copyElements(state.matrix, node.matrix.elements);
+  } else if (state.matrix && !sameElements(state.matrix, node._matrixElements)) {
+    // Read without counting as a write; numbers written through the getter, or announced after
+    // a write behind it, are taken into the tree here.
+    copyElements(state.matrix, node._matrixElements);
+    node._matrixMoved();
     moved = true;
   }
   if (state.light && isLightNode(node) && scanLight(node, state.light)) moved = true;

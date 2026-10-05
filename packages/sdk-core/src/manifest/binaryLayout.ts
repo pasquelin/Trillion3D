@@ -1,14 +1,4 @@
-import {
-  BYTES_PER_ELEMENT,
-  COLUMN_KIND,
-  COLUMN_NAMES,
-  COLUMN_STRIDE,
-  MANIFEST_BINARY_HEADER_WORDS,
-  type ColumnName,
-  type TextureBlockFormat,
-} from './binaryFormat.ts';
-
-const align8 = (value: number) => (value + 7) & ~7;
+import { type ColumnName, type TextureBlockFormat } from './binaryFormat.ts';
 
 /** How many rows each part of a binary manifest holds. */
 export interface Counts {
@@ -80,22 +70,4 @@ export function columnElements(name: ColumnName, counts: Counts) {
     case 'texturePreviewAstc':
       return counts.previewBlockBytes.astc;
   }
-}
-function columnBytes(name: ColumnName, counts: Counts) {
-  return columnElements(name, counts) * COLUMN_STRIDE[name] * BYTES_PER_ELEMENT[COLUMN_KIND[name]];
-}
-
-/** Byte ranges of every column, in the fixed order of this version. */
-export function manifestBinaryRanges(counts: Counts) {
-  const ranges: Record<ColumnName, { offset: number; length: number }> = {} as Record<
-    ColumnName,
-    { offset: number; length: number }
-  >;
-  let offset = align8((MANIFEST_BINARY_HEADER_WORDS + COLUMN_NAMES.length * 2) * 4);
-  for (const name of COLUMN_NAMES) {
-    const length = columnBytes(name, counts);
-    ranges[name] = { offset, length };
-    offset = align8(offset + length);
-  }
-  return { ranges, bytes: offset };
 }

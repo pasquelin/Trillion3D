@@ -1,5 +1,5 @@
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
-import { BASE_SLOTS } from '../draw/contract.ts';
+import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts';
 import { HIZ_REJECTED_WGSL } from '../partition/contract.ts';
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
 
@@ -40,9 +40,11 @@ struct Uniforms{restSlots:u32,tiles:u32,copyWords:u32,pad0:u32,}
 @group(0) @binding(5) var<storage, read_write> work:array<u32>;
 @group(0) @binding(6) var<uniform> uni:Uniforms;
 ${HIZ_REJECTED_WGSL}
-/** Rank of tested slot number \`n\`: three face modes per layer, after the three occluders. */
-fn restSlotAt(n:u32)->u32{return (n/${BASE_SLOTS / 2}u)*${BASE_SLOTS}u+${BASE_SLOTS / 2}u+n%${BASE_SLOTS / 2}u;}
-fn survives(row:u32)->bool{return !hizRejected(pages[row].hizSlot);}
+${INSTANCE_WORD_WGSL}
+/** Rank of tested slot number \`n\`: a layer's tested bins, after its occluder ones. */
+fn restSlotAt(n:u32)->u32{return (n/${HALF_SLOTS}u)*${BASE_SLOTS}u+${HALF_SLOTS}u+n%${HALF_SLOTS}u;}
+/** An instance word's verdict: its row's. */
+fn survives(word:u32)->bool{return !hizRejected(pages[instanceRow(word)].hizSlot);}
 /** Word of \`work\` holding tested slot \`n\`'s instance count before the compaction. */
 fn countWord(n:u32)->u32{return uni.copyWords+n;}
 /** Word of \`work\` holding tile \`t\` of tested slot \`n\`: its survivors, then its offset. */

@@ -1,5 +1,5 @@
 import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts';
-import { rootedUnder } from '../../../host/world/chain.ts';
+import { rootedUnder } from '../../../host/world/rooted.ts';
 import { namedNode, poseNode } from '../../../host/world/moveByName.ts';
 import { finishMoves, noteMoved } from './movedBatch.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -12,17 +12,19 @@ const request = new Float32Array(16);
  *  them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   const node = namedNode(rt.setup.source, nodeName, matrix);
+  rt.run.gate.engineWriting();
   try {
-    moveNode(rt, node, matrix, rt.run.gate.engineWriting());
+    moveNode(rt, node, matrix);
   } finally {
-    finishMoves(rt);
+    moved(rt);
   }
 }
 
 /**
  * Moves nodes the host holds — handles, no name looked up — to column-major WORLD poses, sixteen
  * floats per node in the same order (#971, CPU-19). Each node is posed as its own call would, in
- * order, so a node reads the poses the nodes before it set; its subtree alone is passed again.
+ * order, so a node reads the poses the nodes before it set (`poseNode` reads its chain on demand);
+ * one pass of the tree then walks the union of the moved subtrees.
  * Boxes, rows, the scene revision and the shadow boxes follow once for the call (`movedBatch.ts`).
  * A refused node throws once the nodes before it took effect, as the calls one by one would.
  *
@@ -37,9 +39,8 @@ export function setWebgpuTransforms(
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
     });
-  // A host pose written in this same task is read before the engine's own write hides it: the
-  // first move then passes the whole index, which leaves it current for the moves after it.
-  let wholePass = rt.run.gate.engineWriting();
+  // A host pose written in this same task stays owed to the next image's rewrite (`engineWriting`).
+  rt.run.gate.engineWriting();
   try {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k];
@@ -51,28 +52,23 @@ export function setWebgpuTransforms(
           { nodeName: node.name },
         );
       copyMatrix4(request, matrices, 0, k * 16);
-      if (moveNode(rt, node, request, wholePass)) wholePass = false;
+      moveNode(rt, node, request);
     }
   } finally {
-    finishMoves(rt);
+    moved(rt);
   }
 }
 
-/** One node posed, noted for `finishMoves`, and the engine index passed again; false when that
- *  moves nothing. The engine index takes the pose, and every matrix it holds — page records,
- *  selection roots, transparent copies — carries the new place at that instant. With no host
- *  write owed, only the moved subtree and its ancestors have new inputs (`refreshFrom`). A matrix
- *  set by hand elsewhere is announced by the next image's scan, whose walk runs first. */
-function moveNode(
-  rt: WebgpuPagesRuntime,
-  node: Object3D,
-  matrix: Float32Array,
-  wholePass: boolean,
-) {
-  const worlds = rt.setup.worlds;
-  if (!poseNode(worlds, node, matrix, !wholePass)) return false;
-  noteMoved(rt, node);
-  if (wholePass) worlds.refresh();
-  else worlds.refreshFrom(node);
-  return true;
+/** One node posed and noted for `finishMoves`; nothing when the move moves nothing. */
+function moveNode(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
+  if (poseNode(node, matrix)) noteMoved(rt, node);
+}
+
+/** The moves of one call taken: one pass of the transform tree — every matrix it holds, page
+ *  records, selection roots, transparent copies, carries the new places, and the pass walks what
+ *  the moves and any write before them changed, nothing else —, then the moved roots' rows and
+ *  boxes (`finishMoves`). */
+function moved(rt: WebgpuPagesRuntime) {
+  rt.setup.worlds.refresh();
+  finishMoves(rt);
 }

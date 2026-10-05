@@ -5,7 +5,7 @@ import { CommandWriter, SHAPE } from '../../../sdk-core/src/physics/index.ts';
 import { castDown, startModule, type Module } from './module.fixture.ts';
 import { body } from './records.fixture.ts';
 
-/** The ramp 2^-12 as large (`physics_cook/small_tests.rs`): its triangles are under the area Jolt keeps,
+/** The ramp 2^-12 as large (`physics_cook/small_tests.rs`): its triangles are under the area the module keeps,
  *  so the tile is the ramp cooked larger inside a `ScaledShape` of the inverse (#562). */
 const RAMP = [0, 0, -1, 2, 1, -1, 2, 1, 1, 0, 0, 1].map((v) => v / 4096);
 const RAMP_TRIANGLES = [0, 2, 1, 0, 3, 2];

@@ -2,17 +2,15 @@
 //! glTF intermediate scene. Composition — sublayers, references, inherits, variants, instances
 //! — is done before reading, and this module reads only the composed scene.
 //!
-//! **Provenance.** Public specification: the AOUSD *OpenUSD Core Specification*, including the
-//! text grammar and the binary “crate” format. Read by the `openusd` 0.7.0 crate (MIT,
-//! `mxpv/openusd` repository), version pinned in `Cargo.toml`: native Rust implementation, no
-//! C++ dependency, which reads `usda`, `usdc` and composes layers. No editor code or SDK is
-//! reused, and nothing is re-encoded: this driver reads, it never writes beside the source.
+//! **Reader.** The `openusd` crate (version pinned in `Cargo.toml`, native Rust, no C++
+//! dependency) reads the `usda` text grammar and the `usdc` binary “crate” format and composes
+//! layers. Nothing is re-encoded: this driver reads, it never writes beside the source.
 //!
 //! **Why a crate rather than a reader written here.** Both paths were open. The “crate” format
 //! is a compressed database — token, string, field, path and spec tables, compressed integers
 //! and LZ4 — and USD composition (LIVRPS, list editing, instancing) is an engine of its own:
 //! rewriting it here would have been several thousand lines for a less sure result. `openusd`
-//! is permissive, pure Rust, maintained, and its own dependencies all are (MIT or Apache-2.0).
+//! is pure Rust and does both.
 //!
 //! **What it yields**: the `Xform` and `Scope` hierarchy, triangulated polygonal `Mesh`, their
 //! normals and `primvars:st`, `GeomSubset` of the `materialBind` family as distinct primitives,

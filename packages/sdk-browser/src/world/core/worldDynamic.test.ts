@@ -126,7 +126,15 @@ test('a rewrite is read into the lists its resource holds: a steady frame makes 
   for (let frame = 1; frame < 4; frame++) {
     rewrite(plane, 5, frame / 100);
     assert.equal(await read(), cut, `frame ${frame}: the same resource`);
-    assert.equal(dynamic.upload(1 << 20, { weigh: weighed, write: () => true }), 12);
+    assert.equal(
+      dynamic.upload(1 << 20, {
+        weigh: weighed,
+        write: () => true,
+        renewed: () => false,
+        replay() {},
+      }),
+      12,
+    );
   }
   assert.deepEqual(lists(), before, 'the same lists');
   assert.equal(cut.drawn.positions[17], Math.fround(0.03), 'the last rewrite held');
@@ -141,7 +149,12 @@ test('past the frame budget an upload waits for the next frame, in order, and is
   for (const plane of planes) rewrite(plane, 0, 0.1);
   await Promise.all(reads.map((read) => read()));
   const written: Cut[] = [];
-  const uploads = { weigh: weighed, write: (cut: Cut) => written.push(cut) > 0 };
+  const uploads = {
+    weigh: weighed,
+    write: (cut: Cut) => written.push(cut) > 0,
+    renewed: () => false,
+    replay() {},
+  };
   const frame = () => dynamic.upload(12, uploads);
   assert.equal(frame(), 12, 'the first of the frame goes whatever its size');
   assert.equal(written.length, 1, 'the second waits');

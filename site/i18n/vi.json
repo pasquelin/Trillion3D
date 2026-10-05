@@ -293,7 +293,6 @@
     "protocol": "Điều kiện đã ghi nhận",
     "references": "Các mốc tham chiếu đã công bố",
     "referenceNote": "Số liệu của các bộ máy trên máy tính để bàn đã công bố dùng phần cứng, cảnh và quy trình riêng của họ. Chúng không tham gia vào các so sánh ở trên.",
-    "referenceLink": "Đọc nguồn và các giới hạn",
     "commit": "Commit của kho mã",
     "date": "Ngày đo",
     "browser": "Trình duyệt",
@@ -800,7 +799,7 @@
       "description": "Các ma trận của một khung camera, được cấp phát một lần và ghi lại mỗi khung hình: `view` (nghịch đảo của ma trận thế giới của camera), `viewProjection`, và `planes`, sáu mặt phẳng đã chuẩn hóa của khối nhìn đó."
     },
     "updateCameraFrame": {
-      "description": "Ghi lại khung đó: view = nghịch đảo của `world` (bằng không nếu ma trận thế giới suy biến, giống mốc tham chiếu), view-projection = `projection · view`, và sáu mặt phẳng của khối nhìn đó. Một quy ước độ sâu duy nhất xuyên suốt cả ba. `far` là mặt phẳng **do ứng dụng chủ khai báo**: phép chiếu không có mặt phẳng đó — nó là vô hạn, đó chính là mấu chốt của độ sâu đảo ngược — nhưng khối nhìn vẫn giữ lại nó, nếu không một khung hình sẽ đột nhiên nhận thêm mọi vật thể mà camera không hề hiển thị. Nếu bị bỏ qua hoặc không hữu hạn, mặt phẳng xa vẫn giữ nguyên là không giới hạn."
+      "description": "Ghi lại khung đó: view = nghịch đảo của `world` (bằng không nếu ma trận thế giới suy biến), view-projection = `projection · view`, và sáu mặt phẳng của khối nhìn đó. Một quy ước độ sâu duy nhất xuyên suốt cả ba. `far` là mặt phẳng **do ứng dụng chủ khai báo**: phép chiếu không có mặt phẳng đó — nó là vô hạn, đó chính là mấu chốt của độ sâu đảo ngược — nhưng khối nhìn vẫn giữ lại nó, nếu không một khung hình sẽ đột nhiên nhận thêm mọi vật thể mà camera không hề hiển thị. Nếu bị bỏ qua hoặc không hữu hạn, mặt phẳng xa vẫn giữ nguyên là không giới hạn."
     },
     "worldToRenderOrigin": {
       "description": "Ghi `world` với phần tịnh tiến của nó được đưa trở lại `origin`. Phép trừ diễn ra ở độ chính xác của đầu vào — độ chính xác kép của các ma trận thế giới của bộ máy — và việc ghi vào một bộ đệm độ chính xác đơn thì làm tròn **sau** đó, không bao giờ trước: đó là điều duy nhất phân biệt một hình ảnh sắc nét với một hình ảnh rung rinh. `at` là thứ hạng của con số đầu tiên trong mười sáu con số được ghi, để một bộ đệm chứa nhiều ma trận được lấp đầy mà không phải cắt một view riêng cho mỗi ma trận mỗi khung hình."
@@ -833,10 +832,10 @@
       "description": "`out = a · b`. Ba mươi hai đầu vào được đọc trước khi ghi lần đầu, nên `out` có thể là `a` hoặc `b`. Mỗi số hạng là tổng của bốn tích số không có số không khởi đầu — một tổng bắt đầu từ `0` sẽ đổi dấu của một số không âm. **Chỉ một loại bộ đệm duy nhất, `Float64Array`, cho cả đầu vào lẫn đầu ra**: một người gọi hàm truyền vào một mảng thường sẽ khiến bốn mươi tám điểm truy cập trở nên đa hình và mỗi vòng lặp chạy thường xuyên sẽ phải trả giá cho điều đó, nên một người gọi hàm bắt đầu từ một ma trận của ứng dụng chủ sẽ sao chép nó trước."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` bằng phần bù đại số. Một định thức đúng bằng không cho ra ma trận không, giống mốc tham chiếu — một người gọi hàm cần phân biệt trường hợp này phải kiểm tra định thức, không bao giờ kiểm tra kết quả đầu ra. Ngưỡng đó là sự tương đồng với mốc tham chiếu, không phải quy tắc suy biến của bộ máy, quy tắc này chỉ áp dụng ở nơi một pháp tuyến được vận chuyển. Mười sáu đầu vào được đọc trước khi ghi lần đầu, nên `out` có thể là `m`."
+      "description": "`out = m⁻¹` bằng phần bù đại số. Một định thức đúng bằng không cho ra ma trận không — một người gọi hàm cần phân biệt trường hợp này phải kiểm tra định thức, không bao giờ kiểm tra kết quả đầu ra. Ngưỡng đó là số không chính xác, không phải quy tắc suy biến của bộ máy, quy tắc này chỉ áp dụng ở nơi một pháp tuyến được vận chuyển. Mười sáu đầu vào được đọc trước khi ghi lần đầu, nên `out` có thể là `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, quaternion được sắp theo thứ tự `(x, y, z, w)`. Hàng cuối cùng được ghi đúng là `(0, 0, 0, 1)`; các tích quaternion được nhân đôi bằng phép cộng (`x + x`), giống mốc tham chiếu, không bao giờ nhân với hai."
+      "description": "`out = T · R · S`, quaternion được sắp theo thứ tự `(x, y, z, w)`. Hàng cuối cùng được ghi đúng là `(0, 0, 0, 1)`; các tích quaternion được nhân đôi bằng phép cộng (`x + x`), không bao giờ nhân với hai."
     },
     "decomposeMatrix4": {
       "description": "Chiều ngược lại: tỉ lệ của một cột chính là độ dài của nó, và một định thức âm được mang bởi trục `x` mà thôi, bất kể trục nào bị đảo ngược ở nguồn. Một ma trận bị xiên không có cách phân rã như vậy — góc xoay trả về khi đó là góc xoay của ma trận đã chuẩn hóa cột, và việc dựng lại không còn cho ra `m` nữa, một khoảng chênh lệch giống hệt của mốc tham chiếu và được đo lường bằng bộ đo hiệu năng."
@@ -899,7 +898,7 @@
       "description": "Sáu mặt phẳng của khối nhìn của một ma trận clip — một view-projection, hoặc chỉ riêng một projection cho các mặt phẳng trong không gian view. Cái thứ nhất chuẩn hóa chúng, nên `a·x + b·y + c·z + d` là một khoảng cách có dấu; cái thứ hai để nguyên các tổng và hiệu thô của các hàng, nơi mà chỉ riêng dấu đã đủ quyết định, không cần căn bậc hai hay phép chia: dạng của phép kiểm tra clip chính xác, nơi việc chuẩn hóa sẽ làm lệch việc làm tròn. Một ma trận suy biến cho ra các mặt phẳng NaN hoặc vô hạn mà không gây lỗi."
     },
     "frustumFarPlane": {
-      "description": "Mặt phẳng xa của một khối nhìn mà phép chiếu của nó không có mặt phẳng nào cả. Phép chiếu của bộ máy là vô hạn: hàng độ sâu của nó không còn giới hạn gì nữa, nên mặt phẳng xa được đọc từ ma trận **view**, có hàng thứ ba cho ra độ sâu view — một điểm nằm bên trong khi `far + z >= 0`. Một `far` không hữu hạn sẽ giữ nguyên mặt phẳng không tại chỗ, một mặt phẳng xa thực sự không giới hạn. `frustumPlanesToLocal` mang các mặt phẳng vào không gian cục bộ của một phép biến đổi, nên một hộp cục bộ được kiểm tra mà không cần biến đổi."
+      "description": "Mặt phẳng xa của một khối nhìn mà phép chiếu của nó không có mặt phẳng nào cả. Phép chiếu của bộ máy là vô hạn: hàng độ sâu của nó không còn giới hạn gì nữa, nên mặt phẳng xa được đọc từ ma trận **view**, có hàng thứ ba cho ra độ sâu view — một điểm nằm bên trong khi `far + z >= 0`. Một `far` không hữu hạn sẽ giữ nguyên mặt phẳng không tại chỗ, một mặt phẳng xa thực sự không giới hạn."
     },
     "frustumExcludesBox": {
       "description": "Hộp đó so với khối nhìn: cái thứ nhất là đúng khi một mặt phẳng để cả tám góc lại phía sau. Cái thứ hai trả về ba trạng thái — 0 ở ngoài, 1 giao nhau, 2 hoàn toàn ở trong — qua hai bước, bước đầu chỉ loại bỏ, bước thứ hai đọc góc lùi xa nhất để phân biệt \"giao nhau\" với \"ở trong\". Một cây con hoàn toàn ở trong sẽ tiết kiệm được một phép kiểm tra cho mỗi hộp bên dưới nó."
@@ -923,7 +922,7 @@
       "description": "Các phép đọc ma trận thế giới: cột tịnh tiến; góc xoay và tỉ lệ từ việc phân rã nó, một định thức âm được mang bởi `x` mà thôi. Cột thứ ba được chuẩn hóa như một hướng, bị đảo ngược khi có `cameraForward` — một camera và một nguồn sáng nhìn về phía `−z` của chúng. `nodeWorldMirrorsFaces` là đúng khi ma trận thế giới đảo ngược hướng, và khi đó phép vẽ hoán đổi mặt trước và mặt sau của nó; giá trị này được đọc nguyên trạng, không cập nhật, và một định thức bằng không hoặc NaN sẽ không đảo ngược gì cả."
     },
     "lookAtNode": {
-      "description": "Xoay `node` hướng về điểm thế giới `(x, y, z)`. `viewer` là đúng cho một camera hoặc một nguồn sáng, những thứ nhìn về phía `−z` của chúng, sai cho một vật thể, thứ hướng `+z` của nó ra ngoài. `up` là hướng lên của node, `(0, 1, 0)` trong mốc tham chiếu. Các tổ tiên và node đó được cập nhật trước."
+      "description": "Xoay `node` hướng về điểm thế giới `(x, y, z)`. `viewer` là đúng cho một camera hoặc một nguồn sáng, những thứ nhìn về phía `−z` của chúng, sai cho một vật thể, thứ hướng `+z` của nó ra ngoài. `up` là hướng lên của node, `(0, 1, 0)` theo mặc định. Các tổ tiên và node đó được cập nhật trước."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` tích số `out[i] = a[i] · b[i]`, cả ba phía đều được cho dưới dạng sub-view mười sáu con số. Các sub-view được dựng một lần, không bao giờ mỗi khung hình; một nhân WebAssembly lặp lại đúng công thức đó từng số hạng một và bộ điều phối chọn con đường nào được đo là nhanh hơn."
@@ -1223,7 +1222,7 @@
       "nodes": "node"
     },
     "patterns": {
-      "singular": "định thức {{value}}: mười sáu số không, giống mốc tham chiếu — hãy kiểm tra định thức, không bao giờ kiểm tra kết quả đầu ra"
+      "singular": "định thức {{value}}: mười sáu số không — hãy kiểm tra định thức, không bao giờ kiểm tra kết quả đầu ra"
     }
   },
   "gallery": {
@@ -1290,6 +1289,8 @@
       "leaves-cut-by-alpha": "Lá cây cắt bằng alpha",
       "a-colour-ramp-in-linear-light": "Dải màu ánh sáng tuyến tính",
       "the-material-family": "Họ vật liệu",
+      "page-materials": "Chỉnh sửa vật liệu trực tiếp",
+      "a-bust-a-crate-and-a-glass-ball": "Tượng bán thân, thùng gỗ, quả cầu thủy tinh",
       "a-texture-turned-and-tiled": "Kết cấu xoay và lát",
       "texture-filters-compared": "So sánh bộ lọc kết cấu",
       "every-image-format": "Mọi định dạng hình ảnh",
@@ -1476,6 +1477,7 @@
       "tone-mapping-compared": "So sánh tone mapping",
       "a-first-post-effect": "Hiệu ứng hậu kỳ đầu tiên",
       "a-glow-around-lights": "Ánh hào quang quanh nguồn sáng",
+      "choose-your-quality": "Chọn chất lượng",
       "glow-on-chosen-objects": "Ánh hào quang chọn lọc",
       "depth-of-field": "Độ sâu trường ảnh",
       "motion-blur": "Nhòe chuyển động",

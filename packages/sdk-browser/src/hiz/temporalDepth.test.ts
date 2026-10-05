@@ -67,7 +67,7 @@ test('a wide image after a narrow one decides what it would on a history of its 
 
   // The same history, narrow first: the buffer grew for the wide image, and the narrow raster left
   // nothing behind it that the wide pyramid could read. A viewport change drops the pyramid, so the
-  // wide image starts its own history exactly as the reference does.
+  // wide image starts its own history, as on a first frame.
   const { pages, locations, dispose } = scene(),
     melange: TemporalHizState = {};
   applyTemporalHiz(pages, locations, cam, PETIT, melange);

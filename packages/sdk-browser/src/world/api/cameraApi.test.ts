@@ -15,7 +15,6 @@ function cameraApiOn(camera: G.Camera, center: G.Vector3) {
     options: {} as MeasuredWorldOptions,
     camera,
     center,
-    homeOffset: new G.Vector3(0, 0, 1),
     lookAtTarget: new G.Vector3(),
     radius: 1,
     canvas: { width: 8, height: 8 } as HTMLCanvasElement,

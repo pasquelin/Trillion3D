@@ -2,9 +2,8 @@
  * A plan entry: the item rank, the vertex-cull bit, the SHARE bit, then the pipeline in the low
  * four — five blend modes of three culls, the cull mode being the pipeline modulo three.
  *
- * The share bit is in the entry, not read on the item, because run slicing walks the SORTED plan:
- * following an item rank to its object is a random memory access per entry, when the only plan
- * read is a sequential walk.
+ * The share bit is in the entry, so the plan splits a pass into its main class and its own entries
+ * (`plan.ts`, `runs.ts`) from the entries alone.
  *
  * VERTEX CULL: the back and the face of a double-sided paged item used to set two pipelines, so
  * each broke the run of the other and a double-sided scene drew one call per entry. Its entries

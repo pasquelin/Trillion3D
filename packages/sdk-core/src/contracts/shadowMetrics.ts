@@ -1,12 +1,39 @@
-/** Why a shadow page turned stale (`ShadowFrameMetrics.shadowPagesStaledBy`). */
-export type ShadowStaleReason = 'light' | 'caster' | 'moving' | 'detail' | 'threshold' | 'range';
-
 /**
  * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
  * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers
- * (`sdk-core/index.ts`) is unchanged, these fields remain direct properties of `FrameMetrics`.
+ * (`../index.ts`) is unchanged, these fields remain direct properties of `FrameMetrics`.
  */
 export interface ShadowFrameMetrics {
+  /** Virtual shadow maps: lights shadowed this frame. */
+  shadowVsmLights?: number | null;
+  /** Virtual shadow maps this frame, full and single-page. */
+  shadowVsmMaps?: number | null;
+  /** Pages the frame marked as requested; read back a few frames late. */
+  shadowVsmPagesRequested?: number | null;
+  /** Pages newly allocated this frame; read back a few frames late. */
+  shadowVsmPagesAllocated?: number | null;
+  /** Requested pages found in the cache, static and dynamic; read back a few frames late. */
+  shadowVsmPagesCached?: number | null;
+  /** Pages cleared then rendered this frame; read back a few frames late. */
+  shadowVsmPagesRendered?: number | null;
+  /** Free physical pages in the pool's last status message. */
+  shadowVsmFreePages?: number | null;
+  /** The global resolution LOD bias the pool's load sets. */
+  shadowVsmLodBias?: number | null;
+  /** Projection passes this frame, four lights each. */
+  shadowVsmProjectionPasses?: number | null;
+  /** GPU time of the page invalidation, ms, from the pass timings. */
+  shadowVsmInvalidationMs?: number | null;
+  /** GPU time of the page marking, ms, from the pass timings. */
+  shadowVsmMarkingMs?: number | null;
+  /** GPU time of the page management, ms, from the pass timings. */
+  shadowVsmPageManagementMs?: number | null;
+  /** GPU time of the page rendering, ms, from the pass timings. */
+  shadowVsmRenderMs?: number | null;
+  /** GPU time of the shadow projection, ms, from the pass timings. */
+  shadowVsmProjectionMs?: number | null;
+  /** GPU time of the translucent casters' transmission atlas (clear, draw, resolve), ms. */
+  shadowVsmTransmissionMs?: number | null;
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null;
   /** True when this frame's lighting ran in its sampled mode — a moving image accumulated on
@@ -14,9 +41,6 @@ export interface ShadowFrameMetrics {
    *  false when every pixel shaded every light, as a still image does. Null on an engine that
    *  ignores the lights. */
   lightsSampled?: boolean | null;
-  /** Shadow lights with a page drawn by this frame. Zero is the normal value of a still scene:
-   *  a fixed light keeps its pages. */
-  shadowsUpdated?: number | null;
   /**
    * GPU durations of the three direct-lighting passes, read by their label in the same
    * timestamp sample as `gpuPassMs`: per-tile light lists, shadow atlas, deferred resolve.
@@ -24,94 +48,14 @@ export interface ShadowFrameMetrics {
    * soon as the device exposes no timestamps, the sample was truncated, or the pass did not
    * run — a frame without a light launches neither lists nor shadows. Never added to a `cpu*`.
    */
-  /** Light views the shadow pass drew in — a sun clipmap level, a lamp face at one mip —, and the
-   *  draw calls actually encoded. Null on an engine that draws no shadow. */
-  shadowFacesDrawn?: number | null;
-  /** Shadow draw calls. */
-  shadowDrawCalls?: number | null;
-  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
-   *  drawn, per batch. */
-  shadowRenderPasses?: number | null;
-  /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
-  shadowLightCuts?: number | null;
-  /** Virtual shadow pages the image read, as its latest request report named them: what the
-   *  camera's receivers mark. */
-  shadowPagesRequested?: number | null;
-  /** Of those, pages read straight from the pool: current, no draw. */
-  shadowPagesCached?: number | null;
-  /** Physical pages of the fixed pool that hold a virtual page. */
-  shadowPoolPages?: number | null;
   /** GPU bytes of the shadow pool: its depth pages, their static and transmittance layers once
    *  made, and the buffers beside them. Null until the first frame sizes the pool. */
   shadowPoolBytes?: number | null;
-  /** Layers of the pool, 4 096 pages each at most, sized once from the first frame's screen and
-   *  shadowed lights. Null until then. */
-  shadowPoolLayers?: number | null;
-  /** The most GPU bytes the shadows' memory grant held at once, late layers included. Null until
-   *  the first frame sizes the pool. */
-  shadowPeakBytes?: number | null;
-  /** Halvings of the shadow pool's bytes the device's out-of-memory refusals took; 0 normally. */
+  /** How far the shadows draw coarser than they ask because of their page pool: the halvings the
+   *  GPU budget took off the full pool, plus the levels its fill raised every map's resolution
+   *  bias by (`shadowVsmLodBias`). 0 normally; above 0, the engine's reference mode refuses its capture
+   *  (`REFERENCE_SHADOWS_REDUCED`). Null while no shadow map runs. */
   shadowResolutionBias?: number | null;
-  /** The shadows' memory-pressure events since the world opened, by name, in order; empty
-   *  normally. */
-  shadowMemoryEvents?: readonly string[] | null;
-  /** Virtual pages mapped again after the pool evicted them to make room, since the explorer
-   *  opened: the redraws a pool too small for what the frames read costs. */
-  shadowPagesRefetched?: number | null;
-  /** Casters the per-page cull kept, all drawn pages together, on the frame the device last
-   *  sampled — one in fifteen; `null` until a sample has returned. */
-  shadowCastersKept?: number | null;
-  /** Casters the per-page cull tested and did not keep — outside the volume of the page they
-   *  were tested for —, on the same sampled frame; `null` until a sample has returned. */
-  shadowCastersRejected?: number | null;
-  /** Moving casters the occlusion test found hidden behind the static layer of their page, on
-   *  the frame the device last sampled; `null` until a sample has returned. */
-  shadowCastersHidden?: number | null;
-  /** What page invalidation produced: pages redrawn by the frame, pages left in the queue for
-   *  lack of budget, and how long the oldest out-of-date page the image reads has waited. Zero
-   *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */
-  shadowPagesDrawn?: number | null;
-  /** Pages drawn since the explorer opened, drains of `flush()` included: what a change cost
-   *  is the difference between two readings. */
-  shadowPagesTotal?: number | null;
-  /** Shadow pages waiting. */
-  shadowPagesPending?: number | null;
-  /** Shadow batches the frame drew: host counts of what it encoded, never read in a shader, as
-   *  are the counts below. Null on an engine without a shadow atlas. */
-  shadowBatches?: number | null;
-  /** Pool layers the frame's shadow passes drew in. */
-  shadowLayersDrawn?: number | null;
-  /** Pages drawn from a copy of their static layer, their moving casters alone rasterised. */
-  shadowPagesRestored?: number | null;
-  /** Pages whose static casters were rasterised again; with the restored ones, every page drawn. */
-  shadowPagesRasterized?: number | null;
-  /** Page copies from the static layer: a restored page, or a page drawn in full over its layer. */
-  shadowRestoreCopies?: number | null;
-  /** Draw calls of static casters: into the static layer, or of a page drawn whole without one. */
-  shadowStaticDrawCalls?: number | null;
-  /** Draw calls of moving casters alone, over pages restored from the static layer. */
-  shadowMovingDrawCalls?: number | null;
-  /** Of `shadowCastersKept`, the clusters kept to draw moving casters alone. */
-  shadowMovingCastersKept?: number | null;
-  /** Pages the frame staled, by reason: light, still caster, moving casters, detail, cut threshold,
-   *  or a sun's depth range. */
-  shadowPagesStaledBy?: Readonly<Record<ShadowStaleReason, number>> | null;
-  /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
-   *  Only the time the image reads it counts; 0 once it is redrawn. */
-  shadowWaitMs?: number | null;
-  /** Light-cut batches that dropped work — their views kept more clusters than the lists hold —,
-   *  since the explorer opened: each sends its pages back, withdrawn until redrawn (#525). Null on
-   *  an engine without the GPU light cut, as are the three below. */
-  shadowCutDrops?: number | null;
-  /** Pages drawn again because a light cut drew them wrong, since the explorer opened: its batch
-   *  dropped work, or its flag was never read. They are withdrawn until redrawn. */
-  shadowCutWithdrawnPages?: number | null;
-  /** Pages the frame sends back to be drawn again because a view drew a cluster coarser than it
-   *  wanted, released once residency brought the finer one, the camera moving or not: a count per
-   *  frame, as the frame's draw calls are (#831). */
-  shadowCutCoarsePages?: number | null;
-  /** Light views one light-cut batch draws in now: the cap until a batch drops, then what fits. */
-  shadowCutViewLimit?: number | null;
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
   /** Words the tiles past their list reserved in the light-index pool, on the last sampled frame
@@ -135,22 +79,4 @@ export interface ShadowFrameMetrics {
   gpuShadowRasterMs?: number | null;
   /** GPU time of lighting. */
   gpuLightingMs?: number | null;
-  /**
-   * CPU time of the frame's shadow plan, around the scheduler: a named step of the CPU profile
-   * (`cpuSteps()`, `cpu-timing`), as are the five below. Each is `null` when the frame did not run
-   * it — no light, a held frame — or on an engine that cannot time it (WebGL2), never 0. They lie
-   * inside the encode time, never added to it.
-   */
-  cpuShadowPlanMs?: number | null;
-  /** CPU time of reading the shadow request report back. */
-  cpuShadowRequestsMs?: number | null;
-  /** CPU time of admitting the stale pages the image reads. */
-  cpuShadowAdmissionMs?: number | null;
-  /** CPU time of the shadow batches around their regions and passes: staging, commits, request
-   *  copy. */
-  cpuShadowBatchesMs?: number | null;
-  /** CPU time of writing each shadow batch's regions: face uniforms and page records. */
-  cpuShadowRegionsMs?: number | null;
-  /** CPU time of encoding each shadow batch's passes: casters, clears and restores, draws. */
-  cpuShadowPassesMs?: number | null;
 }

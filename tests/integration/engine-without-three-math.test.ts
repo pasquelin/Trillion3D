@@ -10,7 +10,7 @@ const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 // same float operation order, flat buffers, no allocations per frame. What the host OWNS remains its own
 // (scene, camera, materials), and engine can no longer COMPUTE using it: recomposing world matrix,
 // box transformation, position extraction, inversion, decomposition. It also no longer READS world matrices
-// composed by host: engine's come from local poses (`packages/sdk-browser/src/host/world/chain.ts`, `packages/sdk-browser/src/host/world/tree.ts`, `packages/sdk-browser/src/host/world/placements.ts`),
+// composed by host: engine's come from local poses (`packages/sdk-browser/src/host/world/placements.ts`),
 // and the only remaining update serves host scene. Every line keeping a computation is named here with its rationale.
 
 /** Batch files: scene loading, explorer, and their contracts. */
@@ -41,11 +41,9 @@ const M4A = [
   'host/scene/scan',
   'host/scene/watch',
   'host/world/bounds',
-  'host/world/chain',
+  'host/world/rooted',
   'host/world/matrices',
   'host/world/placements',
-  'host/world/pose',
-  'host/world/tree',
   'page/selection/collect',
   'page/selection/helpers',
   'backend/pagesBackendScenes.fixture',
@@ -87,9 +85,6 @@ const FRONTIERE: Record<string, Record<string, string>> = {
   },
   'world/camera/camera.ts': {
     'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
-  },
-  'world/api/cameraApi.ts': {
-    'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',
   },
   'world/render/hostState.ts': {
     'camera.updateMatrixWorld();': 'the host restores a recorded pose into its camera',

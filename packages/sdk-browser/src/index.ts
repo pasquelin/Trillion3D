@@ -123,7 +123,6 @@ export type {
 } from './residency/pools.ts';
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { BudgetCanvas } from './residency/memoryBudget.ts';
-export type { ShadowAtlasDigest } from './gpu/shadow/digest.ts';
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts';
 export type { CpuStepSummary } from './stage/cpuProfile.ts';

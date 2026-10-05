@@ -1,7 +1,6 @@
 import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { followCutRows } from '../prepare/growTables.ts';
-import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../../diagnostic/colors.ts';
@@ -24,12 +23,40 @@ import { dropVis } from '../io/drops.ts';
 import { uploadRowCorners } from '../../visibility/corners.ts';
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
-import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
+import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts';
 import { uploadRowLods } from '../../shadow/rowLods.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { uploadDirtyRows } from './dirtyRows.ts';
+import { castingLights } from './vsm/vsmPlan.ts';
+
+/**
+ * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
+ * row table only while a light casts. While none does, no shadow row buffer is made or written:
+ * only the placements' mobility state is sized, which a placement's move reads
+ * (`mobility.move`). The first frame a light casts makes them, before that frame's shadow set is
+ * granted (`planVsmFrame`, after the rows in `encodeVis`), so the grant's room counts them, and the
+ * budget reserved their bytes beside the set's until then (`vsmReserveBytes`); every caster row is
+ * marked once, so each reader writes them all. Later frames write the rows the table declared
+ * dirty, as long as a light casts.
+ */
+function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { lights, layout } = rt,
+    { rows, selectionRoots } = layout;
+  if (!lights.pageLayout) return;
+  if (!castingLights(rt)) {
+    const worldOf = (rank: number) => selectionRoots[rank].world.elements;
+    lights.mobility.ensure(selectionRoots.length, rows.casterSlots, worldOf);
+    lights.rowsFollowed = false;
+    return;
+  }
+  if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1);
+  lights.rowsFollowed = true;
+  uploadClusterSpheres(rt, device);
+  uploadDirtyRowMobility(rt, device);
+  uploadRowLods(rt, device);
+}
 
 /**
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
@@ -38,22 +65,17 @@ import { uploadDirtyRows } from './dirtyRows.ts';
  * the visibility pass comes back on the same targets (#198). Each costs the rows that changed.
  */
 export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { rows } = rt.layout;
   refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw);
-  if (rt.lights.cull) {
-    uploadClusterSpheres(rt, device);
-    uploadRowMobility(rt, device, rows.dirtyFrom, rows.dirtyTo);
-    uploadRowLods(rt, device, rows.dirtyFrom, rows.dirtyTo);
-  }
+  followShadowRows(rt, device);
   uploadRowCorners(rt);
   uploadDirtyRows(rt);
 }
 
-/** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
-/** The visibility pass can encode this image: the path under which light casters get rows. */
+/** The visibility pass can encode this image. */
 const visReady = ({ vis }: WebgpuPagesRuntime) =>
-  vis.visEnabled && !!vis.visPipelineBack && !!vis.materialDepthPipeline && !!vis.visView;
+  vis.visEnabled && !!vis.visPipelineBack && !!vis.shadeClasses && !!vis.visView;
 
+/** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
 export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
     { rows } = rt.layout,
@@ -67,7 +89,9 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   timing.transparentPrepareMs = 0;
   timing.transparentDrawMs = 0;
   timing.transparentSpanUploadBytes = 0;
-  if (!gpu.bindGroupLayout || !gpu.cache || !gpu.colorView || !gpu.depthView) return 0;
+  // The visibility path draws without a display colour of its own (`ownsDisplayColor`); the
+  // fallback draws at the display's size, where it has one.
+  if (!gpu.bindGroupLayout || !gpu.cache || !gpu.depthView) return 0;
   // Frustum planes and view-projection are those image entry posted: the engine has one depth
   // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
   blendState.blendPlanes.set(cam.planes);
@@ -75,11 +99,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   viewProj.set(taaRenderMatrix(rt, cam));
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) {
-    // The CPU cut selects its shadow casters from the lights before it writes its rows: those the
-    // camera does not draw take rows behind the camera's.
-    const shadows = visReady(rt) && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
-    run.cameraRows = rt.services.syncRowsFromCut(shadows, rt.lights.cpuCasters?.castersPacked);
-    if (shadows) writeCpuCasters(rt, device);
+    run.cameraRows = rt.services.syncRowsFromCut();
     // The rows this cut selected size the table, the placements never do (#1232).
     followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked));
   } else if (run.rowsSyncedFrame !== run.frame) {
@@ -122,9 +142,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       diag.diagnosticFailure('visibility-render-failed', error);
       if (vis.deformation?.any) throw error;
       dropVis(rt);
-      // The fallback draw walks every row: the light casters' rows leave before it runs.
-      if (!run.gpuFrameActive && run.cameraRows < rows.packedCount)
-        run.cameraRows = rt.services.syncRowsFromCut();
       run.gpuDrawCalls = 0;
       if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
     }
@@ -164,6 +181,6 @@ function submitFallback(
   const [width, height] = rt.gpu.targetSize;
   // No composition follows: the water word may not borrow the display colour (`encodeWaterPass`).
   encodeBlend(rt, device, encoder, uniformBase, false, prepareBlend(rt, device, encoder, false));
-  if (guidesShown(rt)) encodeWebgpuGuides(rt, device, encoder, cam);
+  if (guidesShown(rt)) encodeWebgpuGuides(rt, encoder, cam);
   submitColorCopy(rt, device, encoder, height, width);
 }

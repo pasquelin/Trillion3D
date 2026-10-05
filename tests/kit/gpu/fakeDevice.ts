@@ -10,13 +10,16 @@ import {
   type LostInfo,
 } from './fakeRecords.ts';
 
+import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts';
+
 export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
  * GPU. Every creation, write, encoded copy and destroy succeeds and is recorded in call order; a
  * test reads the list it observes and ignores the others. The usage and stage constants are
- * installed on each call. Options inject what a test needs of the device: `limits`, `features`,
+ * installed on each call; a pipeline layout past the device's binding limits is refused
+ * (`bindRules.ts`). Options inject what a test needs of the device: `limits`, `features`,
  * allocations that fail (`refuse`), no compute pipelines (`compute: false`), and readback mappings
  * that settle when the test says (`mapping`). A test that runs a whole pages backend, or reads back what a
  * compute pass wrote, uses `mockGpu()`, which executes its encoders.
@@ -66,7 +69,8 @@ export function fakeDevice({
     renderPipelines.push(descriptor),
     descriptor
   );
-  const computePipeline = (descriptor: GPUComputePipelineDescriptor) => descriptor.compute;
+  // A compute pipeline is its stage and its layout: a pass checks the groups it sets against it.
+  const computePipeline = (d: GPUComputePipelineDescriptor) => ({ ...d.compute, layout: d.layout });
   const device = {
     label: '',
     lost,
@@ -91,20 +95,18 @@ export function fakeDevice({
     },
     createTexture(descriptor: GPUTextureDescriptor) {
       allocate(descriptor);
-      const texture: FakeTexture = {
-        ...descriptor,
-        createView: () => ({ format: descriptor.format }),
-        destroy: () => void destroyed.push(texture),
-      };
       const size = descriptor.size;
       const [width, height = 1, depthOrArrayLayers = 1] =
         'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size];
-      Object.assign(texture, {
+      const texture: FakeTexture = {
+        ...descriptor,
         width,
         height,
         depthOrArrayLayers,
         mipLevelCount: descriptor.mipLevelCount ?? 1,
-      });
+        createView: () => ({ format: descriptor.format }),
+        destroy: () => void destroyed.push(texture),
+      };
       textures.push(texture);
       return texture;
     },
@@ -114,10 +116,11 @@ export function fakeDevice({
       getCompilationInfo: async () => ({ messages: [] }),
     }),
     createBindGroupLayout: (descriptor: GPUBindGroupLayoutDescriptor) => (
+      checkLayout(descriptor),
       bindGroupLayouts.push(descriptor),
       descriptor
     ),
-    createPipelineLayout: () => ({}),
+    createPipelineLayout: (d: GPUPipelineLayoutDescriptor) => (checkPipelineLayout(d, limits), d),
     createRenderPipeline: renderPipeline,
     createRenderPipelineAsync: async (descriptor: GPURenderPipelineDescriptor) =>
       renderPipeline(descriptor),
@@ -126,10 +129,7 @@ export function fakeDevice({
       createComputePipelineAsync: async (descriptor: GPUComputePipelineDescriptor) =>
         computePipeline(descriptor),
     }),
-    createBindGroup: (descriptor: GPUBindGroupDescriptor) => (
-      bindGroups.push(descriptor),
-      descriptor
-    ),
+    createBindGroup: (d: GPUBindGroupDescriptor) => (checkGroup(d), bindGroups.push(d), d),
     pushErrorScope: () => void scopes.push(null),
     popErrorScope: async () => {
       if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError');

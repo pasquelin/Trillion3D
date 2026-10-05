@@ -4,13 +4,22 @@ import { EffectPass } from './chain.ts';
 export interface BloomOptions {
   /** Share of the image replaced by its glow, from 0 (none) to 1 (only the glow). */
   intensity?: number;
-  /** Spread of the glow at every level, in texels of that level; 1 is the published filter. */
+  /** Spread of the glow at every level, in texels of that level; 1 is the filter's own width. */
   radius?: number;
 }
 
 /**
- * The published defaults (Jimenez, SIGGRAPH 2014): a 4 % blend of the glow and a one-texel tent.
- * Neither is read from a scene; both are the page's to change.
+ * The defaults: a 4 % blend of the glow and a one-texel tent. Neither is read from a scene; both
+ * are the page's to change.
+ *
+ * - radius 1, derived: the factor on the tent's own width, the taps one texel of the level read
+ *   apart, so the glow's reach is the level chain's alone (`BLOOM_LEVELS`); and the one spread the
+ *   four-tap form of the same kernel serves, four reads instead of nine (`tent4`, `bloomLevel.ts`,
+ *   proved in `bloomTent.test.ts`).
+ * - intensity 0.04, declared: stands for the share of every pixel's light shown as glow, a look
+ *   and not a measure of a lens. Sensitivity: linear, the image keeps `1 − intensity` of its
+ *   sharp radiance and the glow gets the rest (`bloomBlend`, `bloomFilter.ts`): 0.08 doubles the
+ *   halo and the sharpness it takes, 0 leaves the image as it is, 1 shows only the glow.
  */
 const BLOOM_DEFAULTS = { intensity: 0.04, radius: 1 };
 

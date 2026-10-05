@@ -1,7 +1,6 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
-import { referenceSunWindow } from '../../frame/referenceMode.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -93,8 +92,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
-    // A reference session reads the finest shadow level over its whole canvas and field.
-    sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
     unboundedReflections: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
@@ -109,9 +106,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowPageInvalidation: options.shadowPageInvalidation,
-    shadowLocalToClip: options.shadowLocalToClip,
-    shadowPoolPages: options.shadowPoolPages,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,

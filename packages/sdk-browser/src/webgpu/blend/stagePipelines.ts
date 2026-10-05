@@ -1,10 +1,15 @@
 import { reflectionLayout } from '../../reflections/layout.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
+import {
+  buildRenderPipeline,
+  preparedPipeline,
+  started,
+} from '../../lighting/deferred/fullscreen.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { BlendGpuItem } from './state.ts';
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
@@ -22,39 +27,39 @@ export type RankedPipelines = {
   skips?(rank: number): boolean;
 };
 
-/** What a transparent pass compiles per blending mode, kept by mode rank (`BLEND_MODES`): `byMode`
- *  holds those compiled so far; `precompile` compiles modes off the frame, and `at` compiles a mode
- *  not compiled up front on the first draw that asks for it, once, so a blending written later
- *  draws in its own mode at once. */
+/** What a transparent pass compiles per blending mode (`BLEND_MODES`): each mode's pipelines, one
+ *  per descriptor its `describe` gives, prepared off the frame (`preparedPipeline`). `precompile`
+ *  compiles modes without blocking the thread; `at` gives a mode's pipeline at `rank` of its
+ *  descriptors, and a pipeline nothing prepared is made by the draw that asks for it, alone, once:
+ *  a blending written later draws in its own mode at once, its other pipelines compiling off the
+ *  thread from that draw on. */
 export interface ModePipelines {
-  readonly byMode: (readonly GPURenderPipeline[] | undefined)[];
-  at(mode: Blending): readonly GPURenderPipeline[];
+  at(mode: Blending, rank: number): GPURenderPipeline;
   precompile(modes: readonly Blending[]): Promise<void>;
 }
 
 /** The one lazy set of both transparent paths: the blend pass's three culls per mode, the fallback
- *  pass's one pipeline per mode (`pages/prepare/pipelines.ts`). `describe` gives a mode's
- *  descriptors once: a draw compiles them at once, `precompile` without blocking the thread, and a
- *  draw that came first keeps its own. */
+ *  pass's one pipeline per mode (`pages/prepare/pipelines.ts`). A mode's descriptors are described
+ *  once, at its first use. */
 export function pipelinesByMode(
   device: GPUDevice,
   describe: (mode: Blending) => readonly GPURenderPipelineDescriptor[],
 ): ModePipelines {
-  const byMode: (readonly GPURenderPipeline[] | undefined)[] = [];
+  const byMode: (readonly ReturnType<typeof preparedPipeline>[] | undefined)[] = [];
+  const of = (mode: Blending) =>
+    (byMode[BLEND_MODES.indexOf(mode)] ??= describe(mode).map((descriptor) =>
+      preparedPipeline(device, descriptor),
+    ));
   return {
-    byMode,
-    at: (mode) =>
-      (byMode[BLEND_MODES.indexOf(mode)] ??= describe(mode).map((descriptor) =>
-        device.createRenderPipeline(descriptor),
-      )),
+    at(mode, rank) {
+      const first = !byMode[BLEND_MODES.indexOf(mode)],
+        set = of(mode);
+      // A mode a draw describes first: its other pipelines start off the thread, once.
+      if (first) for (const [at, pipeline] of set.entries()) if (at !== rank) started(pipeline);
+      return set[rank].get();
+    },
     async precompile(modes) {
-      const missing = modes.filter((mode) => !byMode[BLEND_MODES.indexOf(mode)]);
-      const built = await Promise.all(
-        missing.map((mode) =>
-          Promise.all(describe(mode).map((descriptor) => buildRenderPipeline(device, descriptor))),
-        ),
-      );
-      missing.forEach((mode, at) => (byMode[BLEND_MODES.indexOf(mode)] ??= built[at]));
+      await Promise.all(modes.flatMap((mode) => of(mode).map((pipeline) => pipeline.prepare())));
     },
   };
 }
@@ -71,19 +76,21 @@ export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
   );
 
 /** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank (`plan.ts`), read from its
- *  `ModePipelines`, whose `byMode` holds the three culls of each mode compiled so far. */
+ *  `ModePipelines`, each mode's three culls. */
 export interface BlendModePipelines extends RankedPipelines {
-  readonly byMode: readonly (readonly GPURenderPipeline[] | undefined)[];
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number };
+  /** The pipelines of the program a frame of key `key` is lit with (`createForwardVariants`). */
+  lit(key: Partial<ContractKey>): BlendModePipelines;
+  /** Starts the compile of what a change of the scene or of a setting now reaches (`reach.ts`). */
+  reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }): void;
   at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline;
 }
 
 /**
  * The three cull modes of one fragment stage of the blend module, on the blend bind group layout:
  * the forward blend, which writes no depth, and the water surface stage, which writes it so the
- * nearest surface of a pixel is the one composed, and the shadow marks (`marks.ts`), which write
- * neither and bind their own `group2`. Same vertex stage, same rank picks the same side.
+ * nearest surface of a pixel is the one composed. Same vertex stage, same rank picks the same side.
  */
 export async function blendStagePipelines(
   device: GPUDevice,
@@ -104,7 +111,7 @@ export async function blendStagePipelines(
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back'];
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `group2`, the
- *  display mask's layout of a filtered image's pipelines, or the shadow marks' group. */
+ *  display mask's layout of a filtered image's pipelines. */
 export function stageDescriptors(
   device: GPUDevice,
   module: GPUShaderModule,

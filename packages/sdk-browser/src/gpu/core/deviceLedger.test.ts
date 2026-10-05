@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gpuDeviceLedgerOf, installGpuDeviceLedger } from './deviceLedger.ts';
 import { textureBytesOf } from './textureBytes.ts';
+import { namesNoSession, sessionHandle } from './sessionHandle.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('a texture is counted over all its levels, layers and format', () => {
@@ -82,4 +83,94 @@ test('a format outside the table counts zero bytes and declares itself, never an
     live: 1,
   });
   assert.equal(gpuDeviceLedgerOf(undefined), undefined);
+});
+
+test('a budget refusal names the allocation it refused, by the label the engine wrote', () => {
+  const gpu = fakeDevice();
+  const handle = sessionHandle(gpu.device, '@t3d:7');
+  const ledger = installGpuDeviceLedger(handle.device, { limit: () => 100 });
+  handle.device.createBuffer({ label: 'vsm.pageTable', size: 90, usage: 0 });
+  const refused =
+    'GPU_BUDGET_EXCEEDED: requested=20, label=vsm.physicalPool1.0, held=90, limit=100';
+  assert.throws(
+    () => handle.device.createBuffer({ label: 'vsm.physicalPool1.0', size: 20, usage: 0 }),
+    { message: refused },
+    "the session's tag is joined below the ledger: the label is the engine's own",
+  );
+  assert.equal(ledger.refusal?.message, refused);
+  assert.equal(gpu.buffers.length, 1, 'the refused buffer never reaches the device');
+  // A texture is named the same way, and an allocation without a label says so.
+  assert.throws(
+    () =>
+      handle.device.createTexture({
+        label: 'vsm.depth',
+        size: [4, 4],
+        format: 'rgba8unorm',
+        usage: 0,
+      }),
+    { message: 'GPU_BUDGET_EXCEEDED: requested=64, label=vsm.depth, held=90, limit=100' },
+  );
+  assert.throws(() => handle.device.createBuffer({ size: 11, usage: 0 }), {
+    message: 'GPU_BUDGET_EXCEEDED: requested=11, label=unlabeled, held=90, limit=100',
+  });
+  assert.equal(gpu.textures.length, 0);
+  handle.release();
+});
+
+test('a shared allocation refused by a session budget carries its own label to that budget', () => {
+  const gpu = fakeDevice();
+  const base = installGpuDeviceLedger(gpu.device, { counts: namesNoSession });
+  const handle = sessionHandle(gpu.device, '@t3d:8');
+  const session = installGpuDeviceLedger(handle.device, { base, limit: () => 100 });
+  handle.device.createBuffer({ label: 'main view', size: 90, usage: 0 });
+  const refused = 'GPU_BUDGET_EXCEEDED: requested=20, label=shared cache, held=90, limit=100';
+  assert.throws(() => gpu.device.createBuffer({ label: 'shared cache', size: 20, usage: 0 }), {
+    message: refused,
+  });
+  assert.equal(session.refusal?.message, refused);
+  assert.equal(base.refusal?.message, refused, 'the device that made the request reads it too');
+  assert.equal(base.bytes, 0);
+  session.releaseAdmission();
+  handle.release();
+});
+
+test('a tentative allocation past the limit throws without refusing the session', () => {
+  const gpu = fakeDevice();
+  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 100 });
+  gpu.device.createBuffer({ label: 'held', size: 90, usage: 0 });
+  assert.equal(ledger.room, 10);
+  assert.throws(
+    () => ledger.tentative(() => gpu.device.createBuffer({ label: 'big', size: 20, usage: 0 })),
+    /GPU_BUDGET_EXCEEDED/,
+  );
+  assert.equal(ledger.refusal, undefined, 'a caller with a fallback is not a refused session');
+  assert.equal(
+    ledger.tentative(() => 7),
+    7,
+  );
+  assert.throws(() => gpu.device.createBuffer({ label: 'big', size: 20, usage: 0 }));
+  assert.match(ledger.refusal!.message, /label=big/, 'outside it, a refusal stands as ever');
+});
+
+test("a shared allocation made tentatively past another session's limit refuses no session", () => {
+  const gpu = fakeDevice();
+  const base = installGpuDeviceLedger(gpu.device, { counts: namesNoSession });
+  const [a, b] = ['@t3d:9', '@t3d:10'].map((tag) => sessionHandle(gpu.device, tag));
+  const first = installGpuDeviceLedger(a.device, { base, limit: () => 100 });
+  const second = installGpuDeviceLedger(b.device, { base, limit: () => 100 });
+  b.device.createBuffer({ label: 'held', size: 90, usage: 0 });
+  // The first session's fallback path makes a shared allocation: past the second's limit, it
+  // throws as ever, and neither session is refused for it.
+  assert.throws(
+    () => first.tentative(() => gpu.device.createBuffer({ label: 'shared', size: 20, usage: 0 })),
+    /GPU_BUDGET_EXCEEDED: requested=20, label=shared/,
+  );
+  assert.equal(second.refusal, undefined, 'the other session is not refused for it');
+  assert.equal(first.refusal, undefined);
+  // Outside it, the same allocation refuses the session whose limit it crosses, as ever.
+  assert.throws(() => gpu.device.createBuffer({ label: 'shared', size: 20, usage: 0 }));
+  assert.match(second.refusal!.message, /label=shared/);
+  for (const session of [first, second]) session.releaseAdmission();
+  a.release();
+  b.release();
 });

@@ -101,6 +101,8 @@
       "leaves-cut-by-alpha": "Folhas recortadas por alfa",
       "a-colour-ramp-in-linear-light": "Gradiente linear",
       "the-material-family": "A família dos materiais",
+      "page-materials": "Editar materiais ao vivo",
+      "a-bust-a-crate-and-a-glass-ball": "Um busto, um caixote, uma bola de vidro",
       "a-texture-turned-and-tiled": "Textura girada, repetida",
       "texture-filters-compared": "Filtros de textura",
       "every-image-format": "Todos os formatos de imagem",
@@ -287,6 +289,7 @@
       "tone-mapping-compared": "Tone mapping comparado",
       "a-first-post-effect": "Um primeiro efeito de pós-processamento",
       "a-glow-around-lights": "Brilho ao redor das luzes",
+      "choose-your-quality": "Escolher a qualidade",
       "glow-on-chosen-objects": "Brilho seletivo",
       "depth-of-field": "Profundidade de campo",
       "motion-blur": "Desfoque de movimento",
@@ -743,7 +746,6 @@
     "protocol": "Condições registradas",
     "references": "Pontos de referência publicados",
     "referenceNote": "Os números publicados dos motores desktop usam seu próprio hardware, cenas e protocolos. Eles não participam das comparações acima.",
-    "referenceLink": "Ler as fontes e limitações",
     "commit": "Commit do repositório",
     "date": "Data da medição",
     "browser": "Navegador",
@@ -1253,7 +1255,7 @@
       "description": "As matrizes de um quadro de câmera, alocadas uma vez e reescritas a cada quadro: `view` (a inversa da matriz de mundo da câmera), `viewProjection`, e `planes`, os seis planos normalizados desse frustum."
     },
     "updateCameraFrame": {
-      "description": "Reescreve o quadro: view = a inversa de `world` (zero para uma matriz de mundo singular, como a referência), view-projection = `projection · view`, e os seis planos desse frustum. Uma única convenção de profundidade atravessa as três. `far` é o plano **declarado pelo host**: a projeção não tem nenhum — ela é infinita, que é todo o ponto da profundidade invertida — mas o frustum o mantém, senão um quadro ganharia de repente todo objeto que a câmera não estava mostrando. Omitido ou não finito, o plano distante fica ilimitado."
+      "description": "Reescreve o quadro: view = a inversa de `world` (zero para uma matriz de mundo singular), view-projection = `projection · view`, e os seis planos desse frustum. Uma única convenção de profundidade atravessa as três. `far` é o plano **declarado pelo host**: a projeção não tem nenhum — ela é infinita, que é todo o ponto da profundidade invertida — mas o frustum o mantém, senão um quadro ganharia de repente todo objeto que a câmera não estava mostrando. Omitido ou não finito, o plano distante fica ilimitado."
     },
     "worldToRenderOrigin": {
       "description": "Escreve `world` com sua translação trazida de volta para `origin`. A subtração acontece na precisão das entradas — o double das matrizes de mundo do motor — e escrever em um buffer de precisão simples arredonda **depois** dela, nunca antes: é só isso que separa uma imagem nítida de uma que treme. `at` é a posição do primeiro dos dezesseis números escritos, para que um buffer com várias matrizes se preencha sem recortar uma view por matriz a cada quadro."
@@ -1286,10 +1288,10 @@
       "description": "`out = a · b`. As trinta e duas entradas são lidas antes da primeira escrita, então `out` pode ser `a` ou `b`. Cada termo é a soma de quatro produtos sem um zero inicial — uma soma iniciada em `0` mudaria o sinal de um zero negativo. **Um único tipo de buffer, `Float64Array`, na entrada e na saída**: um chamador passando um array comum tornaria os quarenta e oito pontos de acesso polimórficos, e todo laço quente pagaria por isso, então um chamador partindo de uma matriz do host a copia primeiro."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` por cofatores. Um determinante exatamente zero produz a matriz zero, como a referência — um chamador que precise distinguir esse caso testa o determinante, nunca a saída. Esse limiar é paridade com a referência, não a regra de singularidade do motor, que só se aplica onde uma normal é transportada. As dezesseis entradas são lidas antes da primeira escrita, então `out` pode ser `m`."
+      "description": "`out = m⁻¹` por cofatores. Um determinante exatamente zero produz a matriz zero — um chamador que precise distinguir esse caso testa o determinante, nunca a saída. Esse limiar é o zero exato, não a regra de singularidade do motor, que só se aplica onde uma normal é transportada. As dezesseis entradas são lidas antes da primeira escrita, então `out` pode ser `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, com o quatérnio ordenado `(x, y, z, w)`. A última linha é escrita como `(0, 0, 0, 1)` exatamente; os produtos de quatérnio são dobrados por adição (`x + x`), como a referência, nunca multiplicados por dois."
+      "description": "`out = T · R · S`, com o quatérnio ordenado `(x, y, z, w)`. A última linha é escrita como `(0, 0, 0, 1)` exatamente; os produtos de quatérnio são dobrados por adição (`x + x`), nunca multiplicados por dois."
     },
     "decomposeMatrix4": {
       "description": "O inverso: a escala de uma coluna é seu comprimento, e um determinante negativo é carregado só pelo eixo `x`, seja qual for o eixo invertido na origem. Uma matriz cisalhada não tem essa decomposição — a rotação devolvida é então a da matriz com colunas normalizadas, e recompor não produz mais `m`, uma diferença idêntica à da referência e quantificada pelo benchmark."
@@ -1352,7 +1354,7 @@
       "description": "Os seis planos do frustum de uma matriz de recorte — uma view-projection, ou só uma projeção para planos em espaço de câmera. A primeira os normaliza, então `a·x + b·y + c·z + d` é uma distância com sinal; a segunda deixa as somas e diferenças brutas das linhas, onde só o sinal decide, sem raiz quadrada nem divisão: a forma do teste de recorte exato, onde normalizar deslocaria o arredondamento. Uma matriz degenerada produz planos NaN ou infinitos sem lançar erro."
     },
     "frustumFarPlane": {
-      "description": "O plano distante de um frustum cuja projeção não tem nenhum. A projeção do motor é infinita: sua linha de profundidade não limita mais nada, então o plano distante é lido da matriz de **view**, cuja terceira linha dá a profundidade em espaço de câmera — um ponto está dentro quando `far + z >= 0`. Um `far` não finito deixa o plano zero no lugar, um plano distante verdadeiramente ilimitado. `frustumPlanesToLocal` leva os planos para o espaço local de uma transformação, para que uma caixa local seja testada sem ser transformada."
+      "description": "O plano distante de um frustum cuja projeção não tem nenhum. A projeção do motor é infinita: sua linha de profundidade não limita mais nada, então o plano distante é lido da matriz de **view**, cuja terceira linha dá a profundidade em espaço de câmera — um ponto está dentro quando `far + z >= 0`. Um `far` não finito deixa o plano zero no lugar, um plano distante verdadeiramente ilimitado."
     },
     "frustumExcludesBox": {
       "description": "A caixa contra o frustum: a primeira é verdadeira quando um plano deixa todos os oito cantos atrás dele. A segunda devolve três estados — 0 fora, 1 atravessando, 2 totalmente dentro — em duas passagens, a primeira só rejeitando, a segunda lendo o canto mais atrasado para distinguir \"atravessando\" de \"dentro\". Uma subárvore totalmente dentro economiza um teste em cada caixa abaixo dela."
@@ -1376,7 +1378,7 @@
       "description": "Leituras da matriz de mundo: a coluna de translação; a rotação e a escala a partir de sua decomposição, com um determinante negativo carregado só pelo `x`; a terceira coluna normalizada como uma direção, invertida quando `cameraForward` — uma câmera e uma luz olham em direção ao seu `−z`. `nodeWorldMirrorsFaces` é verdadeiro quando a matriz de mundo inverte a orientação, e o desenho então troca suas faces da frente e de trás; ela lê como está, sem atualizar, e um determinante zero ou NaN não inverte nada."
     },
     "lookAtNode": {
-      "description": "Vira `node` em direção ao ponto do mundo `(x, y, z)`. `viewer` é verdadeiro para uma câmera ou uma luz, que olham em direção ao seu `−z`, falso para um objeto, que apresenta seu `+z`. `up` é o up do nó, `(0, 1, 0)` na referência. Os ancestrais e o nó são atualizados primeiro."
+      "description": "Vira `node` em direção ao ponto do mundo `(x, y, z)`. `viewer` é verdadeiro para uma câmera ou uma luz, que olham em direção ao seu `−z`, falso para um objeto, que apresenta seu `+z`. `up` é o up do nó, `(0, 1, 0)` por padrão. Os ancestrais e o nó são atualizados primeiro."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` produtos `out[i] = a[i] · b[i]`, com os três lados dados como sub-views de dezesseis números. As sub-views são criadas uma vez, nunca por quadro; um kernel WebAssembly repete a mesma fórmula termo a termo e o regulador escolhe qual caminho é medido como mais rápido."
@@ -1676,7 +1678,7 @@
       "nodes": "nós"
     },
     "patterns": {
-      "singular": "determinante {{value}}: dezesseis zeros, como a referência — teste o determinante, nunca a saída"
+      "singular": "determinante {{value}}: dezesseis zeros — teste o determinante, nunca a saída"
     }
   }
 }

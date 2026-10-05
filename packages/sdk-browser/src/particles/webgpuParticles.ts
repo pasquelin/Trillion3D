@@ -1,5 +1,6 @@
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
 import { createPoolStates, usedSlots } from './poolStates.ts';
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
@@ -7,6 +8,7 @@ import { DRAW_FLOATS } from './drawWords.ts';
 import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
 import { createStepWords } from './stepWords.ts';
 import { PARTICLES_PASS } from '../stage/passLabels.ts';
+import { LazyComputePass } from '../gpu/core/lazyComputePass.ts';
 
 type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
 
@@ -22,7 +24,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
   let pipeline: GPUComputePipeline | null | undefined;
   createCheckedShaderModule(device, PARTICLES_WGSL, 'PARTICLES')
     .then((module) =>
-      device.createComputePipelineAsync({
+      buildComputePipeline(device, {
         label: PARTICLES_PASS,
         layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
         compute: { module, entryPoint: 'main' },
@@ -31,7 +33,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
     .then((made) => (pipeline = made))
     .catch((error) => ((pipeline = null), fail(error)));
   const words = createStepWords();
-  const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS };
+  const pass = new LazyComputePass(PARTICLES_PASS);
   const buffer = (name: string, size: number, usage: number) =>
     device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
   const made = createPoolStates<PoolState>(
@@ -51,31 +53,32 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
     /** Steps `pools` in `encoder`; returns the dispatches encoded. */
     run(pools: readonly ParticlePool[], encoder: GPUCommandEncoder) {
       if (pipeline === undefined) return 0;
-      let computing: GPUComputePassEncoder | undefined,
-        dispatches = 0;
+      let dispatches = 0;
+      pass.begin(encoder);
       for (const pool of pools) {
         pool.refused = !pipeline || drawn.refused();
         const step = pool.flush(),
-          { count } = step;
-        if (!pipeline || pool.refused || (!count && !step.dt)) continue;
+          { count } = step,
+          slots = usedSlots(pool);
+        // A pool that never emitted holds no slot to move: its dispatch would have no workgroup.
+        if (!pipeline || pool.refused || (!count && !step.dt) || !slots) continue;
         const kept = made.of(pool);
         words.write(pool, step);
         device.queue.writeBuffer(kept.step, 0, words.buffer);
         if (count)
           device.queue.writeBuffer(kept.staged, 0, pool.staging, 0, count * PARTICLE_FLOATS);
-        if (!computing) {
-          computing = encoder.beginComputePass(pass);
-          computing.setPipeline(pipeline);
-        }
+        const computing = pass.pass;
+        if (!dispatches) computing.setPipeline(pipeline);
         computing.setBindGroup(0, kept.group);
-        computing.dispatchWorkgroups(Math.ceil(usedSlots(pool) / PARTICLE_WORKGROUP));
+        computing.dispatchWorkgroups(Math.ceil(slots / PARTICLE_WORKGROUP));
         dispatches++;
       }
-      computing?.end();
+      pass.end();
       made.keep(pools);
       return dispatches;
     },
     draw: drawn.draw,
+    askRouted: drawn.askRouted,
     dispose: made.dispose,
   };
 }

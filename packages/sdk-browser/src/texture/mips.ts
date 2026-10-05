@@ -1,8 +1,24 @@
-import { mipShader } from './mipsWgsl.ts';
+import { MIP_SHADER } from './mipsWgsl.ts';
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
+import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
+import {
+  preparedPipeline,
+  preparedPipelines,
+  type PreparedPipelines,
+} from '../lighting/deferred/fullscreen.ts';
+import type { PoolEncoding } from './blockFormats.ts';
+import { prepareCoveragePipelines } from './coverageMips.ts';
+
+/** How a level reduces: a material's colour, or a radiance. */
+type MipRule = 'material' | 'radiance';
+
+/** What decides a reduction's pipeline: the level's format, the colour rule — plain, or weighted by
+ *  alpha —, and how the level reduces. */
+export type MipKey = { format: GPUTextureFormat; weighted: boolean; rule: MipRule };
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
- * colour rule.
+ * colour rule, compiled off the thread before any texture reduces with it (`prepareMipPipelines`).
  *
  * The mip chain is generated at every working texture: recompiling the same program and the same
  * layout at each made one pay a pipeline compilation per texture, on the very path that must
@@ -12,67 +28,100 @@ import { mipShader } from './mipsWgsl.ts';
  */
 type MipProgram = {
   layout: GPUBindGroupLayout;
-  pipelineLayout: GPUPipelineLayout;
-  module: GPUShaderModule;
-  /** Per colour rule — plain at 0, weighted at 1 — the pipeline of each format. */
-  pipelines: Map<string, GPURenderPipeline>;
+  /** The pipeline of each key, one per `format/weighted/rule`. */
+  pipelines: PreparedPipelines<MipKey, GPURenderPipeline>;
 };
-const programs = new WeakMap<GPUDevice, Map<boolean, MipProgram>>();
 
-function mipProgram(device: GPUDevice, depth: boolean): MipProgram {
-  let variants = programs.get(device);
-  if (!variants) programs.set(device, (variants = new Map()));
-  const held = variants.get(depth);
-  if (held) return held;
+const idOf = ({ format, weighted, rule }: MipKey) => `${format}/${Number(weighted)}/${rule}`;
+
+const mipProgram = oncePerDevice((device): MipProgram => {
   const layout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
         visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: depth ? 'depth' : 'unfilterable-float' },
+        texture: { sampleType: 'unfilterable-float' },
       },
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
-
-  const built: MipProgram = {
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    module = device.createShaderModule({ code: MIP_SHADER });
+  return {
     layout,
-    pipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module: device.createShaderModule({ code: mipShader(depth) }),
-    pipelines: new Map(),
+    pipelines: preparedPipelines(
+      ({ format, weighted, rule }: MipKey) =>
+        preparedPipeline(device, {
+          layout: pipelineLayout,
+          vertex: { module, entryPoint: 'vs' },
+          fragment: {
+            module,
+            entryPoint: 'fs',
+            targets: [{ format }],
+            constants: { weighted: Number(weighted), radiance: Number(rule === 'radiance') },
+          },
+          primitive: { topology: 'triangle-list' },
+        }),
+      idOf,
+    ),
   };
-  variants.set(depth, built);
-  return built;
-}
+});
 
-/** The bind group layout and the pipeline of one format and one colour rule. */
+/** The program on `device`'s shared cache, and `key`'s pipeline in it. */
+const pipelineOf = (device: GPUDevice, key: MipKey) => {
+  const program = mipProgram(sharedGpuDevice(device));
+  return { layout: program.layout, pipeline: program.pipelines.of(key) };
+};
+
+/** Compiles off the thread, before any texture reduces with them, the pipelines of `keys` on
+ *  `device`'s shared cache; resolves once all have. */
+export const prepareMipPipelines = (device: GPUDevice, keys: readonly MipKey[]) =>
+  Promise.all(keys.map((key) => pipelineOf(device, key).pipeline.prepare())).then(() => {});
+
+/** The reduction of a reflection's radiance levels (`../reflections/conePyramid.ts`): the format of
+ *  the source it reduces, the lit image's. */
+export const REFLECTION_MIP_KEYS: readonly MipKey[] = [
+  { format: 'rgba16float', weighted: false, rule: 'radiance' },
+];
+
+/** The atlases a host texture's working texture reduces into (`../webgpu/tile/scratch.ts`). */
+type HostKind = 'color' | 'data';
+
+/** The reductions of a host texture's working texture in the atlases `kinds`: in the atlas's pool
+ *  format, the lossless lane's — the only one a host image fills —, plain, or for a colour texture
+ *  whose readers cut its coverage, weighted. */
+const hostMipKeys = (encoding: PoolEncoding, kinds: readonly HostKind[]) =>
+  kinds.flatMap((kind): MipKey[] => {
+    const format = encoding.formatOf(kind, 'lossless');
+    const plain: MipKey = { format, weighted: false, rule: 'material' };
+    return kind === 'color' ? [plain, { ...plain, weighted: true }] : [plain];
+  });
+
+/** Compiles off the thread what a host texture's mips take in the atlases `kinds` — their
+ *  reductions, and for a colour one the coverage counts its readers' cutoff asks —, before any
+ *  such texture reduces; resolves once all have, a refused one asked again where it is used. */
+export const prepareHostReductions = (
+  device: GPUDevice,
+  encoding: PoolEncoding,
+  kinds: readonly HostKind[],
+) =>
+  Promise.all([
+    prepareMipPipelines(device, hostMipKeys(encoding, kinds)),
+    kinds.includes('color') && prepareCoveragePipelines(device),
+  ]).then(
+    () => {},
+    () => {},
+  );
+
+/** The bind group layout and the pipeline of one format and one colour rule, compiled. */
 export function mipPipeline(
   device: GPUDevice,
   format: GPUTextureFormat,
   weighted: boolean,
-  rule: 'material' | 'radiance' | 'bounds' | 'depth' = 'material',
+  rule: MipRule = 'material',
 ) {
-  const { layout, module, pipelineLayout, pipelines } = mipProgram(device, rule === 'depth');
-  const key = `${format}/${Number(weighted)}/${rule}`;
-  const held = pipelines.get(key);
-  if (held) return { layout, pipeline: held };
-  const pipeline = device.createRenderPipeline({
-    layout: pipelineLayout,
-    vertex: { module, entryPoint: 'vs' },
-    fragment: {
-      module,
-      entryPoint: 'fs',
-      targets: [{ format }],
-      constants: {
-        weighted: Number(weighted),
-        radiance: Number(rule !== 'material'),
-        bounds: Number(rule === 'bounds' || rule === 'depth'),
-      },
-    },
-    primitive: { topology: 'triangle-list' },
-  });
-  pipelines.set(key, pipeline);
-  return { layout, pipeline };
+  const { layout, pipeline } = pipelineOf(device, { format, weighted, rule });
+  return { layout, pipeline: pipeline.get() };
 }
 
 /**

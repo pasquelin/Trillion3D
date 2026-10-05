@@ -6,7 +6,8 @@
  * - `unlit` is the host's basic surface, `physical` its physical one, anything else standard;
  * - a blended surface is transparent and writes no depth, a masked one cuts at `alphaTest`;
  * - the table entry already carries the tangent variant (`normalScaleY`); the variants a primitive
- *   adds — vertex colours, flat shading where it has no normal — are built per primitive kind;
+ *   adds — vertex colours, flat shading where it has no normal, both faces where a cloth draws
+ *   it — are built per primitive kind;
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
@@ -38,19 +39,37 @@ export const alphaModeFields = (mode: AlphaMode, cutoff: number) => ({
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
-/** The variant of a surface a primitive asks for: what its geometry carries. */
-export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
+/** The variant of a surface a primitive asks for: what its geometry carries, and whether a cloth
+ *  draws it (`drawnTwoSided`; unsaid, it does not). */
+export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean; twoSided?: boolean };
 
 /** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
-export const variantKey = ({ vertexColors, flatShading }: SurfaceVariant) =>
-  `${vertexColors}:${flatShading}`;
+export const variantKey = ({ vertexColors, flatShading, twoSided = false }: SurfaceVariant) =>
+  `${vertexColors}:${flatShading}:${twoSided}`;
+
+/** The geometries of the primitives a cloth draws, as the open read them off the manifest
+ *  (`graph.ts`): a material assigned to one later is drawn on both faces too. */
+const twoSidedGeometries = new WeakSet<object>();
+/** `geometry` is a cloth's: every surface it wears is drawn on both faces. */
+export const drawnByCloth = (geometry: object) => void twoSidedGeometries.add(geometry);
 
 /** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
- *  no normal — at open (`graph.ts`) and for a created material assigned later (#847). */
-export const surfaceVariantOf = (attributes: Record<string, unknown>): SurfaceVariant => ({
-  vertexColors: attributes.color !== undefined,
-  flatShading: attributes.normal === undefined,
+ *  no normal, both faces where a cloth draws it — at open (`graph.ts`) and for a created material
+ *  assigned later (#847). */
+export const surfaceVariantOf = (geometry: { attributes: Record<string, unknown> }) => ({
+  vertexColors: geometry.attributes.color !== undefined,
+  flatShading: geometry.attributes.normal === undefined,
+  twoSided: twoSidedGeometries.has(geometry),
 });
+
+/** The surface fields a variant sets over its plain surface; a plain variant sets none. */
+export function variantFields({ vertexColors, flatShading, twoSided }: SurfaceVariant) {
+  const fields: Params = {};
+  if (vertexColors) fields.vertexColors = true;
+  if (flatShading) fields.flatShading = true;
+  if (twoSided) fields.side = hostSide('double');
+  return fields;
+}
 
 function extensionParams(
   entry: TableMaterial,
@@ -122,9 +141,8 @@ async function build(
   Object.assign(
     params,
     alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),
+    variantFields(variant),
   );
-  if (variant.vertexColors) params.vertexColors = true;
-  if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
   const family =
     entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard';

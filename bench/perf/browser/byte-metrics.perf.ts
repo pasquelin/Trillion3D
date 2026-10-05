@@ -12,14 +12,17 @@ import { referenceVertexBytes } from '../../oracles/browser/byte-metrics.ts';
 
 Object.assign(globalThis, {
   GPUBufferUsage: { STORAGE: 128, COPY_DST: 8, COPY_SRC: 4, UNIFORM: 64, INDIRECT: 256 },
+  GPUTextureUsage: { COPY_SRC: 1, COPY_DST: 2, TEXTURE_BINDING: 4 },
 });
 
-// A device fixture standing in for the real WebGPU one: only the three members the measured
-// functions read are implemented, as the rest of this codebase's own GPUDevice fixtures do.
+// A device fixture standing in for the real WebGPU one: only the members the measured functions
+// read are implemented, as the rest of this codebase's own GPUDevice fixtures do. The blend's
+// normals ride in a float atlas since 65da4ee298 (#1410), so the device makes textures too.
 const appareil = {
   limits: { maxBufferSize: 2 ** 31, maxStorageBufferBindingSize: 2 ** 31 },
   createBuffer: ({ size }: { size: number }) => ({ size, destroy() {} }),
-  queue: { writeBuffer() {} },
+  createTexture: () => ({ createView: () => ({}), destroy() {} }),
+  queue: { writeBuffer() {}, writeTexture() {} },
 } as unknown as GPUDevice;
 
 function geometrie(sommets: number, alea: () => number) {

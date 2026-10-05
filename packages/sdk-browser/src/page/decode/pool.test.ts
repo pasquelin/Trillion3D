@@ -62,3 +62,20 @@ test('cancelling an unknown or already-settled id does nothing and does not brea
     assert.equal(pool.alive, true);
     pool.retire();
   }));
+
+test('a retired pool finishes the work it was given, the queued too, then closes', () =>
+  withNodeWorkerShim(NodeDomWorker, async () => {
+    const pool = createPageDecodePool(1);
+    assert.equal(await pool.start(), true);
+    // One worker: the second verify waits in the queue when the pool retires — a session
+    // closing while the pages it asked are still being verified.
+    const first = pool.submit('verify', new ArrayBuffer(8), 0).answer;
+    const queued = pool.submit('verify', new ArrayBuffer(8), 0).answer;
+    pool.retire();
+    assert.equal((await first).ok, true);
+    assert.equal((await queued).ok, true, 'the retirement dropped work handed to the pool');
+    assert.equal(pool.alive, false, 'the pool closes once its work is done');
+    // A retired pool takes no new work: its caller does it on the main thread.
+    const after = await pool.submit('verify', new ArrayBuffer(8), 0).answer;
+    assert.equal((after as { code: string }).code, 'PAGE_DECODE_WORKER');
+  }));

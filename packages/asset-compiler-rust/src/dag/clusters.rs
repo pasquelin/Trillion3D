@@ -72,7 +72,7 @@ pub(super) fn edge_key(a: u32, b: u32) -> u64 {
 /// those keeps the pass proportional to the boundary rather than to the triangle count.
 pub fn cluster_adjacency(clusters: &[&[u32]]) -> Vec<Vec<(u32, u32)>> {
     let mut records: Vec<(u64, u32)> = Vec::new();
-    let mut local: HashMap<u64, u32> = HashMap::new();
+    let mut local: WordMap<u64, u32> = WordMap::default();
     for (id, indices) in clusters.iter().enumerate() {
         local.clear();
         for tri in indices.as_chunks::<3>().0 {
@@ -87,7 +87,7 @@ pub fn cluster_adjacency(clusters: &[&[u32]]) -> Vec<Vec<(u32, u32)>> {
         }
     }
     records.sort_unstable();
-    let mut weights: Vec<HashMap<u32, u32>> = vec![HashMap::new(); clusters.len()];
+    let mut weights: Vec<WordMap<u32, u32>> = vec![WordMap::default(); clusters.len()];
     let mut start = 0usize;
     while start < records.len() {
         let mut end = start + 1;
@@ -116,9 +116,7 @@ pub fn cluster_adjacency(clusters: &[&[u32]]) -> Vec<Vec<(u32, u32)>> {
         .collect()
 }
 
-/// Recursive bisection of the cluster graph into partitions of at most `max` members.
-/// Splits on the longest axis of the cluster centres, then trades members across the cut while the
-/// shared-edge weight drops, which is the cheap stand-in for a METIS-style graph partitioner.
+/// The bits of `value`, `-0` written as `+0`: two coordinates that compare equal weld alike.
 pub(super) fn normalized_bits(value: f32) -> u32 {
     if value == 0.0 {
         0
@@ -163,7 +161,7 @@ pub(super) fn weld_by<K: std::hash::Hash + Eq>(
     key: impl Fn(u32) -> K,
 ) -> Vec<u32> {
     let mut canonical: Vec<u32> = (0..count as u32).collect();
-    let mut seen: HashMap<K, u32> = HashMap::with_capacity(indices.len() / 2);
+    let mut seen: WordMap<K, u32> = word_map(indices.len() / 2);
     let mut visited = vec![false; count];
     for &id in indices {
         let slot = id as usize;

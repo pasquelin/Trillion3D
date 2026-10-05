@@ -64,7 +64,7 @@ export function viewOf(pose: CameraPose, width: number, height: number) {
   const frame = updateCameraFrame(
     createCameraFrame(),
     projection,
-    tree.world.slice(node * 16, node * 16 + 16),
+    tree.worldViews[node].slice(),
     pose.far,
   );
   const [fx, fy] = pixelScaleOf(projection, [width, height], [0, 0]);

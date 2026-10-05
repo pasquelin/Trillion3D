@@ -27,7 +27,7 @@ import {
  * (no cross-origin isolation) times pooled batches instead (CPU-20, #919): consecutive executions of
  * a path are summed until they span `POOLED_CLOCK_STEPS` clock steps, and each pool is one sample.
  * On a fine clock every execution is its own sample, exactly as before. Only a clock that never
- * moves leaves it on the JavaScript path, the reference.
+ * moves leaves it on the JavaScript path, the baseline.
  */
 
 /** Minimum executions before any arbitration: under this number, a single value would make the median. */
@@ -116,7 +116,7 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
     if (elements <= 0) return;
     operation.elements += elements;
     if (ms === null) {
-      // A missing timer proves nothing: the operation falls back to the reference and stays there
+      // A missing timer proves nothing: the operation falls back to JavaScript and stays there
       // as long as no timed execution has fed both medians.
       operation.path = 'js';
       operation.lead = 0;

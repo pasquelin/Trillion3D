@@ -1,6 +1,7 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { Geometry } from '../world/geometry/geometry.ts';
 import { crossVector3 } from '../math/primitives/vector.ts';
+import { hypot3 } from '../math/primitives/hypot.ts';
 import { readPoints } from '../world/geometry/bounds.ts';
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts';
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts';
@@ -17,8 +18,9 @@ export interface SoftBodyCommon extends Pick<
   PhysicsBodyOptions,
   'friction' | 'restitution' | 'gravityScale'
 > {
-  /** The share of its vertices' speed lost per second, `dv/dt = −c·v`, 0 and up.
-   *  @defaultValue { linear: 0.05 } */
+  /** The share of its vertices' speed lost per second, `dv/dt = −c·v`, 0 and up. Left out,
+   *  `SOFT_DAMPING`: a hundredth of it each step of 60 Hz, 0.603.
+   *  @defaultValue { linear: SOFT_DAMPING } */
   damping?: { linear?: number };
   /** Indices of the geometry's vertices held where they are: a flag's pole, a rope's hook.
    *  @defaultValue [] */
@@ -29,7 +31,11 @@ export interface SoftBodyCommon extends Pick<
   /** How much an edge gives when pulled, m/N (the inverse of its stiffness): 0 never stretches.
    *  @defaultValue 0 */
   stretch?: number;
-  /** How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely.
+  /** How much it gives when folded, rad/(N·m) (a rope: m/N); `Infinity` folds freely. A cloth's
+   *  or a volume's fold is never stiffer than the solver resolves in a substep — the compliance of
+   *  the four vertices it moves, `h²·Σ wᵢ|∇Cᵢ|²`: 7 to 80 for cotton in 6 cm squares —; stiffer,
+   *  it is held at that, which would otherwise add energy (a stiff flag with little air flapping
+   *  for ever).
    *  @defaultValue Infinity */
   bend?: number;
 }
@@ -58,21 +64,36 @@ export const SOFT_LINEAR_DENSITY = 0.065;
  */
 export const SOFT_FOOTPRINT = 0.25;
 
+/** Declared: the share of its speed a soft body that declares no damping loses each step of
+ *  `PHYSICS_STEP` (a frame of 60 Hz). */
+const SOFT_STEP_LOSS = 0.01;
+/**
+ * The damping of a soft body that declares none, per second (`dv/dt = −c·v`): the rate that takes
+ * `SOFT_STEP_LOSS` of its speed each step of 60 Hz, `−ln(0.99)·60`, 0.603, whatever its type, mass
+ * or size. The physics module damps each of its five substeps by `1 − c·h`: 0.99 a step to within 2e-5, and the
+ * same share a second at any step. Its swing settles within seconds; it falls at most at `g / c`,
+ * 16.3 m/s.
+ */
+export const SOFT_DAMPING = -Math.log(1 - SOFT_STEP_LOSS) / PHYSICS_STEP;
+
 /** Declared: a volume keeps within a tenth of its rest volume, or its pressure is refused. */
 const SOFT_MAX_SWELL = 0.1;
-/** Jolt's substeps of a soft body per step: `SoftBodyCreationSettings::mNumIterations`, its default. */
+/** The physics module's substeps of a soft body per step: `SoftBodyCreationSettings::mNumIterations`, its default. */
 const SOFT_SUBSTEPS = 5;
 
 /**
- * The most gauge pressure, Pa, a volume's skin holds within `SOFT_MAX_SWELL`. The gas stretches
- * the skin to `P·R / 2` N/m (Laplace, R the radius of a sphere of its area), `1/√3` of which pulls
- * on each edge per metre of its length. An edge gives under it by its compliance: `stretch`, plus
- * the solver's own, `dt² / m` for a substep `dt` and a vertex of `m` kg (XPBD). The stretch it
- * reaches swells the volume by its cube. Measured on spheres of 0.1 to 2 m, 8 to 32 segments,
- * weightless: at this pressure they keep within 8 %, at twice they swell by 10 to 14 %.
+ * The most gauge pressure, Pa, a volume's skin holds within `SOFT_MAX_SWELL`, simulated in fixed
+ * steps of `step` seconds. The gas stretches the skin to `P·R / 2` N/m, R the radius of a sphere
+ * of its area (half the sphere, pressed by `P·πR²`, is held along its rim of `2πR`), `1/√3` of
+ * which pulls on each edge per metre of its length. An edge gives under it by its compliance:
+ * `stretch`, plus the solver's own, `dt² / m` for a substep `dt` and a vertex of `m` kg (how far a
+ * newton moves the vertex within a substep before its edges are projected). The stretch it
+ * reaches swells the volume by its cube. Measured on
+ * spheres of 0.1 to 2 m, 8 to 32 segments, weightless: at this pressure they keep within 8 %, at
+ * twice they swell by 10 to 14 %.
  */
-function heldPressure(vertexMass: number, area: number, stretch: number) {
-  const dt = PHYSICS_STEP / SOFT_SUBSTEPS,
+function heldPressure(vertexMass: number, area: number, stretch: number, step: number) {
+  const dt = step / SOFT_SUBSTEPS,
     radius = Math.sqrt(area / (4 * Math.PI));
   const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * Math.sqrt(3));
   return (Math.cbrt(1 + SOFT_MAX_SWELL) - 1) / give;
@@ -93,6 +114,11 @@ const SOFT_TYPES: readonly string[] = ['cloth', 'rope', 'volume'];
 /** Whether `type` names a soft body. */
 export const isSoftType = (type: unknown): type is SoftBodyType =>
   SOFT_TYPES.includes(type as string);
+
+/** Whether a soft body of `type` is drawn on both faces, whatever side its material declares: a
+ *  cloth is an open sheet, and either face turns to the camera as it folds and falls. A volume is
+ *  closed, its inside never seen; a rope draws no face of its own. */
+export const drawnTwoSided = (type: SoftBodyType | null | undefined) => type === 'cloth';
 
 /** The soft body `option` asks for, read; `null` when it asks for a rigid one. */
 export const softOf = (option: PhysicsOption) =>
@@ -117,9 +143,14 @@ type Scale = { x: number; y: number; z: number };
  * The simulated vertices of `geometry`: those at one position welded into one (a sphere's seam
  * and poles would otherwise tear), their triangles (none for a rope: its vertices in order), and
  * their masses from the scaled area — a rope's length — each holds, or `settings.mass` spread so,
- * and a volume's pressure.
+ * and a volume's pressure, what its skin holds reckoned at `step`, the page's fixed step.
  */
-export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSettings): SoftRecord {
+export function softBodyOf(
+  geometry: Geometry,
+  scale: Scale,
+  settings: SoftSettings,
+  step: number,
+): SoftRecord {
   const source = Float32Array.from(readPoints(geometry.getAttribute('position')));
   const count = source.length / 3;
   const map = new Uint32Array(count);
@@ -148,7 +179,7 @@ export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSetti
   for (let i = 0; i < kept.length; i++) vertices[i * SOFT_VERTEX_WORDS + 3] *= factor;
   const held =
     settings.type === 'volume'
-      ? heldPressure((factor * measure) / kept.length, measure, settings.stretch)
+      ? heldPressure((factor * measure) / kept.length, measure, settings.stretch, step)
       : 0;
   const pressure =
     settings.pressure ?? Math.min((4 * factor * GRAVITY_PRESETS.earth) / SOFT_FOOTPRINT, held);
@@ -164,22 +195,40 @@ export function softBodyOf(geometry: Geometry, scale: Scale, settings: SoftSetti
   return { vertices, indices: Uint32Array.from(indices), map, pressure };
 }
 
+const edgeU = new Float64Array(3),
+  edgeV = new Float64Array(3);
+
 /** Writes in each vertex's mass word the scaled area (no triangle: length) it holds; returns the
- *  whole. */
+ *  whole. Each scaled edge is written into a scratch vector, the cross product into the first:
+ *  the operations of fresh arrays, in their order, with no array made per triangle. */
 function spreadMass(vertices: Float32Array, indices: number[], count: number, s: Scale) {
-  const p = (i: number, k: number) => vertices[i * SOFT_VERTEX_WORDS + k] * [s.x, s.y, s.z][k];
-  const d = (a: number, b: number) => [0, 1, 2].map((k) => p(b, k) - p(a, k));
-  const share = (corners: number[], amount: number) => {
-    for (const i of corners) vertices[i * SOFT_VERTEX_WORDS + 3] += amount / corners.length;
-    return amount;
+  const scale = [s.x, s.y, s.z];
+  /** `out` = the scaled edge from vertex `a` to vertex `b`. */
+  const edge = (out: Float64Array, a: number, b: number) => {
+    for (let k = 0; k < 3; k++)
+      out[k] =
+        vertices[b * SOFT_VERTEX_WORDS + k] * scale[k] -
+        vertices[a * SOFT_VERTEX_WORDS + k] * scale[k];
+    return out;
   };
+  const share = (i: number, amount: number) => (vertices[i * SOFT_VERTEX_WORDS + 3] += amount);
   let whole = 0;
   if (!indices.length)
-    for (let i = 0; i + 1 < count; i++) whole += share([i, i + 1], Math.hypot(...d(i, i + 1)));
+    for (let i = 0; i + 1 < count; i++) {
+      const u = edge(edgeU, i, i + 1),
+        length = hypot3(u[0], u[1], u[2]);
+      share(i, length / 2);
+      share(i + 1, length / 2);
+      whole += length;
+    }
   for (let t = 0; t < indices.length; t += 3) {
     const [a, b, c] = [indices[t], indices[t + 1], indices[t + 2]];
-    const [u, v] = [d(a, b), d(a, c)]; // Fresh arrays: the cross is written into `u`.
-    whole += share([a, b, c], Math.hypot(...crossVector3(u, u, v)) / 2);
+    const n = crossVector3(edgeU, edge(edgeU, a, b), edge(edgeV, a, c)),
+      area = hypot3(n[0], n[1], n[2]) / 2;
+    share(a, area / 3);
+    share(b, area / 3);
+    share(c, area / 3);
+    whole += area;
   }
   if (!(whole > 0)) throw new EngineError('PHYSICS_FAILED', 'A soft body has no area or length.');
   return whole;

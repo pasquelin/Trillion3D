@@ -1,7 +1,6 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
-import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
-import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
+import { PAGE_REQUEST_BATCH } from '../../backend/common.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
 import { createWebglFrameTimer, webglPassSample } from '../../webgl/core/frameTimer.ts';
 import type { RenderBackend } from '../../backend/types.ts';
@@ -28,24 +27,6 @@ type Inputs = {
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active' | 'hostFrame'>;
   compose: ReturnType<typeof createFrameComposer>;
 };
-
-/**
- * Addresses of the ring that nothing holds yet, at most `limite`. The ring carries thousands
- * of addresses and the batch takes a few: the loop stops at a full batch, where a filter of
- * the whole ring built a complete array only to keep its head.
- */
-export function anneauFroid(
-  ring: readonly string[],
-  streamer: Pick<ReturnType<typeof createPageStreamer>, 'has' | 'loading' | 'failed'>,
-  limite: number,
-) {
-  const cold: string[] = [];
-  for (let i = 0; i < ring.length && cold.length < limite; i++) {
-    const url = ring[i];
-    if (!streamer.has(url) && !streamer.loading(url) && !streamer.failed(url)) cold.push(url);
-  }
-  return cold;
-}
 
 /**
  * Addresses that a request already gone will send again later. Same addresses and same add
@@ -105,22 +86,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
             new DOMException('Camera request superseded', 'AbortError'),
           );
         }
-      }
-    } else if (
-      !measuring &&
-      !streaming.promise &&
-      !streaming.queuedFetch.size &&
-      performance.now() - streaming.lastPrefetch > PREFETCH_INTERVAL_MS &&
-      streamer.stats().loading === 0
-    ) {
-      // The network is idle and nothing visible is missing: pull the ring around the cut ahead of the
-      // camera, at a priority any visible request outranks. A second selection pass costs as much as
-      // the first, so it runs on a timer, never on every frame.
-      streaming.lastPrefetch = performance.now();
-      const ring = backend.prefetchUrls?.();
-      if (ring && ring.length) {
-        const cold = anneauFroid(ring, streamer, PREFETCH_BATCH);
-        if (cold.length) streaming.startFetch(cold, PRIORITY_PREFETCH);
       }
     }
     const pendingEnd = performance.now();

@@ -19,10 +19,10 @@ import {
 import { DEFORM_GLSL } from '../../deformation/deformGlsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
-// then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
-// A mesh drawn once keeps its own expression, whose constant w the compiler folds as the
-// reference's does: sharing one with the instanced branch moves its last bit. The position is
-// carried to the fragment negated, toward the eye, as the reference carries it: the compiler
+// then the normal, scaled back by the matrix's axes before it is turned.
+// A mesh drawn once keeps its own expression, whose constant w the compiler folds in its own way:
+// sharing one with the instanced branch moves its last bit. The position is
+// carried to the fragment negated, toward the eye: the compiler
 // rounds a negated product-sum otherwise, and the flat normals its derivatives give move by an ulp.
 // A line surface (`lineWidth` above zero) widens its quads on screen after the projection
 // (`lineClip`, `../../visibility/shader/lineWgsl.ts`), along the direction its normal carries.
@@ -56,14 +56,13 @@ toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 // position and texture coordinate — the WGSL routine of `../../cluster/decodeWgsl.ts`, operation for
 // operation, so the three lighting passes bend a normal map in one frame.
 // A surface declared flat (`flatShaded`) takes the face's normal from the same derivatives of
-// position, as the reference does, already facing the eye: it is never turned for a back face.
+// position, already facing the eye: it is never turned for a back face.
 // A dashed line (`lineDash` above zero) discards its gaps at the distance along the line its
 // first texture coordinate carries (`lineDash`, `../../visibility/shader/lineWgsl.ts`).
 // `surfaceModel` is the surface's `SURFACE_MODEL` rank (`../../scene/surfaceModel.ts`): a matcap
 // reads its image at its normal's coordinate, at the image's full detail as the WebGPU resolve
 // does; a normal or depth surface shows its view normal or the frame's depth ramp.
-// A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one, as the reference's
-// opaque surfaces do (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
+// A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
 // `mipBias`: the texture level offset of an image drawn below the display (`upscaleMipBias`), so a
 // material keeps its texel density at any render scale; zero at the display's size.
 export const CLUSTER_FRAGMENT = `#version 300 es
@@ -103,24 +102,25 @@ ${FOG_GLSL}
 ${LINE_DASH_GLSL}
 // The lights whose range reaches the fragment's grid cell (lightLists.ts), in slot order, on one surface: the engine's
 // only lighting formula, ambient and probe included.
-// In the reference's order of operations, so that a lit view writes its image to the last bit:
+// In a fixed order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
 // a diffuse and a specular sum kept apart; the ambient irradiance, summed once, and the probe's
 // are weighted once, occlusion last; diffuse, then specular. A diffuse or toon surface takes each
 // lamp through modelLight, the WebGPU path's formula: no specular, occlusion on its light too.
+// A surface with no thin subsurface skips its through terms, which are zero: no sum changes.
 vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 diffuse=base*(1.0-metal),f0=mix(vec3(0.04),base,metal);
-vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0),coat=vec3(0.0);${LIGHT_LOOP_GLSL}
+vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0),coat=vec3(0.0);bool thin=any(notEqual(thinSubsurface,vec3(0.0)));${LIGHT_LOOP_GLSL}
 vec4 positionRange=lightRecord(i,0),directionKind=lightRecord(i,1),colorIntensity=lightRecord(i,2),cone=lightRecord(i,3);
 int kind=int(directionKind.w);if(kind==3){irradiance+=colorIntensity.rgb;continue;}
 if(kind==${WEBGL_RECT_KIND}){vec3 rectCoat;direct+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough,ao,rectCoat);coat+=rectCoat;continue;}
 vec3 L,color=colorIntensity.rgb;if(kind==0)L=directionKind.xyz;else{vec3 toLight=positionRange.xyz-viewPosition;L=normalize(toLight);
 if(kind==2){float s=spotFactor(dot(L,directionKind.xyz),cone.x,cone.y);if(s<=0.0)continue;color=color*s;}
 color*=attenuation(length(toLight),positionRange.w,cone.z);}
-direct+=thinSubsurface*max(-dot(N,L),0.0)*INVERSE_PI*color;
+if(thin)direct+=thinSubsurface*max(-dot(N,L),0.0)*INVERSE_PI*color;
 if(surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon}){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}
 if(physicalRead.z>0.0)coat+=physicalRead.z*max(dot(coatNormal,L),0.0)*color*specularLobe(L,V,coatNormal,vec3(0.04),physicalRead.w);
 vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*(physicalRead.x>0.0?anisotropicLobe(L,V,N,f0,rough):specularLobe(L,V,N,f0,rough));direct+=E*(INVERSE_PI*diffuse);}
-vec3 through=(irradiance+probeIrradiance(-N))*thinSubsurface*INVERSE_PI*ao;
+vec3 through=thin?(irradiance+probeIrradiance(-N))*thinSubsurface*INVERSE_PI*ao:vec3(0.0);
 irradiance+=probeIrradiance(N);return through+((direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular)*coatAttenuation(V)+coat;}
 ${SCREEN_REFLECTION_GLSL}
 ${TRANSMISSION_GLSL}

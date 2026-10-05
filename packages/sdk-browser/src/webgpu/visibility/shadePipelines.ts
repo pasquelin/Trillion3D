@@ -1,14 +1,38 @@
 import { shadeLayout } from './shadeLayout.ts';
 import { scoped } from './pipelines.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
+import {
+  preparedPipeline,
+  preparedPipelines,
+  type PreparedPipeline,
+} from '../../lighting/deferred/fullscreen.ts';
 import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts';
-import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 import { shadeTargetFormats } from './shadeTargets.ts';
 import { createMaterialTiles, materialTileDrawLayout } from '../core/materialTiles.ts';
 
-/** Builds the depth export, the class-specialized material pipelines and, for the image's own
- *  resolve, its material tiles (`../core/materialTiles.ts`) during preparation. */
+/** The resolve's class pipelines: one per class key (`../../visibility/shader/materialClass.ts`),
+ *  prepared before the image that draws the class (`PreparedPipeline`), never by it. */
+export type ShadeClasses = {
+  /** The pipeline of class `key`. */
+  of(key: number): PreparedPipeline<GPURenderPipeline>;
+  /** The classes made so far: those of the census, and those asked since. */
+  keys(): Iterable<number>;
+  /** Direct resolve of a one-class image, for the scene's class at preparation — its fragment
+   *  stage rejects the background —; none for another class. Each set holds its own, prepared as
+   *  its classes are and asked with them (`../frame/framePipelines.ts`). */
+  single(key: number): PreparedPipeline<GPURenderPipeline> | undefined;
+  /** The same classes writing the layer, made once — itself when it writes it: what a scene whose
+   *  surface came to emit or occlude switches to once they are compiled
+   *  (`../frame/framePipelines.ts`). */
+  withEmissiveAo(): ShadeClasses;
+};
+
+/** Builds the class-specialized material pipelines and, for the image's own resolve, its material
+ *  tiles (`../core/materialTiles.ts`) during preparation. A class's fragment stage rejects every
+ *  pixel not of its class before any write (`classAdmits`): no depth target sorts them. Without
+ *  `emissiveAo`, the emission-and-occlusion target is left empty and its mark never set
+ *  (`EMISSIVE_AO`, `../../scene/surfaceEmission.ts`). The census's classes compile here, together;
+ *  one a material changed into since is asked before the image that draws it. */
 export function createWebgpuShadePipelines(
   device: GPUDevice,
   shadeModule: GPUShaderModule,
@@ -16,27 +40,30 @@ export function createWebgpuShadePipelines(
   variant?: DiagnosticGpuVariant,
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
+  emissiveAo = true,
+  /** What the frame's cache holds for the pixels to read (`./shadeCache.ts`); none, each composes. */
+  cached: Readonly<Record<string, number>> = {},
 ) {
   const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device);
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
-  // A class drawn under the material depth draws its tiles only (`materialTiles.ts`).
+  // A class draws its tiles only (`materialTiles.ts`).
   const tileDrawLayout = materialTileDrawLayout(device);
   const tileLayout = device.createPipelineLayout({
     bindGroupLayouts: [shadeBindGroupLayout, tileDrawLayout],
   });
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
-  const classDepth: GPUDepthStencilState = {
-    format: MATERIAL_DEPTH_FORMAT,
-    depthWriteEnabled: false,
-    depthCompare: 'equal',
-  };
   const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback';
-  /** Class features and depth derive from the key; a single class rejects background itself,
-   *  full screen, and every other draws the tiles its pixels are in. */
-  const shadeDescriptor = (key: number, single: boolean): GPURenderPipelineDescriptor => {
+  /** Class features derive from the key; a single class draws full screen, every other the tiles
+   *  its pixels are in. */
+  const shadeDescriptor = (
+    key: number,
+    single: boolean,
+    layer: boolean,
+  ): GPURenderPipelineDescriptor => {
     const constants: Record<string, number> = single
-      ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
-      : { CLASS_KEY: key };
+      ? { ...cached, CLASS_KEY: key, SINGLE_CLASS: 1 }
+      : { ...cached, CLASS_KEY: key };
+    if (!layer) constants.EMISSIVE_AO = 0;
     return {
       layout: single ? layout : tileLayout,
       vertex: {
@@ -49,39 +76,40 @@ export function createWebgpuShadePipelines(
         entryPoint,
         constants,
         // The surfaces, then the tile request the image's feedback target receives.
-        targets: shadeTargetFormats(feedback).map((format) => ({ format })),
+        targets: shadeTargetFormats(feedback).map((format, at) =>
+          at === 2 && !layer ? null : { format },
+        ),
       },
       primitive,
-      depthStencil: single ? undefined : classDepth,
     };
   };
-  // A class a frame meets later compiles at once; those of the scene compile here, together.
-  const shadePipelineFor = (key: number) =>
-    device.createRenderPipeline(shadeDescriptor(key, false));
-  const single = classes.length === 1 && !variesShade(variant);
-  return scoped(device, async () => {
-    const [materialDepthPipeline, singlePipeline, shaded, materialTiles] = await Promise.all([
-      buildRenderPipeline(device, {
-        layout,
-        vertex: { module: shadeModule, entryPoint: 'shade_vs' },
-        fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
-        primitive,
-        depthStencil: { ...classDepth, depthWriteEnabled: true, depthCompare: 'always' },
-      }),
-      single ? buildRenderPipeline(device, shadeDescriptor(classes[0], true)) : undefined,
-      Promise.all(classes.map((key) => buildRenderPipeline(device, shadeDescriptor(key, false)))),
-      // The image's own resolve classifies its tiles; a diagnostic twin draws on those lists.
-      feedback ? createMaterialTiles(device, tileDrawLayout) : undefined,
-    ]);
-    const singleShadePipelines = new Map<number, GPURenderPipeline>();
-    if (singlePipeline) singleShadePipelines.set(classes[0], singlePipeline);
-    return {
-      shadeBindGroupLayout,
-      materialTiles,
-      materialDepthPipeline,
-      shadePipelineFor,
-      shadePipelines: new Map(classes.map((key, at) => [key, shaded[at]])),
-      singleShadePipelines,
+  const classSet = (layer: boolean, singleKey: number | undefined): ShadeClasses => {
+    const set = preparedPipelines((key: number) =>
+      preparedPipeline(device, shadeDescriptor(key, false, layer)),
+    );
+    const direct =
+      singleKey === undefined
+        ? undefined
+        : preparedPipeline(device, shadeDescriptor(singleKey, true, layer));
+    let layered: ShadeClasses | undefined;
+    const shade: ShadeClasses = {
+      ...set,
+      single: (key) => (key === singleKey ? direct : undefined),
+      withEmissiveAo: () => (layer ? shade : (layered ??= classSet(true, singleKey))),
     };
+    return shade;
+  };
+  const singleKey = classes.length === 1 && !variesShade(variant) ? classes[0] : undefined;
+  return scoped(device, async () => {
+    const shadeClasses = classSet(emissiveAo, singleKey);
+    const [materialTiles] = await Promise.all([
+      // The scene's resolve classifies its tiles; a set built beside it on its layout — the
+      // feedback A/B's arm, the other feedback variant (`../pages/prepare/feedbackVariant.ts`) —
+      // draws on those lists.
+      sharedLayout ? undefined : createMaterialTiles(device, tileDrawLayout),
+      singleKey === undefined ? undefined : shadeClasses.single(singleKey)!.prepare(),
+      Promise.all(classes.map((key) => shadeClasses.of(key).prepare())),
+    ]);
+    return { shadeBindGroupLayout, materialTiles, shadeClasses };
   });
 }

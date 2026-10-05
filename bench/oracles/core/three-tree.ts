@@ -1,6 +1,6 @@
 // One scene tree on each side for the tree benches: N nodes under the root, every node under a
 // random earlier node, poses drawn once. A fresh engine tree numbers its nodes in insertion
-// order, so node `i` is `objects[i]` and the engine's world buffer compares flat to Three's.
+// order, so node `i` is `objects[i]` and the engine's world block compares flat to the witness's.
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
@@ -32,7 +32,8 @@ export function buildTrees(n = N) {
     setNodeQuaternion(tree, node, q.x, q.y, q.z, q.w);
     setNodeScale(tree, node, o.scale.x, o.scale.y, o.scale.z);
   }
-  const worlds = tree.world.subarray(0, objects.length * 16),
+  // The tree was made for every node at once: their world matrices share its first block.
+  const worlds = new Float64Array(tree.worldViews[0].buffer, 0, objects.length * 16),
     worldsThree = new Float64Array(objects.length * 16);
   const oracle = () =>
     flatOf(

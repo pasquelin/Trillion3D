@@ -10,8 +10,11 @@ import { f16 } from '../effects/bloom.fixture.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts';
 import { UNLIT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
-import { shadowDemandWgsl } from '../webgpu/shadow/demandWgsl.ts';
-import { EMISSIVE_AO_FLAG_WGSL, SURFACE_EMISSIVE_AO_WGSL } from './surfaceEmission.ts';
+import {
+  EMISSIVE_AO_FLAG_WGSL,
+  SURFACE_EMISSIVE_AO_WGSL,
+  surfaceEmitsOrOccludes,
+} from './surfaceEmission.ts';
 import {
   EMISSIVE_AO_SURFACE_FLAG,
   FOG_FREE_SURFACE_FLAG,
@@ -23,10 +26,18 @@ type Texel = number[];
 const EDGES = [0, -0, 1e-9, 2 ** -24, 6e-5, 0.5, 1, 1 + 2 ** -12, 65504, 7e4, Infinity, -1, NaN];
 const AOS = [1, 1 - 2 ** -13, 1 + 2 ** -12, 0.999, 0.5, 0, -0, NaN, Infinity];
 
+/** The shipped writer, with the layer (`EMISSIVE_AO`) or without. */
+const flagOf = (layer: boolean) =>
+  shaderRun<{ emissiveAoFlag: (e: number[], a: number) => number }>(
+    EMISSIVE_AO_FLAG_WGSL,
+    ['emissiveAoFlag'],
+    { EMISSIVE_AO: layer },
+  ).emissiveAoFlag;
+
 /** The shipped pair, the target's texel given to the reader. */
 function roundTrip(emissive: number[], ao: number, flag: number) {
   const texel: Texel = [...emissive, ao].map(f16);
-  const scope = { emissiveAo: texel, textureLoad: (t: Texel) => t };
+  const scope = { emissiveAo: texel, textureLoad: (t: Texel) => t, EMISSIVE_AO: true };
   const { emissiveAoFlag } = shaderRun<{ emissiveAoFlag: (e: number[], a: number) => number }>(
     EMISSIVE_AO_FLAG_WGSL,
     ['emissiveAoFlag'],
@@ -80,11 +91,43 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
   }
 });
 
-test('the shadow demand reads the model under the bit: an unlit surface that emits asks nothing', () => {
-  const mask = Number(
-    /let flag=textureLoad\(flags,coord,0\)\.r&(\d+)u;/.exec(shadowDemandWgsl())?.[1],
+// S8: an image none of whose surfaces can mark a texel has no layer: its writer is compiled with
+// `EMISSIVE_AO` false, its readers bind a 1×1 stand-in and never load it.
+test('a surface the prudent census calls dark marks no texel; without the layer none is marked', () => {
+  const marks = flagOf(true),
+    none = flagOf(false);
+  let dark = 0;
+  for (const e of EDGES)
+    for (const intensity of [...AOS, -1, 1e39, -Infinity])
+      for (const emissive of [
+        [e, 0, 0],
+        [0, 0, e],
+        [e, e, e],
+      ]) {
+        // No map: the resolve writes the factor as emission and `1 + intensity × (1 - 1)`, in f32.
+        const ao = Math.fround(1 + Math.fround(Math.fround(intensity) * 0)),
+          written = marks(emissive.map(Math.fround), ao);
+        const census = { emissive: emissive as [number, number, number], aoIntensity: intensity };
+        if (!surfaceEmitsOrOccludes(census)) {
+          dark++;
+          assert.equal(written, 0, `emission ${emissive}, intensity ${intensity}`);
+        }
+        assert.equal(none(emissive, ao), 0, 'without the layer, no mark');
+      }
+  assert.ok(dark > 0);
+  const texture = {} as never;
+  assert.ok(surfaceEmitsOrOccludes({ emissive: [0, 0, 0], aoIntensity: 1, emissiveMap: texture }));
+  assert.ok(surfaceEmitsOrOccludes({ emissive: [0, 0, 0], aoIntensity: 1, aoMap: texture }));
+  assert.ok(surfaceEmitsOrOccludes({ emissive: [-0, 0, 0], aoIntensity: 1 }), 'negative zero');
+  assert.ok(!surfaceEmitsOrOccludes({ emissive: [0, 0, 0], aoIntensity: 0.3 }));
+  // Unmarked, a reader never loads the stand-in: it takes the constant the layer would hold.
+  const { surfaceEmissiveAo } = shaderRun<{ surfaceEmissiveAo: (c: number[], f: number) => Texel }>(
+    SURFACE_EMISSIVE_AO_WGSL,
+    ['surfaceEmissiveAo'],
+    {
+      emissiveAo: {},
+      textureLoad: () => assert.fail('the 1×1 stand-in is read'),
+    },
   );
-  assert.equal(mask, SURFACE_MODEL_MASK, 'the model bits alone, as the resolve reads them');
-  assert.equal((1 | EMISSIVE_AO_SURFACE_FLAG) & mask, 1, 'an unlit emissive pixel stays unlit');
-  assert.equal((2 | EMISSIVE_AO_SURFACE_FLAG | SUBSURFACE_FLAG) & mask, 2);
+  assert.deepEqual(surfaceEmissiveAo([30, 20], 2 | FOG_FREE_SURFACE_FLAG), [0, 0, 0, 1]);
 });

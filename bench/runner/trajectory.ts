@@ -121,7 +121,6 @@ async function main() {
         }
         const payload = measurePayload(
           side,
-          'trajectory',
           settings.pixelErrors[0],
           poses[0],
           poses,

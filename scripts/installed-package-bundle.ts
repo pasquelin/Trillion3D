@@ -55,6 +55,7 @@ export function emitInstalledBrowserBundle({
   const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode');
   const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration');
   const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics');
+  const mathRoot = join(packageRoot, 'dist/sdk-browser/src/math');
   const explorer = join(fixture, 'explorer.ts');
   const metafile = join(outputRoot, 'metafile.json');
   mkdirSync(outputRoot, { recursive: true });
@@ -70,6 +71,7 @@ export function emitInstalledBrowserBundle({
       join(decodeRoot, 'pageDecodeWorker.js'),
       join(integrationRoot, 'pageIntegrationWorker.js'),
       join(physicsRoot, 'physicsWorker.js'),
+      join(mathRoot, 'animationWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
@@ -104,6 +106,7 @@ export function emitInstalledBrowserBundle({
     'pageDecodeWorker.js',
     'pageIntegrationWorker.js',
     'physicsWorker.js',
+    'animationWorker.js',
   ];
   for (const required of entries)
     if (!assets.some(({ path }) => path === required))

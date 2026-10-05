@@ -34,7 +34,15 @@ function requiredDirection(value: unknown, id: string, why: string): [number, nu
 /** A field a light type does not use is rejected, never accepted then ignored. */
 function unused(
   light: SceneLight,
-  field: 'position' | 'range' | 'coneAngle' | 'emitterRadius' | 'penumbra' | 'right' | 'size',
+  field:
+    | 'position'
+    | 'range'
+    | 'coneAngle'
+    | 'emitterRadius'
+    | 'angularRadius'
+    | 'penumbra'
+    | 'right'
+    | 'size',
   why: string,
 ) {
   if (light[field] !== undefined)
@@ -100,6 +108,17 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     unused(light, 'size', 'exists only for a rect');
   }
   if (light.kind === 'directional') {
+    if (light.angularRadius !== undefined) {
+      if (
+        !finite(light.angularRadius) ||
+        light.angularRadius < 0 ||
+        light.angularRadius >= Math.PI / 2
+      )
+        throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
+          angularRadius: light.angularRadius,
+        });
+      validated.angularRadius = light.angularRadius;
+    }
     unused(light, 'position', 'does not exist for a directional light');
     unused(light, 'range', 'does not exist for a directional light: it carries everywhere');
     unused(light, 'coneAngle', 'exists only for a spot');
@@ -112,6 +131,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     );
     return validated;
   }
+  unused(light, 'angularRadius', 'exists only for a directional light');
   validated.position = vector(light.position, 'position', id);
   validated.range = range(light.range, id);
   if (light.emitterRadius !== undefined)

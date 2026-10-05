@@ -1,7 +1,6 @@
-import { hizFootprintFarFlat, hizOccluded } from '../../../sdk-core/src/index.ts';
-import { HIZ_BOUNDS_VALUES } from './corners.ts';
+import { hizHides } from './hides.ts';
 import { HIZ_KERNEL_TEXELS } from './counts.ts';
-import type { HizBounds, HizPyramid } from './types.ts';
+import type { HizPyramid } from './types.ts';
 
 // The test kernel is a power of two: `premierNiveau` depends on that to bound the search.
 const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS);
@@ -128,24 +127,14 @@ export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: 
     )
   )
     return false;
-  const far = hizFootprintFarFlat(
+  return hizHides(
     pyramid,
+    rejectScratch[0],
     rejectScratch[1],
     rejectScratch[2],
-    rejectScratch[3] + 1,
-    rejectScratch[4] + 1,
-    rejectScratch[0],
+    rejectScratch[3],
+    rejectScratch[4],
+    bounds[base + 4],
+    bias,
   );
-  return hizOccluded(bounds[base + 4], far, bias);
-}
-
-const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
-export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
-  boundsScratch[0] = bounds.minX;
-  boundsScratch[1] = bounds.minY;
-  boundsScratch[2] = bounds.maxX;
-  boundsScratch[3] = bounds.maxY;
-  boundsScratch[4] = bounds.nearestDepth;
-  boundsScratch[5] = bounds.clipsNear ? 1 : 0;
-  return hizRejectsFlat(pyramid, boundsScratch, 0, bias);
 }

@@ -259,6 +259,16 @@
       "file": "examples/the-material-family.html"
     },
     {
+      "id": "page-materials",
+      "theme": "materials",
+      "file": "examples/page-materials.html"
+    },
+    {
+      "id": "a-bust-a-crate-and-a-glass-ball",
+      "theme": "materials",
+      "file": "examples/a-bust-a-crate-and-a-glass-ball.html"
+    },
+    {
       "id": "a-texture-turned-and-tiled",
       "theme": "materials",
       "file": "examples/a-texture-turned-and-tiled.html"
@@ -1325,6 +1335,11 @@
       "id": "a-glow-around-lights",
       "theme": "effects",
       "file": "examples/a-glow-around-lights.html"
+    },
+    {
+      "id": "choose-your-quality",
+      "theme": "effects",
+      "file": "examples/choose-your-quality.html"
     },
     {
       "id": "glow-on-chosen-objects",

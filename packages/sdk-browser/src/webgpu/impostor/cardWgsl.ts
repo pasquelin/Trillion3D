@@ -27,9 +27,10 @@ const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20;
  */
 export const cardPassWgsl = () => `
 struct CardView{viewProj:mat4x4f,eye:vec4f}
-/** \`shape\`: object radius, frames a side, hemi (0 or 1), the mip level. \`pivot\`: object-space
- *  bounding-sphere centre. */
-struct Card{corners:array<vec4f,4>,world:mat4x4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f}
+/** \`toClip\`: the view-projection times the world, composed in double on the CPU
+ *  (\`composeCardWorlds\`). \`shape\`: object radius, frames a side, hemi (0 or 1), the mip level.
+ *  \`pivot\`: object-space bounding-sphere centre. */
+struct Card{corners:array<vec4f,4>,toClip:mat4x4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f}
 @group(0) @binding(0) var<uniform> view:CardView;
 @group(0) @binding(1) var<storage,read> cards:array<Card>;
 @group(1) @binding(0) var impostorColour:texture_2d<f32>;
@@ -71,7 +72,7 @@ fn cardPixel(in:CardVary)->CardPixel{
   impTap(in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod),in.weightsLod.xyz,lod);
  if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let c=cards[in.card];
- let clip=view.viewProj*(c.world*vec4f(b.point+c.pivot.xyz,1.0));
+ let clip=c.toClip*vec4f(b.point+c.pivot.xyz,1.0);
  return CardPixel(b,clip.z/clip.w);
 }
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}

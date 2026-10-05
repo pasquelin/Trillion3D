@@ -1,17 +1,12 @@
-// Batch F oracles, frame side: `packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts:93-98`, `packages/sdk-browser/src/backend/autonomous/instances.ts:76-86`,
-// and `packages/sdk-browser/src/world/render/draw.ts:72-74` from before batch F, copied as-is.
-import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
+// Batch F oracles, frame side: `packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts:93-98`
+// from before batch F, copied as-is; the instance displacement rewritten from its contract after #1226/#1235 moved poses to the roots.
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
-import { createPageStreamer } from '../../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 
-/** A page or root as the instance oracle mutates it: only `matrix`/`mesh`/`world` are read or
- *  written, never the rest of `PageRec`/`ClusterRoot`. */
-interface InstancePage {
-  matrix: Matrix4;
-  mesh?: { matrix: Matrix4 };
-}
+/** A root as the instance oracle reads it: its world, and the pages it places. */
 interface InstanceRoot {
   world: Matrix4;
+  pages: { mesh?: { matrix: Matrix4 } }[];
 }
 
 /** Colour attachments, rebuilt per frame before batch F. */
@@ -24,31 +19,20 @@ export function referenceAttachments(surfaces: SurfaceBuffer) {
   }));
 }
 
-/** Instance displacement before batch F: one hash table per call. */
+/**
+ * Instance displacement since #1226/#1235: each root's world becomes `transform · base world`, and
+ * the host mesh of each page it places wears that world — a page carries no pose of its own
+ * (`instancePose.ts`). `transform` is the engine's sixteen doubles.
+ */
 export function referenceUpdateInstance(
-  instance: { pages: InstancePage[]; roots: InstanceRoot[] },
-  basePages: InstancePage[],
-  baseRoots: InstanceRoot[],
-  transform: Matrix4,
+  instance: { roots: InstanceRoot[] },
+  baseRoots: { world: Matrix4 }[],
+  transform: Float64Array,
 ) {
-  const mapped = new Map(basePages.map((base, i) => [instance.pages[i], base]));
-  for (let i = 0; i < instance.roots.length; i++)
-    instance.roots[i].world.copy(transform).multiply(baseRoots[i].world);
-  for (const rec of instance.pages) {
-    const base = mapped.get(rec);
-    if (!base) continue;
-    rec.matrix.copy(transform).multiply(base.matrix);
-    if (rec.mesh) rec.mesh.matrix.copy(rec.matrix);
+  const placement = new Matrix4().fromArray(transform);
+  for (let i = 0; i < instance.roots.length; i++) {
+    const root = instance.roots[i];
+    root.world.copy(placement).multiply(baseRoots[i].world);
+    for (const page of root.pages) if (page.mesh) page.mesh.matrix.copy(root.world);
   }
-}
-
-/** The cold ring before batch F: the whole ring filtered, then its head kept. */
-export function referenceAnneauFroid(
-  ring: readonly string[],
-  streamer: Pick<ReturnType<typeof createPageStreamer>, 'has' | 'loading' | 'failed'>,
-  limite: number,
-) {
-  return ring
-    .filter((url) => !streamer.has(url) && !streamer.loading(url) && !streamer.failed(url))
-    .slice(0, limite);
 }

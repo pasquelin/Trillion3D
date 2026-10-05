@@ -7,7 +7,7 @@ import { Scene } from '../../world/core/scene.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createSceneDraw, keptClusterScene } from './sceneDraw.ts';
+import { createSceneDraw } from './sceneDraw.ts';
 import { WebglClusterLights } from './lights.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
 import { CELL_MARGIN } from './lightGrid.ts';
 import { evaluated, lightFrames, pointLamp, sent, triangle } from './lightGrid.fixture.ts';
+import { keptClusterScene } from '../../../../../bench/witnesses/exact/keptClusterScene.ts';
 
 // #835: WebGL2 draws every lamp of a scene, from a light texture grown with the count, and each
 // fragment evaluates only the lamps whose range reaches its cell of the light grid — the lamps

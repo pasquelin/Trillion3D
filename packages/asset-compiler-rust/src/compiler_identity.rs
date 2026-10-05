@@ -105,7 +105,7 @@ mod tests {
 
     // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
     // compiler's own, so a codec edit moves the key (#558). So does the cargo configuration, whose
-    // C++ flags change what meshoptimizer simplifies to (#415). Read from the list the build hashed.
+    // C++ flags change what the simplifier simplifies to (#415). Read from the list the build hashed.
     #[test]
     fn the_build_hashes_the_page_codec_and_the_cpp_flags() {
         let inputs: Vec<&str> =

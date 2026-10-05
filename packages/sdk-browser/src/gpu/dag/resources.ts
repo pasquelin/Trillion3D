@@ -7,6 +7,9 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 import { cameraCutBuffers, makeDagBuffer, type DagBufferRow } from './bufferTable.ts';
 import { writeParts, type DagParts } from './split.ts';
 import { createDagList, initialListCap } from './listCap.ts';
+import { createDagArm } from './arm.ts';
+import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts';
+import { validated } from '../core/errorScope.ts';
 
 export async function createDagResources(
   device: GPUDevice,
@@ -21,20 +24,17 @@ export async function createDagResources(
   // The compacted drawable-page list extends the snapshot: a header, then the ranks. One
   // contiguous copy reports both. Each is bounded by the CEILING and not by the catalogue: that
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
-  // measured by `tests/browser/probes/cut-snapshot-gpu.ts`); a cut that keeps more grows it
+  // measured by `tests/gpu/dag/cut-snapshot.gpu.ts`); a cut that keeps more grows it
   // (`listCap.ts`).
   // The buffers, the kernel's block count and the layout of `work`, one table with the device
-  // check (`bufferTable.ts`): two counters live behind the blocks in `work`, and only the byte
-  // offsets a copy to the dispatch argument asks for are taken here.
-  const { blockCount, workLayout, rows, parts, split } = cameraCutBuffers(packed, device.limits),
-    liveGroupsOffset = workLayout.liveGroups * 4,
-    candGroupsOffset = workLayout.candGroups * 4,
-    drawnGroupsOffset = workLayout.drawnGroups * 4;
+  // check (`bufferTable.ts`): the list counters live behind the blocks in `work`, where the arming
+  // kernel reads them (`arm.ts`).
+  const { blockCount, workLayout, rows, parts, split } = cameraCutBuffers(packed, device.limits);
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
-  /** A buffer of this cut's, or of its light cut's: the runtime's dispose destroys them all. */
+  /** A buffer of this cut's: the runtime's dispose destroys them all. */
   const own = (descriptor: GPUBufferDescriptor) => {
     const buffer = device.createBuffer(descriptor);
     buffers.push(buffer);
@@ -58,21 +58,27 @@ export async function createDagResources(
     // mask lies in one (`split.ts`).
     const flagParts = make(parts.flags),
       [flags] = flagParts;
-    // Three argument words, of which the last is one once and for all: x and y are copied, once
-    // per indirect dispatch (`shader/gridWgsl.ts`). Passes following each other, one buffer is
-    // enough.
+    // One argument record per list without a bound, z one once and for all: x and y are armed
+    // in the pass by the arming kernel, the only one that binds this buffer (`shader/armWgsl.ts`).
     const dispatchArgs = own({
-      size: 16,
-      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+      size: DAG_ARGS_INITIAL.byteLength,
+      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
+    device.queue.writeBuffer(dispatchArgs, 0, DAG_ARGS_INITIAL);
     const list = createDagList(own, listCap, residentCut);
-    // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
-    // dispatch argument, hence the copy source.
+    // No extra storage buffer in the selection's group, a stage's ceiling is already reached: the
+    // arming kernel reads the list counts here through its own group.
     const work = makeDagBuffer(own, rows.work);
     const coldBuffers = make(parts.pageCones),
       [pageCones] = coldBuffers;
-    const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
+    const frames = createCameraFrames(
+      device,
+      frameData,
+      worldCount,
+      own,
+      packed.worlds,
+      packed.worldSources,
+    );
     const group = {
       clusters,
       nodes,
@@ -88,8 +94,13 @@ export async function createDagResources(
         flags: flagParts.slice(1),
       },
     };
+    // One validation scope after the other: the device's scopes are one stack, and two built
+    // together would each pop the other's.
     const pipeline = await createDagPipeline(device, group, frames, split);
-    if (!pipeline) {
+    const arm =
+      pipeline &&
+      (await validated(device, () => createDagArm(device, work, dispatchArgs, workLayout)));
+    if (!pipeline || !arm) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }
@@ -125,13 +136,8 @@ export async function createDagResources(
       blockCount,
       ...list,
       levelSizes: packed.levelSizes,
-      liveGroupsOffset,
-      candGroupsOffset,
-      drawnGroupsOffset,
       uniformData,
       frameData,
-      /** Writes into \`frames\`: a light cut copies its per-primitive words again when this moves. */
-      frameWrites: { count: 0 },
       buffers,
       own,
       group,
@@ -149,6 +155,7 @@ export async function createDagResources(
       nodeParts,
       coldParts,
       ...pipeline,
+      ...arm,
     };
   } catch {
     for (const buffer of buffers)

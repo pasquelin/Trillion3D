@@ -1,15 +1,10 @@
 //! Alembic scene driver: a static-geometry `.abc` becomes an intermediate glTF scene.
 //!
-//! **Provenance and licence, written here as in `docs/COMPILER.md` § "Input formats".** The reader is written in this
-//! repository from Alembic's public specification and its reference sources, under the
-//! BSD-3-Clause licence (Sony Pictures Imageworks, Lucasfilm): Ogawa container, metadata, objects,
-//! compound properties, scalars and arrays, samples. No library is added to the repository for
-//! this format, no vendor code or SDK is reused, nothing is deciphered or circumvented. The only
-//! public Rust crate candidate, `ogawa-rs` 0.4.0 (MIT OR Apache-2.0), was evaluated and rejected:
-//! it panics on a data type this corpus carries — the boolean of an `.inherits` —, indexes its
-//! groups unbounded, and ceilings no allocation, where this repository requires a corrupted file
-//! to yield a named refusal. The licence of the imported content remains that of its author: this
-//! driver neither grants nor withdraws any.
+//! **Reader.** Written in this repository, with no library: Ogawa container, metadata, objects,
+//! compound properties, scalars and arrays, samples. Every length is bounded and every index is
+//! checked, so that a corrupted file yields a named refusal instead of a panic or an unbounded
+//! allocation. The licence of the imported content remains that of its author: this driver
+//! neither grants nor withdraws any.
 //!
 //! **What it reads.** The `Xform` hierarchy — first sample, composed operation stack, declared
 //! inheritance —, `PolyMesh` — positions, faces, normals and texture coordinates, whatever their

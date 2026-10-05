@@ -1,7 +1,7 @@
 /**
  * The one boundary that reads a host material and a host texture.
  *
- * What comes out is the engine's own records — `Texture` of `sdk-core/textureContract.ts` and the
+ * What comes out is the engine's own records — `Texture` of `../../../sdk-core/src/texture/contract.ts` and the
  * `VisMaterial` of `../visibility/types.ts`, colours, factors, addressing and filtering in the engine's
  * words. Everything downstream — the page row, the tile pools, the transparent items, the software
  * raster — computes on those and never reaches back to the host object.

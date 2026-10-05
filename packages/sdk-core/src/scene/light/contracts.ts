@@ -39,6 +39,8 @@ export interface SceneLight {
    * surfaces. Strictly positive and strictly less than the range; if absent, nothing changes.
    */
   emitterRadius?: number;
+  /** Directional only: source disk angular radius in radians; absent is an ideal point source. */
+  angularRadius?: number;
   /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
   right?: [number, number, number];
   /** Rect only: its width and height, in metres. */
@@ -64,6 +66,8 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
  * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
  */
 export const LIGHT_SETTINGS = {
+  /** Angular radius of the solar disk in radians; zero explicitly requests hard shadows. */
+  sunAngularRadius: (0.5357 * Math.PI) / 360,
   /**
    * The longest list of a cell of the light grid a MOVING image draws from (X2): past it, the
    * cell's lights are summed in full. A scene of at most this many lights resolves with a light
@@ -86,13 +90,6 @@ export const LIGHT_SETTINGS = {
    */
   samplesPerPixel: 4,
   /**
-   * Shadow pages one GPU batch draws: the size of the per-batch buffers. A frame draws the pages it
-   * marks in as many batches as that takes, up to its static fill, a thirty-second of the pool a
-   * frame (`shadowPagesPerFrame`); the rest are drawn over the next frames, read meanwhile at the
-   * coarser level.
-   */
-  shadowPagesPerBatch: 24,
-  /**
    * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
    * invalidation. A moving object only stales the pages its projected box covers.
    */
@@ -104,12 +101,21 @@ export const LIGHT_SETTINGS = {
   shadowRequestCap: 4096,
   /** PCF taps per pixel and per shadow light (X2). */
   pcfTaps: 16,
+  /**
+   * How a blended surface and the water read a light's virtual shadow map: 0, one point lookup;
+   * 1, sixteen filtered taps a texel apart, each texel with its own receiver-plane bias and its
+   * own translucent-caster transmission; 2, shadow-map rays from a short screen offset, at the
+   * opaque projection's ray counts, with a dither. A word of the shadow maps' uniform block the
+   * shaders branch on (`writeVsmUniforms`): changing it recompiles nothing, and a mode left
+   * unused costs nothing but its code. The opaque surfaces read their projected mask in every mode.
+   */
+  translucentShadowFilter: 1 as 0 | 1 | 2,
   /** Width of the softened edge of a spot cone, in cosine units: against staircasing. */
   spotEdgeSoftness: 0.02,
   /**
    * Clipmap levels of a directional light. Level `L` has texels of `2^L` metres, and a pixel
    * reads the level whose texel is at most its own footprint: sixteen levels cover a far/near
-   * ratio of 2^15. Beyond the last level, the far shadow takes over.
+   * ratio of 2^15.
    */
   sunLevels: 16,
   /**
@@ -119,21 +125,6 @@ export const LIGHT_SETTINGS = {
    * outer pixels read the next level, at half the density.
    */
   sunLevelPages: 64,
-  /**
-   * Offset of the far-shadow ray origin along the normal, in metres. It only
-   * serves to leave the lit surface's plane; the real remedy against self-shadowing is the
-   * start along the ray, below.
-   */
-  sunFarShadowOffsetMetres: 0.05,
-  /**
-   * Start of the far-shadow ray along its own direction, in proxy cells. The lit
-   * point comes from the fine geometry, the occluder from the coarse proxy: where the proxy
-   * sits above the real surface, a ray started at zero would hit the surface it lights.
-   * A proxy cell is the scale below which the proxy says nothing; starting from there
-   * skips that false contact without inventing a shadow. The consequence is named: an occluder
-   * closer than one cell along the ray carries no far shadow, and that one stays with the clipmap levels.
-   */
-  sunFarShadowStartCells: 1,
   /** Near plane of a slice: a fraction of the range, never less than this floor. */
   shadowNearFraction: 1 / 200,
   /** Nearest shadow distance. */ shadowNearMin: 0.05,
@@ -163,9 +154,6 @@ export const SCENE_LIGHT_HEADER_FLOATS = 4;
  *  @property point - A bulb. @property spot - A torch. @property directional - The sun.
  *  @property rect - A glowing rectangle. */
 export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const;
-/** Axis of a light that has one — spot, directional, rect —, normalised by the contract, which
- *  rejects a light of those kinds without one: reading it here assumes nothing more. */
-export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {
   /** Where the viewpoint stands. */ position: readonly [number, number, number];

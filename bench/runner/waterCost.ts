@@ -1,18 +1,17 @@
 // #232 prerequisite, run by the recette only. Output is raw evidence, never an optimization verdict.
-import { waterCostBundle } from './waterCostBundle.ts';
+import { waterCostRun } from './waterCostRun.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { dansPageWebgpu } from '../../tests/browser/probes/pageWebgpu.ts';
+import { runOnDawn } from '../../tests/gpu/kit/onDawn.ts';
+import { takeBenchLock } from '../dawn/lock.ts';
 import { machineLoad } from './summary.ts';
-import type { run, WaterCostOptions } from '../../tests/browser/support/waterCostPage.ts';
+import type { run, WaterCostOptions } from '../../tests/gpu/water/waterCostPage.ts';
 
 type Reading = Awaited<ReturnType<typeof run>>;
-declare global {
-  var waterCost: { run(options: WaterCostOptions): Promise<Reading> };
-}
+
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const { values } = parseArgs({
   options: {
@@ -42,6 +41,7 @@ if (
   throw new Error('Output must be a child of .mesure/out');
 const git = (cwd: string, ...args: string[]) =>
   execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+takeBenchLock('water cost');
 const engineRoots = [
   engineRoot,
   ...(values['compare-engine-root'] ? [resolve(values['compare-engine-root'])] : []),
@@ -51,7 +51,7 @@ const engines = await Promise.all(
     path,
     commit: git(path, 'rev-parse', 'HEAD'),
     dirty: git(path, 'status', '--porcelain'),
-    script: await waterCostBundle(root, path),
+    run: await waterCostRun(root, path),
   })),
 );
 // One control pair per repeat: baseline on/off, or visible water on two engine revisions.
@@ -82,7 +82,7 @@ const report = {
       : 'Total water contribution: resident tile visible versus parked, not fullscreen overhead alone',
   sampling:
     'Serialized frames; earliest-to-latest GPU envelope and submitted spans reported separately; same-clear-colour redraw',
-  displayMode: 'headless',
+  displayMode: 'dawn-node',
   displayCapHz: null,
   engines: engines.map(({ path, commit, dirty }) => ({ path, commit, dirty })),
   fixtureCommit: git(root, 'rev-parse', 'HEAD'),
@@ -104,14 +104,10 @@ try {
         for (const { engine, enabled } of repeat % 2 ? [...controls].reverse() : controls) {
           const options = { fraction, moving, enabled, frames, warmup };
           const pageErrors: string[] = [];
-          const reading = await dansPageWebgpu(
-            (o: WaterCostOptions) => globalThis.waterCost.run(o),
+          const reading = await runOnDawn(
+            (o: WaterCostOptions) => engines[engine].run(o),
             options,
-            {
-              titre: 'Water cost #232',
-              script: engines[engine].script,
-              erreursPage: pageErrors,
-            },
+            pageErrors,
           );
           errors.push(...pageErrors);
           rows.push({

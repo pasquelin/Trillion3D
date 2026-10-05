@@ -1,91 +1,80 @@
-// placements.ts: the world matrices the ENGINE holds for the drawn nodes. The pose is
-// a VIEW on the engine transform tree's own world buffer — no host-library matrix, and nothing
-// copied per pass — and its sixteen numbers are compared bit-for-bit (Object.is) to `matrixWorld`
-// after the reference's `updateMatrixWorld(true)`, on a scene with parents, negative and
-// non-uniform scales, and a node whose host set the matrix itself.
+// placements.ts: the world matrices of the drawn nodes, read where they live — the transform tree
+// every node is a slot of. A pose is its node's own world matrix there, rewritten in place by the
+// tree's pass, never copied, kept through the tree's growth; its sixteen numbers are compared
+// bit-for-bit (Object.is) to those composed from the local poses of its chain (`chainWorld`), on a
+// scene with parents, negative and non-uniform scales, and a node whose matrix is set by hand.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../graph/graph.fixture.ts';
-import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { hostWorldPlacements } from './placements.ts';
 import { blendFixture } from '../../page/selection/blend.fixture.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
+import { chainWorld } from '../../../../../tests/kit/assert/chainWorld.ts';
 import { rootOf } from '../../page/selection/placements.ts';
 
-/** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
- *  scale, leaf sheared by that scale, plus a node whose matrix is set. */
+/** A scene nobody has walked up: rotated root, parent with negative and non-uniform scale, leaf
+ *  sheared by that scale, plus a node whose matrix is set. */
 function scene() {
-  const racine = new G.Group(),
+  const root = new G.Group(),
     parent = new G.Group(),
-    feuille = G.mesh(),
-    pose = new G.Group();
-  racine.position.set(3, -4, 5);
-  racine.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)));
+    leaf = G.mesh(),
+    posed = new G.Group();
+  root.position.set(3, -4, 5);
+  root.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)));
   parent.scale.set(-2, 0.5, 3);
   parent.position.set(-0, 7, 0.25);
-  feuille.position.set(1, 2, -3);
-  feuille.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(-0.3, 0.7, 0.9)));
-  feuille.scale.set(1, 1, -1);
-  pose.matrixAutoUpdate = false;
-  pose.matrix.set(1, 3, 0, 2, 0, 1, 0, -1, 0, 0, 1, 4, 0, 0, 0, 1);
-  parent.add(feuille, pose);
-  racine.add(parent);
-  return { racine, parent, feuille, pose };
+  leaf.position.set(1, 2, -3);
+  leaf.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(-0.3, 0.7, 0.9)));
+  leaf.scale.set(1, 1, -1);
+  posed.matrixAutoUpdate = false;
+  posed.matrix.set(1, 3, 0, 2, 0, 1, 0, -1, 0, 0, 1, 4, 0, 0, 0, 1);
+  parent.add(leaf, posed);
+  root.add(parent);
+  return { root, parent, leaf, posed };
 }
 
-test('the returned matrix carries, to the bit, the world the reference composes from the same poses', () => {
-  const { racine, parent, feuille, pose } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const obtenus = [parent, feuille, pose].map((node) => Array.from(worlds.of(node).elements));
-  // The witness runs AFTER: until it has walked the graph, the host has composed no matrix.
-  racine.updateMatrixWorld(true);
-  for (const [rang, node] of [parent, feuille, pose].entries())
-    assertBits(obtenus[rang], Array.from(node.matrixWorld.elements));
+test('the returned matrix carries, to the bit, the world its chain composes from its poses', () => {
+  const { root, parent, leaf, posed } = scene();
+  const worlds = hostWorldPlacements(root);
+  for (const node of [parent, leaf, posed])
+    assertBits(worlds.of(node).elements, chainWorld(node), node.name);
 });
 
-test("the host's world matrix is neither read nor written: it stays the identity it left", () => {
-  const { racine, feuille } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const monde = worlds.of(feuille);
-  worlds.refresh();
-  assert.deepEqual(
-    Array.from(feuille.matrixWorld.elements),
-    Array.from(new G.Matrix4().elements),
-    'the engine wrote nothing into the host scene',
-  );
-  assert.notDeepEqual(
-    Array.from(monde.elements),
-    Array.from(feuille.matrixWorld.elements),
-    'and what it holds is not what the host carries',
-  );
-});
-
-test('`refresh` rewrites the returned matrix instead of returning another: the holder sees the move', () => {
-  const { racine, parent, feuille } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const monde = worlds.of(feuille);
-  const avant = Array.from(monde.elements);
+test('`refresh` rewrites the returned matrix in place: the holder sees the move', () => {
+  const { root, parent, leaf } = scene();
+  const worlds = hostWorldPlacements(root);
+  const world = worlds.of(leaf),
+    view = world.elements;
   parent.position.set(10, -8, 6);
   worlds.refresh();
-  assert.equal(worlds.of(feuille), monde, 'the same matrix, never a second one');
-  assert.notDeepEqual(Array.from(monde.elements), avant, 'the moved parent is in the world');
-  racine.updateMatrixWorld(true);
-  assertBits(Array.from(monde.elements), Array.from(feuille.matrixWorld.elements));
+  assert.equal(worlds.of(leaf), world, 'the same pose, never a second one');
+  assert.equal(world.elements, view, 'the same storage, never a second buffer');
+  assertBits(view, chainWorld(leaf));
 });
 
-test('a node outside the indexed subtree is refused by a named error', () => {
-  const { racine } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const etranger = new G.Group();
-  etranger.name = 'foreign';
-  assert.throws(
-    () => worlds.of(etranger),
-    (erreur: unknown) => erreur instanceof EngineError && erreur.code === 'UNKNOWN_TRANSFORM_NODE',
-  );
+test("a pose is its node's own world storage, and stays it while the tree grows", () => {
+  const { root, parent, leaf } = scene();
+  const worlds = hostWorldPlacements(root);
+  const view = worlds.of(leaf).elements;
+  assert.equal(view, leaf.matrixWorld.elements, 'one storage for the node and the engine');
+  for (let i = 0; i < 300; i++) new G.Group();
+  parent.position.set(1, 1, 1);
+  worlds.refresh();
+  assert.equal(worlds.of(leaf).elements, view);
+  assertBits(view, chainWorld(leaf));
 });
 
-test("page records and cluster roots carry the engine's matrix, not the host's", () => {
+test('a pass that moves nothing leaves every pose on the bits it carried', () => {
+  const { root, leaf, posed } = scene();
+  const worlds = hostWorldPlacements(root);
+  const held = [leaf, posed].map((node) => Array.from(worlds.of(node).elements));
+  worlds.refresh();
+  for (const [rank, node] of [leaf, posed].entries())
+    assertBits(worlds.of(node).elements, held[rank]);
+});
+
+test('page records and cluster roots carry the tree world of their mesh', () => {
   const fixture = blendFixture();
   const parent = new G.Group();
   parent.scale.set(2, -1, 0.5);
@@ -97,36 +86,12 @@ test("page records and cluster roots carry the engine's matrix, not the host's",
     fixture.indices,
     fixture.associations,
   );
-  const monde = worlds.of(fixture.mesh);
-  assert.equal(roots[0].world, monde, 'the root carries the engine matrix');
+  const world = worlds.of(fixture.mesh);
+  assert.equal(roots[0].world, world, 'the root carries the pose');
   assert.ok(allPages.length > 0, 'the collection read pages');
   for (let rank = 0; rank < roots.length; rank++)
-    assert.equal(rootOf(roots, rank).world, monde, 'every placement reads it');
-  assert.notEqual(monde, fixture.mesh.matrixWorld, "it is not the host's live matrix");
-  // The witness runs after: collection never asked the host to compose anything.
-  parent.updateMatrixWorld(true);
-  assertBits(Array.from(monde.elements), Array.from(fixture.mesh.matrixWorld.elements));
+    assert.equal(rootOf(roots, rank).world, world, 'every placement reads it');
+  assert.equal(world.elements, fixture.mesh.matrixWorld.elements, "the mesh's own world storage");
   fixture.geometry.dispose();
   fixture.material.dispose();
-});
-
-test('the pose is a view on the engine tree: a pass rewrites it without copying anything', () => {
-  const { racine, parent, feuille } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const monde = worlds.of(feuille);
-  const vue = monde.elements;
-  parent.position.set(-11, 2, 0.5);
-  worlds.refresh();
-  assert.equal(monde.elements, vue, 'the same storage, never a second buffer');
-  racine.updateMatrixWorld(true);
-  assertBits(Array.from(vue), Array.from(feuille.matrixWorld.elements));
-});
-
-test('a pass that moves nothing leaves every pose on the bits it already carried', () => {
-  const { racine, feuille, pose } = scene();
-  const worlds = hostWorldPlacements(racine);
-  const held = [feuille, pose].map((node) => Array.from(worlds.of(node).elements));
-  worlds.refresh();
-  for (const [rang, node] of [feuille, pose].entries())
-    assertBits(Array.from(worlds.of(node).elements), held[rang]);
 });

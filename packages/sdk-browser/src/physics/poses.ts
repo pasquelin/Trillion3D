@@ -3,15 +3,17 @@ import {
   BODY_INDEX,
   GENERATION_SHIFT,
   GENERATIONS,
-  MAX_CATCH_UP_STEPS,
   PHYSICS_STEP,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
+import { slerpArc } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import type { NodeMove } from './cookedBodies.ts';
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
+import { beforesAt, keptBefore } from './protocol.ts';
+import { createTwoSteps, FROM } from './twoSteps.ts';
 
 /** The bodies a tick's records name, by slot: meshes, moved compiled nodes, generations. */
 export interface PosedBodies {
@@ -21,22 +23,32 @@ export interface PosedBodies {
   retire(index: number): void;
 }
 
-/** Longest a tick may be drawn over, and longest a late one is extrapolated: the catch-up ceiling. */
-const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
+/** Copies the 7 numbers of a pose (`x, y, z`, then the turn) from `src` at `s` into `into` at `o`. */
+function copyPose(into: Float32Array, o: number, src: ArrayLike<number>, s: number) {
+  for (let k = 0; k < 7; k++) into[o + k] = src[s + k];
+}
 
 /**
- * The drawn poses of the moving bodies, between two worker ticks. Each tick's record becomes the
- * target; the start is the pose drawn when it arrived, so the image never jumps back. A tick is
- * drawn over the interval at which ticks arrive (smoothed), not over the time it simulates: a
- * worker slower than the display then shows smooth slow motion, never a pose held while it is
- * late. Past the target, a late tick is extrapolated from the bodies' velocities, for one
- * interval at most. Nothing is drawn once there: a world whose bodies all sleep sends no tick.
+ * The drawn poses of the moving bodies. A frame draws each body at the frame's time, the fraction
+ * `t` of a step the session reads once for everything the physics draws (`along`), between its
+ * two states (`twoSteps.ts`): the newest record a tick brought, and its state a step before — its
+ * earlier pose in that tick (`tickResults.ts`), else its record before, else the pose it is drawn
+ * at, at rest. Places are drawn on the line between the two, as a step moves a body, turns on the
+ * arc between them, as a step turns it; the same frames draw the same poses, whenever the ticks
+ * came. A time past the newest state — the worker is late — is drawn moved on from it by each
+ * body's velocity (none asleep), a ceiling of catch-up steps at most, while the page waits for
+ * that state: once it comes, the body is on its simulated trajectory again. Nothing is drawn once
+ * there: a world whose bodies all sleep sends no tick.
  *
  * Every write is a flat one (`placer.ts`): the node's position, quaternion and transform tree,
  * and the world matrix straight into the row the renderer reads; no per-body listener runs.
  */
-export function createPhysicsPoses(maxBodies: number, root: Object3D) {
-  const to = new Float32Array(maxBodies * 7);
+export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHYSICS_STEP) {
+  /** Each slot's state a step before the newest, and its newest (7 numbers a slot), and the arc
+   *  between their turns (`slerpArc`, 3 a slot). */
+  const from = new Float32Array(maxBodies * 7),
+    to = new Float32Array(maxBodies * 7),
+    arcs = new Float64Array(maxBodies * 3);
   /** The bodies' last step (`ObjectPhysics._state`): what `physics.velocity` and `asleep` read. */
   const state = {
     asleep: new Uint8Array(maxBodies),
@@ -44,27 +56,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     stamp: new Uint32Array(maxBodies),
   };
   const { velocity, asleep: sleeping, stamp } = state;
-  const moving = new Int32Array(maxBodies);
-  const listed = new Uint8Array(maxBodies),
-    decorative = new Uint8Array(maxBodies);
-  let count = 0,
-    tick = 0;
+  const decorative = new Uint8Array(maxBodies);
+  const befores = beforesAt({ bodies: maxBodies });
+  /** The slots on their way, and the tick that last wrote each (`state.stamp`). */
+  const steps2 = createTwoSteps(maxBodies);
+  let tick = 0;
   const placer = createPosePlacer(maxBodies, root);
   const { bound, place, position, quaternion } = placer;
-  /** When the last tick arrived (-1 before the first): the page time its targets are drawn from. */
-  let start = -1,
-    span = 0,
-    /** Simulated seconds of the last tick, extrapolated over one span at most. */
-    seconds = 0,
-    /** The latest page time read: the poses' clock never runs back (`now`). */
-    latest = 0,
-    /** How far toward the targets the last frame drew, from the pose drawn when they came. */
-    drawn = 0,
-    awake = false;
-  /** The page's clock, never earlier than a reading before it: a page clock that steps back (a
-   *  test's or a capture's) would draw a fraction behind the last frame, and a step from a pose
-   *  already on its target (`drawn` 1) toward it is a division by zero. */
-  const now = () => (latest = Math.max(latest, performance.now()));
   /** Whether the record at `at` holds the pose slot `index` is drawn at (the turn up to sign). */
   const unchanged = (index: number, floats: Float32Array, at: number) => {
     const p = index * 3,
@@ -81,30 +79,42 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       Math.abs(dot) >= 1 - 1e-6
     );
   };
+  /** Whether slot `index`'s newest state is the pose the record at `at` holds. */
+  const holds = (index: number, floats: Float32Array, at: number) => {
+    for (let k = 0; k < 7; k++) if (to[index * 7 + k] !== floats[at + 1 + k]) return false;
+    return true;
+  };
+  /** Copies the pose slot `index` is drawn at into `into`, 7 numbers a slot. */
+  const drawnInto = (into: Float32Array, index: number) => {
+    copyPose(into, index * 7, position, index * 3);
+    for (let k = 0; k < 4; k++) into[index * 7 + 3 + k] = quaternion[index * 4 + k];
+  };
+  /** Slot `index` holds where it is drawn now, until its body's next tick. */
+  const hold = (index: number) => {
+    drawnInto(to, index);
+    copyPose(from, index * 7, to, index * 7);
+    slerpArc(arcs, index * 3, from, index * 7 + 3, to, index * 7 + 3);
+  };
   return {
     state,
     /** Every mesh keeps its own pose numbers again (the physics stops). */
     clear: placer.clear,
     /** The page moved `node`: a compiled node posed under it is drawn where it now stands. */
-    follow: (node: Object3D) => placer.follow(node, to),
+    follow: (node: Object3D) => placer.follow(node, hold),
     /**
-     * A tick's pose records arrived, simulating `ms` of the page's time; returns how many moved a
-     * body from where it is drawn (a pose sent again unchanged asks for no frame). A record of a
-     * body that left its slot is skipped. A decorative body that fell asleep is placed at its
-     * last pose at once and retired, out of the simulation. Typed arrays only, but for a mesh
-     * met for the first time in its slot.
+     * A tick's pose records arrived, after `steps` fixed steps; returns how many moved a body from
+     * where it is drawn (a pose sent again unchanged asks for no frame). A tick of no step —
+     * commands run while paused, or before a query — moved its bodies in place: those it moved
+     * are drawn there at once. A record of a body that left its slot is skipped. A decorative body
+     * that fell asleep is placed at its last pose at once and retired, out of the simulation.
+     * Typed arrays only, but for a mesh met for the first time in its slot.
      */
-    receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
+    receive(words: Uint32Array, records: number, bodies: PosedBodies, steps: number) {
       const { generation, meshes, nested } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
-      const time = now();
-      const interval = start < 0 ? ms : time - start;
-      // A first tick, or one after a rest, is drawn over the time it simulates.
-      span = ms <= 0 ? 0 : interval > LONGEST_MS ? ms : span > 0 ? span * 0.7 + interval * 0.3 : ms;
-      seconds = ms / 1000;
       let moved = 0;
-      awake = false;
       tick++;
+      steps2.begin(steps);
       placer.begin();
       for (let r = 0; r < records; r++) {
         const at = r * POSE_WORDS,
@@ -115,7 +125,9 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           made = mesh ? undefined : nested.get(index);
         // A body that left its slot, or a model's moving no node (`bodySlots.ts`), draws nothing.
         if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) continue;
-        if (bound[index] !== g) {
+        // A body new to its slot starts from its own pose, whatever the slot listed before it.
+        const fresh = bound[index] !== g;
+        if (fresh) {
           if (mesh) placer.bind(index, g, mesh);
           else if (made) placer.bindNode(index, g, made.node, made.scale);
           decorative[index] = mesh?.physics.decorative ? 1 : 0;
@@ -126,12 +138,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         stamp[index] = tick;
         // An asleep body is not extrapolated.
         const moves = asleep ? 0 : 1;
-        velocity[v] = floats[at + 8] * moves;
-        velocity[v + 1] = floats[at + 9] * moves;
-        velocity[v + 2] = floats[at + 10] * moves;
-        velocity[v + 3] = floats[at + 11] * moves;
-        velocity[v + 4] = floats[at + 12] * moves;
-        velocity[v + 5] = floats[at + 13] * moves;
+        for (let k = 0; k < 6; k++) velocity[v + k] = floats[at + 8 + k] * moves;
         if (asleep && decorative[index]) {
           place(index, floats, at + 1);
           // Its generation moves on: the next frame takes it off the moving list, and a body
@@ -140,61 +147,45 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           moved++;
           continue;
         }
-        // A listed body is on its way: its record is its next target, whatever it holds.
-        if (!listed[index] && unchanged(index, floats, at)) continue;
-        const o = index * 7;
+        // A listed body is on its way: its record is its next state, whatever it holds.
+        if (!steps2.listed(index) && unchanged(index, floats, at)) continue;
+        const o = index * 7,
+          before = befores + at,
+          same = steps === 0 && !fresh && holds(index, floats, at),
+          earlier = steps2.take(index, keptBefore(head, words[before]), fresh, same);
+        if (earlier === FROM.kept) continue;
         moved++;
-        to[o] = floats[at + 1];
-        to[o + 1] = floats[at + 2];
-        to[o + 2] = floats[at + 3];
-        to[o + 3] = floats[at + 4];
-        to[o + 4] = floats[at + 5];
-        to[o + 5] = floats[at + 6];
-        to[o + 6] = floats[at + 7];
-        awake ||= !asleep;
-        if (!listed[index]) moving[count++] = index;
-        listed[index] = 1;
+        if (earlier === FROM.newest) copyPose(from, o, floats, at + 1);
+        else if (earlier === FROM.before) copyPose(from, o, floats, before + 1);
+        else if (earlier === FROM.last) copyPose(from, o, to, o);
+        else drawnInto(from, index);
+        copyPose(to, o, floats, at + 1);
+        slerpArc(arcs, index * 3, from, o + 3, to, o + 3);
       }
+      steps2.end((index) => {
+        if (bound[index] === generation[index]) place(index, to, index * 7);
+      });
       placer.end();
-      start = time;
-      drawn = 0;
       return moved;
     },
-    /** Draws every moving body at this frame's point; whether any is still on its way (and asks
-     *  for the next frame). */
-    apply({ generation }: PosedBodies) {
-      if (!count) return false;
-      const elapsed = now() - start;
-      const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
-      // Past the target, a late tick is extrapolated, for one interval at most: the share of the
-      // span past it, never a rate, which a span shrunk to nothing by a clock standing still
-      // while ticks arrive would make infinite.
-      const ahead =
-        awake && span > 0 ? (Math.min(Math.max(0, elapsed - span), span) / span) * seconds : 0;
-      // Short of the target, each frame goes the rest of the way in proportion from where the
-      // last one drew: the same line from the pose drawn when the tick came, read from the node.
-      const step = alpha < 1 ? (alpha - drawn) / (1 - drawn) : 1;
-      drawn = alpha;
-      placer.begin();
+    /** Draws every moving body at `t` of its step (`along`), `waiting` while the page waits for
+     *  the worker's next state; whether any is still on its way (and asks for the next frame). */
+    apply({ generation }: PosedBodies, t: number, waiting: boolean) {
+      if (!steps2.count) return false;
       // A slot whose body left, or went to another mesh, leaves the list: it waits for that
       // mesh's own record, which lists it again. The rest is drawn in one pass.
-      let kept = 0;
-      for (let i = 0; i < count; i++) {
-        const index = moving[i];
-        if (listed[index] && bound[index] === generation[index]) moving[kept++] = index;
-        else listed[index] = 0;
-      }
-      count = kept;
-      // Short of the target; on it, the record itself (sent again, it is seen unchanged); past it.
-      if (alpha < 1) interpolateAll(moving, count, to, step, position, quaternion);
-      else if (ahead === 0) landAll(moving, count, to, position, quaternion);
-      else extrapolateAll(moving, count, to, velocity, ahead, position, quaternion);
+      steps2.keep((index) => bound[index] === generation[index]);
+      const { moving, count } = steps2;
+      placer.begin();
+      // Between the two states; else on the newest, or moved on from it by its velocities while
+      // it is late.
+      if (t < 1) interpolateAll(moving, count, from, to, arcs, t, position, quaternion);
+      else if (t > 1)
+        extrapolateAll(moving, count, to, velocity, (t - 1) * step, position, quaternion);
+      else landAll(moving, count, to, position, quaternion);
       placer.commit(moving, count);
       placer.end();
-      if (alpha < 1 || (awake && elapsed < 2 * span)) return true;
-      for (let i = 0; i < count; i++) listed[moving[i]] = 0;
-      count = 0;
-      return false;
+      return steps2.settle(t, waiting);
     },
   };
 }

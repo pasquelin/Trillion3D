@@ -8,7 +8,9 @@ import {
   type FrameSize,
 } from './renderScale.ts';
 import { renderExtent } from '../../../frame/renderScaleOption.ts';
+// The old controller's instant drop sets the scale drawn; the rules tested hold under either.
 import { createScaleControl } from '../../../frame/scaleControl.ts';
+import { lowered } from '../../../frame/scaleFit.fixture.ts';
 import type { RenderScale } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -72,7 +74,6 @@ test('the targets start at the maximum, apart from the display wherever a scale 
 test('the frame is drawn below the display only when the temporal resolve reconstructs it', () => {
   const changes: [string, (view: WebgpuPagesRuntime) => void][] = [
     ['a diagnostic view', (view) => (view.run.diagnostic = 'normals' as never)],
-    ['the pass switched off', (view) => (view.gpu.temporalWanted = false)],
     ['no pass: a capture view', (view) => (view.gpu.temporal = undefined)],
     ['the fallback draw', (view) => (view.vis.visEnabled = false)],
     ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-compute' as never)],
@@ -84,6 +85,51 @@ test('the frame is drawn below the display only when the temporal resolve recons
     const size = sizeOf(rt);
     assert.deepEqual([size.renderWidth, size.apart], [3456, false], what);
   }
+  // Switched off, the pass draws at the display's size and keeps the display colour apart, so a
+  // switch at the display's scale remakes no target (decision 14).
+  const { rt } = runtime(0.5);
+  rt.gpu.temporalWanted = false;
+  const size = sizeOf(rt);
+  assert.deepEqual([size.renderWidth, size.apart], [3456, true], 'the pass switched off');
+});
+
+// Decision 14: switched off, the pass draws at the display's size; back on, the targets are made at
+// the bounds' maximum (#831), the display's own under `'auto'`: no switch, nor any move of the
+// controller, remakes a target.
+test('switched back on, the targets made off stay, whatever the controller asks', () => {
+  const { rt } = runtime('auto');
+  rt.gpu.temporalWanted = false;
+  assert.equal(sizeOf(rt).renderWidth, 3456);
+  rt.gpu.temporalWanted = true;
+  assert.equal(sizeOf(rt).renderWidth, 3456, 'on again: the same targets');
+  lowered(rt.scale, 40);
+  assert.equal(rt.scale.wanted(), 0.5);
+  assert.equal(sizeOf(rt).renderWidth, 3456, 'the controller moved: nothing remade');
+});
+
+// #831: the scale asked was read back, not the size drawn — a full-scale image drawn in targets made
+// at a maximum of 0.8, or one the targets held below the controller, was told as the scale asked,
+// and measured as the controller's.
+test('the scale read back is the size drawn; one the targets hold smaller is not measured', () => {
+  const { rt } = runtime({ min: 0.5, max: 0.8 }, [2768, 1784]);
+  drawFrameAt(rt, 1, true);
+  assert.deepEqual(rt.gpu.targetSize, [2768, 1784]);
+  assert.deepEqual([rt.scale.drawn, rt.scale.steered], [2768 / 3456, false]);
+  drawFrameAt(rt, 0.6, true);
+  assert.deepEqual([rt.scale.drawn, rt.scale.steered], [0.6, true], 'held whole: the scale asked');
+  // Targets refused: made an eighth lower, the controller's scale held there with them.
+  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
+  assert.equal(rt.scale.wanted(), 0.8);
+  assert.equal(rt.scale.capMemory('3456x2234'), true);
+  assert.equal(rt.scale.wanted(), 0.675, 'the controller asks no more than the targets hold');
+  rt.gpu.allocatedSize = [renderExtent(3456, 0.675), renderExtent(2234, 0.675)];
+  drawFrameAt(rt, rt.scale.wanted(), true);
+  assert.deepEqual([rt.scale.drawn, rt.scale.steered], [0.675, true], 'drawn whole, measured');
+  for (let frame = 4; frame < 16; frame++) rt.scale.tick((frame * 1000) / 120);
+  rt.scale.observe(4, 0.675);
+  assert.equal(rt.scale.wanted(), 0.675, 'cheap frames rise no higher than the targets');
+  rt.scale.uncapMemory();
+  assert.equal(rt.scale.allocated('3456x2234'), 0.8, 'the room came back');
 });
 
 test('an image draws at the scale asked, the controller starting at its maximum', () => {
@@ -92,22 +138,19 @@ test('an image draws at the scale asked, the controller starting at its maximum'
   assert.equal(runtime({ min: 0.5, max: 0.8 }).rt.scale.wanted(), 0.8);
 });
 
-// #1343: the targets were made at the display's size whatever the scale drawn.
-test('the targets are made at the drawn size, on a ladder of eighths, not the display size', () => {
+// #831: targets made on a ladder of eighths were remade at each rung the controller crossed, the
+// frame held for the memory and the history restarted: a flicker as the camera starts or stops.
+test('the targets are made at the bounds maximum whatever the controller draws in them', () => {
   const { rt } = runtime('auto');
-  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
-  rt.scale.observe(12, 1);
-  const drawn = rt.scale.wanted();
-  assert.ok(drawn > 0.75 && drawn < 0.875, `a 12 ms frame at 120 Hz draws at ${drawn}`);
-  const made = { width: 3456, height: 2234, apart: true };
-  assert.deepEqual(
-    sizeOf(rt),
-    { ...made, renderWidth: 3456, renderHeight: 2234 },
-    'one eighth off',
-  );
-  rt.scale.observe(40, drawn);
+  const full = { width: 3456, height: 2234, renderWidth: 3456, renderHeight: 2234, apart: true },
+    clock = lowered(rt.scale, 12);
+  assert.ok(rt.scale.wanted() < 0.875, `a 12 ms frame at 120 Hz draws at ${rt.scale.wanted()}`);
+  assert.deepEqual(sizeOf(rt), full);
+  lowered(rt.scale, 40, clock);
   assert.equal(rt.scale.wanted(), 0.5, 'a 40 ms frame drops to the minimum');
-  assert.deepEqual(sizeOf(rt), { ...made, renderWidth: 1728, renderHeight: 1120 });
+  assert.deepEqual(sizeOf(rt), full, 'nothing to remake');
+  const bounded = runtime({ min: 0.5, max: 0.8 }).rt;
+  assert.deepEqual(sizeOf(bounded), { ...full, renderWidth: 2768, renderHeight: 1784 });
 });
 
 test('a scale change within the targets draws in them in place, the Hi-Z pyramid over the same size', () => {

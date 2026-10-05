@@ -33,11 +33,12 @@ test('a cloth dropped flat on the floor rebounds by its restitution', async () =
       jolt.step(null, 1 / 60);
       const words = jolt.soft();
       if (!words.length) continue;
-      // The geometry's z is the world's up: its height above the floor is `2 + z`.
+      // The geometry's z is the world's up: its height above the floor is `2 + z`. It stops 1 cm
+      // above the floor (its thickness), within a step's fall of it as it bounces.
       const z = new Float32Array(words.slice(SOFT_STATE_WORDS).buffer).filter(
         (_, i) => i % 3 === 2,
       );
-      touched ||= 2 + Math.min(...z) < 0.02;
+      touched ||= 2 + Math.min(...z) < 0.05;
       if (touched) peak = Math.max(peak, 2 + z.reduce((a, b) => a + b) / z.length);
     }
     assert.ok(touched, 'it reached the floor');

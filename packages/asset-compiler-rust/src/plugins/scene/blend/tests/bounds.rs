@@ -1,4 +1,4 @@
-//! The reader's bounds, proven on minimal files written here from the public description of the
+//! The reader's bounds, proven on minimal files written here from the structure of the
 //! format: an SDNA that announces more than the file carries, and a view that does not leave its
 //! block's bytes. The RAM budget is proven in `budget`.
 use super::*;

@@ -79,6 +79,23 @@ test('WebGL2: a 1 mm step holds ten kilometres from the world origin', () => {
   }
 });
 
+test('WebGL2: a thrown particle follows the exact parabola, not a step behind it', () => {
+  const { run } = webgl(),
+    model = webglModel(8),
+    g = 9.80665;
+  const pool = new ParticlePool({ capacity: 8, acceleration: [0, -g, 0] });
+  pool.emit(0, 0, 0, 3, 10, 0, 4);
+  for (let frame = 1; frame <= 128; frame++) {
+    pool.advance(DT);
+    model.step(run([pool]).of);
+    const t = frame * DT,
+      [x, y] = model.particle(0);
+    // 32-bit rounding alone; the velocity's end alone would land a·dt·t/2 low, 0.153 m after 2 s.
+    assert.ok(Math.abs(y - (10 * t - (g / 2) * t * t)) < 1e-4, `${t} s: y ${y}`);
+    assert.ok(Math.abs(x - 3 * t) < 1e-4, `${t} s: x ${x}`);
+  }
+});
+
 test('WebGL2: a particle of a 60 s lifetime dies after 60 s of 144 Hz steps, and stays put', () => {
   const { run } = webgl(),
     model = webglModel(8),

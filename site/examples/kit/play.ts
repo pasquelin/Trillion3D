@@ -24,7 +24,7 @@ import { exampleWord } from './words.ts';
  */
 
 /** The world as `play` uses it: the canvas it locks, the controls it switches, a redraw. */
-export interface PlayWorld {
+interface PlayWorld {
   canvas: {
     requestPointerLock?(): unknown;
     readonly isConnected?: boolean;

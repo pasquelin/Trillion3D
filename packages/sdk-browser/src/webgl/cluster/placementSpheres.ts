@@ -16,8 +16,8 @@ const placementSpheres = new WeakMap<
 
 /**
  * The centre of the union of an instanced mesh's placement spheres — the geometry's sphere carried
- * by each placement matrix — grown one placement after the other exactly as the reference grows
- * it, so the two orders sort on the same number. Recomputed only when the matrices or the count
+ * by each placement matrix — grown one placement after the other in one fixed order,
+ * so the two orders sort on the same number. Recomputed only when the matrices or the count
  * change.
  */
 export const placementsCentre = (mesh: Instanced, geometry: { center: Centre; radius?: number }) =>
@@ -37,7 +37,7 @@ export function placementsSphere(
   const g = geometry.center,
     gr = geometry.radius ?? 0,
     e = matrices.array;
-  // The union, empty first (a negative radius), as the reference's `Sphere.makeEmpty`.
+  // The union, empty first (a negative radius), as a sphere made empty is.
   let cx = 0,
     cy = 0,
     cz = 0,

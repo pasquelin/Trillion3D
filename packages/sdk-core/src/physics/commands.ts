@@ -29,7 +29,7 @@ export class CommandWriter {
     this.put([op, index], values);
   }
   /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
-   *  with zeros to whole words (a cooked shape's or soft body's Jolt binary state). */
+   *  with zeros to whole words (a cooked shape's or soft body's native binary state). */
   put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
     const padded = Math.ceil((bytes?.length ?? 0) / 4);
     this.reserve(words.length + floats.length + padded);
@@ -101,7 +101,7 @@ export class CommandWriter {
   wake(index: number) {
     this.op(OP.wake, index, []);
   }
-  /** Restores a cooked shape's Jolt binary state under `handle`, for the ADDs that follow. */
+  /** Restores a cooked shape's native binary state under `handle`, for the ADDs that follow. */
   restore(handle: number, bytes: Uint8Array) {
     this.put([OP.restore, handle, bytes.length], [], bytes);
   }

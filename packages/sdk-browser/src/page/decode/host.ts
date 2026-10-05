@@ -90,9 +90,15 @@ async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
  */
 export async function verifyPageBytes(source: ArrayBuffer) {
   const open = openPool();
-  const answer = open
-    ? count(await open.submit('verify', source, 0).answer, true)
-    : await onThread('verify', source);
+  let answer: PageDecodeAnswer;
+  if (open) {
+    answer = await open.submit('verify', source, 0).answer;
+    // A worker that vanished before it took the bytes leaves them whole — a transferred buffer
+    // reads empty —: the main thread verifies them, as it decodes for a vanished worker.
+    if (!answer.ok && answer.code === 'PAGE_DECODE_WORKER' && source.byteLength > 0)
+      answer = await onThread('verify', source);
+    else count(answer, true);
+  } else answer = await onThread('verify', source);
   if (!answer.ok || !answer.source || answer.sha256 === null) refuse(answer);
   return { sha256: answer.sha256, source: answer.source };
 }

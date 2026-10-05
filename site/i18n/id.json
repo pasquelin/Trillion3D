@@ -293,7 +293,6 @@
     "protocol": "Kondisi yang tercatat",
     "references": "Titik acuan yang diterbitkan",
     "referenceNote": "Angka mesin desktop yang diterbitkan memakai perangkat keras, adegan dan protokolnya sendiri. Angka itu tidak ikut dalam perbandingan di atas.",
-    "referenceLink": "Baca sumber dan keterbatasannya",
     "commit": "Commit repositori",
     "date": "Tanggal pengukuran",
     "browser": "Peramban",
@@ -800,7 +799,7 @@
       "description": "Matriks sebuah frame kamera, dialokasikan sekali dan ditulis ulang tiap bingkai: `view` (kebalikan matriks dunia kamera), `viewProjection`, dan `planes`, enam bidang ternormalisasi frustum itu."
     },
     "updateCameraFrame": {
-      "description": "Menulis ulang frame-nya: view = kebalikan `world` (nol untuk matriks dunia singular, seperti acuannya), view-projection = `projection · view`, dan enam bidang frustum itu. Satu konvensi kedalaman berlaku di ketiganya. `far` adalah bidang **yang dinyatakan host**: proyeksinya tidak punya bidang jauh — ia tak berhingga, dan itulah inti dari kedalaman terbalik — tetapi frustumnya menyimpannya, kalau tidak sebuah bingkai tiba-tiba akan mendapat semua objek yang tidak sedang ditampilkan kamera. Kalau dilewatkan atau tidak terhingga, bidang jauhnya tetap tak terbatas."
+      "description": "Menulis ulang frame-nya: view = kebalikan `world` (nol untuk matriks dunia singular), view-projection = `projection · view`, dan enam bidang frustum itu. Satu konvensi kedalaman berlaku di ketiganya. `far` adalah bidang **yang dinyatakan host**: proyeksinya tidak punya bidang jauh — ia tak berhingga, dan itulah inti dari kedalaman terbalik — tetapi frustumnya menyimpannya, kalau tidak sebuah bingkai tiba-tiba akan mendapat semua objek yang tidak sedang ditampilkan kamera. Kalau dilewatkan atau tidak terhingga, bidang jauhnya tetap tak terbatas."
     },
     "worldToRenderOrigin": {
       "description": "Menulis `world` dengan translasinya dikembalikan ke `origin`. Pengurangannya terjadi dalam presisi masukannya — presisi ganda matriks dunia mesin — dan menulis ke buffer presisi tunggal membulatkannya **setelah** itu, tidak pernah sebelumnya: itulah satu-satunya yang membedakan gambar tajam dari yang bergetar. `at` adalah urutan angka pertama dari enam belas angka yang ditulis, jadi sebuah buffer berisi banyak matriks terisi tanpa memotong sebuah view per matriks per bingkai."
@@ -833,10 +832,10 @@
       "description": "`out = a · b`. Tiga puluh dua masukan dibaca sebelum penulisan pertama, jadi `out` boleh jadi `a` atau `b`. Tiap suku adalah jumlah empat hasil kali tanpa nol awal — sebuah jumlah yang dimulai di `0` akan mengubah tanda sebuah nol negatif. **Hanya satu jenis buffer, `Float64Array`, masuk dan keluar**: seorang pemanggil yang melewatkan larik biasa akan membuat empat puluh delapan titik akses jadi polimorfik dan tiap loop yang sering dijalankan akan membayarnya, jadi seorang pemanggil yang mulai dari matriks host menyalinnya dulu."
     },
     "invertMatrix4": {
-      "description": "`out = m⁻¹` lewat kofaktor. Sebuah determinan yang persis nol menghasilkan matriks nol, seperti acuannya — seorang pemanggil yang harus membedakan kasus ini menguji determinannya, tidak pernah keluarannya. Ambang batas itu adalah kesetaraan dengan acuannya, bukan aturan singularitas mesin, yang hanya berlaku di mana sebuah normal diangkut. Enam belas masukan dibaca sebelum penulisan pertama, jadi `out` boleh jadi `m`."
+      "description": "`out = m⁻¹` lewat kofaktor. Sebuah determinan yang persis nol menghasilkan matriks nol — seorang pemanggil yang harus membedakan kasus ini menguji determinannya, tidak pernah keluarannya. Ambang batas itu adalah nol persis, bukan aturan singularitas mesin, yang hanya berlaku di mana sebuah normal diangkut. Enam belas masukan dibaca sebelum penulisan pertama, jadi `out` boleh jadi `m`."
     },
     "composeMatrix4": {
-      "description": "`out = T · R · S`, quaternion diurutkan `(x, y, z, w)`. Baris terakhir ditulis persis `(0, 0, 0, 1)`; hasil kali quaternion digandakan lewat penjumlahan (`x + x`), seperti acuannya, tidak pernah dikalikan dua."
+      "description": "`out = T · R · S`, quaternion diurutkan `(x, y, z, w)`. Baris terakhir ditulis persis `(0, 0, 0, 1)`; hasil kali quaternion digandakan lewat penjumlahan (`x + x`), tidak pernah dikalikan dua."
     },
     "decomposeMatrix4": {
       "description": "Kebalikannya: skala sebuah kolom adalah panjangnya, dan sebuah determinan negatif dibawa oleh sumbu `x` saja, apa pun sumbu yang dibalik di sumbernya. Sebuah matriks yang dimiringkan (sheared) tidak punya penguraian seperti ini — rotasi yang dikembalikan lalu adalah rotasi dari matriks yang kolomnya dinormalisasi dan penyusunan ulang tidak lagi menghasilkan `m`, sebuah celah yang sama dengan acuannya dan diukur oleh bench-nya."
@@ -899,7 +898,7 @@
       "description": "Keenam bidang frustum sebuah matriks clip — sebuah view-projection, atau sebuah projection saja untuk bidang di ruang view. Yang pertama menormalisasinya, jadi `a·x + b·y + c·z + d` adalah sebuah jarak bertanda; yang kedua membiarkan jumlah dan selisih mentah barisnya, di mana tandanya saja yang memutuskan, tanpa akar kuadrat atau pembagian: bentuk uji clip yang pasti, di mana menormalisasi akan menggeser pembulatannya. Sebuah matriks degenerate menghasilkan bidang NaN atau tak berhingga tanpa melempar galat."
     },
     "frustumFarPlane": {
-      "description": "Bidang jauh sebuah frustum yang proyeksinya tidak punya satu pun. Proyeksi mesinnya tak berhingga: baris kedalamannya tidak lagi membatasi apa pun, jadi bidang jauhnya dibaca dari matriks **view**, yang baris ketiganya memberi kedalaman view-nya — sebuah titik ada di dalam saat `far + z >= 0`. Sebuah `far` yang tidak terhingga membiarkan bidang nol tetap di tempatnya, sebuah bidang jauh yang sungguh tak terbatas. `frustumPlanesToLocal` membawa bidang-bidangnya ke ruang lokal sebuah transform, jadi sebuah kotak lokal diuji tanpa perlu ditransformasi."
+      "description": "Bidang jauh sebuah frustum yang proyeksinya tidak punya satu pun. Proyeksi mesinnya tak berhingga: baris kedalamannya tidak lagi membatasi apa pun, jadi bidang jauhnya dibaca dari matriks **view**, yang baris ketiganya memberi kedalaman view-nya — sebuah titik ada di dalam saat `far + z >= 0`. Sebuah `far` yang tidak terhingga membiarkan bidang nol tetap di tempatnya, sebuah bidang jauh yang sungguh tak terbatas."
     },
     "frustumExcludesBox": {
       "description": "Kotak terhadap frustum: yang pertama benar saat sebuah bidang meninggalkan kedelapan sudutnya di belakang. Yang kedua mengembalikan tiga keadaan — 0 di luar, 1 mengangkang, 2 sepenuhnya di dalam — dalam dua tahap, yang pertama hanya menolak, yang kedua membaca sudut paling belakang untuk membedakan \"mengangkang\" dari \"di dalam\". Sebuah subtree yang sepenuhnya di dalam menghemat sebuah uji pada tiap kotak di bawahnya."
@@ -923,7 +922,7 @@
       "description": "Pembacaan matriks dunia: kolom translasinya; rotasi dan skalanya dari penguraiannya, sebuah determinan negatif dibawa oleh `x` saja. Kolom ketiganya dinormalisasi sebagai sebuah arah, dibalik saat `cameraForward` — sebuah kamera dan sebuah cahaya melihat ke arah `−z`-nya. `nodeWorldMirrorsFaces` benar saat matriks dunia membalik orientasi, dan gambarnya lalu menukar sisi depan dan belakangnya; ini dibaca apa adanya, tanpa pembaruan, dan sebuah determinan nol atau NaN tidak membalik apa pun."
     },
     "lookAtNode": {
-      "description": "Memutar `node` ke arah titik dunia `(x, y, z)`. `viewer` benar untuk sebuah kamera atau cahaya, yang melihat ke arah `−z`-nya, salah untuk sebuah objek, yang menghadapkan `+z`-nya. `up` adalah arah atas node-nya, `(0, 1, 0)` pada acuannya. Leluhur dan node-nya diperbarui lebih dulu."
+      "description": "Memutar `node` ke arah titik dunia `(x, y, z)`. `viewer` benar untuk sebuah kamera atau cahaya, yang melihat ke arah `−z`-nya, salah untuk sebuah objek, yang menghadapkan `+z`-nya. `up` adalah arah atas node-nya, `(0, 1, 0)` secara bawaan. Leluhur dan node-nya diperbarui lebih dulu."
     },
     "multiplyMatrix4Batch": {
       "description": "`n` hasil kali `out[i] = a[i] · b[i]`, ketiga sisinya diberikan sebagai sub-view enam belas angka. Sub-view-nya dibangun sekali, tidak pernah per bingkai; sebuah kernel WebAssembly mengulang rumus yang sama suku demi suku dan pengaturnya memilih jalur mana pun yang terukur lebih cepat."
@@ -1223,7 +1222,7 @@
       "nodes": "node"
     },
     "patterns": {
-      "singular": "determinan {{value}}: enam belas nol, seperti acuannya — uji determinannya, tidak pernah keluarannya"
+      "singular": "determinan {{value}}: enam belas nol — uji determinannya, tidak pernah keluarannya"
     }
   },
   "gallery": {
@@ -1290,6 +1289,8 @@
       "leaves-cut-by-alpha": "Daun dipotong alpha",
       "a-colour-ramp-in-linear-light": "Ramp warna cahaya linear",
       "the-material-family": "Keluarga material",
+      "page-materials": "Mengubah material secara langsung",
+      "a-bust-a-crate-and-a-glass-ball": "Patung dada, peti, bola kaca",
       "a-texture-turned-and-tiled": "Tekstur diputar dan disusun",
       "texture-filters-compared": "Perbandingan filter tekstur",
       "every-image-format": "Setiap format gambar",
@@ -1476,6 +1477,7 @@
       "tone-mapping-compared": "Perbandingan tone mapping",
       "a-first-post-effect": "Efek pasca pertama",
       "a-glow-around-lights": "Kilau di sekitar cahaya",
+      "choose-your-quality": "Memilih kualitas",
       "glow-on-chosen-objects": "Kilau selektif",
       "depth-of-field": "Kedalaman bidang",
       "motion-blur": "Blur gerakan",

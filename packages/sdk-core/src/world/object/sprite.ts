@@ -10,9 +10,8 @@ import { listen } from '../math/observed.ts';
  * image at draw time, about the sprite's position.
  *
  * Its size is its world scale on `x` and `y`; its turn in the image plane is its material's
- * `rotation`; its own rotation is not read. A sprite casts no shadow. Like the reference's
- * `Sprite`, which takes only a `SpriteMaterial`, it wears only a `material.sprite`: any other
- * material, given or set, throws a `TypeError` that names its kind.
+ * `rotation`; its own rotation is not read. A sprite casts no shadow. It wears only a
+ * `material.sprite`: any other material, given or set, throws a `TypeError` that names its kind.
  */
 export class Sprite extends Mesh {
   /** Always `true`: tells a sprite apart from any other mesh. */

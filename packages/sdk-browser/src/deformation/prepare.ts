@@ -1,7 +1,23 @@
 import { createSessionDeformation } from './session.ts';
-import { prepareWebgpuGeometry } from '../webgpu/core/geometryPrepare.ts';
+import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geometryPrepare.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { families } from '../host/families.ts';
+import { followPooledBlocks } from './slotLayout.ts';
+import { refreshBlendScene } from '../webgpu/blend/resources.ts';
+
+/**
+ * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`, #1293): its wider buffers and the
+ * whole-copy table re-placed after them replace the runtime's; the rows and spans that read the
+ * moved deformation block are pointed at it again (`followPooledBlocks`), and so are the
+ * transparent records, which name a whole copy's inputs and results and a placement's record
+ * (`refreshBlendScene`).
+ */
+function followPoolGrowth(rt: WebgpuPagesRuntime, device: GPUDevice, growth: VertexPoolGrowth) {
+  Object.assign(rt.vis, growth);
+  followPooledBlocks(rt);
+  refreshBlendScene(rt, device);
+  rt.run.gate.resourcesChanged();
+}
 
 /**
  * One setup for clustered and material-driven whole-copy deformation, sharing the vertex pool. A
@@ -17,7 +33,6 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
   vis.deformationCode = undefined; // a refused import below leaves no earlier prepare's code
   vis.deformation = createSessionDeformation(
     layout.selectionRoots,
-    setup.worlds,
     setup.blendCopies.filter((copy) => !copy.userData.pagedBlend),
   );
   const deforms = vis.deformation.any || setup.allPages.some((page) => page.deformationOutput);
@@ -30,10 +45,7 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
       vis.geometryBlocks,
       vis.deformation,
       blendState.blendGpu,
-      (growth) => {
-        Object.assign(vis, growth);
-        rt.run.gate.resourcesChanged();
-      },
+      (growth) => followPoolGrowth(rt, device, growth),
       vis.deformationCode?.wholeDeformationPool,
     ),
   );

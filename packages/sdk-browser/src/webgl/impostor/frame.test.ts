@@ -12,8 +12,7 @@ import { readDegraded } from '../cluster/validation.ts';
 import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts';
 import { frontCamera } from '../../page/selection/dag.fixture.ts';
 import { impostorCardCorners } from '../../impostor/card.ts';
-import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts';
-import { castsNoShadow } from '../../page/cut/select.ts';
+import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
 import {
   ATLAS_URLS,
   cutAt,
@@ -25,6 +24,7 @@ import {
 } from '../../impostor/section.fixture.ts';
 import { createWebglImpostors } from './frame.ts';
 import { CARD_FLOATS } from '../../impostor/cards.ts';
+import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 
 /** A WebGL2 session reduced to what the plan and the draw read, on a recording context. */
 function bench() {
@@ -70,7 +70,7 @@ test('a switched root draws its card on WebGL2 once its atlas is made', async ()
   assert.deepEqual(formats, ['SRGB8_ALPHA8', 'RGBA8', 'RGBA8'], 'colour sRGB, data linear');
   assert.equal(roots[0].mark, CARD_ROOT, 'the switch marks the root');
   assert.deepEqual(cutAt(roots, 200).shown, [], 'the CPU cut leaves it to its card');
-  assert.equal(castsNoShadow(roots[0].mark, {}), false, 'its light cuts keep its shadow');
+  assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'it keeps its shadow');
   const { state } = impostors;
   assert.equal(state.count, 1);
   // The card's corners are the shared sprite basis at the root's pivot, half-extent R.
@@ -108,13 +108,21 @@ test('a switched root draws its card on WebGL2 once its atlas is made', async ()
   const sent = calls.find(
     (call) => call.name === 'texSubImage2D' && call.args[8] instanceof Float32Array,
   );
-  assert.deepEqual(
-    (sent?.args[8] as Float32Array).subarray(0, CARD_FLOATS),
-    state.records.subarray(0, CARD_FLOATS),
-  );
+  // The record as planned, its world composed with the draw camera's view in double, rounded once.
+  const expected = state.records.slice(0, CARD_FLOATS);
+  const { view } = readHostDrawCamera(createHostDrawCamera(), frontCamera(200, 5000));
+  expected.set(multiplyMatrix4(new Float64Array(16), view, state.worlds[0]), 16);
+  assert.deepEqual((sent?.args[8] as Float32Array).subarray(0, CARD_FLOATS), expected);
   const programs = calls.filter((call) => call.name === 'useProgram').map((call) => call.args[0]);
   const after = calls.slice(at).find((call) => call.name === 'useProgram');
   assert.equal(after?.args[0], programs[0], 'the cluster program draws on');
+  // Another camera in the same image — the mirror capture's — sends the records composed for it.
+  const uploads = () => context.of('texSubImage2D').filter((a) => a[8] instanceof Float32Array);
+  const before = uploads().length;
+  draw(200);
+  assert.equal(uploads().length, before, 'the same camera reuses the records sent');
+  draw(150);
+  assert.equal(uploads().length, before + 1, "another camera's view composes them again");
   fixture.geometry.dispose();
   impostors.dispose();
 });

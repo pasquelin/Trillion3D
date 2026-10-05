@@ -1,13 +1,15 @@
 /**
  * A light costs what it holds (#944): its kind, its colours, its target, its coefficients and its
  * numbers. The flag lives on the class; its colours and its target's place hear it only while it
- * is in a world, so the lights the engine builds for itself hold no listener.
+ * is in a world, so the lights the engine builds for itself hold no listener of theirs: a colour
+ * written outside a world is counted (`nodeWrites`), nothing more.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Light, light } from './light.ts';
 import { Group, Object3D } from '../object/object3d.ts';
 import { countingLink } from '../object/sceneLink.fixture.ts';
+import { nodeWrites, noteNodeWrite } from '../../scene/core/nodeEdits.ts';
 import { near } from '../../math/near.fixture.ts';
 
 test('a light holds its kind, colours, target, coefficients and numbers, nothing more', () => {
@@ -18,13 +20,14 @@ test('a light holds its kind, colours, target, coefficients and numbers, nothing
   assert.equal(light.isLight, true, 'the flag reads from the class');
 });
 
-test('a light hears its colours and its target only while it is in a world', () => {
+test('a light hears its colours and its target only while it is in a world; each is counted', () => {
   const light = new Light('directional');
   // The target's place already tells its own node: only the light's listener comes and goes.
   const own = light.target.position._onChange;
+  // Outside a world a colour tells the write count alone, which holds no light.
   const listeners = () => [light.color._onChange, light.groundColor._onChange];
   const held = () => light.target.position._onChange === own;
-  assert.deepEqual([...listeners(), held()], [null, null, true], 'outside a world: none');
+  assert.deepEqual([...listeners(), held()], [noteNodeWrite, noteNodeWrite, true]);
   const scene = new Group(),
     { link, heard } = countingLink();
   scene._link = link;
@@ -34,7 +37,11 @@ test('a light hears its colours and its target only while it is in a world', () 
   light.target.position.x = 3;
   assert.equal(heard.filter((node) => node === light).length, 3, 'each write reaches the world');
   scene.remove(light);
-  assert.deepEqual(listeners(), [null, null], 'left the world: none');
+  assert.deepEqual(listeners(), [noteNodeWrite, noteNodeWrite], 'left: the count alone, no chain');
+  const [count, reached] = [nodeWrites(), heard.length];
+  light.color.setRGB(0, 1, 1);
+  light.intensity = 2;
+  assert.deepEqual([nodeWrites() - count, heard.length - reached], [2, 0], 'left: counted only');
   scene.add(light);
   scene.remove(light);
   scene.add(light);

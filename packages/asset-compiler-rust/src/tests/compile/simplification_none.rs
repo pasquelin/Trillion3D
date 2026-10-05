@@ -45,7 +45,7 @@ fn simplification_none_builds_no_coarse_level() {
 }
 
 // Behaviour: `qem-endpoints` keeps the DAG it used to build, and never leaves more roots than the
-// 127 of meshoptimizer 0.22. Under 0.25 (`meshopt` 0.6) the count depends on the machine: 125 on
+// 127 of the simplifier's older version. Under 0.25 (`meshopt` 0.6) the count depends on the machine: 125 on
 // aarch64, 127 on x86_64, the simplifier's floating-point results differing between the two. The
 // depth and the exact level-zero cover are the same everywhere.
 #[test]
@@ -55,6 +55,6 @@ fn simplification_qem_endpoints_keeps_its_dag() {
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
     assert!(
         racines <= 127,
-        "{racines} roots, more than meshoptimizer 0.22 left"
+        "{racines} roots, more than the simplifier's older version left"
     );
 }

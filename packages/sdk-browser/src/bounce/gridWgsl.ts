@@ -24,7 +24,7 @@ export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`;
  * says which cell it carries: if that is not the one asked of it, it knows nothing of the
  * point and weighs nothing. The last level is world-fixed and covers the proxy extent.
  */
-export const BOUNCE_GRID_WGSL = `
+export const BOUNCE_GRID_HEAD_WGSL = `
 struct BounceLevel{originSpacing:vec4f,base:vec4f,}
 struct BounceGrid{
  reach:vec4f,
@@ -50,38 +50,42 @@ fn probeWrap(cell:vec3i)->vec3u{
  let side=i32(bounce.counts.x);
  return vec3u(((cell%side)+side)%side);
 }
-/** A probe's rank in the buffer: its level, then its cell's toroidal remainder \`wrapped\`. */
-fn probeSlotWrapped(level:u32,wrapped:vec3u)->u32{
- let side=bounce.counts.x;
- return (level*bounce.counts.z+wrapped.x+side*(wrapped.y+side*wrapped.z))*PROBE_VECTORS;
+/**
+ * A probe's first texel in the cascades' atlas (\`probeAtlasExtent\`), from its level and its cell's
+ * toroidal remainder \`wrapped\`: the column of x — its vectors follow along the row —, the row of
+ * y and z, the layer of the level. Where the flat rank \`(level·side³ + x + side·(y + side·z))·11\`
+ * fell, with neither a division nor a remainder.
+ */
+fn probeAddress(level:u32,wrapped:vec3u)->vec3u{
+ return vec3u(wrapped.x*PROBE_VECTORS,wrapped.y+bounce.counts.x*wrapped.z,level);
 }
-/** A probe's rank in the buffer: its level, then its cell stored toroidally. */
-fn probeSlot(level:u32,cell:vec3i)->u32{return probeSlotWrapped(level,probeWrap(cell));}
+/** A probe's first texel: its level, then its cell stored toroidally. */
+fn probeOf(level:u32,cell:vec3i)->vec3u{return probeAddress(level,probeWrap(cell));}
 /** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */
-fn probeCell(slot:u32)->vec3i{
- return vec3i(i32(probeAt(slot+PROBE_CELL).w),i32(probeAt(slot+PROBE_CELL+1u).w),i32(probeAt(slot+PROBE_CELL+2u).w));
+fn probeCell(probe:vec3u)->vec3i{
+ return vec3i(i32(probeAt(probe,PROBE_CELL).w),i32(probeAt(probe,PROBE_CELL+1u).w),i32(probeAt(probe,PROBE_CELL+2u).w));
 }
 /**
  * Irradiance of the probe's order-2 spherical harmonics, convolved with the cosine lobe — the
  * basis the scene environment evaluates (\`IRRADIANCE_TERMS\`). Never negative — a truncated
  * basis can go below zero where true irradiance cannot.
  */
-fn shIrradiance(slot:u32,n:vec3f)->vec3f{
- return max(vec3f(0.0),${irradianceShader((k) => `probeAt(slot+${k}u).xyz`, 'n')});
+fn shIrradiance(probe:vec3u,n:vec3f)->vec3f{
+ return max(vec3f(0.0),${irradianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n')});
 }
 /**
  * Mean distance the probe measured in a direction, interpolated among its six axes.
  * That is the visibility test: a point farther from the probe than this distance is behind
  * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
-fn shFilteredRadiance(slot:u32,n:vec3f,bands:vec3f)->vec3f{
- return max(vec3f(0.0),${filteredRadianceShader((k) => `probeAt(slot+${k}u).xyz`, 'n', 'bands')});
+fn shFilteredRadiance(probe:vec3u,n:vec3f,bands:vec3f)->vec3f{
+ return max(vec3f(0.0),${filteredRadianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n', 'bands')});
 }
-fn probeDistance(slot:u32,direction:vec3f)->f32{
- let positive=probeAt(slot+PROBE_DISTANCE_POSITIVE).xyz;
- let negative=probeAt(slot+PROBE_DISTANCE_NEGATIVE).xyz;
+fn probeDistance(probe:vec3u,direction:vec3f)->f32{
+ let positive=probeAt(probe,PROBE_DISTANCE_POSITIVE).xyz;
+ let negative=probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz;
  let weight=abs(direction);
  let picked=select(negative,positive,direction>vec3f(0.0));
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
@@ -92,7 +96,17 @@ fn probeDistance(slot:u32,direction:vec3f)->f32{
  * nothing of it — and measured visibility, which closes leaks through walls. A probe that
  * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
  */
-fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f{
+`;
+
+/** The eight-corner walk of one level, written once: its weights and visibility are the same
+ *  whatever it gathers, so the single sum and the two sums run the very same operations on them. */
+const levelWalk = (
+  head: string,
+  empty: string,
+  sums: string,
+  add: string,
+  result: string,
+) => `fn ${head}{
  let spacing=bounce.levels[level].originSpacing.w;
  let base=vec3i(bounce.levels[level].base.xyz);
  let side=i32(bounce.counts.x);
@@ -100,10 +114,10 @@ fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)
  let local=biased/spacing-vec3f(0.5);
  let corner=vec3i(floor(local));
  // The level answers only if it holds all eight corners: a partial answer would make a seam.
- if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return vec4f(0.0);}
+ if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return ${empty};}
  let fraction=clamp(local-floor(local),vec3f(0.0),vec3f(1.0));
  let margin=BOUNCE_VISIBILITY*spacing;
- var sum=vec3f(0.0);
+ ${sums}
  var total=0.0;
  // A corner's neighbour one cell further on an axis has the next remainder, wrapped once at
  // the side: one remainder per axis for the eight corners, where each corner took its own.
@@ -113,9 +127,9 @@ fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)
   let offset=vec3u(index&1u,(index>>1u)&1u,(index>>2u)&1u);
   let cell=corner+vec3i(offset);
   let next=wrappedCorner+offset;
-  let slot=probeSlotWrapped(level,select(next,vec3u(0u),next>=wrapAt));
-  if(any(probeCell(slot)!=cell)){continue;}
-  if(probeAt(slot+PROBE_VALID).w<0.5){continue;}
+  let probe=probeAddress(level,select(next,vec3u(0u),next>=wrapAt));
+  if(any(probeCell(probe)!=cell)){continue;}
+  if(probeAt(probe,PROBE_VALID).w<0.5){continue;}
   let toProbe=probeCentre(cell,spacing)-biased;
   let distance=length(toProbe);
   let direction=toProbe/max(distance,1e-6);
@@ -123,15 +137,48 @@ fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)
   var weight=trilinear.x*trilinear.y*trilinear.z;
   let facing=dot(direction,N)*0.5+0.5;
   weight*=facing*facing;
-  if(distance>probeDistance(slot,-direction)+margin){weight=0.0;}
+  if(distance>probeDistance(probe,-direction)+margin){weight=0.0;}
   if(weight<=0.0){continue;}
-  var value=shIrradiance(slot,N);
-  if(specular){value=shFilteredRadiance(slot,R,bands);}
-  sum+=value*weight;
+${add}
   total+=weight;
  }
- return vec4f(sum,total);
-}
+ return ${result};
+}`;
+
+/** One level's diffuse irradiance and filtered radiance, \`field\` and \`specular\` both over the
+ *  same \`field.w\` weight, each summed in the order its own walk of \`sampleLevelField\` sums it. */
+const LEVEL_FIELDS_WGSL = `struct LevelFields{field:vec4f,specular:vec3f,}
+${levelWalk(
+  'sampleLevelFields(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f)->LevelFields',
+  'LevelFields(vec4f(0.0),vec3f(0.0))',
+  'var sum=vec3f(0.0);var specularSum=vec3f(0.0);',
+  '  sum+=shIrradiance(probe,N)*weight;\n  specularSum+=shFilteredRadiance(probe,R,bands)*weight;',
+  'LevelFields(vec4f(sum,total),specularSum)',
+)}`;
+
+/** The cascades' fields at a point, as the deferred resolve reads them: \`sampleProbeFields\` walks
+ *  the corners once for the diffuse irradiance at \`N\` and the filtered radiance along \`R\`, the
+ *  values \`sampleProbeField\` returns for each, bit for bit — the same level answers both, since the
+ *  weights are the same. */
+export const BOUNCE_FIELDS_WGSL = `${LEVEL_FIELDS_WGSL}
+struct ProbeFields{diffuse:vec3f,specular:vec3f,}
+fn sampleProbeFields(P:vec3f,N:vec3f,R:vec3f,bands:vec3f)->ProbeFields{
+ if(bounce.counts.w==0u){return ProbeFields(vec3f(0.0),vec3f(0.0));}
+ for(var level=0u;level<CASCADE_LEVELS;level++){
+  if(level>=bounce.counts.y){break;}
+  let gathered=sampleLevelFields(level,P,N,R,bands);
+  if(gathered.field.w>1e-5){return ProbeFields(gathered.field.xyz/gathered.field.w,gathered.specular/gathered.field.w);}
+ }
+ return ProbeFields(vec3f(0.0),vec3f(0.0));
+}`;
+
+export const BOUNCE_GRID_WGSL = `${BOUNCE_GRID_HEAD_WGSL}${levelWalk(
+  'sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f',
+  'vec4f(0.0)',
+  'var sum=vec3f(0.0);',
+  '  var value=shIrradiance(probe,N);\n  if(specular){value=shFilteredRadiance(probe,R,bands);}\n  sum+=value*weight;',
+  'vec4f(sum,total)',
+)}
 /**
  * Cascade irradiance at a point: the finest level that can answer, from tightest to
  * widest. When no level can, the result is exactly zero — a leak would be light without a source.
@@ -144,9 +191,6 @@ fn sampleProbeField(P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec3f{
   if(gathered.w>1e-5){return gathered.xyz/gathered.w;}
  }
  return vec3f(0.0);
-}
-fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
- return sampleLevelField(level,P,N,N,vec3f(0.0),false);
 }
 fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
  return sampleProbeField(P,N,N,vec3f(0.0),false);

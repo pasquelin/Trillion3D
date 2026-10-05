@@ -105,26 +105,47 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       assert.deepEqual(viewport, [0, 0, ...extent, 0, 1]);
     }
     const beforeLight = draws;
-    frame.lighting[0]++;
-    history.prepare(frame, IDENTITY_MATRIX4);
-    assert.equal(history.settled, false);
-    // #1342: no motion brings an old lighting to the new one: a relit source restarts it.
-    assert.equal(valid(), 0);
-    encode();
-    assert.equal(draws, beforeLight + 1, 'light changes resume in the same frame');
+    const clip = () => gpu.writes.at(-1)!.data[40];
+    // A light changing each image (a brazier's flicker): the history is kept whole and clipped,
+    // never restarted from one image's samples.
+    for (let i = 0; i < 3; i++) {
+      frame.lighting[0]++;
+      frame.frame++;
+      history.prepare(frame, IDENTITY_MATRIX4);
+      assert.equal(history.settled, false);
+      assert.equal(valid(), 1);
+      assert.equal(clip(), 1);
+      assert.equal(confidence(), REFLECTION_STILL_FRAMES);
+      encode();
+    }
+    assert.equal(draws, beforeLight + 3, 'light changes resume in the same frame');
+    // #1342: no motion brings an old lighting to the new one: once it stops, the stale share is
+    // flushed at the change weight before the still window closes.
+    for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) {
+      frame.frame++;
+      history.prepare(frame, IDENTITY_MATRIX4);
+      assert.equal(history.settled, false);
+      assert.equal(clip(), 0);
+      assert.equal(
+        confidence(),
+        i < REFLECTION_CHANGE_FRAMES ? REFLECTION_CHANGE_KEPT : REFLECTION_STILL_FRAMES,
+      );
+      encode();
+    }
+    assert.equal(history.settled, true);
   } finally {
     history.dispose();
     history.dispose();
     current.destroy();
   }
-  assert.equal(gpu.destroyed.length, 5, 'four owned resources, each destroyed once, plus input');
+  assert.equal(gpu.destroyed.length, 8, 'seven owned resources, each destroyed once, plus input');
 });
 
-test('resolve uniform refusal releases the complete 24-byte history', () => {
+test('resolve uniform refusal releases the complete history', () => {
   const gpu = fakeDevice({
     refuse: (descriptor) =>
       descriptor.label === 'Trillion3D reflection resolve view' ? 'throw' : undefined,
   });
   assert.throws(() => createReflectionHistory(gpu.device, 8, 8, kept), /NO_MEMORY/);
-  assert.equal(gpu.destroyed.length, 3);
+  assert.equal(gpu.destroyed.length, 6);
 });

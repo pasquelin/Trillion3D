@@ -214,16 +214,16 @@ Thirteen families describe the scene:
 Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
 according to what the frame reads:
 
-| Family       | Members                                                                                       | What it does                                                     | Example                                                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                                       | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 })`, passed as `scene.load(url, { stream })` |
-| `budget`     | `memory`, `geometryPool`, `texturePool`                                                       | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                           |
-| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                                            | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`                   |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                        |
-| `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                      |
-| `capture`    | `surface`, `buffer`                                                                           | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                   |
-| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                       |
-| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                     |
+| Family       | Members                                                                        | What it does                                                     | Example                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                        | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 })`, passed as `scene.load(url, { stream })` |
+| `budget`     | `memory`, `geometryPool`, `texturePool`                                        | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                           |
+| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                             | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`                   |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                        |
+| `capability` | `detect`, `lighting`                                                           | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                      |
+| `capture`    | `surface`, `buffer`                                                            | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                   |
+| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                     | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                       |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                         | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                     |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is
@@ -261,7 +261,13 @@ tick();
 ```
 
 `world.render()` runs the loop's frame — clips, physics and `beforeFrame` hooks advance; only the
-camera's controller is left to the host. A value written on a node (`mesh.position.x = 100`,
+camera's controller is left to the host. A world you lead draws in `world.render()` alone: a change
+or a resize asks it no frame, and the next `render()` draws, once, every change made since the last
+frame — an object added or a geometry or material written is resolved off the frame, and drawn by
+the first `render()` after it (`await world.awaitPages()` waits for it). A `render()` the world
+cannot draw yet — its session opening, or a part of the engine still loading (an effect chain,
+particles) — draws and steps nothing, and is drawn once the world can, once however many `render()`
+calls came meanwhile. A value written on a node (`mesh.position.x = 100`,
 `mesh.visible = false`, a light's intensity, colour or pose) and a light added or removed are seen
 by the next frame, with no call. A node the page holds no handle to is moved by its name
 (`object.name`): `world.setTransform(name, matrix)` writes its world pose, brought into its
@@ -380,11 +386,12 @@ each a setting of `world.controls`. It collides with:
 
 - **without physics**, the static triangles of `world.controls.colliders` (meshes, built into a
   triangle tree once), or nothing: it walks level where it stands;
-- **with physics on** (`world.physics`, [PHYSICS.md](PHYSICS.md)), everything: it is Jolt's
+- **with physics on** (`world.physics`, [PHYSICS.md](PHYSICS.md)), everything: it is the physics module's
   virtual character in the physics worker, climbs steps and slopes, rides a moving platform, pushes
   dynamic bodies with at most `pushStrength` newtons and is pushed back. `colliders` is unused; give
   the level `mesh.physics = 'static'`. The keys reach the worker's next fixed step; the page draws
-  the feet it last reported, moved on by their velocity, at most one step ahead.
+  the feet at the bodies' time, between the two steps that bracket it, as it draws a body: the eye
+  follows the simulated trajectory.
 
 Both read one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over `stopTime`,
 jumps with a coyote time and a jump buffer. No leg changes ground speed faster than friction lets a
@@ -393,8 +400,8 @@ frictions, the physics' rule): with physics, that body's (`material.physics`, a 
 without, declared stone. A jog reaches pace in 0.45 s on stone, 2.2 s on ice, and glides
 `v² / (2 μ g)` to a stop, 0.8 m on stone, 3.8 m on ice; the two times only shape the last
 centimetres. The triangle body catches up every tick, dropping only a stall past 0.25 s
-(`MAX_CHARACTER_DELTA`); Jolt's steps on the worker's clock, drawn late but never slower by a slow
-page, a stalled worker dropping what its catch-up ceiling cannot hold (`MAX_CATCH_UP_STEPS`).
+(`MAX_CHARACTER_DELTA`); the module's takes the steps the frames owe, four at most a frame
+(`MAX_CATCH_UP_STEPS`): a slower page shows slow motion, never a jump.
 
 ```js
 const world = createWorld('view', { controls: 'character', physics: true });
@@ -485,7 +492,7 @@ Lit materials can declare `subsurfaceColor` and an optional `subsurfaceMap` for 
 transform. Diffuse thin-surface transmission, not a volume random walk: a glass volume uses
 physical `transmission`, `thickness`, `attenuationColor` and `attenuationDistance`.
 
-With `transparentShadow: true`, normally blended glass tints the existing shadow-transmittance layer
+With `transparentShadow: true`, normally blended glass tints the shadow transmission atlas
 by its base color and texture. A nonzero volume thickness applies Beer attenuation once at the
 entrance of a closed mesh, scaled to world units along the light ray: the declared-thickness raster
 approximation, not geometric entry/exit ray tracing. Thin sheets keep independent front and back
@@ -511,7 +518,8 @@ vertices' box widened by half its size; vertices leaving it serve the same pages
 and changed corners are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES` (4 MiB), every
 buffer written counted, as `metrics.dynamicUploadBytes` reports; a rewrite past it waits for the
 next frame, in order, never dropped. Live example:
-[floating crates](../site/examples/floating-crates.html).
+[cloth and rope](../site/examples/cloth-and-rope.html). Water need not be rewritten: a mesh lying
+flat on the physics' water is moved by its waves on the GPU (`docs/PHYSICS.md`, Water).
 
 ```js
 const sheet = geometry.plane(28, 20, 112, 80);
@@ -639,7 +647,7 @@ Below `world.scene`, the common facade publishes the DOM-free transform foundati
 version `SCENE_MODEL_VERSION` 1: `SceneRoot` and `createSceneRoot`, for a tree kept outside a world.
 Nodes from `root.createNode({ id, visible })` have stable, root-unique ids; `add` and `reparent`
 keep the local pose, `attach` the world pose (`shelf.attach(crate)` rewrites the crate's local pose
-from its world matrix seen from the shelf; a sheared result loses its shear, as with the reference;
+from its world matrix seen from the shelf; a sheared result loses its shear;
 an `Object3D`'s `position`, `rotation`, `quaternion` and `scale` follow). `remove` and `clear`
 detach; `destroy` permanently invalidates a subtree. `clone` gives a fresh id unless one is given,
 `copy` keeps the destination's; both reproduce the local pose and optionally the descendants.
@@ -658,9 +666,13 @@ scene.add(shelf);
 shelf.add(crate).updateWorldMatrix();
 ```
 
-`TransformNode` (browser facade) reads that node through the reference's matrices: `matrix` and
+`TransformNode` (browser facade) reads that node through the host's matrices: `matrix` and
 `matrixWorld` view its slot, `matrixAutoUpdate` and `matrixWorldNeedsUpdate` are its flags,
-`updateMatrixWorld(force)` the reference's rule. `Object3D` and the engine's graph extend it; each
+`updateMatrixWorld(force)` the host scene graph's rule. Every write through a node is heard as it
+is made; numbers written straight into a `matrix.elements` kept from an earlier read, or into
+storage of its own, are announced with `matrixWorldNeedsUpdate = true`, and a light's colour
+channels written straight (`color.r = …`) with `needsUpdate = true`: a still scene reads nothing
+per frame. `Object3D` and the engine's graph extend it; each
 node lists its children, so an update or walk costs its subtree only. The objects share one
 hierarchy holding none of them: a dropped object frees its slot when collected, `destroy()` a
 subtree at once.
@@ -674,9 +686,9 @@ path draws directional, point, spot, rectangle, ambient and probe lights and ref
 light by name (a world hands it the sky over a ground as the environment's irradiance). A `Scene`
 built with no loader, as the engine's own, refuses `load` (`UNSUPPORTED_SCENE_UPDATE`); its
 `onBeforeRender` and `onAfterRender` (none by default) run around each draw. A `Camera` publishes
-its projection in the reference's convention, finite far plane, as `projectionMatrix` (made at
-first read, recomposed at each optic write), and its world matrix's inverse as
-`matrixWorldInverse`.
+its projection onto the clip cube, depth −1 on the near plane to 1 on a finite far plane, as
+`projectionMatrix` (made at first read, recomposed at each optic write), and its world matrix's
+inverse as `matrixWorldInverse`.
 
 `clone(recursive)` returns the same class (`Group`, `Light`, `Camera`, a graph node its kind) with
 name, pose, matrices, flags, `userData`, and a `clone` of each child unless `recursive` is `false`;
@@ -752,10 +764,10 @@ Only a light the host declared lights an opaque surface: no fixed ambient, const
 scene lighting; a windowless corridor stays black at noon. Emission, a material property, is always
 added. `world.exposure` is the camera exposure on linear radiance before tone mapping, not a light.
 `material.meshNormal()` and `material.meshDepth()` surfaces are output as stored, without exposure
-or `world.toneMapping`, as in the reference. A map a family's model never reads — a `meshToon`
+or `world.toneMapping`. A map a family's model never reads — a `meshToon`
 `gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal` surface — is
 refused by name, never silently dropped; `meshMatcap`, `meshNormal` and `meshDepth` ignore an
-`aoMap`, as the reference does.
+`aoMap`.
 
 `scene.background` is the colour behind every object (`null`: the default); set or written through
 its methods (`scene.background.setHSL(...)`, `set`, `setRGB`, `setHex`), it shows next frame,
@@ -799,20 +811,15 @@ overcast sky) only `direction`, the propagation direction, refused with a `posit
 No bound on the count: a 16×16 screen tile lists up to 64 lights reaching it, past that exactly
 those reaching it from a pool sized from the view (#849); WebGL2 lights each fragment by the lights
 reaching its light-grid cell (#835). 64 shadow slices, past which a caster lights without a shadow
-(`shadowCastersUnsliced`); the stale pages the image reads are drawn at most a static fill a frame
-(`shadowPagesPerFrame`, a view's pages over sixteen frames, the coarsest first), a page past it
-reading the coarser level meanwhile ([SHADOWS.md](SHADOWS.md#when-a-page-is-stale-withdrawn-and-drawn)). The shadow pool is allocated
-once, at the first casting frame, at the most pages its byte setting holds — 360 MB with its static layer, request
-buffers and pair lists, 2 601 pages of 128² texels whatever the display (`SHADOW_POOL_SETTING_BYTES`), or the fewer the
-session's `shadowPoolPages` option asks —, in layers as wide as the device draws — and never resized (#831): a wider
-screen reads the pages past them at the coarser level.
-`metric.frame(world)` publishes `shadowPoolBytes`, `shadowPoolLayers` and the pressure
-(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`); internals:
+(`shadowCastersUnsliced`). The shadow page pool is made once, at the first casting frame, with `2 048`
+physical pages of 128² texels, or the fewer the GPU budget holds — down to an eighth, said by the
+`gpu-out-of-memory` diagnostic —, and grows back when the room returns ([SHADOWS.md](SHADOWS.md#memory)).
+`metric.frame(world)` publishes `shadowPoolBytes` and the page counters of `shadowVsm*`; internals:
 [SHADOWS.md](SHADOWS.md).
 
 ### A lamp's range is authored, and no frame shortens it
 
-`range` is the lamp's attenuation radius in metres, the reference engine `AttenuationRadius`: influence ends
+`range` is the lamp's attenuation radius in metres: influence ends
 there through the window `(1 − (d/range)⁴)²`, and a `point` or `spot` shadow map is built to it.
 The page sets it (`light.distance`); unset, the world derives one from the scene's extent. Every
 path — the world, a source file, `addLight`, `setLight` — stores it as-is: no exposure, curve or
@@ -826,14 +833,14 @@ sentence what is not applied.
 ### Every mesh casts a shadow unless it says `castShadow = false`
 
 Under a casting light (the light's `castShadow: true`, `false` by default), every opaque mesh
-casts, as in the reference engine (a mesh's `castShadow` defaults to `true`).
+casts (a mesh's `castShadow` defaults to `true`).
 `mesh.castShadow = false`, written any time, leaves every shadow map; the mesh still receives
 shadows. An outline drawn as a larger copy of its part wants it off, or it shades the part.
 
 ### A see-through surface casts no shadow unless it asks
 
-A blended material (`transparent: true`) lets light pass, as glass, smoke and a light beam do in the
-reference solution. `transparentShadow: true` asks for a shadow as dark as the surface is opaque:
+A blended material (`transparent: true`) lets light pass, as glass, smoke and a light beam do.
+`transparentShadow: true` asks for a shadow as dark as the surface is opaque:
 `material.meshStandard({ transparent: true, opacity: 0.5, transparentShadow: true })` casts half a
 shadow. An additive, transmissive or fully transparent surface never casts.
 
@@ -885,15 +892,15 @@ cast). Every light is declared, however many (`imported-lights` counts them), re
 second (another application, another tab), so a budget measured at start-up would be wrong minutes
 later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md); this is what a host sets and reads.
 
-| Setting                     | Default                                             | What it is                                                                                                                                        |
-| --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `world.budget.gpu`          | 2 179 MiB                                           | every GPU pool together, divided by `world.budget.split`                                                                                          |
-| `world.budget.cpu`          | the shadow mirror plus the page cache's own default | what the world keeps in CPU memory                                                                                                                |
-| `world.budget.geometryPool` | 512 MiB                                             | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes                              |
-| `world.budget.texturePool`  | 512 MiB                                             | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; `null` on WebGL2                                    |
-| `world.budget.canvas`       | 3840 × 2160                                         | the largest drawing buffer, `{ width, height }` in pixels, the effect targets are reserved at (`{ width: 7680, height: 4320 }` for an 8K display) |
-| `world.budget.raycastTrees` | 64 MiB                                              | [Picking](#picking-moving-and-saving)                                                                                                             |
-| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`                            | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                  |
+| Setting                     | Default                      | What it is                                                                                                                                        |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                                                          |
+| `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                                                |
+| `world.budget.geometryPool` | 512 MiB                      | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes                              |
+| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; `null` on WebGL2                                    |
+| `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }` in pixels, the effect targets are reserved at (`{ width: 7680, height: 4320 }` for an 8K display) |
+| `world.budget.raycastTrees` | 64 MiB                       | [Picking](#picking-moving-and-saving)                                                                                                             |
+| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                  |
 
 - **Live textures.** A video or a canvas redrawn every frame keeps a working texture of its size,
   `textureLiveBytes`, drawn from the texture budget: the pool (as a budget write reports it) is the
@@ -910,16 +917,16 @@ later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md); this is what a hos
   descriptor bytes — image targets, shared caches and other live views included — are reserved
   before the remainder is divided between geometry and textures. Root coverage and texture-tail
   minima are mandatory. Admission never changes resolution or raises the declared total.
-- **CPU split.** The shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, whatever
-  the screen), then the decoded-page cache (`split.pageCache`). In it: the session's manifest
-  tables (a fixed reckoning per catalogue entry, not a measured heap) and transfer queue; the cut
-  tables (group closure, residency readiness, residency sets, the cut's differences), sized by the
-  view and the pool, never the world; the resident proxy, held from its request until another scene
-  replaces it or kept pages need its room (`page-cache-kept-yielded`; read again after a device
-  loss, on its own request, not counted among pages read); decoded baked texture levels, at most
-  three quarters of the pages' share (`split.textureLevels`, 192 MiB at the default), yielding
-  first to kept pages (`page-cache-levels-yielded`), a level that cannot fit left coarser. A change
-  applies at once: pages and levels leave by last use, save the pages the frame keeps.
+- **CPU split.** The decoded-page cache takes the whole CPU total (`split.pageCache`). In it: the
+  session's manifest tables (a fixed reckoning per catalogue entry, not a measured heap) and
+  transfer queue; the cut tables (group closure, residency readiness, residency sets, the cut's
+  differences), sized by the view and the pool, never the world; the resident proxy, held from its
+  request until another scene replaces it or kept pages need its room (`page-cache-kept-yielded`;
+  read again after a device loss, on its own request, not counted among pages read); decoded baked
+  texture levels, at most three quarters of the pages' share (`split.textureLevels`, 192 MiB at the
+  default), yielding first to kept pages (`page-cache-levels-yielded`), a level that cannot fit left
+  coarser. A change applies at once: pages and levels leave by last use, save the pages the frame
+  keeps.
 - **Canvas.** Declared larger, it grows the default total by the larger reserve, or takes room from
   the pools under a page-set total. A canvas drawn past it is never shrunk: the chain renders at
   full resolution, the diagnostics saying `effect targets over budget` with the bytes past the
@@ -958,7 +965,6 @@ so. A value that cannot be held as given is brought to what can, `geometryPoolCl
 | `INVALID_BUDGET_CANVAS`                                                                                   | a declared canvas that is not a whole number of pixels above zero                                                                                                                                                            |
 | `GPU_BUDGET_UNDER_MINIMUM`                                                                                | a GPU total below the root coverage and texture-tail minima                                                                                                                                                                  |
 | `GPU_BUDGET_UNDER_SHADOW_POOL`                                                                            | a GPU total under its fixed shadow share                                                                                                                                                                                     |
-| `CPU_BUDGET_UNDER_SHADOW_MIRROR`                                                                          | a CPU total not above the shadow mirror                                                                                                                                                                                      |
 | `GEOMETRY_POOL_DEVICE_LIMIT`                                                                              | a device whose limits cannot hold even the root cover                                                                                                                                                                        |
 | `TEXTURE_POOL_DEVICE_LIMIT`                                                                               | a device whose limits cannot hold the tails of one texture lane                                                                                                                                                              |
 | `WEBGPU_GEOMETRY_POOL_REFUSED`                                                                            | the device refuses the root cover at prepare: the WebGPU backend fails, the world goes on with its others (`fallback`, `WEBGPU_UNAVAILABLE`); a GPU canvas rejects                                                           |
@@ -973,9 +979,9 @@ The browser may refuse an allocation the budget allows; no exception reaches the
 pool is drawn again at half its bytes, down to its floor (the root cover, the texture pool's
 `minimum`, the smallest screen's shadow pool), the frame going on coarser. A frame waiting on a
 shadow pool or frame targets is held — the canvas keeps its previous image, a capture waits — never
-drawn without its shadows. Even the smallest shadow pool refused at the first frame: a
-`shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), the session going on without
-shadows ([SHADOWS.md](SHADOWS.md#memory)). The `gpu-out-of-memory` diagnostic names the pool, bytes
+drawn without its shadows. Even the smallest shadow pool refused at the first frame: the
+`gpu-out-of-memory` diagnostic ("the GPU budget holds no shadow page pool"), the session going on
+without shadows ([SHADOWS.md](SHADOWS.md#memory)). The `gpu-out-of-memory` diagnostic names the pool, bytes
 asked (`requestedBytes`) and granted (`grantedBytes`, `null` when even the floor was refused and the
 pool in place stays); for frame targets, Hi-Z goes first (`pool: 'frame-targets'`,
 `dropped: 'hi-z'`), then `frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`,
@@ -1012,13 +1018,13 @@ the capture reads its own image.
 No Three.js adapter ships or is planned: Three.js code is rewritten with the [families](#families).
 The portal's [migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets a Three.js
 program beside its engine equivalent
-([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); each
-maths function's page of the [API reference](https://www.trillion3d.com/#/en/api) names its witness
-call. Three.js stays a bench witness, never mixed with a published world (#79).
+([`site/examples/a-bust-a-crate-and-a-glass-ball.html`](../site/examples/a-bust-a-crate-and-a-glass-ball.html));
+each maths function's page of the [API reference](https://www.trillion3d.com/#/en/api) names its
+witness call. Three.js stays a bench witness, never mixed with a published world (#79).
 
 ## Physics
 
-Jolt in a worker, every body an ordinary mesh with `physics` set: [PHYSICS.md](PHYSICS.md).
+The physics engine in a worker, every body an ordinary mesh with `physics` set: [PHYSICS.md](PHYSICS.md).
 
 ## GPU deformation
 
@@ -1066,7 +1072,8 @@ Actions blend by `weight`; `action.blendMode = 'additive'` adds the difference f
 key. `animation.twoBoneIK(root, mid, end, target, pole?, weight?)` solves a bone chain after
 sampling; `animation.windClip(bones, options?)` loops bones (`direction: [x, z]`, `angle` in
 radians, `frequency` in Hz), never CPU vertices. A water mesh's `mesh.waves = waterSurface` is the
-`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share waves.
+`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share waves. A mesh lying
+flat on the physics' water at its level is set to it by the engine (`null` keeps it out).
 
 WebGPU computes resident positions, previous positions and normals before selection and
 rasterization; WebGL2 applies the same sources in its vertex stage. Culling bounds grow by the

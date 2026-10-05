@@ -1,9 +1,8 @@
 //! Reading a ZIP archive, shared by the containers whose output format it is — `.zip` itself and
 //! `.usdz`, which is an uncompressed and aligned ZIP.
 //!
-//! Provenance: open format (APPNOTE 6.3.10, PKWARE), read by the `zip` 8.6.0 crate (MIT, zip-rs/zip2
-//! repository), decompression only and without its default features: only `deflate` via `flate2` is
-//! compiled, no vendor code enters here. An encrypted archive is refused, never circumvented.
+//! Decompression only: only `deflate` is compiled. An encrypted archive is refused, never
+//! circumvented.
 use super::*;
 use ::zip::ZipArchive;
 use std::{fs, io::Read};

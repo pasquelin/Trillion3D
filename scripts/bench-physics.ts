@@ -3,7 +3,7 @@
 // floor), stepped at 60 Hz until every box sleeps, by the committed web modules in node
 // (single-threaded, and threaded on workers) and, when built, by the same C API compiled natively
 // (`packages/physics-jolt-wasm/bench/native.cpp`, same Jolt, same command words). Prints, per run,
-// the mean and worst step of the fall-and-landing window and the step at which all sleep.
+// the median, mean and worst step of the fall-and-landing window and the step at which all sleep.
 //   node scripts/bench-physics.ts [--bodies 1000,5000,10000] [--threads 1,4] [--native <joltBench>]
 //     [--wasm <module>]
 // A per-phase profile needs the profiled builds (`-DPROFILE=ON`, `bench/profile.cpp`): the native
@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { Worker, isMainThread, workerData } from 'node:worker_threads';
 import {
+  PHYSICS_STEP,
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
   LAYER,
@@ -39,8 +40,10 @@ const PHYSICS = join(
   'src',
   'physics',
 );
-/** Steps timed: 10 simulated seconds hold the fall, the landing and the settling. */
-const STEPS = 600;
+/** Steps timed at most: the run stops at the first step after which nothing is awake. 600 steps
+ *  (10 simulated seconds) never reached it — 1 000 boxes still had 898 awake at step 600, none at
+ *  900 —; 60 simulated seconds bound a scene that never settles. */
+const STEPS = 3600;
 /** The fall-and-landing window whose steps are averaged: the first 3 simulated seconds. */
 const WINDOW = 180;
 
@@ -99,8 +102,12 @@ function summary(label: string, { steps, phases }: Run) {
   const sorted = [...window].sort((a, b) => a - b);
   const mean = window.reduce((a, b) => a + b, 0) / window.length;
   const asleep = steps.findIndex((r) => r.active === 0);
-  const [p95, worst] = [sorted[Math.floor(sorted.length * 0.95)], sorted[sorted.length - 1]];
-  const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, mean ${mean.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`;
+  const [median, p95, worst] = [
+    sorted[sorted.length >> 1],
+    sorted[Math.floor(sorted.length * 0.95)],
+    sorted[sorted.length - 1],
+  ];
+  const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, median ${median.toFixed(2)}, mean ${mean.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`;
   const full = steps.filter((r) => r.full).length;
   const note = full ? `, contact budgets exceeded in ${full} steps` : '';
   console.log(`${text}, all asleep at step ${asleep < 0 ? `> ${STEPS}` : asleep + 1}${note}`);
@@ -121,13 +128,14 @@ async function web(words: Uint32Array, bodies: number, threads: number, file: st
     new Worker(fileURLToPath(import.meta.url), { workerData: start }).unref();
   const pool = threads > 1 || file ? { count: threads, spawn } : null;
   const opened = await openJolt(readFileSync(file ?? join(PHYSICS, name)), 1 << 30, pool);
-  const jolt = startJolt(opened, budgetFor(bodies), threads);
+  const jolt = startJolt(opened, budgetFor(bodies), threads, PHYSICS_STEP);
   const profile =
     'jolt_profile_name' in opened.exports ? (opened.exports as unknown as Profiled) : null;
   const phases = new Map<string, number>();
   jolt.step(words, 0);
   const steps = [];
-  for (let s = 0; s < STEPS; s++) {
+  // Until nothing is awake, the window always whole: the sleep step is measured, not assumed.
+  for (let s = 0; s < STEPS && (s < WINDOW || steps[s - 1].active > 0); s++) {
     if (profile && s === PROFILE_FROM) profile.jolt_profile_reset();
     if (profile && s === PROFILE_TO)
       for (let i = 0; i < 256; i++) {

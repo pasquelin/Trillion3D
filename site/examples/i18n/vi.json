@@ -40,18 +40,72 @@
     },
     "stats": {
       "FPS": "Khung/giây",
-      "FPS (held)": "Khung/giây (đứng yên)",
       "triangles": "tam giác",
       "triangles (scene)": "tam giác (cảnh)",
       "draw calls": "lệnh vẽ",
       "pages": "trang",
       "geometry pool": "kho hình học",
       "lights": "đèn",
+      "GPU memory": "bộ nhớ GPU",
+      "screen images": "ảnh màn hình",
+      "shadow memory": "bộ nhớ bóng",
+      "geometry memory": "bộ nhớ hình học",
+      "texture memory": "bộ nhớ texture",
+      "live textures": "texture đang dùng",
+      "transmission backdrop": "nền truyền sáng",
       "GPU frame": "khung GPU",
       "GPU frame (last)": "khung GPU (cuối)",
       "CPU frame": "khung CPU",
       "page hooks": "mã của trang",
-      "engine CPU": "CPU của engine"
+      "engine CPU": "CPU của engine",
+      "Statistics": "Thống kê",
+      "hint": "Nhấp: thu gọn · kéo: di chuyển · phím `",
+      "fps": "FPS",
+      "budget": "ngân sách",
+      "held": "đứng yên",
+      "last": "gần nhất",
+      "others": "khác",
+      "Shadows": "Bóng",
+      "Scene and memory": "Cảnh và bộ nhớ",
+      "cut and culling": "cắt và loại bỏ",
+      "page preparation": "chuẩn bị trang",
+      "command encoding": "mã hóa lệnh",
+      "physics step": "bước vật lý",
+      "Cadence": "Nhịp",
+      "{n}× refresh": "{n}× làm mới",
+      "GPU idle": "GPU rảnh"
+    },
+    "shadows": {
+      "lights": "đèn",
+      "maps": "bản đồ",
+      "pagesRequested": "trang được yêu cầu",
+      "pagesAllocated": "trang được cấp",
+      "pagesCached": "trang trong bộ đệm",
+      "pagesRendered": "trang đã vẽ",
+      "freePages": "trang trống",
+      "lodBias": "độ lệch LOD",
+      "projectionPasses": "lượt chiếu",
+      "invalidation": "vô hiệu hóa",
+      "marking": "đánh dấu",
+      "pageManagement": "quản lý trang",
+      "render": "vẽ",
+      "projection": "chiếu",
+      "transmission": "truyền sáng"
+    },
+    "passes": {
+      "vsm projection": "chiếu VSM",
+      "vsm marking": "đánh dấu VSM",
+      "vsm render": "vẽ VSM",
+      "material surfaces": "bề mặt vật liệu",
+      "temporal antialiasing": "khử răng cưa theo thời gian",
+      "HDR composition + present": "tổng hợp HDR + hiển thị",
+      "deferred lighting": "chiếu sáng trì hoãn",
+      "reflection source": "nguồn phản chiếu",
+      "HiZ pyramid": "kim tự tháp HiZ",
+      "light tiles": "ô ánh sáng",
+      "texture mips": "mip kết cấu",
+      "reflection radiance mips": "mip độ rọi phản chiếu",
+      "reflection depth bounds mips": "mip giới hạn độ sâu phản chiếu"
     },
     "failure": {
       "title": "Ví dụ này đã dừng vì một lỗi",
@@ -1363,7 +1417,8 @@
       "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
-  "migrating-from-three": {
+  "a-bust-a-crate-and-a-glass-ball": {
+    "banner": "Kéo để xoay quanh bức tượng bán thân. Thùng gỗ và quả cầu thủy tinh quay trên bàn xoay của chúng.",
     "words": {
       "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0; thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
     }
@@ -2417,5 +2472,8 @@
     "readouts": {
       "pose": "Tư thế"
     }
+  },
+  "choose-your-quality": {
+    "banner": "Chọn chất lượng, độ phân giải và góc nhìn. Giữ một thiết lập làm A, một thiết lập khác làm B, rồi nhấn C để chuyển qua lại."
   }
 }

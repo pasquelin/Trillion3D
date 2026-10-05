@@ -2,12 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
-import { rasterVisibilityIds } from '../visibility/buffer.ts';
 import { sameHizView, type HizPage } from './hiz.ts';
-import { hizRejects } from './occlusion.ts';
 import { buildHizPyramid } from './depth.ts';
 import { filterUnoccluded } from './unoccluded.ts';
-import { visibilityDepth } from './depth.ts';
+import { visibilityDepth } from './visibilityDepth.fixture.ts';
 import { splitOccludersInto } from './split.ts';
 import {
   cameraAt,
@@ -17,6 +15,8 @@ import {
 } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
+import { hizRejects } from '../../../../bench/oracles/browser/hizRejects.ts';
 
 test('Hi-Z history is invalidated by camera motion and projection cuts', () => {
   const previous = cameraAt(),

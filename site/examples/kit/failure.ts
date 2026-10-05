@@ -24,7 +24,7 @@ function missingCache(error: unknown) {
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /** What the card says of `error`: the command that builds a missing cooked cache, else its message. */
-export const failureText = (error: unknown) =>
+const failureText = (error: unknown) =>
   missingCache(error)
     ? kitWord('failure', 'missingCache', 'The cooked cache is missing: run pnpm compile:caches')
     : messageOf(error);
@@ -49,7 +49,7 @@ function showFailure(error: unknown) {
 
 /** A refusal the browser gives in passing, which stops nothing: a video's `play()` cut short by a
  *  pause (`AbortError`) or refused before the reader has touched the page (`NotAllowedError`). */
-export const isPassing = (reason: unknown) =>
+const isPassing = (reason: unknown) =>
   reason instanceof DOMException && ['AbortError', 'NotAllowedError'].includes(reason.name);
 
 /** Shows any error the example's own code leaves uncaught: an `await` that rejects at the top

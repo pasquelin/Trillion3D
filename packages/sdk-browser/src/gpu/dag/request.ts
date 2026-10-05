@@ -3,11 +3,11 @@
  * load, and in which order.
  *
  * The cut ordered its ranks by an atomic counter, hence by nothing: the host uploaded in the
- * order the threads had won the race. The WebGL2 path has always ranked by the REPLACEMENT'S
- * SCREEN ERROR (`../../streaming/priority.ts`, `orderPendingUrls`) — a missing cluster is drawn by a
- * coarser ancestor, and that ancestor's error is exactly what the eye sees: it is what decides
- * who arrives first. The GPU now carries the same value, computed by the same formula
- * (`projected`, proven mirror of `clusterErrorPixels`).
+ * order the threads had won the race. What decides who arrives first is the REPLACEMENT'S SCREEN
+ * ERROR — a missing cluster is drawn by a coarser ancestor, and that ancestor's error is exactly
+ * what the eye sees. The GPU carries that value (`projected`, proven mirror of
+ * `clusterErrorPixels`); the WebGL2 path asks coarsest first in cut order
+ * (`../../backend/autonomous/residency.ts`).
  *
  * One WORD per request, so the frame copy stays what it is: the page in the low 22 bits —
  * 4,194,304 clusters, against 1,959,792 on the largest measured scene —, the priority in the high
@@ -15,8 +15,7 @@
  * (`shader/aheadWgsl.ts`); the nine bits below are the replacement's error, quantized
  * LOGARITHMICALLY and monotone: it only ranks, and a constant relative step keeps as much precision
  * on a one-pixel error as on a thousand-pixel one. Two neighbouring errors may fall in the same
- * step — order between them is then indifferent, as it is on the reference, which does not break
- * ties either.
+ * step — order between them is then indifferent: ties are not broken.
  *
  * The RANK the GPU sorts by (`requestRank`, `shader/snapshotWgsl.ts`) puts every visible request
  * before every request ahead — the deadline of the first is now —, the larger error first. A request

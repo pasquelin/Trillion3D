@@ -5,8 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEPTH_LAYER_BIAS_UNITS } from '../../../sdk-core/src/lod/depthLayer.ts';
 import { hizNearestBound } from './nearestBound.fixture.ts';
-import { hizRejects } from './occlusion.ts';
-import type { HizBounds, HizPyramid } from './types.ts';
+import type { HizPyramid } from './types.ts';
+import { hizRejects, type HizBounds } from '../../../../bench/oracles/browser/hizRejects.ts';
 
 const f32 = new Float32Array(1),
   bits = new Uint32Array(f32.buffer);

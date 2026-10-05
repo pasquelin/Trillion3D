@@ -1,200 +1,89 @@
+import type { EngineVsm } from '../render/vsm/engineVsm.ts';
+import type { VsmRefusal } from '../render/vsm/vsmGrant.ts';
+import { vsmUnsettled } from './vsmSettle.ts';
+import { createSceneLightStore, type SceneLightStore } from '../../../../../sdk-core/src/index.ts';
 import {
-  createSceneLightStore,
-  createShadowPlan,
-  type SceneLightStore,
-  type ShadowPlan,
-} from '../../../../../sdk-core/src/index.ts';
-import { SUN_WINDOW } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
-import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
-import type { ShadowBins } from '../../../gpu/shadow/bins.ts';
+  SHADOW_CHANGE_BOXES,
+  createShadowChanges,
+} from '../../../../../sdk-core/src/scene/light-shadow/changes.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
-import { createShadowRuns, type ShadowRuns } from '../../shadow/runs.ts';
-import { createShadowRegionList, type ShadowRegionList } from '../../shadow/regions.ts';
-import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
-import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
-import type { ShadowPageRequests } from '../../shadow/pageRequests.ts';
-import type { ShadowDemand } from '../../shadow/demandPass.ts';
-import type { ShadowAllocation } from '../../shadow/allocPass.ts';
-import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
-import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
 import { createShadowResidence } from '../../shadow/residence.ts';
 import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts';
-import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
-import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
-import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
-import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import type { ShadowRowLods } from '../../shadow/rowLods.ts';
-import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
+import type { clusterSpheres } from '../../shadow/rowBuffers.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
-import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
-/** Direct lighting: the light store (the host's too), tile lists, shadow atlas, scheduler. */
+/** Direct lighting: the light store (the host's too), tile lists, and what the virtual shadow maps
+ *  read of the engine — the world's change boxes, the caster rows' spheres, mobility and detail. */
 export interface WebgpuLightState {
   store: SceneLightStore;
-  plan: ShadowPlan;
+  /** What moved in the world since the last frame, as boxes the virtual shadow maps' invalidation
+   *  reads, then consumes (`../render/vsm/vsmPlan.ts`). */
+  changes: ReturnType<typeof createShadowChanges>;
   buffer: GPUBuffer | undefined;
   tiles: GpuLightTiles | undefined;
-  shadows: GpuShadowAtlas | undefined;
-  /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
-  shadowGrant: DeviceGrant | undefined;
-  /** The return path of the pages the resolve reads; absent while the pool does not exist. */
-  pageRequests: ShadowPageRequests | undefined;
-  /** Per pixel, the pages the resolve reads, mapped on the GPU (`demandPass.ts`, `allocPass.ts`). */
-  demand: ShadowDemand | undefined;
-  allocation: ShadowAllocation | undefined;
-  /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
+  /** Group 0's layout of the shadow raster: the page rows, as the visibility pass binds them, less
+   *  what the raster never reads (`../../shadow/pageGroup.ts`); absent while shadows are off. */
+  pageLayout: GPUBindGroupLayout | undefined;
+  /** Residency flips, compared frame to frame (`../../shadow/residence.ts`). */
   residence: ReturnType<typeof createShadowResidence>;
-  /** Which placements move, and the static layer their first move opens. */
+  /** Which placements move: the static or dynamic cache a caster's pages are drawn in. */
   mobility: ShadowMobility;
-  mobilityRows: GPUBuffer | undefined; // a word per row, what the page cull splits its lists by
+  mobilityRows: GPUBuffer | undefined; // a word per row, what the raster splits its casters by
   rowLods: ShadowRowLods | undefined; // each caster row's detail, its level chosen per page (#831)
-  staticLayer: ShadowStaticLayer | undefined; // the pool's, once an object moved and it was built
-  staticLayerPending: boolean;
-  staticLayerTexture: GPUTexture | undefined; // made with the pool until the layer owns it (#831)
-  /** The static layer's page pyramids and the test of the moving casters against them. */
-  pageHiz: ShadowPageHiz | undefined;
-  occlusion: ShadowOcclusion | undefined;
-  /** The scene's world box, what a sun's depth range and floor span (`../../shadow/sceneBox.ts`). */
-  sceneBox: ReturnType<typeof createShadowSceneBox>;
-  /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
-  cull: GpuShadowCull | undefined;
-  bins?: ShadowBins; // the pool's raster bins (OMB-26)
-  /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
-  movingGroups: ShadowMovingGroups | undefined;
-  pageQuads: ShadowPageQuads | undefined; // each pass's clears and restores, made with the atlas
-  spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
-  /** Bind groups of shadow faces, and the resources they were built on. */
-  shadowGroups: Array<GPUBindGroup | undefined>;
-  shadowGroupsKey: unknown[];
+  spheres: ReturnType<typeof clusterSpheres> | undefined;
+  /** Whether the caster rows' spheres, mobility words and detail followed every change of the row
+   *  table since a light last cast: false while none casts, when they are neither made nor written
+   *  (`../render/encodeDraws.ts`). */
+  rowsFollowed: boolean;
   uploadedEpoch: number; // store revision already pushed: an image with no change writes nothing
-  /** Matrices of the batch's drawn pages, one per region. */
-  faceMatrices: Float32Array;
-  /** The batch's drawn light views, one light cut each (`../../shadow/runs.ts`). */
-  runs: ShadowRuns;
-  /** The batch's regions, one or two per drawn page (`../../shadow/regions.ts`). */
-  regions: ShadowRegionList;
-  /** The light store slot of each shadow slice, as the image's records were written. */
-  shadowSlots: Int32Array;
-  shadowPixelError: number; // the threshold the image's light cuts select casters at
-  plannedFrame: number; // the image whose shadow pages are planned, once (`planImageShadows`)
-  /** The batch `runs` and `regions` hold, pages `[from, to)` of image `frame`'s plan; −1 once
-   *  they no longer do (`../../shadow/pages.ts`). */
-  packedBatch: { frame: number; from: number; to: number };
-  /** Light views the last image's cuts ran, every batch together; zero on a still frame. */
-  lightRuns: number;
-  /** The GPU cut seen from the lights, once a frame has drawn a shadow under the GPU cut. */
-  lightCut: DagLightCut | undefined;
-  /** The casters the CPU cut selected from the light, when it draws the image (`cpuCasters.ts`). */
-  cpuCasters: CpuCasterLists | undefined;
-  /** Contract lights kept by the last image, and lights with a page drawn by it. */
+  /** Contract lights kept by the last image. */
   lightsActive: number;
-  shadowsUpdated: number;
-  /** Light views the last image drew in — a sun level, a lamp face at one mip —, a light cut each. */
-  shadowFaces: number;
-  /** Pages the last image drew: every page it marked, unless a batch could not be encoded. */
-  shadowPages: number;
-  /** Pages drawn since the state was created, every frame and drain together. */
-  shadowPagesTotal: number;
-  /** Pages the light cut sends back (`redrawShortPages`): withdrawn in all, coarser this frame. */
-  lightCutWithdrawnPages: number;
-  lightCutCoarsePages: number;
-  /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
-  shadowWork: ShadowWork;
-  /** Draw calls the shadow pass encoded: per pass its clears and restores, one per region. */
-  shadowDrawCalls: number;
-  /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
-  shadowRenderPasses: number;
-  shadowReason: string | null; // why the shadow atlas does not exist, when it does not
-  /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
+  shadowReason: string | null; // why shadows are off, when they are
+  /** The shadows' memory pressure events and resolution bias (`../../shadow/memoryGrant.ts`). */
   memory: ShadowMemory;
-  /** The transmittance layer is past the grant or refused: never asked again (`transmittanceGrant.ts`). */
-  transmittanceDenied: boolean;
   firstFrameLogged: boolean; // the first contract-lit image's configuration is logged once
+  /** The virtual shadow maps (`../render/vsm/engineVsm.ts`), made at the first lit frame. */
+  vsm?: EngineVsm;
+  /** Why the last set asked was not made, until one is (`../render/vsm/vsmGrant.ts`). */
+  vsmRefusal?: VsmRefusal;
 }
 
-export function createWebgpuLightState(
-  poolSide: number,
-  store?: SceneLightStore,
-  sunWindow = SUN_WINDOW,
-  poolLayers = 1,
-): WebgpuLightState {
+export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(poolSide, poolLayers, sunWindow),
+    changes: createShadowChanges(SHADOW_CHANGE_BOXES),
     buffer: undefined,
     tiles: undefined,
-    shadows: undefined,
-    shadowGrant: undefined,
-    pageRequests: undefined,
-    demand: undefined,
-    allocation: undefined,
-    sceneBox: createShadowSceneBox(),
+    pageLayout: undefined,
     residence: createShadowResidence(),
     mobility: createShadowMobility(),
     mobilityRows: undefined,
     rowLods: undefined,
-    staticLayer: undefined,
-    staticLayerPending: false,
-    staticLayerTexture: undefined,
-    pageHiz: undefined,
-    occlusion: undefined,
-    cull: undefined,
-    movingGroups: undefined,
-    pageQuads: undefined,
     spheres: undefined,
-    shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),
-    shadowGroupsKey: [],
+    rowsFollowed: false,
     uploadedEpoch: 0,
-    faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
-    runs: createShadowRuns(),
-    regions: createShadowRegionList(poolSide),
-    shadowSlots: new Int32Array(0),
-    shadowPixelError: 0,
-    plannedFrame: -1,
-    packedBatch: { frame: -1, from: -1, to: -1 },
-    lightRuns: 0,
-    lightCut: undefined,
-    cpuCasters: undefined,
     lightsActive: 0,
-    shadowsUpdated: 0,
-    shadowFaces: 0,
-    shadowPages: 0,
-    shadowPagesTotal: 0,
-    lightCutWithdrawnPages: 0,
-    lightCutCoarsePages: 0,
-    shadowWork: createShadowWork(),
-    shadowDrawCalls: 0,
-    shadowRenderPasses: 0,
     shadowReason: null,
     memory: createShadowMemory(),
-    transmittanceDenied: false,
     firstFrameLogged: false,
   };
 }
 
-/** Frees the static layer, its page pyramids and occlusion test: at dispose, or landed after it. */
-export function disposeStaticLayer(lights: WebgpuLightState) {
-  lights.staticLayer?.dispose();
-  lights.staticLayerTexture?.destroy();
-  lights.pageHiz?.dispose();
-  lights.occlusion?.dispose();
-  lights.staticLayer = lights.pageHiz = lights.occlusion = lights.staticLayerTexture = undefined;
-}
-
 /**
- * True while the shadow pages can still change what the image shows: a page stale and read — left
- * by a batch that could not be encoded, or mapped by the GPU and listed for its own draw, not yet
- * drawn (`plan.gpu.listed`, #1344) —, a representation change waiting for the camera to rest,
- * a request report — the shading's, or a light cut's, whose casters may still load, or its flag
- * word — on its way, or no report yet proving that the image reads only pages already drawn. A
- * scene without a shadow light, or an unlit view, reads no page and waits for nothing.
+ * True while the shadows can still change what the image shows: a representation change held for
+ * the camera to rest, or the virtual shadow maps still drawing, by their own state
+ * (`vsmSettle.ts`). A scene without a shadow light, or an unlit view, waits for no map.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
-  const { plan, store, shadows, pageRequests } = lights;
-  if (plan.deferredChanges) return true;
-  if (!shadows || !store.count || store.unlit || !plan.records.count) return false;
-  if ((pageRequests?.inFlight ?? 0) > 0 || lights.lightCut?.unsettled) return true;
-  if (plan.gpu.on && plan.gpu.listed > 0) return true;
-  return plan.counts.pendingPages > 0 || !plan.settled(store);
+  const { changes, store, vsm } = lights;
+  if (changes.deferred()) return true;
+  // The virtual shadow maps: pages drawn, invalidated or uncached since the last count read back,
+  // the budget feedback moving the resolution, the transmission pool short (`vsmSettle.ts`).
+  return (
+    !!vsm &&
+    !!store.count &&
+    !store.unlit &&
+    vsmUnsettled(vsm.settle, vsm.countersOn, !!vsm.transmission?.wanted)
+  );
 }

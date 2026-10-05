@@ -6,6 +6,7 @@ import {
   DEFAULT_PHYSICS_BUDGET,
   EVENT_WORDS,
   MISS,
+  PHYSICS_STEP,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
 import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts';
@@ -19,16 +20,18 @@ import type { PhysicsSession } from './session.ts';
 import { engineIdOf } from './simulatedIds.ts';
 import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts';
 
-/** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise. */
+/** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise, in fixed
+ *  steps of `step` seconds (`startJolt`). */
 export async function startModule(
   budget: Partial<PhysicsBudget> = {},
   pool: { count: number; spawn: SpawnJoltThread } | null = null,
+  step = PHYSICS_STEP,
 ) {
   const file = pool ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
   const bytes = await readFile(new URL(file, import.meta.url));
   const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
   const opened = await openJolt(bytes, full.memoryBytes, pool);
-  const jolt = startJolt(opened, full, pool?.count ?? 1);
+  const jolt = startJolt(opened, full, pool?.count ?? 1, step);
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
   const count = (name: string) => () => (opened.exports[name] as () => number)();
   /** By the gear linking, the step's path carry, the step's breaking, and the bodies placed

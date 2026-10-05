@@ -8,7 +8,7 @@ import { primitive, type ResolvedShape } from './shape.ts';
 type Scale = { x: number; y: number; z: number };
 
 /** A `KHR_implicit_shapes` shape as the page's primitives name it, sizes the extension leaves out
- *  at its defaults; `null` for a shape Jolt has no primitive of (a capsule that tapers). */
+ *  at its defaults; `null` for a shape the module has no primitive of (a capsule that tapers). */
 function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
   if (s.type === 'box') {
     const [x, y, z] = s.box?.size ?? [1, 1, 1];
@@ -25,8 +25,8 @@ function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
 }
 
 /**
- * The shape of the body node `body` declares, placed at world scale `scale`, in Jolt's terms: its
- * implicit shape's primitive, or its cooked hull scaled. A shape Jolt makes no primitive of, or one
+ * The shape of the body node `body` declares, placed at world scale `scale`, in the module's terms: its
+ * implicit shape's primitive, or its cooked hull scaled. A shape the module makes no primitive of, or one
  * the scale bends (a sphere stretched), is refused by name: the body has no hull to fall back on.
  */
 export function declaredShape({ node, shape }: CookedBody, scale: Scale): ResolvedShape {
@@ -81,7 +81,7 @@ function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: reado
  * frame, stretched by `scale` as its shape is), `inertiaDiagonal` turned by `inertiaOrientation` —
  * wins over the cooked weighing, which is taken from the scale it was cooked at to `scale`, its
  * inertia to a declared mass and, about a declared centre, moved there (`inertiaAt`). Nothing
- * declared nor cooked, a mass of 0: Jolt weighs the shape at its matter's density.
+ * declared nor cooked, a mass of 0: the module weighs the shape at its matter's density.
  */
 export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
   const s = [scale.x, scale.y, scale.z],

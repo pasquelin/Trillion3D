@@ -50,11 +50,17 @@ export function createPageDecodePool(size: number) {
     const waiting = pending.get(answer.id);
     pending.delete(answer.id);
     owner.delete(answer.id);
-    if (!retired) idle.push(worker);
+    idle.push(worker);
     waiting?.settle(answer);
-    if (!retired) pump();
-    else if (pending.size) worker.terminate();
-    else breakPool();
+    if (retired) drain();
+    else pump();
+  };
+  /** A retired pool's step: the work it was given before retiring — queued included — goes on to
+   *  its workers, a worker left with none stops, and the pool closes once nothing is left. */
+  const drain = () => {
+    pump();
+    for (const worker of idle.splice(0)) worker.terminate();
+    if (!pending.size && !queue.length) breakPool();
   };
   const breakPool = () => {
     if (!alive) return;
@@ -135,11 +141,11 @@ export function createPageDecodePool(size: number) {
         breakPool();
       }
     },
-    /** Closes the pool without cutting in-flight work: idle workers stop at once. */
+    /** Closes the pool without cutting the work it was given, queued or in flight: it takes no
+     *  more, finishes that, and its workers stop as they run out of it. */
     retire() {
       retired = true;
-      for (const worker of idle.splice(0)) worker.terminate();
-      if (!pending.size) breakPool();
+      drain();
     },
   };
 }

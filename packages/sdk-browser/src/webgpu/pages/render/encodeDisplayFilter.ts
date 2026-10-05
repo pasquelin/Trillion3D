@@ -11,18 +11,25 @@ function dropDisplayFilter(gpu: WebgpuGpuState) {
   gpu.displayFilter = undefined;
 }
 
-/** Opens the display layers (`../../blend/displayFilter.ts`) of a beauty image whose blends hold a
- *  multiply or subtractive surface: made at the targets' size by the first, dropped once the plan
- *  holds none. A diagnostic view or variant keeps the lit target's equations, drawing surfaces as
- *  they are. */
+/** Whether a beauty image opens the display layers: its blends hold a multiply or subtractive
+ *  surface. A diagnostic view or variant keeps the lit target's equations, drawing surfaces as they
+ *  are. */
+export const opensDisplayFilter = ({ blendState, run, context, vis }: WebgpuPagesRuntime) =>
+  blendState.filtersDisplay &&
+  run.diagnostic === 'beauty' &&
+  !context.diagnosticGpuVariant &&
+  !!vis.blendPipelines;
+
+/** Opens the display layers (`../../blend/displayFilter.ts`) of an image that does
+ *  (`opensDisplayFilter`): made at the targets' size by the first, dropped once the plan holds no
+ *  surface that filters. */
 export function beginDisplayFilter(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
 ): DisplayFilter | undefined {
-  const { gpu, blendState, run } = rt;
+  const { gpu, blendState } = rt;
   if (!blendState.filtersDisplay) return dropDisplayFilter(gpu);
-  if (run.diagnostic !== 'beauty' || rt.context.diagnosticGpuVariant || !rt.vis.blendPipelines)
-    return undefined;
+  if (!opensDisplayFilter(rt)) return undefined;
   const [width, height] = gpu.allocatedSize;
   if (gpu.displayFilter?.width !== width || gpu.displayFilter.height !== height) {
     dropDisplayFilter(gpu);

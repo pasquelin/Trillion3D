@@ -40,7 +40,7 @@ type Refused = Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>;
 
 /**
  * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
- * body of its model's (`bodySlots.ts`): its declared shape in Jolt's terms, or its cooked hull
+ * body of its model's (`bodySlots.ts`): its declared shape in the module's terms, or its cooked hull
  * fetched and restored — nothing built on the page —, with its declared mass over its cooked one
  * (`declaredMass`), counted against `budget.physics`. A kinematic body follows its model, or,
  * inside a dynamic body's subtree, its node as that body carries it (`carriedBodies.ts`). A
@@ -151,7 +151,7 @@ export function createCookedBodies(
     },
     /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets, a
      *  dynamic one put where its node is now drawn —; one rescaled is made again at once at its
-     *  new scale, Jolt scaling no body once made, and one a rescale refused is made again once
+     *  new scale, the module scaling no body once made, and one a rescale refused is made again once
      *  its model is at another scale. The lists are compacted in place: a model moved every
      *  frame makes no new one. */
     moved(model: Model) {

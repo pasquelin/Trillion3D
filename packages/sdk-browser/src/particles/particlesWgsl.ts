@@ -7,7 +7,9 @@ import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../webgpu/blend/displayFilt
 export const PARTICLE_WORKGROUP = 64;
 
 /** One invocation per slot: the ring's record this image replaces it, then a live particle moves
- *  (position from the pool's origin); a dead one nobody emitted into is left as it is. */
+ *  (position from the pool's origin); a dead one nobody emitted into is left as it is. The move is
+ *  the exact one under a constant acceleration, `p += (v + a·dt/2)·dt` then `v += a·dt`: the
+ *  velocity's end alone would add `a·dt²/2` a step, 0.33 m of fall over 2 s at 60 Hz. */
 export const PARTICLES_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
 struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, pad: u32 }
@@ -22,9 +24,9 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   var p = particles[i];
   if (k < step.count) { p = staged[k]; } else if (p.position.w >= p.velocity.w) { return; }
   if (p.position.w < p.velocity.w) {
-    let velocity = p.velocity.xyz + step.acceleration * step.dt;
-    p.velocity = vec4f(velocity, p.velocity.w);
-    p.position = vec4f(p.position.xyz + velocity * step.dt, p.position.w + step.dt);
+    let gain = step.acceleration * step.dt;
+    p.position = vec4f(p.position.xyz + (p.velocity.xyz + 0.5 * gain) * step.dt, p.position.w + step.dt);
+    p.velocity = vec4f(p.velocity.xyz + gain, p.velocity.w);
   }
   particles[i] = p;
 }`;

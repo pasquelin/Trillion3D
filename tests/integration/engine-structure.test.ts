@@ -59,7 +59,6 @@ const POSE_LOCALE: Record<string, string> = {
   'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
   'backend/autonomous/triangle.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/pages/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
-  'webgpu/shadow/reportScene.fixture.ts': 'test scene builder: it poses the camera',
 };
 
 /**

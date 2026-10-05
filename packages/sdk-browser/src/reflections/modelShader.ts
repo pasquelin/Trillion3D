@@ -5,10 +5,13 @@ import { shaderLanguage } from '../math/shaderLanguage.ts';
 
 /** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
 export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1));
-/** the reference engine's `a reference setting` default: a rougher lobe is never screen-traced and takes the
- *  environment/probe reflection alone (#1341). */
+/** The roughness above which a lobe is never screen-traced and takes the environment/probe
+ *  reflection alone (#1341). */
 export const SCREEN_REFLECTION_CUTOFF = 0.6;
 export const SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(SCREEN_REFLECTION_CUTOFF);
+/** A blended surface's: screen reflection fades linearly by
+ *  `saturate(2 - 6.6·roughness)`, whole to 1/6.6 and none from 2/6.6. */
+export const TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(2 / 6.6);
 export const mirrorWeightShader = (language: 'wgsl' | 'glsl') =>
   shaderLanguage(
     `

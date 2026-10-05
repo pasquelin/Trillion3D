@@ -1,5 +1,6 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
+import { DEFORM_IN_POOL } from '../visibility/types.ts';
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts';
 
 /**
@@ -9,9 +10,9 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS }
  * transparent draw and the temporal pass read the same deformed surface. `previous` reads the
  * last frame's record: where the vertex was, which the temporal pass reprojects a pixel by.
  *
- * In the reference's order: the morph targets move the rest vertex, the joints carry the result
+ * In this order: the morph targets move the rest vertex, the joints carry the result
  * (linear blend of every palette influence), then the waves carry the world point to where
- * the Gerstner sum puts it — the formula of `sdk-core/src/fluids/waves.ts`, on the same numbers.
+ * the trochoidal sum puts it — the formula of `sdk-core/src/fluids/waves.ts`, on the same numbers.
  * The record lives in the float pool the passes already bind (`positions`), after its vertices:
  * no binding is added to any pass.
  */
@@ -20,15 +21,15 @@ fn wholeVertex(page:PageInfo,vertex:u32)->u32{
  let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);
 }
 fn deformJointId(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->u32{
- if((page.deformOutput&0x80000000u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
+ if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
  return u32(positions[wholeVertex(page,vertex)+k]);
 }
 fn deformWeight(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->f32{
- if((page.deformOutput&0x80000000u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
+ if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
  return positions[wholeVertex(page,vertex)+h.influences+k];
 }
 fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)->vec3f{
- if((page.deformOutput&0x80000000u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
+ if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
  let at=wholeVertex(page,vertex)+h.influences*2u+t*6u+select(0u,3u,normal);
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }
@@ -56,8 +57,8 @@ fn deformMatrix(at:u32)->mat4x4f{
   positions[at+8u],positions[at+9u],positions[at+10u],positions[at+11u],
   positions[at+12u],positions[at+13u],positions[at+14u],positions[at+15u]);
 }
-/** The Gerstner sum at the world point \`p\` (\`count\` waves from \`at\`): its displacement, or with
- *  \`normal\` its unit normal, at this frame's phases or the last one's. */
+/** The trochoidal sum at the world point \`p\` (\`count\` waves from \`at\`): its displacement,
+ *  or with \`normal\` its unit normal, at this frame's phases or the last one's. */
 fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  var d=vec3f(0.0);var n=vec3f(0.0,1.0,0.0);
  for(var i=0u;i<count;i++){

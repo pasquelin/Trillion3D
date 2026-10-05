@@ -5,8 +5,7 @@
  * a uniform ambient, a sky over a ground, a probe captured around the scene. None of them has a
  * position or a range; each is an irradiance that depends only on the normal it falls on, and all
  * of them add into ONE function of that normal: nine spherical-harmonic coefficients per colour
- * channel (Ramamoorthi and Hanrahan, "An Efficient Representation for Irradiance Environment
- * Maps", SIGGRAPH 2001). A uniform ambient is the constant band alone, a sky over a ground is the
+ * channel. A uniform ambient is the constant band alone, a sky over a ground is the
  * constant and the linear bands exactly, a probe fills all nine. The surface model applies it to
  * the diffuse lobe: `albedo · (1 − metalness) / π · E(N)`.
  *
@@ -62,17 +61,24 @@ export const ENVIRONMENT_COEFFICIENTS = 9;
 export const SCENE_ENVIRONMENT_FLOATS = 44;
 
 /**
- * The factors of the cosine-lobe convolution per band (Ramamoorthi and Hanrahan, eq. 12): the
- * irradiance at a normal is the coefficient times this factor times the basis polynomial
- * (`IRRADIANCE_TERMS`, `irradianceBasis.ts`). The linear and cross terms carry the paper's
- * factor 2: `2 · 0.511664` and `2 · 0.429043`; the `3z² − 1` term is the paper's `c₅`.
+ * The factors of the cosine-lobe convolution per band: the irradiance at a normal is the
+ * coefficient times this factor times the basis polynomial (`IRRADIANCE_TERMS`,
+ * `irradianceBasis.ts`). Derived: each is its band's clamped-cosine weight times the
+ * normalisation of its orthonormal harmonic. The weight is `Â_l = 2π ∫₀¹ P_l(t) t dt`, `P_l` the
+ * band's Legendre polynomial: `Â_0 = π`, `Â_1 = 2π/3`, `Â_2 = π/4`. So constant
+ * `π · 1/(2√π) = √π/2`, linear `2π/3 · √(3/(4π)) = √(π/3)`, quadraticCross
+ * `π/4 · √(15/(4π)) = √(15π)/8`, quadraticZ `π/4 · √(5/(16π)) = √(5π)/16`, quadraticDifference
+ * `π/4 · √(15/(16π)) = √(15π)/16`. Each literal is within one unit in the last place of its
+ * closed form, and the last is exactly half the cross one; `irradianceBasis.test.ts` checks each
+ * against its closed form and all of them against the sphere integrated over 20 000 directions (a
+ * constant sky gives `π L`).
  */
 export const IRRADIANCE_BAND = {
-  constant: 0.886227,
-  linear: 1.023328,
-  quadraticCross: 0.858086,
-  quadraticZ: 0.247708,
-  quadraticDifference: 0.429043,
+  constant: 0.886226925452758,
+  linear: 1.0233267079464885,
+  quadraticCross: 0.8580855308097834,
+  quadraticZ: 0.2477079561003757,
+  quadraticDifference: 0.4290427654048917,
 } as const;
 
 /** The 27 numbers an irradiance is summed into, read and written by index: a list, or the
@@ -129,7 +135,3 @@ export function packEnvironment(environment: SceneEnvironment | undefined, out: 
     for (let c = 0; c < 3; c++) out[k * 4 + c] = sh[k * 3 + c];
   return out;
 }
-
-/** True when the environment lights something: one coefficient differs from zero. */
-export const environmentLights = (environment: SceneEnvironment | undefined) =>
-  !!environment?.irradiance?.some((value) => value !== 0);

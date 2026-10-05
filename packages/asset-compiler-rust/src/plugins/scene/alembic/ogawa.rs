@@ -1,5 +1,4 @@
-//! The Ogawa container, read here from Alembic's public specification and its reference sources
-//! (BSD-3-Clause, `lib/Alembic/Ogawa`): no third-party library, no vendor SDK.
+//! The Ogawa container, read here with no third-party library.
 //!
 //! An Ogawa file is a tree of two kinds of blocks, designated by a sixty-four-bit integer whose
 //! high bit names the kind: a **group** — a child count, then that many pointers — and a **data**

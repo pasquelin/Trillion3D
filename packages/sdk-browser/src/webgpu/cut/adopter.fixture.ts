@@ -7,6 +7,7 @@ import {
   type SelectionUniforms,
 } from '../../gpu/core/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageList } from '../pages/prepare/catalogue.ts';
 
 /** Uniform block of a bench: the engine's, so a field added to the contract arrives here
  *  without being copied in. Never compared to anything but itself or its copy. */
@@ -26,8 +27,10 @@ export function fixturePages(count: number, transparent: (index: number) => bool
   );
 }
 
-/** A selection that only knows how to return the current readback: all an adopter asks of it. */
-export const peekOnly = (peek: () => GpuCut | null) => ({ peek }) as unknown as GpuSelection;
+/** A selection that only knows how to return the current readback, whose readbacks claim no
+ *  rank: all an adopter asks of it. */
+export const peekOnly = (peek: () => GpuCut | null) =>
+  ({ peek, adopt: () => undefined }) as unknown as GpuSelection;
 
 /** Triangle totals of a readback header, as `dagMask` ships them: all zero unless given. */
 export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
@@ -43,7 +46,7 @@ export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
  * same wiring copied four times pins nothing more than this one.
  */
 export function mountCutAdopter(options: {
-  packedPages: PageRec[];
+  packedPages: PageList;
   uniforms: SelectionUniforms;
   selection: () => GpuSelection | undefined;
   onDrawnMirrored?: () => void;
@@ -58,7 +61,8 @@ export function mountCutAdopter(options: {
     shownPacked: number[] = [],
     drawnPacked: number[] = [];
   const drawnPages: PageRec[] = [];
-  const drawnDelta = createCutDelta(packedPages, drawnPages);
+  const drawnDelta = createCutDelta(packedPages, drawnPages),
+    delta = createCutDelta(packedPages, desired);
   const adopter = createWebgpuCutAdopter({
     selection: options.selection,
     desired,
@@ -68,7 +72,7 @@ export function mountCutAdopter(options: {
     drawn,
     drawnPacked,
     uniforms: options.uniforms,
-    delta: createCutDelta(packedPages, desired),
+    delta,
     drawnDelta,
     drawnPages,
     onCutDelta: () => {},
@@ -76,5 +80,16 @@ export function mountCutAdopter(options: {
     onDrawnMirrored: options.onDrawnMirrored ?? (() => {}),
     onAhead: options.onAhead ?? (() => {}),
   });
-  return { adopter, desired, desiredPacked, shown, shownPacked, drawn, drawnPacked };
+  return {
+    adopter,
+    delta,
+    drawnDelta,
+    drawnPages,
+    desired,
+    desiredPacked,
+    shown,
+    shownPacked,
+    drawn,
+    drawnPacked,
+  };
 }

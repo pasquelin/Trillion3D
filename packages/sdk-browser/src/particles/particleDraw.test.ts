@@ -7,7 +7,9 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
-import { encodeParticles } from './webgpuParticleFrame.ts';
+import { askParticles, encodeParticles } from './webgpuParticleFrame.ts';
+import { pipelinesCompiling } from '../lighting/deferred/fullscreen.ts';
+import { gatedDevice } from '../lighting/deferred/gatedDevice.fixture.ts';
 import { families } from '../host/families.ts';
 import { PARTICLE_DRAW_PASS as P } from '../stage/passLabels.ts';
 
@@ -80,6 +82,29 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   assert.deepEqual(blends, ['one zero one', `${over} one ${over}`]);
 });
 
+test('WebGPU: the routed draw is asked off the frame, and the image that routes finds it compiled', async () => {
+  const gpu = gatedDevice(),
+    pools = scene();
+  const draw = createWebgpuParticleDraw(gpu.device, kept, (e) => assert.fail(`${e}`));
+  await gpu.land();
+  const routedMade = () =>
+    gpu.renderPipelines.filter(({ fragment }) => fragment!.entryPoint === 'fsRouted');
+  assert.deepEqual(routedMade(), [], 'no image routed a pool: none made');
+  draw.askRouted();
+  assert.equal(pipelinesCompiling(gpu.device), true, 'the frame entry holds the image on them');
+  await gpu.land();
+  assert.equal(pipelinesCompiling(gpu.device), false);
+  const filter = { attachments: () => [], maskGroup: {} } as never;
+  const { encoder, log } = renderRecorder();
+  assert.equal(
+    draw.draw(pools, encoder, view, reactive, view, [8, 8], IDENTITY, [0, 0, 0], filter),
+    2,
+  );
+  assert.equal(log.length, 3, 'one pass, two routed draws');
+  assert.equal(routedMade().length, 2, 'one per blend');
+  assert.equal(gpu.compiled.sync, 0, 'compiled off the frame');
+});
+
 test('WebGPU: a draw that cannot compile is heard, and the next step keeps its pools refused', async () => {
   const heard: unknown[] = [],
     { device } = fakeDevice(),
@@ -123,17 +148,17 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
   assert.equal(steps, 1);
 });
 
-test("WebGPU: the step is made on the particles' code the frame waited for (#1353)", async () => {
+test("WebGPU: the step is made at the frame's entry on the particles' code the frame waited for (#1353)", async () => {
   const [smoke] = scene(),
     main = {},
     gpu: { particles?: object } = {},
     rt = { context: { particles: [] }, vis: { visEnabled: true }, gpu, run: {}, views: { main } };
   Object.assign(rt.views, { active: main });
-  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
-  encode();
+  const enter = () => askParticles(rt as never, fakeDevice().device);
+  enter();
   assert.equal(gpu.particles, undefined, 'a world without pools makes no step');
   rt.context.particles = [smoke] as never;
   await families.particles.load(); // what the frame that draws a pool waits for (`familyUse.ts`)
-  encode();
+  enter();
   assert.ok(gpu.particles, 'the step is made on the code that arrived');
 });

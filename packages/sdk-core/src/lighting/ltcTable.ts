@@ -5,7 +5,7 @@
  * about two minutes; its result changes only when the lobe does, so it is fitted once and kept
  * here, encoded by `encodeLtcTable`. Refit and re-encode it whenever `standardLighting.ts`'s
  * lobe changes. Six half floats a cell — M⁻¹'s four entries, the lobe's magnitude and its
- * Schlick share —, base64; decoded once into the two vec4 a cell the GPU reads.
+ * Fresnel share —, base64; decoded once into the two vec4 a cell the GPU reads.
  */
 export const LTC_SIZE = 64;
 /** Floats the GPU reads per cell: two vec4. */
@@ -16,17 +16,31 @@ const KEPT = 6;
 const f32 = new Float32Array(1),
   u32 = new Uint32Array(f32.buffer);
 
-/** The nearest half float of `value`, its sixteen bits: no allocation, a per-frame reader calls it. */
+/**
+ * The nearest half float of `value`, its sixteen bits (IEEE 754 binary16, ties to even; NaN stays
+ * a quiet NaN of the same sign): no allocation, a per-frame reader calls it. The float32 bits are
+ * rounded once more; a float64 that float32 rounding put exactly on a tie is decided by the side
+ * of the tie it lies on, so no double rounding.
+ */
 export function toHalf(value: number) {
   f32[0] = value;
-  const bits = u32[0];
-  const sign = (bits >>> 16) & 0x8000,
-    exponent = ((bits >>> 23) & 0xff) - 112,
-    mantissa = bits & 0x7fffff;
-  if (exponent >= 31) return sign | 0x7c00;
-  if (exponent > 0) return sign | ((exponent << 10) + ((mantissa + 0x1000) >>> 13));
-  if (exponent < -10) return sign;
-  return sign | ((((mantissa | 0x800000) >>> (1 - exponent)) + 0x1000) >>> 13);
+  const bits = u32[0],
+    sign = (bits >>> 16) & 0x8000,
+    magnitude = bits & 0x7fffffff;
+  if (magnitude >= 0x47800000) return sign | (magnitude > 0x7f800000 ? 0x7e00 : 0x7c00);
+  const exponent = magnitude >>> 23,
+    normal = exponent > 112,
+    shift = normal ? 13 : 126 - exponent;
+  if (shift > 24) return sign;
+  // A normal half rebiased in place; a subnormal one counts steps of 2^-24.
+  const kept = normal ? magnitude - 0x38000000 : (magnitude & 0x7fffff) | 0x800000,
+    half = 1 << (shift - 1),
+    rest = kept & (2 * half - 1);
+  const up =
+    rest > half ||
+    (rest === half &&
+      (f32[0] === value ? (kept >>> shift) & 1 : Math.abs(value) > Math.abs(f32[0])));
+  return sign | ((kept >>> shift) + (up ? 1 : 0));
 }
 
 /** The value of a half float's sixteen bits. */

@@ -11,8 +11,8 @@ import { ease } from './opening.ts';
 /** A sequence of numbers in [0, 1) from a seed. */
 export type Random = () => number;
 
-/** The example pages' sequence: a linear congruential step on 32-bit integers, the constants of
- *  Numerical Recipes. */
+/** The example pages' sequence: a linear congruential step on 32-bit integers, so a seed always
+ *  gives the same numbers. */
 export function seeded(seed: number): Random {
   let state = seed >>> 0;
   return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;

@@ -21,10 +21,16 @@ const roots: DagRoot[] = Array.from({ length: ROOTS }, (_, i) => ({
 }));
 const worlds = new Float32Array(ROOTS * 16);
 const origin = [12345.5, 6.25, -700.125];
-rootWorldsToRenderOrigin(worlds, roots, origin);
+const translations = new Float64Array(ROOTS * 3);
+rootWorldsToRenderOrigin(worlds, roots, origin, translations);
 // The previous image's frame: the same roots one camera step earlier — every translation differs.
 const previous = new Float32Array(ROOTS * 16);
-rootWorldsToRenderOrigin(previous, roots, [origin[0] + 0.5, origin[1], origin[2] - 0.25]);
+rootWorldsToRenderOrigin(
+  previous,
+  roots,
+  [origin[0] + 0.5, origin[1], origin[2] - 0.25],
+  translations,
+);
 const packed = { worldCount: ROOTS, worldStretch: new Float32Array(ROOTS) };
 const frameData = new Float32Array(ROOTS * 7 * 4);
 
@@ -37,7 +43,7 @@ const resultats = await mesure({
   cas: [
     {
       name: 'root rebase, 2 479 roots',
-      input: () => rootWorldsToRenderOrigin(worlds, roots, origin),
+      input: () => rootWorldsToRenderOrigin(worlds, roots, origin, translations),
       size: ROOTS,
     },
     {

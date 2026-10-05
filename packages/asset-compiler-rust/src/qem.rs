@@ -1,7 +1,9 @@
-//! Region simplification for the cluster DAG.
+//! Region simplification for the cluster DAG: an adapter around the `meshopt` crate's simplifier,
+//! which ranks the collapses and measures the error; this module compacts the region, sets the vertex
+//! flags and attribute weights, and clamps the error to the region's extent.
+use crate::shared_math::word_map;
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
-use std::collections::HashMap;
 pub struct SimplifiedMesh {
     pub indices: Vec<u32>,
     pub error_object: f64,
@@ -48,7 +50,7 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
             compact_idx.push(id);
         }
     } else {
-        let mut map = HashMap::with_capacity(indices.len());
+        let mut map = word_map(indices.len());
         for &source in indices {
             let id = match map.get(&source) {
                 Some(&id) => id,
@@ -64,7 +66,7 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
     }
     (compact_pos, compact_idx, remap)
 }
-/// meshoptimizer's per-vertex flags (`meshopt_SimplifyVertex_*`): the vertex does not move.
+/// The simplifier's per-vertex flags: the vertex does not move.
 pub const VERTEX_LOCK: u8 = 1;
 /// The vertex keeps its attribute discontinuity (a texture seam) under permissive mode.
 pub const VERTEX_PROTECT: u8 = 2;
@@ -83,12 +85,12 @@ pub struct Attribute<'a> {
 /// A vertex that no other region shares stays free, so the open boundary of a primitive keeps
 /// simplifying instead of pinning the whole region.
 ///
-/// The reference's options (meshoptimizer `clusterlod.h`): the error is absolute, `attributes`
+/// The options: the error is absolute, `attributes`
 /// count in it, and permissive mode lets a collapse cross an attribute discontinuity — a hard
 /// edge — unless the vertex is protected. `prune` also removes the disconnected parts that fall
 /// under the error; it ignores locks, so a caller that must keep a locked vertex turns it off.
 /// The error is clamped to the region's extent: the attribute share never outweighs the geometry
-/// it sits on, as the reference's `simplify_error_clamped`.
+/// it sits on.
 pub fn simplify_with_locked_vertices(
     positions: &[f32],
     attributes: &[Attribute],
@@ -157,7 +159,7 @@ pub fn simplify_with_locked_vertices(
     })
 }
 
-/// The extent meshoptimizer normalises a region's positions by, the clamp of its error.
+/// The extent the simplifier normalises a region's positions by, the clamp of its error.
 pub(crate) fn region_extent(positions: &[f32]) -> Result<f64> {
     let bytes =
         unsafe { std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4) };

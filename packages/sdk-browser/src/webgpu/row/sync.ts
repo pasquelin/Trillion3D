@@ -61,14 +61,10 @@ export function createWebgpuRowSync(
   };
   /**
    * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.
-   * `casters` are pages the light cuts selected and the camera does not draw: they take rows
-   * behind the camera's, which only the shadow pass reads. Returns the camera's row count. The
-   * table's size is read here, at each sync: it grows in place (`grow.ts`).
+   * Returns the camera's row count. The table's size is read here, at each sync: it grows in
+   * place (`grow.ts`).
    */
-  const syncRowsFromCut = (
-    casters: readonly PageRec[] = [],
-    castersPacked: readonly number[] = [],
-  ) => {
+  const syncRowsFromCut = () => {
     if (!cacheReady() || !rows.pageTableFloats) return 0;
     const drawSlots = rows.blendFirst;
     mirror.sync();
@@ -101,10 +97,8 @@ export function createWebgpuRowSync(
     };
     const { drawn, drawnPacked } = cut;
     for (let i = 0; i < drawn.length; i++) place(drawn[i], drawnPacked[i]);
-    const cameraRows = count;
-    for (let i = 0; i < casters.length; i++) place(casters[i], castersPacked[i]);
     commitRows(count, monotone);
-    return cameraRows;
+    return count;
   };
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending;

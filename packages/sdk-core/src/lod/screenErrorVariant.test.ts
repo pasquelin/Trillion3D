@@ -1,6 +1,6 @@
 // The EXPERIMENT variant of the screen-error metric: by default ours, unchanged bit-exact,
-// and on request the simple projection of the external reference, CPU and WGSL text at
-// the same result. `screenErrorVariant.ts` carries the formula and its public source.
+// and on request the plain projection, CPU and WGSL text at
+// the same result. `screenErrorVariant.ts` carries the formula.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { screenErrorVariant, setScreenErrorVariant } from '../index.ts';
@@ -24,7 +24,7 @@ test('the default variant is ours, and the bound does not move by a bit', () => 
   assert.equal(screenErrorVariant(), 'certifiee');
   assert.deepEqual(CAS.map(bound), before);
   // Both metrics share stretch: the certified bound then stays always above
-  // that of the reference, which has neither a lateral term, nor a radius, nor a displacement in the denominator.
+  // that of the plain formula, which has neither a lateral term, nor a radius, nor a displacement in the denominator.
   for (const [error, stretch, lateral, depth, radius, focal, near] of CAS)
     assert.ok(
       screenErrorBound(error, stretch, lateral, depth, radius, focal, near) >=

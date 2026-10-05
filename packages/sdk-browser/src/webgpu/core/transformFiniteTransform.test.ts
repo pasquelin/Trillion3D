@@ -1,7 +1,6 @@
 // Case 4 of the singular-normals convention (singular-normals lot): a non-finite pose is refused
-// BEFORE any inversion, here at `setTransform` rather than at load (`explorerScene`, covered by
-// `../../world/scene/finiteTransform.test.ts`). Fixtures shared with `transformShear.test.ts`,
-// in `transformShear.fixture.ts`.
+// BEFORE any inversion, here at `setTransform` rather than at the scene load. Fixtures shared with
+// `transformShear.test.ts`, in `transformShear.fixture.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineError } from '../../../../sdk-core/src/index.ts';

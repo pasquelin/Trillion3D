@@ -1,10 +1,11 @@
 import type { HostAttribute } from '../host/resources.ts';
-import { barycentricAt, signedArea } from '../visibility/projection.ts';
+import { barycentricAt } from '../../../../bench/oracles/browser/cpu-image/math.ts';
+import { signedArea } from '../visibility/projection.ts';
 
 /**
  * The oracle's projection and fill rule: one triangle at a time, from three vertex ranks to the
  * pixels they cover. No depth and no order — the caller submits in the order the engine does, and
- * the last triangle over a pixel keeps it, exactly as the reference raster resolves it.
+ * the last triangle over a pixel keeps it, exactly as the engine's raster resolves it.
  */
 
 /** Where an oracle draws: the image and its dimensions, held together rather than passed apart. */
@@ -18,7 +19,7 @@ const pa = { x: 0, y: 0 },
 
 /**
  * `out = M · (x, y, z, 1)`, divided through. The reciprocal is taken once and multiplied in,
- * term for term as the reference library does it: a division per component would round
+ * term for term as the engine's raster does it: a division per component would round
  * elsewhere, and an oracle compared pixel for pixel reads that rounding on a silhouette.
  */
 function apply(out: Float64Array, m: ArrayLike<number>, x: number, y: number, z: number) {

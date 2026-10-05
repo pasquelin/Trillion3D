@@ -7,6 +7,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { createWorldCuts } from './worldCuts.ts';
+import { WaterSurface } from '../../../../sdk-core/src/fluids/waterSurface.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
 
 // An opaque cut takes the compiler's grid from the SDK module (`cutGrid.ts`): Node cannot fetch
@@ -50,5 +51,30 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   // Added light blends whatever `transparent` says: the same finest grids.
   const added = await cuts.of(object.mesh(sphere, material.meshBasic({ blending: 'additive' })));
   assert.equal(grid(added).positionExponent, 1 - 23);
+  cuts.dispose();
+});
+
+// #357: a sheet the waves carry moves after its cut, as a rewritten one does (#573): blended, it is
+// cut in compact runs, which a shadow raster draws into the pages they reach, not a whole row of the
+// grid into every page the row's sphere covers; the same sheet at rest keeps the format's clusters.
+test('a sheet the waves carry is cut held, in compact pages; at rest, in the format clusters', async () => {
+  const cuts = createWorldCuts();
+  const sheet = geometry.plane(28, 20, 112, 80);
+  const water = () => material.meshStandard({ transparent: true, opacity: 0.8 });
+  const resting = await cuts.of(object.mesh(sheet, water()));
+  const sea = object.mesh(sheet, water());
+  sea.waves = new WaterSurface({
+    level: 0,
+    waves: [{ direction: [1, 0], wavelength: 6, amplitude: 0.3, steepness: 0.3 }],
+  });
+  const carried = await cuts.of(sea);
+  assert.notEqual(carried!.key, resting!.key);
+  const pages = (cut: typeof resting) => cut!.runtime.primitive.pages;
+  assert.equal(pages(resting).length, 140, '17 920 triangles, 128 a cluster');
+  assert.ok(pages(carried).length > 140, `${pages(carried).length} compact pages`);
+  assert.ok(
+    pages(carried).every((page) => !page.cone),
+    'a moving face keeps no cone',
+  );
   cuts.dispose();
 });

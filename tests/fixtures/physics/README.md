@@ -20,8 +20,10 @@ The files the native compiler's physics cook tests and the physics module's test
   every triangle is one Jolt drops (#562). Positions are the model's, in metres, unchanged. Layout,
   little-endian: `u32` vertex count, then `f32` x, y, z per vertex, then `u32` indices, three per
   triangle.
-- `soft-writeback-develop.bin`: the soft words develop's physics module (`cc7d59061`) wrote at the
+- `soft-writeback-develop.bin`: the soft words develop's physics module (`cc7d590615`) wrote at the
   kept steps of `writebackScene` (`packages/sdk-browser/src/physics/softWriteback.fixture.ts`),
   before the write-back composed one matrix per body (#975); `softWriteback.test.ts` holds the
-  module to them within its bound. Layout, little-endian `u32`: the step count, then per step its
-  word count and its words (`softLayout.ts`).
+  module to them within its bound, and says how to record them again. Its scene keeps every body
+  20 m above the floor and every teleport under 3 m: a soft body now collides 1 cm thick and starts
+  again in its rest shape past 3 m, which that module did not (re-recorded on 4 Oct. 2026). Layout,
+  little-endian `u32`: the step count, then per step its word count and its words (`softLayout.ts`).

@@ -4,6 +4,7 @@ import type { ControlPose } from './pose.ts';
 import { orbitOrientation } from './math.ts';
 import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw
@@ -69,7 +70,10 @@ export function createHead(
     pose.readOrientation(read);
     if (read.every((value, i) => value === written[i])) return;
     rotateByQuaternion(forward, read, 0, 0, -1);
-    pitch = Math.asin(clampNumber(forward[1], -1, 1));
+    // The elevation of the forward axis, by its height over its horizontal length: blind to the
+    // length a quaternion off unit length gives it, and as well conditioned at the poles as at the
+    // horizon, where the arc sine of the height alone loses half its digits.
+    pitch = Math.atan2(forward[1], hypot2(forward[0], forward[2]));
     yaw = Math.atan2(-forward[0], -forward[2]);
   };
   const head = {

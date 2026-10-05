@@ -8,7 +8,7 @@ export type OrderedNode = Parameters<typeof depthOf>[0] & {
 };
 
 /**
- * THE ORDER OF A SCENE DRAW, the reference's: the opaque meshes by `renderOrder`, surface, then
+ * THE ORDER OF A SCENE DRAW: the opaque meshes by `renderOrder`, surface, then
  * from the nearest; the see-through ones by `renderOrder`, then from the farthest; a tie is broken
  * by the node's creation number (`serialOf`, a mesh the engine did not build sorting as the first
  * built). Opaque meshes of one order are grouped by surface, numbered as first met, as the

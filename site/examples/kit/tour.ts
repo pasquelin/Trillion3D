@@ -2,14 +2,14 @@ import { cameraView, ease, glideCamera, opening } from './opening.ts';
 import type { CirclingWorld, Opening, View } from './opening.ts';
 
 /** A named part of a tour: the camera flies `seconds` to its view, then holds it `hold` seconds. */
-export interface Pose extends View {
+interface Pose extends View {
   name: string;
   seconds: number;
   hold: number;
 }
 
 /** A tour under way: an opening, and the part the camera is in. */
-export interface Tour extends Opening {
+interface Tour extends Opening {
   /** The pose flown to or held now; `null` once the tour has ended or the viewer took over. */
   readonly part: string | null;
 }

@@ -4,18 +4,18 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
  * The session's render-scale bounds where the drawn view's frame may be drawn below the display:
- * the temporal resolve reconstructs it — its pass rigged and wanted, in the beauty view, on the
- * visibility buffer, its upscaling resolves compiled —, and the page asked a scale below 1. A
- * capture — drawn in a view of its own, which holds no pass —, a diagnostic view, which renders at
- * the pixel centre, a diagnostic GPU variant, which sizes its own targets, and the fallback draw
- * stay at the display's size: `undefined`.
+ * the temporal resolve reconstructs it — its pass rigged, in the beauty view, on the visibility
+ * buffer, its upscaling resolves compiled —, and the page asked a scale below 1. A capture — drawn
+ * in a view of its own, which holds no pass —, a diagnostic view, which renders at the pixel
+ * centre, a diagnostic GPU variant, which sizes its own targets, and the fallback draw stay at the
+ * display's size: `undefined`. The pass switched off keeps the bounds, and the display colour apart
+ * (`frameSizeOf`): a switch at the display's scale remakes no target.
  */
 function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
   const { gpu, run, vis } = rt,
     { bounds } = rt.scale;
   const reconstructed =
     !!gpu.temporal &&
-    gpu.temporalWanted &&
     run.diagnostic === 'beauty' &&
     !rt.context.diagnosticGpuVariant &&
     vis.visEnabled;
@@ -42,13 +42,31 @@ export interface FrameSize {
   apart: boolean;
 }
 
+/** The view's size, the key a memory cap of the render scale is learnt at (`capMemory`). */
+export const viewKey = (rt: WebgpuPagesRuntime) => {
+  const [width, height] = rt.setup.viewport;
+  if (key.width !== width || key.height !== height)
+    key = { width, height, text: `${width}x${height}` };
+  return key.text;
+};
+/** The last key built: the string is made again only when the viewport changes, not each frame. */
+let key = { width: NaN, height: NaN, text: '' };
+
+/** Whether the drawn view's targets follow the controller's bounds (`ScaleControl.allocated`): only
+ *  then may a memory cap lower them (`ScaleControl.capMemory`). */
+export const scalesTargets = (rt: WebgpuPagesRuntime) =>
+  !!scaledBounds(rt) && rt.gpu.temporalWanted;
+
 /** The drawn view's frame size, written into `into`: its viewport, and that at the scale its
- *  targets are made at — the drawn one, up to the next eighth (`ScaleControl.allocated`), so a
- *  frame drawn at half the display allocates a quarter of its pixels (#1343). The display colour
- *  is apart whenever a frame may be drawn below it. */
-export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize) {
+ *  targets are made at — the bounds' maximum, under a memory cap (`ScaleControl.allocated`),
+ *  whatever the scale drawn in them; the display's own, the pass switched off, whose images are
+ *  drawn at the display's scale. The display colour is apart whenever a frame may be drawn below
+ *  it, the pass on or off. `full`: at the bounds' maximum, the largest the targets are ever made at
+ *  for this viewport — what a default budget funds. */
+export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize, full = false) {
   const bounds = scaledBounds(rt),
-    scale = bounds ? rt.scale.allocated() : 1;
+    scaled = bounds && rt.gpu.temporalWanted,
+    scale = !scaled ? 1 : full ? bounds.max : rt.scale.allocated(viewKey(rt));
   into.width = Math.max(1, rt.setup.viewport[0]);
   into.height = Math.max(1, rt.setup.viewport[1]);
   into.renderWidth = renderExtent(into.width, scale);
@@ -70,12 +88,14 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
   !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
 
 /**
- * Draws this image at `scale` in the targets in place, made at the controller's scale up to the
- * next eighth (`frameSizeOf`): the image is drawn in their top-left `targetSize`. Where the display
+ * Draws this image at `scale` in the targets in place, made at the bounds' maximum
+ * (`frameSizeOf`): the image is drawn in their top-left `targetSize`. Where the display
  * colour is not apart, the targets' whole size. The Hi-Z pyramid is built over it
  * (`GpuHiz.extent`); the last image's, of another size, no longer describes this one, as after a
- * moved view. `rt.scale.drawn` reads the scale back; `steered`, an image the controller measures;
- * `still`, a still one (`ScaleControl.drew`).
+ * moved view. `rt.scale.drawn` reads back the size drawn: `scale` where the targets hold its extent
+ * (`renderExtent`), else the share of the display they hold — an image of another size than the
+ * controller's, which it does not measure; `steered`, an image the controller measures; `still`, a
+ * still one (`ScaleControl.drew`).
  */
 export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false, still = false) {
   const { gpu } = rt,
@@ -89,5 +109,10 @@ export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = fal
   targetSize[0] = width;
   targetSize[1] = height;
   rt.vis.gpuHiz?.extent(width, height);
-  rt.scale.drew(apart ? Math.min(scale, rt.scale.bounds.max) : 1, apart && steered, still);
+  const drawn = !apart
+    ? 1
+    : width === renderExtent(displaySize[0], scale)
+      ? scale
+      : width / displaySize[0];
+  rt.scale.drew(drawn, apart && steered && drawn === scale, still);
 }

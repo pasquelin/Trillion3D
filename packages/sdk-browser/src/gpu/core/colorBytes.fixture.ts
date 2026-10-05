@@ -27,5 +27,6 @@ const COLOR_TARGET_COST: Partial<Record<GPUTextureFormat, [cost: number, alignme
   bgra8unorm: [8, 1],
   r32uint: [4, 4],
   r32float: [4, 4],
+  rg32uint: [8, 4],
   rgba16float: [8, 2],
 };

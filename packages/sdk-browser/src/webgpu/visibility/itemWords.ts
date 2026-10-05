@@ -1,5 +1,5 @@
-import { DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts';
+import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
+import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { visBin } from '../pages/prepare/pipelineFor.ts';
 import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts';
@@ -15,7 +15,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  * This witness therefore keeps the words from one image to the next and only accumulates, row by
  * row, the runs the GPU has not yet received. Along the way it holds the TOTAL of drawable-row
  * triangles, updated on those rows alone and on rows that enter or leave the drawable rank: that is
- * what the image submits, exactly, without any image walking the resident rows again.
+ * what the image submits, exactly, without any image walking the resident rows again. A cutout row
+ * (`FLAG_MASK`) takes its face mode's cutout bin (plus `CULL_BINS`): the compaction draws it in its
+ * own slot, whose count the GPU keeps as for every other (`drawVis`).
  */
 export function createDrawItemWordsHold(slots: number) {
   return {
@@ -69,8 +71,10 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32,
       rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]];
+    const cull = visBin(rec, rank, rt.layout.selectionRoots);
     drawItemWords[word] = row;
-    drawItemWords[word + 1] = visBin(rec, rank, rt.layout.selectionRoots);
+    // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads.
+    drawItemWords[word + 1] = ints && rowCutout(ints, row) ? cull + CULL_BINS : cull;
     drawItemWords[word + 2] = rows.packedPageIndex[row];
     // The coplanar layer belongs to the table row, not to the image: it travels with the item.
     drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
@@ -84,6 +88,8 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   }
   hold.pending.mark(from, to);
 }
+
+type DrawItemWordsHold = ReturnType<typeof createDrawItemWordsHold>;
 
 /** Sends the pending rows' words to the compaction, run by run, then holds nothing pending. */
 export function sendDrawItemWords(rt: WebgpuPagesRuntime) {

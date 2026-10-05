@@ -21,10 +21,6 @@ export function lightingSettings(
     importedLights: (flags.get('file-lights') ?? 'on') !== 'off',
     // `--sun` adds the generic directional light from `lamps.ts` with its shadow maps.
     sun: flags.get('sun') === 'true',
-    // `--shadow-pages off` invalidates whole face whenever an object moves in range.
-    shadowPages: (flags.get('shadow-pages') ?? 'on') !== 'off',
-    // `--shadow-digest` flushes shadow page queue, reads depth atlas, and publishes digest.
-    shadowDigest: flags.get('shadow-digest') === 'true',
     // `--moving-node <node>` moves a named node in a small circle each frame.
     movingNode: flags.get('moving-node') ?? null,
     movingNodeRadius: number('moving-node-radius', 1),

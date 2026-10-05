@@ -91,14 +91,12 @@ pub(super) fn coarsen(
                 }
             };
             Grown::place(&mut grown, &mut welds, &mut reduction, base);
-            let first_parent = dag.len();
             let group_index = reductions_kept.len();
             let mut children = Vec::with_capacity(group.len());
             for &slot in group {
                 let id = current[slot];
                 dag[id].parent_error = reduction.error;
                 dag[id].parent_sphere = reduction.sphere;
-                dag[id].replacement = Some(first_parent);
                 dag[id].group = Some(group_index);
                 children.push(id);
             }
@@ -114,7 +112,6 @@ pub(super) fn coarsen(
                     parent_error: f64::INFINITY,
                     sphere: reduction.sphere,
                     parent_sphere: reduction.sphere,
-                    replacement: None,
                     source_rank: reduction.source_rank,
                     group: None,
                     source: Some(group_index),

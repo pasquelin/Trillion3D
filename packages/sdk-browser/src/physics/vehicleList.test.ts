@@ -58,7 +58,7 @@ test('world.physics.add makes the vehicle with its body; driving it, its state a
       events: 0,
       dropped: 0,
       steps: 1,
-      seconds: 1 / 60,
+      step: 1,
       stepMs: 0,
       stepMaxMs: 0,
     };
@@ -68,11 +68,13 @@ test('world.physics.add makes the vehicle with its body; driving it, its state a
       buffer,
       active: 1,
       character: null,
-      vehicles: state,
+      vehicles: { words: state, befores: null },
       spent: [],
     };
     worker.onmessage({ data: { ...tick, ...results } });
     assert.deepEqual([car.speed, car.rpm, car.gear], [12, 4000, 3]);
+    // Its wheels are drawn by the frame, at the bodies' time: its first state, it is drawn there.
+    physics.frame();
     assert.equal(wheels[0].position.y.toFixed(3), '-0.350');
     // The wheel turned about the body's y, then as the page laid it (on its side).
     const q = wheels[0].quaternion;

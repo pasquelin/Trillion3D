@@ -15,6 +15,7 @@ import { createSessionDeformation } from './session.ts';
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts';
 import { meshSurface } from '../page/surface.ts';
 import { wholeDeformationPool } from './wholePool.ts';
+import { emptyGeometryBlock } from '../webgpu/row/pageRowMaterial.ts';
 import type { BlendGpuItem } from '../webgpu/blend/state.ts';
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
 
@@ -44,7 +45,7 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
     copy.deformation = { joints: [], targets: [4] };
     return copy;
   });
-  const session = createSessionDeformation([], { of: (node) => node.matrixWorld }, copies);
+  const session = createSessionDeformation([], copies);
   assert.equal(session.frame.bases.length, 2);
   const items = copies.map((copy) => ({
     matrix: copy.matrix,
@@ -57,7 +58,10 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   assert.equal(layout.floats, wholeDeformationInputs(g).length + 2 * 11);
   const gpu = fakeDevice();
   const buffer = gpu.device.createBuffer({ size: 1024, usage: GPUBufferUsage.STORAGE });
-  const rows = layout.upload(gpu.device, buffer, 64, () => 7);
+  const rows = layout.upload(gpu.device, buffer, 64, () => ({
+    ...emptyGeometryBlock(),
+    vertexBase: 7,
+  }));
   assert.equal(rows.count, 2);
   assert.equal(items[0].deformInput, items[1].deformInput);
   assert.notEqual(items[0].deformOutput, items[1].deformOutput);

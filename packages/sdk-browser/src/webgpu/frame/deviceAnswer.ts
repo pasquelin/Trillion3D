@@ -1,20 +1,24 @@
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts';
 import { grantPending } from '../../gpu/core/errorScope.ts';
+import { pipelinesCompiling, pipelinesSettled } from '../../lighting/deferred/fullscreen.ts';
 import { litProgramPending } from '../pages/prepare/lightResources.ts';
+import { askFramePipelines } from './framePipelines.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** What the device still answers for the frame — its shadow pool, its targets, the lit program it
- *  compiles —, while it answers: an image drawn meanwhile would be incomplete (#483) or unlit
- *  (#1362), so the loop holds on it and a capture waits for it. Nothing is made while nothing is
- *  asked. */
+/** What the device still answers for the frame — its targets, the lit program it compiles, the
+ *  pipelines the next frame binds (`askFramePipelines`, asked here as a frame entry asks them) —,
+ *  while it answers: an image drawn meanwhile would be incomplete (#483) or unlit (#1362), or
+ *  compile on the frame, so the loop holds on it and a capture waits for it. Nothing is made while
+ *  nothing is asked. */
 export function deviceAnswer(rt: WebgpuPagesRuntime) {
   const refusal = gpuDeviceLedgerOf(rt.gpu.device)?.refusal;
   if (refusal) return Promise.reject(refusal);
+  askFramePipelines(rt);
   if (!deviceAnswering(rt)) return undefined;
   const answers = [
-    grantPending(rt.lights.shadowGrant),
     grantPending(rt.gpu.targetGrant),
     litProgramPending(rt),
+    pipelinesSettled(rt.gpu.device, true),
   ].filter((answer) => answer !== undefined);
   return Promise.all(answers);
 }
@@ -23,6 +27,6 @@ export function deviceAnswer(rt: WebgpuPagesRuntime) {
  *  every frame. The same answers, kept side by side. */
 export const deviceAnswering = (rt: WebgpuPagesRuntime) =>
   !!gpuDeviceLedgerOf(rt.gpu.device)?.refusal ||
-  grantPending(rt.lights.shadowGrant) !== undefined ||
   grantPending(rt.gpu.targetGrant) !== undefined ||
-  litProgramPending(rt) !== undefined;
+  litProgramPending(rt) !== undefined ||
+  pipelinesCompiling(rt.gpu.device);

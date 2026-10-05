@@ -14,6 +14,7 @@ import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primit
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 export { packDrawn, unpackDrawn } from './runtimePack.ts';
+import type { CutWay } from './runtimePack.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { sha256Hex } from '../../streaming/sha256Hex.ts';
 import { clusterCones } from './cutCones.ts';
@@ -39,13 +40,18 @@ export type Recut = GridInputs & { ends: Uint32Array };
  * a page holds for both (2^23 steps), the compiler's rule too: a coarser one shows through a
  * transparent surface (#875). A `recut` keeps the compiled primitive's own clusters and takes the
  * grids the compiler gives its class — texture coordinates by their span over every vertex —, so
- * each page is the one the compiler writes for that class (#846).
+ * each page is the one the compiler writes for that class (#846). `held` faces — faces that move
+ * after the cut: a dynamic geometry's (#573), a mesh the waves carry (#357) —, whose pages keep no
+ * cone, are cut, when blended, in their
+ * paint order into runs no wider than a compact cluster of their triangles (`clusters`): the same
+ * triangles painted in the same order, each page drawn by the shadow rasters into the pages it
+ * reaches. Lines and sprites (no `cones`) keep the format's clusters: their quads have no area.
  */
 export async function cutDrawnTriangles(
   drawn: DrawnTriangles,
   cones: boolean,
   blended: boolean,
-  recut?: Recut,
+  { recut, held = false }: CutWay = {},
 ): Promise<PageCutPayload> {
   const { positions, normals, uvs, colors, indices } = drawn;
   const bounds = new Float64Array(6);
@@ -73,13 +79,16 @@ export async function cutDrawnTriangles(
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   };
-  const ranges = recut ? givenClusters(recut.ends) : [...clusters(indices, positions.length / 3)];
+  const compactAt = blended && held && cones ? positions : undefined;
+  const ranges = recut
+    ? givenClusters(recut.ends)
+    : [...clusters(indices, positions.length / 3, compactAt)];
   const texture = (span: number) =>
     gridExponentFor(span, blended && span > 0 ? -Infinity : UV_EXPONENT);
   const uvExponent =
     (recut && uvs ? await textureGridExponent(primitiveUvSpan(uvs), blended) : null) ??
     texture(uvs ? widestUvSpan(uvs, indices, ranges) : 0);
-  const built = cones ? await clusterCones(positions, indices, ranges) : null;
+  const built = cones && !held ? await clusterCones(positions, indices, ranges) : null;
   const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
   const cut = [];
   let maxPositionError = 0;

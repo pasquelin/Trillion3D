@@ -1,29 +1,30 @@
-import {
-  copyMatrix4,
-  frustumExcludesBox,
-  frustumPlanesToLocal,
-  multiplyMatrix4,
-} from '../../../../../sdk-core/src/index.ts';
+import { copyMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts';
-import {
-  boxMissesLightPages,
-  type LightPages,
-} from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { errorFloorAt, viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
+import { viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
 import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.ts';
-import { DAG_NODE_FLOATS } from '../types.ts';
-import {
-  NODE_CEIL,
-  NODE_CHILD_COUNT,
-  NODE_FLOOR,
-  NODE_FLOOR_SPHERE,
-  NODE_MAX,
-  NODE_MIN,
-  NODE_OPEN,
-  NODE_SPHERE,
-  NODE_WORLD,
-} from '../nodeLayout.ts';
 import type { DagViewUniforms, PackedDag } from '../types.ts';
+
+/**
+ * The CPU mirror of the kernel's planes taken into a placement's local space (`m`, 4x4
+ * column-major): each plane `p` becomes `p · m`, so a local point `q` yields `p · (m q)` and a local
+ * box is tested untransformed.
+ */
+export function frustumPlanesToLocal(
+  out: Float64Array,
+  planes: ArrayLike<number>,
+  m: ArrayLike<number>,
+) {
+  for (let i = 0; i < 6; i++) {
+    const a = planes[i * 4],
+      b = planes[i * 4 + 1],
+      c = planes[i * 4 + 2],
+      d = planes[i * 4 + 3];
+    out[i * 4] = m[0] * a + m[1] * b + m[2] * c + m[3] * d;
+    out[i * 4 + 1] = m[4] * a + m[5] * b + m[6] * c + m[7] * d;
+    out[i * 4 + 2] = m[8] * a + m[9] * b + m[10] * c + m[11] * d;
+    out[i * 4 + 3] = m[12] * a + m[13] * b + m[14] * c + m[15] * d;
+  }
+}
 
 /** Column-major 4×4 buffers rewritten per world, never reallocated. */
 export const dagScratch = {
@@ -79,8 +80,6 @@ export type DagViewFrames = {
   perspective: number;
   viewPoint: Float64Array;
   pixelError: number;
-  /** The light cut's redrawn pages, absent for a camera (`DagViewUniforms.light`). */
-  light?: LightPages;
 };
 export function dagViewFrames(
   packed: Pick<PackedDag, 'worlds' | 'worldStretch' | 'worldCount'> & Partial<PackedDag>,
@@ -97,7 +96,7 @@ export function dagViewFrames(
     copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
     frustumPlanesToLocal(object, uniforms.planes, world);
-    if (openMark(packed.mark?.[w], uniforms.light)) object.set(OPEN_PLANES);
+    if (openMark(packed.mark?.[w])) object.set(OPEN_PLANES);
     planes.push(object);
     multiplyMatrix4(viewMatrix, view, world);
     views.push(Array.from(viewMatrix));
@@ -117,84 +116,5 @@ export function dagViewFrames(
       perspective,
     ),
     pixelError: uniforms.pixelError,
-    light: uniforms.light,
   };
-}
-
-/** Kernel verdict on a cut node (`../shader/levelWgsl.ts`, `levelStep`): `-1` rejected —
- *  outside the trunk, or whose subtree replacement is not yet too coarse —, otherwise
- *  the number of children it opens, `0` meaning a kept leaf. */
-export function dagNodeVerdict(
-  f: DagViewFrames,
-  nodes: ArrayLike<number>,
-  ints: Uint32Array,
-  n: number,
-) {
-  const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD];
-  if (
-    frustumExcludesBox(
-      f.planes[w],
-      nodes[base + NODE_MIN],
-      nodes[base + NODE_MIN + 1],
-      nodes[base + NODE_MIN + 2],
-      nodes[base + NODE_MAX],
-      nodes[base + NODE_MAX + 1],
-      nodes[base + NODE_MAX + 2],
-    )
-  )
-    return -1;
-  const { light } = f,
-    { min, max } = dagScratch;
-  for (let a = 0; light && a < 3; a++) min[a] = nodes[base + NODE_MIN + a];
-  for (let a = 0; light && a < 3; a++) max[a] = nodes[base + NODE_MAX + a];
-  if (light && boxMissesLightPages(light, min, max, f.views[w], f.perspective)) return -1;
-  const ceil = nodes[base + NODE_CEIL];
-  if (
-    ceil >= 0 &&
-    projectedError(
-      ceil,
-      nodes[base + NODE_SPHERE],
-      nodes[base + NODE_SPHERE + 1],
-      nodes[base + NODE_SPHERE + 2],
-      nodes[base + NODE_SPHERE + 3],
-      f.views[w],
-      f.stretches[w],
-      f.focal,
-      f.near,
-      f.perspective,
-    ) <= f.pixelError
-  )
-    return -1;
-  return ints[base + NODE_CHILD_COUNT];
-}
-
-/**
- * The subtree error FLOOR, projected as the kernel projects it (`../shader/floorWgsl.ts`,
- * `errorFloor`): above the threshold none of its clusters is fine enough and the cut
- * takes none. An open subtree — it holds a cluster whose finer group is not resident, which the
- * cut rule may draw whatever its error — returns zero, so never prunes.
- */
-export function dagNodeFloor(
-  f: DagViewFrames,
-  nodes: ArrayLike<number>,
-  ints: Uint32Array,
-  n: number,
-) {
-  const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD];
-  if (ints[base + NODE_OPEN] !== 0) return 0;
-  return errorFloorAt(
-    nodes[base + NODE_FLOOR],
-    viewDepthOf(
-      nodes[base + NODE_FLOOR_SPHERE],
-      nodes[base + NODE_FLOOR_SPHERE + 1],
-      nodes[base + NODE_FLOOR_SPHERE + 2],
-      f.views[w],
-    ),
-    nodes[base + NODE_FLOOR_SPHERE + 3],
-    f.stretches[w],
-    f.focal,
-    f.perspective,
-  );
 }
