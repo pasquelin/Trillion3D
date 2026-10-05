@@ -18,6 +18,7 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
 import { GraphTexture } from './texture.ts';
 import { numbered } from './serial.ts';
+import type { HostAttributes } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 
@@ -75,6 +76,14 @@ export function triangleMesh(surface: GraphSurface) {
   const made = numbered(new Mesh(geometry, surface));
   made.frustumCulled = false;
   return made;
+}
+
+/** The host attributes of a triangle in the z = 0 plane: indexed positions only. */
+export function triangleAttributes() {
+  const geometry = new Geometry();
+  geometry.setAttribute('position', floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+  geometry.setIndex(indices([0, 1, 2]));
+  return geometry.attributes as HostAttributes;
 }
 
 /** A surface of each family a scene declares. */
