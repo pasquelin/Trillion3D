@@ -8,8 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
-import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
-import type { PageAttribute, PageAttributes } from '../../../packages/page-codec/pageAttributes.ts';
+import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts';
+import type { PageAttribute, PageAttributes } from '../../../packages/page-codec/src/pageAttributes.ts';
 import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts';
 

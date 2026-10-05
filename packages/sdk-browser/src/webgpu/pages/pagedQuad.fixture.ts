@@ -1,5 +1,5 @@
 import * as G from '../../host/graph/graph.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { QUAD_MANIFEST, quadScene } from '../../backend/pagesBackendScenes.fixture.ts';

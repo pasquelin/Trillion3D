@@ -3,7 +3,7 @@
 // over it.
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts';
 import * as F from '../types.ts';
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts';

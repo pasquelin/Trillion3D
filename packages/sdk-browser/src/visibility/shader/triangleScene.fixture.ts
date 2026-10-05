@@ -7,7 +7,7 @@
 import { Mat } from '../../texture/shaderRun.fixture.ts';
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts';
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { FLAG_CLUSTER_PAGE } from '../types.ts';
 
 export type V = number[];

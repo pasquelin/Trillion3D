@@ -4,8 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import { octDecode, octEncode } from '../../../../page-codec/pageGrids.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
+import { octDecode, octEncode } from '../../../../page-codec/src/pageGrids.ts';
 import { anneau } from '../../../../../bench/perf/browser/support/pagesWasm.ts';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {

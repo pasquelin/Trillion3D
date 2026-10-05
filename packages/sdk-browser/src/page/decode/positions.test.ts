@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { readGeometryPageHeader } from './geometryPageHeader.ts';

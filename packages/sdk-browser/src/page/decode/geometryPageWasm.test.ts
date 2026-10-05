@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 

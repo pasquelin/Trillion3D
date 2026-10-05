@@ -74,11 +74,11 @@ test('a test, a fixture and an index keep the bound: they are read whole', () =>
   }
 });
 
-test('`page-codec` keeps no `src/`, and its modules are read by the cohesion gate', () => {
+test('the `page-codec` modules are read by the cohesion gate', () => {
   // The two lists must agree: a path `check-file-lines` exempts and `check:cohesion` never reads
   // would leave a file with no gate at all.
-  assert.equal(keepsLineBound('packages/page-codec/geometryPage.ts'), false);
-  assert.equal(unitOf('packages/page-codec/geometryPage.ts') !== null, true);
+  assert.equal(keepsLineBound('packages/page-codec/src/geometryPage.ts'), false);
+  assert.equal(unitOf('packages/page-codec/src/geometryPage.ts') !== null, true);
   assert.equal(keepsLineBound('packages/sdk-node/src/cli/cli.mts'), false);
   // A barrel keeps the bound and is read by the cohesion gate too: the overlap is harmless, and
   // what matters is that no file is read by neither.

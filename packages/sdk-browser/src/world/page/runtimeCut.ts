@@ -7,9 +7,9 @@
  * lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
-import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/geometryPage.ts';
-import { gridExponentFor } from '../../../../page-codec/pageGrids.ts';
-import type { PageAttributes } from '../../../../page-codec/pageAttributes.ts';
+import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/src/geometryPage.ts';
+import { gridExponentFor } from '../../../../page-codec/src/pageGrids.ts';
+import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts';
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { runPageDecodeTask } from './task.ts';
 import type { PageDecodeDone } from '../../../../sdk-core/src/index.ts';
 

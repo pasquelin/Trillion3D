@@ -10,8 +10,8 @@ import {
 import { blockRecord, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
 import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
-import { field } from '../../../../page-codec/bits.ts';
-import { octDecode } from '../../../../page-codec/pageGrids.ts';
+import { field } from '../../../../page-codec/src/bits.ts';
+import { octDecode } from '../../../../page-codec/src/pageGrids.ts';
 
 /**
  * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the

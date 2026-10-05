@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';

@@ -3,7 +3,7 @@
 // between them. Every page-table word is named by the field `PageInfo` declares
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts';
-import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts';
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-browser/src/cluster/format.ts';
 import {
   KIND_MORPH,

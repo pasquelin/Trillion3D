@@ -8,7 +8,7 @@ import {
   MORPH_WORDS,
 } from '../../cluster/format.ts';
 import type { Quant } from './geometryPageHeader.ts';
-import { field } from '../../../../page-codec/bits.ts';
+import { field } from '../../../../page-codec/src/bits.ts';
 
 /**
  * What a `WGP3` page carries for the GPU deformation stage (#357), the mirror of the shared

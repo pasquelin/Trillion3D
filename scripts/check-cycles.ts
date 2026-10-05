@@ -33,7 +33,7 @@ export const CYCLE_UNITS = [
   'packages/sdk-core/src',
   'packages/sdk-browser/src',
   'packages/sdk-node/src',
-  'packages/page-codec',
+  'packages/page-codec/src',
 ] as const;
 
 const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/;

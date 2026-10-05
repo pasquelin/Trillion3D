@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 
 const floats = (values: number[], itemSize: number) => ({
   itemSize,

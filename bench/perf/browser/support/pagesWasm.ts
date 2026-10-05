@@ -2,12 +2,12 @@
 // reference encoder `packages/page-codec`, the same one that serves as oracle to the JavaScript
 // decoder: what is compared is thus two reads of a real page, not of a buffer made for the
 // occasion.
-import { encodeGeometryPage } from '../../../../packages/page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../packages/page-codec/src/geometryPage.ts';
 import { graine } from '../../../core/index.ts';
 import type {
   OptionalAttributeName,
   PageAttributes,
-} from '../../../../packages/page-codec/pageAttributes.ts';
+} from '../../../../packages/page-codec/src/pageAttributes.ts';
 
 const alea = graine(20260915);
 

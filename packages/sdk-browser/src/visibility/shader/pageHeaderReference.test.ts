@@ -12,7 +12,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts';
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { randomPage } from '../../page/decode/randomPages.fixture.ts';
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts';
 import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts';

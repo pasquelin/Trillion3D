@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { restorePageDecode, runPageDecodeTask } from './task.ts';
 import type {
   PageDecodeDone,

@@ -5,8 +5,8 @@ import {
   skinWords,
   validateRawDeformation,
 } from './geometryPageDeform.ts';
-import { bitsFor } from '../../../../page-codec/pageGrids.ts';
-import { field } from '../../../../page-codec/bits.ts';
+import { bitsFor } from '../../../../page-codec/src/pageGrids.ts';
+import { field } from '../../../../page-codec/src/bits.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,

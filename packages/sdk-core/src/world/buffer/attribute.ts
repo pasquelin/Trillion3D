@@ -3,7 +3,7 @@
  * the interleaved buffer itself. A reader uploads an attribute's bytes as they are and compares
  * `version` (the buffer's, for a view) to know they changed.
  */
-import type { PageAttribute } from '../../../../page-codec/pageAttributes.ts';
+import type { PageAttribute } from '../../../../page-codec/src/pageAttributes.ts';
 import { VertexElements, type BufferTypedArray } from './elements.ts';
 import { defer, load, notLoaded, type PendingNumbers } from './pending.ts';
 
@@ -35,7 +35,7 @@ export function indexList(values: ArrayLike<number>) {
 }
 
 /** A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's
- *  `PageAttribute` (`page-codec/pageAttributes.ts`), with what a page writes into it. */
+ *  `PageAttribute` (`page-codec/src/pageAttributes.ts`), with what a page writes into it. */
 export class BufferAttribute extends VertexElements implements PageAttribute {
   /** Always `true`: tells a buffer attribute apart from anything else. */
   readonly isBufferAttribute = true as const;

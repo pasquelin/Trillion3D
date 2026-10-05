@@ -9,7 +9,7 @@ import { PAGE_DECODE_PROTOCOL } from '../../../packages/sdk-core/src/index.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../../../packages/sdk-core/src/index.ts';
 import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
 import { RACINE, ecart, graine, mesure, stress, rapport } from '../../core/index.ts';
-import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import {
   decodePageOffThread,
