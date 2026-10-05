@@ -5,7 +5,8 @@ import { Mixer, advanceMixers, lendActionSampler, type SampleInto } from './mixe
 import type { Clip, Track } from './clip.ts';
 import { viewScene } from './mixerHold.ts';
 
-test('frames on a step ask the next sample one step on, a dropped frame and a still one kept', () => {
+/** A scene of one bone and a clip moving it ten metres in ten seconds. */
+function oneBoneRig() {
   const bone = new Object3D(),
     scene = new Object3D();
   bone.name = 'b';
@@ -17,21 +18,34 @@ test('frames on a step ask the next sample one step on, a dropped frame and a st
     values: Float32Array.of(0, 0, 0, 10, 0, 0),
   };
   const clip: Clip = { name: 'c', duration: 10, tracks: [track] };
-  const asked: (number | null)[] = [];
-  let frame = -1;
+  return { scene, clip };
+}
+
+/** Lends a sampler that reports each sample and each next-step ask, and samples as the default. */
+function lendRecordingSampler(onSample: (t: number) => void, onAhead: (t: number) => void) {
   lendActionSampler({
-    bind(tracks: readonly Track[], fallback: SampleInto) {
+    bind(_tracks: readonly Track[], fallback: SampleInto) {
       const out = new Float64Array(3),
         offsets = Uint32Array.of(0);
       return {
         offsets,
         at: 0,
-        sample: (t: number) => (fallback(t, out, offsets), out),
-        ahead: (t: number) => void (asked[frame] = t),
+        sample: (t: number) => (onSample(t), fallback(t, out, offsets), out),
+        ahead: onAhead,
         release() {},
       };
     },
   });
+}
+
+test('frames on a step ask the next sample one step on, a dropped frame and a still one kept', () => {
+  const { scene, clip } = oneBoneRig();
+  const asked: (number | null)[] = [];
+  let frame = -1;
+  lendRecordingSampler(
+    () => {},
+    (t) => void (asked[frame] = t),
+  );
   try {
     const action = new Mixer(scene).play(clip);
     const P = 1 / 120;
@@ -57,17 +71,7 @@ test('frames on a step ask the next sample one step on, a dropped frame and a st
 });
 
 test('a held frame asks nothing ahead; the frame after a hold finds its sample asked', () => {
-  const bone = new Object3D(),
-    scene = new Object3D();
-  bone.name = 'b';
-  scene.add(bone);
-  const track: Track = {
-    name: 'b.position',
-    kind: 'vector',
-    times: Float32Array.of(0, 10),
-    values: Float32Array.of(0, 0, 0, 10, 0, 0),
-  };
-  const clip: Clip = { name: 'c', duration: 10, tracks: [track] };
+  const { scene, clip } = oneBoneRig();
   // One metre a second, 300 m away on a 1000-pixel focal length: 3.3 px a second, a write
   // every ninth frame or so at 60 Hz.
   viewScene(scene, () => ({
@@ -80,19 +84,10 @@ test('a held frame asks nothing ahead; the frame after a hold finds its sample a
   const asked: (number | null)[] = [],
     sampled: (number | null)[] = [];
   let frame = -1;
-  lendActionSampler({
-    bind(tracks: readonly Track[], fallback: SampleInto) {
-      const out = new Float64Array(3),
-        offsets = Uint32Array.of(0);
-      return {
-        offsets,
-        at: 0,
-        sample: (t: number) => ((sampled[frame] = t), fallback(t, out, offsets), out),
-        ahead: (t: number) => void (asked[frame] = t),
-        release() {},
-      };
-    },
-  });
+  lendRecordingSampler(
+    (t) => void (sampled[frame] = t),
+    (t) => void (asked[frame] = t),
+  );
   try {
     const action = new Mixer(scene).play(clip);
     for (frame = 0; frame < 120; frame++) {
