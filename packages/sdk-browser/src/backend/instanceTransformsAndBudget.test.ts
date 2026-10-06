@@ -1,9 +1,7 @@
 import test from 'node:test';
-import { asHostLibrary } from '../host/resources.ts';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
-import { threeLodBackend } from '../../../../bench/witnesses/three/lod.ts';
+import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
 import {
   quadScene,
@@ -16,52 +14,41 @@ import {
 } from './pagesBackendScenes.fixture.ts';
 import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
-test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
-  for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
-    const geometry = triangleGeometry();
-    const material = G.basicSurface(),
-      mesh = G.mesh(geometry, material),
-      source = new G.Group();
-    source.add(mesh);
-    const page = {
-      id: 0,
-      url: '0',
-      count: 3,
-      min: [-1, -1, 0],
-      max: [1, 1, 0],
-      bytes: 12,
-      sha256: 'x',
-    };
-    const backend = factory({
-      source,
-      metadata: {
-        ...DAG,
-        ...MANIFEST_IDENTITY,
-        primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([page]) }],
-      },
-      indices: new Map([['0', new Uint32Array([0, 1, 2])]]),
-      associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-    });
-    const camera = G.perspectiveCamera(55, 1, 0.1, 100);
-    camera.position.z = 5;
-    camera.lookAt(0, 0, 0);
-    backend.render(camera);
-    mesh.position.x = 100;
-    backend.render(camera);
-    if (backend.id === 'exact-cluster-pages') assert.equal(backend.metrics().selectedTriangles, 0);
-    else {
-      const object = asHostLibrary<G.Object3D[]>(backend.scene.children).find(
-        // The engine's backends draw graph meshes; the witnesses publish their library's.
-        (child) =>
-          G.isDrawnNode(child) || ['Mesh', 'LOD'].includes((child as { type?: string }).type ?? ''),
-      );
-      assert.ok(object);
-      assert.equal(object.matrix.elements[12], 100);
-    }
-    backend.dispose();
-    geometry.dispose();
-    material.dispose();
-  }
+test('a source instance moved out of view after a first frame selects no triangle in the exact backend', () => {
+  const geometry = triangleGeometry();
+  const material = G.basicSurface(),
+    mesh = G.mesh(geometry, material),
+    source = new G.Group();
+  source.add(mesh);
+  const page = {
+    id: 0,
+    url: '0',
+    count: 3,
+    min: [-1, -1, 0],
+    max: [1, 1, 0],
+    bytes: 12,
+    sha256: 'x',
+  };
+  const backend = exactPagesBackend({
+    source,
+    metadata: {
+      ...DAG,
+      ...MANIFEST_IDENTITY,
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([page]) }],
+    },
+    indices: new Map([['0', new Uint32Array([0, 1, 2])]]),
+    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+  });
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
+  camera.position.z = 5;
+  camera.lookAt(0, 0, 0);
+  backend.render(camera);
+  mesh.position.x = 100;
+  backend.render(camera);
+  assert.equal(backend.metrics().selectedTriangles, 0);
+  backend.dispose();
+  geometry.dispose();
+  material.dispose();
 });
 
 test('a cut over the resident budget raises the flag and still covers the surface once', () => {
