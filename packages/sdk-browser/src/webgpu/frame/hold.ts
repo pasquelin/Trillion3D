@@ -37,11 +37,9 @@ const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << inde
 >;
 export const TEXTURES_PENDING = BIT.texturesPending,
   SHADOWS_PENDING = BIT.shadowsPending;
-/**
- * Pending work that can change the frame. Read without allocation by hold and the barrier.
- */
-export function unsettledMask(rt: WebgpuPagesRuntime) {
-  const { run, vis, lights, bounce, capture, services, timing } = rt,
+/** The run's own state: loss, capture, frame, cut and budget flags. */
+function runMask(rt: WebgpuPagesRuntime) {
+  const { run, vis, capture, timing } = rt,
     { rows } = rt.layout;
   let mask = 0;
   if (run.lost) mask |= BIT.lost;
@@ -57,6 +55,13 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // Only opaque rows with a partition need occluder history; sky and blend alone do not.
   if (run.noOccluderHistory && rows.packedCount && vis.gpuPartition) mask |= BIT.noOccluderHistory;
   if (run.deferredDrops.size) mask |= BIT.deferredDrops;
+  return mask;
+}
+/** The row table, the pages and the shadows still on their way. */
+function loadMask(rt: WebgpuPagesRuntime) {
+  const { run, vis, lights, services } = rt,
+    { rows } = rt.layout;
+  let mask = 0;
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap;
   if (services.residency.busy) mask |= BIT.residencyBusy;
   if (
@@ -73,6 +78,12 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending;
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending;
+  return mask;
+}
+/** The temporal histories still advancing: bounce probes, reflections and deformation. */
+function historyMask(rt: WebgpuPagesRuntime) {
+  const { vis, bounce } = rt;
+  let mask = 0;
   // Closed probe series hold; a pending unrefused series still needs a frame.
   if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
     mask |= BIT.bounceProbes;
@@ -88,6 +99,12 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // Deformation advances its own temporal history.
   if (vis.deformation?.frame.pending()) mask |= BIT.deforming;
   return mask;
+}
+/**
+ * Pending work that can change the frame. Read without allocation by hold and the barrier.
+ */
+export function unsettledMask(rt: WebgpuPagesRuntime) {
+  return runMask(rt) | loadMask(rt) | historyMask(rt);
 }
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>
