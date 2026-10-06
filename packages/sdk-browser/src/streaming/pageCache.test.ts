@@ -134,6 +134,18 @@ test("a streamer's own cache leaves with it; a kept one stays, minus pages cooke
   assert.throws(() => createPageCache(0), /INVALID_PAGE_CACHE_BUDGET/)
 })
 
+test('a page admitted to an open streamer is checked against the kept cache: another file under its name is not served', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin'])
+  const kept = createPageCache()
+  const first = open(pages, kept)
+  await first.request(['a.bin', 'b.bin'])
+  first.dispose()
+  const second = open([pages[0]], kept)
+  second.admit([{ ...pages[1], sha256: 'another fingerprint' }])
+  assert.deepEqual([second.has('a.bin'), second.has('b.bin')], [true, false])
+  second.dispose()
+})
+
 test('a kept page is served only as the file it was read as: its fingerprint, under any base', async () => {
   const file = async (value: number) => {
     const bytes = new Uint8Array(12).fill(value)

@@ -111,15 +111,14 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       if (sha256) fingerprints.set(array, sha256)
     },
     drop,
-    /** Drops every page held as other bytes than the file `catalog` names at its url: another
+    /** Drops every page held as other bytes than the file `admitted` names at its url: another
      *  fingerprint or another size, or bytes never verified against one. A name alone is not a
      *  file: another scene, another base or the same folder cooked again may reuse it at the same
      *  size. The same fingerprint is the same bytes, verified at read, under any base. */
-    dropForeign(catalog: ReadonlyMap<string, { bytes: number; sha256: string }>) {
-      for (const [url, held] of pages) {
-        const page = catalog.get(url)
-        if (page && (fingerprints.get(held) !== page.sha256 || held.byteLength !== page.bytes))
-          drop(url)
+    dropForeign(admitted: Iterable<{ url: string; bytes: number; sha256: string }>) {
+      for (const { url, bytes, sha256 } of admitted) {
+        const held = pages.get(url)
+        if (held && (fingerprints.get(held) !== sha256 || held.byteLength !== bytes)) drop(url)
       }
     },
     /**

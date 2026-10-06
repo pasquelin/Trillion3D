@@ -68,8 +68,8 @@ export function createPageStreamerWith(
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
-  // A kept page held under this name as another file leaves before the first read.
-  store.dropForeign(catalog)
+  // A kept page held under a page's name as another file leaves before its first read.
+  store.dropForeign(pages)
   const release = store.hold(streaming.holder)
   if (kept) evict()
   else store.resize(store.cpuBytes + store.reservedBytes)
@@ -91,11 +91,13 @@ export function createPageStreamerWith(
     return read(url, signal, priority)
   }
   return {
-    admit: (more: readonly StreamPage[]) =>
-      more.forEach((page) => {
+    admit(more: readonly StreamPage[]) {
+      store.dropForeign(more)
+      for (const page of more) {
         keep(page.url)
         catalog.set(page.url, page)
-      }),
+      }
+    },
     // A page a read holds, queued or in transfer, stays catalogued until that read settles.
     forget: (urls: readonly string[]) => urls.forEach(forget),
     get(url: string) {
