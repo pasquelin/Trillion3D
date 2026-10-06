@@ -1,7 +1,7 @@
 // the geometry of a preview entry.
 import { previewGeometry } from '../../../packages/sdk-core/src/texture/previewLevels.ts';
-import { mesure, stress, rapport } from '../../core/index.ts';
-import type { MesureCas } from '../../core/index.ts';
+import { measure, stress, rapport } from '../../core/index.ts';
+import type { MeasureCase } from '../../core/index.ts';
 import { referenceExpectedGeometry } from '../../oracles/core/preview-texture.ts';
 
 const DIMENSIONS: [number, number][] = [
@@ -24,13 +24,13 @@ type GeometryNumbers = Pick<
 >;
 
 /** Each entry's three numbers, flat, in a buffer kept per list: the timed call allocates none. */
-const geometries = (calcul: (width: number, height: number) => GeometryNumbers) => {
+const geometries = (calculation: (width: number, height: number) => GeometryNumbers) => {
   const outputs = new Map<readonly unknown[], Float64Array>();
   return (list: readonly [number, number][]) => {
     let output = outputs.get(list);
     if (!output) outputs.set(list, (output = new Float64Array(list.length * 3)));
     for (let i = 0; i < list.length; i++) {
-      const g = calcul(list[i][0], list[i][1]);
+      const g = calculation(list[i][0], list[i][1]);
       [output[i * 3], output[i * 3 + 1], output[i * 3 + 2]] = [
         g.firstLevel,
         g.levelCount,
@@ -41,25 +41,25 @@ const geometries = (calcul: (width: number, height: number) => GeometryNumbers) 
   };
 };
 
-const cas: MesureCas<[number, number][]>[] = [
+const cas: MeasureCase<[number, number][]>[] = [
   { name: '4 000 entries, eight boundary sizes', input: inputs, size: 4000 },
   { name: 'one 1×1 entry', input: [[1, 1]], size: 1 },
   { name: 'one max-side entry', input: [[0xffffffff, 0xffffffff]], size: 1 },
   { name: 'no entries', input: [], size: 0 },
 ];
 
-const res = await mesure({
+const res = await measure({
   name: 'preview geometry',
   fichier: 'packages/sdk-core/src/texture/previewLevels.ts',
   cas,
-  calcul: geometries(previewGeometry),
-  attendu: geometries(referenceExpectedGeometry),
+  calculation: geometries(previewGeometry),
+  expected: geometries(referenceExpectedGeometry),
   options: { tours: 100, budgetMs: 1500 },
 });
 
 await stress({
   name: 'previewGeometry extremes',
-  calcul: ([w, h]: [number, number]) => previewGeometry(w, h),
+  calculation: ([w, h]: [number, number]) => previewGeometry(w, h),
   extremes: [
     { name: 'zero', input: [0, 0] },
     { name: 'max 32-bit', input: [0xffffffff, 0xffffffff] },

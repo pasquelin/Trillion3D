@@ -16,18 +16,18 @@ const options = { tours: 30, budgetMs: 500 };
 /** A line: a single set of inputs, the reference against the foundation or against the previous code. */
 export const ligne = <Entree extends ArrayLike<unknown>, Sortie>(
   libelle: string,
-  fichier: string | string[],
+  file: string | string[],
   name: string,
   input: Entree,
   reference: (input: Entree) => Sortie | Promise<Sortie>,
-  optimisee: (input: Entree) => Sortie | Promise<Sortie>,
+  optimised: (input: Entree) => Sortie | Promise<Sortie>,
 ): Promise<Measurement> =>
   compare({
     name: libelle,
-    fichier,
+    fichier: file,
     cas: [{ name, input, size: input.length }],
     reference,
-    optimisee,
+    optimised,
     options,
   });
 

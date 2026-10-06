@@ -6,7 +6,7 @@ import {
   setWindingEpoch,
   windingCw,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts';
 import {
   createEngineCamera,
@@ -16,7 +16,7 @@ import {
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
-const alea = graine(67);
+const alea = xorshiftRandom(67);
 
 /** Fields the winding test never reads: shared across every fixture record. */
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
@@ -40,9 +40,9 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
   renderOrder: 0,
 });
 
-function clusters(nombre: number): Cluster[] {
+function clusters(count: number): Cluster[] {
   const recs: Cluster[] = [];
-  for (let i = 0; i < nombre; i++) {
+  for (let i = 0; i < count; i++) {
     const matrix = new G.Matrix4().compose(
       new G.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
       new G.Quaternion().setFromEuler(new G.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28)),
@@ -67,7 +67,7 @@ const imageDeSens = (sens: (rec: Cluster) => boolean, pose: boolean) => (recs: C
   return verdicts;
 };
 
-const vue = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
+const view = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 const courante = createEngineCamera();
 let gardeeReference: EngineCamera | undefined = undefined,
   gardeeOptimisee: EngineCamera | undefined = undefined;
@@ -75,11 +75,11 @@ const parcoursDeVue = (garder: (camera: G.Camera) => boolean) => (images: number
   const verdicts = new Uint8Array(images),
     elements = new Float64Array(16);
   for (let image = 0; image < images; image++) {
-    vue.position.set(Math.sin(image * 0.01) * 3, 0, 6 + image * 0.001);
-    vue.updateMatrixWorld();
-    verdicts[image] = garder(vue) ? 1 : 0;
+    view.position.set(Math.sin(image * 0.01) * 3, 0, 6 + image * 0.001);
+    view.updateMatrixWorld();
+    verdicts[image] = garder(view) ? 1 : 0;
   }
-  elements.set(vue.matrixWorldInverse.elements);
+  elements.set(view.matrixWorldInverse.elements);
   return { verdicts, elements };
 };
 
@@ -97,7 +97,7 @@ const optimiseeVue = parcoursDeVue((camera) => {
   return verdict;
 });
 
-const resWinding = await mesure({
+const resWinding = await measure({
   name: 'windingCw',
   fichier: 'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
   cas: [
@@ -105,26 +105,26 @@ const resWinding = await mesure({
     { name: 'one cluster', input: seul, size: 1 },
     { name: 'no clusters', input: [], size: 0 },
   ],
-  calcul: imageDeSens((c) => windingCw(c.roots, 0), true),
-  attendu: imageDeSens(referenceWindingCw, false),
+  calculation: imageDeSens((c) => windingCw(c.roots, 0), true),
+  expected: imageDeSens(referenceWindingCw, false),
   options: { tours: 100, budgetMs: 1500 },
 });
 
-const resSameView = await mesure({
+const resSameView = await measure({
   name: 'comparison camera',
   fichier: 'packages/sdk-browser/src/webgpu/pages/render/render.ts',
   cas: [
     { name: '400 frames', input: 400, size: 400 },
     { name: 'one frame', input: 1, size: 1 },
   ],
-  calcul: optimiseeVue,
-  attendu: referenceVue,
+  calculation: optimiseeVue,
+  expected: referenceVue,
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'windingCw extremes',
-  calcul: (c: Cluster) => windingCw(c.roots, 0),
+  calculation: (c: Cluster) => windingCw(c.roots, 0),
   extremes: [
     {
       name: 'zero matrix',

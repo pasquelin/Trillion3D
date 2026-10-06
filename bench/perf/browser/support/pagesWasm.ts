@@ -3,13 +3,13 @@
 // decoder: what is compared is thus two reads of a real page, not of a buffer made for the
 // occasion.
 import { encodeGeometryPage } from '../../../../packages/page-codec/src/geometryPage.ts';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import type {
   OptionalAttributeName,
   PageAttributes,
 } from '../../../../packages/page-codec/src/pageAttributes.ts';
 
-const alea = graine(20260915);
+const alea = xorshiftRandom(20260915);
 
 /** Finite but hostile floats: signed zero, denormals, and noise within `±amplitude / 2`. */
 function hostiles(n: number, amplitude: number): Float32Array {

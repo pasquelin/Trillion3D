@@ -8,7 +8,7 @@ import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../../packages/sdk-core/src/index.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../../../packages/sdk-core/src/index.ts';
 import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
-import { RACINE, ecart, graine, mesure, stress, rapport } from '../../core/index.ts';
+import { RACINE, gap, xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import {
@@ -19,7 +19,7 @@ import { restorePageDecode } from '../../../packages/sdk-browser/src/page/decode
 import { sha256Hex } from '../../../packages/sdk-browser/src/streaming/sha256Hex.ts';
 
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
-const alea = graine(211);
+const alea = xorshiftRandom(211);
 const MODULE = readFileSync(join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE))) throw new Error('H2_WASM_ABSENT: run `pnpm run build:wasm`');
 
@@ -89,44 +89,44 @@ test('H2: the worker yields the exact same page and bytes as the main thread', a
   const decodee = await horsFil('decode', grande.slice().buffer);
   assert.ok(decodee.ok, 'message' in decodee ? decodee.message : undefined);
   assert.ok(decodee.decoded, 'decode task answered without a payload');
-  assert.equal(ecart(surPlace, restorePageDecode(decodee.decoded), 'page'), null);
+  assert.equal(gap(surPlace, restorePageDecode(decodee.decoded), 'page'), null);
 
-  const attendu = await sha256Hex(grande.slice().buffer);
+  const expected = await sha256Hex(grande.slice().buffer);
   const verifiee = await horsFil('verify', grande.slice().buffer);
   assert.ok(verifiee.ok, 'message' in verifiee ? verifiee.message : undefined);
-  assert.equal(verifiee.sha256, attendu);
+  assert.equal(verifiee.sha256, expected);
   assert.ok(verifiee.source, 'verify task answered without its source buffer');
-  assert.equal(ecart(grande, new Uint8Array(verifiee.source), 'returned bytes'), null);
+  assert.equal(gap(grande, new Uint8Array(verifiee.source), 'returned bytes'), null);
   await worker.terminate();
 });
 
-const resDecode = await mesure({
+const resDecode = await measure({
   name: 'WebAssembly decode contract',
   fichier: 'packages/sdk-browser/src/page/decode/host.ts',
   cas: [
     { name: '30 000 vertices, 6 attributes', input: grande, size: 30000 },
     { name: '9 vertices', input: petite, size: 9 },
   ],
-  calcul: (data) => decodePageOffThread(data),
-  attendu: (data) => decodeGeometryPage(data, MAX_DECODED_BYTES),
+  calculation: (data) => decodePageOffThread(data),
+  expected: (data) => decodeGeometryPage(data, MAX_DECODED_BYTES),
   options: { tours: 20, budgetMs: 1500 },
 });
 
-const resHash = await mesure({
+const resHash = await measure({
   name: 'integrity-hash contract',
   fichier: 'packages/sdk-browser/src/page/decode/host.ts',
   cas: [
     { name: '30 000 vertices, compressed', input: grande.buffer, size: grande.byteLength },
     { name: '9 vertices', input: petite.buffer, size: petite.byteLength },
   ],
-  calcul: async (source) => (await verifyPageBytes(source)).sha256,
-  attendu: (source) => sha256Hex(source),
+  calculation: async (source) => (await verifyPageBytes(source)).sha256,
+  expected: (source) => sha256Hex(source),
   options: { tours: 40, budgetMs: 1500 },
 });
 
 await stress({
   name: 'verifyPageBytes extremes',
-  calcul: (buf) => verifyPageBytes(buf),
+  calculation: (buf) => verifyPageBytes(buf),
   extremes: [{ name: 'empty buffer', input: new ArrayBuffer(0) }],
 });
 

@@ -2,8 +2,8 @@
 //
 // Every one of them is published by Khronos under the terms its own `README.md` carries, fetched
 // from the official repository at the commit `git clone --depth 1` returns, and never edited here:
-// a source folder under `.mesure/assets/<scene>/` is read-only, the compiled cache it feeds goes to
-// `.mesure/assets/<scene>-derived/` (`README.md` § Assets).
+// a source folder under `.measure/assets/<scene>/` is read-only, the compiled cache it feeds goes to
+// `.measure/assets/<scene>-derived/` (`README.md` § Assets).
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 

@@ -3,7 +3,7 @@
 // redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { mesure, rapport } from '../../core/index.ts';
+import { measure, rapport } from '../../core/index.ts';
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
 
 const NODES = 20000;
@@ -52,9 +52,9 @@ function walk({ root, meshes }: { root: G.Group; meshes: G.HostMesh[] }) {
 }
 
 const plain = graph();
-const options = { chauffe: 5, tours: 40, budgetMs: 4000 };
+const options = { warmup: 5, tours: 40, budgetMs: 4000 };
 
-const walks = await mesure({
+const walks = await measure({
   name: 'updateMatrixWorld(true) over listener-hooked nodes',
   fichier: [
     'packages/sdk-browser/src/host/scene/hooks.ts',
@@ -64,16 +64,16 @@ const walks = await mesure({
     { name: `${NODES} listener-hooked nodes`, input: hooked(), size: NODES },
     { name: `${NODES} plain nodes`, input: graph(), size: NODES },
   ],
-  calcul: walk,
+  calculation: walk,
   temoin: () => walk(plain),
-  attendu: () => walk(plain),
+  expected: () => walk(plain),
   options,
 });
 
 const still = hooked();
 const written = hooked();
 let frame = 0;
-const reads = await mesure({
+const reads = await measure({
   name: 'watch.take() per frame',
   fichier: [
     'packages/sdk-browser/src/host/scene/watch.ts',
@@ -83,7 +83,7 @@ const reads = await mesure({
     { name: `${NODES} nodes, still scene`, input: still, size: NODES },
     { name: `${NODES} nodes, one pose written per frame`, input: written, size: NODES },
   ],
-  calcul: (scene) => {
+  calculation: (scene) => {
     if (scene === written) scene.meshes[frame++ % NODES].position.x += 1;
     return scene.watch.take();
   },

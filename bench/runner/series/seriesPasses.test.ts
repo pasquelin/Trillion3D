@@ -8,13 +8,13 @@ import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 
 const releve = (
   frame: number,
-  liste: [string, number | null][],
+  list: [string, number | null][],
   truncated = false,
 ): GpuPassTimings => ({
   frame,
   totalMs: null,
   truncated,
-  passes: liste.map(([name, gpuMs]) => ({ name, gpuMs })),
+  passes: list.map(([name, gpuMs]) => ({ name, gpuMs })),
 });
 
 test('each pass has its distribution, each block its own, on metrics where everything is measured', () => {

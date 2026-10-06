@@ -13,7 +13,7 @@ import {
   buildBlendStatics,
   refreshBlendPlan,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { planReference } from '../../../oracles/browser/transparent-orders.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -35,7 +35,7 @@ export const ITEMS = PAGINES + ISOLES;
 const GRAPPES = 8,
   MOTS = 48;
 
-const alea = graine(31);
+const alea = xorshiftRandom(31);
 
 /**
  * Both sides of a transparent scene, and why the bench measures both.
@@ -171,10 +171,10 @@ export function benchSide(side: THREE.Side) {
 export type BenchSide = ReturnType<typeof benchSide>;
 
 /** What the frame gives both sides: the frustum planes and this frame's cut. */
-export function pose(etat: BenchSide, image: Frame) {
-  etat.blendState.blendPlanes.set(image.planes);
-  etat.scene.itemCounts = image.counts;
-  etat.scene.instances = image.instances;
-  etat.blendState.cpuItemCounts = image.counts;
-  etat.blendState.cpuInstances = image.instances;
+export function pose(state: BenchSide, image: Frame) {
+  state.blendState.blendPlanes.set(image.planes);
+  state.scene.itemCounts = image.counts;
+  state.scene.instances = image.instances;
+  state.blendState.cpuItemCounts = image.counts;
+  state.blendState.cpuInstances = image.instances;
 }

@@ -101,20 +101,19 @@ export async function reglerReservoirs(
  * open — stay apart, for the reading.
  */
 export function collecteDiagnostics(lost: string[]) {
-  const diagnostics: { avertissements: unknown; onDiagnostic: (event: BackendDiagnostic) => void } =
-    {
-      avertissements: null,
-      onDiagnostic(event) {
-        // What the barrier did to hold the image, and what still prevents it: the cause of a
-        // noisy A/A witness is read here, not in the noise.
-        if (event.phase === 'pose-settle')
-          lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
-        if (event.phase === 'dag-warnings') diagnostics.avertissements = event.context;
-        if (event.phase !== 'gpu-device-lost') return;
-        const cause = event.context ?? {};
-        lost.push(`${event.phase} : ${cause.reason ?? ''} ${cause.message ?? ''}`);
-      },
-    };
+  const diagnostics: { warnings: unknown; onDiagnostic: (event: BackendDiagnostic) => void } = {
+    warnings: null,
+    onDiagnostic(event) {
+      // What the barrier did to hold the image, and what still prevents it: the cause of a
+      // noisy A/A witness is read here, not in the noise.
+      if (event.phase === 'pose-settle')
+        lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
+      if (event.phase === 'dag-warnings') diagnostics.warnings = event.context;
+      if (event.phase !== 'gpu-device-lost') return;
+      const cause = event.context ?? {};
+      lost.push(`${event.phase} : ${cause.reason ?? ''} ${cause.message ?? ''}`);
+    },
+  };
   return diagnostics;
 }
 

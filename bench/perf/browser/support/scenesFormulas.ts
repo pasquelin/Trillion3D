@@ -1,12 +1,12 @@
 // Inputs of the shared-formula equivalence bench: drawn from a seed, and deliberately
 // hostile. A factorization that would only hold on well-behaved numbers would fail here — NaN,
 // -0, infinities, denormals, singular matrices, inverted boxes, zero-area triangles.
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 
-const alea = graine(40961);
+const alea = xorshiftRandom(40961);
 /** Values a float can take that a formula must traverse without smoothing them. */
 const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, Number.MIN_VALUE, 1e308, -1e308];
-const nombre = () => {
+const count = () => {
   if (alea() < 0.12) return BORDS[Math.floor(alea() * BORDS.length)];
   return (alea() * 2 - 1) * 10 ** Math.floor(alea() * 12 - 6);
 };
@@ -15,7 +15,7 @@ const nombre = () => {
 export const casPlans: { planes: Float64Array; boite: number[] }[] = [];
 for (let i = 0; i < 400; i++) {
   const planes = new Float64Array(24);
-  for (let k = 0; k < 24; k++) planes[k] = i % 17 === 0 ? nombre() : alea() * 4 - 2;
+  for (let k = 0; k < 24; k++) planes[k] = i % 17 === 0 ? count() : alea() * 4 - 2;
   const c = [alea() * 20 - 10, alea() * 20 - 10, alea() * 20 - 10];
   const e = i % 11 === 0 ? 0 : alea() * 5;
   const boite = [c[0] - e, c[1] - e, c[2] - e, c[0] + e, c[1] + e, c[2] + e];
@@ -28,8 +28,8 @@ for (let i = 0; i < 400; i++) {
  *  world coordinates are never read by the formulas under test; they are carried only to match
  *  `Projected`, the real functions' parameter type. */
 const point = (i: number) => ({
-  x: i % 19 === 0 ? nombre() : alea() * 2000 - 500,
-  y: i % 23 === 0 ? nombre() : alea() * 2000 - 500,
+  x: i % 19 === 0 ? count() : alea() * 2000 - 500,
+  y: i % 23 === 0 ? count() : alea() * 2000 - 500,
   z: alea(),
   invW: alea(),
   worldX: 0,
@@ -59,13 +59,13 @@ for (let i = 0; i < 2000; i++) rangs.push(i % 17 === 0 ? Math.floor(alea() * 1e7
 export const tailles: { logical: number; ratio: number | undefined }[] = [];
 for (let i = 0; i < 2000; i++)
   tailles.push({
-    logical: i % 13 === 0 ? nombre() : Math.floor(alea() * 4000),
+    logical: i % 13 === 0 ? count() : Math.floor(alea() * 4000),
     ratio: i % 5 === 0 ? undefined : alea() * 4,
   });
 
 /** Durations in nanoseconds that the two GPU timers yield. */
 export const durees: number[] = [];
-for (let i = 0; i < 2000; i++) durees.push(i % 7 === 0 ? nombre() : alea() * 1e12);
+for (let i = 0; i < 2000; i++) durees.push(i % 7 === 0 ? count() : alea() * 1e12);
 
 /** Extents from which the bench takes the model floor, including those that straddle zero. */
 export const emprises: {
@@ -76,7 +76,7 @@ for (let i = 0; i < 1000; i++) {
   const y0 = alea() * 20 - 10,
     y1 = y0 + alea() * 20;
   emprises.push({
-    min: { x: 0, y: i % 11 === 0 ? nombre() : y0, z: 0 },
-    max: { x: 1, y: i % 13 === 0 ? nombre() : y1, z: 1 },
+    min: { x: 0, y: i % 11 === 0 ? count() : y0, z: 0 },
+    max: { x: 1, y: i % 13 === 0 ? count() : y1, z: 1 },
   });
 }

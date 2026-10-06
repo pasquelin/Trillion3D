@@ -2,7 +2,7 @@
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { materiau, porte } from './scenesCut.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts';
@@ -86,11 +86,11 @@ export function manifesteEtScene({
   triangles = 8,
   seed = 4201,
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
-  const alea = graine(seed);
+  const alea = xorshiftRandom(seed);
   const source = new G.Group();
   const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>();
   const indices = new Map<string, Uint32Array>();
-  const liste: LoadedPrimitive[] = [];
+  const list: LoadedPrimitive[] = [];
   let idPage = 0;
   for (let p = 0; p < primitives; p++) {
     const pagesPrimitive: LoadedPage[] = [];
@@ -135,7 +135,7 @@ export function manifesteEtScene({
       const noeud = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length];
       primitive.culling = { stride: 15, count: 1, nodes: noeud };
     }
-    liste.push(primitive);
+    list.push(primitive);
   }
   source.updateMatrixWorld(true);
   // The rest of `ClusterManifest` (schema, status, key, scope, node counts) is never read by
@@ -149,7 +149,7 @@ export function manifesteEtScene({
     selectedTriangles: 0,
     selectedNodes: 0,
     totalNodes: 0,
-    primitives: liste,
+    primitives: list,
   };
   return { source, associations, metadata, indices };
 }
@@ -163,8 +163,8 @@ export function catalogueDePages({
   materiaux = 60,
   seed = 5309,
 }: { pages?: number; materiaux?: number; seed?: number } = {}): PageRec[] {
-  const alea = graine(seed);
-  const liste: PageRec[] = [];
+  const alea = xorshiftRandom(seed);
+  const list: PageRec[] = [];
   const attributs: { position: G.BufferAttribute }[] = [];
   for (let i = 0; i < materiaux; i++) {
     const positions = new Float32Array(3 * 3 * 64);
@@ -174,7 +174,7 @@ export function catalogueDePages({
   for (let i = 0; i < pages; i++) {
     const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined;
     if (array) for (let k = 0; k < array.length; k++) array[k] = k % 192;
-    liste.push({
+    list.push({
       id: i,
       url: `p/${i % (pages - 7)}`,
       clusterId: `p/${i % (pages - 7)}`,
@@ -190,5 +190,5 @@ export function catalogueDePages({
       cone: undefined,
     });
   }
-  return liste;
+  return list;
 }

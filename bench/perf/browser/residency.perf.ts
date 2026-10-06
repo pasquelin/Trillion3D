@@ -3,12 +3,12 @@ import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
 import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts';
 import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { graine, mesure, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
 import { referenceUpdateResidency, residencyColumn } from '../../oracles/browser/residency.ts';
 
 const CONE_FLOATS = 12,
   FLAG = 11;
-const alea = graine(53);
+const alea = xorshiftRandom(53);
 const PAGES = 20000;
 
 const images = [];
@@ -44,36 +44,36 @@ sortieGpu[3] = 0;
 for (let i = 0; i < 12000; i++) sortieGpu[4 + i] = i * 3;
 for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0;
 
-const resResidencyBits = await mesure({
+const resResidencyBits = await measure({
   name: 'residency-bit update',
   fichier: 'packages/sdk-browser/src/gpu/dag/residencyUpload.ts',
   cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
-  calcul: (imgs) => ({
+  calculation: (imgs) => ({
     drapeaux: imgs.map(
       (next) =>
         updateResidencyBits((j) => !!next[j], next.length, bits, base, undefined, motsTouches) > 0,
     ),
     colonne: residencyColumn(bits, base, PAGES),
   }),
-  attendu: (imgs) => ({
+  expected: (imgs) => ({
     drapeaux: imgs.map((next) => referenceUpdateResidency(next, conesReference)),
     colonne: colonne(conesReference).map((v) => (v >= 0.5 ? 1 : 0)),
   }),
   options: { tours: 100, budgetMs: 1000 },
 });
 
-const resParseDag = await mesure({
+const resParseDag = await measure({
   name: 'GPU cut read',
   fichier: 'packages/sdk-browser/src/gpu/dag/uniforms.ts',
   cas: [
     { name: 'cut read, 12 000 pages', input: 20000, size: 12000 },
     { name: 'empty cut', input: 0, size: 0 },
   ],
-  calcul: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
+  calculation: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
   // The oracle from before batch A took a per-page flag mask; the engine now receives a
   // already-compacted list and a word offset. The two no longer describe the same output:
   // correctness of `parseDagOutput` is held by `packages/sdk-browser/src/gpu/dag/uniforms.test.ts`, not by this bench.
-  attendu: undefined,
+  expected: undefined,
   motif:
     'oracle from before batch A is stale — correctness in packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
   options: { tours: 100, budgetMs: 1000 },
@@ -87,12 +87,12 @@ const etirements = (lecture: (w: number) => ArrayLike<number>) => () => {
   return output;
 };
 
-const resEtirement = await mesure({
+const resEtirement = await measure({
   name: 'maximum world stretch',
   fichier: 'packages/sdk-core/src/math/projectionOracles.ts',
   cas: [{ name: '64 worlds', input: null, size: 64 }],
-  calcul: etirements((w) => mondes.subarray(w * 16, w * 16 + 16)),
-  attendu: etirements((w) => Array.from(mondes.subarray(w * 16, w * 16 + 16))),
+  calculation: etirements((w) => mondes.subarray(w * 16, w * 16 + 16)),
+  expected: etirements((w) => Array.from(mondes.subarray(w * 16, w * 16 + 16))),
   options: { tours: 100, budgetMs: 1000 },
 });
 

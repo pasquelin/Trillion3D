@@ -3,7 +3,7 @@
 // to confront; its correctness is held by `packages/sdk-browser/src/hiz/occlusion.test.ts`, and
 // the line says so rather than staying silent. `visibilityDepth` left this bench: only tests call it.
 import { hizTestRect } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
-import { mesure, stress, rapport } from '../../core/index.ts';
+import { measure, stress, rapport } from '../../core/index.ts';
 import { rectangles, type SceneRect } from './support/scenes.ts';
 
 const rects = rectangles({ count: 20000 });
@@ -21,21 +21,21 @@ const testAll = (list: SceneRect[]) => {
   return output;
 };
 
-const hizResult = await mesure({
+const hizResult = await measure({
   name: 'hizTestRect',
   fichier: 'packages/sdk-browser/src/hiz/occlusion.ts',
   cas: [
     { name: '20k rects 12 levels', input: rects, size: rects.length },
     { name: 'no rectangles', input: [], size: 0 },
   ],
-  calcul: testAll,
+  calculation: testAll,
   motif: 'time only — correctness in packages/sdk-browser/src/hiz/occlusion.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
 
 await stress({
   name: 'hizTestRect extremes',
-  calcul: (e) => hizTestRect(e.x0, e.y0, e.x1, e.y1, e.clip, 1280, 720, 12, scratch),
+  calculation: (e) => hizTestRect(e.x0, e.y0, e.x1, e.y1, e.clip, 1280, 720, 12, scratch),
   extremes: [
     { name: 'empty rect', input: { x0: 5, y0: 5, x1: 4, y1: 4, clip: false } },
     { name: 'huge rect', input: { x0: 0, y0: 0, x1: 1 << 20, y1: 1 << 20, clip: false } },

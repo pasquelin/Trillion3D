@@ -7,7 +7,7 @@ import { ensureWebgpuPositionBuffer } from '../../../packages/sdk-browser/src/we
 import { prepareWebgpuBlend } from '../../../packages/sdk-browser/src/webgpu/blend/prepare.ts';
 import { vertexBytesOf } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts';
 import type { VertexPool } from '../../../packages/sdk-browser/src/webgpu/core/geometryPool.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceVertexBytes } from '../../oracles/browser/byte-metrics.ts';
 
 Object.assign(globalThis, {
@@ -39,8 +39,8 @@ function geometrie(sommets: number, alea: () => number) {
   return geo;
 }
 
-function etat(pages: number, transparents: number, concats: boolean, depart: number) {
-  const alea = graine(depart);
+function state(pages: number, transparents: number, concats: boolean, depart: number) {
+  const alea = xorshiftRandom(depart);
   const gpu = createWebgpuGpuState([1, 1]),
     blendState = createWebgpuBlendState(),
     scene = new G.Scene();
@@ -71,24 +71,24 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
   return { gpu, vis, blendState };
 }
 
-const grand = etat(400, 200, true, 0x41);
-const petit = etat(2, 1, true, 0x43);
+const grand = state(400, 200, true, 0x41);
+const petit = state(2, 1, true, 0x43);
 
-const resOctets = await mesure({
+const resOctets = await measure({
   name: 'vertex bytes of report',
   fichier: 'packages/sdk-browser/src/webgpu/pages/io/metrics.ts',
   cas: [
     { name: '400 pages, 200 transparents', input: grand, size: 600 },
     { name: '2 pages, 1 transparent', input: petit, size: 3 },
   ],
-  calcul: ({ gpu, vis }) => vertexBytesOf(gpu, vis),
-  attendu: ({ gpu, vis, blendState }) => referenceVertexBytes(gpu, vis, blendState),
+  calculation: ({ gpu, vis }) => vertexBytesOf(gpu, vis),
+  expected: ({ gpu, vis, blendState }) => referenceVertexBytes(gpu, vis, blendState),
   options: { tours: 100, budgetMs: 1500 },
 });
 
 await stress({
   name: 'vertexBytesOf extremes',
-  calcul: () =>
+  calculation: () =>
     vertexBytesOf(createWebgpuGpuState([1, 1]), {
       concatPos: undefined,
       concatUv: undefined,

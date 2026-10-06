@@ -11,14 +11,14 @@ import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts';
-import { graine, mesure, parElement, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, parElement, stress, rapport } from '../../core/index.ts';
 import {
   referenceAddCpuSteps,
   referenceDirectLightTimings,
   referenceGpuStages,
 } from '../../oracles/browser/stage-profile.ts';
 
-const alea = graine(113);
+const alea = xorshiftRandom(113);
 
 const NB_BORNES = CPU_STEP_NAMES.length;
 
@@ -34,15 +34,15 @@ const depose =
     return total;
   };
 
-const mesureCpu = await mesure({
+const mesureCpu = await measure({
   name: 'CPU bounds per stage',
   fichier: 'packages/sdk-browser/src/stage/cpuSteps.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },
   ],
-  calcul: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
-  attendu: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
+  calculation: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
+  expected: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
 });
 
 // A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow
@@ -86,7 +86,7 @@ const echantillonTronque: (GpuPassTimings | null)[] = [
 ];
 const sansEchantillon: (GpuPassTimings | null)[] = [null];
 
-const mesureGpu = await mesure({
+const mesureGpu = await measure({
   name: 'GPU passes per stage',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [
@@ -94,21 +94,21 @@ const mesureGpu = await mesure({
     { name: 'truncated sample', input: echantillonTronque, size: 1 },
     { name: 'no sample', input: sansEchantillon, size: 1 },
   ],
-  calcul: depose(addGpuPasses),
-  attendu: depose(referenceGpuStages),
+  calculation: depose(addGpuPasses),
+  expected: depose(referenceGpuStages),
 });
 
-const mesureEclairage = await mesure({
+const mesureEclairage = await measure({
   name: 'direct-lighting durations',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
-  calcul: parElement((sample: GpuPassTimings) => directLightTimings(sample)),
-  attendu: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),
+  calculation: parElement((sample: GpuPassTimings) => directLightTimings(sample)),
+  expected: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),
 });
 
 await stress({
   name: 'extreme per-stage profile',
-  calcul: (sample) => {
+  calculation: (sample) => {
     addGpuPasses(sample, () => {});
     directLightTimings(sample);
   },

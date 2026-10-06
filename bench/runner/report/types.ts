@@ -146,7 +146,7 @@ export interface Row {
 }
 
 /** One series: one view, one threshold, every side's row. */
-export interface Serie {
+export interface Series {
   view: string;
   pixelError: number;
   segment: string;
@@ -186,7 +186,7 @@ export interface Report {
   flags: string[];
   resources: string | null;
   sides: Record<string, SideIdentity>;
-  series: Serie[];
+  series: Series[];
   gazeNetwork?: GazeNetworkReading[];
   errors: PageError[];
   bounds?: Bounds;

@@ -8,7 +8,7 @@
 //
 //   node bench/runner/scenes/aerial.ts [--seed 410] [--props 3600] [--lamps 600]
 //
-// It writes `.mesure/assets/aerial-<seed>/` (glTF and binary), which
+// It writes `.measure/assets/aerial-<seed>/` (glTF and binary), which
 // `node bench/runner/assets/assets.ts --only aerial-<seed>` then compiles like any other scene. The
 // bench's `overview` view flies over it.
 // =====================================================================================

@@ -37,7 +37,9 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const reglages = (await import(
     `${options.modulesUrl}harness/explorerPage.ts`
   )) as typeof PageExplorateur;
-  const mesure = (await import(`${options.modulesUrl}harness/measurePage.ts`)) as typeof PageMesure;
+  const measure = (await import(
+    `${options.modulesUrl}harness/measurePage.ts`
+  )) as typeof PageMesure;
   // Preparation, timed from the call to the return, and what it transferred on the network:
   // resources the page already loaded are not counted, only those after.
   const preparationStart = performance.now();
@@ -45,7 +47,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // and a full buffer stops recording without a word.
   performance.setResourceTimingBufferSize(1_000_000);
   const resourcesBefore = performance.getEntriesByType('resource').length;
-  const diagnostics = mesure.collecteDiagnostics(lost);
+  const diagnostics = measure.collecteDiagnostics(lost);
   const explorer = await sdk.openMeasuredWorld(canvas, {
     onDiagnostic: diagnostics.onDiagnostic,
     ...reglages.explorerOptions(options, factory, lighting),
@@ -66,7 +68,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // A moving light: a small circle, applied before each measured frame.
   const moveLight = (frame: number) => {
     if (!moving) return;
-    explorer.setLight(moving.id, { position: mesure.positionLampeMobile(moving, frame) });
+    explorer.setLight(moving.id, { position: measure.positionLampeMobile(moving, frame) });
     lighting?.suivre(explorer);
   };
   const pose = options.pose;
@@ -107,11 +109,11 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     await explorer.flush();
   }
   // In-session reservoir tuning, if requested, is measured on the already-resident cut.
-  const liveTuning = await mesure.reglerReservoirs(explorer, pose, options.livePools);
+  const liveTuning = await measure.reglerReservoirs(explorer, pose, options.livePools);
   const cpuFrameMs: number[] = [],
     cpuSelectMs: number[] = [],
     rafIntervalMs: number[] = [];
-  const gpu = mesure.gpuReadings();
+  const gpu = measure.gpuReadings();
   const gpuPassSamples: GpuPassTimings[] = [];
   const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last: ReturnType<typeof explorer.render> | null = null,
@@ -147,18 +149,18 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
   // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
-  const settleFrames = await mesure.poseCalme(explorer, capturePose);
-  const response = await mesure.posterCapture(
+  const settleFrames = await measure.poseCalme(explorer, capturePose);
+  const response = await measure.posterCapture(
     options.captureFile,
     explorer.capture(),
     canvas.width,
     canvas.height,
   );
   const selection = coupe.lireCoupe(explorer, options.engineId);
-  const metrics = mesure.filtrerMetriques(last);
+  const metrics = measure.filtrerMetriques(last);
   // Bytes transferred on the network since preparation, by file kind: what loading and the
   // series actually cost the server, images and texture levels included.
-  const network = mesure.reseauDepuis(resourcesBefore);
+  const network = measure.reseauDepuis(resourcesBefore);
   const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();
@@ -183,7 +185,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     size,
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
-    dagWarnings: diagnostics.avertissements,
+    dagWarnings: diagnostics.warnings,
     cpuBounds,
     captureStatus: response.status,
   };

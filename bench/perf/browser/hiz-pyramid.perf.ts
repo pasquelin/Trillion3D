@@ -8,7 +8,7 @@ import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts'
 import { hizTestRect, HIZ_TEST_VALUES } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
 import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
 import type { ScenePage } from './support/scenes.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe, located, rectangles } from './support/scenes.ts';
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { rasterVisibility } from '../../oracles/browser/cpu-image/raster.ts';
@@ -68,7 +68,7 @@ function cas(width: number, height: number, pages: ScenePage[], seed: number): E
   const cam = camera(6, 0.1, width / height),
     viewport: [number, number] = [width, height];
   const depth = rasterVisibility(pages, located(pages.length), engineCamera(cam), viewport).depth;
-  const alea = graine(seed),
+  const alea = xorshiftRandom(seed),
     bounds: HizBounds[] = [];
   const count = width >= 1280 ? 4000 : width >= 33 ? 200 : 2;
   const rects = rectangles({ count, seed, width, height });
@@ -99,10 +99,10 @@ function passeReference(input: Entree) {
 
 const reprise = new Map<string, HizPyramid>();
 function passeOptimisee(input: Entree) {
-  const cle = `${input.width}x${input.height}`;
-  const existante = reprise.get(cle);
+  const key = `${input.width}x${input.height}`;
+  const existante = reprise.get(key);
   const pyramid = buildHizPyramid(input.depth, input.width, input.height, existante);
-  reprise.set(cle, pyramid);
+  reprise.set(key, pyramid);
   let niveaux: Float64Array | null = null;
   if (input.complet) {
     let total = 0;
@@ -123,25 +123,25 @@ const impaire = cas(33, 19, petite, 103);
 const unique = cas(1, 1, petite, 107);
 const plein = (input: Entree): Entree => ({ ...input, complet: true });
 
-const resHiz = await mesure({
+const resHiz = await measure({
   name: 'Hi-Z pyramid',
   fichier: 'packages/sdk-browser/src/hiz/depth.ts',
   cas: [
-    { name: '1280×720, every level', input: plein(image), size: 921600, mesure: false },
-    { name: '33×19, every level', input: plein(impaire), size: 627, mesure: false },
-    { name: '1×1, every level', input: plein(unique), size: 1, mesure: false },
+    { name: '1280×720, every level', input: plein(image), size: 921600, measure: false },
+    { name: '33×19, every level', input: plein(impaire), size: 627, measure: false },
+    { name: '1×1, every level', input: plein(unique), size: 1, measure: false },
     { name: '1280×720, 4 000 rectangles', input: image, size: 921600 },
     { name: '33×19, odd sizes', input: impaire, size: 627 },
     { name: '1×1', input: unique, size: 1 },
   ],
-  calcul: passeOptimisee,
-  attendu: passeReference,
-  options: { chauffe: 3, tours: 20, budgetMs: 1500 },
+  calculation: passeOptimisee,
+  expected: passeReference,
+  options: { warmup: 3, tours: 20, budgetMs: 1500 },
 });
 
 await stress({
   name: 'buildHizPyramid extremes',
-  calcul: (e: { depth: Float32Array; width: number; height: number }) =>
+  calculation: (e: { depth: Float32Array; width: number; height: number }) =>
     buildHizPyramid(e.depth, e.width, e.height),
   extremes: [{ name: '1x1', input: { depth: new Float32Array(1), width: 1, height: 1 } }],
 });

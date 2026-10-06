@@ -15,18 +15,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const dossier = mkdtempSync(join(tmpdir(), 'trillion3d-worker-dom-'));
-let compteur = 0;
+let counter = 0;
 
 function pont(url: URL) {
-  const chemin = join(dossier, `pont-${compteur++}.mjs`);
+  const path = join(dossier, `pont-${counter++}.mjs`);
   writeFileSync(
-    chemin,
+    path,
     `import { parentPort } from 'node:worker_threads';\n` +
       `globalThis.postMessage = (message, transfer) => parentPort.postMessage(message, transfer);\n` +
       `await import(${JSON.stringify(url.href)});\n` +
       `parentPort.on('message', (data) => globalThis.onmessage?.({ data }));\n`,
   );
-  return chemin;
+  return path;
 }
 
 /** The three callbacks a DOM `Worker` carries, at the minimal shape this bridge reads and writes:

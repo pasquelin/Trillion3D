@@ -33,7 +33,7 @@ lumieres.store.add({
 });
 
 export async function lignesConsommateursBrowser() {
-  const { liste, roots, ranks } = enregistrements;
+  const { list, roots, ranks } = enregistrements;
   // Each record is placed by its original rank (#1235).
   const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i);
   const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }));
@@ -45,7 +45,7 @@ export async function lignesConsommateursBrowser() {
   // model matrix and rank, each case's box, each sRGB pair.
   const modeles = affines.slice(0, 60).map((m) => new THREE.Matrix4().fromArray(m));
   const sommets = modeles.flatMap((_, i) => points.slice(0, 40).map((_, v) => [i, v] as const));
-  const boites = liste.map((): number[] => []),
+  const boites = list.map((): number[] => []),
     encodages = octets.map(() => [0, 0]);
   // Built once, so the timed call reuses its output array instead of building one.
   const projected = parElement(([i, v]: readonly [number, number]) =>
@@ -68,7 +68,7 @@ export async function lignesConsommateursBrowser() {
       'world-space cluster sphere for shadows',
       'packages/sdk-browser/src/webgpu/shadow/bounds.ts',
       'poses × boxes',
-      liste,
+      list,
       (l) =>
         l.map((r) => {
           // The split-double sphere since 16729c858f: centre = high + low, conservative radius.
@@ -77,7 +77,7 @@ export async function lignesConsommateursBrowser() {
           const [x, y, z, rayon] = [s[0] + s[4], s[1] + s[5], s[2] + s[6], s[3]];
           return [x - rayon, y - rayon, z - rayon, x + rayon, y + rayon, z + rayon];
         }),
-      parElement((r: (typeof liste)[number], i) => {
+      parElement((r: (typeof list)[number], i) => {
         cible = boites[i];
         cible.length = 0;
         noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r);

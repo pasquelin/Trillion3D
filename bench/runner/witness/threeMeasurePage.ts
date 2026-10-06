@@ -82,7 +82,7 @@ export async function mesurerThree(
   const gltf = await new GLTFLoader().loadAsync(options.gltfUrl);
   scene.add(gltf.scene);
   const uniqueTriangles = trianglesUniques(gltf.scene);
-  const temoin = await preparer?.(gltf.scene, options);
+  const witness = await preparer?.(gltf.scene, options);
   gltf.scene.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -157,7 +157,7 @@ export async function mesurerThree(
     // witness's bytes per triangle are measured on that.
     uniqueTriangles,
     // What the witness preparation publishes (its levels of detail), flattened.
-    ...temoin,
+    ...witness,
   };
   renderer.dispose();
   canvas.remove();

@@ -8,7 +8,7 @@
 // pose until its cut is held and reads what it drew (`screenError/screenErrorPage.ts`); Node then measures
 // it against the cache's source glTF (`screenError/screenErrorMeasure.ts`). The bound is the audit's:
 // max ≤ pixelError + 0.1 px, forward and reverse. The scene is a compiled cache under the assets
-// folder (`TRILLION3D_ASSETS`, `.mesure/assets` by default); one row per view is printed and the
+// folder (`TRILLION3D_ASSETS`, `.measure/assets` by default); one row per view is printed and the
 // whole run written to `<out>/<scene>.json`.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';

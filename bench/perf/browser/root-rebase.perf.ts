@@ -3,7 +3,7 @@
 // clock where the engine's own `worldMs` bound reads on a 0.1 ms one. This is the measurement
 // #80 gates a WebAssembly kernel on: a loop under 0.1 ms per image keeps its JavaScript form.
 import * as THREE from 'three';
-import { mesure, rapport } from '../../core/index.ts';
+import { measure, rapport } from '../../core/index.ts';
 import { rootWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import {
   refreshWorldStretch,
@@ -34,7 +34,7 @@ rootWorldsToRenderOrigin(
 const packed = { worldCount: ROOTS, worldStretch: new Float32Array(ROOTS) };
 const frameData = new Float32Array(ROOTS * 7 * 4);
 
-const resultats = await mesure({
+const results = await measure({
   name: 'world step loops',
   fichier: [
     'packages/sdk-browser/src/gpu/dag/pack.ts',
@@ -58,10 +58,10 @@ const resultats = await mesure({
       size: ROOTS,
     },
   ],
-  calcul: (loop) => loop(),
+  calculation: (loop) => loop(),
   motif:
     'correctness held by packages/sdk-browser/src/camera/renderOrigin.test.ts and packages/sdk-browser/src/gpu/dag/worlds.test.ts; these lines time the loops',
   options: { tours: 500, budgetMs: 1500 },
 });
 
-rapport('rebase-racines', [resultats]);
+rapport('rebase-racines', [results]);

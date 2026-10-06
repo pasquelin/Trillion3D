@@ -31,7 +31,7 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
   // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
   // the shared rank sync runs identically on both sides.
   const journal = createWebgpuRowJournal();
-  const etat = {
+  const state = {
     ...journal,
     residentFlags: new Uint32Array(packedPages.length),
     residentOffsetWords: new Int32Array(packedPages.length).fill(-1),
@@ -64,11 +64,11 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
     pageTableInts: undefined as Uint32Array | undefined,
     pageIndexOf: (rec: PageRec) => pageIndexByRec.get(rec),
     markRowDirty(row: number) {
-      if (row < etat.dirtyFrom) etat.dirtyFrom = row;
-      if (row > etat.dirtyTo) etat.dirtyTo = row;
+      if (row < state.dirtyFrom) state.dirtyFrom = row;
+      if (row > state.dirtyTo) state.dirtyTo = row;
     },
   };
-  return etat;
+  return state;
 }
 
 type ReferenceRows = ReturnType<typeof referenceRowState>;

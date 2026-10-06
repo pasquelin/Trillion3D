@@ -7,7 +7,7 @@ import { resume } from './summary.ts';
 import { baseSide, rapport } from './summaryTestFixtures.ts';
 
 test('coverage column displays selected − drawn − uncovered, and drawnTriangles next to it', () => {
-  const texte = resume(
+  const text = resume(
     rapport({
       ...baseSide,
       selectedTriangles: 900,
@@ -15,8 +15,8 @@ test('coverage column displays selected − drawn − uncovered, and drawnTriang
       uncoveredTriangles: 100,
     }),
   );
-  assert.match(texte, /\| drawnTriangles \| coverage \|/, 'the two headers in that order');
-  assert.match(texte, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, then computed coverage');
+  assert.match(text, /\| drawnTriangles \| coverage \|/, 'the two headers in that order');
+  assert.match(text, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, then computed coverage');
 });
 
 test('coverage is a dash as soon as a single counter of the three is missing', () => {
@@ -52,7 +52,7 @@ test('coverage is a dash as soon as a single counter of the three is missing', (
 });
 
 test('a non-zero coverage is displayed as is, without being reduced to a dash', () => {
-  const texte = resume(
+  const text = resume(
     rapport({
       ...baseSide,
       selectedTriangles: 900,
@@ -60,5 +60,5 @@ test('a non-zero coverage is displayed as is, without being reduced to a dash', 
       uncoveredTriangles: 100,
     }),
   );
-  assert.match(texte, /\| 50 \|/, 'selected − drawn − uncovered = 50, a real hole in the relation');
+  assert.match(text, /\| 50 \|/, 'selected − drawn − uncovered = 50, a real hole in the relation');
 });

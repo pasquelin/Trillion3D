@@ -3,7 +3,7 @@
 // One sparse clone of the official repository holds every missing model, so the set is fetched in
 // a single network round: `--filter=blob:none` downloads no blob until the checkout asks for one,
 // and `--depth 1` keeps no history. A scene folder already on disk is never touched — the fetch is
-// idempotent, and the sources under `.mesure/assets/<scene>/` are read-only for everything else.
+// idempotent, and the sources under `.measure/assets/<scene>/` are read-only for everything else.
 import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ export const missingModels = (assets: string, wanted: string[]) =>
   wanted.filter((name) => sceneGltfFile(join(assets, kebab(name))) === null);
 
 /**
- * Copies `Models/<Name>/glTF` of the sample repository into `.mesure/assets/<kebab-name>/`, for
+ * Copies `Models/<Name>/glTF` of the sample repository into `.measure/assets/<kebab-name>/`, for
  * every model that is not there yet. Returns the scene names written, empty when nothing was
  * missing. The clone is thrown away: what is kept is the models' own files, at the top of the
  * scene folder, exactly as the repository publishes them.

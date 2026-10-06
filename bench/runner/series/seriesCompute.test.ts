@@ -25,7 +25,7 @@ const releveDePage = (mathBatch: unknown) => ({
 });
 
 /** A series run on a mock page: returns produced row and path it received. */
-async function serie(mathPath: string, mathBatch: unknown) {
+async function series(mathPath: string, mathBatch: unknown) {
   const recus: unknown[] = [];
   const page = {
     evaluate: async (_fn: unknown, payload: { mathPath: unknown }) => {
@@ -54,13 +54,13 @@ test('--math-path: validated, `auto` by default, and unknown value rejected', ()
 
 test('an enforced path reaches the page, and governor metrics are published as is', async () => {
   const gouverneur = { contract: 1, mode: 'wasm', wasmAvailable: true, operations: {} };
-  const { row, recus } = await serie('wasm', gouverneur);
+  const { row, recus } = await series('wasm', gouverneur);
   assert.deepEqual(recus, ['wasm']);
   assert.equal(row.mathBatch, gouverneur);
 });
 
 test('`auto` enforces nothing on explorer, and dist without governor publishes null', async () => {
-  const { row, recus } = await serie('auto', undefined);
+  const { row, recus } = await series('auto', undefined);
   assert.deepEqual(recus, [null], 'auto leaves governor to arbitrate');
   assert.equal(row.mathBatch, null, 'unmeasured, not "JavaScript path"');
 });

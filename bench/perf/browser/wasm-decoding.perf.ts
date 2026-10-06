@@ -7,7 +7,7 @@ import {
   decodeGeometryPageWasm,
   prepareSdkWasm,
 } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
-import { RACINE, mesure, stress, rapport } from '../../core/index.ts';
+import { RACINE, measure, stress, rapport } from '../../core/index.ts';
 import { page, pageForgee } from './support/pagesWasm.ts';
 
 const MODULE = join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm');
@@ -43,7 +43,7 @@ const tour =
     return output;
   };
 
-const resWasm = await mesure({
+const resWasm = await measure({
   name: 'page decode, wasm against JS',
   fichier: 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts',
   cas: [
@@ -52,12 +52,12 @@ const resWasm = await mesure({
     { name: '2 048 vertices, positions only', input: [nue], size: 2048 },
     { name: '96 vertices', input: [petite], size: 96 },
   ],
-  calcul: tour(decodeGeometryPageWasm),
-  attendu: tour(decodeGeometryPage),
+  calculation: tour(decodeGeometryPageWasm),
+  expected: tour(decodeGeometryPage),
   options: { tours: 40, budgetMs: 2000 },
 });
 
-const resRefus = await mesure({
+const resRefus = await measure({
   name: 'page rejection, wasm against JS',
   fichier: 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts',
   cas: [
@@ -67,14 +67,14 @@ const resRefus = await mesure({
     { name: 'header too short', input: [courte], size: 16 },
     { name: 'wrong magic', input: [faussee], size: faussee.length },
   ],
-  calcul: tour(decodeGeometryPageWasm),
-  attendu: tour(decodeGeometryPage),
+  calculation: tour(decodeGeometryPageWasm),
+  expected: tour(decodeGeometryPage),
   options: { tours: 40, budgetMs: 2000 },
 });
 
 await stress({
   name: 'decodeGeometryPageWasm extremes',
-  calcul: async (octets) => {
+  calculation: async (octets) => {
     try {
       await decodeGeometryPageWasm(octets);
     } catch {

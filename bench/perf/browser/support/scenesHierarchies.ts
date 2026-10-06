@@ -5,11 +5,11 @@
 // axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
 // orthographic camera posed itself in the hierarchy, in both depth conventions.
 import * as THREE from 'three';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { dansDe } from './scenesCore.ts';
 import { boites } from './scenesVolumes.ts';
 
-const alea = graine(60617);
+const alea = xorshiftRandom(60617);
 const dans = dansDe(alea);
 
 /** Scales of a node: ordinary, negative on one or three axes, non-uniform, zero, extremes. */
@@ -23,11 +23,11 @@ const ECHELLES: (() => [number, number, number])[] = [
   () => [-0.001, 1000, -7],
 ];
 
-function noeud(profondeur: number) {
+function noeud(depth: number) {
   const n = new THREE.Object3D();
   n.position.set(dans(40), dans(40), dans(40));
   n.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI));
-  n.scale.fromArray(ECHELLES[(profondeur + Math.floor(alea() * 7)) % ECHELLES.length]());
+  n.scale.fromArray(ECHELLES[(depth + Math.floor(alea() * 7)) % ECHELLES.length]());
   return n;
 }
 
@@ -36,8 +36,8 @@ const racine = new THREE.Object3D(),
 /** Depth chains 1 to 6 under the root. */
 for (let chaine = 0; chaine < 24; chaine++) {
   let parent = racine;
-  const profondeur = 1 + (chaine % 6);
-  for (let d = 0; d < profondeur; d++) {
+  const depth = 1 + (chaine % 6);
+  for (let d = 0; d < depth; d++) {
     const n = noeud(d);
     parent.add(n);
     noeuds.push(n);

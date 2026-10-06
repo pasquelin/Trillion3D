@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoire } from './summaryMemory.ts';
-import type { Report, Row, Serie } from '../report/types.ts';
+import type { Report, Row, Series } from '../report/types.ts';
 
-const serie = (view: string, sides: Record<string, Partial<Row>>): Serie => ({
+const series = (view: string, sides: Record<string, Partial<Row>>): Series => ({
   view,
   pixelError: 1,
   segment: 'segment-test',
@@ -15,12 +15,12 @@ const serie = (view: string, sides: Record<string, Partial<Row>>): Serie => ({
 });
 
 /** A minimal report: only the series `memoire()` reads. */
-const rapport = (series: Serie[]): Report => ({ series }) as Report;
+const rapport = (series: Series[]): Report => ({ series }) as Report;
 
 test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire(
     rapport([
-      serie('ground', {
+      series('ground', {
         after: {
           metrics: {
             gpuAllocatedBytes: 7_500_000_000,
@@ -55,7 +55,7 @@ test('each side of each view has its row, and the rest is the difference', () =>
 test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
   const lignes = memoire(
     rapport([
-      serie('overview', {
+      series('overview', {
         before: { metrics: {} },
         after: {
           metrics: {

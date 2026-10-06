@@ -25,7 +25,7 @@ import { readsCache } from './assets/scene.ts';
 import { runFluids } from './fluids/fluids.ts';
 import { readLimits } from './harness/limits.ts';
 import { againstReference, sceneReference } from './references/referenceProof.ts';
-import type { Report, RunContext, Serie } from './report/types.ts';
+import type { Report, RunContext, Series } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const {
@@ -142,7 +142,7 @@ async function main() {
         CTX.poses = settings.movingCamera
           ? options.trajectoryPoses(bounds, index, settings.frames)
           : null;
-        const serie: Serie = {
+        const series: Series = {
           view,
           pixelError,
           segment: options.VIEWS[view].segment,
@@ -150,30 +150,31 @@ async function main() {
           pose,
           sides: {},
         };
-        report.series.push(serie);
+        report.series.push(series);
         const files: Record<string, string> = {};
         for (const side of sides) {
           const { row, captureFile } = await onPage((page) =>
             runSerie(CTX, page, side, view, pixelError, pose, captures),
           );
-          serie.sides[side.name] = row;
+          series.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
         const witness = await onPage((page) =>
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
-        serie.sides[`${sides[0].name}-aa`] = witness.row;
-        serie.witnessAA = imageDiff(
+        series.sides[`${sides[0].name}-aa`] = witness.row;
+        series.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
           captures.get(witness.captureFile),
         );
-        serie.beforeAfterDiff = files.before
+        series.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
-        if (reference) serie.referenceDiff = againstReference(reference, serie, files, captures);
-        const { before, after } = serie.sides;
-        serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
+        if (reference) series.referenceDiff = againstReference(reference, series, files, captures);
+        const { before, after } = series.sides;
+        series.sameCut =
+          before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));

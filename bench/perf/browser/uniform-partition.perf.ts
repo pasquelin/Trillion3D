@@ -6,13 +6,13 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
-import { graine, mesure, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
 import {
   referencePartitionUniform,
   referenceSplitDouble,
 } from '../../oracles/browser/uniform-partition.ts';
 
-const alea = graine(89);
+const alea = xorshiftRandom(89);
 const double = () => (alea() - 0.5) * 1e5;
 const matrice = () => Float64Array.from({ length: 16 }, double);
 
@@ -44,7 +44,7 @@ const decompose =
     return output;
   };
 
-const mesureSplit = await mesure({
+const mesureSplit = await measure({
   name: 'split-double decomposition',
   fichier: 'packages/sdk-browser/src/gpu/partition/contract.ts',
   cas: [
@@ -55,8 +55,8 @@ const mesureSplit = await mesure({
     },
     { name: 'hostiles', input: doubles(HOSTILES), size: HOSTILES.length },
   ],
-  calcul: decompose(writeSplitDouble),
-  attendu: decompose(referenceSplitDouble),
+  calculation: decompose(writeSplitDouble),
+  expected: decompose(referenceSplitDouble),
   options: { tours: 100 },
 });
 
@@ -81,18 +81,18 @@ const image = (niveaux: number): PartitionFrame => ({
 const words = new Uint32Array(UNIFORM_U32),
   floats = new Float32Array(words.buffer);
 
-const mesureUniforme = await mesure({
+const mesureUniforme = await measure({
   name: 'partition uniform',
   fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
   cas: [
     { name: '12 Hi-Z levels', input: image(12), size: 1 },
     { name: '0 levels', input: image(0), size: 1 },
   ],
-  calcul: (frame) => {
+  calculation: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows);
     return words;
   },
-  attendu: (frame) => referencePartitionUniform(frame, frame.rows),
+  expected: (frame) => referencePartitionUniform(frame, frame.rows),
   options: { tours: 1000 },
 });
 

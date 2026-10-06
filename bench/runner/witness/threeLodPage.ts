@@ -106,9 +106,9 @@ export async function niveauxDeDetail(racine: THREE.Object3D, options: MeasureVi
     lod.quaternion.copy(mesh.quaternion);
     lod.scale.copy(mesh.scale);
     niveaux.forEach((g, i) => {
-      const niveau = new THREE.Mesh(g, mesh.material);
-      niveau.frustumCulled = mesh.frustumCulled;
-      lod.addLevel(niveau, i === 0 ? 0 : distancePour(rayon, NIVEAUX[i - 1].pixels, hauteur, fov));
+      const level = new THREE.Mesh(g, mesh.material);
+      level.frustumCulled = mesh.frustumCulled;
+      lod.addLevel(level, i === 0 ? 0 : distancePour(rayon, NIVEAUX[i - 1].pixels, hauteur, fov));
     });
     mesh.parent!.add(lod);
     mesh.parent!.remove(mesh);

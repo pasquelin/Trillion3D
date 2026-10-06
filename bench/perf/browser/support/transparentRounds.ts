@@ -87,10 +87,10 @@ function etale(
   let at = 0;
   for (let i = 0; i < instances; i++) {
     const item = instanceItem(miroir.expanded[i * 2]),
-      cle = miroir.expanded[i * 2 + 1];
+      key = miroir.expanded[i * 2 + 1];
     output[at++] = item;
-    output[at++] = items[item].paged ? spans[cle * 2] : cle;
-    output[at++] = items[item].paged ? spans[cle * 2 + 1] : items[item].count - cle;
+    output[at++] = items[item].paged ? spans[key * 2] : key;
+    output[at++] = items[item].paged ? spans[key * 2 + 1] : items[item].count - key;
   }
   return at;
 }
@@ -115,7 +115,7 @@ function tours(before: BenchSide, after: BenchSide) {
     return output;
   };
   /** The batch path: frustum and own entries on the CPU, then one call per slot. */
-  const optimisee = (images: Frame[], sequence: boolean) => {
+  const optimised = (images: Frame[], sequence: boolean) => {
     const output = [];
     for (const image of images) {
       pose(after, image);
@@ -131,9 +131,9 @@ function tours(before: BenchSide, after: BenchSide) {
   };
   return {
     tourAvant: (images: Frame[]) => reference(images, false),
-    tourApres: (images: Frame[]) => optimisee(images, false),
+    tourApres: (images: Frame[]) => optimised(images, false),
     tourAvantSeq: (images: Frame[]) => reference(images, true),
-    tourApresSeq: (images: Frame[]) => optimisee(images, true),
+    tourApresSeq: (images: Frame[]) => optimised(images, true),
   };
 }
 
@@ -148,11 +148,11 @@ export type Scene = ReturnType<typeof sceneDe>;
 /** The draw calls of a scene's first frame: one per plan entry before, one per slot after. */
 export function appelsDe(scene: Scene) {
   const image = glisse[0],
-    etat = scene.before;
-  pose(etat, image);
-  classementReference(etat.scene, etat.order, image.eye);
-  argumentsReference(etat.scene, etat.args);
-  const before = encodeReference(etat.scene, etat.order, etat.args, etat.output);
+    state = scene.before;
+  pose(state, image);
+  classementReference(state.scene, state.order, image.eye);
+  argumentsReference(state.scene, state.args);
+  const before = encodeReference(state.scene, state.order, state.args, state.output);
   scene.tourApres([image]);
   return { name: scene.name, before: before.encoded, after: appelsEncodes() };
 }

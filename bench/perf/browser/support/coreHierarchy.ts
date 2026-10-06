@@ -10,7 +10,7 @@ import {
   multiplyMatrix4,
   normalMatrix3,
 } from '../../../../packages/sdk-core/src/index.ts';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { f64, normaleReference, trs } from './coreLine.ts';
 
 /** A node on both sides: the reference object and the foundation buffers. */
@@ -72,7 +72,7 @@ const ECHELLES = [
   [1, 1e-8, 1],
   [7, 7, 7],
 ];
-const alea = graine(0x41e7);
+const alea = xorshiftRandom(0x41e7);
 const tourne = () =>
   new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5)
     .normalize()
@@ -104,13 +104,13 @@ const POSITIONS = [
 export function chainesHostiles(): HierarchyNode[] {
   const noeuds: HierarchyNode[] = [],
     racines: THREE.Object3D[] = [];
-  const ajoute = (niveau: number, k: number, parent: number) => {
+  const ajoute = (level: number, k: number, parent: number) => {
     const i = noeuds.length;
     noeuds.push(
       noeud(
-        POSITIONS[(k + niveau) % POSITIONS.length],
-        ROTATIONS[(k * 3 + niveau) % ROTATIONS.length],
-        ECHELLES[(k * 7 + niveau * 5) % ECHELLES.length],
+        POSITIONS[(k + level) % POSITIONS.length],
+        ROTATIONS[(k * 3 + level) % ROTATIONS.length],
+        ECHELLES[(k * 7 + level * 5) % ECHELLES.length],
       ),
     );
     if (parent >= 0) relie(noeuds, i, parent);
@@ -119,13 +119,13 @@ export function chainesHostiles(): HierarchyNode[] {
   };
   for (let k = 0; k < 84; k++) {
     let parent = -1;
-    for (let niveau = 0; niveau <= k % 6; niveau++) parent = ajoute(niveau, k, parent);
+    for (let level = 0; level <= k % 6; level++) parent = ajoute(level, k, parent);
   }
   for (let k = 0; k < 12; k++) {
     const branche = ajoute(0, k, -1);
     for (let enfant = 0; enfant < 5; enfant++) {
       let parent = branche;
-      for (let niveau = 1; niveau <= 3; niveau++) parent = ajoute(niveau, k + enfant, parent);
+      for (let level = 1; level <= 3; level++) parent = ajoute(level, k + enfant, parent);
     }
   }
   for (const racine of racines) racine.updateMatrixWorld(true);

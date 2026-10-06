@@ -2,9 +2,9 @@
 // formula that would only hold on well-behaved matrices would fail here — negative and
 // non-uniform scales, singular matrices, NaN, signed zeros, infinities, denormals.
 import * as THREE from 'three';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 
-const alea = graine(0x50c1e);
+const alea = xorshiftRandom(0x50c1e);
 /** Values a float can take that a formula must traverse without smoothing them. */
 const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308, 0.5, -0.5];
 /** The draw of one `BORDS` value from a seeded sequence. */
@@ -12,7 +12,7 @@ export const bordDe = (alea: () => number) => () => BORDS[Math.floor(alea() * BO
 const bord = bordDe(alea);
 /** The draw of a number in `[-etendue, etendue)` from a seeded sequence. */
 export const dansDe = (alea: () => number) => (etendue: number) => (alea() * 2 - 1) * etendue;
-const nombre = () => (alea() < 0.15 ? bord() : (alea() * 2 - 1) * 10 ** Math.floor(alea() * 8 - 4));
+const count = () => (alea() < 0.15 ? bord() : (alea() * 2 - 1) * 10 ** Math.floor(alea() * 8 - 4));
 
 /** A rigid pose, then a scale drawn from: uniform, non-uniform, negative, zero. */
 function pose(i: number) {
@@ -41,7 +41,7 @@ export const matrices: Float64Array[] = [];
 for (let i = 0; i < 400; i++) matrices.push(pose(i));
 for (let i = 0; i < 300; i++) {
   const m = new Float64Array(16);
-  for (let k = 0; k < 16; k++) m[k] = i % 3 === 0 ? nombre() : alea() * 4 - 2;
+  for (let k = 0; k < 16; k++) m[k] = i % 3 === 0 ? count() : alea() * 4 - 2;
   matrices.push(m);
 }
 for (let i = 0; i < 12 * 16; i++) {
@@ -70,7 +70,7 @@ export const affines = matrices.filter(
 export const points: number[][] = [];
 for (let i = 0; i < 1500; i++)
   points.push([alea() * 400 - 200, alea() * 400 - 200, alea() * 400 - 200]);
-for (let i = 0; i < 300; i++) points.push([nombre(), nombre(), nombre()]);
+for (let i = 0; i < 300; i++) points.push([count(), count(), count()]);
 for (const a of BORDS) for (const b of BORDS) points.push([a, b, -0]);
 
 /** Matrix pairs that the products receive: each matrix against a neighbour. */

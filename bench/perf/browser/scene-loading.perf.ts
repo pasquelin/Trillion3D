@@ -6,7 +6,7 @@ import {
   indexManifestBundles,
   indexManifestPages,
 } from '../../../packages/sdk-browser/src/scene/manifestPageIndex.ts';
-import { mesure, stress, rapport } from '../../core/index.ts';
+import { measure, stress, rapport } from '../../core/index.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts';
 import {
@@ -131,39 +131,39 @@ const cas = [
   { name: 'empty scene', input: videScene, size: 0 },
 ];
 
-const resCollect = await mesure({
+const resCollect = await measure({
   name: 'cluster page collection',
   fichier: 'packages/sdk-browser/src/page/selection/collect.ts',
   cas,
-  calcul: passeCollect(collectClusterPages),
-  attendu: passeCollect(referenceCollectClusterPages),
+  calculation: passeCollect(collectClusterPages),
+  expected: passeCollect(referenceCollectClusterPages),
   options: { tours: 40, budgetMs: 1500 },
 });
 
-const resBounds = await mesure({
+const resBounds = await measure({
   name: 'exact page bounds',
   fichier: 'packages/sdk-browser/src/world/scene/pagesBounds.ts',
   cas,
-  calcul: passeBounds(pagesBounds),
-  attendu: passeBounds(referenceExactPagesBounds),
+  calculation: passeBounds(pagesBounds),
+  expected: passeBounds(referenceExactPagesBounds),
   options: { tours: 40, budgetMs: 1500 },
 });
 
-const resIndex = await mesure({
+const resIndex = await measure({
   name: 'manifest indexing',
   fichier: 'packages/sdk-browser/src/scene/manifestPageIndex.ts',
   cas: [
     { name: '2 400 pages', input: grande.metadata, size: 2400 },
     { name: 'one page', input: petite.metadata, size: 1 },
   ],
-  calcul: passeIndex(indexManifestPages, indexManifestBundles),
-  attendu: passeIndex(referenceIndexManifestPages, referenceIndexManifestBundles),
+  calculation: passeIndex(indexManifestPages, indexManifestBundles),
+  expected: passeIndex(referenceIndexManifestPages, referenceIndexManifestBundles),
   options: { tours: 100, budgetMs: 1500 },
 });
 
 await stress({
   name: 'pagesBounds extremes',
-  calcul: (scene: ChargementScene) =>
+  calculation: (scene: ChargementScene) =>
     pagesBounds(scene.source, scene.associations, scene.metadata, () => {}),
   extremes: [{ name: 'empty', input: videScene }],
 });

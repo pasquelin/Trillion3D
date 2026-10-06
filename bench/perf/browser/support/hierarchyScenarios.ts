@@ -1,7 +1,7 @@
 // Hierarchy-equivalence scenarios (batch M3a), replayed on both sides by
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { dansDe } from './scenesCore.ts';
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts';
 
@@ -35,8 +35,8 @@ export type HierarchyOp =
   | ['image', number, boolean]
   | ['instantane', number];
 
-const alea = graine(0x3a3a);
-const tire = <T>(liste: T[]): T => liste[Math.floor(alea() * liste.length)];
+const alea = xorshiftRandom(0x3a3a);
+const tire = <T>(list: T[]): T => list[Math.floor(alea() * list.length)];
 const dans = dansDe(alea);
 const tourne = (): Quat => {
   const q: Quat = [alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5];
@@ -112,8 +112,7 @@ export function sousArbre(parents: number[], vivants: boolean[], id: number): nu
   return [...pris];
 }
 
-const finies = <T extends number[]>(liste: T[]): T[] =>
-  liste.filter((v) => v.every(Number.isFinite));
+const finies = <T extends number[]>(list: T[]): T[] => list.filter((v) => v.every(Number.isFinite));
 
 /**
  * Frozen chains: depths 1 to 6 under roots, branches of five children each carrying three
@@ -130,14 +129,14 @@ export function chainesFigees(nonFinies: boolean): HierarchyOp[] {
     racines: number[] = [],
     cameras: number[] = [];
   let id = 0;
-  const ajoute = (parent: number, k: number, niveau: number, camera: CameraSpec | null = null) => {
+  const ajoute = (parent: number, k: number, level: number, camera: CameraSpec | null = null) => {
     ops.push([
       'ajoute',
       id,
       parent,
-      positions[(k + niveau) % positions.length],
-      rotations[(k * 3 + niveau) % rotations.length],
-      echelles[(k * 7 + niveau * 5) % echelles.length],
+      positions[(k + level) % positions.length],
+      rotations[(k * 3 + level) % rotations.length],
+      echelles[(k * 7 + level * 5) % echelles.length],
       camera,
     ]);
     if (parent < 0) racines.push(id);
@@ -146,14 +145,14 @@ export function chainesFigees(nonFinies: boolean): HierarchyOp[] {
   };
   for (let k = 0; k < 48; k++) {
     let parent = -1;
-    for (let niveau = 0; niveau <= k % 6; niveau++) parent = ajoute(parent, k, niveau);
+    for (let level = 0; level <= k % 6; level++) parent = ajoute(parent, k, level);
     if (k % 5 === 0) ajoute(parent, k, 7, cameraAuHasard());
   }
   for (let k = 0; k < 8; k++) {
     const branche = ajoute(-1, k, 0);
     for (let enfant = 0; enfant < 5; enfant++) {
       let parent = branche;
-      for (let niveau = 1; niveau <= 3; niveau++) parent = ajoute(parent, k + enfant, niveau);
+      for (let level = 1; level <= 3; level++) parent = ajoute(parent, k + enfant, level);
     }
   }
   for (const r of racines) ops.push(['maj', r, true]);

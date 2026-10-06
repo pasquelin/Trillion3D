@@ -10,7 +10,7 @@ import type {
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 import { type WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/viewKeys.ts';
@@ -40,7 +40,7 @@ interface Monde {
 }
 
 function monde(total: number, depart: number): Monde {
-  const alea = graine(depart);
+  const alea = xorshiftRandom(depart);
   const scene = new Scene(),
     allPages: PageRec[] = [];
   for (let i = 0; i < total; i++)
@@ -81,7 +81,7 @@ const empreinte = (m: Monde, triangles: number) => ({
 });
 
 function coupes(total: number, tailles: readonly number[], depart: number) {
-  const alea = graine(depart);
+  const alea = xorshiftRandom(depart);
   return tailles.map((size) => {
     const cut: number[] = [];
     for (let i = 0; i < size; i++) cut.push(Math.floor(alea() * total) % Math.max(1, total));
@@ -92,7 +92,7 @@ function coupes(total: number, tailles: readonly number[], depart: number) {
 const passe = (
   m: Monde,
   sync: () => void,
-  etat: { submittedTriangles: number },
+  state: { submittedTriangles: number },
   suite: readonly number[][],
 ) =>
   suite.map((indices) => {
@@ -103,10 +103,10 @@ const passe = (
       m.shownPacked.push(index);
     }
     sync();
-    return empreinte(m, etat.submittedTriangles);
+    return empreinte(m, state.submittedTriangles);
   });
 
-function cas(name: string, total: number, tailles: readonly number[], mesure = true) {
+function cas(name: string, total: number, tailles: readonly number[], measure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
   const left = monde(total, 0x9e37 ^ total),
     right = monde(total, 0x9e37 ^ total);
@@ -126,15 +126,15 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
   return {
     name,
     size: total,
-    mesure,
+    measure,
     input: {
       reference: () => passe(left, oracle.sync, oracle.state, suite),
-      optimisee: () => passe(right, paquet.sync, paquet.state, suite),
+      optimised: () => passe(right, paquet.sync, paquet.state, suite),
     },
   };
 }
 
-const resAutonome = await mesure({
+const resAutonome = await measure({
   name: 'autonomous backend cut',
   fichier: 'packages/sdk-browser/src/backend/autonomous/geometry.ts',
   cas: [
@@ -144,14 +144,14 @@ const resAutonome = await mesure({
     cas('no pages', 0, [0, 0]),
     cas('seven pages with hostile triangles', 7, [7, 3, 7, 0]),
   ],
-  calcul: (input) => input.optimisee(),
-  attendu: (input) => input.reference(),
+  calculation: (input) => input.optimised(),
+  expected: (input) => input.reference(),
   options: { tours: 30, budgetMs: 1500 },
 });
 
 await stress({
   name: 'createAutonomousGeometry extremes',
-  calcul: (m: Monde) => {
+  calculation: (m: Monde) => {
     const draws = createPageDraws(m.roots);
     for (const rec of m.allPages) draws.drawing(rec).geometry = rec.geometry;
     return createAutonomousGeometry({

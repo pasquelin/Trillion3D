@@ -10,7 +10,7 @@ import type { BenchSettings } from '../harness/benchSettings.ts';
 
 /** The published references, one folder per scene: its `reference.json`, in git. */
 export const REFERENCES_DIR = resolve(import.meta.dirname, '../../references');
-/** Their images, a PNG per view, off git (`.mesure/`, AGENTS.md rule 10): `references/reference.ts` draws
+/** Their images, a PNG per view, off git (`.measure/`, AGENTS.md rule 10): `references/reference.ts` draws
  *  them there, and the SHA-256 of `reference.json` says which image each record names. */
 export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../../.mesure/references');
 

@@ -2,7 +2,7 @@
 // Everything that separates one floating-point arithmetic from another is here — negative scales,
 // shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 
 /** Measured batch sizes: from what a frame moves to what a whole scene carries. */
 export const TAILLES = [1_000, 10_000, 100_000];
@@ -97,7 +97,7 @@ function matriceOrdinaire(alea: () => number) {
 
 /** Fills `boxes` (6 · n) and `mats` (16 · n) of the box-transform batch. */
 export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: number) {
-  const alea = graine(0x4d35);
+  const alea = xorshiftRandom(0x4d35);
   for (let i = 0; i < n; i++) {
     const m = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
     const b =
@@ -111,7 +111,7 @@ export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: 
 
 /** Fills `a` and `b` (16 · n each) of the 4×4 product batch. */
 export function remplitMatrices(lot: { a: Float64Array; b: Float64Array }, n: number) {
-  const alea = graine(0x7f21);
+  const alea = xorshiftRandom(0x7f21);
   for (let i = 0; i < n; i++) {
     const g = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
     const d =

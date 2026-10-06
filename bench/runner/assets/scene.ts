@@ -4,7 +4,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 // Bench assets, read-only: `<scene>/` (sources) and `<scene>-derived/` (compiled cache, see
-// `README.md` § Assets) under `.mesure/assets/` of the repo, off git. `TRILLION3D_ASSETS` points
+// `README.md` § Assets) under `.measure/assets/` of the repo, off git. `TRILLION3D_ASSETS` points
 // at another folder — a frozen copy, or that of another worktree.
 export const ASSETS = process.env.TRILLION3D_ASSETS
   ? resolve(process.env.TRILLION3D_ASSETS)

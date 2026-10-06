@@ -4,7 +4,7 @@
 // comes from the shared bench's seeded generator.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/src/index.ts';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import type {
   ClusterRoot,
   PageRec,
@@ -37,18 +37,18 @@ export function dag({
   residentes = 1,
   etendue = 3,
 }: { feuilles?: number; seed?: number; residentes?: number; etendue?: number } = {}): DagPage[] {
-  const alea = graine(seed);
+  const alea = xorshiftRandom(seed);
   const niveaux: number[] = [];
-  for (let compte = feuilles; compte >= 1; compte = compte >> 1) niveaux.push(compte);
+  for (let count = feuilles; count >= 1; count = count >> 1) niveaux.push(count);
   if (niveaux[niveaux.length - 1] !== 1) niveaux.push(1);
   const pages: DagPage[] = [];
   for (let level = niveaux.length - 1; level >= 0; level--) {
-    const compte = niveaux[level],
-      rayon = etendue / Math.max(1, Math.sqrt(compte)),
+    const count = niveaux[level],
+      rayon = etendue / Math.max(1, Math.sqrt(count)),
       erreur = 2 ** level * 0.01;
     const parent = level + 1 < niveaux.length ? 2 ** (level + 1) * 0.01 : null;
-    const gridSide = Math.ceil(Math.sqrt(compte));
-    for (let i = 0; i < compte; i++) {
+    const gridSide = Math.ceil(Math.sqrt(count));
+    for (let i = 0; i < count; i++) {
       const cx = ((i % gridSide) / gridSide - 0.5) * etendue * 2,
         cy = (Math.floor(i / gridSide) / gridSide - 0.5) * etendue * 2,
         cz = (alea() - 0.5) * 0.5;

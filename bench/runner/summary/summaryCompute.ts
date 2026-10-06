@@ -28,23 +28,23 @@ export function cheminsCalcul(report: Report) {
     '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
     '|---|---|---|---|---|---|---|---|---|---|---|',
   ];
-  for (const serie of report.series)
-    for (const [side, resultat] of Object.entries(serie.sides)) {
+  for (const series of report.series)
+    for (const [side, resultat] of Object.entries(series.sides)) {
       const releve = resultat.mathBatch;
-      const tete = `| ${serie.view} | ${serie.pixelError} | ${side} `;
+      const tete = `| ${series.view} | ${series.pixelError} | ${side} `;
       if (!releve) {
         lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);
         continue;
       }
-      const etat = `| ${releve.mode} | ${module(releve)} `;
+      const state = `| ${releve.mode} | ${module(releve)} `;
       const operations = Object.entries(releve.operations ?? {});
       if (!operations.length) {
-        lines.push(`${tete}${etat}| no batch run | — | — | — | — | — |`);
+        lines.push(`${tete}${state}| no batch run | — | — | — | — | — |`);
         continue;
       }
       for (const [nom, o] of operations)
         lines.push(
-          `${tete}${etat}| ${nom} | ${o.path ?? '—'} | ${ns(o.jsNsPerElement)} ` +
+          `${tete}${state}| ${nom} | ${o.path ?? '—'} | ${ns(o.jsNsPerElement)} ` +
             `| ${ns(o.wasmNsPerElement)} | ${o.switches} | ${o.elements} |`,
         );
     }

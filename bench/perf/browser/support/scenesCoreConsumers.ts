@@ -1,17 +1,17 @@
 // Inputs of consumers attached to the foundation: cluster records, colours. Drawn from a seed.
 import * as THREE from 'three';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import { affines, bordDe, matrices } from './scenesCore.ts';
 import { pageRecFixture } from './pageRecFixture.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 
-const alea = graine(0xc0de5);
+const alea = xorshiftRandom(0xc0de5);
 const bord = bordDe(alea);
 
 /** Cluster records: hostile poses and matrices, spheres and boxes. */
 const erreurs: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];
 /** Each record with the world the oracles read on it, the one its root carries for the engine. */
-const liste: (PageRec & { matrix: THREE.Matrix4 })[] = [],
+const list: (PageRec & { matrix: THREE.Matrix4 })[] = [],
   roots: { world: THREE.Matrix4 }[] = [],
   /** Each record's original rank: the batch walk reads its placement through this (#1235). */
   ranks = new Map<PageRec, number>();
@@ -37,11 +37,11 @@ for (let i = 0; i < 900; i++) {
       array: i % 50 === 0 ? new Uint32Array(1) : undefined,
     }),
   };
-  liste.push(record);
+  list.push(record);
   ranks.set(record, i);
 }
 export const enregistrements = {
-  liste,
+  list,
   roots,
   ranks,
 };

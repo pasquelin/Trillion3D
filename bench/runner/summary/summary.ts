@@ -56,11 +56,11 @@ function rows(report: Report) {
     '| view | pixelError | side | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | GPU selection fallback | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
-  for (const serie of report.series)
-    for (const [side, r] of Object.entries(serie.sides)) {
+  for (const series of report.series)
+    for (const [side, r] of Object.entries(series.sides)) {
       const hiz = r.hiZ;
       lines.push(
-        `| ${serie.view} | ${serie.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
+        `| ${series.view} | ${series.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
@@ -84,9 +84,9 @@ const compteurs = (counts: Readonly<Record<string, number>> | undefined) =>
 /** Per-stage breakdown of a series: one line per stage, CPU and GPU separated. */
 function etapes(report: Report) {
   const lines: string[] = [];
-  for (const serie of report.series)
-    for (const [side, resultat] of Object.entries(serie.sides)) {
-      const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
+  for (const series of report.series)
+    for (const [side, resultat] of Object.entries(series.sides)) {
+      const titre = `### ${series.view} · e${series.pixelError} · ${side}`;
       const profile = resultat.stageProfile;
       if (!profile || !profile.enabled) {
         lines.push(`${titre} : per-stage profile absent`, '');

@@ -8,10 +8,10 @@ import {
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceCutComplete, referencePendingUrls } from '../../oracles/browser/cut-diff.ts';
 
-const alea = graine(97);
+const alea = xorshiftRandom(97);
 const PAGES = 160000,
   COUPE = 20000,
   NIVEAUX = 13;
@@ -93,12 +93,12 @@ const lecteursOptimisee = (images: number[][]) => {
 const mesuresResultats = [];
 for (const [regime, images] of regimes) {
   mesuresResultats.push(
-    await mesure({
+    await measure({
       name: `cut readers ${regime}`,
       fichier: 'packages/sdk-browser/src/webgpu/cut/pending.ts',
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
-      calcul: lecteursOptimisee,
-      attendu: lecteursReference,
+      calculation: lecteursOptimisee,
+      expected: lecteursReference,
       options: { tours: 20, budgetMs: 1500 },
     }),
   );
@@ -106,7 +106,7 @@ for (const [regime, images] of regimes) {
 
 await stress({
   name: 'createCutDelta extremes',
-  calcul: (arr: PageRec[]) => createCutDelta(arr).apply([]),
+  calculation: (arr: PageRec[]) => createCutDelta(arr).apply([]),
   extremes: [{ name: 'empty', input: [] }],
 });
 

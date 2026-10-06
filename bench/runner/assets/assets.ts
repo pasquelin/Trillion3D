@@ -5,7 +5,7 @@
 //
 //   node bench/runner/assets/assets.ts [--only sponza,duck] [--list]
 //
-// Both steps are idempotent. A scene folder already under `.mesure/assets/` is kept as it is — the
+// Both steps are idempotent. A scene folder already under `.measure/assets/` is kept as it is — the
 // sources are never written to — and a `<scene>-derived/` cache whose `native/full/manifest.json`
 // is there is not compiled again. Deleting a cache folder is how one asks for it to be rebuilt.
 //

@@ -50,7 +50,7 @@ function plansMoteur(tronc: THREE.Frustum, vp: THREE.Matrix4, view: THREE.Matrix
 const CAMERA_KEYS = ['fov', 'aspect', 'near', 'far', 'zoom'] as const;
 
 function regleCameraThree(camera: THREE.PerspectiveCamera, spec: CameraSpec) {
-  for (const cle of CAMERA_KEYS) if (cle in spec) camera[cle] = spec[cle];
+  for (const key of CAMERA_KEYS) if (key in spec) camera[key] = spec[key];
   camera.coordinateSystem = systeme(spec.webgpu);
   camera.updateProjectionMatrix();
 }

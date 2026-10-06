@@ -6,7 +6,7 @@ import {
   indexSourceBytes,
 } from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-import { mesure, rapport } from '../../core/index.ts';
+import { measure, rapport } from '../../core/index.ts';
 import {
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
@@ -31,16 +31,16 @@ const casPages = [
   { name: 'no pages', input: [], size: 0 },
 ];
 
-const resOctets = await mesure({
+const resOctets = await measure({
   name: 'source-byte table',
   fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
   cas: casPages,
-  calcul: indexSourceBytes,
-  attendu: referenceIndexSourceBytes,
+  calculation: indexSourceBytes,
+  expected: referenceIndexSourceBytes,
   options: { tours: 60, budgetMs: 1500 },
 });
 
-const resDiagnostic = await mesure({
+const resDiagnostic = await measure({
   name: 'texture diagnostic counters',
   fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
   cas: [
@@ -48,9 +48,9 @@ const resDiagnostic = await mesure({
     { name: 'no blocks', input: { pages: unePage, blocs: blocVide }, size: 1 },
     { name: 'nothing to count', input: { pages: [], blocs: blocVide }, size: 0 },
   ],
-  calcul: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
+  calculation: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
     compteMateriauxEtTangentes(e.pages, e.blocs),
-  attendu: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
+  expected: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
     referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
   options: { tours: 60, budgetMs: 1500 },
 });

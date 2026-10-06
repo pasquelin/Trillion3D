@@ -11,7 +11,7 @@
 // a seam corner, the layout whose groups the DAG names `seam-locked` and reduces with solved
 // vertices.
 //
-// It writes `.mesure/assets/facade-<seed>/` (`facade-<seed>-bricks/` under `--islands brick`:
+// It writes `.measure/assets/facade-<seed>/` (`facade-<seed>-bricks/` under `--islands brick`:
 // glTF, binary and PNG), which
 // `node bench/runner/assets/assets.ts --only facade-<seed>` then compiles like any other scene.
 // =====================================================================================

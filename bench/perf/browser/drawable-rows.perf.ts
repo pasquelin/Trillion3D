@@ -6,11 +6,11 @@ import { createWebgpuRowCommit } from '../../../packages/sdk-browser/src/webgpu/
 import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts';
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceRowCommit, referenceRowState } from '../../oracles/browser/drawable-rows.ts';
 
 const MOTS = PAGE_INFO_STRIDE / 4;
-const alea = graine(509);
+const alea = xorshiftRandom(509);
 const PAGES = 12000,
   SLOTS = 8192;
 
@@ -124,12 +124,12 @@ const cas = [
   { name: 'advancing epochs', input: { images, epoques: true }, size: PAGES * 8 },
 ];
 
-const resLignes = await mesure({
+const resLignes = await measure({
   name: 'drawable-row table',
   fichier: 'packages/sdk-browser/src/webgpu/row/commit.ts',
   cas,
-  calcul: passe(createWebgpuRowCommit),
-  attendu: passe(referenceRowCommit),
+  calculation: passe(createWebgpuRowCommit),
+  expected: passe(referenceRowCommit),
   options: { tours: 30, budgetMs: 1500 },
 });
 
@@ -148,13 +148,13 @@ for (let i = 0; i < 20000; i++) {
   );
 }
 const rangs =
-  (etat: { pageIndexOf: (rec: PageRec) => number | undefined }) => (liste: PageRec[]) => {
-    const output = new Array<number>(liste.length);
-    for (let i = 0; i < liste.length; i++) output[i] = etat.pageIndexOf(liste[i]) ?? -1;
+  (state: { pageIndexOf: (rec: PageRec) => number | undefined }) => (list: PageRec[]) => {
+    const output = new Array<number>(list.length);
+    for (let i = 0; i < list.length; i++) output[i] = state.pageIndexOf(list[i]) ?? -1;
     return output;
   };
 
-const resRangs = await mesure({
+const resRangs = await measure({
   name: 'rank of a catalogue page',
   fichier: 'packages/sdk-browser/src/webgpu/row/state.ts',
   cas: [
@@ -163,14 +163,14 @@ const resRangs = await mesure({
     { name: 'foreign page at a usurped rank', input: [etrangeres[0]], size: 1 },
     { name: 'no requests', input: [], size: 0 },
   ],
-  calcul: rangs(etatF5),
-  attendu: rangs(referenceF5),
+  calculation: rangs(etatF5),
+  expected: rangs(referenceF5),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'createWebgpuRowState extremes',
-  calcul: (p: PageRec[]) => createWebgpuRowState(p, 10),
+  calculation: (p: PageRec[]) => createWebgpuRowState(p, 10),
   extremes: [{ name: 'empty', input: [] }],
 });
 

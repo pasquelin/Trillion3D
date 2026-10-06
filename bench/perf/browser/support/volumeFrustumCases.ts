@@ -9,7 +9,7 @@ import {
   frustumExcludesBox,
 } from '../../../../packages/sdk-core/src/index.ts';
 import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts';
-import type { MesureCas } from '../../../core/index.ts';
+import type { MeasureCase } from '../../../core/index.ts';
 import { boitesDeVue, casCones, matrices, vuesProjections } from './scenesVolumes.ts';
 import type { ConeCase, ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts';
 import {
@@ -32,7 +32,7 @@ const deux = <Entree>(
   input: Entree[],
   nomH: string,
   entreeH: Entree[],
-): MesureCas<Entree[]>[] => [...un(name, input), ...un(nomH, entreeH)];
+): MeasureCase<Entree[]>[] => [...un(name, input), ...un(nomH, entreeH)];
 
 interface LocalPlaneCase {
   planes: Float32Array;
@@ -57,7 +57,7 @@ const Z_INVERSE =
 
 export const casTronc: CasVolume[] = [
   casVolume({
-    calcul: 'normalized frustum planes of a view-projection',
+    calculation: 'normalized frustum planes of a view-projection',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
@@ -66,11 +66,11 @@ export const casTronc: CasVolume[] = [
       'cameras in the hierarchy',
       vuesHierarchiques,
     ),
-    optimisee: (liste: ViewProjectionCase[]) =>
-      liste.flatMap(({ vp }) => [plans(vp), plans(vp, Float32Array)]),
+    optimised: (list: ViewProjectionCase[]) =>
+      list.flatMap(({ vp }) => [plans(vp), plans(vp, Float32Array)]),
   }),
   casVolume({
-    calcul: 'raw planes of a clip matrix',
+    calculation: 'raw planes of a clip matrix',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
@@ -79,15 +79,15 @@ export const casTronc: CasVolume[] = [
       'cameras in the hierarchy',
       vuesHierarchiques,
     ),
-    optimisee: (liste: ViewProjectionCase[]) =>
-      liste.map(({ vp }) => {
+    optimised: (list: ViewProjectionCase[]) =>
+      list.map(({ vp }) => {
         const output = new Float64Array(24);
         clipPlanesFromMatrix(output, vp);
         return output;
       }),
   }),
   casVolume({
-    calcul: 'box outside the frustum',
+    calculation: 'box outside the frustum',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/src/math/frustum/box.ts',
     cas: deux(
@@ -96,13 +96,13 @@ export const casTronc: CasVolume[] = [
       'world boxes and hierarchical cameras',
       boitesDeVueHierarchiques,
     ),
-    optimisee: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, boite: b }) =>
+    optimised: (list: ViewBoxCase[]) =>
+      list.map(({ vp, boite: b }) =>
         frustumExcludesBox(plans(vp), b[0], b[1], b[2], b[3], b[4], b[5]),
       ),
   }),
   casVolume({
-    calcul: 'box against the frustum in three states',
+    calculation: 'box against the frustum in three states',
     fichier: 'packages/sdk-core/src/math/frustum/box.ts',
     cas: deux(
       'boxes per view, raw and normalized planes',
@@ -110,8 +110,8 @@ export const casTronc: CasVolume[] = [
       'world boxes and hierarchical cameras',
       boitesDeVueHierarchiques,
     ),
-    reference: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, boite: b }) => {
+    reference: (list: ViewBoxCase[]) =>
+      list.map(({ vp, boite: b }) => {
         const brut = new Float64Array(24);
         clipPlanesFromMatrix(brut, vp);
         return [
@@ -119,8 +119,8 @@ export const casTronc: CasVolume[] = [
           referenceBoxClip(reordonne(plans(vp)), b[0], b[1], b[2], b[3], b[4], b[5]),
         ];
       }),
-    optimisee: (liste: ViewBoxCase[]) =>
-      liste.map(({ vp, boite: b }) => {
+    optimised: (list: ViewBoxCase[]) =>
+      list.map(({ vp, boite: b }) => {
         const brut = new Float64Array(24);
         clipPlanesFromMatrix(brut, vp);
         return [
@@ -130,7 +130,7 @@ export const casTronc: CasVolume[] = [
       }),
   }),
   casVolume({
-    calcul: 'frustum planes in local space',
+    calculation: 'frustum planes in local space',
     fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
     cas: deux(
       'plans × placements hostiles',
@@ -138,17 +138,17 @@ export const casTronc: CasVolume[] = [
       'planes × hierarchical world matrices',
       locaux(vuesHierarchiques, mondesHierarchiques, 3),
     ),
-    reference: (liste: LocalPlaneCase[]) =>
-      liste.map(({ planes, m }) => Float64Array.from(referencePlanesToLocal(planes, m))),
-    optimisee: (liste: LocalPlaneCase[]) =>
-      liste.map(({ planes, m }) => {
+    reference: (list: LocalPlaneCase[]) =>
+      list.map(({ planes, m }) => Float64Array.from(referencePlanesToLocal(planes, m))),
+    optimised: (list: LocalPlaneCase[]) =>
+      list.map(({ planes, m }) => {
         const output = new Float64Array(24);
         frustumPlanesToLocal(output, planes, m);
         return output;
       }),
   }),
   casVolume({
-    calcul: 'rejection of a box by its normal cone',
+    calculation: 'rejection of a box by its normal cone',
     fichier: 'packages/sdk-core/src/math/primitives/cone.ts',
     cas: deux(
       'cones, conformal placements, eye in the sphere',
@@ -156,8 +156,8 @@ export const casTronc: CasVolume[] = [
       'cones under hierarchical world matrices',
       conesHierarchiques,
     ),
-    reference: (liste: ConeCase[]) =>
-      liste.map((c) =>
+    reference: (list: ConeCase[]) =>
+      list.map((c) =>
         referenceConeRejects(
           { axis: c.axe, angle: c.angle },
           c.world,
@@ -168,8 +168,8 @@ export const casTronc: CasVolume[] = [
           c.oeil,
         ),
       ),
-    optimisee: (liste: ConeCase[]) =>
-      liste.map((c) =>
+    optimised: (list: ConeCase[]) =>
+      list.map((c) =>
         boxConeRejects(
           c.axe,
           c.angle,
