@@ -68,8 +68,7 @@ export function createPageHolds(
   }
   const place = async (slot: string, entry: Held, asked: PageAsk) => {
     const primitives = await load(slot, asked, (page) => entry.files.set(page.url, page))
-    // Released before it landed, or placed by another read: one its last holder let go that still
-    // landed, or the one started after it.
+    // Released before it landed, or placed by its other read: a stopped one landing anyway.
     if (held.get(slot) !== entry || entry.primitives) return
     entry.primitives = primitives
     for (const primitive of primitives) list.push(primitive)
