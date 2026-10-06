@@ -237,6 +237,9 @@ export const VSM_TRACE_RAYS_LOCAL = 7;
 export const VSM_TRACE_STEPS_LOCAL = 8;
 export const VSM_TRACE_RAYS_SUN = 7;
 export const VSM_TRACE_STEPS_SUN = 8;
+/** The rays a lane counts at most: its high nibble (`vsmMaskCode`). The ray count settings stop
+ *  there (`world/core/worldSettings.ts`). */
+export const VSM_MASK_MAX_RAYS = (1 << 4) - 1;
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
 export const VSM_TRACE_CONE_LIMIT = 0.03;
