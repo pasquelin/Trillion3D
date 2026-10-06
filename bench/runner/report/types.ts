@@ -13,7 +13,7 @@ import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../trajectory/poses.ts';
 import type { LightsPlan } from '../lamps.ts';
 import type { LimitsRecord } from '../limits.ts';
-import type { FluidsRow } from '../fluids.ts';
+import type { FluidsRow } from '../fluids/fluids.ts';
 import type { GazeNetworkReading } from '../gaze/gazeNetworkRun.ts';
 
 /** What `bench.ts` builds before playing series, and `series/series.ts` reads to run one. */
@@ -193,7 +193,7 @@ export interface Report {
   lights?: LightsSummary | null;
   /** The browser limits, probed once per run (`limits.ts`). */
   limits?: LimitsRecord;
-  /** One row per side on the fluids scene (`fluids.ts`). */
+  /** One row per side on the fluids scene (`fluids/fluids.ts`). */
   fluids?: FluidsRow[];
   finishedAt?: string;
 }

@@ -1,26 +1,29 @@
 // The fluids bench scene (#418), `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
 // floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
-// public API (`fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
+// public API (`fluids/fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
 // `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
 // transmissive ocean (#422 draws the waves), fires and smoke volumes (#423). The engine has one
 // refraction source, a copy of the lit image: the scene has no switch between two.
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import { SHAPE } from '../../packages/sdk-core/src/physics/index.ts';
-import type { BodyRecord } from '../../packages/sdk-core/src/physics/bodyRecord.ts';
-import type { PhysicsPart, PhysicsPrimitive } from '../../packages/sdk-core/src/physics/options.ts';
-import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
-import { floatingBodies } from '../../packages/sdk-browser/src/physics/water.fixture.ts';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import { distribution, machineLoad } from './summary/summary.ts';
-import { passesGpu } from './series/seriesPasses.ts';
-import { p50p95, passes } from './summary/summaryPasses.ts';
-import { sdkEntryUrl } from './dists.ts';
-import { withGpuIncidents } from './series/seriesPage.ts';
-import type { Side } from './sideOptions.ts';
-import type { BenchSettings } from './options.ts';
+import { SHAPE } from '../../../packages/sdk-core/src/physics/index.ts';
+import type { BodyRecord } from '../../../packages/sdk-core/src/physics/bodyRecord.ts';
+import type {
+  PhysicsPart,
+  PhysicsPrimitive,
+} from '../../../packages/sdk-core/src/physics/options.ts';
+import { OCEAN } from '../../../packages/sdk-core/src/fluids/waves.fixture.ts';
+import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water.fixture.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import { distribution, machineLoad } from '../summary/summary.ts';
+import { passesGpu } from '../series/seriesPasses.ts';
+import { p50p95, passes } from '../summary/summaryPasses.ts';
+import { sdkEntryUrl } from '../dists.ts';
+import { withGpuIncidents } from '../series/seriesPage.ts';
+import type { Side } from '../sideOptions.ts';
+import type { BenchSettings } from '../options.ts';
 import type * as FluidsPage from './fluidsPage.ts';
 
 type Vec3 = [number, number, number];
@@ -90,7 +93,7 @@ async function fluidsRow(
   const result = await withGpuIncidents(page, () =>
     page.evaluate(
       async ({ module, o }) => ((await import(module)) as typeof FluidsPage).measureFluids(o),
-      { module: '/runner/fluidsPage.ts', o: payload },
+      { module: '/runner/fluids/fluidsPage.ts', o: payload },
     ),
   );
   const capture = captures.get(payload.captureFile);

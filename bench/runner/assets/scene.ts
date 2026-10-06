@@ -13,7 +13,7 @@ export const ASSETS = process.env.TRILLION3D_ASSETS
 /** Harness fallback when no named cache gives it a scene. */
 export const DEFAULT_SCENE = 'sponza';
 
-/** The fluids scene (`fluids.ts`): built in the page through the public API, it has no cache. */
+/** The fluids scene (`fluids/fluids.ts`): built in the page through the public API, it has no cache. */
 export const FLUIDS_SCENE = 'fluids';
 /** Whether a scene reads a compiled cache. */
 export const readsCache = (scene: string) => scene !== FLUIDS_SCENE;

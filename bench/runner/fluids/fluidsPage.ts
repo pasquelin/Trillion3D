@@ -1,11 +1,11 @@
-// The fluids scene in the page (`fluids.ts`), built through the public API alone: a world with
+// The fluids scene in the page (`fluids/fluids.ts`), built through the public API alone: a world with
 // physics, the fixtures' water and bodies, and the THROWAWAY STAND-INS the engine does not draw
 // yet. Served under `/runner/` and imported by URL; only types come from the packages.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { FluidsPayload, FluidsScene } from './fluids.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
-import type { PhysicsPart } from '../../packages/sdk-core/src/physics/options.ts';
-import { posterCapture } from './measurePage.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
+import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts';
+import { posterCapture } from '../measurePage.ts';
 
 type Sdk = typeof SdkBrowser;
 

@@ -22,7 +22,7 @@ import { runSerie } from './series/series.ts';
 import { runGazeSeries } from './gaze/gazeNetworkRun.ts';
 import { publish } from './benchPublish.ts';
 import { readsCache } from './assets/scene.ts';
-import { runFluids } from './fluids.ts';
+import { runFluids } from './fluids/fluids.ts';
 import { readLimits } from './limits.ts';
 import { againstReference, sceneReference } from './references/referenceProof.ts';
 import type { Report, RunContext, Serie } from './report/types.ts';
