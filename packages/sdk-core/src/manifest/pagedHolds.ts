@@ -28,8 +28,8 @@ export interface ManifestPages {
 }
 
 /** A page's read on its way, shared by the holds waiting on it — cancelled once every one let it
- *  go —, and the ask its files are read with. */
-type Reading = SharedRead<void> & { asked: PageAsk }
+ *  go —, the ask its files are read with, and the file it reads now, till it lands. */
+type Reading = SharedRead<void> & { asked: PageAsk; file?: TablePage }
 /** A page held: its holders, its primitives once read, its read on its way, its files read. */
 type Held = {
   count: number
@@ -39,30 +39,42 @@ type Held = {
 }
 /** A read of one file of a page, as a hold asks it. */
 type Read = (page: TablePage, asked: PageAsk) => Promise<unknown>
+/** What a page's read tells of each file it reads: the file, and its read. */
+export type Seen = (page: TablePage, landing: Promise<Uint8Array>) => Promise<Uint8Array>
 
-/** `entry`'s read, `start`ed with the ask it reads at `priority` with: forgotten once settled. */
+/** `entry`'s read, `start`ed at `priority`: forgotten once settled. */
 function startReading(
   entry: Held,
   priority: number | undefined,
-  start: (asked: PageAsk) => Promise<void>,
+  start: (reading: Reading) => Promise<void>,
 ) {
-  const stop = new AbortController(),
-    asked = { priority, signal: stop.signal }
-  const reading: Reading = { askers: 0, stop, asked, promise: start(asked) }
+  const stop = new AbortController()
+  const reading = { askers: 0, stop, asked: { priority, signal: stop.signal } } as Reading
+  reading.promise = start(reading)
   const done = () => void (entry.reading === reading && (entry.reading = undefined))
   reading.promise.then(done, done)
   entry.reading = reading
 }
 
-/** `entry`'s read joined by a hold as `asked`: one more urgent lifts it — its file on its way
- *  asked again at that priority through `read`, the queue keeping the most urgent, and the files
- *  after it asked so. */
-function lift(entry: Held, asked: PageAsk, read: Read) {
-  const own = entry.reading!.asked
-  if ((asked.priority ?? 0) >= (own.priority ?? 0)) return
+/** Each file `reading` reads, one of `entry`'s, on its way till it lands. */
+const tracked =
+  (entry: Held, reading: Reading): Seen =>
+  (page, landing) => {
+    entry.files.set(page.url, page)
+    reading.file = page
+    const landed = () => void (reading.file === page && (reading.file = undefined))
+    landing.then(landed, landed)
+    return landing
+  }
+
+/** `reading` joined by a hold as `asked`: one more urgent lifts it — its file on its way, if one
+ *  is, asked again at that priority through `read`, the queue keeping the most urgent, and the
+ *  files after it asked so. A hold that names no priority changes none. */
+function lift(reading: Reading, asked: PageAsk, read: Read) {
+  const own = reading.asked
+  if (asked.priority === undefined || asked.priority >= (own.priority ?? 0)) return
   own.priority = asked.priority
-  const file = [...entry.files.values()].at(-1)
-  if (file) read(file, asked).catch(() => {})
+  if (reading.file) read(reading.file, asked).catch(() => {})
 }
 
 /** `primitives` taken out of `list`, its order kept. */
@@ -77,7 +89,7 @@ function unlist(list: Primitive[], primitives: readonly Primitive[]) {
  *  told `seen` —, listed in `list` in rank order, their files let go through `letGo`, a file on
  *  its way asked again through `read`. */
 export function createPageHolds(
-  load: (slot: string, asked: PageAsk, seen: (page: TablePage) => void) => Promise<Primitive[]>,
+  load: (slot: string, asked: PageAsk, seen: Seen) => Promise<Primitive[]>,
   list: Primitive[],
   letGo: (page: TablePage) => void,
   read: Read,
@@ -88,12 +100,12 @@ export function createPageHolds(
    *  its last asker stopped is never joined, a new one starts. */
   const join = (slot: string, entry: Held, asked: PageAsk = {}) => {
     if (!entry.reading || entry.reading.stop.signal.aborted)
-      startReading(entry, asked.priority, (own) => place(slot, entry, own))
-    else lift(entry, asked, read)
+      startReading(entry, asked.priority, (reading) => place(slot, entry, reading))
+    else lift(entry.reading, asked, read)
     return waitShared(entry.reading!, asked.signal)
   }
-  const place = async (slot: string, entry: Held, asked: PageAsk) => {
-    const primitives = await load(slot, asked, (page) => entry.files.set(page.url, page))
+  const place = async (slot: string, entry: Held, reading: Reading) => {
+    const primitives = await load(slot, reading.asked, tracked(entry, reading))
     // Released before it landed, or placed by its other read: a stopped one landing anyway.
     if (held.get(slot) !== entry || entry.primitives) return
     entry.primitives = primitives

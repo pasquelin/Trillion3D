@@ -8,7 +8,7 @@ import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
 import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
-import { createPageHolds, type ManifestPages, type PageAsk } from './pagedHolds.ts'
+import { createPageHolds, type ManifestPages, type PageAsk, type Seen } from './pagedHolds.ts'
 
 export type { ManifestPages, PageAsk } from './pagedHolds.ts'
 
@@ -85,9 +85,9 @@ export async function openPagedManifest(
   const { head, fixed } = split(root)
   const [body] = await readLeaves(MANIFEST_PAGES, head, read)
   const { metadata, decode } = headed(fixed, await withSidecar(body, read))
-  /** `slot`'s page and sidecar read as `asked`, each file told `seen`: its primitives, checked. */
-  const load = async (slot: string, asked: PageAsk, seen: (page: TablePage) => void) => {
-    const own = (page: TablePage) => (seen(page), read(page, asked))
+  /** `slot`'s page and sidecar read as `asked`, each read told `seen`: its primitives, checked. */
+  const load = async (slot: string, asked: PageAsk, seen: Seen) => {
+    const own = (page: TablePage) => seen(page, read(page, asked))
     const [page] = await readLeaves(MANIFEST_PAGES, named(MANIFEST_PAGES, [slot]), own)
     return accept(decode(await withSidecar(page, own)).primitives)
   }
