@@ -11,7 +11,7 @@ import { rapport as rapportDe } from './summaryTestFixtures.ts';
 const rapport = (mathBatch: MathBatch | null): Report => rapportDe({ mathBatch } as Partial<Row>);
 
 /** Governor metrics, completed by what the case wants to show. */
-const releve = (fields: Partial<MathBatch>): MathBatch =>
+const reading = (fields: Partial<MathBatch>): MathBatch =>
   ({
     contract: 1,
     mode: 'auto',
@@ -39,7 +39,7 @@ const operation = (fields: Partial<MathOperation>): MathOperation => ({
 test('the chosen path and both medians are published, operation by operation', () => {
   const lignes = cheminsCalcul(
     rapport(
-      releve({
+      reading({
         operations: {
           hierarchyUpdateBatch: operation({
             path: 'wasm',
@@ -61,7 +61,7 @@ test('the chosen path and both medians are published, operation by operation', (
 test('an unmeasured median is stated as "unmeasured", never zero, and the fallback cause is published', () => {
   const lignes = cheminsCalcul(
     rapport(
-      releve({
+      reading({
         mode: 'js',
         wasmAvailable: false,
         wasmSimd: null,
@@ -80,7 +80,7 @@ test('an unmeasured median is stated as "unmeasured", never zero, and the fallba
 });
 
 test('a coarse clock is published with the module, its timing pooled', () => {
-  const lignes = cheminsCalcul(rapport(releve({ clockCoarse: true }))).join('\n');
+  const lignes = cheminsCalcul(rapport(reading({ clockCoarse: true }))).join('\n');
   assert.match(
     lignes,
     /\| auto \| loaded, simd128, coarse clock, pooled timing \| no batch run \|/,

@@ -35,22 +35,22 @@ export function dag({
   feuilles = 10000,
   seed = 61,
   residentes = 1,
-  etendue = 3,
-}: { feuilles?: number; seed?: number; residentes?: number; etendue?: number } = {}): DagPage[] {
+  extent = 3,
+}: { feuilles?: number; seed?: number; residentes?: number; extent?: number } = {}): DagPage[] {
   const alea = xorshiftRandom(seed);
-  const niveaux: number[] = [];
-  for (let count = feuilles; count >= 1; count = count >> 1) niveaux.push(count);
-  if (niveaux[niveaux.length - 1] !== 1) niveaux.push(1);
+  const levels: number[] = [];
+  for (let count = feuilles; count >= 1; count = count >> 1) levels.push(count);
+  if (levels[levels.length - 1] !== 1) levels.push(1);
   const pages: DagPage[] = [];
-  for (let level = niveaux.length - 1; level >= 0; level--) {
-    const count = niveaux[level],
-      rayon = etendue / Math.max(1, Math.sqrt(count)),
-      erreur = 2 ** level * 0.01;
-    const parent = level + 1 < niveaux.length ? 2 ** (level + 1) * 0.01 : null;
+  for (let level = levels.length - 1; level >= 0; level--) {
+    const count = levels[level],
+      rayon = extent / Math.max(1, Math.sqrt(count)),
+      error = 2 ** level * 0.01;
+    const parent = level + 1 < levels.length ? 2 ** (level + 1) * 0.01 : null;
     const gridSide = Math.ceil(Math.sqrt(count));
     for (let i = 0; i < count; i++) {
-      const cx = ((i % gridSide) / gridSide - 0.5) * etendue * 2,
-        cy = (Math.floor(i / gridSide) / gridSide - 0.5) * etendue * 2,
+      const cx = ((i % gridSide) / gridSide - 0.5) * extent * 2,
+        cy = (Math.floor(i / gridSide) / gridSide - 0.5) * extent * 2,
         cz = (alea() - 0.5) * 0.5;
       pages.push({
         url: `n${level}-${i}.bin`,
@@ -59,7 +59,7 @@ export function dag({
         min: [cx - rayon, cy - rayon, cz - rayon],
         max: [cx + rayon, cy + rayon, cz + rayon],
         sphere: [cx, cy, cz, rayon],
-        lodError: erreur,
+        lodError: error,
         parentError: parent,
         parentSphere: parent === null ? null : [cx, cy, cz, rayon * 2],
         group: null,
@@ -73,14 +73,14 @@ export function dag({
 
 /** A selection root without a culling hierarchy: descent takes the pages in order. */
 export function root(pages: DagPage[]): ClusterRoot<DagPage> {
-  const monde = new G.Matrix4();
+  const world = new G.Matrix4();
   const box = new Float64Array(BOX_VALUES);
   boxEmpty(box, 0);
   for (const page of pages) {
     boxExpandByPoint(box, 0, page.min[0], page.min[1], page.min[2]);
     boxExpandByPoint(box, 0, page.max[0], page.max[1], page.max[2]);
   }
-  return { world: monde, pages, worldBox: box, localBox: box };
+  return { world: world, pages, worldBox: box, localBox: box };
 }
 
 /** The camera the pool tests see a DAG through: `distance` units above `(x, y)` of its plane,

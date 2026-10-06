@@ -12,16 +12,16 @@ const count = () => {
 };
 
 /** Six planes per set, some degenerate, and the box each one tests. */
-export const casPlans: { planes: Float64Array; boite: number[] }[] = [];
+export const casPlans: { planes: Float64Array; box: number[] }[] = [];
 for (let i = 0; i < 400; i++) {
   const planes = new Float64Array(24);
   for (let k = 0; k < 24; k++) planes[k] = i % 17 === 0 ? count() : alea() * 4 - 2;
   const c = [alea() * 20 - 10, alea() * 20 - 10, alea() * 20 - 10];
   const e = i % 11 === 0 ? 0 : alea() * 5;
-  const boite = [c[0] - e, c[1] - e, c[2] - e, c[0] + e, c[1] + e, c[2] + e];
-  if (i % 23 === 0) boite[0] = NaN;
-  if (i % 29 === 0) boite[3] = -Infinity;
-  casPlans.push({ planes, boite });
+  const box = [c[0] - e, c[1] - e, c[2] - e, c[0] + e, c[1] + e, c[2] + e];
+  if (i % 23 === 0) box[0] = NaN;
+  if (i % 29 === 0) box[3] = -Infinity;
+  casPlans.push({ planes, box });
 }
 
 /** Screen triangles: ordinary, off-screen, degenerate, and some with non-finite vertex. The

@@ -9,7 +9,7 @@ const alea = xorshiftRandom(0xc0de5);
 const bord = bordDe(alea);
 
 /** Cluster records: hostile poses and matrices, spheres and boxes. */
-const erreurs: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];
+const errors: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];
 /** Each record with the world the oracles read on it, the one its root carries for the engine. */
 const list: (PageRec & { matrix: THREE.Matrix4 })[] = [],
   roots: { world: THREE.Matrix4 }[] = [],
@@ -30,9 +30,9 @@ for (let i = 0; i < 900; i++) {
       streamUrl: i % 5 === 0 ? `b${i % 40}` : undefined,
       min: [c[0] - r, c[1] - r, c[2] - r],
       max: [c[0] + r, c[1] + r, c[2] + r],
-      lodError: erreurs[i % erreurs.length] ?? 0,
+      lodError: errors[i % errors.length] ?? 0,
       sphere,
-      parentError: i % 4 === 0 ? null : erreurs[(i >> 1) % erreurs.length],
+      parentError: i % 4 === 0 ? null : errors[(i >> 1) % errors.length],
       parentSphere: i % 6 === 0 ? null : sphere,
       array: i % 50 === 0 ? new Uint32Array(1) : undefined,
     }),

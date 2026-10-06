@@ -27,14 +27,14 @@ const base = residentBase(PAGES),
 for (let j = 0; j < PAGES; j++)
   if (conesReference[j * CONE_FLOATS + FLAG] >= 0.5) bits[base + (j >>> 5)] |= 1 << (j & 31);
 
-const colonne = (cones: Float32Array) => {
+const column = (cones: Float32Array) => {
   const output = new Float32Array(PAGES);
   for (let j = 0; j < PAGES; j++) output[j] = cones[j * CONE_FLOATS + FLAG];
   return output;
 };
 
-const mondes = new Float32Array(64 * 16);
-for (let i = 0; i < mondes.length; i++) mondes[i] = i % 17 === 0 ? 1 + alea() : alea() * 0.01;
+const worlds = new Float32Array(64 * 16);
+for (let i = 0; i < worlds.length; i++) worlds[i] = i % 17 === 0 ? 1 + alea() : alea() * 0.01;
 
 const sortieGpu = new Uint32Array(4 + 12000 + 20000);
 sortieGpu[0] = 12000;
@@ -53,11 +53,11 @@ const resResidencyBits = await measure({
       (next) =>
         updateResidencyBits((j) => !!next[j], next.length, bits, base, undefined, motsTouches) > 0,
     ),
-    colonne: residencyColumn(bits, base, PAGES),
+    column: residencyColumn(bits, base, PAGES),
   }),
   expected: (imgs) => ({
     drapeaux: imgs.map((next) => referenceUpdateResidency(next, conesReference)),
-    colonne: colonne(conesReference).map((v) => (v >= 0.5 ? 1 : 0)),
+    column: column(conesReference).map((v) => (v >= 0.5 ? 1 : 0)),
   }),
   options: { tours: 100, budgetMs: 1000 },
 });
@@ -91,8 +91,8 @@ const resEtirement = await measure({
   name: 'maximum world stretch',
   fichier: 'packages/sdk-core/src/math/projectionOracles.ts',
   cas: [{ name: '64 worlds', input: null, size: 64 }],
-  calculation: etirements((w) => mondes.subarray(w * 16, w * 16 + 16)),
-  expected: etirements((w) => Array.from(mondes.subarray(w * 16, w * 16 + 16))),
+  calculation: etirements((w) => worlds.subarray(w * 16, w * 16 + 16)),
+  expected: etirements((w) => Array.from(worlds.subarray(w * 16, w * 16 + 16))),
   options: { tours: 100, budgetMs: 1000 },
 });
 

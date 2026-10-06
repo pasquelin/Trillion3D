@@ -27,7 +27,7 @@ const unites =
     return output;
   };
 
-const mesureUnites = await measure({
+const measureUnits = await measure({
   name: 'coplanar layer units',
   fichier: 'packages/sdk-core/src/lod/depthLayer.ts',
   cas: [{ name: '50 000 layers', size: 50000, input: couches(50000) }],
@@ -35,4 +35,4 @@ const mesureUnites = await measure({
   expected: unites(referenceDepthLayerUnits),
 });
 
-rapport('couches-coplanaires', [mesureUnites], 'layer units return the same values');
+rapport('couches-coplanaires', [measureUnits], 'layer units return the same values');

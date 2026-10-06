@@ -23,22 +23,22 @@ const alea = xorshiftRandom(211);
 const MODULE = readFileSync(join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE))) throw new Error('H2_WASM_ABSENT: run `pnpm run build:wasm`');
 
-async function page(sommets: number) {
-  const position = new Float32Array(sommets * 3),
-    normal = new Float32Array(sommets * 3),
-    uv = new Float32Array(sommets * 2),
-    uv2 = new Float32Array(sommets * 2),
-    color = new Float32Array(sommets * 4);
-  for (let i = 0; i < sommets; i++) {
+async function page(vertices: number) {
+  const position = new Float32Array(vertices * 3),
+    normal = new Float32Array(vertices * 3),
+    uv = new Float32Array(vertices * 2),
+    uv2 = new Float32Array(vertices * 2),
+    color = new Float32Array(vertices * 4);
+  for (let i = 0; i < vertices; i++) {
     position.set([alea() * 4 - 2, alea() * 4 - 2, alea() * 4 - 2], i * 3);
     normal.set([0, 1, 0], i * 3);
     uv.set([alea(), alea()], i * 2);
     uv2.set([alea(), alea()], i * 2);
     color.set([alea(), alea(), alea(), 1], i * 4);
   }
-  const triangles = Math.floor(sommets / 3) * 3,
+  const triangles = Math.floor(vertices / 3) * 3,
     indices = new Uint32Array(triangles);
-  for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % sommets;
+  for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % vertices;
   const encodee = encodeGeometryPage(indices, {
     POSITION: { itemSize: 3, array: position },
     NORMAL: { itemSize: 3, array: normal },
@@ -74,7 +74,7 @@ writeFileSync(
     `});\n`,
 );
 const worker = new Worker(tache);
-const horsFil = (op: PageDecodeOp, source: ArrayBuffer) =>
+const offThread = (op: PageDecodeOp, source: ArrayBuffer) =>
   new Promise<PageDecodeAnswer>((resolve, reject) => {
     worker.once('message', resolve);
     worker.once('error', reject);
@@ -86,13 +86,13 @@ const horsFil = (op: PageDecodeOp, source: ArrayBuffer) =>
 
 test('H2: the worker yields the exact same page and bytes as the main thread', async () => {
   const surPlace = decodeGeometryPage(grande, MAX_DECODED_BYTES);
-  const decodee = await horsFil('decode', grande.slice().buffer);
+  const decodee = await offThread('decode', grande.slice().buffer);
   assert.ok(decodee.ok, 'message' in decodee ? decodee.message : undefined);
   assert.ok(decodee.decoded, 'decode task answered without a payload');
   assert.equal(gap(surPlace, restorePageDecode(decodee.decoded), 'page'), null);
 
   const expected = await sha256Hex(grande.slice().buffer);
-  const verifiee = await horsFil('verify', grande.slice().buffer);
+  const verifiee = await offThread('verify', grande.slice().buffer);
   assert.ok(verifiee.ok, 'message' in verifiee ? verifiee.message : undefined);
   assert.equal(verifiee.sha256, expected);
   assert.ok(verifiee.source, 'verify task answered without its source buffer');

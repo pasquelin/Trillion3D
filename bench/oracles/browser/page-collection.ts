@@ -31,7 +31,7 @@ import type { Object3D } from '../../../packages/sdk-core/src/world/object/objec
 type Primitive = ClusterManifest['primitives'][number];
 
 /** A cluster root before batch F: the world and local box are `THREE.Box3` instances, where the
- *  attached version now keeps them flat (`Float64Array`) — the difference `boiteVersTableau`
+ *  attached version now keeps them flat (`Float64Array`) — the difference `boxToArray`
  *  reads in the bench. Everything else matches `ClusterRoot<PageRec>`. */
 type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
   worldBox: THREE.Box3;

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { textures } from './summaryTextures.ts';
 
 test('the nineteen virtual texture counters are read in three lines', () => {
-  const [pool, retour, diffuseur, , vide] = textures({
+  const [pool, retour, diffuseur, , empty] = textures({
     texturePoolBytes: 532_684_800,
     texturePoolFormat: 'bc7',
     texturePoolLayers: 4,
@@ -40,7 +40,7 @@ test('the nineteen virtual texture counters are read in three lines', () => {
     '- Streamer: 3410 tiles served, 12 evicted, 0 refused; last pass 16.7 MB in 0.90 ms, ' +
       'worst pass 1.25 ms; baked levels 2 in read, 118 decoded, 151.0 MB held; 0 scratch textures',
   );
-  assert.equal(vide, '');
+  assert.equal(empty, '');
 });
 
 test('preparation and network are read in seconds and GB per file type', () => {

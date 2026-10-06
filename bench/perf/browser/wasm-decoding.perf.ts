@@ -19,25 +19,25 @@ const dense = page(65535, true),
   nue = page(2048, false),
   petite = page(96, true);
 
-const horsBorne = pageForgee([0, 1, 3]),
+const outsideBound = pageForgee([0, 1, 3]),
   tronquee = moyenne.subarray(0, moyenne.length - 1),
   courte = moyenne.subarray(0, 16),
   faussee = Uint8Array.from(moyenne),
-  tropLarge = Uint8Array.from(moyenne);
+  tooWide = Uint8Array.from(moyenne);
 faussee[0] ^= 1;
 // A position width past the format's 24 bits: refused by the header, before any stream.
-tropLarge[20] = 25;
+tooWide[20] = 25;
 
 /** One lap: every page in the case, decoded; a rejection becomes its cause, compared as well. */
 const tour =
   (decode: (data: Uint8Array) => Promise<DecodedGeometryPage> | DecodedGeometryPage) =>
   async (pages: Uint8Array[]) => {
-    const output: (DecodedGeometryPage | { refus: string })[] = [];
+    const output: (DecodedGeometryPage | { refusal: string })[] = [];
     for (const octets of pages) {
       try {
         output.push(await decode(octets));
-      } catch (erreur) {
-        output.push({ refus: erreur instanceof Error ? erreur.message : String(erreur) });
+      } catch (error) {
+        output.push({ refusal: error instanceof Error ? error.message : String(error) });
       }
     }
     return output;
@@ -57,12 +57,12 @@ const resWasm = await measure({
   options: { tours: 40, budgetMs: 2000 },
 });
 
-const resRefus = await measure({
+const refusalResult = await measure({
   name: 'page rejection, wasm against JS',
   fichier: 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts',
   cas: [
-    { name: 'index out of bounds', input: [horsBorne], size: 3 },
-    { name: 'field wider than the format', input: [tropLarge], size: tropLarge.length },
+    { name: 'index out of bounds', input: [outsideBound], size: 3 },
+    { name: 'field wider than the format', input: [tooWide], size: tooWide.length },
     { name: 'truncated page', input: [tronquee], size: tronquee.length },
     { name: 'header too short', input: [courte], size: 16 },
     { name: 'wrong magic', input: [faussee], size: faussee.length },
@@ -89,6 +89,6 @@ await stress({
 
 rapport(
   'decodage-wasm',
-  [resWasm, resRefus],
+  [resWasm, refusalResult],
   'H2b yields the exact same buffers and rejections as the JavaScript decoder',
 );

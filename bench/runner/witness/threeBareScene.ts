@@ -23,16 +23,16 @@ export function lampe(
   box: THREE.Box3,
   shadows: boolean,
 ): [ThreeLight] | [ThreeLight, THREE.Object3D] {
-  const objet = creer(light);
-  appliquer(objet, light, 0);
-  objet.castShadow = shadows && light.castsShadow !== false;
+  const object = creer(light);
+  appliquer(object, light, 0);
+  object.castShadow = shadows && light.castsShadow !== false;
   if (light.kind !== 'directional') {
-    const punctual = objet as THREE.SpotLight | THREE.PointLight;
+    const punctual = object as THREE.SpotLight | THREE.PointLight;
     punctual.shadow.mapSize.set(1024, 1024);
     punctual.shadow.camera.far = light.range ?? 0;
     return [punctual];
   }
-  const directionnelle = objet as THREE.DirectionalLight;
+  const directionnelle = object as THREE.DirectionalLight;
   const rayon = box.getSize(new THREE.Vector3()).length() / 2;
   const centre = box.getCenter(new THREE.Vector3());
   const d = new THREE.Vector3().fromArray(light.direction ?? [0, -1, 0]).normalize();
@@ -67,13 +67,13 @@ export function octets(scene: THREE.Object3D) {
         if (texture?.isTexture && texture.image) images.add(texture.image);
       }
   });
-  let geometrie = 0,
+  let geometry = 0,
     textures = 0;
   for (const g of geometries) {
     for (const a of Object.values(g.attributes)) tampons.add(a);
     if (g.index) tampons.add(g.index);
   }
-  for (const a of tampons) geometrie += a.array.byteLength;
+  for (const a of tampons) geometry += a.array.byteLength;
   for (const i of images) textures += (i.width ?? 0) * (i.height ?? 0) * BYTES_PER_TEXEL_WITH_MIPS;
-  return { geometrie, textures, geometries: geometries.size };
+  return { geometry, textures, geometries: geometries.size };
 }

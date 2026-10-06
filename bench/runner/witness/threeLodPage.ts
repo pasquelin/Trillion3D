@@ -18,80 +18,80 @@ import type { MeasureViewOptions } from '../harness/measureOptions.ts';
 
 /** Each level beyond the original: target triangle fraction, tolerated error (relative to
  *  mesh size), and on-screen height in pixels under which it replaces the previous one. */
-const NIVEAUX = [
-  { part: 0.25, erreur: 0.02, pixels: 200 },
-  { part: 0.06, erreur: 0.08, pixels: 50 },
+const LEVELS = [
+  { part: 0.25, error: 0.02, pixels: 200 },
+  { part: 0.06, error: 0.08, pixels: 50 },
 ];
 const GAIN_MINIMUM = 0.75;
 
 /** Geometry simplified to `part` of its triangles, or `null` if the gain is too small. */
-function simplifier(geometrie: THREE.BufferGeometry, part: number, erreur: number) {
-  const positions = geometrie.attributes.position.array as Float32Array;
-  const indices = geometrie.index?.array;
+function simplifier(geometry: THREE.BufferGeometry, part: number, error: number) {
+  const positions = geometry.attributes.position.array as Float32Array;
+  const indices = geometry.index?.array;
   if (!indices) return null;
-  const cible = Math.max(3, Math.floor((indices.length * part) / 3) * 3);
+  const target = Math.max(3, Math.floor((indices.length * part) / 3) * 3);
   // meshoptimizer returns the index in the received type: a 16-bit mesh stays so at each level.
   const [nouveaux] = MeshoptSimplifier.simplify(
     indices as Uint32Array,
     positions,
     3,
-    cible,
-    erreur,
+    target,
+    error,
   );
   if (nouveaux.length > indices.length * GAIN_MINIMUM) return null;
   // Vertices stay those of the original, shared: only the index changes from one level to
   // the next. Bounds too: a subset of the same vertices fits in those the loader placed,
   // and Three does not have to recompute them on three million vertices per level.
   const g = new THREE.BufferGeometry();
-  for (const [nom, attribut] of Object.entries(geometrie.attributes)) g.setAttribute(nom, attribut);
+  for (const [nom, attribut] of Object.entries(geometry.attributes)) g.setAttribute(nom, attribut);
   g.setIndex(new THREE.BufferAttribute(nouveaux, 1));
-  g.boundingBox = geometrie.boundingBox?.clone() ?? null;
-  g.boundingSphere = geometrie.boundingSphere?.clone() ?? null;
+  g.boundingBox = geometry.boundingBox?.clone() ?? null;
+  g.boundingSphere = geometry.boundingSphere?.clone() ?? null;
   return g;
 }
 
 /** Levels of a geometry: the original, then each level simplified from the previous. */
-function construireNiveaux(geometrie: THREE.BufferGeometry) {
-  const niveaux = [geometrie];
-  for (const { part, erreur } of NIVEAUX) {
-    const g = simplifier(niveaux.at(-1) as THREE.BufferGeometry, part, erreur);
+function construireNiveaux(geometry: THREE.BufferGeometry) {
+  const levels = [geometry];
+  for (const { part, error } of LEVELS) {
+    const g = simplifier(levels.at(-1) as THREE.BufferGeometry, part, error);
     if (!g) break;
-    niveaux.push(g);
+    levels.push(g);
   }
-  return niveaux;
+  return levels;
 }
 
 /** Distance at which an object of radius `rayon` is `pixels` pixels high. */
-const distancePour = (rayon: number, pixels: number, hauteur: number, fov: number) =>
-  (rayon * hauteur) / (2 * pixels * Math.tan((fov * Math.PI) / 360));
+const distancePour = (rayon: number, pixels: number, height: number, fov: number) =>
+  (rayon * height) / (2 * pixels * Math.tan((fov * Math.PI) / 360));
 
 /**
- * Replaces each indexed mesh of `racine` with a `THREE.LOD` at its levels, same material,
+ * Replaces each indexed mesh of `root` with a `THREE.LOD` at its levels, same material,
  * same transform. Returns what the reading publishes: levels built and triangles per level.
  */
-export async function niveauxDeDetail(racine: THREE.Object3D, options: MeasureViewOptions) {
+export async function niveauxDeDetail(root: THREE.Object3D, options: MeasureViewOptions) {
   await MeshoptSimplifier.ready;
   const cache = new Map<THREE.BufferGeometry, THREE.BufferGeometry[]>();
-  const hauteur = options.height,
+  const height = options.height,
     fov = options.pose.fov;
-  const triangles = new Array(NIVEAUX.length + 1).fill(0);
-  let objets = 0,
+  const triangles = new Array(LEVELS.length + 1).fill(0);
+  let objects = 0,
     sansNiveau = 0;
   const maillages: THREE.Mesh[] = [];
-  racine.traverse((o) => {
+  root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh && mesh.geometry?.index) maillages.push(mesh);
   });
-  racine.updateMatrixWorld(true);
+  root.updateMatrixWorld(true);
   for (const mesh of maillages) {
     // A geometry shared by instances is simplified, and counted, only once.
-    let niveaux = cache.get(mesh.geometry);
-    if (!niveaux) {
-      niveaux = construireNiveaux(mesh.geometry);
-      cache.set(mesh.geometry, niveaux);
-      niveaux.forEach((g, i) => (triangles[i] += (g.index?.count ?? 0) / 3));
+    let levels = cache.get(mesh.geometry);
+    if (!levels) {
+      levels = construireNiveaux(mesh.geometry);
+      cache.set(mesh.geometry, levels);
+      levels.forEach((g, i) => (triangles[i] += (g.index?.count ?? 0) / 3));
     }
-    if (niveaux.length === 1) {
+    if (levels.length === 1) {
       sansNiveau++;
       continue;
     }
@@ -105,16 +105,16 @@ export async function niveauxDeDetail(racine: THREE.Object3D, options: MeasureVi
     lod.position.copy(mesh.position);
     lod.quaternion.copy(mesh.quaternion);
     lod.scale.copy(mesh.scale);
-    niveaux.forEach((g, i) => {
+    levels.forEach((g, i) => {
       const level = new THREE.Mesh(g, mesh.material);
       level.frustumCulled = mesh.frustumCulled;
-      lod.addLevel(level, i === 0 ? 0 : distancePour(rayon, NIVEAUX[i - 1].pixels, hauteur, fov));
+      lod.addLevel(level, i === 0 ? 0 : distancePour(rayon, LEVELS[i - 1].pixels, height, fov));
     });
     mesh.parent!.add(lod);
     mesh.parent!.remove(mesh);
-    objets++;
+    objects++;
   }
-  return { lodObjets: objets, lodSansNiveau: sansNiveau, lodTrianglesParNiveau: triangles };
+  return { lodObjets: objects, lodSansNiveau: sansNiveau, lodTrianglesParNiveau: triangles };
 }
 
 /** One view, one threshold (ignored: Three has no threshold), the capture. Same contract as `measureView`. */

@@ -34,19 +34,19 @@ const LARGEURS: [OptionalAttributeName, number, number][] = [
   ['COLOR_0', 3, 2],
 ];
 
-/** A page of `sommets` vertices, with or without its four optional attributes. */
-export function page(sommets: number, tousLesAttributs: boolean) {
+/** A page of `vertices` vertices, with or without its four optional attributes. */
+export function page(vertices: number, tousLesAttributs: boolean) {
   const attributes: PageAttributes = {
-    POSITION: { itemSize: 3, array: hostiles(sommets * 3, 2048) },
+    POSITION: { itemSize: 3, array: hostiles(vertices * 3, 2048) },
   };
   if (tousLesAttributs)
-    for (const [name, largeur, amplitude] of LARGEURS)
-      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur, amplitude) };
-  const indices = new Uint32Array(sommets * 3);
-  for (let i = 0; i < sommets; i++) {
+    for (const [name, width, amplitude] of LARGEURS)
+      attributes[name] = { itemSize: width, array: hostiles(vertices * width, amplitude) };
+  const indices = new Uint32Array(vertices * 3);
+  for (let i = 0; i < vertices; i++) {
     indices[i * 3] = i;
-    indices[i * 3 + 1] = (i + 1) % sommets;
-    indices[i * 3 + 2] = (i + 2) % sommets;
+    indices[i * 3 + 1] = (i + 1) % vertices;
+    indices[i * 3 + 2] = (i + 2) % vertices;
   }
   return encodeGeometryPage(indices, attributes, -6).data;
 }

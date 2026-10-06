@@ -6,7 +6,7 @@ import { passesGpu } from './seriesPasses.ts';
 import { passes } from '../summary/summaryPasses.ts';
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 
-const releve = (
+const reading = (
   frame: number,
   list: [string, number | null][],
   truncated = false,
@@ -19,19 +19,19 @@ const releve = (
 
 test('each pass has its distribution, each block its own, on metrics where everything is measured', () => {
   const resume = passesGpu([
-    releve(12, [
+    reading(12, [
       ['Trillion3D DAG selection', 0.25],
       ['Trillion3D visibility primary', 1],
       ['Trillion3D material surfaces v1', 2],
       ['Trillion3D deferred lighting', 6],
     ]),
-    releve(24, [
+    reading(24, [
       ['Trillion3D DAG selection', 0.75],
       ['Trillion3D visibility primary', 1.5],
       ['Trillion3D material surfaces v1', 2.5],
       ['Trillion3D deferred lighting', 7],
     ]),
-    releve(36, [
+    reading(36, [
       ['Trillion3D DAG selection', null],
       ['Trillion3D visibility primary', 2],
       ['Trillion3D material surfaces v1', 3],
@@ -58,8 +58,8 @@ test('each pass has its distribution, each block its own, on metrics where every
 
 test('a truncated metric is ignored completely, and without any metric summary is null', () => {
   const resume = passesGpu([
-    releve(12, [['Trillion3D visibility primary', 1]], true),
-    releve(24, [['Trillion3D visibility primary', 3.0]]),
+    reading(12, [['Trillion3D visibility primary', 1]], true),
+    reading(24, [['Trillion3D visibility primary', 3.0]]),
   ]);
   if (!resume) throw new Error('expected a summary');
   assert.equal(resume.releves, 2);
@@ -71,7 +71,7 @@ test('a truncated metric is ignored completely, and without any metric summary i
 test('readable summary names blocks in p50/p95 milliseconds and "unmeasured" without inventing', () => {
   const lignes = passes(
     passesGpu([
-      releve(12, [
+      reading(12, [
         ['Trillion3D visibility primary', 1.234],
         ['Trillion3D material surfaces v1', null],
       ]),

@@ -37,7 +37,7 @@ const PARENTS: (Pose | null)[] = [
     [0, 1, 1],
   ],
 ];
-const cameraFixe: CameraSpec = {
+const fixedCamera: CameraSpec = {
   fov: 60,
   aspect: 16 / 9,
   near: 0.1,
@@ -45,7 +45,7 @@ const cameraFixe: CameraSpec = {
   zoom: 1,
   webgpu: false,
 };
-const origine: Pose = [
+const origin: Pose = [
   [0, 0, 0],
   [0, 0, 0, 1],
   [1, 1, 1],
@@ -60,37 +60,29 @@ export function visees(): HierarchyOp[] {
   const ops: HierarchyOp[] = [];
   let id = 0;
   for (const parent of PARENTS) {
-    const racine = parent ? id++ : -1;
-    if (parent) ops.push(['ajoute', racine, -1, parent[0], parent[1], parent[2], null]);
+    const root = parent ? id++ : -1;
+    if (parent) ops.push(['add', root, -1, parent[0], parent[1], parent[2], null]);
     const camera = id++,
-      objet = id++;
+      object = id++;
     ops.push([
-      'ajoute',
+      'add',
       camera,
-      racine,
+      root,
       [dans(10), dans(10), dans(10)],
-      origine[1],
-      origine[2],
-      cameraFixe,
+      origin[1],
+      origin[2],
+      fixedCamera,
     ]);
+    ops.push(['add', object, root, [dans(10), dans(10), dans(10)], origin[1], origin[2], null]);
+    const onEye = id++;
     ops.push([
-      'ajoute',
-      objet,
-      racine,
-      [dans(10), dans(10), dans(10)],
-      origine[1],
-      origine[2],
-      null,
-    ]);
-    const surOeil = id++;
-    ops.push([
-      'ajoute',
-      surOeil,
-      racine,
-      origine[0],
-      origine[1],
-      origine[2],
-      { ...cameraFixe, webgpu: true },
+      'add',
+      onEye,
+      root,
+      origin[0],
+      origin[1],
+      origin[2],
+      { ...fixedCamera, webgpu: true },
     ]);
     const pointParent: Vec3 = parent ? parent[0] : [0, 0, 0];
     const cibles: Vec3[] = [
@@ -100,22 +92,22 @@ export function visees(): HierarchyOp[] {
       [NaN, 0, 0],
       [Infinity, 0, 0],
     ];
-    for (const cible of cibles)
+    for (const target of cibles)
       for (const top of HAUTS)
-        for (const vise of [camera, objet, surOeil]) {
+        for (const vise of [camera, object, onEye]) {
           ops.push(
-            ['vise', vise, cible, top],
-            ['maj', parent ? racine : vise, false],
+            ['vise', vise, target, top],
+            ['maj', parent ? root : vise, false],
             ['lis', vise],
           );
-          if (vise !== objet) ops.push(['image', vise, vise === surOeil]);
+          if (vise !== object) ops.push(['image', vise, vise === onEye]);
         }
   }
   // Up collinear with the aim: above the origin with up `y`, in front of it with `±z`.
   const dessus = id,
     devant = id + 1;
-  ops.push(['ajoute', dessus, -1, [0, 10, 0], origine[1], origine[2], cameraFixe]);
-  ops.push(['ajoute', devant, -1, [0, 0, 10], origine[1], origine[2], cameraFixe]);
+  ops.push(['add', dessus, -1, [0, 10, 0], origin[1], origin[2], fixedCamera]);
+  ops.push(['add', devant, -1, [0, 0, 10], origin[1], origin[2], fixedCamera]);
   const suites: [number, Vec3][] = [
     [dessus, [0, 1, 0]],
     [dessus, [0, -1, 0]],
@@ -139,7 +131,7 @@ export function visees(): HierarchyOp[] {
  */
 export function objectifs(): HierarchyOp[] {
   const ops: HierarchyOp[] = [
-    ['ajoute', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927] as Quat, [1, 1, 1], cameraFixe],
+    ['add', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927] as Quat, [1, 1, 1], fixedCamera],
   ];
   const image = (spec: CameraSpec) =>
     ops.push(['objectif', 0, spec], ['image', 0, false], ['image', 0, true]);

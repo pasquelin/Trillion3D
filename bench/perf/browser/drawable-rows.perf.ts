@@ -88,7 +88,7 @@ const mount = (fabriqueCommit: RowCommitFactory) => {
   return { rows, pages, sync };
 };
 
-const etatComplet = (rows: ReturnType<typeof createWebgpuRowState>) => ({
+const fullState = (rows: ReturnType<typeof createWebgpuRowState>) => ({
   // `mount` always binds the table before a pass runs; this reads it back once done.
   table: new Uint32Array((rows.pageTableInts ?? new Uint32Array(0)).buffer.slice(0)),
   rowPageIndex: rows.rowPageIndex.slice(),
@@ -116,7 +116,7 @@ const passe =
       rows.rowsEpoch = -1;
       sync.syncRows();
     }
-    return etatComplet(rows);
+    return fullState(rows);
   };
 
 const cas = [
@@ -135,7 +135,7 @@ const resLignes = await measure({
 
 // The rank of a page, asked for every cluster of a frame's CPU cut.
 const pagesF5 = catalogue();
-const etatF5 = createWebgpuRowState(pagesF5, SLOTS);
+const stateF5 = createWebgpuRowState(pagesF5, SLOTS);
 const referenceF5 = referenceRowState(pagesF5, SLOTS);
 const etrangeres = catalogue()
   .slice(0, 2000)
@@ -163,7 +163,7 @@ const resRangs = await measure({
     { name: 'foreign page at a usurped rank', input: [etrangeres[0]], size: 1 },
     { name: 'no requests', input: [], size: 0 },
   ],
-  calculation: rangs(etatF5),
+  calculation: rangs(stateF5),
   expected: rangs(referenceF5),
   options: { tours: 60, budgetMs: 1500 },
 });

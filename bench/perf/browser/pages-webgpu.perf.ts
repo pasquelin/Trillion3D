@@ -70,8 +70,8 @@ const imageDeSens = (sens: (rec: Cluster) => boolean, pose: boolean) => (recs: C
 const view = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 const courante = createEngineCamera();
 let gardeeReference: EngineCamera | undefined = undefined,
-  gardeeOptimisee: EngineCamera | undefined = undefined;
-const parcoursDeVue = (garder: (camera: G.Camera) => boolean) => (images: number) => {
+  keptOptimised: EngineCamera | undefined = undefined;
+const viewWalk = (garder: (camera: G.Camera) => boolean) => (images: number) => {
   const verdicts = new Uint8Array(images),
     elements = new Float64Array(16);
   for (let image = 0; image < images; image++) {
@@ -83,17 +83,17 @@ const parcoursDeVue = (garder: (camera: G.Camera) => boolean) => (images: number
   return { verdicts, elements };
 };
 
-const referenceVue = parcoursDeVue((camera) => {
+const referenceView = viewWalk((camera) => {
   const lue = readCameraWorld(courante, camera);
   const verdict = sameHizView(gardeeReference, lue);
   gardeeReference = holdCameraWorld(createEngineCamera(), lue);
   return verdict;
 });
 
-const optimiseeVue = parcoursDeVue((camera) => {
+const optimisedView = viewWalk((camera) => {
   const lue = readCameraWorld(courante, camera);
-  const verdict = sameHizView(gardeeOptimisee, lue);
-  gardeeOptimisee = holdCameraWorld(gardeeOptimisee ?? createEngineCamera(), lue);
+  const verdict = sameHizView(keptOptimised, lue);
+  keptOptimised = holdCameraWorld(keptOptimised ?? createEngineCamera(), lue);
   return verdict;
 });
 
@@ -117,8 +117,8 @@ const resSameView = await measure({
     { name: '400 frames', input: 400, size: 400 },
     { name: 'one frame', input: 1, size: 1 },
   ],
-  calculation: optimiseeVue,
-  expected: referenceVue,
+  calculation: optimisedView,
+  expected: referenceView,
   options: { tours: 60, budgetMs: 1500 },
 });
 

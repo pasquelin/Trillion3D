@@ -28,10 +28,10 @@ function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: numbe
   camera.updateProjectionMatrix();
 }
 
-/** Triangles of indexed geometries under `racine`, each geometry counted once. */
-function trianglesUniques(racine: THREE.Object3D) {
+/** Triangles of indexed geometries under `root`, each geometry counted once. */
+function trianglesUniques(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>();
-  racine.traverse((o) => {
+  root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh && mesh.geometry?.index) geometries.add(mesh.geometry);
   });
@@ -42,14 +42,14 @@ function trianglesUniques(racine: THREE.Object3D) {
 
 /**
  * One view, one threshold (ignored: Three has no threshold), the capture. Same contract as `measureView`.
- * `preparer(racine, options)` retouches the loaded graph before shadows and compilation — that
+ * `preparer(root, options)` retouches the loaded graph before shadows and compilation — that
  * is where the level-of-detail witness replaces its meshes — and returns extra metrics to
  * publish; without it, the scene stays as Three read it.
  */
 export async function mesurerThree(
   options: MeasureViewOptions,
   preparer?: (
-    racine: THREE.Object3D,
+    root: THREE.Object3D,
     options: MeasureViewOptions,
   ) => Promise<Record<string, unknown>>,
 ): Promise<MeasureViewResult> {
@@ -94,9 +94,9 @@ export async function mesurerThree(
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const lampes = new Map<string, THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight>();
   for (const light of options.lights ?? []) {
-    const objets = lampe(light, box, shadows);
-    lampes.set(light.id, objets[0]);
-    scene.add(...objets);
+    const objects = lampe(light, box, shadows);
+    lampes.set(light.id, objects[0]);
+    scene.add(...objects);
   }
   const camera = new THREE.PerspectiveCamera();
   const poser = (pose: CameraPose) => placer(camera, pose, options.width / options.height);
@@ -146,7 +146,7 @@ export async function mesurerThree(
     drawnTriangles: info.render.triangles,
     selectedTriangles: null,
     uncoveredTriangles: null,
-    geometryAllocationBytes: memoire.geometrie,
+    geometryAllocationBytes: memoire.geometry,
     textureResidentBytes: memoire.textures,
     texturePoolBytes: null,
     geometries: memoire.geometries,

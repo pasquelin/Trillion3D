@@ -44,7 +44,7 @@ const decompose =
     return output;
   };
 
-const mesureSplit = await measure({
+const measureSplit = await measure({
   name: 'split-double decomposition',
   fichier: 'packages/sdk-browser/src/gpu/partition/contract.ts',
   cas: [
@@ -60,7 +60,7 @@ const mesureSplit = await measure({
   options: { tours: 100 },
 });
 
-const image = (niveaux: number): PartitionFrame => ({
+const image = (levels: number): PartitionFrame => ({
   view: matrice(),
   viewProj: matrice(),
   anchor: [double(), double(), double()],
@@ -68,7 +68,7 @@ const image = (niveaux: number): PartitionFrame => ({
   rows: 20000,
   width: 800,
   height: 600,
-  levels: Array.from({ length: niveaux }, (_, i) => ({
+  levels: Array.from({ length: levels }, (_, i) => ({
     offset: i * 1024,
     width: Math.max(1, Math.floor(alea() * 1024)),
   })),
@@ -81,7 +81,7 @@ const image = (niveaux: number): PartitionFrame => ({
 const words = new Uint32Array(UNIFORM_U32),
   floats = new Float32Array(words.buffer);
 
-const mesureUniforme = await measure({
+const measureUniform = await measure({
   name: 'partition uniform',
   fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
   cas: [
@@ -98,6 +98,6 @@ const mesureUniforme = await measure({
 
 rapport(
   'partition-uniforme',
-  [mesureSplit, mesureUniforme],
+  [measureSplit, measureUniform],
   'the partition uniform and the doubles yield the same bits',
 );

@@ -1,5 +1,5 @@
 import { importTextureIndices } from '../../../host/surfaceImport.ts';
-import { compteMateriauxEtTangentes } from '../io/catalogue.ts';
+import { materialsAndTangentsCount } from '../io/catalogue.ts';
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts';
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
@@ -92,7 +92,7 @@ export async function prepareWebgpuTextures(
   const { vis, diag, run } = rt,
     { allPages, blendCopies } = rt.setup,
     { geometryBlocks } = vis;
-  const compte = compteMateriauxEtTangentes(allPages, geometryBlocks);
+  const compte = materialsAndTangentsCount(allPages, geometryBlocks);
   diag.engineDiagnostic('material-textures', 'Textures needed for the render', {
     colorTextures: maps.length,
     dataTextures: dataMaps.length,

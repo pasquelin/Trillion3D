@@ -13,7 +13,7 @@ interface Charge {
 }
 
 // Output belongs to the test case: the timer only measures engine calls.
-const paires = (list: Charge[]) => ({ list, output: new Float64Array(list.length) });
+const pairs = (list: Charge[]) => ({ list, output: new Float64Array(list.length) });
 const lot =
   (calcule: (ceiling: number, load: number) => number) =>
   ({ list, output }: { list: Charge[]; output: Float64Array }) => {
@@ -21,13 +21,13 @@ const lot =
     return output;
   };
 
-const mesureLot = await measure({
+const measureBatch = await measure({
   name: 'bounce batch',
   fichier: 'packages/sdk-core/src/bounce/budget.ts',
   cas: [
     {
       name: '10 000 pairs',
-      input: paires(
+      input: pairs(
         Array.from({ length: 10000 }, () => ({
           ceiling: 100 + Math.floor(alea() * 1000),
           load: alea(),
@@ -37,7 +37,7 @@ const mesureLot = await measure({
     },
     {
       name: 'extremes',
-      input: paires([
+      input: pairs([
         { ceiling: 0, load: 0 },
         { ceiling: -1, load: -1 },
         { ceiling: NaN, load: 0 },
@@ -54,10 +54,10 @@ const mesureLot = await measure({
 // Samples arrive once every three or twelve frames, sometimes not at all, sometimes bad: the
 // sequence mixes durations, nulls, zeroes and non-finites, and the oracle replays the closed
 // loop sample by sample. Three output arrays, one per published field.
-const SANS_RELEVE: (number | null)[] = [null, 0, -1, NaN, Infinity];
+const WITHOUT_READING: (number | null)[] = [null, 0, -1, NaN, Infinity];
 const observations = (count: number) => ({
   list: Array.from({ length: count }, () =>
-    alea() < 0.3 ? SANS_RELEVE[Math.floor(alea() * SANS_RELEVE.length)] : 1 + alea() * 4,
+    alea() < 0.3 ? WITHOUT_READING[Math.floor(alea() * WITHOUT_READING.length)] : 1 + alea() * 4,
   ),
   loads: new Float64Array(count),
   lasts: new Float64Array(count),
@@ -86,7 +86,7 @@ const suit = (observe: (budgetMs: number) => BudgetLike) => (input: Observations
   return [input.loads, input.lasts, input.samples];
 };
 
-const mesureBudget = await measure({
+const measureBudget = await measure({
   name: 'budget control loop',
   fichier: 'packages/sdk-core/src/bounce/budget.ts',
   cas: [
@@ -100,6 +100,6 @@ const mesureBudget = await measure({
 
 rapport(
   'rebond-sondes',
-  [mesureLot, mesureBudget],
+  [measureBatch, measureBudget],
   'the bounce batch and budget return the same values',
 );

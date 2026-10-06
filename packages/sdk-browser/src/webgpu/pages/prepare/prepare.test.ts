@@ -1,5 +1,5 @@
 // Lot F, F18: three calculations of a WebGPU engine prepare. `indexSourceBytes` and
-// `compteMateriauxEtTangentes` (../io/catalogue.ts) replace a `flatMap` of a pair per page and
+// `materialsAndTangentsCount` (../io/catalogue.ts) replace a `flatMap` of a pair per page and
 // a `map`/two table copies with one walk each; their oracles are the implementations from before
 // lot F. `prepareCones` no longer computes a cone: it posts the one the compiler cooked (#272).
 import test from 'node:test';
@@ -8,7 +8,7 @@ import * as G from '../../../host/graph/graph.fixture.ts';
 import { OPEN_CONE, type NormalCone } from '../../../page/cone/cone.ts';
 import { surfaceOf } from '../../../page/surface.ts';
 import { prepareCones } from './cones.ts';
-import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
+import { indexSourceBytes, materialsAndTangentsCount } from '../io/catalogue.ts';
 import {
   referenceIndexSourceBytes,
   referenceMaterialsAndTangentsCount,
@@ -67,7 +67,7 @@ test('indexSourceBytes on an empty catalogue yields an empty table', () => {
   assert.deepEqual(indexSourceBytes([]), referenceIndexSourceBytes([]));
 });
 
-test('compteMateriauxEtTangentes counts distinct materials and geometries with/without tangents', () => {
+test('materialsAndTangentsCount counts distinct materials and geometries with/without tangents', () => {
   const materialA = G.basicSurface(),
     materialB = G.basicSurface();
   const pages = [
@@ -81,14 +81,14 @@ test('compteMateriauxEtTangentes counts distinct materials and geometries with/w
     ['g2', { hasTangent: true }],
   ]);
   assert.deepEqual(
-    compteMateriauxEtTangentes(pages, geometryBlocks),
+    materialsAndTangentsCount(pages, geometryBlocks),
     referenceMaterialsAndTangentsCount(pages, geometryBlocks),
   );
 });
 
-test('compteMateriauxEtTangentes on an empty catalogue and geometry table yields zeros', () => {
+test('materialsAndTangentsCount on an empty catalogue and geometry table yields zeros', () => {
   assert.deepEqual(
-    compteMateriauxEtTangentes([], new Map()),
+    materialsAndTangentsCount([], new Map()),
     referenceMaterialsAndTangentsCount([], new Map()),
   );
 });

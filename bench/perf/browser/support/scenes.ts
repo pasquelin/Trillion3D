@@ -137,7 +137,7 @@ export function coupe({
 }
 
 /** Boxes only, what Hi-Z projects and sorts; `degenerees` adds the empty, inverted and infinite. */
-export function boites({
+export function boxes({
   count = 20000,
   seed = 11,
   degenerees = true,
@@ -188,9 +188,9 @@ export function rectangles({
   for (let i = 0; i < count; i++) {
     const x0 = Math.floor((alea() - 0.2) * width),
       y0 = Math.floor((alea() - 0.2) * height);
-    const largeur = Math.floor(alea() ** 4 * width * 2),
-      hauteur = Math.floor(alea() ** 4 * height * 2);
-    list.push([x0, y0, x0 + largeur, y0 + hauteur, i % 173 === 0]);
+    const rectWidth = Math.floor(alea() ** 4 * width * 2),
+      rectHeight = Math.floor(alea() ** 4 * height * 2);
+    list.push([x0, y0, x0 + rectWidth, y0 + rectHeight, i % 173 === 0]);
   }
   list.push([0, 0, width - 1, height - 1, false], [5, 5, 4, 4, false], [0, 0, 0, 0, false]);
   list.push([-1000, -1000, -999, -999, false], [0, 0, 1 << 20, 1 << 20, false]);

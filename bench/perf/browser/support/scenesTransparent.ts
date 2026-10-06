@@ -32,7 +32,7 @@ const PLACEMENTS = 12,
   PAGINES = PROTOTYPES * PLACEMENTS;
 export const ITEMS = PAGINES + ISOLES;
 /** What a paged primitive holds in the catalogue, and the vertices of a cluster. */
-const GRAPPES = 8,
+const CLUSTERS = 8,
   MOTS = 48;
 
 const alea = xorshiftRandom(31);
@@ -79,7 +79,7 @@ function batisItems(side: THREE.Side): BenchItem[] {
       count: paged ? 0 : 900,
       paged,
       pagedIndex: paged ? i : undefined,
-      tableBase: paged ? i * GRAPPES : 0,
+      tableBase: paged ? i * CLUSTERS : 0,
     });
   }
   return items;
@@ -106,11 +106,11 @@ function plansDe(x: number): Float64Array {
 /** A frame: the eye, its planes, and the cut compaction would have written for each item. */
 function imageA(x: number) {
   const counts = new Uint32Array(PAGINES),
-    instances = new Uint32Array(PAGINES * GRAPPES);
+    instances = new Uint32Array(PAGINES * CLUSTERS);
   for (let p = 0; p < counts.length; p++) {
-    const tenues = 1 + Math.floor(alea() * GRAPPES);
+    const tenues = 1 + Math.floor(alea() * CLUSTERS);
     counts[p] = tenues;
-    for (let j = 0; j < tenues; j++) instances[p * GRAPPES + j] = p * GRAPPES + j;
+    for (let j = 0; j < tenues; j++) instances[p * CLUSTERS + j] = p * CLUSTERS + j;
   }
   return { eye: [x, 8, 0], planes: plansDe(x), counts, instances };
 }
@@ -129,7 +129,7 @@ export const regimes: [string, Frame[]][] = [
 ];
 
 /** The span of each cluster in the page cache: the same table on both sides. */
-export const spans = new Uint32Array(PAGINES * GRAPPES * 2);
+export const spans = new Uint32Array(PAGINES * CLUSTERS * 2);
 for (let e = 0; e < spans.length / 2; e++) {
   spans[e * 2] = e * MOTS;
   spans[e * 2 + 1] = MOTS;
@@ -143,10 +143,10 @@ export function benchSide(side: THREE.Side) {
   blendState.blendGpu.push(...(batisItems(side) as unknown as BlendGpuItem[]));
   blendState.table = {
     maxVertexWords: MOTS,
-    capacity: PAGINES * GRAPPES,
-    length: PAGINES * GRAPPES,
+    capacity: PAGINES * CLUSTERS,
+    length: PAGINES * CLUSTERS,
     itemRanges: Uint32Array.from({ length: PAGINES * 2 }, (_, k) =>
-      k % 2 ? GRAPPES : (k >> 1) * GRAPPES,
+      k % 2 ? CLUSTERS : (k >> 1) * CLUSTERS,
     ),
   } as BlendState['table'];
   buildBlendStatics(blendState);
@@ -165,7 +165,7 @@ export function benchSide(side: THREE.Side) {
     },
     args: new Uint32Array(ITEMS * 4),
     // A double-sided item spreads its instances twice: one per plan entry.
-    output: new Uint32Array((PAGINES * GRAPPES + ISOLES) * 3 * 2),
+    output: new Uint32Array((PAGINES * CLUSTERS + ISOLES) * 3 * 2),
   };
 }
 export type BenchSide = ReturnType<typeof benchSide>;

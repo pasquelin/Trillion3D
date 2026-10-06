@@ -41,7 +41,7 @@ function passeReference({ urls, vises }: { urls: string[]; vises: number[] }) {
   return queue.map((job) => job.url);
 }
 
-function passeOptimisee({ urls, vises }: { urls: string[]; vises: number[] }) {
+function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
   const queue = file({ urls });
   const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean);
   for (const job of cibles) job.state = 'dropped';
@@ -66,7 +66,7 @@ const resG5 = await measure({
     { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
     { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },
   ],
-  calculation: passeOptimisee,
+  calculation: optimisedPass,
   expected: passeReference,
   options: { tours: 40, budgetMs: 1500 },
 });

@@ -3,7 +3,7 @@
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { xorshiftRandom } from '../../../core/index.ts';
-import { materiau, porte } from './scenesCut.ts';
+import { material, porte } from './scenesCut.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts';
 
@@ -95,12 +95,12 @@ export function manifesteEtScene({
   for (let p = 0; p < primitives; p++) {
     const pagesPrimitive: LoadedPage[] = [];
     const morceaux: Uint32Array[] = [];
-    let sommet = 0;
+    let vertex = 0;
     for (let k = 0; k < pages; k++) {
       const url = `page/${p}/${k}`;
       const page = pageDe(alea, idPage++, url, triangles, 'exact', k * triangles * 3);
       const bloc = new Uint32Array(triangles * 3);
-      for (let i = 0; i < bloc.length; i++) bloc[i] = sommet++;
+      for (let i = 0; i < bloc.length; i++) bloc[i] = vertex++;
       indices.set(url, bloc);
       morceaux.push(bloc);
       pagesPrimitive.push(page);
@@ -120,8 +120,8 @@ export function manifesteEtScene({
     }
     const geometry = new G.Geometry();
     geometry.setIndex(new G.BufferAttribute(sourceIndex, 1));
-    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(sommet * 3), 3));
-    const mesh = G.mesh(geometry, materiau(p));
+    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(vertex * 3), 3));
+    const mesh = G.mesh(geometry, material(p));
     mesh.position.set(p % 10, Math.floor(p / 10), 0);
     source.add(mesh);
     associations.set(mesh, { meshes: p, primitives: 0 });
@@ -132,8 +132,8 @@ export function manifesteEtScene({
       pages: pagesPrimitive,
     };
     if (p % 5 === 0) {
-      const noeud = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length];
-      primitive.culling = { stride: 15, count: 1, nodes: noeud };
+      const node = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length];
+      primitive.culling = { stride: 15, count: 1, nodes: node };
     }
     list.push(primitive);
   }
@@ -160,13 +160,13 @@ const DUMMY_BOUNDS: number[] = [0, 0, 0];
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
 export function catalogueDePages({
   pages = 20000,
-  materiaux = 60,
+  materials = 60,
   seed = 5309,
-}: { pages?: number; materiaux?: number; seed?: number } = {}): PageRec[] {
+}: { pages?: number; materials?: number; seed?: number } = {}): PageRec[] {
   const alea = xorshiftRandom(seed);
   const list: PageRec[] = [];
   const attributs: { position: G.BufferAttribute }[] = [];
-  for (let i = 0; i < materiaux; i++) {
+  for (let i = 0; i < materials; i++) {
     const positions = new Float32Array(3 * 3 * 64);
     for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2;
     attributs.push({ position: new G.BufferAttribute(positions, 3) });
@@ -179,8 +179,8 @@ export function catalogueDePages({
       url: `p/${i % (pages - 7)}`,
       clusterId: `p/${i % (pages - 7)}`,
       array,
-      attributes: attributs[i % materiaux],
-      ...porte(materiau(i % materiaux)),
+      attributes: attributs[i % materials],
+      ...porte(material(i % materials)),
       triangles: 1,
       indexBytes: 0,
       min: DUMMY_BOUNDS,

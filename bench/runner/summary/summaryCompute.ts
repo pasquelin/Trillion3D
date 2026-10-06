@@ -9,11 +9,11 @@ export type MathOperation = MathBatch['operations'][string];
 const ns = (value: number | null | undefined) => (value == null ? 'unmeasured' : value.toFixed(1));
 
 /** WebAssembly module state of a side, with the cause when it is not playable. */
-function module(releve: MathBatch) {
-  if (!releve.wasmAvailable) return releve.unavailableReason ?? 'unavailable';
+function module(reading: MathBatch) {
+  if (!reading.wasmAvailable) return reading.unavailableReason ?? 'unavailable';
   return (
-    `loaded${releve.wasmSimd ? ', simd128' : ''}` +
-    (releve.clockCoarse ? ', coarse clock, pooled timing' : '')
+    `loaded${reading.wasmSimd ? ', simd128' : ''}` +
+    (reading.clockCoarse ? ', coarse clock, pooled timing' : '')
   );
 }
 
@@ -30,14 +30,14 @@ export function cheminsCalcul(report: Report) {
   ];
   for (const series of report.series)
     for (const [side, resultat] of Object.entries(series.sides)) {
-      const releve = resultat.mathBatch;
+      const reading = resultat.mathBatch;
       const tete = `| ${series.view} | ${series.pixelError} | ${side} `;
-      if (!releve) {
+      if (!reading) {
         lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);
         continue;
       }
-      const state = `| ${releve.mode} | ${module(releve)} `;
-      const operations = Object.entries(releve.operations ?? {});
+      const state = `| ${reading.mode} | ${module(reading)} `;
+      const operations = Object.entries(reading.operations ?? {});
       if (!operations.length) {
         lines.push(`${tete}${state}| no batch run | — | — | — | — | — |`);
         continue;

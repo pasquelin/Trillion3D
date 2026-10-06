@@ -32,27 +32,11 @@ const resPlanes = await measure({
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: single('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calculation: parElement((c: (typeof casPlans)[number]) =>
-    frustumExcludesBox(
-      c.planes,
-      c.boite[0],
-      c.boite[1],
-      c.boite[2],
-      c.boite[3],
-      c.boite[4],
-      c.boite[5],
-    ),
+    frustumExcludesBox(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),
   ),
   expected: (list) =>
     list.map((c) =>
-      referenceOutsidePlanes(
-        c.planes,
-        c.boite[0],
-        c.boite[1],
-        c.boite[2],
-        c.boite[3],
-        c.boite[4],
-        c.boite[5],
-      ),
+      referenceOutsidePlanes(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),
     ),
   options,
 });

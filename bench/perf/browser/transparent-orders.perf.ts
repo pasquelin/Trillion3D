@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measure, stress, rapport } from '../../core/index.ts';
 import { FACES, glisse, ITEMS, regimes, type Frame } from './support/scenesTransparent.ts';
-import { appelsDe, sceneDe } from './support/transparentRounds.ts';
+import { callsOf, sceneDe } from './support/transparentRounds.ts';
 
 const scenes = FACES.map(([name, side]) => sceneDe(name, side));
 
@@ -18,8 +18,8 @@ for (const scene of scenes) {
         name: `orders and arguments — ${scene.name}, ${regime}`,
         fichier: 'packages/sdk-browser/src/webgpu/blend/draw.ts',
         cas: casDe(images),
-        calculation: scene.tourApres,
-        expected: scene.tourAvant,
+        calculation: scene.passAfter,
+        expected: scene.passBefore,
         options: { tours: 20, budgetMs: 1500 },
       }),
     );
@@ -28,8 +28,8 @@ for (const scene of scenes) {
         name: `CPU fallback — ${scene.name}, ${regime}`,
         fichier: 'packages/sdk-browser/src/webgpu/blend/expandCpu.ts',
         cas: casDe(images),
-        calculation: scene.tourApresSeq,
-        expected: scene.tourAvantSeq,
+        calculation: scene.passAfterSeq,
+        expected: scene.passBeforeSeq,
         options: { tours: 20, budgetMs: 1500 },
       }),
     );
@@ -37,15 +37,15 @@ for (const scene of scenes) {
 }
 
 test('GEO-2: draw calls, single-sided and double-sided', () => {
-  const comptes = scenes.map(appelsDe);
-  console.table(comptes);
-  for (const { name, before, after } of comptes)
+  const counts = scenes.map(callsOf);
+  console.table(counts);
+  for (const { name, before, after } of counts)
     assert.ok(after < before / 100, `${name}: a few orders`);
 });
 
 await stress({
   name: 'blend draw extremes',
-  calculation: (imgs) => scenes[0].tourApres(imgs),
+  calculation: (imgs) => scenes[0].passAfter(imgs),
   extremes: [{ name: 'standard slide', input: glisse.slice(0, 1) }],
 });
 

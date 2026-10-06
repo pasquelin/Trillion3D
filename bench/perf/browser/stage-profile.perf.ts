@@ -34,7 +34,7 @@ const depose =
     return total;
   };
 
-const mesureCpu = await measure({
+const measureCpu = await measure({
   name: 'CPU bounds per stage',
   fichier: 'packages/sdk-browser/src/stage/cpuSteps.ts',
   cas: [
@@ -64,7 +64,7 @@ const ETIQUETTES = [
   'Trillion3D HDR composition + present',
   'Trillion3D unknown pass',
 ];
-const releve = (passes: number): GpuPassTimings => ({
+const reading = (passes: number): GpuPassTimings => ({
   frame: 0,
   totalMs: null,
   truncated: false,
@@ -79,26 +79,26 @@ const releve = (passes: number): GpuPassTimings => ({
   }),
 });
 const releves = (n: number, passes: number): GpuPassTimings[] =>
-  Array.from({ length: n }, () => releve(passes));
+  Array.from({ length: n }, () => reading(passes));
 
-const echantillonTronque: (GpuPassTimings | null)[] = [
+const truncatedSample: (GpuPassTimings | null)[] = [
   { frame: 0, totalMs: null, truncated: true, passes: [] },
 ];
 const sansEchantillon: (GpuPassTimings | null)[] = [null];
 
-const mesureGpu = await measure({
+const measureGpu = await measure({
   name: 'GPU passes per stage',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [
     { name: '200 samples of 22 passes', input: releves(200, 22), size: 200 * 22 },
-    { name: 'truncated sample', input: echantillonTronque, size: 1 },
+    { name: 'truncated sample', input: truncatedSample, size: 1 },
     { name: 'no sample', input: sansEchantillon, size: 1 },
   ],
   calculation: depose(addGpuPasses),
   expected: depose(referenceGpuStages),
 });
 
-const mesureEclairage = await measure({
+const measureLighting = await measure({
   name: 'direct-lighting durations',
   fichier: 'packages/sdk-browser/src/stage/mapping.ts',
   cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
@@ -127,6 +127,6 @@ await stress({
 
 rapport(
   'profil-etapes',
-  [mesureCpu, mesureGpu, mesureEclairage],
+  [measureCpu, measureGpu, measureLighting],
   'the per-stage profile deposits the same durations as its reference',
 );

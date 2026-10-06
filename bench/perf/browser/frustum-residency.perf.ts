@@ -9,7 +9,7 @@ import { createAutonomousResidency } from '../../../packages/sdk-browser/src/bac
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts';
 import { measure, rapport, stress } from '../../core/index.ts';
-import { boites, camera, type SceneBox } from './support/scenes.ts';
+import { boxes, camera, type SceneBox } from './support/scenes.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
@@ -21,7 +21,7 @@ const clip = new THREE.Matrix4().multiplyMatrices(
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 
-const boxes = (list: SceneBox[]) => {
+const flatBoxes = (list: SceneBox[]) => {
   const plat = new Float64Array(list.length * 6);
   for (let i = 0; i < list.length; i++) {
     plat.set(list[i].min, i * 6);
@@ -29,8 +29,8 @@ const boxes = (list: SceneBox[]) => {
   }
   return plat;
 };
-const grande = boxes(boites({ count: 20000 })),
-  vide = new Float64Array(0);
+const grande = flatBoxes(boxes({ count: 20000 })),
+  empty = new Float64Array(0);
 
 const clipper = (plat: Float64Array) => {
   const verdicts = new Uint8Array(plat.length / 6);
@@ -55,7 +55,7 @@ const clipResult = await measure({
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
-    { name: 'no boxes', input: vide, size: 0 },
+    { name: 'no boxes', input: empty, size: 0 },
   ],
   calculation: clipper,
   motif: 'time only — correctness in bench/witnesses/three/parity/core/math/frustum/box.test.ts',
@@ -63,23 +63,23 @@ const clipResult = await measure({
 });
 
 // ── Residency measurement ────────────────────────────────────────────
-const pageDeHote = (
+const hostPage = (
   url: string,
   streamUrl: string | undefined,
   array: Uint32Array | undefined,
 ): PageRec => pageRecFixture({ url, streamUrl, array });
 
-function hote(count: number) {
+function host(count: number) {
   const pages: PageRec[] = [];
   for (let i = 0; i < count; i++)
     pages.push(
-      pageDeHote(
+      hostPage(
         `page-${i % Math.max(1, Math.floor(count * 0.6))}.bin`,
         i % 5 ? undefined : `bundle-${i % 400}.bin`,
         i % 3 ? undefined : new Uint32Array(3),
       ),
     );
-  const obtenu = createAutonomousResidency({
+  const obtained = createAutonomousResidency({
     bootstrapUrls: new Set(pages.slice(0, Math.min(200, count)).map((r) => r.url)),
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
     views: [
@@ -102,22 +102,22 @@ function hote(count: number) {
       modifiedPages: new Set(),
     }),
   });
-  return { pages, obtenu, vers: [] as string[] };
+  return { pages, obtained, vers: [] as string[] };
 }
-const grandHote = hote(15000),
-  hoteVide = hote(0);
+const largeHost = host(15000),
+  emptyHost = host(0);
 
 const residenceResult = await measure({
   name: 'collectPendingUrls',
   fichier: 'packages/sdk-browser/src/page/selection/requests.ts',
   cas: [
-    { name: '15k pages', input: grandHote, size: 15000 },
-    { name: 'no pages', input: hoteVide, size: 0 },
+    { name: '15k pages', input: largeHost, size: 15000 },
+    { name: 'no pages', input: emptyHost, size: 0 },
   ],
   calculation: (h) => {
-    const delta = h.obtenu.retainedRanks();
+    const delta = h.obtained.retainedRanks();
     return {
-      pending: [...h.obtenu.pendingUrls()],
+      pending: [...h.obtained.pendingUrls()],
       retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
       wait: collectPendingUrls(h.pages, h.vers).slice(),
     };

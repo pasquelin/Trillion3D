@@ -11,7 +11,7 @@ import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/vis
 
 const alea = xorshiftRandom(0x4e07);
 
-function carteNormales(depart: number) {
+function normalsMap(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
     tire = xorshiftRandom(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
@@ -22,7 +22,7 @@ function carteNormales(depart: number) {
   return importHostTexture(map);
 }
 
-const CARTE = carteNormales(0x51);
+const CARTE = normalsMap(0x51);
 const matieres = [
   { carte: false, doubleSided: false, backSide: false, normalScale: 1, normalScaleY: 1 },
   { carte: true, doubleSided: false, backSide: false, normalScale: 1.25, normalScaleY: -0.75 },
@@ -77,7 +77,7 @@ function preparerLot(): Item[] {
 const lot = preparerLot();
 const passe =
   <N>(
-    normale: (
+    normal: (
       page: VisPage,
       tri: NonNullable<ReturnType<typeof triangleAt>>,
       bary: { w0: number; w1: number; w2: number },
@@ -91,7 +91,7 @@ const passe =
     const output = new Float64Array(items.length * 3);
     for (let i = 0; i < items.length; i++) {
       const p = items[i];
-      const n = normale(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
+      const n = normal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
       output[i * 3] = lit(n, 0);
       output[i * 3 + 1] = lit(n, 1);
       output[i * 3 + 2] = lit(n, 2);

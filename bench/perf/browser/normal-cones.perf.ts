@@ -2,7 +2,7 @@
 // counters, against their batch F oracles. (The normal cones it also measured are cooked by the
 // compiler since #272: the prepare no longer computes them.)
 import {
-  compteMateriauxEtTangentes,
+  materialsAndTangentsCount,
   indexSourceBytes,
 } from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
@@ -13,16 +13,16 @@ import {
 } from '../../oracles/browser/normal-cones.ts';
 import { catalogueDePages } from './support/scenesLoading.ts';
 
-const pages = catalogueDePages({ pages: 20000, materiaux: 60 });
-const unePage = catalogueDePages({ pages: 1, materiaux: 1, seed: 17 });
+const pages = catalogueDePages({ pages: 20000, materials: 60 });
+const unePage = catalogueDePages({ pages: 1, materials: 1, seed: 17 });
 // Every fifth page has no index bytes yet: the table leaves it out.
-const partiels = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((rec, i) =>
+const partiels = catalogueDePages({ pages: 400, materials: 8, seed: 23 }).map((rec, i) =>
   i % 5 === 0 ? { ...rec, array: undefined } : rec,
 );
 
 const blocs = new Map<string, { hasTangent: boolean }>();
 for (let i = 0; i < 4000; i++) blocs.set(`bloc/${i}`, { hasTangent: i % 3 === 0 });
-const blocVide = new Map<string, { hasTangent: boolean }>();
+const emptyBlock = new Map<string, { hasTangent: boolean }>();
 
 const casPages = [
   { name: '20 000 pages, 60 materials', input: pages, size: 20000 },
@@ -45,11 +45,11 @@ const resDiagnostic = await measure({
   fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
   cas: [
     { name: '20 000 pages, 4 000 blocks', input: { pages, blocs }, size: 24000 },
-    { name: 'no blocks', input: { pages: unePage, blocs: blocVide }, size: 1 },
-    { name: 'nothing to count', input: { pages: [], blocs: blocVide }, size: 0 },
+    { name: 'no blocks', input: { pages: unePage, blocs: emptyBlock }, size: 1 },
+    { name: 'nothing to count', input: { pages: [], blocs: emptyBlock }, size: 0 },
   ],
   calculation: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
-    compteMateriauxEtTangentes(e.pages, e.blocs),
+    materialsAndTangentsCount(e.pages, e.blocs),
   expected: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
     referenceMaterialsAndTangentsCount(e.pages, e.blocs),
   options: { tours: 60, budgetMs: 1500 },

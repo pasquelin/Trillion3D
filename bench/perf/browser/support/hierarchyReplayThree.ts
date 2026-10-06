@@ -3,10 +3,10 @@
 // hierarchy and camera. Each read yields a number array tagged by the operation rank;
 // `compare` confronts both sides with `Object.is`, component by component.
 //
-// Operations: `ajoute` (parent, position, quaternion, scale, camera or none), `pose` (position,
+// Operations: `add` (parent, position, quaternion, scale, camera or none), `pose` (position,
 // quaternion, scale, each or `null`), `local` (posed local matrix), `auto` (`matrixAutoUpdate`),
 // `rattache` (new parent, `-1` to detach), `retire` (the node and its descendants, listed),
-// `maj` (`updateMatrixWorld(force)`), `majMonde` (`updateWorldMatrix(parents, enfants)`), `vise`
+// `maj` (`updateMatrixWorld(force)`), `majMonde` (`updateWorldMatrix(parents, children)`), `vise`
 // (`lookAt` with an up), `objectif` (new camera settings), `lis` (world reads of a node),
 // `image` (view, view-projection and planes of a camera), `instantane` (world matrices of all live nodes).
 import * as THREE from 'three';
@@ -22,7 +22,7 @@ const systeme = (webgpu: boolean) =>
  * `makePerspective` only varies those two terms. Everything else stays the Three witness
  * bit-exact: field of view, aspect, zoom and the perspective column.
  */
-function projectionMoteur(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
+function engineProjection(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
   out.copy(camera.projectionMatrix);
   out.elements[10] = 0;
   out.elements[14] = camera.near;
@@ -36,7 +36,7 @@ function projectionMoteur(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
  * A non-finite `far` leaves the plane that infinite projection gives — zero normal, hence
  * non-numeric once normalized, hence rejecting nothing: an unbounded far.
  */
-function plansMoteur(tronc: THREE.Frustum, vp: THREE.Matrix4, view: THREE.Matrix4, far: number) {
+function enginePlanes(tronc: THREE.Frustum, vp: THREE.Matrix4, view: THREE.Matrix4, far: number) {
   tronc.setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
   const brut = tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant]);
   const output = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)];
@@ -57,7 +57,7 @@ function regleCameraThree(camera: THREE.PerspectiveCamera, spec: CameraSpec) {
 
 /** The operations on Three.js objects. */
 export function joueThree(scenario: HierarchyOp[]): number[][] {
-  const objets: THREE.Object3D[] = [],
+  const objects: THREE.Object3D[] = [],
     vivants: boolean[] = [],
     sorties: number[][] = [];
   const vp = new THREE.Matrix4(),
@@ -66,9 +66,9 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
   const v = new THREE.Vector3(),
     q = new THREE.Quaternion();
   scenario.forEach((op, rang) => {
-    const o = objets[op[1]];
+    const o = objects[op[1]];
     switch (op[0]) {
-      case 'ajoute': {
+      case 'add': {
         const [, , parent, p, r, s, camera] = op;
         let n: THREE.Object3D;
         if (camera) {
@@ -79,8 +79,8 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
         n.position.fromArray(p);
         n.quaternion.fromArray(r);
         n.scale.fromArray(s);
-        if (parent >= 0) objets[parent].add(n);
-        objets[op[1]] = n;
+        if (parent >= 0) objects[parent].add(n);
+        objects[op[1]] = n;
         vivants[op[1]] = true;
         break;
       }
@@ -97,7 +97,7 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
         break;
       case 'rattache':
         if (op[2] < 0) o.removeFromParent();
-        else objets[op[2]].add(o);
+        else objects[op[2]].add(o);
         break;
       case 'retire':
         o.removeFromParent();
@@ -132,21 +132,21 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
         // Invariant kept by the scenario generator: `image` only ever targets a camera id.
         const camera = o as THREE.PerspectiveCamera;
         camera.updateMatrixWorld();
-        projectionMoteur(proj, camera);
+        engineProjection(proj, camera);
         vp.multiplyMatrices(proj, camera.matrixWorldInverse);
         sorties.push([
           rang,
           ...proj.elements,
           ...camera.matrixWorldInverse.elements,
           ...vp.elements,
-          ...plansMoteur(tronc, vp, camera.matrixWorldInverse, camera.far),
+          ...enginePlanes(tronc, vp, camera.matrixWorldInverse, camera.far),
         ]);
         break;
       }
       case 'instantane':
         sorties.push([
           rang,
-          ...objets.flatMap((n, id) => (vivants[id] ? n.matrixWorld.elements : [])),
+          ...objects.flatMap((n, id) => (vivants[id] ? n.matrixWorld.elements : [])),
         ]);
         break;
     }

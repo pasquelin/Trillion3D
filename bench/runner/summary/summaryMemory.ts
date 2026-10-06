@@ -25,12 +25,12 @@ export function memoire(report: Report) {
       const m = resultat.metrics ?? {};
       const total = num(m.gpuAllocatedBytes);
       const atlas = num(m.texturePoolBytes),
-        geometrie = num(m.geometryAllocationBytes),
+        geometry = num(m.geometryAllocationBytes),
         cibles = num(m.gpuFrameTargetBytes);
-      const reste = total === null ? null : total - (atlas ?? 0) - (geometrie ?? 0) - (cibles ?? 0);
+      const reste = total === null ? null : total - (atlas ?? 0) - (geometry ?? 0) - (cibles ?? 0);
       lines.push(
         `| ${series.view} | e${series.pixelError} | ${side} | ${go(total)} | ${go(atlas)} ` +
-          `| ${go(geometrie)} / ${mo(m.geometryPoolBytes)}${borne(m)} | ${mo(cibles)} | ${go(reste)} |`,
+          `| ${go(geometry)} / ${mo(m.geometryPoolBytes)}${borne(m)} | ${mo(cibles)} | ${go(reste)} |`,
       );
       details.push(...plusLourdes(series, side, m));
     }

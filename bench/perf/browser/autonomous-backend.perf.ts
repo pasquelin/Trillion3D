@@ -16,8 +16,8 @@ import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 import { type WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/viewKeys.ts';
 
 const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
-const geometrie = new G.Geometry();
-const materiau = G.basicSurface();
+const geometry = new G.Geometry();
+const material = G.basicSurface();
 
 /** A record with the world the oracle reads on it, and the draw state the record carried before
  *  #1234; the engine now reads the latter from a `PageDraws` table. */
@@ -28,7 +28,7 @@ type PageRec = EngineRec & {
   attached: boolean;
 };
 
-interface Monde {
+interface World {
   scene: Scene;
   roots: ClusterRoot<PageRec>[];
   allPages: PageRec[];
@@ -39,7 +39,7 @@ interface Monde {
   requested: PageRec[];
 }
 
-function monde(total: number, depart: number): Monde {
+function world(total: number, depart: number): World {
   const alea = xorshiftRandom(depart);
   const scene = new Scene(),
     allPages: PageRec[] = [];
@@ -50,9 +50,9 @@ function monde(total: number, depart: number): Monde {
       clusterId: `p${i}`,
       attached: false,
       mesh: undefined,
-      geometry: geometrie,
-      material: surfaceOf(materiau),
-      declaration: materiau,
+      geometry: geometry,
+      material: surfaceOf(material),
+      declaration: material,
       renderOrder: i,
       matrix: new G.Matrix4().makeTranslation(alea(), alea(), alea()),
       array: new Uint32Array(3),
@@ -63,7 +63,7 @@ function monde(total: number, depart: number): Monde {
       min: [0, 0, 0],
       max: [0, 0, 0],
       depthLayer: 0,
-      attributes: geometrie.attributes,
+      attributes: geometry.attributes,
     });
   const roots = allPages.map((rec) => ({ world: rec.matrix, pages: [rec] }));
   return { scene, roots, allPages, shown: [], shownPacked: [], desired: [], requested: [] };
@@ -75,8 +75,8 @@ const viewOf = (w: Pick<WebglViewState, 'shown' | 'shownPacked' | 'desired' | 'r
   lists: () => [w.shown, w.desired, w.requested],
 });
 
-const empreinte = (m: Monde, triangles: number) => ({
-  enfants: m.scene.children.map((mesh) => mesh.renderOrder),
+const footprint = (m: World, triangles: number) => ({
+  children: m.scene.children.map((mesh) => mesh.renderOrder),
   triangles,
 });
 
@@ -90,7 +90,7 @@ function coupes(total: number, tailles: readonly number[], depart: number) {
 }
 
 const passe = (
-  m: Monde,
+  m: World,
   sync: () => void,
   state: { submittedTriangles: number },
   suite: readonly number[][],
@@ -103,13 +103,13 @@ const passe = (
       m.shownPacked.push(index);
     }
     sync();
-    return empreinte(m, state.submittedTriangles);
+    return footprint(m, state.submittedTriangles);
   });
 
 function cas(name: string, total: number, tailles: readonly number[], measure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
-  const left = monde(total, 0x9e37 ^ total),
-    right = monde(total, 0x9e37 ^ total);
+  const left = world(total, 0x9e37 ^ total),
+    right = world(total, 0x9e37 ^ total);
   const oracle = referenceAutonomousSync(left);
   const draws = createPageDraws(right.roots);
   for (const rec of right.allPages) draws.drawing(rec).geometry = rec.geometry;
@@ -151,7 +151,7 @@ const resAutonome = await measure({
 
 await stress({
   name: 'createAutonomousGeometry extremes',
-  calculation: (m: Monde) => {
+  calculation: (m: World) => {
     const draws = createPageDraws(m.roots);
     for (const rec of m.allPages) draws.drawing(rec).geometry = rec.geometry;
     return createAutonomousGeometry({

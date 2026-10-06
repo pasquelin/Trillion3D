@@ -8,7 +8,7 @@ import { xorshiftRandom } from '../../../core/index.ts';
 export const TAILLES = [1_000, 10_000, 100_000];
 
 const identite = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-const avec = (changements: [number, number][]) => {
+const identityWith = (changements: [number, number][]) => {
   const m = identite();
   for (const [i, v] of changements) m[i] = v;
   return m;
@@ -17,37 +17,37 @@ const avec = (changements: [number, number][]) => {
 /** Matrices hostiles, colonne-major. */
 const MATRICES = [
   identite(),
-  avec([
+  identityWith([
     [0, -1],
     [5, -2.5],
     [10, -0.125],
   ]),
-  avec([
+  identityWith([
     [4, 0.75],
     [8, -1.5],
     [9, 2.25],
   ]),
-  avec([
+  identityWith([
     [3, 0.5],
     [7, -0.25],
     [11, 1.5],
     [15, 2],
   ]),
-  avec([
+  identityWith([
     [3, 1],
     [15, 0],
   ]),
-  avec([
+  identityWith([
     [0, 0],
     [5, -0],
     [10, -0],
   ]),
-  avec([[12, NaN]]),
-  avec([
+  identityWith([[12, NaN]]),
+  identityWith([
     [13, Infinity],
     [14, -Infinity],
   ]),
-  avec([
+  identityWith([
     [0, 1e308],
     [5, 1e-308],
     [10, 5e-324],
@@ -55,7 +55,7 @@ const MATRICES = [
 ];
 
 /** Hostile boxes: canonical empty, inverted empty, flat, NaN, signed zeros, infinities. */
-const BOITES = [
+const BOXES = [
   [-1, -1, -1, 1, 1, 1],
   [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity],
   [0, -0, 0, -0, 0, -0],
@@ -66,7 +66,7 @@ const BOITES = [
 ];
 
 /** The first elements of the batch cross every hostile case; beyond that, a seeded draw. */
-const HOSTILES = MATRICES.length * BOITES.length;
+const HOSTILES = MATRICES.length * BOXES.length;
 
 /** An ordinary matrix: a hand-written arbitrary rotation, translation and non-uniform scale. */
 function matriceOrdinaire(alea: () => number) {
@@ -102,7 +102,7 @@ export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: 
     const m = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
     const b =
       i < HOSTILES
-        ? BOITES[Math.floor(i / MATRICES.length) % BOITES.length]
+        ? BOXES[Math.floor(i / MATRICES.length) % BOXES.length]
         : [alea() * -50, alea() * -50, alea() * -50, alea() * 50, alea() * 50, alea() * 50];
     for (let k = 0; k < 16; k++) lot.mats[i * 16 + k] = m[k];
     for (let k = 0; k < 6; k++) lot.boxes[i * 6 + k] = b[k];

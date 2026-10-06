@@ -10,15 +10,15 @@ const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308, 0.
 /** The draw of one `BORDS` value from a seeded sequence. */
 export const bordDe = (alea: () => number) => () => BORDS[Math.floor(alea() * BORDS.length)];
 const bord = bordDe(alea);
-/** The draw of a number in `[-etendue, etendue)` from a seeded sequence. */
-export const dansDe = (alea: () => number) => (etendue: number) => (alea() * 2 - 1) * etendue;
+/** The draw of a number in `[-extent, extent)` from a seeded sequence. */
+export const dansDe = (alea: () => number) => (extent: number) => (alea() * 2 - 1) * extent;
 const count = () => (alea() < 0.15 ? bord() : (alea() * 2 - 1) * 10 ** Math.floor(alea() * 8 - 4));
 
 /** A rigid pose, then a scale drawn from: uniform, non-uniform, negative, zero. */
 function pose(i: number) {
   const q = new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5);
   q.normalize();
-  const echelles = [
+  const scales = [
     [1, 1, 1],
     [2, 2, 2],
     [0.25, 3, 7],
@@ -27,7 +27,7 @@ function pose(i: number) {
     [0, 1, 1],
     [1e-300, 1, 1],
   ];
-  const s = echelles[i % echelles.length];
+  const s = scales[i % scales.length];
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(alea() * 200 - 100, alea() * 200 - 100, alea() * 200 - 100),
     q,
@@ -74,5 +74,5 @@ for (let i = 0; i < 300; i++) points.push([count(), count(), count()]);
 for (const a of BORDS) for (const b of BORDS) points.push([a, b, -0]);
 
 /** Matrix pairs that the products receive: each matrix against a neighbour. */
-export const paires = matrices.map((a, i) => [a, matrices[(i * 7 + 3) % matrices.length]]);
-export const paires32 = matrices32.map((a, i) => [a, matrices32[(i * 7 + 3) % matrices32.length]]);
+export const pairs = matrices.map((a, i) => [a, matrices[(i * 7 + 3) % matrices.length]]);
+export const pairs32 = matrices32.map((a, i) => [a, matrices32[(i * 7 + 3) % matrices32.length]]);

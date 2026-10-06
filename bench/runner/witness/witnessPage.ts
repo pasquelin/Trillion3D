@@ -75,22 +75,22 @@ export type Lampe = {
   penumbra?: number;
 };
 
-export function appliquer(objet: Lampe, light: SceneLight, douceur: number) {
-  objet.color.setRGB(light.color[0], light.color[1], light.color[2]);
-  objet.intensity = light.intensity;
-  objet.castShadow = false;
+export function appliquer(object: Lampe, light: SceneLight, douceur: number) {
+  object.color.setRGB(light.color[0], light.color[1], light.color[2]);
+  object.intensity = light.intensity;
+  object.castShadow = false;
   if (light.kind === 'directional') {
     const direction = light.direction ?? [0, -1, 0];
-    objet.position.set(-direction[0], -direction[1], -direction[2]);
-    objet.target!.position.set(0, 0, 0);
+    object.position.set(-direction[0], -direction[1], -direction[2]);
+    object.target!.position.set(0, 0, 0);
     return;
   }
   const position = light.position ?? [0, 0, 0];
-  objet.position.fromArray(position);
-  objet.distance = light.range ?? 0;
-  objet.decay = DECAY;
+  object.position.fromArray(position);
+  object.distance = light.range ?? 0;
+  object.decay = DECAY;
   if (light.kind !== 'spot') return;
-  const spot = objet;
+  const spot = object;
   const direction = light.direction ?? [0, -1, 0];
   const range = light.range ?? 0;
   spot.angle = light.coneAngle ?? 0;
@@ -134,18 +134,18 @@ export function creerEclairageTemoin(graph: WitnessGraph) {
       const clef = lights.map((light) => `${light.id}:${light.kind}`).join('|');
       const change = clef !== signature;
       if (change) {
-        for (const objet of poses.values()) groupe.remove(objet);
+        for (const object of poses.values()) groupe.remove(object);
         poses.clear();
         for (const light of lights) {
-          const objet = creer(graph, light);
-          poses.set(light.id, objet);
-          groupe.add(objet);
+          const object = creer(graph, light);
+          poses.set(light.id, object);
+          groupe.add(object);
         }
         signature = clef;
       }
       for (const light of lights) {
-        const objet = poses.get(light.id);
-        if (objet) appliquer(objet, light, douceur);
+        const object = poses.get(light.id);
+        if (object) appliquer(object, light, douceur);
       }
       // Only a set change asks for a refresh: the adapter copies values on its own.
       if (change) for (const backend of explorer.backends) backend.refreshSceneLighting?.();

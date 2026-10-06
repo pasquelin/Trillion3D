@@ -11,7 +11,7 @@ const intervalles: number[] = [];
 for (let i = 0; i < 2000; i++) intervalles.push(8 + alea() * 12);
 // `record()` only stores this reference (`getReport()`, which reads it, is never called here):
 // one shared placeholder, built once, keeps the timed loop free of a per-frame allocation.
-const METRIQUES_VIDES: FrameMetrics = {
+const EMPTY_METRICS: FrameMetrics = {
   rafIntervalMs: null,
   cpuFrameMs: 0,
   cpuSubmitMs: null,
@@ -34,10 +34,10 @@ const resTelemetry = await measure({
     { name: 'no frames', input: [], size: 0 },
   ],
   calculation: (valeurs: number[]) => {
-    const profil = new FrameProfile(120);
+    const profile = new FrameProfile(120);
     let horloge = 0;
-    for (const dt of valeurs) profil.record(METRIQUES_VIDES, (horloge += dt));
-    return frameStatistics(profil.orderedIntervals());
+    for (const dt of valeurs) profile.record(EMPTY_METRICS, (horloge += dt));
+    return frameStatistics(profile.orderedIntervals());
   },
   expected: (valeurs: number[]) => frameStatistics(referenceIntervals(120, valeurs)),
   options: { tours: 100, budgetMs: 1500 },

@@ -29,7 +29,7 @@ function referenceBuild(depth: Float32Array, width: number, height: number) {
 }
 type ReferencePyramid = ReturnType<typeof referenceBuild>;
 
-const scratchRejet = new Int32Array(HIZ_TEST_VALUES);
+const rejectionScratch = new Int32Array(HIZ_TEST_VALUES);
 function referenceRejects(pyramid: ReferencePyramid, bounds: HizBounds, bias = 0) {
   if (
     !hizTestRect(
@@ -41,17 +41,17 @@ function referenceRejects(pyramid: ReferencePyramid, bounds: HizBounds, bias = 0
       pyramid.width,
       pyramid.height,
       pyramid.levels.length,
-      scratchRejet,
+      rejectionScratch,
     )
   )
     return false;
   const far = hizFootprintFar(
     pyramid.levels,
-    scratchRejet[1],
-    scratchRejet[2],
-    scratchRejet[3] + 1,
-    scratchRejet[4] + 1,
-    scratchRejet[0],
+    rejectionScratch[1],
+    rejectionScratch[2],
+    rejectionScratch[3] + 1,
+    rejectionScratch[4] + 1,
+    rejectionScratch[0],
   );
   return hizOccluded(bounds.nearestDepth, far, bias);
 }
@@ -81,39 +81,39 @@ function cas(width: number, height: number, pages: ScenePage[], seed: number): E
 
 function passeReference(input: Entree) {
   const pyramid = referenceBuild(input.depth, input.width, input.height);
-  let niveaux: Float64Array | null = null;
+  let levels: Float64Array | null = null;
   if (input.complet) {
     let total = 0;
     for (const level of pyramid.levels) total += level.length * level[0].length;
-    niveaux = new Float64Array(total);
+    levels = new Float64Array(total);
     let at = 0;
     for (const level of pyramid.levels)
       for (let y = 0; y < level.length; y++)
-        for (let x = 0; x < level[y].length; x++) niveaux[at++] = level[y][x];
+        for (let x = 0; x < level[y].length; x++) levels[at++] = level[y][x];
   }
   const verdicts = new Uint8Array(input.bounds.length);
   for (let i = 0; i < input.bounds.length; i++)
     verdicts[i] = referenceRejects(pyramid, input.bounds[i]) ? 1 : 0;
-  return { niveaux, verdicts };
+  return { levels, verdicts };
 }
 
 const reprise = new Map<string, HizPyramid>();
-function passeOptimisee(input: Entree) {
+function optimisedPass(input: Entree) {
   const key = `${input.width}x${input.height}`;
   const existante = reprise.get(key);
   const pyramid = buildHizPyramid(input.depth, input.width, input.height, existante);
   reprise.set(key, pyramid);
-  let niveaux: Float64Array | null = null;
+  let levels: Float64Array | null = null;
   if (input.complet) {
     let total = 0;
     for (let l = 0; l < pyramid.count; l++) total += pyramid.widths[l] * pyramid.heights[l];
-    niveaux = new Float64Array(total);
-    for (let i = 0; i < total; i++) niveaux[i] = pyramid.data[i];
+    levels = new Float64Array(total);
+    for (let i = 0; i < total; i++) levels[i] = pyramid.data[i];
   }
   const verdicts = new Uint8Array(input.bounds.length);
   for (let i = 0; i < input.bounds.length; i++)
     verdicts[i] = hizRejects(pyramid, input.bounds[i]) ? 1 : 0;
-  return { niveaux, verdicts };
+  return { levels, verdicts };
 }
 
 const scene = coupe({ pages: 300, triangles: 24, hostile: true, seed: 7 });
@@ -134,7 +134,7 @@ const resHiz = await measure({
     { name: '33×19, odd sizes', input: impaire, size: 627 },
     { name: '1×1', input: unique, size: 1 },
   ],
-  calculation: passeOptimisee,
+  calculation: optimisedPass,
   expected: passeReference,
   options: { warmup: 3, tours: 20, budgetMs: 1500 },
 });

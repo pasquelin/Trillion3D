@@ -12,8 +12,8 @@ import {
   sphereFromBounds,
 } from '../../../../packages/sdk-core/src/index.ts';
 import type { MeasureCase } from '../../../core/index.ts';
-import { boitesHierarchiques } from './scenesHierarchies.ts';
-import { boites, matrices } from './scenesVolumes.ts';
+import { hierarchicalBoxes } from './scenesHierarchies.ts';
+import { boxes, matrices } from './scenesVolumes.ts';
 import { aPlat, box3 } from '../../../oracles/core/volumes.ts';
 import { casVolume, un, type CasVolume } from './volumeCase.ts';
 
@@ -23,35 +23,35 @@ const etHierarchies = (
   input: [number[], number[]][],
 ): MeasureCase<[number[], number[]][]>[] => [
   ...un(name, input),
-  ...un('boxes × hierarchical world matrices', boitesHierarchiques),
+  ...un('boxes × hierarchical world matrices', hierarchicalBoxes),
 ];
-const paires: [number[], number[]][] = boites.flatMap((a, i) =>
-  boites.filter((_, j) => j % 13 === i % 13).map((b): [number[], number[]] => [a, b]),
+const pairs: [number[], number[]][] = boxes.flatMap((a, i) =>
+  boxes.filter((_, j) => j % 13 === i % 13).map((b): [number[], number[]] => [a, b]),
 );
-const transformations: [number[], number[]][] = boites.flatMap((b, i) =>
+const transformations: [number[], number[]][] = boxes.flatMap((b, i) =>
   matrices.filter((_, j) => j % 5 === i % 5).map((m): [number[], number[]] => [b, m]),
 );
 
 /** Equivalence lines of boxes and spheres, without timer options. */
-export const casBoites: CasVolume[] = [
+export const boxCases: CasVolume[] = [
   casVolume({
     calculation: 'empty box and emptiness test',
     fichier: 'packages/sdk-core/src/math/primitives/box.ts',
-    cas: un('hostile boxes', boites),
+    cas: un('hostile boxes', boxes),
     reference: (list: number[][]) => [
       aPlat(new THREE.Box3().makeEmpty()),
       list.map((b) => box3(b).isEmpty()),
     ],
     optimised: (list: number[][]) => {
-      const vide = new Float64Array(6);
-      boxEmpty(vide, 0);
-      return [vide, list.map((b) => boxIsEmpty(b, 0))];
+      const empty = new Float64Array(6);
+      boxEmpty(empty, 0);
+      return [empty, list.map((b) => boxIsEmpty(b, 0))];
     },
   }),
   casVolume({
     calculation: 'union of two boxes',
     fichier: 'packages/sdk-core/src/math/primitives/box.ts',
-    cas: un('hostile box pairs', paires),
+    cas: un('hostile box pairs', pairs),
     reference: (list: [number[], number[]][]) =>
       list.map(([a, b]) => aPlat(box3(a).union(box3(b)))),
     optimised: (list: [number[], number[]][]) =>
@@ -64,7 +64,7 @@ export const casBoites: CasVolume[] = [
   casVolume({
     calculation: 'extension of a box by two points',
     fichier: 'packages/sdk-core/src/math/primitives/box.ts',
-    cas: un('hostile box pairs', paires),
+    cas: un('hostile box pairs', pairs),
     reference: (list: [number[], number[]][]) =>
       list.map(([a, b]) => {
         const box = box3(a);
@@ -140,7 +140,7 @@ export const casBoites: CasVolume[] = [
   casVolume({
     calculation: 'bounding sphere of a box',
     fichier: 'packages/sdk-core/src/math/primitives/sphere.ts',
-    cas: un('hostile boxes', boites),
+    cas: un('hostile boxes', boxes),
     reference: (list: number[][]) =>
       list.map((b) => {
         const sphere = box3(b).getBoundingSphere(new THREE.Sphere());
