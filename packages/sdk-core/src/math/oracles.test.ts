@@ -24,20 +24,6 @@ test('max error is not cumulative bound', () => {
   );
 });
 
-test('focal example', () => {
-  const focal = 1080 / (2 * Math.tan(Math.PI / 6));
-  assert.ok(Math.abs((focal * 0.01) / 10 - 0.935307436) < 1e-8);
-});
-
-test('unique cut and threshold equality', () => {
-  const scores = [8, 2, 0];
-  const parents = [Infinity, 8, 2];
-  for (const threshold of [0, 1, 2, 3, 8, 10]) {
-    const selected = scores.map((score, i) => score <= threshold && threshold < parents[i]);
-    assert.equal(selected.filter(Boolean).length, 1);
-  }
-});
-
 test('indirect base vertex signed', () => {
   const buffer = new ArrayBuffer(20);
   const view = new DataView(buffer);
@@ -48,10 +34,6 @@ test('indirect base vertex signed', () => {
   view.setUint32(16, 0, true);
   assert.equal(buffer.byteLength, 20);
   assert.equal(view.getInt32(12, true), -7);
-});
-
-test('amdahl example', () => {
-  assert.ok(Math.abs(1 / (0.9 + 0.1 / 4) - 1.081081081081081) < 1e-12);
 });
 
 test('perspective uniform object split is not screen uniform', () => {

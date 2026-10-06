@@ -8,8 +8,8 @@ import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/ty
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
-import { modelFloor } from '../../runner/poses.ts';
-import { mesure, parElement, stress, rapport } from '../../core/index.ts';
+import { modelFloor } from '../../runner/trajectory/poses.ts';
+import { measure, parElement, stress, rapport } from '../../core/index.ts';
 import {
   referenceDevicePixels,
   referenceFloorOf,
@@ -19,93 +19,77 @@ import {
   referenceSignedArea,
 } from '../../oracles/browser/ts-formulas.ts';
 import { casPlans, durees, emprises, rangs, tailles, triangles } from './support/scenesFormulas.ts';
-import type { MesureCas } from '../../core/index.ts';
+import type { MeasureCase } from '../../core/index.ts';
 
-const single = <Entree>(name: string, input: Entree, size: number): MesureCas<Entree>[] => [
+const single = <Entree>(name: string, input: Entree, size: number): MeasureCase<Entree>[] => [
   { name, input, size },
 ];
 const options = { tours: 100, budgetMs: 500 };
 type Triangle = (typeof triangles)[number];
 
-const resPlanes = await mesure({
+const resPlanes = await measure({
   name: 'box outside the six planes',
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: single('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
-  calcul: parElement((c: (typeof casPlans)[number]) =>
-    frustumExcludesBox(
-      c.planes,
-      c.boite[0],
-      c.boite[1],
-      c.boite[2],
-      c.boite[3],
-      c.boite[4],
-      c.boite[5],
-    ),
+  calculation: parElement((c: (typeof casPlans)[number]) =>
+    frustumExcludesBox(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),
   ),
-  attendu: (liste) =>
-    liste.map((c) =>
-      referenceOutsidePlanes(
-        c.planes,
-        c.boite[0],
-        c.boite[1],
-        c.boite[2],
-        c.boite[3],
-        c.boite[4],
-        c.boite[5],
-      ),
+  expected: (list) =>
+    list.map((c) =>
+      referenceOutsidePlanes(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),
     ),
   options,
 });
 
-const resArea = await mesure({
+const resArea = await measure({
   name: 'signed screen-triangle area',
   fichier: 'packages/sdk-browser/src/visibility/projection.ts',
   cas: single('3 000 hostile triangles', triangles, triangles.length),
-  calcul: parElement((t: Triangle) => signedArea(t.a, t.b, t.c)),
-  attendu: (liste) => liste.map((t) => referenceSignedArea(t.a, t.b, t.c)),
+  calculation: parElement((t: Triangle) => signedArea(t.a, t.b, t.c)),
+  expected: (list) => list.map((t) => referenceSignedArea(t.a, t.b, t.c)),
   options,
 });
 
-const resRow = await mesure({
+const resRow = await measure({
   name: 'row-identifier foundation',
   fichier: 'packages/sdk-browser/src/webgpu/row/pageRow.ts',
   cas: single('2 000 ranks', rangs, rangs.length),
-  calcul: parElement((row: number) => packedRowBase(row)),
-  attendu: (liste) => liste.map((row) => referencePackedRowBase(row, VIS_TRIANGLE_BITS)),
+  calculation: parElement((row: number) => packedRowBase(row)),
+  expected: (list) => list.map((row) => referencePackedRowBase(row, VIS_TRIANGLE_BITS)),
   options,
 });
 
-const resPixels = await mesure({
+const resPixels = await measure({
   name: 'device pixels from logical size',
   fichier: 'packages/sdk-browser/src/backend/common.ts',
   cas: single('2 000 sizes and ratios', tailles, tailles.length),
-  calcul: parElement((t: (typeof tailles)[number]) => devicePixels(t.logical, t.ratio)),
-  attendu: (liste) =>
-    liste.map((t) => referenceDevicePixels(t.logical, t.ratio, DEFAULT_PIXEL_RATIO)),
+  calculation: parElement((t: (typeof tailles)[number]) => devicePixels(t.logical, t.ratio)),
+  expected: (list) =>
+    list.map((t) => referenceDevicePixels(t.logical, t.ratio, DEFAULT_PIXEL_RATIO)),
   options,
 });
 
-const resNs = await mesure({
+const resNs = await measure({
   name: 'nanoseconds to milliseconds',
   fichier: 'packages/sdk-browser/src/gpu/timing/types.ts',
   cas: single('2 000 durations', durees, durees.length),
-  calcul: parElement((ns: number) => nanosecondsToMs(ns)),
-  attendu: (liste) => liste.map((ns) => referenceNsToMs(ns)),
+  calculation: parElement((ns: number) => nanosecondsToMs(ns)),
+  expected: (list) => list.map((ns) => referenceNsToMs(ns)),
   options,
 });
 
-const resFloor = await mesure({
+const resFloor = await measure({
   name: 'model floor',
-  fichier: 'bench/runner/poses.ts',
+  fichier: 'bench/runner/trajectory/poses.ts',
   cas: single('1 000 extents', emprises, emprises.length),
-  calcul: parElement((b: (typeof emprises)[number]) => modelFloor(b)),
-  attendu: (liste) => liste.map((b) => referenceFloorOf(b)),
+  calculation: parElement((b: (typeof emprises)[number]) => modelFloor(b)),
+  expected: (list) => list.map((b) => referenceFloorOf(b)),
   options,
 });
 
 await stress({
   name: 'devicePixels extremes',
-  calcul: ([l, r]) => devicePixels(l, r),
+  calculation: ([l, r]) => devicePixels(l, r),
   extremes: [
     { name: 'zero', input: [0, 1] },
     { name: 'ratio 0', input: [100, 0] },

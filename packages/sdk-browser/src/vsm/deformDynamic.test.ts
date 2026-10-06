@@ -8,7 +8,7 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts';
 import { vsmRenderCandidatesWgsl, vsmRenderCullWgsl } from './renderCullWgsl.ts';
 import { vsmTransmissionCandidatesWgsl } from './transmissionWgsl.ts';
-import { vsmLayout } from './resources.ts';
+import { vsmLayout } from './layout.ts';
 
 const candidates = vsmRenderCandidatesWgsl(),
   { VSM_RENDER_CAND_DYNAMIC, VSM_RENDER_CAND_DEFORMING } = wgslConstants(candidates);

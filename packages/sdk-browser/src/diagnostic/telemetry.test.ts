@@ -100,9 +100,9 @@ test('the circular interval buffer matches push+shift after wraparound and rejec
   const deltas = [0, 10, -3, 2000, 12, 8, 9, 11, 7, 13];
   let horloge = 0;
   for (const dt of deltas) profiler.record({} as never, (horloge += dt));
-  const optimisee = profiler.orderedIntervals();
+  const optimized = profiler.orderedIntervals();
   const reference = referenceIntervals(max, deltas.slice(1));
-  assert.deepEqual(optimisee, reference);
+  assert.deepEqual(optimized, reference);
 });
 
 test('a profiler that never records a valid interval reports an empty, not undefined, list', () => {

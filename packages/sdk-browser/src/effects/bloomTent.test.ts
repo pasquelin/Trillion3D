@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bilinear, publishedUpTaps, tapSum, type Image } from './bloom.fixture.ts';
 import { bloomLevelSizes } from './bloomFilter.ts';
-import { BLOOM_WGSL } from './bloomWgsl.ts';
+import { BLOOM_WGSL } from '../webgpu/effects/bloomWgsl.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { functionsOf } from '../texture/shaderRule.fixture.ts';
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/shaders.ts';

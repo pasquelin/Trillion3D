@@ -63,14 +63,14 @@ fn model() -> (Value, Vec<u8>) {
 /// first ranks of the scene, which shifts all of the model's.
 fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
     let (gltf, bin) = model();
-    let projet = UnityProject::new(tag);
-    projet.data(
+    let project = UnityProject::new(tag);
+    project.data(
         "Materials/Uni.mat",
         MAT,
         &white_mat("Uni", "    - _Metallic: 0\n"),
     );
-    projet.model_bytes("Models/Creux.glb", MODEL, &encode_glb(&gltf, &bin), "");
-    projet.scene(&format!(
+    project.model_bytes("Models/Creux.glb", MODEL, &encode_glb(&gltf, &bin), "");
+    project.scene(&format!(
         "{}{}",
         cube(100, "Cube", MAT),
         game_object(
@@ -81,7 +81,7 @@ fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
             0
         )
     ));
-    let run = projet.compile(tag);
+    let run = project.compile(tag);
     let (_, merged) = run.prepared("unity");
     let uri = merged["buffers"][0]["uri"].as_str().expect("the binary");
     let bytes = fs::read(run.prepared_dir("unity").join(uri)).expect("the sidecar");

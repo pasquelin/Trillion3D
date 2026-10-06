@@ -12,13 +12,13 @@ import { prepareMathBatch } from './batchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './batchRuntime.ts';
 import { assertBits } from '../../../../tests/kit/assert/bits.ts';
 import {
-  remplitBoites,
+  fillsBoxes,
   remplitMatrices,
 } from '../../../../bench/perf/browser/support/wasmBatchCases.ts';
 
 // Small batch: exactly 9 hostile matrices × 7 hostile boxes, full Cartesian product of
 // `wasmBatchCases.ts` once each — zero ordinary pseudo-random element. A shorter batch
-// would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOITES`).
+// would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOXES`).
 const N = 63;
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../page/decode/pageCodec.wasm')));
@@ -26,11 +26,11 @@ await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../page/decode/page
 /** Batch output on forced path, copied outside shared buffer. */
 async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
   lot: T,
-  chemin: 'js' | 'wasm',
+  path: 'js' | 'wasm',
 ) {
-  await prepareMathBatch(chemin);
+  await prepareMathBatch(path);
   const joue = lot.run();
-  assert.equal(joue, chemin, `path ${joue} played while ${chemin} is imposed`);
+  assert.equal(joue, path, `path ${joue} played while ${path} is imposed`);
   return lot.out.slice();
 }
 
@@ -48,7 +48,7 @@ async function assertSharedLotMatches(lot: Lot, kernel: string) {
 
 test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxes', async () => {
   const lot = await createBoxTransformLot(N);
-  remplitBoites(lot, N);
+  fillsBoxes(lot, N);
   await assertSharedLotMatches(lot, 'boxTransformBatch');
 });
 
@@ -59,10 +59,10 @@ test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit leve
   // sign survives to `js_min`/`js_max`: x translation at `-0`, corners all at `x = ±0`.
   // `Math.min` must yield `-0`, `Math.max` `+0`, matching JavaScript.
   const matriceTranslationMoinsZero = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -0, 0, 0, 1];
-  const boiteSigneeEnX = [0, -0, 0, -0, 0, -0];
+  const signedBoxInX = [0, -0, 0, -0, 0, -0];
   const lot = await createBoxTransformLot(1);
   lot.mats.set(matriceTranslationMoinsZero);
-  lot.boxes.set(boiteSigneeEnX);
+  lot.boxes.set(signedBoxInX);
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
   assert.ok(Object.is(parJs[0], -0), 'JS reference: Math.min must resolve to -0');

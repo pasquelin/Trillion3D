@@ -9,12 +9,8 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts';
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
-import { VSM_PROJECTION_RECORD_BYTES } from '../../vsm/constants.ts';
-import { VSM_UNIFORMS_BYTES } from '../../vsm/uniforms.ts';
-import {
-  VSM_TRANSMISSION_FORMAT,
-  VSM_TRANSMISSION_RESOLVE_BINDING,
-} from '../../vsm/transmissionWgsl.ts';
+import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts';
+import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts';
 import {
   VSM_MASK_TABLE_BINDING,
   VSM_MASK_TILES_BINDING,
@@ -24,6 +20,7 @@ import {
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_TILE_FORMAT,
 } from '../../vsm/projectionWgsl.ts';
+import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts';
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;

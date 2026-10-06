@@ -6,14 +6,14 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import {
   VIEWPORT,
   batisseur,
-  carre,
+  square,
   cameraFace,
   engine,
-  libere,
+  release,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts';
 import { difference, image } from '../kit/sceneImageProof.ts';
-import { executerAppareil } from '../kit/deviceProof.ts';
+import { runOnDevice } from '../kit/deviceProof.ts';
 import {
   BACKGROUND,
   CASES,
@@ -31,7 +31,7 @@ import {
 function scene(paged: boolean, kase: WaterCase): ScenePreparee {
   const builder = batisseur();
   const ground = G.mesh(
-    carre(4),
+    square(4),
     G.basicSurface({
       color: new G.Color(GROUND.color),
       side: G.DOUBLE_SIDE,
@@ -40,11 +40,11 @@ function scene(paged: boolean, kase: WaterCase): ScenePreparee {
   ground.name = 'ground';
   ground.position.set(kase.groundX, 0, -GROUND.depth);
   builder.source.add(ground);
-  builder.ajoute(ground, 'exact-clusters', 4);
-  const water = G.mesh(carre(1), waterSurface(kase.transmission, kase.thickness));
+  builder.add(ground, 'exact-clusters', 4);
+  const water = G.mesh(square(1), waterSurface(kase.transmission, kase.thickness));
   water.name = 'water';
   builder.source.add(water);
-  builder.ajoute(water, paged ? 'clustered-blend' : 'shared-blend', 1);
+  builder.add(water, paged ? 'clustered-blend' : 'shared-blend', 1);
   return builder.fini();
 }
 
@@ -103,7 +103,7 @@ async function waterCase(
       pixels: Uint8Array;
     }[] = [];
     for (let i = 0; i < 4; i++) {
-      const { pixels, metriques: metrics } = await image(backend, camera);
+      const { pixels, metrics: metrics } = await image(backend, camera);
       frames.push({
         centre: centre(pixels),
         draws: metrics.transparentDrawCalls,
@@ -130,13 +130,13 @@ async function waterCase(
     };
   } finally {
     device.createCommandEncoder = create;
-    libere(backend, canvas, s);
+    release(backend, canvas, s);
   }
 }
 
 /** Every case, unpaged then paged, on a device that grants the water stage its attachments. */
 export function run() {
-  return executerAppareil<{ cases: CaseResult[] }>(
+  return runOnDevice<{ cases: CaseResult[] }>(
     async (device, events, result) => {
       const cases: CaseResult[] = (result.cases = []);
       for (const paged of [false, true])

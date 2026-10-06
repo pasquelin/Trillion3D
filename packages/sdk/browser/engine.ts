@@ -18,7 +18,7 @@ export type {
 export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts';
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
-export type { CellRows } from '../../sdk-browser/src/scene/partition/cellDecode.ts';
+export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts';
 export type {
   ChangeListener,
   ControlVector,
@@ -126,6 +126,7 @@ export type {
   SixDofAxis,
 } from '../../sdk-core/src/physics/jointOptions.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
+export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
@@ -142,7 +143,6 @@ export {
 export type {
   SoftBodyCommon,
   SoftBodyOptions,
-  SoftBodyType,
   SoftSettings,
   SoftVolumeOptions,
 } from '../../sdk-core/src/physics/soft.ts';

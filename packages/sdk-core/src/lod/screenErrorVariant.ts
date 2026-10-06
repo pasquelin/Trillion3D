@@ -1,6 +1,6 @@
 /**
  * MEASUREMENT EXPERIMENT, never a production path: the cluster screen-error metric,
- * switchable between ours and a simple projection of the error sphere. Branch `calculs/exp-erreur-ecran`.
+ * switchable between ours and a simple projection of the error sphere.
  *
  * `certifiee` (default): `screenErrorBound` of `screenErrorBound.ts`, a certified majorant of
  * screen displacement — near plane, off-axis lateral offset, anisotropic stretch included.

@@ -17,7 +17,7 @@
  */
 import { VSM_GROUP_WIDTH } from './constants.ts';
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts';
-import { ceilDiv, vsmComputePipe, vsmDynamicUniformEntry, type VsmComputePipe } from './passKit.ts';
+import { vsmComputePipe, vsmDynamicUniformEntry, type VsmComputePipe } from './passKit.ts';
 import type { VsmPerPageBin } from './markingPass.ts';
 import {
   VSM_PER_PAGE_DISPATCHER_BYTES,
@@ -32,12 +32,8 @@ import {
   type VsmPmKernel,
   vsmPhysicalPageKernels,
 } from './physicalPagesWgsl.ts';
-import {
-  type VsmLayout,
-  type VsmResources,
-  vsmBindGroupEntries,
-  vsmBindGroupLayoutEntries,
-} from './resources.ts';
+import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts';
+import { ceilDiv, type VsmLayout } from './layout.ts';
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {

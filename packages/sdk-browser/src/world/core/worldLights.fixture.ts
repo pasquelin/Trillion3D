@@ -119,13 +119,19 @@ export function walkedLights(scene: Object3D) {
       return Number.isFinite(far) && far > 0 ? far : 1;
     };
     for (const [light, { id }] of stored)
-      if (!lights.includes(light)) (api.removeLight(id), stored.delete(light));
+      if (!lights.includes(light)) {
+        api.removeLight(id);
+        stored.delete(light);
+      }
     for (const light of lights) {
       const last = stored.get(light);
       const id = last?.id ?? `world-light-${next++}`;
       const record = lampRecord(light, id, reach);
       if (!record) {
-        if (last) (api.removeLight(id), stored.delete(light));
+        if (last) {
+          api.removeLight(id);
+          stored.delete(light);
+        }
         continue;
       }
       if (last && sameSceneLight(last.record, record)) continue;

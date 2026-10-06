@@ -21,7 +21,7 @@ function conesWith(count: number, seed: (j: number) => number) {
   for (let j = 0; j < count * STRIDE; j++) cones[j] = seed(j);
   return cones;
 }
-const colonne = (cones: Float32Array, count: number) =>
+const column = (cones: Float32Array, count: number) =>
   Float32Array.from({ length: count }, (_, j) => (cones[j * STRIDE + FLAG] >= 0.5 ? 1 : 0));
 
 /**
@@ -50,11 +50,11 @@ test('every page flips, some pages do not: same changed verdict, same residency 
   const conesReference = conesWith(count, (j) => (j % STRIDE === FLAG ? 1 : 0.5));
   const bits = new Uint32Array(residentWords(count)).fill(0xffffffff);
 
-  const optimisee = balayage(next, bits);
-  assert.equal(optimisee.changed, referenceUpdateResidency(next, conesReference));
+  const optimized = balayage(next, bits);
+  assert.equal(optimized.changed, referenceUpdateResidency(next, conesReference));
   assert.deepEqual(
     [...residencyColumn(bits, 0, count)],
-    [...colonne(conesReference, count)],
+    [...column(conesReference, count)],
     'the bit column is the one the oracle writes through the cones',
   );
 
@@ -67,10 +67,10 @@ test('a single page toggling on then off is reflected bit for bit, both directio
   const bits = new Uint32Array(1);
   assert.equal(balayage(new Uint32Array([1]), bits).changed, true);
   assert.equal(referenceUpdateResidency(new Uint32Array([1]), conesReference), true);
-  assert.deepEqual([...residencyColumn(bits, 0, 1)], [...colonne(conesReference, 1)]);
+  assert.deepEqual([...residencyColumn(bits, 0, 1)], [...column(conesReference, 1)]);
   assert.equal(balayage(new Uint32Array([0]), bits).changed, true);
   assert.equal(referenceUpdateResidency(new Uint32Array([0]), conesReference), true);
-  assert.deepEqual([...residencyColumn(bits, 0, 1)], [...colonne(conesReference, 1)]);
+  assert.deepEqual([...residencyColumn(bits, 0, 1)], [...column(conesReference, 1)]);
 });
 
 test('the sorted rank journal sets the same bits as the full sweep', () => {

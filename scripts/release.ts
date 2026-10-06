@@ -11,7 +11,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Run } from './installed-package-contracts.ts';
+import type { Run } from './installed-package/contracts.ts';
 import { packRelease, publishRelease } from './release-packages.ts';
 
 const [step, folder] = process.argv.slice(2);

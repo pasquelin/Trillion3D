@@ -22,7 +22,10 @@ function argumentsOf(text: string, open: number) {
     if ('([{<'.includes(c) && !(c === '<' && text[i - 1] === '=')) depth++;
     else if (')]}>'.includes(c) && text[i - 1] !== '=') {
       if (--depth === 0) return [...args, text.slice(from, i)];
-    } else if (c === ',' && depth === 1) (args.push(text.slice(from, i)), (from = i + 1));
+    } else if (c === ',' && depth === 1) {
+      args.push(text.slice(from, i));
+      from = i + 1;
+    }
   }
   return args;
 }

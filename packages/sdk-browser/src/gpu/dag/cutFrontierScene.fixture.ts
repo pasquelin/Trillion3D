@@ -7,10 +7,10 @@ import { flatHierarchy } from './hierarchy.ts';
 import { CULL_STRIDE, type DagRoot } from './types.ts';
 
 /** A page of level `level`, placed on a grid, with its replacement's error band. */
-function page(level: number, i: number, gridSide: number, etendue: number) {
-  const rayon = etendue / gridSide;
-  const cx = ((i % gridSide) / gridSide - 0.5) * etendue * 2,
-    cy = (Math.floor(i / gridSide) / gridSide - 0.5) * etendue * 2;
+function page(level: number, i: number, gridSide: number, extent: number) {
+  const rayon = extent / gridSide;
+  const cx = ((i % gridSide) / gridSide - 0.5) * extent * 2,
+    cy = (Math.floor(i / gridSide) / gridSide - 0.5) * extent * 2;
   const parent = level + 1 < 8 ? 2 ** (level + 1) * 0.01 : null;
   return {
     url: `n${level}-${i}`,
@@ -28,13 +28,13 @@ function page(level: number, i: number, gridSide: number, etendue: number) {
   };
 }
 
-/** `niveaux` detail levels, each half as populated as the previous. */
-export function scenePages(feuilles: number, niveaux: number) {
+/** `levels` detail levels, each half as populated as the previous. */
+export function scenePages(feuilles: number, levels: number) {
   const pages: ReturnType<typeof page>[] = [];
-  for (let level = niveaux - 1; level >= 0; level--) {
-    const compte = Math.max(1, feuilles >> level),
-      gridSide = Math.ceil(Math.sqrt(compte));
-    for (let i = 0; i < compte; i++) pages.push(page(level, i, gridSide, 3));
+  for (let level = levels - 1; level >= 0; level--) {
+    const count = Math.max(1, feuilles >> level),
+      gridSide = Math.ceil(Math.sqrt(count));
+    for (let i = 0; i < count; i++) pages.push(page(level, i, gridSide, 3));
   }
   return pages;
 }
@@ -50,7 +50,7 @@ export function scenePages(feuilles: number, niveaux: number) {
  * behind all those roots. A node's children stay contiguous and behind it, which
  * `cullingBounds` and `hierarchyLevelSizes` both require.
  */
-function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
+function hierarchyByLevels(pages: ReturnType<typeof page>[]) {
   const STRIDE = CULL_STRIDE;
   const tranches: number[][] = [];
   for (let i = 0, debut = 0; i <= pages.length; i++)
@@ -59,13 +59,13 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
       debut = i;
     }
   const blocs = tranches.map(([de, a]) => ({
-    arbre: flatHierarchy(pages.slice(de, a)),
+    tree: flatHierarchy(pages.slice(de, a)),
     premierePage: de,
   }));
   let total = 1;
   const bases = blocs.map((bloc) => {
     const base = total;
-    total += bloc.arbre.nodes.length / STRIDE - 1;
+    total += bloc.tree.nodes.length / STRIDE - 1;
     return base;
   });
   const nodes = new Float64Array((total + blocs.length) * STRIDE);
@@ -80,19 +80,18 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
   nodes[11] = 1;
   nodes[12] = blocs.length;
   for (let k = 0; k < blocs.length; k++) {
-    const { arbre, premierePage } = blocs[k];
-    const compte = arbre.nodes.length / STRIDE;
+    const { tree, premierePage } = blocs[k];
+    const count = tree.nodes.length / STRIDE;
     const place = (j: number) => (j === 0 ? 1 + k : corps - 1 + bases[k] + j - 1);
-    for (let j = 0; j < compte; j++) {
+    for (let j = 0; j < count; j++) {
       const de = j * STRIDE,
         vers = place(j) * STRIDE;
-      for (let v = 0; v < STRIDE; v++) nodes[vers + v] = arbre.nodes[de + v];
-      nodes[vers + 11] = arbre.nodes[de + 12] ? place(arbre.nodes[de + 11]) : 0;
-      nodes[vers + 13] = arbre.nodes[de + 13] + premierePage;
+      for (let v = 0; v < STRIDE; v++) nodes[vers + v] = tree.nodes[de + v];
+      nodes[vers + 11] = tree.nodes[de + 12] ? place(tree.nodes[de + 11]) : 0;
+      nodes[vers + 13] = tree.nodes[de + 13] + premierePage;
       for (let a = 0; a < 3; a++) {
-        if (j === 0 && arbre.nodes[de + a] < nodes[a]) nodes[a] = arbre.nodes[de + a];
-        if (j === 0 && arbre.nodes[de + 3 + a] > nodes[3 + a])
-          nodes[3 + a] = arbre.nodes[de + 3 + a];
+        if (j === 0 && tree.nodes[de + a] < nodes[a]) nodes[a] = tree.nodes[de + a];
+        if (j === 0 && tree.nodes[de + 3 + a] > nodes[3 + a]) nodes[3 + a] = tree.nodes[de + 3 + a];
       }
     }
   }
@@ -101,13 +100,13 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
  *  host library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
- *  Without `parNiveaux` they carry `flatHierarchy`, what packing gives a primitive without a
+ *  Without `byLevels` they carry `flatHierarchy`, what packing gives a primitive without a
  *  manifest — the CPU cut, which does not synthesise one, reads it from here too. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
-  mondes: DagRoot['world'][],
-  parNiveaux = false,
+  worlds: DagRoot['world'][],
+  byLevels = false,
 ): DagRoot[] {
-  const culling = parNiveaux ? hierarchieParNiveaux(pages) : flatHierarchy(pages);
-  return mondes.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }));
+  const culling = byLevels ? hierarchyByLevels(pages) : flatHierarchy(pages);
+  return worlds.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }));
 }

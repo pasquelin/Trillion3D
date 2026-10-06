@@ -4,9 +4,9 @@
 // is the resolution it does itself before inverting the parent's matrix (`poseNode`, in
 // `setWebgpuTransform`).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { libere } from '../kit/sharedSceneProof.ts';
+import { release } from '../kit/sharedSceneProof.ts';
 import { difference, image, redCount } from '../kit/sceneImageProof.ts';
-import { executerPasses } from '../kit/deviceProof.ts';
+import { runPasses } from '../kit/deviceProof.ts';
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts';
 
 /**
@@ -20,8 +20,8 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
   if (!pivot) throw new Error('scene missing pivot node');
   const steps: { name: string; held: boolean | null | undefined; red: number }[] = [];
   const step = async (name: string) => {
-    const { pixels, metriques } = await image(backend, camera);
-    steps.push({ name, held: metriques.frameHeld, red: redCount(pixels) });
+    const { pixels, metrics } = await image(backend, camera);
+    steps.push({ name, held: metrics.frameHeld, red: redCount(pixels) });
     return pixels;
   };
   try {
@@ -61,9 +61,9 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
       singular,
     };
   } finally {
-    libere(backend, canvas, s);
+    release(backend, canvas, s);
   }
 }
 
 /** The sequence, unpaged then paged. */
-export const run = () => executerPasses(sequence);
+export const run = () => runPasses(sequence);

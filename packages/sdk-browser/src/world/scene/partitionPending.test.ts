@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
-import type { PartitionCells } from '../../scene/partition/cells.ts';
-import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
+import type { PartitionCells } from '../../partition/cells.ts';
+import { createCellPages, withHoldings } from '../../partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame } from './partitionFrame.ts';
 

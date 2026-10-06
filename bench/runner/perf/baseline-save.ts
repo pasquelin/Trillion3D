@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Drops `.mesure/perf/` fragments as this machine's reference baselines.
+// Drops `.measure/perf/` fragments as this machine's reference baselines.
 // Launched by `pnpm run perf:baseline`, after a complete bench run.
 import { sauveBaseline } from '../../core/baseline.ts';
 import { lisFragments } from '../../core/report.ts';

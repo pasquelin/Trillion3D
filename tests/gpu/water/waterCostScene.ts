@@ -2,7 +2,7 @@
 // parked offscreen. Measured by `bench/runner/waterCost.ts` (`waterCostPage.ts`), bounded by
 // `packages/sdk-browser/src/webgpu/water/bounds.test.ts`.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { batisseur, carre } from '../kit/sharedSceneProof.ts';
+import { batisseur, square } from '../kit/sharedSceneProof.ts';
 import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts';
 
 export { BACKGROUND };
@@ -29,12 +29,12 @@ export function waterCostScene(fraction: number, enabled: boolean) {
     material: G.GraphSurface,
     pass: string,
   ) => {
-    const mesh = G.mesh(carre(1), material);
+    const mesh = G.mesh(square(1), material);
     mesh.name = name;
     mesh.position.set(x, y, z);
     mesh.scale.set(sx, sy, 1);
     builder.source.add(mesh);
-    builder.ajoute(mesh, pass, 1);
+    builder.add(mesh, pass, 1);
   };
   add(
     'ground',

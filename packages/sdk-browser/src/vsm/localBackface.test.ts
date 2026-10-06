@@ -11,8 +11,8 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts';
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
-import { vsmLayout } from './resources.ts';
 import { seeded } from './planFrames.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27);
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),

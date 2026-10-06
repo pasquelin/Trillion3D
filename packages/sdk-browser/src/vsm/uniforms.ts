@@ -22,12 +22,10 @@ import {
   VSM_TRACE_STEPS_LOCAL,
   VSM_TRACE_DITHER_SUN,
   VSM_TRACE_DITHER_LOCAL,
+  VSM_UNIFORMS_BYTES,
 } from './constants.ts';
-import type { VsmLayout } from './resources.ts';
+import type { VsmLayout } from './layout.ts';
 import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts';
-
-/** Byte size of `VsmUniforms` (uniform address space). */
-export const VSM_UNIFORMS_BYTES = 208;
 
 /**
  * The fields some shader reads, nothing else, by role: the frame's words, the pool's, the tables',

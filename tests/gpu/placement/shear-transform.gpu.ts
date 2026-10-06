@@ -10,7 +10,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 import { runSelectionKernel } from '../dag/selectionKernel.ts';
 
@@ -37,7 +37,7 @@ function view(x: number, fov: number) {
   camera.position.set(x, 0, 10);
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);
-  return cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
+  return cameraSelectionUniforms(engineCamera(camera), 0, VIEWPORT);
 }
 
 /** One kernel case: the page packed IN THE RENDER FRAME of its view — the eye is its origin — as

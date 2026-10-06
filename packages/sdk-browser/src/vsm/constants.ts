@@ -71,6 +71,18 @@ export const VSM_FEEDBACK_POOL = 0;
  * corner, the range), rounded up to the 16-byte alignment its matrices give the struct.
  */
 export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + Math.ceil((7 * 4) / 16) * 16; // 288
+/** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
+export const VSM_UNIFORMS_BYTES = 208;
+
+/** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `renderCullWgsl.ts`), one
+ *  command and one pair (vec4u). */
+export const VSM_RENDER_CANDIDATE_BYTES = 48;
+export const VSM_RENDER_CMD_BYTES = 16;
+export const VSM_RENDER_PAIR_BYTES = 16;
+/** Pairs a chunk of the raster holds by default (`renderPass.ts`), the most its pair and command
+ *  lists then grow to (16 B each): the memory budget's shadow share counts both at it
+ *  (`residency/shadowBudgetBytes.ts`). */
+export const VSM_RENDER_PAIR_CAPACITY = 1 << 21;
 
 // Flags of the next-frame data of a map.
 export const VSM_NEXT_KEEPS_PAGES = 1 << 0;
@@ -237,6 +249,9 @@ export const VSM_TRACE_RAYS_LOCAL = 7;
 export const VSM_TRACE_STEPS_LOCAL = 8;
 export const VSM_TRACE_RAYS_SUN = 7;
 export const VSM_TRACE_STEPS_SUN = 8;
+/** The rays a lane counts at most: its high nibble (`vsmMaskCode`). The ray count settings stop
+ *  there (`world/core/worldSettings.ts`). */
+export const VSM_MASK_MAX_RAYS = (1 << 4) - 1;
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
 export const VSM_TRACE_CONE_LIMIT = 0.03;

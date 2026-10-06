@@ -1,5 +1,9 @@
 import type { BoundSampler } from '../../../sdk-core/src/world/animation/mixer.ts';
-import { trackWidth, type Track, type TrackBinding } from '../../../sdk-core/src/world/animation/clip.ts';
+import {
+  trackWidth,
+  type Track,
+  type TrackBinding,
+} from '../../../sdk-core/src/world/animation/clip.ts';
 import { sample } from '../../../sdk-core/src/world/animation/sample.ts';
 import { AHEAD_HEADER, AHEAD_QUESTION, type AheadMessage } from './animationAhead.ts';
 import { bindSampler } from './batchAnimation.ts';

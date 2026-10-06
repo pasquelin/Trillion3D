@@ -26,7 +26,7 @@ const LENS_VALUES = 46;
 
 type Held = { bounds: Float64Array; arena: Arena };
 const held = new WeakMap<Float64Array, Held>();
-const release = new FinalizationRegistry<Arena>((arena) => arena.libere());
+const release = new FinalizationRegistry<Arena>((arena) => arena.freed());
 /** Lens, result and stack: one reservation for the session's walks. */
 let scratch: Arena | null = null;
 /** Leaves copied out of module memory: taking a page may grow it and detach the view. */
@@ -47,18 +47,18 @@ function residentOf(wasm: SdkWasm, culling: WalkCulling, count: number) {
   if (known?.bounds === culling.bounds) return known.arena;
   if (known) {
     release.unregister(known);
-    known.arena.libere();
+    known.arena.freed();
   }
   const arena = reserveArena(wasm, [
-    { type: 'f64', longueur: culling.nodes.length },
-    { type: 'f64', longueur: culling.bounds.length },
-    { type: 'u32', longueur: count },
-    { type: 'u32', longueur: count },
+    { type: 'f64', length: culling.nodes.length },
+    { type: 'f64', length: culling.bounds.length },
+    { type: 'u32', length: count },
+    { type: 'u32', length: count },
   ]);
   if (!arena) return null;
   const [nodes, bounds] = arena.blocs();
-  nodes.vue.set(culling.nodes);
-  bounds.vue.set(culling.bounds);
+  nodes.view.set(culling.nodes);
+  bounds.view.set(culling.bounds);
   const entry = { bounds: culling.bounds, arena };
   held.set(culling.nodes, entry);
   release.register(culling.nodes, arena, entry);
@@ -67,9 +67,9 @@ function residentOf(wasm: SdkWasm, culling: WalkCulling, count: number) {
 
 function scratchOf(wasm: SdkWasm) {
   scratch ??= reserveArena(wasm, [
-    { type: 'f64', longueur: LENS_VALUES },
-    { type: 'u32', longueur: 3 },
-    { type: 'u32', longueur: selectionScratch.stack.length },
+    { type: 'f64', length: LENS_VALUES },
+    { type: 'u32', length: 3 },
+    { type: 'u32', length: selectionScratch.stack.length },
   ]);
   return scratch;
 }
@@ -91,7 +91,7 @@ export function walkCut<T extends PageRecord>(
     work = scratchOf(wasm);
   if (!resident || !work) return -1;
   const [lensBlock, resultBlock, stackBlock] = work.blocs();
-  const lens = lensBlock.vue;
+  const lens = lensBlock.view;
   lens.set(selectionScratch.planes);
   lens.set(s.flatElements, 24);
   const perspective = s.cam.perspective;
@@ -105,7 +105,7 @@ export function walkCut<T extends PageRecord>(
   // A root with no open node — counts roll up to node 0 — hands none over.
   const held = s.flatHeld,
     opened = held && held.openAt(0) > 0 ? count : 0;
-  if (opened) held!.writeOpen(openBlock.vue as Uint32Array, count);
+  if (opened) held!.writeOpen(openBlock.view as Uint32Array, count);
   const status = wasm.cut_walk(
     nodesBlock.offset,
     nodes.length,
@@ -116,7 +116,7 @@ export function walkCut<T extends PageRecord>(
     opened,
     lensBlock.offset,
     stackBlock.offset,
-    stackBlock.vue.length,
+    stackBlock.view.length,
     leafBlock.offset,
     count,
     resultBlock.offset,
@@ -126,11 +126,11 @@ export function walkCut<T extends PageRecord>(
     return -1;
   }
   cutWalkRuns.walked++;
-  const [written, tested, rejected] = resultBlock.vue;
+  const [written, tested, rejected] = resultBlock.view;
   s.nodesTested += tested;
   s.frustumRejected += rejected;
   if (leaves.length < written) leaves = new Uint32Array(written);
-  leaves.set(leafBlock.vue.subarray(0, written));
+  leaves.set(leafBlock.view.subarray(0, written));
   return written;
 }
 

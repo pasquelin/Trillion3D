@@ -7,9 +7,10 @@ import assert from 'node:assert/strict';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { FLAG_MASK } from '../visibility/types.ts';
-import { vsmBindingsWgsl, vsmLayout } from './resources.ts';
+import { vsmBindingsWgsl } from './resources.ts';
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './renderRasterWgsl.ts';
 import { seeded } from './planFrames.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27);
 const CODE = vsmRenderRasterWgsl(LAYOUT);
@@ -71,7 +72,10 @@ test('the pool max writes only a greater depth, and every word ends the max of i
     let rises = 0,
       best = 0;
     for (const d of depths) {
-      if (d > best) (rises++, (best = d));
+      if (d > best) {
+        rises++;
+        best = d;
+      }
       run.join(d);
     }
     assert.equal(word[0], best, 'the max of the depths');

@@ -20,11 +20,8 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
  * that stays under it is by the behaviour under test (`b237eb625`). The scripts keep it too — they
  * are read whole, one gate or one step each.
  */
-/** The maintained runtime modules `check:cohesion` reads instead. `page-codec` is listed both as
- *  `packages/page-codec/src` and as the package root, because the modules live at the root — a
- *  path that does not exist would silently keep the bound on files the other gate never sees. */
-const RUNTIME_SOURCE =
-  /^(?:packages\/(?:sdk-core|sdk-browser|sdk-node)\/src\/|packages\/page-codec\/)/;
+/** The maintained runtime modules `check:cohesion` reads instead. */
+const RUNTIME_SOURCE = /^packages\/(?:sdk-core|sdk-browser|sdk-node|page-codec)\/src\//;
 const TEST_FILE = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,

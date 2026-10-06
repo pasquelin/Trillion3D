@@ -11,12 +11,12 @@ export * from '../../sdk-core/src/world/camera/index.ts';
 export * from '../../sdk-core/src/world/animation/index.ts';
 export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
-export * from './world/loader/index.ts';
-export * from './world/helper/index.ts';
+export * from './world/api/loaderFamily.ts';
+export * from './world/api/helperFamily.ts';
 export * from './guides/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
-export * from './world/budget/index.ts';
+export * from './world/api/budgetFamily.ts';
 export {
   ObjectPhysics,
   GRAVITY_PRESETS,
@@ -55,12 +55,12 @@ export type { WorldPhysics } from './physics/worldPhysics.ts';
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts';
 export type { WaterSpec, WaveSpec, WaterSurface, Waves } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
-export * from './world/metric/index.ts';
+export * from './world/api/metricFamily.ts';
 export * from './world/diagnostic/index.ts';
 export * from './world/capability/index.ts';
 export * from './world/capture/index.ts';
-export * from './world/pose/index.ts';
-export * from './world/batch/index.ts';
+export * from './world/api/poseFamily.ts';
+export * from './world/api/batchFamily.ts';
 export type {
   CreatedMaterial,
   SceneMaterial,
@@ -76,7 +76,7 @@ export type {
 export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts';
-export type { CellRows } from './scene/partition/cellDecode.ts';
+export type { CellRows } from './partition/cellDecode.ts';
 export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
@@ -140,6 +140,7 @@ export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
 export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
 export { createGpuPageCache, httpPageSource, type ResidentPage } from './gpu/page/pages.ts';
+export type { PageHome, PageHomes } from './gpu/page/homes.ts';
 export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts';

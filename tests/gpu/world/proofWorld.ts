@@ -3,7 +3,7 @@
 // backend draws. Written in an area until the kit (`../kit/`) holds it.
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ASSETS, assetsManifest } from '../../../bench/runner/scene.ts';
+import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts';
 import { openDefaultWorld } from '../kit/defaultWorld.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 import type { CameraPose, SceneLight } from '../../../packages/sdk-core/src/index.ts';

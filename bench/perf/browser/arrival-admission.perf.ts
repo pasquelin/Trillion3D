@@ -6,7 +6,7 @@ import {
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts';
 import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAdmission,
   referenceArrivalQueue,
@@ -47,7 +47,7 @@ function engineAdmission(queue: AdmissionJob[], bytesOf: (url: string) => number
   return admitted;
 }
 
-const random = graine(71);
+const random = xorshiftRandom(71);
 const catalogue = new Map<string, number>();
 const jobs: AdmissionJob[] = [];
 for (let i = 0; i < 5000; i++) {
@@ -97,7 +97,7 @@ function arrivals(factory: (byteBudget: number, countBudget: number) => QueueFac
   return { delivered, drained };
 }
 
-const resAdmission = await mesure({
+const resAdmission = await measure({
   name: 'admission streaming',
   fichier: [
     'packages/sdk-browser/src/streaming/queueOrder.ts',
@@ -108,23 +108,23 @@ const resAdmission = await mesure({
     { name: 'no jobs', input: admissions.empty as Admission, size: 0 },
   ],
   // The oracle sorts its own copy of the queue in arrival order, as the code before batch A did.
-  calcul: ({ inOrder: queue }: Admission) => engineAdmission(refill(queue), bytesOf),
-  attendu: ({ arrival }: Admission) => referenceAdmission(arrival.slice(), bytesOf),
+  calculation: ({ inOrder: queue }: Admission) => engineAdmission(refill(queue), bytesOf),
+  expected: ({ arrival }: Admission) => referenceAdmission(arrival.slice(), bytesOf),
   options: { tours: 100, budgetMs: 1500 },
 });
 
-const resArrivals = await mesure({
+const resArrivals = await measure({
   name: 'arrival queue',
   fichier: 'packages/sdk-browser/src/page/integration/arrivalQueue.ts',
   cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
-  calcul: () => arrivals((bytes, count) => createArrivalQueue(bytes, count, frame)),
-  attendu: () => arrivals(referenceArrivalQueue),
+  calculation: () => arrivals((bytes, count) => createArrivalQueue(bytes, count, frame)),
+  expected: () => arrivals(referenceArrivalQueue),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'createArrivalQueue extremes',
-  calcul: (size: number) => createArrivalQueue(size, 4096, frame),
+  calculation: (size: number) => createArrivalQueue(size, 4096, frame),
   extremes: [
     { name: 'small', input: 4096 },
     { name: 'large', input: 1 << 28 },

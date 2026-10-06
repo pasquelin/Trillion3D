@@ -36,7 +36,7 @@ test('an unknown name is refused, even under "trace"', () => {
 });
 
 test('each variant neutralises a single factor, and its stage exists in the module', () => {
-  const attendu: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
+  const expected: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
     {
       'blend-flat': { entryPoint: 'fsPlat', writeMask: 0xf },
       'blend-vertices': { entryPoint: 'fsJete', writeMask: 0xf },
@@ -47,7 +47,7 @@ test('each variant neutralises a single factor, and its stage exists in the modu
   const production = { entryPoint: 'fs', writeMask: 0xf };
   for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
     const pipeline = blendVariantPipeline(variant);
-    assert.deepEqual(pipeline, attendu[variant] ?? production, variant);
+    assert.deepEqual(pipeline, expected[variant] ?? production, variant);
     if (pipeline.entryPoint !== 'fs')
       assert.match(DIAGNOSTIC_BLEND_WGSL, new RegExp(`@fragment fn ${pipeline.entryPoint}\\(`));
   }
@@ -55,11 +55,11 @@ test('each variant neutralises a single factor, and its stage exists in the modu
 
 test('counting, off-screen presentation and the compute raster are turned on only by their variant', () => {
   const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw);
-  const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
-  const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
+  const offscreen = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
+  const compute = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
   assert.deepEqual(comptant, ['blend-overdraw']);
-  assert.deepEqual(horsEcran, ['present-offscreen']);
-  assert.deepEqual(calcul, ['raster-compute', 'raster-hybrid']);
+  assert.deepEqual(offscreen, ['present-offscreen']);
+  assert.deepEqual(compute, ['raster-compute', 'raster-hybrid']);
   assert.equal(requestsComputeRaster(undefined), false);
 });
 

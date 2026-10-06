@@ -70,7 +70,8 @@ const pass = {
   ...{ setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {} },
   ...{ dispatchWorkgroupsIndirect() {}, drawIndirect() {}, end() {} },
 };
-const encoder = {
+/** A command encoder whose passes record nothing. */
+export const encoder = {
   beginComputePass: () => pass,
   beginRenderPass: () => pass,
   clearBuffer() {},

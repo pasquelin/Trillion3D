@@ -107,11 +107,11 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
     [map, Infinity, -Infinity],
     [bordee, NaN, NaN],
   ] as const) {
-    const obtenu = sampleMap(texture_, u, v);
-    bitExact(obtenu, referenceSampleMap(texture_, u, v), `sample uv ${u},${v}`);
+    const actual = sampleMap(texture_, u, v);
+    bitExact(actual, referenceSampleMap(texture_, u, v), `sample uv ${u},${v}`);
     assert.ok(
-      obtenu.every((c) => Number.isNaN(c)),
-      `sample uv ${u},${v}: ${obtenu}`,
+      actual.every((c) => Number.isNaN(c)),
+      `sample uv ${u},${v}: ${actual}`,
     );
   }
 });
@@ -123,10 +123,10 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
 test('a texture without an image or without data yields null on both sides', () => {
   const sansImage = importHostTexture(new G.GraphTexture());
   assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage));
-  const largeurNulle = new G.GraphTexture();
-  largeurNulle.image = { data: new Uint8Array(4), width: 0, height: 1 };
-  const vide = importHostTexture(largeurNulle);
-  assert.equal(textureRgba(vide), referenceTextureRgba(vide));
+  const zeroWidth = new G.GraphTexture();
+  zeroWidth.image = { data: new Uint8Array(4), width: 0, height: 1 };
+  const empty = importHostTexture(zeroWidth);
+  assert.equal(textureRgba(empty), referenceTextureRgba(empty));
 });
 
 test('two calls on the same image yield the same bytes as the reference, and the same memoised object', () => {
@@ -134,10 +134,10 @@ test('two calls on the same image yield the same bytes as the reference, and the
   const premier = textureRgba(map);
   const second = textureRgba(map);
   assert.equal(second, premier, 'the same object is reused as long as the source does not change');
-  const attendu = referenceTextureRgba(map);
-  assert.deepEqual(Array.from(premier!.data), Array.from(attendu!.data));
-  assert.equal(premier!.width, attendu!.width);
-  assert.equal(premier!.height, attendu!.height);
+  const expected = referenceTextureRgba(map);
+  assert.deepEqual(Array.from(premier!.data), Array.from(expected!.data));
+  assert.equal(premier!.width, expected!.width);
+  assert.equal(premier!.height, expected!.height);
 });
 
 test('an image replaced by a new buffer yields new bytes, identical to the reference', () => {

@@ -67,30 +67,30 @@ test('nextStamp: a fresh stamp on every call, never zero', () => {
 
 test('visitSubtree: visits the node then its descendants parents first, never its siblings', () => {
   const tree = createTransformTree(8);
-  const racine = addTransformNode(tree);
-  const frere = addTransformNode(tree, racine);
-  const cible = addTransformNode(tree, racine);
-  const petitEnfant = addTransformNode(tree, cible);
+  const root = addTransformNode(tree);
+  const frere = addTransformNode(tree, root);
+  const target = addTransformNode(tree, root);
+  const grandchild = addTransformNode(tree, target);
   const visites: number[] = [];
-  visitSubtree(tree, cible, (_t, n) => visites.push(n));
-  assert.deepEqual(visites, [cible, petitEnfant]);
+  visitSubtree(tree, target, (_t, n) => visites.push(n));
+  assert.deepEqual(visites, [target, grandchild]);
   assert.ok(!visites.includes(frere));
-  assert.ok(!visites.includes(racine));
+  assert.ok(!visites.includes(root));
 });
 
 test('removeTransformNode: removes the node and its descendants, a sibling stays alive', () => {
   const tree = createTransformTree(8);
-  const racine = addTransformNode(tree);
-  const branche = addTransformNode(tree, racine);
+  const root = addTransformNode(tree);
+  const branche = addTransformNode(tree, root);
   const feuille = addTransformNode(tree, branche);
-  const frere = addTransformNode(tree, racine);
+  const frere = addTransformNode(tree, root);
   removeTransformNode(tree, branche);
   assert.equal(tree.flags[branche] & NODE_ALIVE, 0);
   assert.equal(tree.flags[feuille] & NODE_ALIVE, 0);
   assert.ok(tree.flags[frere] & NODE_ALIVE);
-  assert.equal(tree.flags[racine] & NODE_ALIVE, NODE_ALIVE);
+  assert.equal(tree.flags[root] & NODE_ALIVE, NODE_ALIVE);
   assert.equal(
-    visitSubtree(tree, racine, () => {}),
+    visitSubtree(tree, root, () => {}),
     2,
     'the removed branch left its parent',
   );
@@ -112,27 +112,27 @@ test('reparentTransformNode: changes the parent and marks NODE_LOCAL_CHANGED', (
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
   const b = addTransformNode(tree);
-  const enfant = addTransformNode(tree, a);
-  tree.flags[enfant] &= ~NODE_LOCAL_CHANGED;
-  reparentTransformNode(tree, enfant, b);
-  assert.equal(tree.parent[enfant], b);
-  assert.ok(tree.flags[enfant] & NODE_LOCAL_CHANGED);
+  const child = addTransformNode(tree, a);
+  tree.flags[child] &= ~NODE_LOCAL_CHANGED;
+  reparentTransformNode(tree, child, b);
+  assert.equal(tree.parent[child], b);
+  assert.ok(tree.flags[child] & NODE_LOCAL_CHANGED);
 });
 
 test('reparentTransformNode: no effect if the parent is already that one (no remake)', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
-  const enfant = addTransformNode(tree, a);
-  tree.flags[enfant] &= ~NODE_LOCAL_CHANGED;
-  reparentTransformNode(tree, enfant, a);
-  assert.equal(tree.flags[enfant] & NODE_LOCAL_CHANGED, 0, 'no remake for an unchanged parent');
+  const child = addTransformNode(tree, a);
+  tree.flags[child] &= ~NODE_LOCAL_CHANGED;
+  reparentTransformNode(tree, child, a);
+  assert.equal(tree.flags[child] & NODE_LOCAL_CHANGED, 0, 'no remake for an unchanged parent');
 });
 
 test('reparentTransformNode: throws a cycle if the new parent is the node itself or one of its descendants', () => {
   const tree = createTransformTree(4);
-  const racine = addTransformNode(tree);
-  const enfant = addTransformNode(tree, racine);
-  const petitEnfant = addTransformNode(tree, enfant);
-  assert.throws(() => reparentTransformNode(tree, racine, racine), /TRANSFORM_CYCLE|cycle/);
-  assert.throws(() => reparentTransformNode(tree, racine, petitEnfant), /TRANSFORM_CYCLE|cycle/);
+  const root = addTransformNode(tree);
+  const child = addTransformNode(tree, root);
+  const grandchild = addTransformNode(tree, child);
+  assert.throws(() => reparentTransformNode(tree, root, root), /TRANSFORM_CYCLE|cycle/);
+  assert.throws(() => reparentTransformNode(tree, root, grandchild), /TRANSFORM_CYCLE|cycle/);
 });

@@ -106,14 +106,14 @@ fn the_descriptor_premultiplied_flag_brings_alpha_back_to_straight() {
         Some((SRGB, PREMULTIPLIED)),
         &[],
     );
-    let attendu = rows(|row| match row {
+    let expected = rows(|row| match row {
         0 => [255, 255, 255, 128],
         1 => [0, 0, 0, 128],
         2 => [10, 20, 30, 0],
         _ => [7, 8, 9, 255],
     });
     let (_, notes, pixels) = declared("premultiplied", &file);
-    assert_eq!(pixels, attendu);
+    assert_eq!(pixels, expected);
     assert!(notes.is_empty(), "the flag is applied, not counted");
     // Without the flag, the same bytes come out as-is: it is indeed it that decides.
     let droit = bytes::described(RGBA8_SRGB, SIDE, SIDE, &level, 1, Some((SRGB, 0)), &[]);

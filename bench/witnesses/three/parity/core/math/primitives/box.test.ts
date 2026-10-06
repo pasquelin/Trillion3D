@@ -12,7 +12,7 @@ import {
   boxUnion,
 } from '../../../../../../../packages/sdk-core/src/index.ts';
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts';
-import { aPlat, boite3 } from '../../../../../../oracles/core/volumes.ts';
+import { aPlat, box3 } from '../../../../../../oracles/core/volumes.ts';
 import { boxTransformBefore, hostileFloats } from '../../../../../../oracles/core/hot-path-math.ts';
 
 test('boxEmpty sets inverted bounds at infinity', () => {
@@ -48,7 +48,7 @@ test('boxUnion matches the host-library union, including empty box, signed zero,
     ],
   ];
   for (const [a, b] of cas) {
-    const expected = aPlat(boite3(a).union(boite3(b)));
+    const expected = aPlat(box3(a).union(box3(b)));
     const actual = Float64Array.from(a);
     boxUnion(actual, 0, b[0], b[1], b[2], b[3], b[4], b[5]);
     assertBits(actual, expected);
@@ -71,7 +71,7 @@ test('boxExpandByPoint matches the host-library expansion by a point, including 
     ], // input inverted box
   ];
   for (const [a, p] of cas) {
-    const expected = aPlat(boite3(a).expandByPoint(new THREE.Vector3(p[0], p[1], p[2])));
+    const expected = aPlat(box3(a).expandByPoint(new THREE.Vector3(p[0], p[1], p[2])));
     const actual = Float64Array.from(a);
     boxExpandByPoint(actual, 0, p[0], p[1], p[2]);
     assertBits(actual, expected);
@@ -81,7 +81,7 @@ test('boxExpandByPoint matches the host-library expansion by a point, including 
 test('boxTransform matches the host-library transformed box under negative scale on a single axis', () => {
   const m = new THREE.Matrix4().makeScale(-2, 1, 1).setPosition(3, -1, 2);
   const b = [-1, -2, -3, 4, 5, 6];
-  const expected = aPlat(boite3(b).applyMatrix4(m));
+  const expected = aPlat(box3(b).applyMatrix4(m));
   const actual = new Float64Array(6);
   boxTransform(actual, 0, b, 0, m.elements);
   assertBits(actual, expected);
@@ -95,7 +95,7 @@ test('boxTransform matches the host-library transformed box under non-uniform sc
     new THREE.Vector3(0.2, 5, -1.5),
   );
   const b = [-2, -1, -4, 3, 2, 1];
-  const expected = aPlat(boite3(b).applyMatrix4(m));
+  const expected = aPlat(box3(b).applyMatrix4(m));
   const actual = new Float64Array(6);
   boxTransform(actual, 0, b, 0, m.elements);
   assertBits(actual, expected);
@@ -104,7 +104,7 @@ test('boxTransform matches the host-library transformed box under non-uniform sc
 test('boxTransform matches the host-library transformed box under zero scale on an axis', () => {
   const m = new THREE.Matrix4().makeScale(1, 0, 1);
   const b = [-1, -1, -1, 1, 1, 1];
-  const expected = aPlat(boite3(b).applyMatrix4(m));
+  const expected = aPlat(box3(b).applyMatrix4(m));
   const actual = new Float64Array(6);
   boxTransform(actual, 0, b, 0, m.elements);
   assertBits(actual, expected);
@@ -114,7 +114,7 @@ test('boxTransform matches the host-library transformed box under NaN, infinite,
   const cas = [new Array(16).fill(NaN), new Array(16).fill(Infinity), new Array(16).fill(0)];
   const b = [-1, -1, -1, 1, 1, 1];
   for (const m of cas) {
-    const expected = aPlat(boite3(b).applyMatrix4(new THREE.Matrix4().fromArray(m)));
+    const expected = aPlat(box3(b).applyMatrix4(new THREE.Matrix4().fromArray(m)));
     const actual = new Float64Array(6);
     boxTransform(actual, 0, b, 0, m);
     assertBits(actual, expected);

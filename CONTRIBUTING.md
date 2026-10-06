@@ -42,7 +42,7 @@
   total, only.
 - **Two scales of proof.** A pull request proves its change in seconds to a minute on the public
   scene that exercises it under `.mesure/assets/` (Khronos samples, the generated facade;
-  `bench/runner/assets.ts` fetches and compiles them). The full campaign (every view and scene,
+  `bench/runner/assets/assets.ts` fetches and compiles them). The full campaign (every view and scene,
   spread, envelope) runs once, on the release pull request `develop` → `main`, and is what is
   published; the site keeps the latest report, each image stored once.
 - **After the merge** (AGENTS.md rule 2) issues carry `to audit`, and `to measure` when the diff can
@@ -65,8 +65,8 @@
   1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`), no discussion.
   2. **Rendering technique** (temporal upscaler, radiance cache, cached shadow pages, f16 or wave
      intrinsics): within a stated bound of a named reference image — mean and 99.9th-percentile
-     channel error and mean LDR-FLIP (`bench/runner/flip.ts`), by
-     `bench/runner/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the references
+     channel error and mean LDR-FLIP (`bench/runner/references/flip.ts`), by
+     `bench/runner/references/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the references
      `bench/references/` names, drawn off git into `.mesure/references/`) — and no flicker, trail,
      hole or lost detail on still and moving captures.
 - **A proof needs a stable A/A** (0 px, or the exception below); a broad spread proves nothing. An
@@ -109,7 +109,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - **pnpm.** `pnpm run check:changed` is the one local gate: changed-file format, lint, types, lines
   and duplicates, and the unit tests the change can affect — its domain folder's and those that
   really use it (`scripts/affected-tests.ts`); a documentation, site image or translation change runs
-  only the gates and the unit tests that read those files (`scripts/docs-tests.ts`). Its test run is
+  only the gates and the unit tests that read those files (`scripts/docs/tests.ts`). Its test run is
   capped to two processes (`TRILLION3D_TEST_CONCURRENCY`), and every heavy local step (a test run,
   `build`, `build:docs`, `build:native`, `compile:caches`) waits for the other worktrees' and runs at
   low priority (`scripts/heavy-lock.ts`). Inspect dependants after deletions, public-export or
@@ -142,7 +142,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off git). Nothing
   reads another project on disk (no neighbour path, no external harness); no host code to make the
   engine work, no writing into a host's folders. Every browser, a scratch harness's included, is
-  the system Chrome opened by `launchChrome` (`bench/runner/chrome.ts`), never `chromium.launch`:
+  the system Chrome opened by `launchChrome` (`bench/runner/harness/chrome.ts`), never `chromium.launch`:
   Playwright's own headless shell loses the WebGPU device after the first frame (#1364).
 - React/Electron/Vite, DOM and platform filesystem APIs stay out of runtime-core/shared contracts
   (use adapters); consume public entry points, never application internals. Generic Rust

@@ -1,15 +1,15 @@
 import { useWords } from '../i18n.ts';
-import { assessment, engineTone } from '../../reports/assessment.ts';
-import { engineName } from '../../reports/names.ts';
-import { missingMetric } from '../../reports/availability.ts';
-import { METRICS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { recordLabel, runOf } from '../../reports/presentation.ts';
+import { assessment, engineTone } from './model/assessment.ts';
+import { engineName } from './model/names.ts';
+import { missingMetric } from './model/availability.ts';
+import { METRICS, metricValue, formatValue } from './model/metrics.ts';
+import { recordLabel, runOf } from './model/presentation.ts';
 import { ChartGrid } from '../ui/ChartGrid.tsx';
 import { BarChart } from '../ui/BarChart.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Table } from '../ui/Table.tsx';
-import type { Report, ReportRecord } from '../../reports/types.ts';
-import type { MetricKey } from '../../reports/metrics.ts';
+import type { Report, ReportRecord } from './model/types.ts';
+import type { MetricKey } from './model/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface MetricChartsProps {

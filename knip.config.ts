@@ -22,18 +22,18 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
-        'packages/page-codec/geometryPage.ts',
+        'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
         'packages/**/*.test.ts',
         // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
         // by `node --test`, are entries by rule. Any other script is dead.
-        'scripts/*.test.ts',
+        'scripts/**/*.test.ts',
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).
-        'scripts/docs-examples-assets.ts',
-        'scripts/docs-examples-thumbnails.ts',
+        'scripts/docs/examples-assets.ts',
+        'scripts/docs/examples-thumbnails.ts',
         'scripts/site-first-load.ts',
         'scripts/ltc-fit.ts',
         'scripts/prove-install-page.ts',
@@ -45,43 +45,43 @@ const config: KnipConfig = {
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
-        'bench/runner/feedbackTargetAb.ts',
-        'bench/runner/trajectory.ts',
-        'bench/runner/reference.ts',
+        'bench/runner/feedback/feedbackTargetAb.ts',
+        'bench/runner/trajectory/trajectory.ts',
+        'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
         'tests/integration/public-types-union.fixture.ts',
         // Served to the harness page and imported by URL, never by local import.
-        'bench/runner/cutPage.ts',
-        'bench/runner/witnessPage.ts',
-        'bench/runner/explorerPage.ts',
-        'bench/runner/lightingPage.ts',
-        'bench/runner/referencePage.ts',
-        'bench/runner/trajectoryPage.ts',
-        'bench/runner/poses.ts',
-        'bench/runner/threeBarePage.ts',
-        'bench/runner/threeLodPage.ts',
-        'bench/runner/measurePage.ts',
-        'bench/runner/fluidsPage.ts',
+        'bench/runner/series/cutPage.ts',
+        'bench/runner/witness/witnessPage.ts',
+        'bench/runner/harness/explorerPage.ts',
+        'bench/runner/lighting/lightingPage.ts',
+        'bench/runner/references/referencePage.ts',
+        'bench/runner/trajectory/trajectoryPage.ts',
+        'bench/runner/trajectory/poses.ts',
+        'bench/runner/witness/threeBarePage.ts',
+        'bench/runner/witness/threeLodPage.ts',
+        'bench/runner/harness/measurePage.ts',
+        'bench/runner/fluids/fluidsPage.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
-        'bench/runner/deformationEnvelope.ts',
-        'bench/runner/deformationWitness.ts',
-        'bench/runner/feedbackTargetPage.ts',
-        'bench/runner/gazeNetworkPage.ts',
-        'bench/runner/limits.ts',
-        'bench/runner/screenErrorPage.ts',
+        'bench/runner/witness/deformationEnvelope.ts',
+        'bench/runner/witness/deformationWitness.ts',
+        'bench/runner/feedback/feedbackTargetPage.ts',
+        'bench/runner/gaze/gazeNetworkPage.ts',
+        'bench/runner/harness/limits.ts',
+        'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
         // pages; it re-exports the engine's measurement seam.
         'bench/witnesses/measurement.ts',
         // Full campaign and its report, launched manually.
         'bench/runner/campaign.ts',
-        'bench/runner/summaryGlobal.ts',
-        'bench/runner/pageQuantization.ts',
-        'bench/runner/oracle.ts',
-        'bench/runner/lampFixture.ts',
-        'bench/runner/anisotropyCost.ts',
+        'bench/runner/summary/summaryGlobal.ts',
+        'bench/runner/counts/pageQuantization.ts',
+        'bench/runner/references/oracle.ts',
+        'bench/runner/lighting/lampFixture.ts',
+        'bench/runner/counts/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',
-        'bench/runner/screenError.ts',
+        'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
         // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case
@@ -92,7 +92,7 @@ const config: KnipConfig = {
         'tests/gpu/**/*.gpu.ts',
         'tests/gpu/**/*.chrome.ts',
         'tests/gpu/**/*Page.ts',
-        'tests/fixtures/public*.{ts,mts}',
+        'tests/fixtures/public/*.{ts,mts}',
       ],
       project: [
         'site/**/*.{ts,tsx}',
@@ -106,7 +106,7 @@ const config: KnipConfig = {
         '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
       },
       // The harness server maps this browser URL to the page entry above.
-      ignoreUnresolved: ['/runner/feedbackTargetPage.ts'],
+      ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
       // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
       // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.

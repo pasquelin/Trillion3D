@@ -1,5 +1,5 @@
 import { evictOldest } from './evictOldest.ts';
-import { createEvictionOrder } from './evictionOrder.ts';
+import { createEvictionOrder } from './cacheEvictionOrder.ts';
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts';
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
@@ -32,7 +32,7 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
-  /** The pages' eviction order past the reading session's holds (`evictionOrder.ts`). */
+  /** The pages' eviction order past the reading session's holds (`cacheEvictionOrder.ts`). */
   const order = createEvictionOrder((url) => pages.get(url)!.byteLength);
   /** The fingerprint each page's bytes were verified against when read: they leave with them. */
   const fingerprints = new WeakMap<Uint8Array, string>();

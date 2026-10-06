@@ -1,9 +1,9 @@
-// Performance baselines of a domain: `.mesure/baselines/<domain>.json`, outside repository because
+// Performance baselines of a domain: `.measure/baselines/<domain>.json`, outside repository because
 // timing is only valid on the machine that recorded it. Each row is retrieved by the key pair
 // measurement/case, never by its source file: multiple benchmarks measure the same file.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { RACINE, cheminBaseline, dossierBaselines } from './paths.ts';
+import { RACINE, baselinePath, dossierBaselines } from './paths.ts';
 import type { Measurement } from '../../site/examples/kit/measureTypes.ts';
 
 /** One stored baseline row, keyed by measurement/case pair. */
@@ -16,7 +16,7 @@ interface BaselineRow {
   nsParElement: number | null;
 }
 
-/** A domain baseline file, `.mesure/baselines/<domain>.json`. */
+/** A domain baseline file, `.measure/baselines/<domain>.json`. */
 export interface BaselineFile {
   version: 3;
   domaine: string;
@@ -28,7 +28,7 @@ export interface BaselineFile {
 }
 
 /** The key of a baseline row: measurement name and case name. */
-export const cleDeLigne = (mesure: string, cas: string) => `${mesure} | ${cas}`;
+export const rowKey = (measure: string, cas: string) => `${measure} | ${cas}`;
 
 let commitMemoire: string | null | undefined;
 
@@ -49,10 +49,10 @@ export function commitCourant() {
 
 /** Loads a domain baseline, or `null` if the machine has not stored one yet. */
 export function chargeBaseline(domaine: string): BaselineFile | null {
-  const chemin = cheminBaseline(domaine);
-  if (!existsSync(chemin)) return null;
+  const path = baselinePath(domaine);
+  if (!existsSync(path)) return null;
   try {
-    const lue = JSON.parse(readFileSync(chemin, 'utf8')) as BaselineFile;
+    const lue = JSON.parse(readFileSync(path, 'utf8')) as BaselineFile;
     return lue?.version === 3 ? lue : null;
   } catch {
     return null;
@@ -60,10 +60,10 @@ export function chargeBaseline(domaine: string): BaselineFile | null {
 }
 
 /** Saves a domain baseline from the fragment that `rapport()` wrote. */
-export function sauveBaseline(domaine: string, mesures: Measurement[]) {
-  const resultats: BaselineRow[] = mesures.flatMap((m) =>
+export function sauveBaseline(domaine: string, measurements: Measurement[]) {
+  const results: BaselineRow[] = measurements.flatMap((m) =>
     m.resultats.map((r) => ({
-      cle: cleDeLigne(m.name, r.name),
+      cle: rowKey(m.name, r.name),
       size: r.size,
       medianeMs: r.medianeMs,
       p95Ms: r.p95Ms,
@@ -73,7 +73,7 @@ export function sauveBaseline(domaine: string, mesures: Measurement[]) {
   );
   mkdirSync(dossierBaselines, { recursive: true });
   writeFileSync(
-    cheminBaseline(domaine),
+    baselinePath(domaine),
     JSON.stringify(
       {
         version: 3,
@@ -82,61 +82,61 @@ export function sauveBaseline(domaine: string, mesures: Measurement[]) {
         date: new Date().toISOString(),
         machine: `${process.platform}/${process.arch}`,
         node: process.version,
-        resultats,
+        resultats: results,
       },
       null,
       2,
     ) + '\n',
   );
-  return resultats.length;
+  return results.length;
 }
 
 /**
  * The two regression thresholds, written HERE and nowhere else: a row's status icon and
  * a report's conclusion read the exact same rule, avoiding self-contradictions.
  */
-export const SEUIL_AVERTISSEMENT = 0.1;
-export const SEUIL_ECHEC = 0.25;
+export const WARNING_THRESHOLD = 0.1;
+export const FAILURE_THRESHOLD = 0.25;
 
 /** A median relative to a reference median — baseline or witness; `null` without one, never `0`. */
-export const ecartRelatif = (medianeMs: number | null, referenceMs: number | null | undefined) =>
-  referenceMs && medianeMs !== null ? (medianeMs - referenceMs) / referenceMs : null;
+export const relativeGap = (medianMs: number | null, referenceMs: number | null | undefined) =>
+  referenceMs && medianMs !== null ? (medianMs - referenceMs) / referenceMs : null;
 
 /** Regression thresholds a caller may tighten. */
 export interface Seuils {
-  seuilAvertissement?: number;
-  seuilEchec?: number;
+  warningThreshold?: number;
+  failureThreshold?: number;
 }
 
-/** The level of a discrepancy: `absent` if no baseline, then `ok`, `avertissement`, and `echec`. */
-export type NiveauEcart = 'absent' | 'ok' | 'avertissement' | 'echec';
+/** The level of a discrepancy: `absent` if no baseline, then `ok`, `warning`, and `failure`. */
+export type GapLevel = 'absent' | 'ok' | 'warning' | 'failure';
 
-export function niveauEcart(ecart: number | null | undefined, options: Seuils = {}): NiveauEcart {
-  const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
-  if (ecart === null || ecart === undefined || Number.isNaN(ecart)) return 'absent';
-  if (ecart > seuilEchec) return 'echec';
-  if (ecart > seuilAvertissement) return 'avertissement';
+export function gapLevel(gap: number | null | undefined, options: Seuils = {}): GapLevel {
+  const { warningThreshold = WARNING_THRESHOLD, failureThreshold = FAILURE_THRESHOLD } = options;
+  if (gap === null || gap === undefined || Number.isNaN(gap)) return 'absent';
+  if (gap > failureThreshold) return 'failure';
+  if (gap > warningThreshold) return 'warning';
   return 'ok';
 }
 
 /** A row bearing the discrepancy a batch verdict is computed from. */
-export interface LigneAvecEcartBaseline {
+export interface RowWithBaselineGap {
   name: string;
   ecartBaseline: number | null;
 }
 
 /** One case counted toward a batch verdict, named and with its discrepancy against the baseline. */
-interface CasEcart {
+interface GapCase {
   name: string;
-  ecart: number | null;
+  gap: number | null;
 }
 
 /** The verdict of a batch of cases compared against a baseline. */
-export interface Bilan extends Required<Seuils> {
-  verdict: NiveauEcart;
+export interface Tally extends Required<Seuils> {
+  verdict: GapLevel;
   compares: number;
-  regressions: CasEcart[];
-  avertissements: CasEcart[];
+  regressions: GapCase[];
+  warnings: GapCase[];
 }
 
 /**
@@ -144,26 +144,26 @@ export interface Bilan extends Required<Seuils> {
  * baseline. It does NOT recalculate: a discrepancy calculated twice can diverge.
  * `absent` when no case has a baseline — which is not the same thing as "nothing slowed down".
  */
-export function compareBaseline(resultats: LigneAvecEcartBaseline[], options: Seuils = {}): Bilan {
-  const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
-  const seuils = { seuilAvertissement, seuilEchec };
-  const avertissements: CasEcart[] = [],
-    regressions: CasEcart[] = [];
+export function compareBaseline(results: RowWithBaselineGap[], options: Seuils = {}): Tally {
+  const { warningThreshold = WARNING_THRESHOLD, failureThreshold = FAILURE_THRESHOLD } = options;
+  const seuils = { warningThreshold, failureThreshold };
+  const warnings: GapCase[] = [],
+    regressions: GapCase[] = [];
   let compares = 0;
-  for (const r of resultats) {
-    const niveau = niveauEcart(r.ecartBaseline, seuils);
-    if (niveau === 'absent') continue;
+  for (const r of results) {
+    const level = gapLevel(r.ecartBaseline, seuils);
+    if (level === 'absent') continue;
     compares++;
-    const cas = { name: r.name, ecart: r.ecartBaseline };
-    if (niveau === 'echec') regressions.push(cas);
-    else if (niveau === 'avertissement') avertissements.push(cas);
+    const cas = { name: r.name, gap: r.ecartBaseline };
+    if (level === 'failure') regressions.push(cas);
+    else if (level === 'warning') warnings.push(cas);
   }
-  const verdict: NiveauEcart = !compares
+  const verdict: GapLevel = !compares
     ? 'absent'
     : regressions.length
-      ? 'echec'
-      : avertissements.length
-        ? 'avertissement'
+      ? 'failure'
+      : warnings.length
+        ? 'warning'
         : 'ok';
-  return { verdict, compares, regressions, avertissements, ...seuils };
+  return { verdict, compares, regressions, warnings, ...seuils };
 }

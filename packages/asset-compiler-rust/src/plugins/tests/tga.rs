@@ -68,14 +68,14 @@ fn each_tga_profile_yields_the_reference_pixels() {
 fn an_unreadable_tga_comes_out_as_a_report_reason_never_as_a_panic() {
     super::assert_claims("tga", "image/x-tga", &["tga", "tpic", "TGA"]);
     // Truncated: the header is recognised, so the driver is chosen, and it is decoding that fails.
-    let tronque = fixture("tga", "tronque.tga");
+    let truncated = fixture("tga", "tronque.tga");
     assert_eq!(
-        registry::by_head(&tronque).map(|d| d.name()),
+        registry::by_head(&truncated).map(|d| d.name()),
         Some("tga"),
         "the header of a truncated file remains a TGA header"
     );
     assert_eq!(
-        registry::decode(&tronque, MAX_ALLOC).err(),
+        registry::decode(&truncated, MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
     // TGA has no magic number: without a coherent header, the driver claims nothing. A zero
@@ -106,7 +106,7 @@ fn an_unreadable_tga_comes_out_as_a_report_reason_never_as_a_panic() {
         );
     }
     assert!(
-        registry::by_head(&tronque[..8]).is_none(),
+        registry::by_head(&truncated[..8]).is_none(),
         "incomplete header"
     );
 }

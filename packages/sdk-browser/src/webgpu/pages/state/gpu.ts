@@ -11,11 +11,11 @@ import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { DisplayFilter } from '../../blend/displayFilter.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
-import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
+import type { WebgpuEffects } from '../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
-import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
+import type { WebgpuParticles } from '../../particles/webgpuParticles.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import type { FrameSize } from './renderScale.ts';
 import type { FloatAtlas } from '../../core/floatAtlas.ts';
@@ -116,7 +116,7 @@ export interface WebgpuGpuState {
   guides: WebgpuGuidePass | undefined;
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
   guideRevision: number;
-  /** The particle step, made by the first image with a pool (`../../../particles/`). */
+  /** The particle step, made by the first image with a pool (`../../particles/`). */
   particles: WebgpuParticles | undefined;
   /** The impostor cards and their atlases, made by the first image of a baked cache (#1335). */
   impostors: WebgpuImpostors | undefined;

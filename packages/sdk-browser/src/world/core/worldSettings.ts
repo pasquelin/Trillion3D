@@ -29,8 +29,8 @@ import {
   VSM_TRACE_DITHER_LOCAL,
   VSM_COVER_SUN,
   VSM_COVER_LOCAL,
+  VSM_MASK_MAX_RAYS,
 } from '../../vsm/constants.ts';
-import { VSM_MASK_MAX_RAYS } from '../../vsm/projectionMaskTable.ts';
 
 /** A count of the shadow maps' uniform block: an `i32` word, at least one. */
 const COUNT = [1, 2 ** 31 - 1] as const;

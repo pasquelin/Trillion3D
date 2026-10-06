@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createPartitionCells } from '../../scene/partition/cells.ts';
-import { placedMesh } from '../../scene/partition/rows.ts';
-import { decodeHere, io, opened, settled } from '../../scene/partition/cells.fixture.ts';
-import { paged } from '../../scene/partition/paged.fixture.ts';
+import { createPartitionCells } from '../../partition/cells.ts';
+import { placedMesh } from '../../partition/rows.ts';
+import { decodeHere, io, opened, settled } from '../../partition/cells.fixture.ts';
+import { paged } from '../../partition/paged.fixture.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { createFrameBudget } from './frameBudget.ts';
 import { referenceArrivalQueue } from '../../../../../bench/oracles/browser/arrival-admission.ts';
@@ -84,9 +84,9 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     for (let d = 0; d < 3; d++) livrs += queue.drain();
     return { delivered, livrs };
   }
-  const optimisee = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)));
+  const optimized = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)));
   const reference = arrivals(referenceArrivalQueue(1 << 20, 4096));
-  assert.deepEqual(optimisee, reference);
+  assert.deepEqual(optimized, reference);
 });
 
 test('the frame budget yields at its boundary and resumes in arrival order', (t) => {

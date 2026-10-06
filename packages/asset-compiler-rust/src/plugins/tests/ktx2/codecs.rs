@@ -129,7 +129,7 @@ fn the_eleven_bits_of_an_eac_channel_are_rounded_and_texels_stay_in_place() {
     indices[0] = 5;
     indices[15] = 7;
     let rouge = bytes::eac(0, 0, TABLE_13, indices);
-    let attendu: Vec<u8> = (0..16)
+    let expected: Vec<u8> = (0..16)
         .map(|texel| match texel {
             0 => 1,
             15 => 2,
@@ -141,17 +141,17 @@ fn the_eleven_bits_of_an_eac_channel_are_rounded_and_texels_stay_in_place() {
         registry::decode(&file, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac r11: {reason}")),
     );
     let canal = |at: usize| -> Vec<u8> { image.pixels().map(|pixel| pixel.0[at]).collect() };
-    assert_eq!(canal(0), attendu, "red of an EAC R11");
+    assert_eq!(canal(0), expected, "red of an EAC R11");
     assert_eq!(canal(1), vec![0; 16], "green of an EAC R11 stays zero");
     assert_eq!(canal(3), vec![255; 16], "alpha of an EAC is opaque");
     // The second channel of an RG11 is one more block, read the same way and yielded as green.
-    let mut deux = rouge.clone();
-    deux.extend_from_slice(&bytes::eac(0, 0, TABLE_13, indices));
-    let paire = bytes::container(EAC_RG11, SIDE, SIDE, &deux);
+    let mut two = rouge.clone();
+    two.extend_from_slice(&bytes::eac(0, 0, TABLE_13, indices));
+    let pair = bytes::container(EAC_RG11, SIDE, SIDE, &two);
     let image = super::super::rgba8(
-        registry::decode(&paire, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac rg11: {reason}")),
+        registry::decode(&pair, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac rg11: {reason}")),
     );
     let canal = |at: usize| -> Vec<u8> { image.pixels().map(|pixel| pixel.0[at]).collect() };
-    assert_eq!(canal(0), attendu, "red of an EAC RG11");
-    assert_eq!(canal(1), attendu, "green of an EAC RG11");
+    assert_eq!(canal(0), expected, "red of an EAC RG11");
+    assert_eq!(canal(1), expected, "green of an EAC RG11");
 }

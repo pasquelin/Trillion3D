@@ -14,9 +14,8 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "baseUrl": ".",
     "paths": {
-      "/runner/*": ["bench/runner/*"]
+      "/runner/*": ["./bench/runner/*"]
     }
   },
   "include": [
@@ -32,5 +31,5 @@
     "eslint.config.ts",
     "site/app/migration/sources.d.ts"
   ],
-  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/public*"]
+  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/public"]
 }

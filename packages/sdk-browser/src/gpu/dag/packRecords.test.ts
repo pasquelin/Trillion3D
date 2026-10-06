@@ -9,7 +9,7 @@ import { asHostLibrary } from '../../host/resources.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { CLUSTER_WORDS, COLD_WORDS as PAGE_CONE_FLOATS, coldBase } from './layout.ts';
 import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
@@ -79,7 +79,7 @@ test('shared records select, draw and count exactly what unshared ones do', () =
       cam.position.set(x, 1, z);
       cam.lookAt(0, 0, 0);
       cam.updateMatrixWorld();
-      const uniforms = cameraSelectionUniforms(cameraMoteur(cam), threshold, [1280, 720]);
+      const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720]);
       packedWorldsToRenderOrigin(shared, roots, uniforms.cameraWorld);
       packedWorldsToRenderOrigin(alone, roots, uniforms.cameraWorld);
       for (const mask of [undefined, resident]) {

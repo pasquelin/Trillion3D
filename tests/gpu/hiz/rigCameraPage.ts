@@ -9,7 +9,7 @@ import type {
   BackendDiagnostic,
   RenderBackend,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { cameraFace, comptesEtape } from '../kit/sharedSceneProof.ts';
+import { cameraFace, countsStep } from '../kit/sharedSceneProof.ts';
 import { image } from '../kit/sceneImageProof.ts';
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts';
 
@@ -24,7 +24,7 @@ const differingBytes = (a: Uint8Array, b: Uint8Array) => {
 };
 
 /** Rows the frame's partition processed: every drawable row, each frame. */
-const rows = (backend: RenderBackend) => comptesEtape(backend, 'partition')?.rows ?? null;
+const rows = (backend: RenderBackend) => countsStep(backend, 'partition')?.rows ?? null;
 
 /** A pose rendered by an engine that never saw another, its camera parentless: the witness. */
 async function freshPose(
@@ -72,10 +72,10 @@ export function runRigCamera() {
         const witness = await freshPose(device, x, onDiagnostic);
         steps.push({
           x,
-          clusters: moved.metriques.clusters,
+          clusters: moved.metrics.clusters,
           rowsMoved,
           rowsStill: rows(backend),
-          stillHeld: still.metriques.frameHeld,
+          stillHeld: still.metrics.frameHeld,
           slab: slabPixels(moved.pixels),
           gapMoved: differingBytes(moved.pixels, witness),
           gapStill: differingBytes(still.pixels, witness),

@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { prepare, prepareMany, createCompilationJob, COMPILER_LINE_LIMIT } from './index.mts';
 import type { BatchSummary } from './compiler/contracts.ts';
-import { manifest } from '../../../tests/fixtures/manifestBinary.ts';
-import { writePagedManifest } from '../../../tests/fixtures/pagedManifest.ts';
+import { manifest } from '../../../tests/fixtures/manifest/manifestBinary.ts';
+import { writePagedManifest } from '../../../tests/fixtures/manifest/pagedManifest.ts';
 
 /** A stand-in compiler that speaks the event protocol: events on stderr, a pointer on stdout, manifest on disk. */
 async function fakeCompiler(root: string, body: string): Promise<string> {

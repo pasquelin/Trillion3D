@@ -20,7 +20,7 @@ import type { SdkWasm } from './geometryPageWasm.ts';
  * A block carries its own type: `Float64Array` for matrices, boxes, spheres and errors,
  * `Float32Array` for what already arrives in single precision, `Uint32Array` for flags, ids and
  * counters. A variable-size output is declared as two blocks — a one-word counter, a list at its
- * maximum size — and is reread with `liste()`.
+ * maximum size — and is reread with `list()`.
  */
 
 /** Version of the buffer and lot contract. A module that yields anything else is refused. */
@@ -39,10 +39,10 @@ const CONSTRUCTEURS = {
   u32: Uint32Array,
 } as const;
 
-export interface ArenaDemande {
+export interface ArenaRequest {
   readonly type: ArenaType;
   /** Number of elements in the block. For a variable-size output, its maximum. */
-  readonly longueur: number;
+  readonly length: number;
   /** Stride of the subviews, in elements; absent when the block does not need them. */
   readonly pas?: number;
 }
@@ -51,9 +51,9 @@ export interface ArenaBloc {
   readonly type: ArenaType;
   /** Offset in BYTES in linear memory: what the module functions expect. */
   readonly offset: number;
-  readonly vue: ArenaView;
+  readonly view: ArenaView;
   /** Subviews of `pas` elements, or `null` when the request did not ask for them. */
-  readonly vues: readonly ArenaView[] | null;
+  readonly views: readonly ArenaView[] | null;
 }
 
 export interface Arena {
@@ -66,31 +66,31 @@ export interface Arena {
   generation(): number;
   readonly octets: number;
   /** First `n` elements of a block: the useful part of a variable-size output. */
-  liste(index: number, n: number): ArenaView;
-  libere(): void;
+  list(index: number, n: number): ArenaView;
+  freed(): void;
 }
 
 const aligne = (octets: number) => Math.ceil(octets / ALIGNEMENT) * ALIGNEMENT;
 
 /** A block and its subviews, whichever memory carries it. */
-function bloc(demande: ArenaDemande, offset: number, vue: ArenaView): ArenaBloc {
-  const pas = demande.pas ?? 0;
-  let vues: ArenaView[] | null = null;
+function bloc(request: ArenaRequest, offset: number, view: ArenaView): ArenaBloc {
+  const pas = request.pas ?? 0;
+  let views: ArenaView[] | null = null;
   if (pas > 0) {
-    const compte = Math.floor(demande.longueur / pas);
-    vues = new Array(compte);
-    for (let i = 0; i < compte; i++) vues[i] = vue.subarray(i * pas, i * pas + pas);
+    const count = Math.floor(request.length / pas);
+    views = new Array(count);
+    for (let i = 0; i < count; i++) views[i] = view.subarray(i * pas, i * pas + pas);
   }
-  return { type: demande.type, offset, vue, vues };
+  return { type: request.type, offset, view, views };
 }
 
 /**
  * The same blocks outside the module memory: what the JavaScript path works on when
  * WebAssembly is missing. Their `offset` is zero — it names no linear memory.
  */
-export function blocsJavaScript(demandes: readonly ArenaDemande[]): ArenaBloc[] {
-  return demandes.map((demande) =>
-    bloc(demande, 0, new CONSTRUCTEURS[demande.type](demande.longueur)),
+export function blocsJavaScript(requests: readonly ArenaRequest[]): ArenaBloc[] {
+  return requests.map((request) =>
+    bloc(request, 0, new CONSTRUCTEURS[request.type](request.length)),
   );
 }
 
@@ -98,30 +98,30 @@ export function blocsJavaScript(demandes: readonly ArenaDemande[]): ArenaBloc[] 
  * Reserves the requested blocks in one allocation and returns their views. `null` when the
  * module refuses the size: the caller then stays on the JavaScript path, with its own arrays.
  */
-export function reserveArena(wasm: SdkWasm, demandes: readonly ArenaDemande[]): Arena | null {
-  const plan: { demande: ArenaDemande; debut: number }[] = [];
+export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): Arena | null {
+  const plan: { request: ArenaRequest; debut: number }[] = [];
   let octets = 0;
-  for (const demande of demandes) {
-    plan.push({ demande, debut: octets });
-    octets += aligne(demande.longueur * TAILLES[demande.type]);
+  for (const request of requests) {
+    plan.push({ request, debut: octets });
+    octets += aligne(request.length * TAILLES[request.type]);
   }
   const base = wasm.arena_alloc(octets);
   if (!base) return null;
   const construit = () =>
-    plan.map(({ demande, debut }) =>
+    plan.map(({ request, debut }) =>
       bloc(
-        demande,
+        request,
         base + debut,
-        new CONSTRUCTEURS[demande.type](wasm.memory.buffer, base + debut, demande.longueur),
+        new CONSTRUCTEURS[request.type](wasm.memory.buffer, base + debut, request.length),
       ),
     );
   let blocs = construit();
   let porteur = wasm.memory.buffer;
   let generation = 0;
-  let rendu = false;
+  let rendered = false;
   /** Up-to-date blocks: one buffer comparison, and a rebuild only if it has changed. */
   const actuels = () => {
-    if (!rendu && wasm.memory.buffer !== porteur) {
+    if (!rendered && wasm.memory.buffer !== porteur) {
       porteur = wasm.memory.buffer;
       generation++;
       blocs = construit();
@@ -132,10 +132,10 @@ export function reserveArena(wasm: SdkWasm, demandes: readonly ArenaDemande[]): 
     blocs: actuels,
     generation: () => generation,
     octets,
-    liste: (index, n) => actuels()[index].vue.subarray(0, n),
-    libere: () => {
-      if (rendu) return;
-      rendu = true;
+    list: (index, n) => actuels()[index].view.subarray(0, n),
+    freed: () => {
+      if (rendered) return;
+      rendered = true;
       blocs = [];
       wasm.arena_free(base, octets);
     },

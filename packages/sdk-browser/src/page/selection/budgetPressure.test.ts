@@ -8,7 +8,7 @@ import {
   type PageRec,
 } from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 
 test('budget pressure down to the pinned roots still draws the surface once, by the root', () => {
@@ -25,7 +25,7 @@ test('budget pressure down to the pinned roots still draws the surface once, by 
   // rule draws the nearest resident ancestor of what is missing: the root, once.
   const pinned = new Set(rootCoverage(roots).map((page) => page.url));
   assert.deepEqual([...pinned], ['root']);
-  const starved = selectVisiblePages(roots, cameraMoteur(cam), {
+  const starved = selectVisiblePages(roots, engineCamera(cam), {
     pixelError: 0,
     viewport,
     held: createHeldResidency({ isResident: (rec: PageRec) => pinned.has(rec.url) }),

@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 
 /** The sum the sweeps from before this batch computed: left to right, without reassociation. */
@@ -31,7 +31,7 @@ test('returned triangle sums are those of the returned arrays, stand-ins include
   for (let mask = 0; mask < 1 << allPages.length; mask += 3)
     for (const pixelError of [0, 0.5, 4]) {
       const wanted: PageRec[] = [];
-      const result = selectVisiblePages(roots, cameraMoteur(cam), {
+      const result = selectVisiblePages(roots, engineCamera(cam), {
         pixelError,
         viewport: [1280, 720],
         held: createHeldResidency({

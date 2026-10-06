@@ -33,7 +33,7 @@ fn expected(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
 }
 
 /// Image the registry yields for this fixture, dimensions checked along the way.
-fn rendu(name: &str) -> image::RgbaImage {
+fn rendered(name: &str) -> image::RgbaImage {
     decoded_rgba8("bmp", name, MAX_ALLOC, (4, 2))
 }
 
@@ -52,7 +52,7 @@ fn all_writings_of_the_format_yield_the_same_pixels() {
         "r5g6b5.bmp",
     ] {
         assert_eq!(
-            rendu(name).as_raw(),
+            rendered(name).as_raw(),
             &expected(&REFERENCE, &OPAQUE),
             "{name}: pixels diverge from the reference"
         );
@@ -60,12 +60,12 @@ fn all_writings_of_the_format_yield_the_same_pixels() {
     // The only fixture to carry an alpha: negative height, so stored top-down, and V3 header
     // masks — including the alpha mask, which shorter headers do not have.
     assert_eq!(
-        rendu("vraies-couleurs-32-haut.bmp").as_raw(),
+        rendered("vraies-couleurs-32-haut.bmp").as_raw(),
         &expected(&REFERENCE, &ALPHA_32),
         "32-bit alpha must be yielded straight, without filling or premultiplication"
     );
     assert_eq!(
-        rendu("palette-1.bmp").as_raw(),
+        rendered("palette-1.bmp").as_raw(),
         &expected(&DAMIER, &OPAQUE),
         "a one-bit palette carries two colours, and both must be the right ones"
     );
@@ -94,10 +94,10 @@ fn a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     );
     // Two headers rewritten on a readable fixture, for the refusals no file carries: a depth
     // outside lossless profiles, and a compression outside the format read.
-    let profondeur_at = 28;
+    let depth_at = 28;
     let compression_at = 30;
     for (at, valeur, raison) in [
-        (profondeur_at, 64u32, "bmp-depth-unsupported"),
+        (depth_at, 64u32, "bmp-depth-unsupported"),
         // `BI_ALPHABITFIELDS`, which this driver does not read.
         (compression_at, 6, "bmp-compression-unsupported"),
     ] {

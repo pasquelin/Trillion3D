@@ -7,7 +7,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
 
 test('webgpu pages without compute keep the CPU cut, name its clusters, report gpuDriven false', async () => {
@@ -48,7 +48,7 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
     pixelError: 0,
   }) as WebgpuPagesBackend;
   const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
+  const cpu = selectVisiblePages(collected.roots, engineCamera(cam), {
     pixelError: 0,
     viewport,
   });
@@ -94,7 +94,7 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
     pixelError: 10,
   }) as WebgpuPagesBackend;
   const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
+  const cpu = selectVisiblePages(collected.roots, engineCamera(cam), {
     pixelError: 10,
     viewport,
   });

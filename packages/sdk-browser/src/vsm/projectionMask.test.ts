@@ -10,8 +10,8 @@
 // further by more than a half float's step.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { vsmLayout } from './resources.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
+import { vsmLayout } from './layout.ts';
 
 const f = Math.fround;
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {

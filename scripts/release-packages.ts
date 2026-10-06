@@ -12,8 +12,8 @@ import {
   compilerFileName,
   compilerPackage,
 } from '../packages/sdk-node/src/compiler/platform.mts';
-import type { Run } from './installed-package-contracts.ts';
-import { packArchive, type PackResult } from './installed-package-fixture.ts';
+import type { Run } from './installed-package/contracts.ts';
+import { packArchive, type PackResult } from './installed-package/fixture.ts';
 
 /** One packed package: its name, its archive and the files `pnpm pack` put in it. */
 interface ReleaseArchive {

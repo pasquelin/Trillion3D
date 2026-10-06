@@ -56,7 +56,7 @@ test('package metadata exposes one environment-aware root', async () => {
 
 test('NodeNext, browser Bundler, and the safe default resolve matching declarations', () => {
   assert.deepEqual(
-    diagnostics('tests/fixtures/publicNode.mts', {
+    diagnostics('tests/fixtures/public/publicNode.mts', {
       module: ts.ModuleKind.NodeNext,
       moduleResolution: ts.ModuleResolutionKind.NodeNext,
       types: ['node'],
@@ -64,7 +64,7 @@ test('NodeNext, browser Bundler, and the safe default resolve matching declarati
     [],
   );
   assert.deepEqual(
-    diagnostics('tests/fixtures/publicBrowser.ts', {
+    diagnostics('tests/fixtures/public/publicBrowser.ts', {
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       customConditions: ['browser'],
@@ -74,7 +74,7 @@ test('NodeNext, browser Bundler, and the safe default resolve matching declarati
     [],
   );
   assert.deepEqual(
-    diagnostics('tests/fixtures/publicCommon.ts', {
+    diagnostics('tests/fixtures/public/publicCommon.ts', {
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       lib: ['lib.es2023.d.ts'],
@@ -85,7 +85,7 @@ test('NodeNext, browser Bundler, and the safe default resolve matching declarati
 });
 
 test('type-only imports leave no runtime package import', async () => {
-  const source = await readFile(resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts'), 'utf8');
+  const source = await readFile(resolve(ROOT, 'tests/fixtures/public/publicTypesOnly.ts'), 'utf8');
   const emitted = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -153,15 +153,15 @@ test('a packed installation resolves Node and browser runtime and declarations',
     });
     await writeFile(
       join(directory, 'node.mts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/publicNode.mts')),
+      await readFile(resolve(ROOT, 'tests/fixtures/public/publicNode.mts')),
     );
     await writeFile(
       join(directory, 'browser.ts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/publicBrowser.ts')),
+      await readFile(resolve(ROOT, 'tests/fixtures/public/publicBrowser.ts')),
     );
     await writeFile(
       join(directory, 'common.ts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/publicCommon.ts')),
+      await readFile(resolve(ROOT, 'tests/fixtures/public/publicCommon.ts')),
     );
     assert.deepEqual(
       diagnostics(join(directory, 'node.mts'), {

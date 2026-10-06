@@ -45,9 +45,9 @@ import {
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
   type VsmFrameBuffers,
-  type VsmLayout,
   type VsmResources,
 } from './resources.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {

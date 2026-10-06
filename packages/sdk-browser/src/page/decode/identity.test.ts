@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { runPageDecodeTask } from './task.ts';
 import type { PageDecodeDone } from '../../../../sdk-core/src/index.ts';
 
@@ -21,44 +21,44 @@ test.before(async () => {
 });
 
 /** A value identical byte for byte on all three sides, or the first gap. */
-function ecart(nom: string, a: Float32Array | Uint32Array, b: Float32Array | Uint32Array) {
+function gap(nom: string, a: Float32Array | Uint32Array, b: Float32Array | Uint32Array) {
   if (a.length !== b.length) return `${nom}: length ${a.length} ≠ ${b.length}`;
   for (let i = 0; i < a.length; i++)
     if (!Object.is(a[i], b[i])) return `${nom}[${i}]: ${a[i]} ≠ ${b[i]}`;
   return null;
 }
 
-async function trioIdentique(donnees: Uint8Array) {
-  const enPlace = decodeGeometryPage(donnees.slice(), MAX);
-  const parWasm = await decodeGeometryPageWasm(donnees.slice(), MAX);
+async function trioIdentique(data: Uint8Array) {
+  const enPlace = decodeGeometryPage(data.slice(), MAX);
+  const parWasm = await decodeGeometryPageWasm(data.slice(), MAX);
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,
     id: 1,
     op: 'decode',
-    source: donnees.slice().buffer as ArrayBuffer,
+    source: data.slice().buffer as ArrayBuffer,
     maxDecodedBytes: MAX,
   });
   assert.equal(answer.ok, true);
   const bon = answer as PageDecodeDone;
   assert.equal(bon.wasm, true, 'the preloaded wasm module must have done the task work');
-  assert.equal(ecart('indices in-place/wasm', enPlace.indices, parWasm.indices), null);
+  assert.equal(gap('indices in-place/wasm', enPlace.indices, parWasm.indices), null);
   for (const nom of Object.keys(enPlace.attributes))
-    assert.equal(ecart(nom, enPlace.attributes[nom], parWasm.attributes[nom]), null);
+    assert.equal(gap(nom, enPlace.attributes[nom], parWasm.attributes[nom]), null);
   return enPlace;
 }
 
 test('65 535 vertices — the high bound — decode identically on the three paths', async () => {
-  const sommets = 65535;
-  const position = new Float32Array(sommets * 3);
-  for (let i = 0; i < sommets; i++) position.set([i * 0.001, -i * 0.001, 0], i * 3);
-  const triangles = Math.floor(sommets / 3) * 3,
+  const vertices = 65535;
+  const position = new Float32Array(vertices * 3);
+  for (let i = 0; i < vertices; i++) position.set([i * 0.001, -i * 0.001, 0], i * 3);
+  const triangles = Math.floor(vertices / 3) * 3,
     indices = new Uint32Array(triangles);
-  for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % sommets;
+  for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % vertices;
   const { data } = encodeGeometryPage(indices, {
     POSITION: { itemSize: 3, array: position },
   });
   const enPlace = await trioIdentique(data as Uint8Array);
-  assert.equal(enPlace.vertexCount, sommets);
+  assert.equal(enPlace.vertexCount, vertices);
 });
 
 test('every attribute, signed zeros included, decodes identically; a forged index refuses identically', async () => {

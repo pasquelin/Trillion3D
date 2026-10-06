@@ -82,7 +82,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
         'trillion3d.module.js': {
           'sdk-browser/src/world/core/world.js': 900,
           'sdk-browser/src/gpu/timing/queries.js': 200,
-          'sdk-browser/src/webgpu/shadow/allocLayout.js': 100,
+          'sdk-browser/src/vsm/layout.js': 100,
           ...sources,
         },
         'trillion3d-chunk-A.js': { 'sdk-core/src/math/vec.js': 400 },
@@ -97,7 +97,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
       '      0.9 kB  sdk-browser/src/world',
       '      0.4 kB  sdk-core/src/math',
       '      0.2 kB  sdk-browser/src/gpu',
-      '      0.1 kB  sdk-browser/src/webgpu',
+      '      0.1 kB  sdk-browser/src/vsm',
     ]);
     assert.deepEqual(forbidden, [], "the shadows' size modules are the core's");
   } finally {
@@ -111,6 +111,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     'sdk-browser/src/gpu/shadow/atlas.js',
     'sdk-browser/src/webgpu/shadow/pageRequests.js',
     'sdk-browser/src/webgpu/shadow/allocWgsl.js',
+    'sdk-browser/src/vsm/renderPass.js',
   ]) {
     const dist = held({ [source]: 10 });
     try {

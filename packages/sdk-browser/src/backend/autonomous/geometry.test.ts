@@ -64,7 +64,7 @@ function scenario(count: number) {
   for (const rec of recsA) impl.draws.drawing(rec).geometry = geometry;
   const oracle = referenceAutonomousSync({ scene: sceneB.scene, allPages: recsB, shown: shownB });
   return {
-    pilote(indices: number[]) {
+    driver(indices: number[]) {
       shownA.length = 0;
       shownPackedA.length = 0;
       shownB.length = 0;
@@ -92,35 +92,35 @@ function scenario(count: number) {
 }
 
 test('empty scene, empty cut: nothing to attach or detach on either side', () => {
-  scenario(0).pilote([]);
+  scenario(0).driver([]);
 });
 
 test('an empty cut when everything was attached detaches everything, identically to the oracle', () => {
   const s = scenario(6);
-  s.pilote([0, 1, 2, 3, 4, 5]);
-  s.pilote([]);
+  s.driver([0, 1, 2, 3, 4, 5]);
+  s.driver([]);
 });
 
 test('a cut that grows and then shrinks in jerks remains the same image after image', () => {
   const s = scenario(10);
-  s.pilote([0, 1, 2]);
-  s.pilote([0, 1, 2, 3, 4, 5, 6]);
-  s.pilote([3, 4, 5, 6]);
-  s.pilote([9]);
-  s.pilote([]);
-  s.pilote([0, 9]);
+  s.driver([0, 1, 2]);
+  s.driver([0, 1, 2, 3, 4, 5, 6]);
+  s.driver([3, 4, 5, 6]);
+  s.driver([9]);
+  s.driver([]);
+  s.driver([0, 9]);
 });
 
 test('duplicates in the displayed cut count triangles twice, on both sides', () => {
   const s = scenario(4);
-  s.pilote([0, 0, 1, 1, 1, 2]);
-  s.pilote([2, 2]);
+  s.driver([0, 0, 1, 1, 1, 2]);
+  s.driver([2, 2]);
 });
 
 test('a page with zero triangles attaches without distorting the sum', () => {
   const s = scenario(3);
-  s.pilote([0]);
-  s.pilote([0, 1]);
+  s.driver([0]);
+  s.driver([0, 1]);
 });
 
 test('a large DAG with random churn matches the oracle exactly, cut after cut', () => {
@@ -134,9 +134,9 @@ test('a large DAG with random churn matches the oracle exactly, cut after cut', 
   for (let frame = 0; frame < 40; frame++) {
     const indices: number[] = [];
     for (let i = 0; i < count; i++) if (rand() < 0.15) indices.push(i);
-    s.pilote(indices);
+    s.driver(indices);
   }
-  s.pilote([]);
+  s.driver([]);
 });
 
 // #297: `attach` mounts the host declaration the page was collected from, never the engine's own

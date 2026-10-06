@@ -145,7 +145,7 @@ fn first_primitive(gltf: &Value, run: &GoldenRun) -> Value {
     // Start of an accessor in the binary, and the element count it announces.
     let span = |id: &Value| {
         let accessor = &gltf["accessors"][id.as_u64().expect("accesseur") as usize];
-        let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("vue") as usize];
+        let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
         let at = view["byteOffset"].as_u64().unwrap_or(0) as usize;
         (at, accessor["count"].as_u64().expect("count") as usize)
     };

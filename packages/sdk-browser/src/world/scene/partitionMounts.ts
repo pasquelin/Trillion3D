@@ -14,8 +14,8 @@ import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
-import type { PartitionCells } from '../../scene/partition/cells.ts';
-import { cellHoldings, type CellHoldings } from '../../scene/partition/cellPages.ts';
+import type { PartitionCells } from '../../partition/cells.ts';
+import { cellHoldings, type CellHoldings } from '../../partition/cellPages.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 
 /** A partition whose manifest the view holds: its pages and the placed mesh of each rank. */

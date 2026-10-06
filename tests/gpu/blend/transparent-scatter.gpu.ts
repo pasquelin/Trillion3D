@@ -22,7 +22,7 @@ import {
   PLAN_SHARED_BIT,
   planEntry,
 } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts';
-import { graine as seeded } from '../../../bench/core/index.ts';
+import { xorshiftRandom as seeded } from '../../../bench/core/index.ts';
 import { expandOnGpu } from './scatterKernel.ts';
 
 const next = seeded(1789);

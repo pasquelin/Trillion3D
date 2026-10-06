@@ -6,8 +6,8 @@
 use super::*;
 
 /// A solid 8×8 PNG, whose colour distinguishes two files of the same name.
-fn png(couleur: [u8; 4]) -> Vec<u8> {
-    png_sized(8, couleur)
+fn png(color: [u8; 4]) -> Vec<u8> {
+    png_sized(8, color)
 }
 
 /// A solid square PNG of the given side: above 64 texels its levels are baked as files.
@@ -52,30 +52,30 @@ fn key_and_sidecar(options: &Options) -> (String, String) {
 fn a_modified_linked_image_changes_the_exposed_key() {
     let (root, options, image) = source_texturee();
     fs::write(&image, png([255, 0, 0, 255])).expect("red image");
-    let (cle_rouge, sidecar_rouge) = key_and_sidecar(&options);
-    let (cle_repetee, sidecar_repete) = key_and_sidecar(&options);
+    let (key_rouge, sidecar_rouge) = key_and_sidecar(&options);
+    let (key_repetee, sidecar_repete) = key_and_sidecar(&options);
     assert_eq!(
-        (&cle_rouge, &sidecar_rouge),
-        (&cle_repetee, &sidecar_repete),
+        (&key_rouge, &sidecar_rouge),
+        (&key_repetee, &sidecar_repete),
         "two identical compilations yield the same key and the same sidecar"
     );
 
     fs::write(&image, png([0, 0, 255, 255])).expect("blue image");
-    let (cle_bleue, sidecar_bleu) = key_and_sidecar(&options);
+    let (key_bleue, sidecar_bleu) = key_and_sidecar(&options);
     assert_ne!(
         sidecar_rouge, sidecar_bleu,
         "changed pixels do change the product"
     );
     assert_ne!(
-        cle_rouge, cle_bleue,
+        key_rouge, key_bleue,
         "a changed image must change the key exposed to the consumer"
     );
 
     fs::write(&image, png([255, 0, 0, 255])).expect("restored red image");
-    let (cle_revenue, sidecar_revenu) = key_and_sidecar(&options);
+    let (key_revenue, sidecar_revenu) = key_and_sidecar(&options);
     assert_eq!(
-        (cle_rouge, sidecar_rouge),
-        (cle_revenue, sidecar_revenu),
+        (key_rouge, sidecar_rouge),
+        (key_revenue, sidecar_revenu),
         "back to the previous image, the source finds its key again"
     );
     fs::remove_dir_all(root).expect("cleanup");

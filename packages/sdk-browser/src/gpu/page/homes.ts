@@ -1,7 +1,19 @@
 /** A page's own place in a pool that holds the whole catalogue: its rank, first byte and width. */
-type PageHome = { rank: number; offset: number; bytes: number };
+export type PageHome = {
+  /** Its rank in the catalogue's order. */
+  rank: number;
+  /** Its first byte in the pool. */
+  offset: number;
+  /** Its width, in bytes. */
+  bytes: number;
+};
 /** Every page's home by key, and the bytes they take together. */
-export type PageHomes = { homes: ReadonlyMap<string, PageHome>; bytes: number };
+export type PageHomes = {
+  /** Each page's home, by key. */
+  homes: ReadonlyMap<string, PageHome>;
+  /** The bytes every home takes together. */
+  bytes: number;
+};
 
 /**
  * The pool's layout when the whole catalogue fits: each page at its own width — its bytes padded

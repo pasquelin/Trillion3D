@@ -2,7 +2,7 @@ import { awaitBackendPages } from '../../backend/awaitBackendPages.ts';
 import { decodePageOffThread, releasePageDecoders } from '../../page/decode/host.ts';
 import { releasePageIntegration } from '../../page/integration/host.ts';
 import { disposeSource } from './disposeSource.ts';
-import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
+import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts';
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { createExplorerHostState, ExplorerHostState } from '../render/hostState.ts';
@@ -11,7 +11,7 @@ import type { createExplorerStreaming } from '../scene/streaming.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
-import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts';
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };

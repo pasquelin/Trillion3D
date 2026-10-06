@@ -10,10 +10,10 @@
 // outright. They do not convert at the boundary: converting would put `readCameraWorld` —
 // a matrix invert and six planes — back into a function the cut calls every frame, and would
 // hide the unwalked rig the contract exists to catch. A host therefore enters through
-// `cameraMoteur(…)`, as frame entry does.
+// `engineCamera(…)`, as frame entry does.
 //
 // `test:gpu` had failed on four hosts of `test/*.gpu.ts` that stayed on the raw camera;
-// they moved to `cameraMoteur` (in-repo fixtures, not third-party hosts). `pnpm test` had not
+// they moved to `engineCamera` (in-repo fixtures, not third-party hosts). `pnpm test` had not
 // seen it: they are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs —
 // these tests therefore reproduce both calls without a browser, the faulty one and the right one.
 import test from 'node:test';
@@ -27,7 +27,7 @@ import {
   creeRig,
   poseRig,
 } from '../../../../tests/gpu/kit/cameraRig.ts';
-import { cameraMoteur } from './camera.fixture.ts';
+import { engineCamera } from './camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
@@ -36,11 +36,11 @@ type Pose = (typeof POSES_PARENT)[number];
 const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.
 
 function pageTriangle(): VisPage {
-  const geometrie = new G.Geometry();
-  geometrie.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
+  const geometry = new G.Geometry();
+  geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3));
   return {
     array: new Uint32Array([0, 1, 2]),
-    attributes: geometrie.attributes,
+    attributes: geometry.attributes,
     material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }
@@ -78,23 +78,23 @@ test('rasterVisibility rejects the raw host camera: it does not convert at the b
   );
 });
 
-test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
+test('cameraSelectionUniforms(engineCamera(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as G.Camera,
-    aplatie = flattenedCamera(POSE) as G.Camera;
-  const sousRig = cameraSelectionUniforms(cameraMoteur(camera), 0, [1000, 1000]);
-  const attendu = cameraSelectionUniforms(cameraMoteur(aplatie), 0, [1000, 1000]);
-  assert.deepEqual([...sousRig.planes], [...attendu.planes], 'frustum planes');
-  assert.deepEqual([...sousRig.view], [...attendu.view], 'view');
-  assert.deepEqual(sousRig.cameraWorld, attendu.cameraWorld, 'eye world position');
+    flattened = flattenedCamera(POSE) as G.Camera;
+  const sousRig = cameraSelectionUniforms(engineCamera(camera), 0, [1000, 1000]);
+  const expected = cameraSelectionUniforms(engineCamera(flattened), 0, [1000, 1000]);
+  assert.deepEqual([...sousRig.planes], [...expected.planes], 'frustum planes');
+  assert.deepEqual([...sousRig.view], [...expected.view], 'view');
+  assert.deepEqual(sousRig.cameraWorld, expected.cameraWorld, 'eye world position');
 });
 
-test('rasterVisibility(cameraMoteur(…)): the correct call under a rig throws nothing and yields the same image', () => {
+test('rasterVisibility(engineCamera(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as G.Camera,
-    aplatie = flattenedCamera(POSE) as G.Camera,
+    flattened = flattenedCamera(POSE) as G.Camera,
     roots = identityRoots();
-  const sousRig = rasterVisibility([pageTriangle()], roots, cameraMoteur(camera), [64, 64]);
-  const attendu = rasterVisibility([pageTriangle()], roots, cameraMoteur(aplatie), [64, 64]);
-  assert.deepEqual([...sousRig.ids], [...attendu.ids], 'the visibility buffer must be identical');
+  const sousRig = rasterVisibility([pageTriangle()], roots, engineCamera(camera), [64, 64]);
+  const expected = rasterVisibility([pageTriangle()], roots, engineCamera(flattened), [64, 64]);
+  assert.deepEqual([...sousRig.ids], [...expected.ids], 'the visibility buffer must be identical');
 });

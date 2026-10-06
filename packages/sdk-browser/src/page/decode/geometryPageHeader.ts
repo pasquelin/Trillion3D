@@ -3,10 +3,12 @@ import {
   morphWords,
   readDeformation,
   skinWords,
+  type PageMorph,
+  type PageSkin,
   validateRawDeformation,
 } from './geometryPageDeform.ts';
-import { bitsFor } from '../../../../page-codec/pageGrids.ts';
-import { field } from '../../../../page-codec/bits.ts';
+import { bitsFor } from '../../../../page-codec/src/pageGrids.ts';
+import { field } from '../../../../page-codec/src/bits.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
@@ -59,20 +61,8 @@ function record(word: number, min: number[]): Quant | null {
   return sane ? { min, exponent, bits } : null;
 }
 
-/**
- * The 25-word header of a `WGP3` page, read and checked: magic, format version, the four
- * quantization grids, the corner stream's bit count, the stored positions, the skin and morph
- * records (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
- * derived from the counts and widths the header declares, so a page whose body does not measure
- * exactly what its header describes is refused here rather than read out of bounds.
- *
- * This is the one gate of the format on this side. The full decode goes through it, and so does
- * every reader that only admits the bytes — the WebGPU pool, which uploads the page words in place
- * and never decodes them on the CPU — so both refuse the same bytes for the same reason.
- */
-export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 1024 * 1024) {
-  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER');
-  const head = new DataView(data.buffer, data.byteOffset, data.byteLength);
+/** The header's counts, flags and grids, the magic and the version checked, the grids sane. */
+function readHeaderFields(head: DataView) {
   const w = (i: number) => head.getUint32(i * 4, true),
     f = (i: number) => head.getFloat32(i * 4, true);
   if (w(0) !== CLUSTER_PAGE_MAGIC || w(1) !== GEOMETRY_PAGE_FORMAT_VERSION)
@@ -88,9 +78,26 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     cornerBits = w(21),
     positionCount = w(22);
   if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS');
-  const { skin, morphs } = readDeformation(head, flags),
-    headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS;
-  // Word offset of each stream, derived from the counts and widths the header declares.
+  return {
+    vertexCount,
+    indexCount,
+    flags,
+    position,
+    uv,
+    uv2,
+    color,
+    quantizationError,
+    cornerBits,
+    positionCount,
+  };
+}
+
+type HeaderFields = ReturnType<typeof readHeaderFields>;
+
+/** The word offset of each stream, derived from the counts and widths the header declares, and
+ *  the words the body holds. */
+function layoutStreams(h: HeaderFields, skin: PageSkin, morphs: readonly PageMorph[]) {
+  const { vertexCount, indexCount, flags, cornerBits, positionCount } = h;
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
     recordBits = indexBits + WIDTH_BITS + prefixBits,
@@ -104,14 +111,14 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
     blocks = stream(true, blockCount, recordBits),
     cornerStream = stream(true, cornerBits, 1),
-    positions = position.bits.map((b) => stream(true, positionCount, b)),
+    positions = h.position.bits.map((b) => stream(true, positionCount, b)),
     linked = positionCount < vertexCount,
     linkBits = bitsFor(positionCount - 1),
     links = stream(linked, vertexCount, linkBits),
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
-    uvs = uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
-    uv2s = uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
-    colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
+    uvs = h.uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
+    uv2s = h.uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
+    colors = h.color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
     skinned = at;
   if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount);
   // Each target's record names the word its streams start at: recomputed here, trusted if equal.
@@ -120,6 +127,41 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     at += morphWords(morph, vertexCount);
     return morph.start === start;
   });
+  return {
+    corners,
+    blockCount,
+    linked,
+    linkBits,
+    placed,
+    bodyWords: at,
+    streams: {
+      blocks,
+      corners: cornerStream,
+      positions,
+      links,
+      normal,
+      uvs,
+      uv2s,
+      colors,
+      skinned,
+    },
+  };
+}
+
+type StreamLayout = ReturnType<typeof layoutStreams>;
+
+/** The counts agree with each other, with the bound a decode may take and with the page's own
+ *  byte length. */
+function checkCounts(
+  h: HeaderFields,
+  layout: StreamLayout,
+  skin: PageSkin,
+  morphs: readonly PageMorph[],
+  headerWords: number,
+  byteLength: number,
+  maxDecodedBytes: number,
+) {
+  const { vertexCount, indexCount, flags, cornerBits, positionCount, quantizationError } = h;
   let floats = 3 + (flags & FLAG_SKIN ? 2 * skin.influences : 0) + 6 * morphs.length;
   for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size;
   const decodedBytes = vertexCount * floats * 4 + indexCount * 4;
@@ -135,55 +177,95 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     !(quantizationError >= 0) ||
     !Number.isFinite(quantizationError) ||
     decodedBytes > maxDecodedBytes ||
-    !placed ||
-    (headerWords + at) * 4 !== data.byteLength
+    !layout.placed ||
+    (headerWords + layout.bodyWords) * 4 !== byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
-  validateRawDeformation(head, headerWords, vertexCount, flags, skinned, skin, morphs);
-  // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
-  // The link stream ends where the normal stream starts.
+  return decodedBytes;
+}
+
+/** Each block's base, width and corners stay in bounds, and so does each link: the GPU reads the
+ *  page in place on this. The link stream ends where the normal stream starts. */
+function checkCornerBlocks(
+  head: DataView,
+  headerWords: number,
+  h: HeaderFields,
+  layout: StreamLayout,
+) {
+  const { vertexCount, indexCount, cornerBits, positionCount } = h,
+    { corners, streams, linked, linkBits } = layout;
   const words = (from: number, to: number) =>
       Uint32Array.from({ length: to - from }, (_, i) =>
         head.getUint32((headerWords + from + i) * 4, true),
       ),
-    table = words(0, cornerStream);
-  for (let b = 0; b < blockCount; b++) {
-    const [base, width, start] = blockRecord(table, blocks, corners, b),
+    table = words(0, streams.corners);
+  for (let b = 0; b < layout.blockCount; b++) {
+    const [base, width, start] = blockRecord(table, streams.blocks, corners, b),
       end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width;
-    if (base >= vertexCount || width > indexBits || end > cornerBits)
+    if (base >= vertexCount || width > corners.indexBits || end > cornerBits)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
-  const linkWords = linked ? words(links, normal) : table;
+  const linkWords = linked ? words(streams.links, streams.normal) : table;
   for (let i = 0; linked && i < vertexCount; i++)
     if (field(linkWords, i * linkBits, linkBits) >= positionCount)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
+}
+
+/**
+ * The 25-word header of a `WGP3` page, read and checked: magic, format version, the four
+ * quantization grids, the corner stream's bit count, the stored positions, the skin and morph
+ * records (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
+ * derived from the counts and widths the header declares, so a page whose body does not measure
+ * exactly what its header describes is refused here rather than read out of bounds.
+ *
+ * This is the one gate of the format on this side. The full decode goes through it, and so does
+ * every reader that only admits the bytes — the WebGPU pool, which uploads the page words in place
+ * and never decodes them on the CPU — so both refuse the same bytes for the same reason.
+ */
+export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 1024 * 1024) {
+  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER');
+  const head = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const h = readHeaderFields(head);
+  const { skin, morphs } = readDeformation(head, h.flags),
+    headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS,
+    layout = layoutStreams(h, skin, morphs),
+    decodedBytes = checkCounts(
+      h,
+      layout,
+      skin,
+      morphs,
+      headerWords,
+      data.byteLength,
+      maxDecodedBytes,
+    );
+  const { vertexCount, indexCount, flags } = h;
+  validateRawDeformation(
+    head,
+    headerWords,
+    vertexCount,
+    flags,
+    layout.streams.skinned,
+    skin,
+    morphs,
+  );
+  checkCornerBlocks(head, headerWords, h, layout);
   return {
     vertexCount,
     indexCount,
     flags,
-    quantizationError,
-    position,
-    uv,
-    uv2,
-    color,
-    corners,
-    positionCount,
-    linkBits,
+    quantizationError: h.quantizationError,
+    position: h.position,
+    uv: h.uv,
+    uv2: h.uv2,
+    color: h.color,
+    corners: layout.corners,
+    positionCount: h.positionCount,
+    linkBits: layout.linkBits,
     skin,
     morphs,
     headerWords,
-    bodyWords: at,
+    bodyWords: layout.bodyWords,
     decodedBytes,
-    streams: {
-      blocks,
-      corners: cornerStream,
-      positions,
-      links,
-      normal,
-      uvs,
-      uv2s,
-      colors,
-      skinned,
-    },
+    streams: layout.streams,
   };
 }

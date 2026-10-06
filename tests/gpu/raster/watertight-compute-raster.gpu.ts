@@ -8,19 +8,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, preuveSaine } from '../kit/enginePageProof.ts';
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts';
 
 type Reading = Awaited<ReturnType<typeof import('./computeRasterPage.ts').compareRasters>>;
 
 test('the compute raster is watertight under both variants', async () => {
-  const result = await preuveDansLaPage(
+  const result = await runPageProof(
     resolve(import.meta.dirname, 'computeRasterPage.ts'),
     'computeRaster',
     'compareRasters',
   );
-  const { adaptateur: adapter, covered, clusters, variants } = result as Reading;
+  const { adapter: adapter, covered, clusters, variants } = result as Reading;
   console.log(JSON.stringify({ adapter, covered, clusters, variants }));
-  preuveSaine(result);
+  assertSoundProof(result);
   assert.ok((covered ?? 0) > 1000, `the scene covers only ${covered} pixels`);
   assert.equal(clusters, 30);
   for (const [variant, { clusters: drawn, interior, silhouette }] of Object.entries(

@@ -9,7 +9,7 @@ import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts
 import {
   PARTICLES_WGSL,
   PARTICLE_WORKGROUP,
-} from '../../../packages/sdk-browser/src/particles/particlesWgsl.ts';
+} from '../../../packages/sdk-browser/src/webgpu/particles/particlesWgsl.ts';
 import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts';
 import { runOnDawn } from '../kit/onDawn.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';

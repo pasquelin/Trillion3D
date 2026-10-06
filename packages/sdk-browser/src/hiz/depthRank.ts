@@ -20,7 +20,7 @@ const splitKeyDouble = new Float64Array(1),
  * its OPPOSITE, so the increasing order of keys stays nearest to farthest — and everything that
  * follows (stable sort, rank selection) does not change by a line.
  */
-function chargeCles(count: number, bounds: Float64Array) {
+function loadKeys(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
     splitLow = new Uint32Array(count);
     splitHigh = new Uint32Array(count);
@@ -47,7 +47,7 @@ function chargeCles(count: number, bounds: Float64Array) {
  * `a.nearest-b.nearest||a.index-b.index`. `order` is reused by the next call.
  */
 export function rankByDepth(count: number, bounds: Float64Array) {
-  const inFront = chargeCles(count, bounds);
+  const inFront = loadKeys(count, bounds);
   if (!inFront) return { inFront, order: splitOrder };
   let order = splitOrder,
     scratch = splitScratch;

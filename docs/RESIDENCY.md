@@ -69,7 +69,7 @@ and held for the scene's life, bounded by the materials, never the world (the se
 diagnostic: `pinnedBundles`, `pinnedBytes`, `heldBytes`). Object roots are pages held by the view:
 a model not partitioned holds its placements for its life, a partition's placed cells hold theirs
 until they leave, and each placed cell holds the world bundles past the top its objects' roots
-depend on (`scene/partition/cellPages.ts`), each once, released with the last cell needing it. The
+depend on (`partition/cellPages.ts`), each once, released with the last cell needing it. The
 session counts those bytes in the CPU budget beside the engines' host tables. The super-roots are
 not drawn yet: a cell's super-roots standing in for a far cell is #1238.
 
@@ -138,7 +138,7 @@ beforehand (`backend/autonomous/pool.ts`); the rest is not asked for.
 
 What stays resident is the engine's one residency, fed as WebGPU feeds it (`residency/lastUse.ts`):
 what the image asks for and draws is held, each holding the pages it depends on
-(`residency/pageParents.ts`), so the ancestor a surface falls back to never leaves under it. Just
+(`page/selection/pageParents.ts`), so the ancestor a surface falls back to never leaves under it. Just
 before a cut, what the last image drew but no longer asks for lets go, one DAG level per image,
 finest first; a page let go is released at the next cut, or at once when the pool is short by that
 many slots, as WebGPU's window gives way under pressure (`backend/autonomous/poolOrder.ts`).

@@ -17,7 +17,7 @@ import {
   releasePageDecoders,
   verifyPageBytes,
 } from './host.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import {
   DeadNodeWorker,
   FlakyNodeWorker,

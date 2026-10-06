@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { COMPILER_PLATFORMS } from '../packages/sdk-node/src/compiler/platform.mts';
-import type { Run } from './installed-package-contracts.ts';
+import type { Run } from './installed-package/contracts.ts';
 import { packRelease, publishRelease, readRelease, releaseNames } from './release-packages.ts';
 
 /** A checkout as the pack job holds it: six manifests at `version`, each compiler downloaded

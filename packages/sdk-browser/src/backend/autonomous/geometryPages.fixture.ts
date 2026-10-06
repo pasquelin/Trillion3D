@@ -1,6 +1,6 @@
 import type * as G from '../../host/graph/graph.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import type { PageAttributes } from '../../../../page-codec/pageAttributes.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
+import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 
 /** The graph attributes a page carries, by their page name. */

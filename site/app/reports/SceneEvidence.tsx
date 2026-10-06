@@ -6,10 +6,10 @@ import { ModalTrigger } from '../ui/Modal.tsx';
 import { Card } from '../ui/Card.tsx';
 import { Select } from '../ui/Input.tsx';
 import { Tabs } from '../ui/Tabs.tsx';
-import { pairedImages, sceneName, runOf } from '../../reports/presentation.ts';
-import { engineName, runName, viewName } from '../../reports/names.ts';
+import { pairedImages, sceneName, runOf } from './model/presentation.ts';
+import { engineName, runName, viewName } from './model/names.ts';
 import { Evidence } from './Evidence.tsx';
-import type { Report, ReportRecord } from '../../reports/types.ts';
+import type { Report, ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface SceneEvidenceProps {

@@ -86,21 +86,22 @@ export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts';
 export type { SceneState } from './scene/core/nodeContracts.ts';
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts';
+export type { SoftBodyType } from './physics/soft.ts';
 export type { Texture, TextureColorSpace, TextureFilter, WrapMode } from './texture/contract.ts';
 export * from './scene/core/tableSurfaces.ts';
 export type { TablePage, TableSlot } from './scene/core/tablePages.ts';
 export { compareImages } from './runtime/compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */
-export { createJob } from './runtime/jobs.ts';
-export type { JobStatus, JobProgress, JobSnapshot } from './runtime/jobs.ts';
-export { createSafetyPolicy } from './runtime/safety.ts';
+export { createJob } from './runtime/jobs/jobs.ts';
+export type { JobStatus, JobProgress, JobSnapshot } from './runtime/jobs/jobs.ts';
+export { createSafetyPolicy } from './runtime/safety/safety.ts';
 export type {
   CapabilityTier,
   SafetyDecision,
   MeasuredCosts,
   SafetyConfig,
-} from './runtime/safety.ts';
+} from './runtime/safety/safety.ts';
 export { userNotice } from './runtime/events.ts';
 export type { RuntimeEvent, UserNotice } from './runtime/events.ts';
 export {

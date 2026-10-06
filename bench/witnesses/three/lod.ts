@@ -17,7 +17,7 @@ import { createThreeSceneDraw, hostDiagnostics } from './sceneAdapter.ts';
 import { applyMeshDiagnostic } from '../applyMeshDiagnostic.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
-const HORS_PORTEE = [
+const OUT_OF_RANGE = [
   'GPU-driven selection/indirect draw',
   'occlusion culling',
   'bounded GPU eviction',
@@ -119,7 +119,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       gpuDriven: false,
       simplification: levels > 1,
       eviction: false,
-      unsupported: levels > 1 ? HORS_PORTEE : ['general mesh LOD simplification', ...HORS_PORTEE],
+      unsupported: levels > 1 ? OUT_OF_RANGE : ['general mesh LOD simplification', ...OUT_OF_RANGE],
     },
     get overBudget() {
       return overBudget;

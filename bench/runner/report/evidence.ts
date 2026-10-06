@@ -1,8 +1,8 @@
 import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts';
-import { analyseFile, neighboringCut } from '../cutAnalysis.ts';
-import { readsCache, sceneDerived } from '../scene.ts';
+import { analyseFile, neighboringCut } from '../series/cutAnalysis.ts';
+import { readsCache, sceneDerived } from '../assets/scene.ts';
 import { assetIdentity } from './provenance.ts';
-import type { SideBase } from '../dists.ts';
+import type { SideBase } from '../harness/dists.ts';
 import type { Report } from './types.ts';
 
 /** Freeze asset/build identity and cut analysis while the measured inputs are still present. */

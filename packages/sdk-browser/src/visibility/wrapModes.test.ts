@@ -23,7 +23,7 @@ import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
-const attendu = (c: (typeof MAPS)[number]) => wrapNibble(carte(c.wrapS, c.wrapT));
+const expected = (c: (typeof MAPS)[number]) => wrapNibble(carte(c.wrapS, c.wrapT));
 
 test('wrapNibble sets the repeat or mirror bit per axis, no bit in clamp', () => {
   assert.equal(wrapNibble(undefined), 0, 'no map');
@@ -51,19 +51,19 @@ test('wrapNibble sets the repeat or mirror bit per axis, no bit in clamp', () =>
 test('each map carries its own nibble in its header, whatever the others', () => {
   const lus = mixedNibbles();
   for (const [i, entree] of MAPS.entries())
-    assert.equal(lus[i], attendu(entree), `map ${entree.name} in its header`);
+    assert.equal(lus[i], expected(entree), `map ${entree.name} in its header`);
   assert.equal(new Set(lus).size, MAPS.length, 'six maps, six distinct nibbles');
 });
 
 // Every atlas read folds by the nibble of the texture it reads, from that texture's header: no
 // read takes an addressing argument, so none can take another map's (`../texture/sampling.ts`).
-for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
+for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
     assert.match(
-      texte,
+      text,
       /colorSample\(page\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
     );
-    assert.doesNotMatch(texte, /wrapOf|wrapModes/, 'no per-material addressing word');
+    assert.doesNotMatch(text, /wrapOf|wrapModes/, 'no per-material addressing word');
   });
 
 test('alpha cut-out addresses the base map by its header, never by the flags', () => {

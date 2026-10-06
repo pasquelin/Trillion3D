@@ -6,13 +6,13 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
-import { graine, mesure, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
 import {
   referencePartitionUniform,
   referenceSplitDouble,
 } from '../../oracles/browser/uniform-partition.ts';
 
-const alea = graine(89);
+const alea = xorshiftRandom(89);
 const double = () => (alea() - 0.5) * 1e5;
 const matrice = () => Float64Array.from({ length: 16 }, double);
 
@@ -38,13 +38,13 @@ const doubles = (valeurs: ArrayLike<number>) => ({
   output: new Float32Array(valeurs.length * 2),
 });
 const decompose =
-  (ecrit: (out: Float32Array, haut: number, bas: number, value: number) => void) =>
+  (ecrit: (out: Float32Array, top: number, bas: number, value: number) => void) =>
   ({ valeurs, output }: { valeurs: ArrayLike<number>; output: Float32Array }) => {
     for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i]);
     return output;
   };
 
-const mesureSplit = await mesure({
+const measureSplit = await measure({
   name: 'split-double decomposition',
   fichier: 'packages/sdk-browser/src/gpu/partition/contract.ts',
   cas: [
@@ -55,12 +55,12 @@ const mesureSplit = await mesure({
     },
     { name: 'hostiles', input: doubles(HOSTILES), size: HOSTILES.length },
   ],
-  calcul: decompose(writeSplitDouble),
-  attendu: decompose(referenceSplitDouble),
+  calculation: decompose(writeSplitDouble),
+  expected: decompose(referenceSplitDouble),
   options: { tours: 100 },
 });
 
-const image = (niveaux: number): PartitionFrame => ({
+const image = (levels: number): PartitionFrame => ({
   view: matrice(),
   viewProj: matrice(),
   anchor: [double(), double(), double()],
@@ -68,7 +68,7 @@ const image = (niveaux: number): PartitionFrame => ({
   rows: 20000,
   width: 800,
   height: 600,
-  levels: Array.from({ length: niveaux }, (_, i) => ({
+  levels: Array.from({ length: levels }, (_, i) => ({
     offset: i * 1024,
     width: Math.max(1, Math.floor(alea() * 1024)),
   })),
@@ -81,23 +81,23 @@ const image = (niveaux: number): PartitionFrame => ({
 const words = new Uint32Array(UNIFORM_U32),
   floats = new Float32Array(words.buffer);
 
-const mesureUniforme = await mesure({
+const measureUniform = await measure({
   name: 'partition uniform',
   fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
   cas: [
     { name: '12 Hi-Z levels', input: image(12), size: 1 },
     { name: '0 levels', input: image(0), size: 1 },
   ],
-  calcul: (frame) => {
+  calculation: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows);
     return words;
   },
-  attendu: (frame) => referencePartitionUniform(frame, frame.rows),
+  expected: (frame) => referencePartitionUniform(frame, frame.rows),
   options: { tours: 1000 },
 });
 
 rapport(
   'partition-uniforme',
-  [mesureSplit, mesureUniforme],
+  [measureSplit, measureUniform],
   'the partition uniform and the doubles yield the same bits',
 );

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
-import { sceneName } from '../../reports/presentation.ts';
+import { sceneName } from './model/presentation.ts';
 import { useReports } from './useReports.ts';
 import { Alert } from '../ui/Alert.tsx';
 import { DocPage } from '../layout/DocPage.tsx';

@@ -12,8 +12,8 @@ import type {
   BackendDiagnostic,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts';
-import { executerAppareil } from '../kit/deviceProof.ts';
-import { VIEWPORT, cameraFace, libere, engine } from '../kit/sharedSceneProof.ts';
+import { runOnDevice } from '../kit/deviceProof.ts';
+import { VIEWPORT, cameraFace, release, engine } from '../kit/sharedSceneProof.ts';
 import { image } from '../kit/sceneImageProof.ts';
 import { tileScene } from './computeRasterScene.ts';
 
@@ -68,10 +68,10 @@ async function render(
   try {
     await backend.prepare();
     await image(backend, cameraFace(0));
-    const { pixels, metriques } = await image(backend, cameraFace(0));
-    return { pixels: pixels.slice(), clusters: metriques.clusters ?? null };
+    const { pixels, metrics } = await image(backend, cameraFace(0));
+    return { pixels: pixels.slice(), clusters: metrics.clusters ?? null };
   } finally {
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }
 
@@ -86,7 +86,7 @@ interface RasterReading {
 }
 
 export function compareRasters() {
-  return executerAppareil<RasterReading>(async (device, events, reading) => {
+  return runOnDevice<RasterReading>(async (device, events, reading) => {
     const onDiagnostic = (e: BackendDiagnostic) => void events.push(e);
     const hardware = await render(device, onDiagnostic, {});
     const band = silhouetteBand(hardware.pixels);

@@ -3,7 +3,7 @@ import type { Deformed } from './frame.ts';
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts';
 import { WAVE_FLOATS } from './layout.ts';
 import { sameElements } from '../math/matrixElements.ts';
-import { leastStretchOf } from '../scene/partition/boxes.ts';
+import { leastStretchOf } from '../partition/boxes.ts';
 
 const inverse = new Float64Array(16);
 

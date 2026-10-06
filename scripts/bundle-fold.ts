@@ -16,7 +16,7 @@ export const CHUNK_PREFIX = 'trillion3d-';
 export const FAMILY_MODULES = {
   webgpu: ['sdk-browser/src/webgpu/pages/webgpuCode.js'],
   webgl2: ['sdk-browser/src/backend/autonomous/webglCode.js'],
-  physics: ['sdk-browser/src/physics/session.js'],
+  physics: ['sdk-browser/src/physics/session/session.js'],
   particles: ['sdk-browser/src/particles/particleCode.js'],
   transmission: ['sdk-browser/src/webgpu/water/transmissionCode.js'],
   deformation: ['sdk-browser/src/deformation/deformationCode.js'],

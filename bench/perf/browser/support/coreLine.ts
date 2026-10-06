@@ -16,18 +16,18 @@ const options = { tours: 30, budgetMs: 500 };
 /** A line: a single set of inputs, the reference against the foundation or against the previous code. */
 export const ligne = <Entree extends ArrayLike<unknown>, Sortie>(
   libelle: string,
-  fichier: string | string[],
+  file: string | string[],
   name: string,
   input: Entree,
   reference: (input: Entree) => Sortie | Promise<Sortie>,
-  optimisee: (input: Entree) => Sortie | Promise<Sortie>,
+  optimised: (input: Entree) => Sortie | Promise<Sortie>,
 ): Promise<Measurement> =>
   compare({
     name: libelle,
-    fichier,
+    fichier: file,
     cas: [{ name, input, size: input.length }],
     reference,
-    optimisee,
+    optimised,
     options,
   });
 
@@ -45,7 +45,7 @@ export const trsOutputs = (n: number) =>
   ]);
 export const m4 = (e: ArrayLike<number>) => new THREE.Matrix4().fromArray(e);
 
-const colonne3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[k + 1], e[k + 2]);
+const column3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[k + 1], e[k + 2]);
 
 /**
  * The REFERENCE normal matrix, singular-matrix convention included.
@@ -61,13 +61,13 @@ const colonne3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[
  * rule (`packages/sdk-core/src/math/matrix/singular.ts`): an oracle that judged singularity differently from the judged
  * code would no longer compare the same cases.
  */
-export function normaleReference(matrice: THREE.Matrix4): Float64Array {
+export function referenceNormal(matrice: THREE.Matrix4): Float64Array {
   const e = matrice.elements;
   const normalise = normalizedLinearDeterminant(e);
   if (Number.isNaN(normalise)) return f64(new Array(9).fill(0));
-  const a = colonne3(e, 0),
-    b = colonne3(e, 4),
-    c = colonne3(e, 8);
+  const a = column3(e, 0),
+    b = column3(e, 4),
+    c = column3(e, 8);
   const x = new THREE.Vector3().crossVectors(b, c);
   if (a.dot(x) !== 0 && Math.abs(normalise) > SINGULAR_DETERMINANT)
     return f64(new THREE.Matrix3().getNormalMatrix(matrice).elements);

@@ -15,7 +15,7 @@ import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { createCompositions, type CompositionSources } from './compositions.ts';
-import { type FusedBlend } from '../../effects/webgpuKinds.ts';
+import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts';
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {

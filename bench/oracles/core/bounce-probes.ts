@@ -20,27 +20,27 @@ export interface ReferenceBudget {
 export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;
   const bornee = (f: number) => Math.min(1, Math.max(budgetFloor, f));
-  const etat: { load: number; lastMs: number | null; samples: number } = {
+  const state: { load: number; lastMs: number | null; samples: number } = {
     load: 1,
     lastMs: null,
     samples: 0,
   };
   return {
     get load() {
-      return etat.load;
+      return state.load;
     },
     get lastMs() {
-      return etat.lastMs;
+      return state.lastMs;
     },
     get samples() {
-      return etat.samples;
+      return state.samples;
     },
     observe(ms) {
       if (ms === null || !Number.isFinite(ms) || ms <= 0) return;
-      etat.lastMs = ms;
-      etat.samples++;
-      const voulue = bornee((etat.load * budgetMs) / ms);
-      etat.load = bornee(etat.load + (voulue - etat.load) * budgetSmoothing);
+      state.lastMs = ms;
+      state.samples++;
+      const voulue = bornee((state.load * budgetMs) / ms);
+      state.load = bornee(state.load + (voulue - state.load) * budgetSmoothing);
     },
   };
 }

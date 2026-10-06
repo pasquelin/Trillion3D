@@ -29,8 +29,8 @@ fn rgba8(decoded: image::ImageDecoded) -> ::image::RgbaImage {
 
 /// What a driver declared around the pixels: its transfer function and the named reasons of what
 /// the file carried without the output being able to carry it, in the order it recorded them.
-fn declared(pilote: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&'static str>) {
-    let bytes = fixture(pilote, name);
+fn declared(driver: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&'static str>) {
+    let bytes = fixture(driver, name);
     let decoded =
         image::decode(&bytes, max_alloc).unwrap_or_else(|error| panic!("{name}: {error}"));
     (decoded.transfer, decoded.notes)
@@ -38,10 +38,10 @@ fn declared(pilote: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&
 
 /// RGBA8 image the registry yields for a fixture of `tests/fixtures/formats/<pilote>/`: this driver claims it
 /// by its bytes, and it has the expected dimensions.
-fn decoded_rgba8(pilote: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> ::image::RgbaImage {
-    let bytes = fixture(pilote, name);
+fn decoded_rgba8(driver: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> ::image::RgbaImage {
+    let bytes = fixture(driver, name);
     let claimed = image::by_head(&bytes).expect("a driver claims these bytes");
-    assert_eq!(claimed.name(), pilote, "{name}");
+    assert_eq!(claimed.name(), driver, "{name}");
     let decoded =
         rgba8(image::decode(&bytes, max_alloc).unwrap_or_else(|error| panic!("{name}: {error}")));
     assert_eq!(decoded.dimensions(), size, "{name}");
@@ -49,23 +49,23 @@ fn decoded_rgba8(pilote: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> 
 }
 
 /// What a driver claims by extension: each writing names it, under its MIME type.
-fn assert_claims(pilote: &str, mime: &str, extensions: &[&str]) {
+fn assert_claims(driver: &str, mime: &str, extensions: &[&str]) {
     for extension in extensions {
         let path = PathBuf::from(format!("albedo.{extension}"));
         let claimed = image::by_extension(&path).expect("claimed");
-        assert_eq!(claimed.name(), pilote, "{extension}");
+        assert_eq!(claimed.name(), driver, "{extension}");
         assert_eq!(claimed.mime(), mime, "{extension}");
     }
 }
 
 /// Named refusals of a driver: each fixture stays claimed by its bytes, then comes out as a
 /// report reason, never as a panic.
-fn assert_refusals(pilote: &str, max_alloc: u64, cases: &[(&str, &str)]) {
+fn assert_refusals(driver: &str, max_alloc: u64, cases: &[(&str, &str)]) {
     for (name, reason) in cases {
-        let bytes = fixture(pilote, name);
+        let bytes = fixture(driver, name);
         assert_eq!(
             image::by_head(&bytes).map(|claimed| claimed.name()),
-            Some(pilote),
+            Some(driver),
             "{name}"
         );
         assert_eq!(

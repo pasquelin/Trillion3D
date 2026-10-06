@@ -53,8 +53,8 @@ test('addTransformNode without parent: state of a fresh object — zero position
 test('addTransformNode(parent): the node carries the parent index, an unknown parent throws', () => {
   const tree = createTransformTree(4);
   const parent = addTransformNode(tree);
-  const enfant = addTransformNode(tree, parent);
-  assert.equal(tree.parent[enfant], parent);
+  const child = addTransformNode(tree, parent);
+  assert.equal(tree.parent[child], parent);
   assert.throws(() => addTransformNode(tree, 99), /node 99 absent/);
 });
 
@@ -99,10 +99,10 @@ test('setNodeLocalMatrix: copies the sixteen values and marks NODE_LOCAL_CHANGED
 test('setNodeAutoUpdate: toggles NODE_AUTO_UPDATE without touching the other flags', () => {
   const tree = createTransformTree(2);
   const node = addTransformNode(tree);
-  const autresAvant = tree.flags[node] & ~NODE_AUTO_UPDATE;
+  const othersBefore = tree.flags[node] & ~NODE_AUTO_UPDATE;
   setNodeAutoUpdate(tree, node, false);
   assert.equal(tree.flags[node] & NODE_AUTO_UPDATE, 0);
-  assert.equal(tree.flags[node] & ~NODE_AUTO_UPDATE, autresAvant);
+  assert.equal(tree.flags[node] & ~NODE_AUTO_UPDATE, othersBefore);
   setNodeAutoUpdate(tree, node, true);
   assert.ok(tree.flags[node] & NODE_AUTO_UPDATE);
 });

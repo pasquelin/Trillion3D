@@ -69,7 +69,7 @@ test('a pass the device began before the previous image ended is a time, not a s
   assert.equal(sample.frameMs, 6);
   assert.equal(sample.submittedMs, 6);
   assert.deepEqual(
-    sample.passes.map((pass: { gpuMs: number }) => pass.gpuMs),
+    sample.passes.map((pass) => pass.gpuMs),
     [4, 5],
   );
   assert.equal(sample.idleBetweenMs, null, 'the timeline went backwards: no idle to publish');

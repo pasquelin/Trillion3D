@@ -11,7 +11,7 @@ import {
   type PageRec,
 } from '../../../page/selection/selection.ts';
 import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts';
-import { cameraMoteur } from '../../../camera/camera.fixture.ts';
+import { engineCamera } from '../../../camera/camera.fixture.ts';
 import { createHizCounts } from '../../../hiz/hiz.ts';
 import { renderCpuCut } from './cpu.ts';
 import { createHeldResidency } from '../../../page/cut/held.ts';
@@ -127,7 +127,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
       },
     },
   } as unknown as WebgpuPagesRuntime;
-  return { rt, run, journal, tenue, cam: cameraMoteur(camera()) };
+  return { rt, run, journal, tenue, cam: engineCamera(camera()) };
 }
 
 const image = (b: ReturnType<typeof banc>) => renderCpuCut(b.rt, b.cam, 0, 0, 0);

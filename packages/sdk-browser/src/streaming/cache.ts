@@ -1,6 +1,6 @@
 import type { StreamContext } from './types.ts';
 import { evictOldest } from './evictOldest.ts';
-import { createStreamingPins } from './pins.ts';
+import { createStreamingPins } from './streamingPins.ts';
 
 /** A session's side of the page cache: its budget, its holds and its evictions. `reserved` is what
  *  it takes off the total beside its pages; `holder` is what it hands `store.hold`. */

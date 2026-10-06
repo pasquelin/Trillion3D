@@ -2538,6 +2538,21 @@
       "name": "`cells`, `cellPage`: tệp mà nguồn được đọc từ đó, tệp mà một lời từ chối nêu tên."
     }
   },
+  "PageHome": {
+    "summary": "Chỗ riêng của một trang trong một bể chứa toàn bộ danh mục: hạng, byte đầu tiên và độ rộng của nó.",
+    "members": {
+      "rank": "Hạng của nó trong thứ tự danh mục.",
+      "offset": "Byte đầu tiên của nó trong bể chứa.",
+      "bytes": "Độ rộng của nó, tính bằng byte."
+    }
+  },
+  "PageHomes": {
+    "summary": "Chỗ của mỗi trang theo khóa, và số byte chúng chiếm cùng nhau.",
+    "members": {
+      "homes": "Chỗ của mỗi trang, theo khóa.",
+      "bytes": "Số byte mà mọi chỗ chiếm cùng nhau."
+    }
+  },
   "PageIntegrationAnswer": {
     "summary": "Câu trả lời của một worker cho một lượt đến: đã lên kế hoạch hoặc thất bại."
   },
@@ -2824,6 +2839,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Số lượng con số cho mỗi phép xoay trong một lô: bốn."
+  },
+  "QualityResolution": {
+    "summary": "Độ phân giải mà một thế giới vẽ: một chế độ, hoặc một `scale` của màn hình trên mỗi trục thay cho của chế độ, cố định hoặc `dynamic` — khi đó ngân sách khung hình chọn tỉ lệ giữa một nửa của nó và chính nó.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` hoặc `'turbo'`: 1, 1/1,5, 1/1,7, 1/2 hoặc 1/3 màn hình trên mỗi trục.",
+      "scale": "Một phần của màn hình trên mỗi trục, thay cho phần của chế độ.",
+      "dynamic": "Liệu ngân sách khung hình có hạ tỉ lệ khi hình ảnh chuyển động hay không."
+    }
   },
   "Quaternion": {
     "summary": "Một phép xoay dưới dạng quaternion đơn vị trên `math/matrix/quaternion.ts`.",
@@ -7360,6 +7383,14 @@
       "budget": "Giới hạn cố định, đọc một lần khi vật lý bắt đầu.",
       "simulationRange": "Số mét quanh camera trong đó các vật thể được mô phỏng (`world.physics.simulationRange`); `null` theo `camera.far`.",
       "gravity": "Trọng lực của thế giới: thiết lập sẵn hoặc vectơ."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "Chất lượng mà một trang yêu cầu khi tạo thế giới (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Mỗi nhóm ở mức của tên này.",
+      "groups": "Các nhóm mà trang đặt ở mức riêng, đè lên cài đặt sẵn.",
+      "resolution": "Độ phân giải; `WorldOptions.renderScale`, nếu được cho, sẽ được ưu tiên."
     }
   },
   "VehicleDriver": {

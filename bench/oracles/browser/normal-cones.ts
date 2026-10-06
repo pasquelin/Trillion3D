@@ -19,7 +19,7 @@ export function referenceIndexSourceBytes(allPages: PageRec[]) {
 }
 
 /** Diagnostic counters before batch F: a full `map` and two copies of the table. */
-export function referenceCompteMateriauxEtTangentes(
+export function referenceMaterialsAndTangentsCount(
   allPages: readonly PageRec[],
   geometryBlocks: ReadonlyMap<unknown, { hasTangent: boolean }>,
 ) {

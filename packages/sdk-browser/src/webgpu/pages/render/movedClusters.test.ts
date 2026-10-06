@@ -50,8 +50,9 @@ function turnNode() {
   return motions;
 }
 
-/** The ring turned by its placement row, as the world moves a mesh: what it declares. */
-function turnRow() {
+/** The ring placed by its placement row, as the world places a mesh, shown and unmoved: its rows,
+ *  its runtime and what it declares. */
+function ringOnRow() {
   const rows = createPlacementRows(1);
   rows.matrices.set(new G.Matrix4().elements);
   rows.live[0] = 1;
@@ -62,6 +63,12 @@ function turnRow() {
   const { rt, motions } = runtime(new G.Object3D(), [root]);
   Object.assign(rt.blendState, { blendGpu: [] });
   rt.lights.mobility.ensure(1, 1, () => root.world.elements);
+  return { rows, rt, motions };
+}
+
+/** The ring turned by its placement row, as the world moves a mesh: what it declares. */
+function turnRow() {
+  const { rows, rt, motions } = ringOnRow();
   rows.matrices.set(TURN);
   updateWebgpuPlacements(rt, rows, 0, 0);
   return motions;
@@ -70,16 +77,7 @@ function turnRow() {
 /** The ring hidden, then shown again, where it lies, by its placement row (#831): what each
  *  declares — a mesh the world shows or hides at a fixed pose, a frame of wax in a lava lamp. */
 function flipRow() {
-  const rows = createPlacementRows(1);
-  rows.matrices.set(new G.Matrix4().elements);
-  rows.live[0] = 1;
-  const root = selectionRoot(new G.Object3D(), [-REACH, -TUBE, -REACH, REACH, TUBE, REACH], {
-    of: () => placementWorld(rows, 0),
-  } as never);
-  Object.assign(root, { pages: clusters(), boxes: true, placement: { rows, index: 0 } });
-  const { rt, motions } = runtime(new G.Object3D(), [root]);
-  Object.assign(rt.blendState, { blendGpu: [] });
-  rt.lights.mobility.ensure(1, 1, () => root.world.elements);
+  const { rows, rt, motions } = ringOnRow();
   const declared: (typeof motions)[] = [];
   for (const live of [0, 1]) {
     rows.live[0] = live;
@@ -92,7 +90,10 @@ function flipRow() {
 test('a ring hidden or shown where it lies declares its clusters, static, never its hollow', () => {
   for (const motions of flipRow()) {
     assert.equal(motions.length, CLUSTERS, 'a box per cluster');
-    assert.ok(motions.every(({ movingOnly }) => !movingOnly), 'the static slice held it');
+    assert.ok(
+      motions.every(({ movingOnly }) => !movingOnly),
+      'the static slice held it',
+    );
     const declared = (x: number, z: number) =>
       motions.some(
         ({ min, max }) => min[0] <= x && x <= max[0] && min[2] <= z && z <= max[2] && min[1] <= 0,

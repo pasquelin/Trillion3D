@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import { createHostRankDelta } from '../../page/hostRanks.ts';
+import { createHostRankDelta } from '../../streaming/hostRanks.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
   const rig = new G.Object3D();
@@ -15,8 +15,8 @@ test('emitExplorerFrameDiagnostic: the published camera is the world pose, under
   const camera = G.perspectiveCamera(45, 1, 0.1, 50);
   rig.add(camera);
   rig.updateWorldMatrix(true, false);
-  const attendu = G.worldPosition(camera, new G.Vector3()).toArray();
-  assert.notDeepEqual(attendu, G.xyz(camera.position), 'witness: the rig does move the eye');
+  const expected = G.worldPosition(camera, new G.Vector3()).toArray();
+  assert.notDeepEqual(expected, G.xyz(camera.position), 'witness: the rig does move the eye');
 
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const active = {
@@ -40,7 +40,7 @@ test('emitExplorerFrameDiagnostic: the published camera is the world pose, under
 
   assert.equal(events.length, 1);
   const published = events[0].context.camera as { position: number[]; target: number[] };
-  assert.deepEqual(published.position, attendu);
+  assert.deepEqual(published.position, expected);
   assert.deepEqual(published.target, [1, 2, 3]);
 });
 

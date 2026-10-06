@@ -32,7 +32,7 @@ const POSES = [
 ];
 
 /** Vertex-normal triplets: unit, zero, signed, non-finite, all-ones, very spread. */
-const NORMALES = [
+const NORMALS = [
   [0, 1, 0, 0, 1, 0, 0, 1, 0],
   [0, 0, 0, 1, 0, 0, 0, 0, 1],
   [-0, -0, -0, 0.6, 0, 0.8, -1, -0, 0],
@@ -43,7 +43,7 @@ const NORMALES = [
 ];
 
 /** Tangent triplets `(x, y, z, w)`: `w` carries the bitangent sign. */
-const TANGENTES = [
+const TANGENTS = [
   [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],
   [0, 0, 0, -1, 1, 0, 0, -1, 0, 1, 0, 1],
   [-0, 0, -0, 0, NaN, 0, 0, 1, Infinity, 0, 0, -1],
@@ -65,7 +65,7 @@ const TRIANGLES = [
 ];
 
 /** Hostile barycentric weights: signed zero, NaN, infinities, denormal. */
-const POIDS = [
+const WEIGHT = [
   [0.25, 0.25, 0.5],
   [1, 0, -0],
   [0, -0, NaN],
@@ -73,7 +73,7 @@ const POIDS = [
   [5e-324, 1, -1],
 ];
 
-/** The retained fittings: `[NORMALES, TANGENTES, UVS]`, the last all-ones. */
+/** The retained fittings: `[NORMALS, TANGENTS, UVS]`, the last all-ones. */
 const GARNITURES: [number, number, number][] = [
   [0, 0, 0],
   [1, 1, 1],
@@ -89,8 +89,8 @@ const attribut = (valeurs: number[], size: number) =>
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
 function attributs([n, t, u]: [number, number, number]): G.Geometry['attributes'][] {
-  const normal = () => attribut(NORMALES[n], 3),
-    tangent = () => attribut(TANGENTES[t], 4),
+  const normal = () => attribut(NORMALS[n], 3),
+    tangent = () => attribut(TANGENTS[t], 4),
     uv = () => attribut(UVS[u], 2);
   return [
     { normal: normal(), tangent: tangent(), uv: uv() },
@@ -102,7 +102,7 @@ function attributs([n, t, u]: [number, number, number]): G.Geometry['attributes'
 
 /** A projected vertex as the rasterizer yields it: only the world position is read here, so
  *  the screen fields `x`/`y`/`z`/`invW` `Projected` also carries are filled but never checked. */
-const sommet = (v: number[], at: number) => ({
+const vertex = (v: number[], at: number) => ({
   x: 0,
   y: 0,
   z: 0,
@@ -137,9 +137,9 @@ export function reperes(): Repere[] {
             material: surfaceOf([]),
           };
           const tri = {
-            a: sommet(coins, 0),
-            b: sommet(coins, 3),
-            c: sommet(coins, 6),
+            a: vertex(coins, 0),
+            b: vertex(coins, 3),
+            c: vertex(coins, 6),
             page,
             world: matrix,
             triangleIndex: 0,
@@ -147,7 +147,7 @@ export function reperes(): Repere[] {
             i1: (v + 1) % 3,
             i2: (v + 2) % 3,
           };
-          for (const w of POIDS)
+          for (const w of WEIGHT)
             lot.push({
               page,
               tri,

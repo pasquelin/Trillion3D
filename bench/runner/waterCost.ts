@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { runOnDawn } from '../../tests/gpu/kit/onDawn.ts';
 import { takeBenchLock } from '../dawn/lock.ts';
-import { machineLoad } from './summary.ts';
+import { machineLoad } from './summary/summary.ts';
 import type { run, WaterCostOptions } from '../../tests/gpu/water/waterCostPage.ts';
 
 type Reading = Awaited<ReturnType<typeof run>>;

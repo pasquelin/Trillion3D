@@ -1,11 +1,11 @@
-// Page of the anisotropy cost measure (#360, #361, `bench/runner/anisotropyCost.ts`): one textured
+// Page of the anisotropy cost measure (#360, #361, `bench/runner/counts/anisotropyCost.ts`): one textured
 // floor seen at a grazing angle, drawn by the WebGPU engine at each anisotropy asked, the GPU time
 // of each image read from the engine's own timer. The camera slides by a hair at every image, so
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU
 // globals.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { batisseur, engine, libere } from '../kit/sharedSceneProof.ts';
+import { batisseur, engine, release } from '../kit/sharedSceneProof.ts';
 import { median } from '../../../scripts/median.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';
 
@@ -64,7 +64,7 @@ async function measure(
   );
   floor.rotation.x = -Math.PI / 2;
   builder.source.add(floor);
-  builder.ajoute(floor, 'exact-clusters', HALF);
+  builder.add(floor, 'exact-clusters', HALF);
   const scene = builder.fini();
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, () => {}, {
     viewport: size,
@@ -94,7 +94,7 @@ async function measure(
       if (typeof sample.totalMs === 'number') passesMs.push(sample.totalMs);
     }
   } finally {
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
   return { anisotropy, frameMs: p50(frameMs), passesMs: p50(passesMs), samples: frameMs.length };
 }

@@ -6,13 +6,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { createVsmResources, vsmLayout } from './resources.ts';
+import { createVsmResources } from './resources.ts';
 import {
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_BYTES,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts';
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts';
+import { camera, sun } from './projectionScene.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,
@@ -117,16 +119,6 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     maskTiles: view,
     width: 8,
     height: 8,
-  };
-  const camera = {
-    view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-    projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-    perspective: true,
-  };
-  const sun: VsmProjectionLight = {
-    type: 'directional',
-    mapId: 0,
-    direction: [0, -1, 0],
   };
   const asked = [lights.slice(0, 1), [sun], [sun, lights[0]]];
   // Each is asked once, off the frame, then served by its own pipeline (`pipelineFor`).

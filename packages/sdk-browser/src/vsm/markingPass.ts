@@ -33,13 +33,12 @@ import {
   vsmBindGroupLayoutEntries,
   type VsmBindingSpec,
   type VsmFrameBuffers,
-  type VsmLayout,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts';
-import { ceilDiv, vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts';
+import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts';
 import { vsmWriteChanged } from './writeChanged.ts';
 import {
   VSM_CLEAR_SPECS,
@@ -56,6 +55,7 @@ import {
   vsmCoarseMarkingWgsl,
   vsmMarkingClears,
 } from './markingWgsl.ts';
+import { type VsmLayout, ceilDiv } from './layout.ts';
 
 // ---- The per-page dispatcher ------------------------------------------------------------------
 

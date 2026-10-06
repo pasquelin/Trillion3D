@@ -51,18 +51,18 @@ const projectionNous = (output: Float64Array, s: CameraSpec) =>
 /** The same operations on the sdk-core hierarchy and camera. */
 export function joueNous(scenario: HierarchyOp[]): number[][] {
   const tree = createTransformTree(4),
-    noeuds: number[] = [],
+    nodes: number[] = [],
     vivants: boolean[] = [],
     cameras: CameraRuntime[] = [],
     sorties: number[][] = [];
   const image = createCameraFrame(),
     lecture = new Float64Array(13);
   scenario.forEach((op, rang) => {
-    const n = noeuds[op[1]];
+    const n = nodes[op[1]];
     switch (op[0]) {
-      case 'ajoute': {
+      case 'add': {
         const [, id, parent, p, r, s, camera] = op;
-        const node = addTransformNode(tree, parent >= 0 ? noeuds[parent] : -1);
+        const node = addTransformNode(tree, parent >= 0 ? nodes[parent] : -1);
         setNodePosition(tree, node, p[0], p[1], p[2]);
         setNodeQuaternion(tree, node, r[0], r[1], r[2], r[3]);
         setNodeScale(tree, node, s[0], s[1], s[2]);
@@ -71,7 +71,7 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
           projectionNous(runtime.projection, camera);
           cameras[id] = runtime;
         }
-        noeuds[id] = node;
+        nodes[id] = node;
         vivants[id] = true;
         break;
       }
@@ -87,7 +87,7 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
         setNodeAutoUpdate(tree, n, op[2]);
         break;
       case 'rattache':
-        reparentTransformNode(tree, n, op[2] < 0 ? -1 : noeuds[op[2]]);
+        reparentTransformNode(tree, n, op[2] < 0 ? -1 : nodes[op[2]]);
         break;
       case 'retire':
         removeTransformNode(tree, n);
@@ -96,7 +96,7 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
       case 'maj':
         updateNodeMatrixWorld(tree, n, op[2]);
         break;
-      case 'majMonde':
+      case 'updateWorld':
         updateNodeWorldMatrix(tree, n, op[2], op[3]);
         break;
       case 'vise':
@@ -139,7 +139,7 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
       case 'instantane':
         sorties.push([
           rang,
-          ...noeuds.flatMap((node, id) => (vivants[id] ? [...tree.worldViews[node]] : [])),
+          ...nodes.flatMap((node, id) => (vivants[id] ? [...tree.worldViews[node]] : [])),
         ]);
         break;
     }

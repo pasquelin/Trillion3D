@@ -22,7 +22,9 @@ test("a linked row's world sphere follows its parent's turn on the GPU, around t
   const cpuSpheres = () =>
     packClusterSpheres(
       recs as unknown as PageRec[],
-      meshes.map((mesh) => ({ world: { elements: mesh.matrixWorld.elements } })) as unknown as Placements,
+      meshes.map((mesh) => ({
+        world: { elements: mesh.matrixWorld.elements },
+      })) as unknown as Placements,
       new Float32Array(N * CLUSTER_SPHERE_FLOATS),
       0,
       N - 1,
@@ -39,15 +41,22 @@ test("a linked row's world sphere follows its parent's turn on the GPU, around t
   for (let row = 0; row < N; row++) {
     const s = row * CLUSTER_SPHERE_FLOATS,
       gap = Math.hypot(
-        ...[0, 1, 2].map((axis) => out[s + axis] + out[s + 4 + axis] - (cpu[s + axis] + cpu[s + 4 + axis])),
+        ...[0, 1, 2].map(
+          (axis) => out[s + axis] + out[s + 4 + axis] - (cpu[s + axis] + cpu[s + 4 + axis]),
+        ),
       ),
       left = Math.hypot(
-        ...[0, 1, 2].map((axis) => out[s + axis] + out[s + 4 + axis] - (before[s + axis] + before[s + 4 + axis])),
+        ...[0, 1, 2].map(
+          (axis) => out[s + axis] + out[s + 4 + axis] - (before[s + axis] + before[s + 4 + axis]),
+        ),
       );
     assert.ok(left > 0.5, `row ${row}: the sphere left the pose of the last CPU write`);
     assert.ok(gap < 1e-12, `row ${row}: its centre is the CPU's at the composed world, ${gap} off`);
     assert.ok(out[s + 3] >= cpu[s + 3] + gap, `row ${row}: it holds the CPU's sphere`);
-    assert.ok(out[s + 3] <= cpu[s + 3] * (1 + 1e-5), `row ${row}: and no more than a rounding past it`);
+    assert.ok(
+      out[s + 3] <= cpu[s + 3] * (1 + 1e-5),
+      `row ${row}: and no more than a rounding past it`,
+    );
     assert.equal(out[s + 7], 0);
   }
   // No light casts: the pass leaves every sphere as it was.

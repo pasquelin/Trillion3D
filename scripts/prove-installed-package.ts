@@ -3,25 +3,25 @@ import { readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Metafile } from 'esbuild';
-import { evidenceSummary, installedEvidence } from './installed-package-evidence.ts';
+import { evidenceSummary, installedEvidence } from './installed-package/evidence.ts';
 import {
   browserEvidence,
   emitInstalledBrowserBundle,
   proveInstalledBrowserModes,
-} from './installed-package-bundle.ts';
-import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
-import { packPlatformPackages, platformOverrides } from './installed-package-platforms.ts';
+} from './installed-package/bundle.ts';
+import { compileInstalledScene, type CompiledScene } from './installed-package/scene.ts';
+import { packPlatformPackages, platformOverrides } from './installed-package/platforms.ts';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 import { installedCompiler } from '../packages/sdk-node/src/compiler/platform.mts';
 import { readRelease } from './release-packages.ts';
-import { proveInstalledRuntime } from './installed-package-runtime.ts';
-import { proveInstalledTypes } from './installed-package-types.ts';
+import { proveInstalledRuntime } from './installed-package/runtime.ts';
+import { proveInstalledTypes } from './installed-package/types.ts';
 import {
   createInstalledFixture,
   type ExportsManifest,
   type PackageJson,
   packArchive,
-} from './installed-package-fixture.ts';
+} from './installed-package/fixture.ts';
 
 /** Whether the fixture's virtual store holds any version of the host library. */
 const installedThree = (fixture: string) =>

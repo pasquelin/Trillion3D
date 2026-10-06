@@ -1,7 +1,8 @@
 // Hierarchy-equivalence scenarios (batch M3a), replayed on both sides by
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts';
 
 export type Vec3 = [number, number, number];
@@ -11,32 +12,32 @@ export type Pose = [Vec3, Quat, Vec3];
 
 /**
  * One replayed operation, tagged by its first element and read the same way by
- * `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`. `ajoute` (parent, position, quaternion,
+ * `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`. `add` (parent, position, quaternion,
  * scale, camera or none), `pose` (position, quaternion, scale, each or `null`), `local` (posed
  * local matrix), `auto` (`matrixAutoUpdate`), `rattache` (new parent, `-1` to detach), `retire`
- * (the node and its descendants, listed), `maj` (`updateMatrixWorld(force)`), `majMonde`
- * (`updateWorldMatrix(parents, enfants)`), `vise` (`lookAt` with an up), `objectif` (new camera
+ * (the node and its descendants, listed), `maj` (`updateMatrixWorld(force)`), `updateWorld`
+ * (`updateWorldMatrix(parents, children)`), `vise` (`lookAt` with an up), `objectif` (new camera
  * settings), `lis` (world reads of a node), `image` (view, view-projection and planes of a
  * camera), `instantane` (world matrices of all live nodes).
  */
 export type HierarchyOp =
-  | ['ajoute', number, number, Vec3, Quat, Vec3, CameraSpec | null]
+  | ['add', number, number, Vec3, Quat, Vec3, CameraSpec | null]
   | ['pose', number, Vec3 | null, Quat | null, Vec3 | null]
   | ['local', number, number[]]
   | ['auto', number, boolean]
   | ['rattache', number, number]
   | ['retire', number, number[]]
   | ['maj', number, boolean]
-  | ['majMonde', number, boolean, boolean]
+  | ['updateWorld', number, boolean, boolean]
   | ['vise', number, Vec3, Vec3]
   | ['objectif', number, CameraSpec]
   | ['lis', number]
   | ['image', number, boolean]
   | ['instantane', number];
 
-const alea = graine(0x3a3a);
-const tire = <T>(liste: T[]): T => liste[Math.floor(alea() * liste.length)];
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const alea = xorshiftRandom(0x3a3a);
+const tire = <T>(list: T[]): T => list[Math.floor(alea() * list.length)];
+const dans = dansDe(alea);
 const tourne = (): Quat => {
   const q: Quat = [alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5];
   const l = Math.hypot(...q);
@@ -61,7 +62,7 @@ const ROTATIONS: Quat[] = [
   [1, 2, 3, 4],
   [NaN, 0, 0, 1],
 ];
-const ECHELLES: Vec3[] = [
+const SCALES: Vec3[] = [
   [1, 1, 1],
   [-1, 1, 1],
   [1, -1, 1],
@@ -86,7 +87,7 @@ const ordinaire = (): Pose => [
 ];
 /** A hostile pose once every `rarete`, ordinary otherwise. */
 const pose = (rarete: number): Pose =>
-  alea() * rarete < 1 ? [tire(POSITIONS), tire(ROTATIONS), tire(ECHELLES)] : ordinaire();
+  alea() * rarete < 1 ? [tire(POSITIONS), tire(ROTATIONS), tire(SCALES)] : ordinaire();
 
 export const cameraAuHasard = (): CameraSpec => ({
   fov: 20 + alea() * 100,
@@ -98,7 +99,7 @@ export const cameraAuHasard = (): CameraSpec => ({
 });
 
 /** Live descendants of `id`, itself included, from the parents held by the generator. */
-export function sousArbre(parents: number[], vivants: boolean[], id: number): number[] {
+export function subtree(parents: number[], vivants: boolean[], id: number): number[] {
   const pris = new Set([id]);
   for (let change = true; change;) {
     change = false;
@@ -111,8 +112,7 @@ export function sousArbre(parents: number[], vivants: boolean[], id: number): nu
   return [...pris];
 }
 
-const finies = <T extends number[]>(liste: T[]): T[] =>
-  liste.filter((v) => v.every(Number.isFinite));
+const finies = <T extends number[]>(list: T[]): T[] => list.filter((v) => v.every(Number.isFinite));
 
 /**
  * Frozen chains: depths 1 to 6 under roots, branches of five children each carrying three
@@ -124,38 +124,38 @@ const finies = <T extends number[]>(liste: T[]): T[] =>
 export function chainesFigees(nonFinies: boolean): HierarchyOp[] {
   const positions = nonFinies ? POSITIONS : finies(POSITIONS),
     rotations = nonFinies ? ROTATIONS : finies(ROTATIONS),
-    echelles = nonFinies ? ECHELLES : finies(ECHELLES);
+    scales = nonFinies ? SCALES : finies(SCALES);
   const ops: HierarchyOp[] = [],
-    racines: number[] = [],
+    roots: number[] = [],
     cameras: number[] = [];
   let id = 0;
-  const ajoute = (parent: number, k: number, niveau: number, camera: CameraSpec | null = null) => {
+  const add = (parent: number, k: number, level: number, camera: CameraSpec | null = null) => {
     ops.push([
-      'ajoute',
+      'add',
       id,
       parent,
-      positions[(k + niveau) % positions.length],
-      rotations[(k * 3 + niveau) % rotations.length],
-      echelles[(k * 7 + niveau * 5) % echelles.length],
+      positions[(k + level) % positions.length],
+      rotations[(k * 3 + level) % rotations.length],
+      scales[(k * 7 + level * 5) % scales.length],
       camera,
     ]);
-    if (parent < 0) racines.push(id);
+    if (parent < 0) roots.push(id);
     if (camera) cameras.push(id);
     return id++;
   };
   for (let k = 0; k < 48; k++) {
     let parent = -1;
-    for (let niveau = 0; niveau <= k % 6; niveau++) parent = ajoute(parent, k, niveau);
-    if (k % 5 === 0) ajoute(parent, k, 7, cameraAuHasard());
+    for (let level = 0; level <= k % 6; level++) parent = add(parent, k, level);
+    if (k % 5 === 0) add(parent, k, 7, cameraAuHasard());
   }
   for (let k = 0; k < 8; k++) {
-    const branche = ajoute(-1, k, 0);
-    for (let enfant = 0; enfant < 5; enfant++) {
+    const branche = add(-1, k, 0);
+    for (let child = 0; child < 5; child++) {
       let parent = branche;
-      for (let niveau = 1; niveau <= 3; niveau++) parent = ajoute(parent, k + enfant, niveau);
+      for (let level = 1; level <= 3; level++) parent = add(parent, k + child, level);
     }
   }
-  for (const r of racines) ops.push(['maj', r, true]);
+  for (const r of roots) ops.push(['maj', r, true]);
   ops.push(['instantane', 0]);
   for (let n = 0; n < id; n++) ops.push(['lis', n]);
   for (const c of cameras) ops.push(['image', c, false], ['image', c, true]);

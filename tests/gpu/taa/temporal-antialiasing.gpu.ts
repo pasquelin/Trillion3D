@@ -11,8 +11,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import {
-  preuveDansLaPage as runPage,
-  preuveSaine as assertHealthy,
+  runPageProof as runPage,
+  assertSoundProof as assertHealthy,
 } from '../kit/enginePageProof.ts';
 import { estRouge as isRed } from '../kit/sceneImageProof.ts';
 import { changedPixels, nearEdge } from './antialiasingDiffs.ts';
@@ -27,8 +27,8 @@ type Run = {
 type Result = Awaited<ReturnType<typeof runPage>> & {
   viewport: [number, number];
   sans: Run;
-  avec: Run;
-  temoin: Run;
+  with: Run;
+  witness: Run;
 };
 
 /** Edge pixels in between — neither the tile's red nor the background: what smoothing leaves. */
@@ -47,7 +47,7 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
   const result = (await runPage(page, 'temporalAntialiasing', 'run')) as Result;
   assertHealthy(result);
   const [width, height] = result.viewport;
-  const { sans: plain, avec: accumulated, temoin: witness } = result;
+  const { sans: plain, with: accumulated, witness } = result;
   assert.equal(plain.capabilities?.temporalAntialiasing, false, 'without the option, no pass');
   assert.equal(accumulated.capabilities?.temporalAntialiasing, true, 'with it, the pass is wired');
   assert.equal(accumulated.capabilities?.motionVectors, 'derived');

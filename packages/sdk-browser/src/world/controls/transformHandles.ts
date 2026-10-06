@@ -4,7 +4,7 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { markHelper } from '../helper/mark.ts';
+import { markHelper } from '../core/helperMark.ts';
 import type { TransformHandle, TransformMode } from './transformMath.ts';
 
 /** The axis colours of the `helper.axes` marks, and the plane handles' in the colour of the axis

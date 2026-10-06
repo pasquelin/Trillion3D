@@ -8,14 +8,14 @@
 //
 //   node bench/runner/scenes/aerial.ts [--seed 410] [--props 3600] [--lamps 600]
 //
-// It writes `.mesure/assets/aerial-<seed>/` (glTF and binary), which
-// `node bench/runner/assets.ts --only aerial-<seed>` then compiles like any other scene. The
+// It writes `.measure/assets/aerial-<seed>/` (glTF and binary), which
+// `node bench/runner/assets/assets.ts --only aerial-<seed>` then compiles like any other scene. The
 // bench's `overview` view flies over it.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { parseArgs } from '../options.ts';
-import { ASSETS } from '../scene.ts';
+import { parseArgs } from '../harness/options.ts';
+import { ASSETS } from '../assets/scene.ts';
 import { mulberry32 } from '../../../site/examples/kit/random.ts';
 import { groundHeight, groundTile, lathe, PROPS, type ShapeMesh } from './aerialModel.ts';
 

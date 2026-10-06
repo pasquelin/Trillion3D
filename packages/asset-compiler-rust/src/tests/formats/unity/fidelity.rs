@@ -15,8 +15,8 @@ const MODEL: &str = "0000000000000000000000000000000a";
 // out at the place the model gives it, not at the origin.
 #[test]
 fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
-    let projet = UnityProject::new("modele-transformations");
-    projet.model(
+    let project = UnityProject::new("modele-transformations");
+    project.model(
         "Models/Piece.glb",
         MODEL,
         json!([
@@ -25,11 +25,11 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
         ]),
         "",
     );
-    projet.scene(&instance_of(
+    project.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
     ));
-    let run = projet.compile("unity-modele-transformations");
+    let run = project.compile("unity-modele-transformations");
     let (_, gltf) = run.prepared("unity");
     let node = node_named(&gltf, "Piece").expect("the model's node");
     assert_eq!(
@@ -45,30 +45,30 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
 // runs yield the same scene, byte for byte.
 #[test]
 fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
-    let projet = UnityProject::new("retouches");
-    projet.model(
+    let project = UnityProject::new("retouches");
+    project.model(
         "Models/Paire.glb",
         MODEL,
         json!([{"name":"Gauche","mesh":0},{"name":"Droite","mesh":0}]),
         "  - first:\n      4: 400002\n    second: Droite\n",
     );
-    projet.scene(&format!(
+    project.scene(&format!(
         "--- !u!1001 &5000\nPrefabInstance:\n  serializedVersion: 2\n  m_Modification:\n    m_TransformParent: {{fileID: 0}}\n    m_Modifications:\n    - target: {{fileID: 400000, guid: {MODEL}, type: 3}}\n      propertyPath: m_LocalPosition.x\n      value: 7\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 400002, guid: {MODEL}, type: 3}}\n      propertyPath: m_LocalPosition.x\n      value: 2\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Name\n      value: Instance\n      objectReference: {{fileID: 0}}\n  m_SourcePrefab: {{fileID: 100100000, guid: {MODEL}, type: 3}}\n"
     ));
-    let first = projet.compile("unity-retouches").prepared("unity").1;
+    let first = project.compile("unity-retouches").prepared("unity").1;
     assert_eq!(
         node_named(&first, "Instance").expect("the instance root")["translation"],
         json!([7.0, 0.0, 0.0]),
         "the root override applies alone, without the other object's value"
     );
-    let (manifest, _) = projet.compile("unity-retouches").prepared("unity");
+    let (manifest, _) = project.compile("unity-retouches").prepared("unity");
     assert_eq!(
         manifest["unsupported"]["unity-prefab-override-unplaced"], 1,
         "the override aiming at a model object is counted, not mixed"
     );
     for _ in 0..9 {
         assert_eq!(
-            projet.compile("unity-retouches").prepared("unity").1,
+            project.compile("unity-retouches").prepared("unity").1,
             first,
             "two runs of the same scene yield the same intermediate scene"
         );
@@ -80,18 +80,18 @@ fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
 // and the whole model is instanced in place of the only requested mesh.
 #[test]
 fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
-    let projet = UnityProject::new("fileid");
-    projet.model(
+    let project = UnityProject::new("fileid");
+    project.model(
         "Models/Paire.glb",
         MODEL,
         json!([{"name":"Fine","mesh":0},{"name":"Grosse","mesh":0}]),
         "  - first:\n      43: 9007199254740993\n    second: Fine\n",
     );
-    projet.scene(&instance_of(
+    project.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 9007199254740993, guid: {MODEL}, type: 3}}"),
     ));
-    let run = projet.compile("unity-fileid");
+    let run = project.compile("unity-fileid");
     let (manifest, gltf) = run.prepared("unity");
     assert_eq!(manifest["source"]["counts"]["subMeshes"], 1);
     assert!(
@@ -109,10 +109,10 @@ fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
 // alone yields `MASK`.
 #[test]
 fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
-    let projet = UnityProject::new("alpha");
+    let project = UnityProject::new("alpha");
     let melange = "000000000000000000000000000000b1";
     let decoupe = "000000000000000000000000000000c1";
-    projet.data(
+    project.data(
         "Materials/Melange.mat",
         melange,
         &white_mat(
@@ -120,17 +120,17 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
             "    - _Surface: 1\n    - _AlphaClip: 1\n    - _Cutoff: 0.25\n",
         ),
     );
-    projet.data(
+    project.data(
         "Materials/Decoupe.mat",
         decoupe,
         &white_mat("Decoupe", "    - _Mode: 1\n    - _Cutoff: 0.25\n"),
     );
-    projet.scene(&format!(
+    project.scene(&format!(
         "{}{}",
         cube(100, "Fondu", melange),
         cube(200, "Masque", decoupe)
     ));
-    let run = projet.compile("unity-alpha");
+    let run = project.compile("unity-alpha");
     let (manifest, gltf) = run.prepared("unity");
     let fondu = material_named(&gltf, "Melange");
     assert_eq!(fondu["alphaMode"], "BLEND", "transparent wins over cutout");

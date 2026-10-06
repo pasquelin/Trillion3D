@@ -10,8 +10,8 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { earlyOutWorld } from './projectionEarlyOut.fixture.ts';
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts';
-import { vsmLayout } from './resources.ts';
 import { VSM_LOG2_PAGE } from './constants.ts';
+import { vsmLayout } from './layout.ts';
 
 test('the build kernel writes each tile the greatest word whose float is not below 0', () => {
   // `vsmTileDepthsBuild` run lane by lane, twice: every lane's atomicMax, then the 16

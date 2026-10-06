@@ -8,7 +8,7 @@ import type { createAutonomousGeometry } from './geometry.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import { createGeometryBudget, type PoolEnvironment } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
-import { createPageParents } from '../../residency/pageParents.ts';
+import { createPageParents } from '../../page/selection/pageParents.ts';
 import { floorDiagnostic, rootChildren } from '../../residency/minimumCapacity.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';

@@ -7,18 +7,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, preuveSaine } from '../kit/enginePageProof.ts';
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts';
 
 type Reading = Awaited<ReturnType<typeof import('./rigCameraPage.ts').runRigCamera>>;
 
 test('under a moved rig, the Hi-Z test reads the new view’s rectangles', async () => {
-  const reading = (await preuveDansLaPage(
+  const reading = (await runPageProof(
     resolve(import.meta.dirname, 'rigCameraPage.ts'),
     'hizRig',
     'runRigCamera',
   )) as Reading;
   console.log(JSON.stringify({ adapter: reading.adapter, steps: reading.steps }));
-  preuveSaine(reading);
+  assertSoundProof(reading);
   const { steps } = reading;
   assert.ok(steps.length >= 4, 'several rig poses');
   for (const { x, clusters, rowsMoved, rowsStill, stillHeld, gapMoved, gapStill } of steps) {

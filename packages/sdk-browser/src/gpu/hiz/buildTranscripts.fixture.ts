@@ -147,7 +147,14 @@ export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => numb
   const passes = hizBuildPasses(sizes, scene.maxLevels);
   const words = hizBuildWords(sizes, offsets, passes, stride);
   const { pass, dispatches } = recordingPass();
-  encodeHizPyramid(pass, {} as GPUBindGroup, {} as GPUComputePipeline, passes, hizBuildSlots(passes), count);
+  encodeHizPyramid(
+    pass,
+    {} as GPUBindGroup,
+    {} as GPUComputePipeline,
+    passes,
+    hizBuildSlots(passes),
+    count,
+  );
   for (const [at, gx, gy, gz] of dispatches) {
     const u = words.subarray(at, at + SLOT_WORDS);
     for (let z = 0; z < gz; z++)

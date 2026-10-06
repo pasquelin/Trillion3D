@@ -33,15 +33,15 @@ function estTypedArray(v: unknown): v is TypedArray {
  * Keys of two objects, in the same order, or `null` if they differ. Strings are
  * joined only on the divergence branch: in nominal execution this test constructs nothing.
  */
-function memesCles(a: object, b: object): string[] | null {
-  const clesA = Object.keys(a).sort(),
-    clesB = Object.keys(b).sort();
-  if (clesA.length !== clesB.length) return null;
-  for (let i = 0; i < clesA.length; i++) if (clesA[i] !== clesB[i]) return null;
-  return clesA;
+function sameKeys(a: object, b: object): string[] | null {
+  const keysA = Object.keys(a).sort(),
+    keysB = Object.keys(b).sort();
+  if (keysA.length !== keysB.length) return null;
+  for (let i = 0; i < keysA.length; i++) if (keysA[i] !== keysB[i]) return null;
+  return keysA;
 }
 
-const differenceDeCles = (a: object, b: object) =>
+const keyDifference = (a: object, b: object) =>
   `champs ${Object.keys(a).sort().join(',')} ≠ ${Object.keys(b).sort().join(',')}`;
 
 /**
@@ -54,46 +54,45 @@ function commeTypedArrays(a: unknown, b: unknown): [TypedArray, TypedArray] | nu
 }
 
 /** First bitwise discrepancy between two values, or `null` if strictly identical. */
-export function ecart(a: unknown, b: unknown, chemin = '', profondeur = 0): string | null {
-  if (profondeur > 8) throw new Error('ECART_PROFONDEUR_MAX');
+export function gap(a: unknown, b: unknown, path = '', depth = 0): string | null {
+  if (depth > 8) throw new Error('GAP_MAX_DEPTH');
   if (Object.is(a, b)) return null;
-  if (typeof a === 'number' || typeof b === 'number')
-    return `${chemin}: ${String(a)} ≠ ${String(b)}`;
+  if (typeof a === 'number' || typeof b === 'number') return `${path}: ${String(a)} ≠ ${String(b)}`;
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object')
-    return `${chemin}: ${String(a)} ≠ ${String(b)}`;
+    return `${path}: ${String(a)} ≠ ${String(b)}`;
   const ta = commeTypedArrays(a, b);
   if (ta) {
     const [ao, bo] = ta;
     if (ao.constructor !== bo.constructor)
-      return `${chemin}: ${ao.constructor?.name} ≠ ${bo.constructor?.name}`;
-    if (ao.length !== bo.length) return `${chemin}: length ${ao.length} ≠ ${bo.length}`;
+      return `${path}: ${ao.constructor?.name} ≠ ${bo.constructor?.name}`;
+    if (ao.length !== bo.length) return `${path}: length ${ao.length} ≠ ${bo.length}`;
     for (let i = 0; i < ao.length; i++)
-      if (!Object.is(ao[i], bo[i])) return `${chemin}[${i}]: ${ao[i]} ≠ ${bo[i]}`;
+      if (!Object.is(ao[i], bo[i])) return `${path}[${i}]: ${ao[i]} ≠ ${bo[i]}`;
     return null;
   }
   if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b)) return `${chemin}: array expected on both sides`;
-    if (a.length !== b.length) return `${chemin}: length ${a.length} ≠ ${b.length}`;
+    if (!Array.isArray(a) || !Array.isArray(b)) return `${path}: array expected on both sides`;
+    if (a.length !== b.length) return `${path}: length ${a.length} ≠ ${b.length}`;
     for (let i = 0; i < a.length; i++) {
-      const e = ecart(a[i], b[i], `${chemin}[${i}]`, profondeur + 1);
+      const e = gap(a[i], b[i], `${path}[${i}]`, depth + 1);
       if (e) return e;
     }
     return null;
   }
   if (a instanceof Set || b instanceof Set) {
-    if (!(a instanceof Set) || !(b instanceof Set)) return `${chemin}: Set expected on both sides`;
-    return ecart([...a], [...b], `${chemin}(Set)`, profondeur + 1);
+    if (!(a instanceof Set) || !(b instanceof Set)) return `${path}: Set expected on both sides`;
+    return gap([...a], [...b], `${path}(Set)`, depth + 1);
   }
   if (a instanceof Map || b instanceof Map) {
-    if (!(a instanceof Map) || !(b instanceof Map)) return `${chemin}: Map expected on both sides`;
-    return ecart([...a], [...b], `${chemin}(Map)`, profondeur + 1);
+    if (!(a instanceof Map) || !(b instanceof Map)) return `${path}: Map expected on both sides`;
+    return gap([...a], [...b], `${path}(Map)`, depth + 1);
   }
-  const cles = memesCles(a, b);
-  if (!cles) return `${chemin}: ${differenceDeCles(a, b)}`;
+  const keys = sameKeys(a, b);
+  if (!keys) return `${path}: ${keyDifference(a, b)}`;
   const ao = a as Record<string, unknown>,
     bo = b as Record<string, unknown>;
-  for (const cle of cles) {
-    const e = ecart(ao[cle], bo[cle], `${chemin}.${cle}`, profondeur + 1);
+  for (const key of keys) {
+    const e = gap(ao[key], bo[key], `${path}.${key}`, depth + 1);
     if (e) return e;
   }
   return null;

@@ -47,7 +47,7 @@ import type { VsmClipmap } from './clipmap.ts';
 import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts';
 import { sameValues } from '../math/matrixElements.ts';
 import type { VsmLightAllocation } from './frameSetup.ts';
-import { ceilDiv } from './passKit.ts';
+import { ceilDiv } from './layout.ts';
 
 /** The CPU copy of the rows' world spheres (`webgpu/shadow/spheres.ts`): centre high, radius,
  *  centre low, pad, per row; and the row runs `[from, to]` (flat pairs) its upload `epoch` wrote. */

@@ -4,11 +4,11 @@ import { SceneNotice } from './SceneNotice.tsx';
 import { Card } from '../ui/Card.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Tabs } from '../ui/Tabs.tsx';
-import { sceneName, runOf } from '../../reports/presentation.ts';
-import { viewName } from '../../reports/names.ts';
+import { sceneName, runOf } from './model/presentation.ts';
+import { viewName } from './model/names.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import { Comparison } from './Comparison.tsx';
-import type { Report, ReportRecord } from '../../reports/types.ts';
+import type { Report, ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface SceneReportProps {

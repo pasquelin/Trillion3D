@@ -128,7 +128,7 @@ test('two submissions the device overlaps cover their overlap once: no sum of sp
   assert.equal(sample.frameMs, 19, '1 → 20');
   assert.equal(sample.submittedMs, 19, 'the 2 ms the spans share are counted once');
   assert.deepEqual(
-    sample.submissions.map((span: { spanMs: number }) => span.spanMs),
+    (sample.submissions as { spanMs: number }[]).map((span) => span.spanMs),
     [9, 12],
   );
   assert.equal(sample.hostGapMs, 0);

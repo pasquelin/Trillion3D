@@ -3,7 +3,7 @@
 // hostile frozen chains, non-finite values, a live scene that moves frame after frame, `lookAt`
 // and degenerate projections. A single bit of delta and the bench fails.
 import { compare, rapport } from '../../core/index.ts';
-import type { MesureCas } from '../../core/index.ts';
+import type { MeasureCase } from '../../core/index.ts';
 import { joueNous } from './support/hierarchyReplayEngine.ts';
 import { joueThree } from './support/hierarchyReplayThree.ts';
 import { chainesFigees } from './support/hierarchyScenarios.ts';
@@ -15,17 +15,17 @@ import { marquages, liveScenario } from './support/hierarchyScenariosLive.ts';
 // during tier-up spread 188 % run to run.
 const options = { tours: 30, budgetMs: 500 };
 /** One case: a scenario whose size is the number of replayed operations. */
-const cas = (name: string, scenario: HierarchyOp[]): MesureCas<HierarchyOp[]> => ({
+const cas = (name: string, scenario: HierarchyOp[]): MeasureCase<HierarchyOp[]> => ({
   name,
   input: scenario,
   size: scenario.length,
 });
-const ligne = (name: string, fichier: string, liste: MesureCas<HierarchyOp[]>[]) => ({
+const ligne = (name: string, file: string, list: MeasureCase<HierarchyOp[]>[]) => ({
   name,
-  fichier,
-  cas: liste,
+  fichier: file,
+  cas: list,
   reference: joueThree,
-  optimisee: joueNous,
+  optimised: joueNous,
   options,
 });
 

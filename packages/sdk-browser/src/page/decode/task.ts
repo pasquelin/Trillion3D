@@ -36,7 +36,7 @@ async function chargeDecodeur(): Promise<Decodeur> {
 }
 
 /** No decoder on this side of the thread: the caller will redo the work on its side, rejecting nothing. */
-function indisponible(id: number, cause: unknown) {
+function unavailable(id: number, cause: unknown) {
   return {
     answer: {
       protocol: PAGE_DECODE_PROTOCOL,
@@ -89,7 +89,7 @@ export async function runPageDecodeTask(
       return done(request, started, { cut }, transfer);
     }
     if (request.op === 'cells') {
-      const { decodeCellFile } = await import('../../scene/partition/cellDecode.ts');
+      const { decodeCellFile } = await import('../../partition/cellDecode.ts');
       const cells = decodeCellFile(request.source, request.name);
       return done(request, started, { cells }, [cells.ranks, cells.locals]);
     }
@@ -108,7 +108,7 @@ export async function runPageDecodeTask(
       choisi = await (decodeur ??= chargeDecodeur());
     } catch (cause) {
       decodeur = undefined;
-      return indisponible(request.id, cause);
+      return unavailable(request.id, cause);
     }
     const decoded = await choisi.decode(new Uint8Array(request.source), request.maxDecodedBytes);
     const payload = geometryPayload(decoded);

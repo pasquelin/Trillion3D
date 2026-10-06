@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { VIS_SHADER } from './buffer.ts';
 import { camera, centerId, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL } from './shader/pageGeometryWgsl.ts';
 import { rasterSource } from '../gpu/raster/shader.ts';
@@ -31,7 +31,7 @@ function covered(options: {
     'color',
     G.floatAttribute(Array(4).fill([1, 1, 1, options.alpha]).flat(), 4),
   );
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(camera()), [16, 16]);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(camera()), [16, 16]);
   geometry.dispose();
   surface.dispose();
   map?.dispose();

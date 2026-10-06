@@ -22,12 +22,12 @@ interface BackendWithCpuFrameEnd extends RenderBackend {
 export async function image(
   backend: RenderBackend,
   camera: G.Camera,
-): Promise<{ pixels: Uint8Array; metriques: ReturnType<RenderBackend['metrics']> }> {
+): Promise<{ pixels: Uint8Array; metrics: ReturnType<RenderBackend['metrics']> }> {
   await animationFrame();
   backend.render(camera);
   (backend as BackendWithCpuFrameEnd).cpuFrameEnd?.();
   await backend.flush!();
-  return { pixels: backend.capture!(), metriques: backend.metrics() };
+  return { pixels: backend.capture!(), metrics: backend.metrics() };
 }
 
 /**
@@ -39,19 +39,19 @@ export async function image(
 export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1));
 
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
-export async function jusquaTenue(
+export async function untilHeld(
   backend: RenderBackend,
   camera: G.Camera,
-): Promise<{ rendue: number[] | undefined; tenue: number[] | null; rendues: number }> {
-  let rendue: number[] | undefined,
+): Promise<{ rendered: number[] | undefined; held: number[] | null; rendues: number }> {
+  let rendered: number[] | undefined,
     rendues = 0;
   for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metriques } = await image(backend, camera);
-    if (metriques.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
-    rendue = Array.from(pixels);
+    const { pixels, metrics } = await image(backend, camera);
+    if (metrics.frameHeld) return { rendered, held: Array.from(pixels), rendues };
+    rendered = Array.from(pixels);
     rendues++;
   }
-  return { rendue, tenue: null, rendues };
+  return { rendered, held: null, rendues };
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */
@@ -91,7 +91,7 @@ const point = new G.Vector3();
 
 /** RGB read where world point `(x, y, z)` projects in an image of `viewport`, clamped to it.
  *  Bottom-left origin, like `capture`. */
-export function couleurEn(
+export function colorAt(
   pixels: Uint8Array,
   camera: G.Camera,
   x: number,

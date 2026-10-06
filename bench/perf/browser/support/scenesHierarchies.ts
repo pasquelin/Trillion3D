@@ -5,14 +5,15 @@
 // axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
 // orthographic camera posed itself in the hierarchy, in both depth conventions.
 import * as THREE from 'three';
-import { graine } from '../../../core/index.ts';
-import { boites } from './scenesVolumes.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
+import { boxes } from './scenesVolumes.ts';
 
-const alea = graine(60617);
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const alea = xorshiftRandom(60617);
+const dans = dansDe(alea);
 
 /** Scales of a node: ordinary, negative on one or three axes, non-uniform, zero, extremes. */
-const ECHELLES: (() => [number, number, number])[] = [
+const SCALES: (() => [number, number, number])[] = [
   () => [1, 1, 1],
   () => [-1, 1, 1],
   () => [-2, -0.5, -3],
@@ -22,40 +23,40 @@ const ECHELLES: (() => [number, number, number])[] = [
   () => [-0.001, 1000, -7],
 ];
 
-function noeud(profondeur: number) {
+function node(depth: number) {
   const n = new THREE.Object3D();
   n.position.set(dans(40), dans(40), dans(40));
   n.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI));
-  n.scale.fromArray(ECHELLES[(profondeur + Math.floor(alea() * 7)) % ECHELLES.length]());
+  n.scale.fromArray(SCALES[(depth + Math.floor(alea() * 7)) % SCALES.length]());
   return n;
 }
 
-const racine = new THREE.Object3D(),
-  noeuds: THREE.Object3D[] = [];
+const root = new THREE.Object3D(),
+  nodes: THREE.Object3D[] = [];
 /** Depth chains 1 to 6 under the root. */
-for (let chaine = 0; chaine < 24; chaine++) {
-  let parent = racine;
-  const profondeur = 1 + (chaine % 6);
-  for (let d = 0; d < profondeur; d++) {
-    const n = noeud(d);
+for (let string = 0; string < 24; string++) {
+  let parent = root;
+  const depth = 1 + (string % 6);
+  for (let d = 0; d < depth; d++) {
+    const n = node(d);
     parent.add(n);
-    noeuds.push(n);
+    nodes.push(n);
     parent = n;
   }
 }
 /** A multi-child branch, including a rotated parent at non-uniform scale: shear. */
-const branche = noeud(3);
+const branche = node(3);
 branche.scale.set(3, 0.25, 1);
-racine.add(branche);
-noeuds.push(branche);
+root.add(branche);
+nodes.push(branche);
 for (let i = 0; i < 5; i++) {
-  const enfant = noeud(i);
-  enfant.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI));
-  branche.add(enfant);
-  noeuds.push(enfant);
-  const petit = noeud(i + 2);
-  enfant.add(petit);
-  noeuds.push(petit);
+  const child = node(i);
+  child.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI));
+  branche.add(child);
+  nodes.push(child);
+  const petit = node(i + 2);
+  child.add(petit);
+  nodes.push(petit);
 }
 
 /** Cameras posed in the hierarchy, under parents of every scale. */
@@ -69,49 +70,49 @@ for (let i = 0; i < 16; i++) {
   camera.updateProjectionMatrix();
   camera.position.set(dans(10), dans(10), dans(10));
   camera.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI));
-  noeuds[(i * 7) % noeuds.length].add(camera);
+  nodes[(i * 7) % nodes.length].add(camera);
   cameras.push(camera);
 }
-racine.updateMatrixWorld(true);
+root.updateMatrixWorld(true);
 
 /** The world matrix of each node, as Three.js composes it. */
-export const mondesHierarchiques = noeuds.map((n) => n.matrixWorld.toArray());
+export const hierarchicalWorlds = nodes.map((n) => n.matrixWorld.toArray());
 
 /** Each node against a few boxes: what the box transform and the sphere receive. */
-export const boitesHierarchiques: [number[], number[]][] = mondesHierarchiques.flatMap((m, i) =>
-  boites
+export const hierarchicalBoxes: [number[], number[]][] = hierarchicalWorlds.flatMap((m, i) =>
+  boxes
     .filter((_: number[], j: number) => j % 9 === i % 9)
     .map((b: number[]): [number[], number[]] => [b, m]),
 );
 
 /** View-projections of the hierarchy cameras, and world boxes of the nodes, one around the eye. */
-export const vuesHierarchiques = cameras.map((camera) => {
-  const oeil = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
+export const hierarchicalViews = cameras.map((camera) => {
+  const eye = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
   return {
     vp: new THREE.Matrix4()
       .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
       .toArray(),
     webgpu: camera.coordinateSystem === THREE.WebGPUCoordinateSystem,
-    oeil: [oeil.x, oeil.y, oeil.z],
+    eye: [eye.x, eye.y, eye.z],
   };
 });
-export const boitesDeVueHierarchiques = vuesHierarchiques.flatMap(({ vp, webgpu, oeil }, v) => {
-  const [x, y, z] = oeil;
-  const monde = new THREE.Box3();
-  const choisies = boitesHierarchiques.filter((_, j) => j % 23 === v % 23);
+export const hierarchicalViewBoxes = hierarchicalViews.flatMap(({ vp, webgpu, eye }, v) => {
+  const [x, y, z] = eye;
+  const world = new THREE.Box3();
+  const choisies = hierarchicalBoxes.filter((_, j) => j % 23 === v % 23);
   return [
     [x - 0.5, y - 0.5, z - 0.5, x + 0.5, y + 0.5, z + 0.5],
     ...choisies.map(([b, m]) => {
-      monde.min.set(b[0], b[1], b[2]);
-      monde.max.set(b[3], b[4], b[5]);
-      monde.applyMatrix4(new THREE.Matrix4().fromArray(m));
-      return [...monde.min.toArray(), ...monde.max.toArray()];
+      world.min.set(b[0], b[1], b[2]);
+      world.max.set(b[3], b[4], b[5]);
+      world.applyMatrix4(new THREE.Matrix4().fromArray(m));
+      return [...world.min.toArray(), ...world.max.toArray()];
     }),
-  ].map((boite) => ({ vp, webgpu, boite }));
+  ].map((box) => ({ vp, webgpu, box }));
 });
 
 /** Cones under the hierarchy world matrices: Three's normal matrix, a camera's eye. */
-export const conesHierarchiques = boitesHierarchiques.map(([b, m], i) => {
+export const hierarchicalCones = hierarchicalBoxes.map(([b, m], i) => {
   const world = new THREE.Matrix4().fromArray(m);
   const e = world.elements;
   return {
@@ -121,7 +122,7 @@ export const conesHierarchiques = boitesHierarchiques.map(([b, m], i) => {
     max: b.slice(3, 6),
     world,
     normal: new THREE.Matrix3().getNormalMatrix(world),
-    echelle: Math.hypot(e[0], e[1], e[2]),
-    oeil: vuesHierarchiques[i % vuesHierarchiques.length].oeil,
+    scale: Math.hypot(e[0], e[1], e[2]),
+    eye: hierarchicalViews[i % hierarchicalViews.length].eye,
   };
 });

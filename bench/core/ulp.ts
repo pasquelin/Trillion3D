@@ -3,13 +3,13 @@
 // so that the table displays a number where strict equality would only show a "no".
 
 /** How many values differ, by at most how many ULP, and the first discrepancy seen. */
-export interface Compteur {
-  nombre: number;
+export interface Counter {
+  count: number;
   ulpMax: number;
   premier: string | null;
 }
 
-const vue = new DataView(new ArrayBuffer(8));
+const view = new DataView(new ArrayBuffer(8));
 
 /**
  * Monotonic rank of a float in bit order: difference of two ranks is ULP discrepancy.
@@ -17,19 +17,19 @@ const vue = new DataView(new ArrayBuffer(8));
  * images and `Float32Array`, called hundreds of thousands of times during comparison.
  */
 function rang32(x: number) {
-  vue.setFloat32(0, x);
-  const b = vue.getInt32(0);
+  view.setFloat32(0, x);
+  const b = view.getInt32(0);
   return b < 0 ? -2147483648 - b : b;
 }
 
 function rang64(x: number) {
-  vue.setFloat64(0, x);
-  const b = vue.getBigInt64(0);
+  view.setFloat64(0, x);
+  const b = view.getBigInt64(0);
   return b < 0n ? -9223372036854775808n - b : b;
 }
 
 /** ULP discrepancy between two floats. `Infinity` as soon as NaN or infinity is not shared. */
-function ulpEntre(a: number, b: number, bits = 64) {
+function ulpBetween(a: number, b: number, bits = 64) {
   if (Object.is(a, b)) return 0;
   if (!Number.isFinite(a) || !Number.isFinite(b)) return Infinity;
   if (bits === 32) return Math.abs(rang32(a) - rang32(b));
@@ -38,14 +38,14 @@ function ulpEntre(a: number, b: number, bits = 64) {
 }
 
 /** Discrepancy counter: how many values differ, by at most how many ULP, and first seen. */
-export function compteur(): Compteur {
-  return { nombre: 0, ulpMax: 0, premier: null };
+export function counter(): Counter {
+  return { count: 0, ulpMax: 0, premier: null };
 }
 
-export function note(c: Compteur, a: number, b: number, chemin: string, bits = 64) {
+export function note(c: Counter, a: number, b: number, path: string, bits = 64) {
   if (Object.is(a, b)) return;
-  c.nombre++;
-  const u = ulpEntre(a, b, bits);
+  c.count++;
+  const u = ulpBetween(a, b, bits);
   if (u > c.ulpMax) c.ulpMax = u;
-  c.premier ??= `${chemin}: ${String(a)} ≠ ${String(b)} (${u} ULP)`;
+  c.premier ??= `${path}: ${String(a)} ≠ ${String(b)} (${u} ULP)`;
 }

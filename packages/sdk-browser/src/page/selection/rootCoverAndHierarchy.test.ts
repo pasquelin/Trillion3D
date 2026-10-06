@@ -4,7 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts';
 import { dagCulling } from './helpers.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture();
@@ -61,7 +61,7 @@ test('the culling hierarchy accelerates the flat cut without changing it', () =>
     accelerated.associations,
   );
   assert.ok(roots[0].culling, 'the hierarchy must be unpacked');
-  const coarse = selectVisiblePages(roots, cameraMoteur(cam), {
+  const coarse = selectVisiblePages(roots, engineCamera(cam), {
     pixelError: 20,
     viewport: [1280, 720],
   });

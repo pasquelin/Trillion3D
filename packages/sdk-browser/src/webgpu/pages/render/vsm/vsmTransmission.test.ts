@@ -4,11 +4,13 @@
 // device, and the maps no longer wait for it to grow.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { vsmTransmissionBytes } from '../../../../vsm/transmissionPass.ts';
-import { VSM_TRANSMISSION_COUNTERS } from '../../../../vsm/transmissionWgsl.ts';
 import { createVsmSettle } from '../../state/vsmSettle.ts';
 import { shadowsUnsettled, type WebgpuLightState } from '../../state/lights.ts';
 import { shortTransmission } from './vsmTransmission.fixture.ts';
+import {
+  vsmTransmissionBytes,
+  VSM_TRANSMISSION_COUNTERS,
+} from '../../../../vsm/transmissionLayout.ts';
 
 test('a frame that wanted more grows once to the power of two that holds it, each capacity alone', async () => {
   const a = shortTransmission((grown, held) => grown - held);

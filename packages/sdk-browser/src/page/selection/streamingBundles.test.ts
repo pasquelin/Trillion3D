@@ -10,7 +10,7 @@ import {
 } from './selection.ts';
 import { dagFixture, wideCamera } from './dag.fixture.ts';
 import { withBundles } from './helpers.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
@@ -46,7 +46,7 @@ test('a streaming bundle is one request that makes every cluster it carries draw
       `${rec.url} reads the wrong slice of its bundle`,
     );
   }
-  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
+  const selected = selectVisiblePages(roots, engineCamera(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     held: createHeldResidency(),
@@ -75,7 +75,7 @@ test('only the root bundle resident still covers the surface once', () => {
     ['bundle-roots'],
   );
   acceptPageArray(indexPagesByUrl(allPages).get('bundle-roots')!, bundled.roots);
-  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
+  const selected = selectVisiblePages(roots, engineCamera(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     held: createHeldResidency(),

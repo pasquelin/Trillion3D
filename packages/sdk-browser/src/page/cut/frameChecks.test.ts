@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts';
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from './held.ts';
 
 /** A near plane no other value of the cut shares: its `Number.isFinite` calls are the frame checks. */
@@ -31,7 +31,7 @@ function rootsOf(culling: boolean, flat = false) {
 }
 
 function cameraWith(near: number, perspective?: number) {
-  const cam = cameraMoteur(wideCamera());
+  const cam = engineCamera(wideCamera());
   cam.near = near;
   if (perspective !== undefined) cam.perspective = perspective;
   return cam;

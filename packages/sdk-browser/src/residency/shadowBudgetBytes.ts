@@ -1,9 +1,12 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
-import { vsmLayout, vsmResourceBytes } from '../vsm/resources.ts';
-import { VSM_RENDER_PAIR_CAPACITY } from '../vsm/renderPass.ts';
-import { VSM_RENDER_CMD_BYTES, VSM_RENDER_PAIR_BYTES } from '../vsm/renderCullWgsl.ts';
-import { vsmTransmissionBytes } from '../vsm/transmissionPass.ts';
+import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts';
+import {
+  VSM_RENDER_PAIR_CAPACITY,
+  VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_PAIR_BYTES,
+} from '../vsm/constants.ts';
+import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts';
 
 const MiB = 1024 * 1024;
 
@@ -11,10 +14,11 @@ const MiB = 1024 * 1024;
  * The virtual shadow maps of one sun on a device whose storage bindings hold `binding` bytes, at
  * the default pool — `vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })`, one
  * page-table row (`fullMapsFor`) and 2048 physical pages in two slices —: every buffer of the set
- * (`vsmResourceBytes`, `../vsm/resources.ts`), the raster's pair and command lists at their ceiling
- * (`VSM_RENDER_PAIR_CAPACITY`, one command a pair at most, `../vsm/renderPass.ts`) and the
- * coloured transmission's first atlas (`vsmTransmissionBytes`, `../vsm/transmissionPass.ts`). The
- * projection's mask, sized by the canvas, is a frame target.
+ * (`vsmResourceBytes`, `../vsm/layout.ts`), the raster's pair and command lists at their ceiling
+ * (`VSM_RENDER_PAIR_CAPACITY`, one command a pair at most, `../vsm/constants.ts`) and the
+ * coloured transmission's first atlas (`vsmTransmissionBytes`, `../vsm/transmissionLayout.ts`).
+ * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,
+ * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
  */
 function oneSunShadowMaps(binding = 128 * MiB) {
   const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, binding);

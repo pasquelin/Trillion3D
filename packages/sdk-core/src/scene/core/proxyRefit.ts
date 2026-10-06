@@ -14,24 +14,14 @@ function outward(value: number, upper: boolean) {
   return rounded[0];
 }
 
-/** Refit the existing wide topology; triangles and their order never change. */
-export function createProxyRefit(data: SceneProxyColumns) {
-  const { triangles, triangleGroups, groupOffsets, owners, nodeBounds, nodeChildren } = data;
-  const starts = new Uint32Array(groupOffsets.length);
-  for (const group of triangleGroups) starts[group + 1]++;
-  for (let group = 1; group < starts.length; group++) starts[group] += starts[group - 1];
-  const slots = new Uint32Array(triangleGroups.length),
-    cursors = starts.slice();
-  const bounds = proxyTriangleBoxes(triangles);
-  const errors = new Float64Array(triangleGroups.length * 3);
-  const changed = new Uint8Array(triangleGroups.length);
-  const nodeChanged = new Uint8Array(nodeBounds.length / 6);
-  // The node whose leaf child holds each triangle, so a refit marks the leaves of the moved
-  // triangles instead of scanning every leaf of the tree. The topology never changes (a refit
-  // rewrites only quantized bytes; `proxyLeaves.ts` only flags present slots). A triangle in two
-  // leaves, which no build makes, keeps the scan: `shared`.
-  const leafNode = new Uint32Array(triangleGroups.length).fill(NO_LEAF),
-    leafDirty = new Uint8Array(nodeChanged.length);
+/**
+ * The node whose leaf child holds each triangle, so a refit marks the leaves of the moved
+ * triangles instead of scanning every leaf of the tree. The topology never changes (a refit
+ * rewrites only quantized bytes; `proxyLeaves.ts` only flags present slots). A triangle in two
+ * leaves, which no build makes, keeps the scan: `shared`.
+ */
+function indexLeaves(nodeChildren: SceneProxyColumns['nodeChildren'], triangleCount: number) {
+  const leafNode = new Uint32Array(triangleCount).fill(NO_LEAF);
   let shared = false;
   for (let at = 0; at < nodeChildren.length; at += 3) {
     const flags = nodeChildren[at + 1];
@@ -44,18 +34,187 @@ export function createProxyRefit(data: SceneProxyColumns) {
       leafNode[t] = node;
     }
   }
-  // Nodes whose effective box left the built tree: a refitted node, and each inner child it
-  // requantizes. Only those can enter a ray the built tree kept out, so they bound the extra
-  // steps a moved tree may take. Kept once marked: a settled pose keeps the refitted topology.
-  const grown = new Uint8Array(nodeChanged.length);
-  let grownNodes = 0;
-  const grow = (node: number) => {
-    if (!grown[node]) grownNodes++;
-    grown[node] = 1;
-  };
+  return { leafNode, shared };
+}
+
+/** Writes each present child of `node` as bytes of the node's own box, one unit wider each way. */
+function quantizeChildren(
+  nodeChildren: SceneProxyColumns['nodeChildren'],
+  nodeBounds: SceneProxyColumns['nodeBounds'],
+  boxes: Float64Array,
+  node: number,
+  grow: (node: number) => void,
+) {
+  const base = node * 6;
+  for (let slot = 0; slot < 4; slot++) {
+    const at = node * 12 + slot * 3;
+    if (nodeChildren[at + 1] >>> 24 === 0) continue;
+    let low = 0,
+      high = nodeChildren[at + 1] & 0xffff0000;
+    for (let a = 0; a < 6; a++) {
+      const axis = a % 3,
+        min = nodeBounds[base + axis];
+      const span = nodeBounds[base + axis + 3] - min;
+      // One additional quantization unit covers shader subtraction and reconstruction rounding.
+      const unit = span > 0 ? ((boxes[slot * 6 + a] - min) / span) * 255 : a < 3 ? 0 : 255;
+      const q = Math.max(0, Math.min(255, a < 3 ? Math.floor(unit) - 1 : Math.ceil(unit) + 1));
+      if (a < 4) low |= q << (a * 8);
+      else high |= q << ((a - 4) * 8);
+    }
+    nodeChildren[at] = low;
+    nodeChildren[at + 1] = high;
+    if (((high >>> 16) & 255) === 0) grow(nodeChildren[at + 2]);
+  }
+}
+
+/** Widens triangle `t`'s box and error over its three vertices moved by one owner's matrix. */
+function growTriangle(
+  bounds: Float64Array | Float32Array,
+  errors: Float64Array,
+  triangles: SceneProxyColumns['triangles'],
+  transforms: Float32Array,
+  matrix: number,
+  t: number,
+) {
+  const at = t * 6;
+  for (let v = 0; v < 3; v++)
+    for (let a = 0; a < 3; a++) {
+      const p = t * 9 + v * 3;
+      const x = transforms[matrix + a] * triangles[p];
+      const y = transforms[matrix + a + 4] * triangles[p + 1];
+      const z = transforms[matrix + a + 8] * triangles[p + 2];
+      const w = transforms[matrix + a + 12];
+      const value = x + y + z + w;
+      // Four f32 products/additions: gamma(7) bounds either fused or separate evaluation.
+      const error =
+        (Math.abs(x) + Math.abs(y) + Math.abs(z) + Math.abs(w)) *
+        ((7 * 2 ** -24) / (1 - 7 * 2 ** -24));
+      bounds[at + a] = Math.min(bounds[at + a], value);
+      bounds[at + a + 3] = Math.max(bounds[at + a + 3], value);
+      errors[t * 3 + a] = Math.max(errors[t * 3 + a], error);
+    }
+}
+
+/** Sets `node`'s box to the union of its children, and each child's own box into `boxes`. */
+function fitChildren(
+  nodeChildren: SceneProxyColumns['nodeChildren'],
+  nodeBounds: SceneProxyColumns['nodeBounds'],
+  bounds: Float64Array | Float32Array,
+  errors: Float64Array,
+  boxes: Float64Array,
+  node: number,
+) {
+  const base = node * 6;
+  for (let slot = 0; slot < 4; slot++) {
+    const at = node * 12 + slot * 3,
+      flags = nodeChildren[at + 1];
+    if (flags >>> 24 === 0) continue;
+    const count = (flags >>> 16) & 255,
+      first = nodeChildren[at + 2];
+    for (let a = 0; a < 6; a++) {
+      let bound = a < 3 ? Infinity : -Infinity;
+      if (count === 0) bound = nodeBounds[first * 6 + a];
+      else
+        for (let t = first; t < first + count; t++)
+          bound =
+            a < 3
+              ? Math.min(bound, bounds[t * 6 + a] - errors[t * 3 + a])
+              : Math.max(bound, bounds[t * 6 + a] + errors[t * 3 + a - 3]);
+      boxes[slot * 6 + a] = bound;
+      nodeBounds[base + a] = outward(
+        a < 3 ? Math.min(nodeBounds[base + a], bound) : Math.max(nodeBounds[base + a], bound),
+        a >= 3,
+      );
+    }
+  }
+}
+
+/** The triangles of each group in order: `starts` offsets into `slots`, one slot per triangle. */
+function groupSlots(groupCount: number, triangleGroups: SceneProxyColumns['triangleGroups']) {
+  const starts = new Uint32Array(groupCount);
+  for (const group of triangleGroups) starts[group + 1]++;
+  for (let group = 1; group < starts.length; group++) starts[group] += starts[group - 1];
+  const slots = new Uint32Array(triangleGroups.length),
+    cursors = starts.slice();
   for (let t = 0; t < triangleGroups.length; t++) {
     slots[cursors[triangleGroups[t]]++] = t;
   }
+  return { starts, slots };
+}
+
+/** A leaf child holds a moved triangle, or an inner child was refitted. */
+function childMoved(
+  nodeChildren: SceneProxyColumns['nodeChildren'],
+  nodeChanged: Uint8Array,
+  changed: Uint8Array,
+  shared: boolean,
+  node: number,
+) {
+  let dirty = false;
+  for (let slot = 0; !dirty && slot < 4; slot++) {
+    const at = node * 12 + slot * 3,
+      flags = nodeChildren[at + 1];
+    if (flags >>> 24 === 0) continue;
+    const count = (flags >>> 16) & 255,
+      first = nodeChildren[at + 2];
+    if (count === 0) dirty = nodeChanged[first] === 1;
+    else if (shared) for (let t = first; t < first + count; t++) dirty ||= !!changed[t];
+  }
+  return dirty;
+}
+
+/** Rebuilds triangle `t`'s box and error over every owner of its group. */
+function moveTriangle(
+  { triangles, groupOffsets, owners }: SceneProxyColumns,
+  bounds: Float64Array | Float32Array,
+  errors: Float64Array,
+  transforms: Float32Array,
+  group: number,
+  t: number,
+) {
+  const at = t * 6;
+  for (let a = 0; a < 3; a++) {
+    errors[t * 3 + a] = 0;
+    bounds[at + a] = Infinity;
+    bounds[at + a + 3] = -Infinity;
+  }
+  for (let owner = groupOffsets[group]; owner < groupOffsets[group + 1]; owner++)
+    growTriangle(bounds, errors, triangles, transforms, owners[owner * 2] * 16, t);
+}
+
+/** The summed size of typed arrays, in bytes. */
+const byteLengths = (...arrays: { byteLength: number }[]) =>
+  arrays.reduce((sum, array) => sum + array.byteLength, 0);
+
+/**
+ * Nodes whose effective box left the built tree: a refitted node, and each inner child it
+ * requantizes. Only those can enter a ray the built tree kept out, so they bound the extra
+ * steps a moved tree may take. Kept once marked: a settled pose keeps the refitted topology.
+ */
+function createGrowth(nodeCount: number) {
+  const grown = new Uint8Array(nodeCount);
+  let count = 0;
+  return {
+    grown,
+    grow: (node: number) => {
+      if (!grown[node]) count++;
+      grown[node] = 1;
+    },
+    count: () => count,
+  };
+}
+
+/** Refit the existing wide topology; triangles and their order never change. */
+export function createProxyRefit(data: SceneProxyColumns) {
+  const { triangles, triangleGroups, groupOffsets, nodeBounds, nodeChildren } = data;
+  const { starts, slots } = groupSlots(groupOffsets.length, triangleGroups);
+  const bounds = proxyTriangleBoxes(triangles);
+  const errors = new Float64Array(triangleGroups.length * 3);
+  const changed = new Uint8Array(triangleGroups.length);
+  const nodeChanged = new Uint8Array(nodeBounds.length / 6);
+  const { leafNode, shared } = indexLeaves(nodeChildren, triangleGroups.length),
+    leafDirty = new Uint8Array(nodeChanged.length);
+  const { grown, grow, count: grownNodes } = createGrowth(nodeChanged.length);
   const boxes = new Float64Array(24);
   const refit = (groups: ReadonlySet<number>, transforms: Float32Array, extent: number[]) => {
     changed.fill(0);
@@ -66,91 +225,19 @@ export function createProxyRefit(data: SceneProxyColumns) {
         const t = slots[rank];
         changed[t] = 1;
         if (leafNode[t] !== NO_LEAF) leafDirty[leafNode[t]] = 1;
-        const at = t * 6;
-        for (let a = 0; a < 3; a++) {
-          errors[t * 3 + a] = 0;
-          bounds[at + a] = Infinity;
-          bounds[at + a + 3] = -Infinity;
-        }
-        for (let owner = groupOffsets[group]; owner < groupOffsets[group + 1]; owner++) {
-          const matrix = owners[owner * 2] * 16;
-          for (let v = 0; v < 3; v++)
-            for (let a = 0; a < 3; a++) {
-              const p = t * 9 + v * 3;
-              const x = transforms[matrix + a] * triangles[p];
-              const y = transforms[matrix + a + 4] * triangles[p + 1];
-              const z = transforms[matrix + a + 8] * triangles[p + 2];
-              const w = transforms[matrix + a + 12];
-              const value = x + y + z + w;
-              // Four f32 products/additions: gamma(7) bounds either fused or separate evaluation.
-              const error =
-                (Math.abs(x) + Math.abs(y) + Math.abs(z) + Math.abs(w)) *
-                ((7 * 2 ** -24) / (1 - 7 * 2 ** -24));
-              bounds[at + a] = Math.min(bounds[at + a], value);
-              bounds[at + a + 3] = Math.max(bounds[at + a + 3], value);
-              errors[t * 3 + a] = Math.max(errors[t * 3 + a], error);
-            }
-        }
+        moveTriangle(data, bounds, errors, transforms, group, t);
       }
     for (let node = nodeChanged.length - 1; node >= 0; node--) {
-      // Dirty: a leaf child holds a moved triangle, or an inner child was refitted.
-      let dirty = leafDirty[node] === 1;
-      for (let slot = 0; !dirty && slot < 4; slot++) {
-        const at = node * 12 + slot * 3,
-          flags = nodeChildren[at + 1];
-        if (flags >>> 24 === 0) continue;
-        const count = (flags >>> 16) & 255,
-          first = nodeChildren[at + 2];
-        if (count === 0) dirty = nodeChanged[first] === 1;
-        else if (shared) for (let t = first; t < first + count; t++) dirty ||= !!changed[t];
-      }
+      const dirty =
+        leafDirty[node] === 1 || childMoved(nodeChildren, nodeChanged, changed, shared, node);
       if (!dirty) continue;
       nodeChanged[node] = 1;
       grow(node);
       const base = node * 6;
       nodeBounds.fill(Infinity, base, base + 3);
       nodeBounds.fill(-Infinity, base + 3, base + 6);
-      for (let slot = 0; slot < 4; slot++) {
-        const at = node * 12 + slot * 3,
-          flags = nodeChildren[at + 1];
-        if (flags >>> 24 === 0) continue;
-        const count = (flags >>> 16) & 255,
-          first = nodeChildren[at + 2];
-        for (let a = 0; a < 6; a++) {
-          let bound = a < 3 ? Infinity : -Infinity;
-          if (count === 0) bound = nodeBounds[first * 6 + a];
-          else
-            for (let t = first; t < first + count; t++)
-              bound =
-                a < 3
-                  ? Math.min(bound, bounds[t * 6 + a] - errors[t * 3 + a])
-                  : Math.max(bound, bounds[t * 6 + a] + errors[t * 3 + a - 3]);
-          boxes[slot * 6 + a] = bound;
-          nodeBounds[base + a] = outward(
-            a < 3 ? Math.min(nodeBounds[base + a], bound) : Math.max(nodeBounds[base + a], bound),
-            a >= 3,
-          );
-        }
-      }
-      for (let slot = 0; slot < 4; slot++) {
-        const at = node * 12 + slot * 3;
-        if (nodeChildren[at + 1] >>> 24 === 0) continue;
-        let low = 0,
-          high = nodeChildren[at + 1] & 0xffff0000;
-        for (let a = 0; a < 6; a++) {
-          const axis = a % 3,
-            min = nodeBounds[base + axis];
-          const span = nodeBounds[base + axis + 3] - min;
-          // One additional quantization unit covers shader subtraction and reconstruction rounding.
-          const unit = span > 0 ? ((boxes[slot * 6 + a] - min) / span) * 255 : a < 3 ? 0 : 255;
-          const q = Math.max(0, Math.min(255, a < 3 ? Math.floor(unit) - 1 : Math.ceil(unit) + 1));
-          if (a < 4) low |= q << (a * 8);
-          else high |= q << ((a - 4) * 8);
-        }
-        nodeChildren[at] = low;
-        nodeChildren[at + 1] = high;
-        if (((high >>> 16) & 255) === 0) grow(nodeChildren[at + 2]);
-      }
+      fitChildren(nodeChildren, nodeBounds, bounds, errors, boxes, node);
+      quantizeChildren(nodeChildren, nodeBounds, boxes, node, grow);
     }
     // Tight geometry extent drives the existing cascade planner, not padded traversal boxes.
     proxyBoxesExtent(bounds, triangleGroups.length, extent);
@@ -163,17 +250,18 @@ export function createProxyRefit(data: SceneProxyColumns) {
     starts,
     slots,
     /** Nodes a ray may visit beyond the built tree's, since the first motion. */
-    grownNodes: () => grownNodes,
-    bytes:
-      errors.byteLength +
-      bounds.byteLength +
-      changed.byteLength +
-      leafNode.byteLength +
-      leafDirty.byteLength +
-      nodeChanged.byteLength +
-      grown.byteLength +
-      boxes.byteLength +
-      starts.byteLength +
-      slots.byteLength,
+    grownNodes,
+    bytes: byteLengths(
+      errors,
+      bounds,
+      changed,
+      leafNode,
+      leafDirty,
+      nodeChanged,
+      grown,
+      boxes,
+      starts,
+      slots,
+    ),
   });
 }

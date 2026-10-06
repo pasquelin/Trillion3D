@@ -10,55 +10,55 @@ import {
   multiplyMatrix4,
   normalMatrix3,
 } from '../../../../packages/sdk-core/src/index.ts';
-import { graine } from '../../../core/index.ts';
-import { f64, normaleReference, trs } from './coreLine.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
+import { f64, referenceNormal, trs } from './coreLine.ts';
 
 /** A node on both sides: the reference object and the foundation buffers. */
 export interface HierarchyNode {
-  objet: THREE.Object3D;
+  object: THREE.Object3D;
   position: Float64Array;
   rotation: Float64Array;
-  echelle: Float64Array;
+  scale: Float64Array;
   local: Float64Array;
-  monde: Float64Array;
+  world: Float64Array;
   parent: number;
 }
 
 /** A node on both sides: the reference object and the foundation buffers. */
-function noeud(p: ArrayLike<number>, q: ArrayLike<number>, s: ArrayLike<number>): HierarchyNode {
-  const objet = new THREE.Object3D();
-  objet.position.fromArray(p);
-  objet.quaternion.fromArray(q);
-  objet.scale.fromArray(s);
+function node(p: ArrayLike<number>, q: ArrayLike<number>, s: ArrayLike<number>): HierarchyNode {
+  const object = new THREE.Object3D();
+  object.position.fromArray(p);
+  object.quaternion.fromArray(q);
+  object.scale.fromArray(s);
   return {
-    objet,
+    object,
     position: Float64Array.from(p),
     rotation: Float64Array.from(q),
-    echelle: Float64Array.from(s),
+    scale: Float64Array.from(s),
     local: new Float64Array(16),
-    monde: new Float64Array(16),
+    world: new Float64Array(16),
     parent: -1,
   };
 }
 
-/** Attaches `enfant` to `parent` on both sides; indices grow from parents toward children. */
-function relie(noeuds: HierarchyNode[], enfant: number, parent: number) {
-  noeuds[parent].objet.add(noeuds[enfant].objet);
-  noeuds[enfant].parent = parent;
+/** Attaches `child` to `parent` on both sides; indices grow from parents toward children. */
+function relie(nodes: HierarchyNode[], child: number, parent: number) {
+  nodes[parent].object.add(nodes[child].object);
+  nodes[child].parent = parent;
 }
 
 /** The foundation update, in index order: a parent is always up to date before its children. */
-function metAJour(noeuds: HierarchyNode[]) {
-  for (let i = 0; i < noeuds.length; i++) {
-    const n = noeuds[i];
-    composeMatrix4(n.local, n.position, n.rotation, n.echelle);
-    if (n.parent < 0) n.monde.set(n.local);
-    else multiplyMatrix4(n.monde, noeuds[n.parent].monde, n.local);
+function metAJour(nodes: HierarchyNode[]) {
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    composeMatrix4(n.local, n.position, n.rotation, n.scale);
+    if (n.parent < 0) n.world.set(n.local);
+    else multiplyMatrix4(n.world, nodes[n.parent].world, n.local);
   }
 }
 
 /** Hostile scales: negative on one axis or three, non-uniform, zero, extremes. */
-const ECHELLES = [
+const SCALES = [
   [1, 1, 1],
   [-1, 1, 1],
   [1, -1, 1],
@@ -72,7 +72,7 @@ const ECHELLES = [
   [1, 1e-8, 1],
   [7, 7, 7],
 ];
-const alea = graine(0x41e7);
+const alea = xorshiftRandom(0x41e7);
 const tourne = () =>
   new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5)
     .normalize()
@@ -102,40 +102,40 @@ const POSITIONS = [
  * three. A non-uniform scale under a parent rotation shears the world matrix.
  */
 export function chainesHostiles(): HierarchyNode[] {
-  const noeuds: HierarchyNode[] = [],
-    racines: THREE.Object3D[] = [];
-  const ajoute = (niveau: number, k: number, parent: number) => {
-    const i = noeuds.length;
-    noeuds.push(
-      noeud(
-        POSITIONS[(k + niveau) % POSITIONS.length],
-        ROTATIONS[(k * 3 + niveau) % ROTATIONS.length],
-        ECHELLES[(k * 7 + niveau * 5) % ECHELLES.length],
+  const nodes: HierarchyNode[] = [],
+    roots: THREE.Object3D[] = [];
+  const add = (level: number, k: number, parent: number) => {
+    const i = nodes.length;
+    nodes.push(
+      node(
+        POSITIONS[(k + level) % POSITIONS.length],
+        ROTATIONS[(k * 3 + level) % ROTATIONS.length],
+        SCALES[(k * 7 + level * 5) % SCALES.length],
       ),
     );
-    if (parent >= 0) relie(noeuds, i, parent);
-    else racines.push(noeuds[i].objet);
+    if (parent >= 0) relie(nodes, i, parent);
+    else roots.push(nodes[i].object);
     return i;
   };
   for (let k = 0; k < 84; k++) {
     let parent = -1;
-    for (let niveau = 0; niveau <= k % 6; niveau++) parent = ajoute(niveau, k, parent);
+    for (let level = 0; level <= k % 6; level++) parent = add(level, k, parent);
   }
   for (let k = 0; k < 12; k++) {
-    const branche = ajoute(0, k, -1);
-    for (let enfant = 0; enfant < 5; enfant++) {
+    const branche = add(0, k, -1);
+    for (let child = 0; child < 5; child++) {
       let parent = branche;
-      for (let niveau = 1; niveau <= 3; niveau++) parent = ajoute(niveau, k + enfant, parent);
+      for (let level = 1; level <= 3; level++) parent = add(level, k + child, parent);
     }
   }
-  for (const racine of racines) racine.updateMatrixWorld(true);
-  metAJour(noeuds);
-  return noeuds;
+  for (const root of roots) root.updateMatrixWorld(true);
+  metAJour(nodes);
+  return nodes;
 }
 
 /** What the reference yields of an updated node, and what the foundation yields of its mirror. */
 export function lectureReference(n: HierarchyNode) {
-  const o = n.objet;
+  const o = n.object;
   return [
     f64(o.matrixWorld.elements),
     f64(o.getWorldPosition(new THREE.Vector3()).toArray()),
@@ -143,12 +143,12 @@ export function lectureReference(n: HierarchyNode) {
     f64(o.getWorldScale(new THREE.Vector3()).toArray()),
     o.matrixWorld.determinant(),
     Math.sign(o.matrixWorld.determinant()),
-    normaleReference(o.matrixWorld),
+    referenceNormal(o.matrixWorld),
     f64(o.matrixWorld.clone().invert().elements),
   ];
 }
 export function lectureSocle(n: HierarchyNode) {
-  const w = n.monde,
+  const w = n.world,
     [, q, s] = trs(w);
   return [
     f64(w),

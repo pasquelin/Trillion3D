@@ -13,10 +13,6 @@
 import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts';
 import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts';
 
-/** The rays a lane counts at most: its high nibble (`vsmMaskCode`). The ray count settings stop
- *  there (`world/core/worldSettings.ts`). */
-export const VSM_MASK_MAX_RAYS = (1 << 4) - 1;
-
 /** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
 export const VSM_MASK_TABLE_BINDING = 21;
 /** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */

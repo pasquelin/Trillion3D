@@ -4,19 +4,20 @@
 // perspective and orthographic views in both depth conventions; boxes that contain
 // the eye, hence clip the near plane.
 import * as THREE from 'three';
-import { graine } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
 
-const alea = graine(52021);
+const alea = xorshiftRandom(52021);
 /** Values a float can take that a volume must traverse without smoothing them. */
 const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308];
-const nombre = (): number => {
+const count = (): number => {
   if (alea() < 0.15) return BORDS[Math.floor(alea() * BORDS.length)];
   return (alea() * 2 - 1) * 10 ** Math.floor(alea() * 10 - 4);
 };
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const dans = dansDe(alea);
 
 /** Six bounds: ordinary, then the degenerate shapes the engine may receive from a manifest. */
-export const boites: number[][] = [
+export const boxes: number[][] = [
   [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity],
   [1, 1, 1, 0, 0, 0],
   [-1, -1, -1, 1, -2, 1],
@@ -31,12 +32,12 @@ export const boites: number[][] = [
 ];
 for (let i = 0; i < 300; i++) {
   if (i % 5 === 0) {
-    boites.push([nombre(), nombre(), nombre(), nombre(), nombre(), nombre()]);
+    boxes.push([count(), count(), count(), count(), count(), count()]);
     continue;
   }
   const c = [dans(20), dans(20), dans(20)],
     e = [alea() * 4, alea() * 4, alea() * 4];
-  boites.push([c[0] - e[0], c[1] - e[1], c[2] - e[2], c[0] + e[0], c[1] + e[1], c[2] + e[2]]);
+  boxes.push([c[0] - e[0], c[1] - e[1], c[2] - e[2], c[0] + e[0], c[1] + e[1], c[2] + e[2]]);
 }
 
 const placement = (sx: number, sy: number, sz: number): number[] => {
@@ -62,7 +63,7 @@ for (let i = 0; i < 40; i++) {
   matrices.push(placement(u, u, u));
   matrices.push(placement(dans(3), dans(3), dans(3)));
   const hostile = placement(u, -u, u);
-  hostile[Math.floor(alea() * 16)] = nombre();
+  hostile[Math.floor(alea() * 16)] = count();
   matrices.push(hostile);
 }
 
@@ -70,11 +71,11 @@ for (let i = 0; i < 40; i++) {
 export interface ViewProjectionCase {
   vp: number[];
   webgpu: boolean;
-  oeil: number[];
+  eye: number[];
 }
 
 /** View-projections: perspective and orthographic, WebGL then WebGPU depth, and hostile. */
-export const vuesProjections: ViewProjectionCase[] = [];
+export const projectionViews: ViewProjectionCase[] = [];
 for (let i = 0; i < 60; i++) {
   const camera =
     i % 4 === 3
@@ -88,28 +89,28 @@ for (let i = 0; i < 60; i++) {
   const vp = new THREE.Matrix4()
     .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
     .toArray();
-  if (i % 9 === 8) vp[Math.floor(alea() * 16)] = nombre();
-  const oeil = camera.position;
-  vuesProjections.push({ vp, webgpu: i % 2 === 1, oeil: [oeil.x, oeil.y, oeil.z] });
+  if (i % 9 === 8) vp[Math.floor(alea() * 16)] = count();
+  const eye = camera.position;
+  projectionViews.push({ vp, webgpu: i % 2 === 1, eye: [eye.x, eye.y, eye.z] });
 }
-vuesProjections.push({ vp: new Array(16).fill(0), webgpu: false, oeil: [0, 0, 0] });
-vuesProjections.push({ vp: new Array(16).fill(NaN), webgpu: true, oeil: [0, 0, 0] });
+projectionViews.push({ vp: new Array(16).fill(0), webgpu: false, eye: [0, 0, 0] });
+projectionViews.push({ vp: new Array(16).fill(NaN), webgpu: true, eye: [0, 0, 0] });
 
 /** One view against one box: the shared ones, and a box around the eye that clips the near plane. */
 export interface ViewBoxCase {
   vp: number[];
   webgpu: boolean;
-  boite: number[];
+  box: number[];
 }
 
 /** Each view against boxes: the shared ones, and a box around the eye that clips the near plane. */
-export const boitesDeVue: ViewBoxCase[] = vuesProjections.flatMap(({ vp, webgpu, oeil }, v) => {
-  const [x, y, z] = oeil;
+export const viewBoxes: ViewBoxCase[] = projectionViews.flatMap(({ vp, webgpu, eye }, v) => {
+  const [x, y, z] = eye;
   const autour = [x - 1, y - 1, z - 1, x + 1, y + 1, z + 1];
-  return [autour, ...boites.filter((_, i) => i % 7 === v % 7)].map((boite) => ({
+  return [autour, ...boxes.filter((_, i) => i % 7 === v % 7)].map((box) => ({
     vp,
     webgpu,
-    boite,
+    box,
   }));
 });
 
@@ -121,35 +122,35 @@ export interface ConeCase {
   max: number[];
   world: THREE.Matrix4;
   normal: THREE.Matrix3;
-  echelle: number;
-  oeil: number[];
+  scale: number;
+  eye: number[];
 }
 
 /** Cone rejections: conformal placement, cone, box, eye — sometimes in the sphere, sometimes hostile. */
 export const casCones: ConeCase[] = [];
 for (let i = 0; i < 1500; i++) {
-  const u = i % 13 === 0 ? nombre() : alea() * 3 + 0.01;
+  const u = i % 13 === 0 ? count() : alea() * 3 + 0.01;
   const world = new THREE.Matrix4().fromArray(placement(u, u, i % 3 === 0 ? -u : u));
   const axe = [dans(1), dans(1), dans(1)];
-  if (i % 17 === 0) axe[i % 3] = nombre();
-  const boite = boites[i % boites.length];
+  if (i % 17 === 0) axe[i % 3] = count();
+  const box = boxes[i % boxes.length];
   const centre = new THREE.Vector3(
-    (boite[0] + boite[3]) * 0.5,
-    (boite[1] + boite[4]) * 0.5,
-    (boite[2] + boite[5]) * 0.5,
+    (box[0] + box[3]) * 0.5,
+    (box[1] + box[4]) * 0.5,
+    (box[2] + box[5]) * 0.5,
   ).applyMatrix4(world);
-  const oeil =
+  const eye =
     i % 11 === 0
       ? [centre.x, centre.y, centre.z]
       : [centre.x + dans(80), centre.y + dans(80), centre.z + dans(80)];
   casCones.push({
     axe,
-    angle: i % 19 === 0 ? nombre() : alea() * (Math.PI / 2),
-    min: boite.slice(0, 3),
-    max: boite.slice(3, 6),
+    angle: i % 19 === 0 ? count() : alea() * (Math.PI / 2),
+    min: box.slice(0, 3),
+    max: box.slice(3, 6),
     world,
     normal: new THREE.Matrix3().getNormalMatrix(world),
-    echelle: u,
-    oeil,
+    scale: u,
+    eye,
   });
 }

@@ -70,7 +70,7 @@ function makeEnv() {
 
 test('pending URLs and retained ranks match the former URL set on repeated reads', () => {
   const env = makeEnv();
-  const optimisee = createAutonomousResidency({
+  const optimized = createAutonomousResidency({
     ...env,
     views: [env],
     geometryStore: fakeGeometryStore(),
@@ -82,9 +82,9 @@ test('pending URLs and retained ranks match the former URL set on repeated reads
     retained: [],
   });
   for (const pass of [0, 1]) {
-    assert.deepEqual(optimisee.pendingUrls(), reference.pendingUrls(), `pending pass ${pass}`);
+    assert.deepEqual(optimized.pendingUrls(), reference.pendingUrls(), `pending pass ${pass}`);
     assert.deepEqual(
-      urlsOf(optimisee.retainedRanks()),
+      urlsOf(optimized.retainedRanks()),
       reference.pageUrls(),
       `retained pass ${pass}`,
     );
@@ -98,15 +98,15 @@ test('an empty host produces empty sets from both implementations', () => {
     shown: [],
     requested: [],
   };
-  const optimisee = createAutonomousResidency({
+  const optimized = createAutonomousResidency({
     ...empty,
     views: [empty],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, desired: [], pending: [], retained: [] });
-  assert.deepEqual(optimisee.pendingUrls(), []);
+  assert.deepEqual(optimized.pendingUrls(), []);
   assert.deepEqual(reference.pendingUrls(), []);
-  assert.deepEqual(urlsOf(optimisee.retainedRanks()), []);
+  assert.deepEqual(urlsOf(optimized.retainedRanks()), []);
   assert.deepEqual(reference.pageUrls(), []);
 });
 
@@ -117,10 +117,10 @@ test('collectPendingUrls dedups by streamUrl and skips resident pages, matching 
     { url: 'p2.bin', streamUrl: 'bundle.bin' }, // same bundle: deduped
     { url: 'p3.bin' },
   ];
-  const optimisee = collectPendingUrls(shown, []);
+  const optimized = collectPendingUrls(shown, []);
   const reference = referenceCollectPendingUrls(shown, []);
-  assert.deepEqual(optimisee, reference);
-  assert.deepEqual(optimisee, ['bundle.bin', 'p3.bin']);
+  assert.deepEqual(optimized, reference);
+  assert.deepEqual(optimized, ['bundle.bin', 'p3.bin']);
 });
 
 test('collectPendingUrls on an empty list returns an empty array from both sides', () => {

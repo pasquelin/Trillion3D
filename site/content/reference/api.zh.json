@@ -2520,6 +2520,21 @@
       "name": "`cells`、`cellPage`：读取源数据的文件，拒绝时会指明它。"
     }
   },
+  "PageHome": {
+    "summary": "页面在容纳整个目录的池中自己的位置:它的序号、首字节和宽度。",
+    "members": {
+      "rank": "它在目录顺序中的序号。",
+      "offset": "它在池中的首字节。",
+      "bytes": "它的宽度,以字节计。"
+    }
+  },
+  "PageHomes": {
+    "summary": "按键给出的每个页面的位置,以及它们合计占用的字节数。",
+    "members": {
+      "homes": "按键给出的每个页面的位置。",
+      "bytes": "所有位置合计占用的字节数。"
+    }
+  },
   "PageIntegrationAnswer": {
     "summary": "工作线程对某次到达的响应:已规划或失败。"
   },
@@ -2806,6 +2821,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "批处理中每次旋转占用的数字个数:四个。"
+  },
+  "QualityResolution": {
+    "summary": "世界绘制所用的分辨率:一种模式,或取代该模式比例的、按每个轴相对显示的 `scale`,固定或 `dynamic`——此时帧预算在其一半与其本身之间选取比例。",
+    "members": {
+      "mode": "`'native'`、`'sharp'`、`'mixed'`、`'fast'` 或 `'turbo'`:每个轴上显示的 1、1/1.5、1/1.7、1/2 或 1/3。",
+      "scale": "每个轴上显示的一个分数,取代模式的分数。",
+      "dynamic": "图像移动时,帧预算是否降低比例。"
+    }
   },
   "Quaternion": {
     "summary": "以 `math/matrix/quaternion.ts` 为基础、用单位四元数表示的一次旋转。",
@@ -7359,6 +7382,14 @@
       "budget": "固定上限，物理启动时读取一次。",
       "simulationRange": "相机周围模拟物体的范围（米，`world.physics.simulationRange`）；`null` 跟随 `camera.far`。",
       "gravity": "世界的重力：预设或向量。"
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "页面创建世界时请求的画质(`WorldOptions.quality`)。",
+    "members": {
+      "preset": "每个分组都取此名称的等级。",
+      "groups": "页面在预设之上设为自己等级的分组。",
+      "resolution": "分辨率;若给出 `WorldOptions.renderScale`,则以它为准。"
     }
   },
   "VehicleDriver": {

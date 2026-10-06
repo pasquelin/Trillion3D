@@ -1,10 +1,10 @@
-// The two proofs every published gallery scene carries (`docs-gallery.ts` writes them): its source
+// The two proofs every published gallery scene carries (`docs/gallery.ts` writes them): its source
 // rebuilt byte for byte by its recipe, and its cache manifest read back.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
+import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts';
 
 /** Asserts that `write`, run in a throwaway folder, rebuilds the published source byte for byte. */
 export async function assertSourceReproduced(

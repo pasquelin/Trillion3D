@@ -112,7 +112,7 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   return byUrl;
 }
 /** Fallback without stamps: one set for the whole host, cleared on each call. */
-const vuesSansEstampille = new Set<string>();
+const viewsWithoutStamp = new Set<string>();
 type Requested = { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number };
 /**
  * Request addresses of the records still missing bytes. A request brings its closure: the missing
@@ -134,7 +134,7 @@ export function collectPendingUrls<T extends Requested & { dependencies?: readon
     return stamps.mark(shown, into, true);
   }
   // Fallback without stamps: a host that has not numbered its requests deduplicates by the strings.
-  const seen = vuesSansEstampille;
+  const seen = viewsWithoutStamp;
   seen.clear();
   const add = (rec: Requested) => {
     if (rec.array) return;

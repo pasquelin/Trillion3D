@@ -9,7 +9,7 @@ import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
 import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { isHelper } from '../helper/mark.ts';
+import { isHelper } from '../core/helperMark.ts';
 import {
   assertSavedScene,
   notSavable,

@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
-import { vsmLayout } from './resources.ts';
 import {
   VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL,
   VSM_LIGHT_KIND_POINT as POINT,
@@ -20,6 +19,7 @@ import {
   VSM_PROJECTION_KINDS_LOCAL as LAMP,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27);
 const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false });

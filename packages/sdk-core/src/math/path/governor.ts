@@ -77,6 +77,73 @@ export interface PathGovernor {
   metrics(): MathPathMetrics;
 }
 
+/** The path to play next: the current one, but the other once every `PATH_EXPLORE_EVERY` runs. */
+function pathToPlay(operation: Operation): MathPath {
+  const current = operation.path ?? 'wasm';
+  // Passive exploration: the other path runs once every `PATH_EXPLORE_EVERY`, otherwise its
+  // median would age until it described a machine that no longer exists.
+  const other = current === 'js' ? 'wasm' : 'js';
+  return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? other : current;
+}
+
+/** Counts one execution and files its sample; true when a sample reached the medians. */
+function fold(operation: Operation, path: MathPath, ms: number | null, elements: number): boolean {
+  operation.runs++;
+  if (elements <= 0) return false;
+  operation.elements += elements;
+  if (ms === null) {
+    // A missing timer proves nothing: the operation falls back to JavaScript and stays there
+    // as long as no timed execution has fed both medians.
+    operation.path = 'js';
+    operation.lead = 0;
+    operation.dropPools();
+    return false;
+  }
+  // A fine clock keeps one sample per execution, bit for bit (-0 included): no pool there.
+  const sample = operation.pools
+    ? operation.pools[path].add(ms, elements)
+    : (ms * NS_PER_MS) / elements;
+  if (sample === null) return false;
+  operation[path].add(sample);
+  operation.path ??= path;
+  return true;
+}
+
+/** Switches the operation's path once the other one has led by the margin for enough runs. */
+function arbitrate(operation: Operation) {
+  const current = operation.path;
+  if (!current) return;
+  const other = current === 'js' ? 'wasm' : 'js';
+  const currentMedian = operation[current].median();
+  const otherMedian = operation[other].median();
+  const enough =
+    operation[current].count >= PATH_MIN_SAMPLES && operation[other].count >= PATH_MIN_SAMPLES;
+  if (!enough || currentMedian === null || otherMedian === null) return;
+  if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.lead++;
+  else operation.lead = 0;
+  if (operation.lead >= PATH_SWITCH_RUNS) {
+    operation.path = other;
+    operation.switches++;
+    operation.lead = 0;
+  }
+}
+
+/** What each named operation measured and chose. */
+function readOperations(operations: ReadonlyMap<string, Operation>) {
+  const readings: Record<string, MathPathOperation> = {};
+  for (const [name, operation] of operations)
+    readings[name] = {
+      path: operation.path,
+      jsNsPerElement: operation.js.median(),
+      wasmNsPerElement: operation.wasm.median(),
+      jsSamples: operation.js.count,
+      wasmSamples: operation.wasm.count,
+      switches: operation.switches,
+      elements: operation.elements,
+    };
+  return readings;
+}
+
 /**
  * A governor. `now` is used only to estimate the thread clock resolution: durations
  * themselves are timed by the caller and reported to `observe`.
@@ -102,63 +169,15 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
   function choose(name: string) {
     if (chosen !== 'auto') return available || chosen === 'js' ? chosen : 'js';
     if (!canArbitrate()) return 'js';
-    const operation = stateOf(name);
-    const current = operation.path ?? 'wasm';
-    // Passive exploration: the other path runs once every `PATH_EXPLORE_EVERY`, otherwise its
-    // median would age until it described a machine that no longer exists.
-    const other = current === 'js' ? 'wasm' : 'js';
-    return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? other : current;
+    return pathToPlay(stateOf(name));
   }
 
   function observe(name: string, path: MathPath, ms: number | null, elements: number) {
     const operation = stateOf(name);
-    operation.runs++;
-    if (elements <= 0) return;
-    operation.elements += elements;
-    if (ms === null) {
-      // A missing timer proves nothing: the operation falls back to JavaScript and stays there
-      // as long as no timed execution has fed both medians.
-      operation.path = 'js';
-      operation.lead = 0;
-      operation.dropPools();
-      return;
-    }
-    // A fine clock keeps one sample per execution, bit for bit (-0 included): no pool there.
-    const sample = operation.pools
-      ? operation.pools[path].add(ms, elements)
-      : (ms * NS_PER_MS) / elements;
-    if (sample === null) return;
-    operation[path].add(sample);
-    operation.path ??= path;
-    if (!canArbitrate()) return;
-    const current = operation.path;
-    const other = current === 'js' ? 'wasm' : 'js';
-    const currentMedian = operation[current].median();
-    const otherMedian = operation[other].median();
-    const enough =
-      operation[current].count >= PATH_MIN_SAMPLES && operation[other].count >= PATH_MIN_SAMPLES;
-    if (!enough || currentMedian === null || otherMedian === null) return;
-    if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.lead++;
-    else operation.lead = 0;
-    if (operation.lead >= PATH_SWITCH_RUNS) {
-      operation.path = other;
-      operation.switches++;
-      operation.lead = 0;
-    }
+    if (fold(operation, path, ms, elements) && canArbitrate()) arbitrate(operation);
   }
 
   function metrics(): MathPathMetrics {
-    const readings: Record<string, MathPathOperation> = {};
-    for (const [name, operation] of operations)
-      readings[name] = {
-        path: operation.path,
-        jsNsPerElement: operation.js.median(),
-        wasmNsPerElement: operation.wasm.median(),
-        jsSamples: operation.js.count,
-        wasmSamples: operation.wasm.count,
-        switches: operation.switches,
-        elements: operation.elements,
-      };
     return {
       contract: MATH_PATH_CONTRACT,
       mode: chosen,
@@ -167,7 +186,7 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       clockResolutionMs: resolution,
       clockCoarse: coarse,
       unavailableReason: cause,
-      operations: readings,
+      operations: readOperations(operations),
     };
   }
 

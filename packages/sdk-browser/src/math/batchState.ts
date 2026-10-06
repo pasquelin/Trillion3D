@@ -20,7 +20,7 @@ export function mathClock() {
 
 let gouverneur: PathGovernor | null = null;
 let module: SdkWasm | null = null;
-let attente: Promise<void> | null = null;
+let pending: Promise<void> | null = null;
 
 /** Session governor, created on first demand. */
 export function mathGovernor(): PathGovernor {
@@ -40,7 +40,7 @@ export function prepareMathBatch(mode: MathPathMode): Promise<void> {
 /** Module, loaded once for session; governor mode does not modify it. */
 export function loadMathBatch(): Promise<void> {
   const g = mathGovernor();
-  attente ??= (async () => {
+  pending ??= (async () => {
     const wasm = await prepareSdkWasm();
     if (!wasm) return g.setWasm(false, null, 'WebAssembly module unavailable');
     const contrat = typeof wasm.math_contract === 'function' ? wasm.math_contract() : 0;
@@ -53,7 +53,7 @@ export function loadMathBatch(): Promise<void> {
     module = wasm;
     g.setWasm(true, wasm.math_simd() === 1, null);
   })();
-  return attente;
+  return pending;
 }
 
 /** Usable module for batches, or `null` while WebAssembly path is unopened. */

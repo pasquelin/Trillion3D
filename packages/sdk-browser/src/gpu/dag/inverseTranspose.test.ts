@@ -54,18 +54,18 @@ test('outside the threshold band, the returned direction matches the previous on
       [0.6, -0.8, 0],
     ] as Vec[]) {
       const m = tourneeDe180(s);
-      const ecart = angleBetween(inverseTransposeShipped(m, axe), inverseTransposeBefore(m, axe));
-      assert.ok(ecart < 1e-6, `scale ${s} axis ${axe}: delta ${ecart} rad`);
+      const gap = angleBetween(inverseTransposeShipped(m, axe), inverseTransposeBefore(m, axe));
+      assert.ok(gap < 1e-6, `scale ${s} axis ${axe}: delta ${gap} rad`);
     }
 });
 
 test('null, infinite or NaN 3×3: adjoint zeroed, hence null vector, never the local', () => {
-  const nulle: [Vec, Vec, Vec] = [
+  const zero: [Vec, Vec, Vec] = [
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
   ];
-  assert.deepEqual(inverseTransposeShipped(nulle, AXE), [0, 0, 0]);
+  assert.deepEqual(inverseTransposeShipped(zero, AXE), [0, 0, 0]);
   for (const valeur of [Infinity, -Infinity, NaN]) {
     const abimee = tourneeDe180(1);
     abimee[0][0] = valeur;
@@ -81,10 +81,10 @@ test('null, infinite or NaN 3×3: adjoint zeroed, hence null vector, never the l
 // returns (0, −0.25, 0), i.e. −Y once unit. The old fallback returned the unrotated
 // LOCAL axis in both cases.
 test('a null column: the adjoint carries the plane normal, not the local axis', () => {
-  const colonneNulle = tourneeDe180(1e-8);
-  colonneNulle[1] = [0, 0, 0];
-  assert.deepEqual(inverseTransposeShipped(colonneNulle, AXE), [0, 0, 0]);
-  assert.deepEqual(unit(inverseTransposeShipped(colonneNulle, [0, 1, 0])), [0, -1, 0]);
+  const zeroColumn = tourneeDe180(1e-8);
+  zeroColumn[1] = [0, 0, 0];
+  assert.deepEqual(inverseTransposeShipped(zeroColumn, AXE), [0, 0, 0]);
+  assert.deepEqual(unit(inverseTransposeShipped(zeroColumn, [0, 1, 0])), [0, -1, 0]);
 });
 
 // Normalisation, determinant and adjoint depend only on the matrix: they live in
@@ -135,19 +135,19 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
 // `tests/gpu/math/inverse-transpose-small-scale.gpu.ts`, which separates face culls the
 // engine draws (656 before the lot, 0 after) from those it does not.
 test('the defect-6 reproduction form still carries the absolute threshold, and it alone', () => {
-  const prep = (texte: string) => texte.split('fn invTranspose3Prep')[1].split('\n}')[0];
-  assert.match(prep(INVERSE_TRANSPOSE_BEFORE_WGSL), /abs\(det\)<1e-20/, 'seuil absolu');
+  const prep = (text: string) => text.split('fn invTranspose3Prep')[1].split('\n}')[0];
+  assert.match(prep(INVERSE_TRANSPOSE_BEFORE_WGSL), /abs\(det\)<1e-20/, 'absolute threshold');
   assert.doesNotMatch(prep(INVERSE_TRANSPOSE_BEFORE_WGSL), /let a=m\[0\]\/t/, 'normalised');
-  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_WGSL), /abs\(det\)<1e-20/, 'seuil absolu revenu');
+  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_WGSL), /abs\(det\)<1e-20/, 'absolute threshold gone');
   // The two forms differ in only TWO places, and both are needed: the prepare, and the
   // singular-matrix fallback. The defect was returning the LOCAL vector — that is what
   // the previous form must keep doing, or the reproduction would return the fixed normal
   // in the middle of the defect. Everything else is the same text, hence substituting
   // the whole block.
-  const repli = (texte: string) =>
-    texte.split('let carried=p.adj*v;')[1].split(';')[0].replace('\n return select(', '');
-  assert.equal(repli(INVERSE_TRANSPOSE_BEFORE_WGSL), 'v,p.scale*carried,p.regular)');
-  assert.equal(repli(INVERSE_TRANSPOSE_WGSL), 'carried,p.scale*carried,p.regular)');
-  const suite = (texte: string) => texte.slice(texte.indexOf('fn inverseTranspose3'));
+  const fallback = (text: string) =>
+    text.split('let carried=p.adj*v;')[1].split(';')[0].replace('\n return select(', '');
+  assert.equal(fallback(INVERSE_TRANSPOSE_BEFORE_WGSL), 'v,p.scale*carried,p.regular)');
+  assert.equal(fallback(INVERSE_TRANSPOSE_WGSL), 'carried,p.scale*carried,p.regular)');
+  const suite = (text: string) => text.slice(text.indexOf('fn inverseTranspose3'));
   assert.equal(suite(INVERSE_TRANSPOSE_BEFORE_WGSL), suite(INVERSE_TRANSPOSE_WGSL));
 });

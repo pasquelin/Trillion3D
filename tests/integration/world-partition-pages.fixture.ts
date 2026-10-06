@@ -10,8 +10,8 @@ import type { RenderBackend } from '../../packages/sdk-browser/src/backend/types
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts';
 import type { PlacementMount } from '../../packages/sdk-browser/src/placement/backendSceneUpdates.ts';
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts';
-import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
-import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
+import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts';
+import { cellHoldings } from '../../packages/sdk-browser/src/partition/cellPages.ts';
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import type { LoadedModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import {

@@ -17,29 +17,29 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
     let primitive = &result["primitives"][0];
     let depth = primitive["dag"]["depth"].as_u64().expect("depth");
     let pages = primitive["pages"].as_array().expect("pages");
-    let racines: usize = pages
+    let roots: usize = pages
         .iter()
         .filter(|page| page["parentError"].is_null())
         .map(|page| page["count"].as_u64().expect("count") as usize / 3)
         .sum();
-    let niveau_zero: u64 = pages
+    let level_zero: u64 = pages
         .iter()
         .filter(|page| page["level"] == json!(0))
         .map(|page| page["count"].as_u64().expect("count") / 3)
         .sum();
     fs::remove_dir_all(root).expect("cleanup");
-    (depth, racines, niveau_zero)
+    (depth, roots, level_zero)
 }
 
 // Behaviour: in `none`, the DAG holds on its only level zero, which covers
 // exactly the source triangles. No simplified replacement is written, so no coarse root.
 #[test]
 fn simplification_none_builds_no_coarse_level() {
-    let (depth, racines, niveau_zero) = dag_of("none");
+    let (depth, roots, level_zero) = dag_of("none");
     assert_eq!(depth, 0, "a single level: exact clusters");
-    assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
+    assert_eq!(level_zero, 8192, "level zero covers the whole source");
     assert_eq!(
-        racines, 8192,
+        roots, 8192,
         "exact clusters are the roots: nothing replaces them"
     );
 }
@@ -50,11 +50,11 @@ fn simplification_none_builds_no_coarse_level() {
 // depth and the exact level-zero cover are the same everywhere.
 #[test]
 fn simplification_qem_endpoints_keeps_its_dag() {
-    let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
+    let (depth, roots, level_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "depth unchanged");
-    assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
+    assert_eq!(level_zero, 8192, "level zero covers the whole source");
     assert!(
-        racines <= 127,
-        "{racines} roots, more than the simplifier's older version left"
+        roots <= 127,
+        "{roots} roots, more than the simplifier's older version left"
     );
 }

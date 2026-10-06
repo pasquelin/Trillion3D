@@ -46,7 +46,7 @@ fn a14_a_job_does_not_publish_the_previous_phases() {
         "the grid does simplify"
     );
     let (root_petit, petit) = fixture();
-    let second = compile(&petit, |_| {}).expect("deux triangles");
+    let second = compile(&petit, |_| {}).expect("two triangles");
     assert_eq!(
         phase(&second, "simplifyMs"),
         0.0,

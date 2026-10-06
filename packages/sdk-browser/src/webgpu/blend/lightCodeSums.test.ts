@@ -14,8 +14,8 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts';
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
 import { blendShader } from './shader.ts';
+import { shadedLightScope } from './shadedLightScope.fixture.ts';
 import { waterCompositeShader } from '../water/compositeWgsl.ts';
 import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
 
@@ -85,24 +85,14 @@ test('each forward variant sums what the program with every code path sums, bit 
             shape: [u(0, 0.05), 0, 0, 0],
           };
         });
-        const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
-          N = n.map((v) => v / (Math.hypot(...n) || 1));
-        const shades = items.map(() => (r() < 0.25 ? 0 : u(0, 1)));
+        const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round);
         const scope = {
           ...F32_SCOPE,
-          ...K,
-          directLights: { count, items },
-          tileLights: [7, 7, ...[...Array(count).keys()].filter(() => r() < 0.7)],
-          thinSubsurface: r() < 0.5 ? [0, 0, 0] : [u(0, 1), u(0, 1), u(0, 1)],
-          surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
-          shadowReceiverOffset: [0, 0, 0],
-          shadowReceiverPlane: [0, 0, 0],
-          shadowBiasNormal: (normal: number[]) => normal,
+          ...shared,
           // A slot's read is the light's own; with none, the shipped read's one (`NO_SLOT`).
           shadowTransmission: items.some((item) => item.params[1] >= 0)
             ? [0.9, 0.7, 0.5]
             : [1, 1, 1],
-          shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
           LightPair: (a: number[], b: number[]) => ({ lit: a, specular: b }),
         };
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1];

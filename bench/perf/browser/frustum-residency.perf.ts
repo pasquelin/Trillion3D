@@ -8,8 +8,8 @@ import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selec
 import { createAutonomousResidency } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts';
-import { mesure, rapport, stress } from '../../core/index.ts';
-import { boites, camera, type SceneBox } from './support/scenes.ts';
+import { measure, rapport, stress } from '../../core/index.ts';
+import { boxes, camera, type SceneBox } from './support/scenes.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
@@ -21,16 +21,16 @@ const clip = new THREE.Matrix4().multiplyMatrices(
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 
-const boxes = (liste: SceneBox[]) => {
-  const plat = new Float64Array(liste.length * 6);
-  for (let i = 0; i < liste.length; i++) {
-    plat.set(liste[i].min, i * 6);
-    plat.set(liste[i].max, i * 6 + 3);
+const flatBoxes = (list: SceneBox[]) => {
+  const plat = new Float64Array(list.length * 6);
+  for (let i = 0; i < list.length; i++) {
+    plat.set(list[i].min, i * 6);
+    plat.set(list[i].max, i * 6 + 3);
   }
   return plat;
 };
-const grande = boxes(boites({ count: 20000 })),
-  vide = new Float64Array(0);
+const grande = flatBoxes(boxes({ count: 20000 })),
+  empty = new Float64Array(0);
 
 const clipper = (plat: Float64Array) => {
   const verdicts = new Uint8Array(plat.length / 6);
@@ -49,42 +49,42 @@ const clipper = (plat: Float64Array) => {
   return verdicts;
 };
 
-// ── Mesure frustumClipBox ────────────────────────────────────────────
-const clipResult = await mesure({
+// ── Measure frustumClipBox ────────────────────────────────────────────
+const clipResult = await measure({
   name: 'frustumClipBox',
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
-    { name: 'no boxes', input: vide, size: 0 },
+    { name: 'no boxes', input: empty, size: 0 },
   ],
-  calcul: clipper,
+  calculation: clipper,
   motif: 'time only — correctness in bench/witnesses/three/parity/core/math/frustum/box.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
 
 // ── Residency measurement ────────────────────────────────────────────
-const pageDeHote = (
+const hostPage = (
   url: string,
   streamUrl: string | undefined,
   array: Uint32Array | undefined,
 ): PageRec => pageRecFixture({ url, streamUrl, array });
 
-function hote(nombre: number) {
+function host(count: number) {
   const pages: PageRec[] = [];
-  for (let i = 0; i < nombre; i++)
+  for (let i = 0; i < count; i++)
     pages.push(
-      pageDeHote(
-        `page-${i % Math.max(1, Math.floor(nombre * 0.6))}.bin`,
+      hostPage(
+        `page-${i % Math.max(1, Math.floor(count * 0.6))}.bin`,
         i % 5 ? undefined : `bundle-${i % 400}.bin`,
         i % 3 ? undefined : new Uint32Array(3),
       ),
     );
-  const obtenu = createAutonomousResidency({
-    bootstrapUrls: new Set(pages.slice(0, Math.min(200, nombre)).map((r) => r.url)),
+  const obtained = createAutonomousResidency({
+    bootstrapUrls: new Set(pages.slice(0, Math.min(200, count)).map((r) => r.url)),
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
     views: [
       {
-        shown: pages.slice(0, Math.floor(nombre * 0.4)),
+        shown: pages.slice(0, Math.floor(count * 0.4)),
         // What the image asks for holds one record per page (`requests.ts`).
         requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
       },
@@ -102,24 +102,24 @@ function hote(nombre: number) {
       modifiedPages: new Set(),
     }),
   });
-  return { pages, obtenu, vers: [] as string[] };
+  return { pages, obtained, vers: [] as string[] };
 }
-const grandHote = hote(15000),
-  hoteVide = hote(0);
+const largeHost = host(15000),
+  emptyHost = host(0);
 
-const residenceResult = await mesure({
+const residenceResult = await measure({
   name: 'collectPendingUrls',
   fichier: 'packages/sdk-browser/src/page/selection/requests.ts',
   cas: [
-    { name: '15k pages', input: grandHote, size: 15000 },
-    { name: 'no pages', input: hoteVide, size: 0 },
+    { name: '15k pages', input: largeHost, size: 15000 },
+    { name: 'no pages', input: emptyHost, size: 0 },
   ],
-  calcul: (h) => {
-    const delta = h.obtenu.retainedRanks();
+  calculation: (h) => {
+    const delta = h.obtained.retainedRanks();
     return {
-      pending: [...h.obtenu.pendingUrls()],
+      pending: [...h.obtained.pendingUrls()],
       retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
-      attente: collectPendingUrls(h.pages, h.vers).slice(),
+      wait: collectPendingUrls(h.pages, h.vers).slice(),
     };
   },
   motif: 'time only — correctness in packages/sdk-browser/src/backend/autonomous/residency.test.ts',
@@ -129,7 +129,7 @@ const residenceResult = await mesure({
 // ── Stress testing ───────────────────────────────────────────────────
 await stress({
   name: 'frustumClipBox extremes',
-  calcul: (e) => frustumClipBox(planes, e[0], e[1], e[2], e[3], e[4], e[5]),
+  calculation: (e) => frustumClipBox(planes, e[0], e[1], e[2], e[3], e[4], e[5]),
   extremes: [
     { name: 'NaN box', input: [NaN, NaN, NaN, NaN, NaN, NaN] },
     {

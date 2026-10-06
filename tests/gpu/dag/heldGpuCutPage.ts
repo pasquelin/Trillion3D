@@ -27,9 +27,9 @@ interface PagesBackend extends RenderBackend {
 
 export async function runHeldCut() {
   const gpu = await openGpuDevice();
-  if (!gpu) return { indisponible: 'no WebGPU adapter' };
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { device } = gpu;
-  const evenements: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];
+  const events: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];
   const fixture = dagFixture();
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
@@ -47,8 +47,7 @@ export async function runHeldCut() {
     pixelError: 0,
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
-    onDiagnostic: (e) =>
-      evenements.push({ phase: e.phase, message: e.message, context: e.context }),
+    onDiagnostic: (e) => events.push({ phase: e.phase, message: e.message, context: e.context }),
   }) as PagesBackend;
   const camera = wideCamera();
   const frames = [];
@@ -76,7 +75,7 @@ export async function runHeldCut() {
     }
   } catch (error) {
     const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, frames, evenements, erreurs: gpu.errors };
+    return { error: String(error) + trace, frames, events, errors: gpu.errors };
   } finally {
     backend.dispose();
     canvas.remove();
@@ -87,5 +86,5 @@ export async function runHeldCut() {
     url: page.url,
     units: [page.min[0] + 2, page.max[0] + 2],
   }));
-  return { adapter, pages, frames, evenements, erreurs: gpu.errors };
+  return { adapter, pages, frames, events, errors: gpu.errors };
 }

@@ -61,17 +61,17 @@ fn both_precisions_yield_the_reference_values() {
 // alpha.
 #[test]
 fn an_exr_associated_alpha_comes_out_straight_without_dividing_by_zero() {
-    let rendu = pixels("demi.exr");
-    for (pixel, (stocke, droit)) in rendu.iter().zip(STOCKE.iter().zip(DROIT)) {
+    let rendered = pixels("demi.exr");
+    for (pixel, (stocke, droit)) in rendered.iter().zip(STOCKE.iter().zip(DROIT)) {
         assert_eq!(*pixel, droit, "stored {stocke:?}");
     }
     // The two pixels whose alpha is neither 0 nor 1 are those that move: the golden says so
     // out loud rather than letting one believe the division has no effect.
-    assert_ne!(rendu[1], STOCKE[1]);
-    assert_ne!(rendu[3], STOCKE[3]);
+    assert_ne!(rendered[1], STOCKE[1]);
+    assert_ne!(rendered[3], STOCKE[3]);
     // Zero alpha keeps its components: no division, no infinity, no NaN.
-    assert_eq!(rendu[2], STOCKE[2]);
-    assert!(rendu.iter().flatten().all(|value| value.is_finite()));
+    assert_eq!(rendered[2], STOCKE[2]);
+    assert!(rendered.iter().flatten().all(|value| value.is_finite()));
 }
 
 // Driver contract: what it claims, and what it refuses by naming it. An EXR outside the subset

@@ -17,7 +17,7 @@
  * (`VsmLightCache.updateCommon`), so the map is set up uncached
  * (VSM_MAP_UNCACHED) and its next map drops VSM_NEXT_KEEPS_PAGES; the collector skips such entries.
  */
-import { ceilDiv, vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts';
+import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts';
 import { vsmBufferGroup, vsmEnsureBuffer } from './renderPass.ts';
 import {
   type VsmCacheManager,
@@ -38,10 +38,10 @@ import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   type VsmFrameBuffers,
-  type VsmLayout,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts';
+import { ceilDiv, type VsmLayout } from './layout.ts';
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */

@@ -8,15 +8,15 @@ import {
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceCutComplete, referencePendingUrls } from '../../oracles/browser/cut-diff.ts';
 
-const alea = graine(97);
+const alea = xorshiftRandom(97);
 const PAGES = 160000,
   COUPE = 20000,
-  NIVEAUX = 13;
-const niveaux = new Int32Array(PAGES);
-for (let k = 0; k < PAGES; k++) niveaux[k] = Math.floor(alea() * NIVEAUX);
+  LEVELS = 13;
+const levels = new Int32Array(PAGES);
+for (let k = 0; k < PAGES; k++) levels[k] = Math.floor(alea() * LEVELS);
 /** Fields the cut readers never touch: shared across every record, never mutated. */
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
@@ -28,7 +28,7 @@ for (let i = 0; i < PAGES; i++)
     clusterId: `p${i >> 1}`,
     requestIndex: i >> 1,
     keyIndex: i >> 1,
-    level: niveaux[i >> 1],
+    level: levels[i >> 1],
     triangles: 1 + Math.floor(alea() * 128),
     indexBytes: 0,
     min: DUMMY_BOUNDS,
@@ -59,14 +59,14 @@ const regimes: [string, number[][]][] = [
 ];
 
 const stampsReference = new RequestStamps(PAGES),
-  stampsOptimisee = new RequestStamps(PAGES);
+  optimisedStamps = new RequestStamps(PAGES);
 const scratchReference: string[] = [],
-  scratchOptimisee: string[] = [];
+  optimisedScratch: string[] = [];
 const desiredReference: PageRec[] = [],
   deltaReference = createCutDelta(pages, desiredReference);
-const desiredOptimisee: PageRec[] = [],
-  deltaOptimisee = createCutDelta(pages, desiredOptimisee);
-const pending = createCutPending(pages, deltaOptimisee);
+const optimisedDesired: PageRec[] = [],
+  optimisedDelta = createCutDelta(pages, optimisedDesired);
+const pending = createCutPending(pages, optimisedDelta);
 
 const lecteursReference = (images: number[][]) => {
   const output = [];
@@ -78,27 +78,27 @@ const lecteursReference = (images: number[][]) => {
   }
   return output;
 };
-const lecteursOptimisee = (images: number[][]) => {
+const optimisedReaders = (images: number[][]) => {
   const output = [];
   for (const ids of images) {
-    deltaOptimisee.apply(ids);
+    optimisedDelta.apply(ids);
     pending.apply();
     const complete = pending.count === 0;
-    const attendues = collectPendingUrls(pending.records, scratchOptimisee, stampsOptimisee);
+    const attendues = collectPendingUrls(pending.records, optimisedScratch, optimisedStamps);
     output.push({ complete, attendues: attendues.length });
   }
   return output;
 };
 
-const mesuresResultats = [];
+const measurementResults = [];
 for (const [regime, images] of regimes) {
-  mesuresResultats.push(
-    await mesure({
+  measurementResults.push(
+    await measure({
       name: `cut readers ${regime}`,
       fichier: 'packages/sdk-browser/src/webgpu/cut/pending.ts',
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
-      calcul: lecteursOptimisee,
-      attendu: lecteursReference,
+      calculation: optimisedReaders,
+      expected: lecteursReference,
       options: { tours: 20, budgetMs: 1500 },
     }),
   );
@@ -106,8 +106,8 @@ for (const [regime, images] of regimes) {
 
 await stress({
   name: 'createCutDelta extremes',
-  calcul: (arr: PageRec[]) => createCutDelta(arr).apply([]),
+  calculation: (arr: PageRec[]) => createCutDelta(arr).apply([]),
   extremes: [{ name: 'empty', input: [] }],
 });
 
-rapport('coupe-difference', mesuresResultats, 'GEO-1: cut readers yield the same verdicts');
+rapport('coupe-difference', measurementResults, 'GEO-1: cut readers yield the same verdicts');

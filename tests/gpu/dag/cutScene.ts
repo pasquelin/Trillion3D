@@ -4,7 +4,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts';
 import {
@@ -26,7 +26,7 @@ export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4
   const roots = sceneRoots(scenePages(leaves, levels), poses, true);
   const packed = packDagSelection(roots);
   const resident = ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1));
-  const uniforms = cameraSelectionUniforms(cameraMoteur(frontCamera(16, 200)), 1, [1280, 720]);
+  const uniforms = cameraSelectionUniforms(engineCamera(frontCamera(16, 200)), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
   return { packed, uniforms, resident };
 }

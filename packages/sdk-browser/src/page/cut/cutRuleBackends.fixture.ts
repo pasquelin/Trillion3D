@@ -66,7 +66,7 @@ function kernelBackend(
   const decide = rule?.(packed);
   return (resident) => {
     const residency = ruleResidency(packed, resident);
-    const result = evaluateDagSelectionKernel(packed, uniforms, residency, false, decide);
+    const result = evaluateDagSelectionKernel(packed, uniforms, residency, decide);
     return { drawn: result.drawablePageIds ?? [], wanted: result.pageIds };
   };
 }

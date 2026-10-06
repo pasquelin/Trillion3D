@@ -3,15 +3,15 @@
 import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts';
 import { createVsmResources } from '../../../../vsm/resources.ts';
-import {
-  createVsmTransmission,
-  vsmTransmissionBytes,
-  vsmTransmissionFirstCaps,
-} from '../../../../vsm/transmissionPass.ts';
-import type { VsmTransmissionCaps } from '../../../../vsm/transmissionWgsl.ts';
+import { createVsmTransmission } from '../../../../vsm/transmissionPass.ts';
 import type { WebgpuPagesRuntime } from '../../runtime.ts';
 import type { EngineVsm } from './engineVsm.ts';
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts';
+import {
+  vsmTransmissionBytes,
+  vsmTransmissionFirstCaps,
+  type VsmTransmissionCaps,
+} from '../../../../vsm/transmissionLayout.ts';
 
 const BINDING = 1 << 27;
 /** An encoder whose passes record nothing. */

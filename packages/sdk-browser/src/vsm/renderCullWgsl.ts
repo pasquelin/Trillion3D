@@ -50,8 +50,9 @@ import {
   VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts';
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { type VsmBindingSpec, type VsmLayout, vsmBindingsWgsl } from './resources.ts';
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Threads per group of every render-cull kernel. */
 export const VSM_RENDER_GROUP = 64;
@@ -67,10 +68,6 @@ export const VSM_RENDER_ARGS_EXPAND = 3;
 export const VSM_RENDER_ARGS_DRAW = 6;
 /** Counter words: [0] candidates, then 4 per chunk from word 4: commands, pairs, max corners, pad. */
 export const VSM_RENDER_COUNTS_HEAD = 4;
-/** Bytes of one candidate (`VsmRenderCandidate`), one command and one pair (vec4u). */
-export const VSM_RENDER_CANDIDATE_BYTES = 48;
-export const VSM_RENDER_CMD_BYTES = 16;
-export const VSM_RENDER_PAIR_BYTES = 16;
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
 export const VSM_RENDER_VIEW_DIRECTIONAL = 1;
 

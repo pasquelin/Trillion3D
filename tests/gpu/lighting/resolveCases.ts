@@ -8,7 +8,7 @@ import type { ResolveScene } from './resolvePage.ts';
 
 /** A seeded draw: a number in a range, a vector in a cube, a unit vector. */
 export function resolveRandom(seed: number) {
-  const { hasard: r, entre: between } = lois(seeded(seed));
+  const { hasard: r, between: between } = lois(seeded(seed));
   const vector = (size: number) => [
     between(-size, size),
     between(-size, size),

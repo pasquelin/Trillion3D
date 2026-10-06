@@ -172,7 +172,7 @@ page past the table and another class are rejected before any write (`classAdmit
 only the maps it has. No material depth is written or tested: the resolve writes storage textures,
 which already made any depth test late, so the test excluded nothing the stage did not. A class
 past the 64th, or on a device refusing the pass, draws one full-screen triangle, as before. A
-one-class image shades full screen. Counted on the atrium (`bench/runner/materialTileCount.ts`, 3456 × 2234, six
+one-class image shades full screen. Counted on the atrium (`bench/runner/lighting/materialTileCount.ts`, 3456 × 2234, six
 classes): 1.11–1.16 fragments rasterised per pixel, where the full-screen triangles rasterised 6.
 The `material-classes-ready` diagnostic lists the classes; the `materials` view colours each pixel
 by its class.
@@ -204,7 +204,7 @@ tile-based GPUs; its cost is read as an envelope difference with `temporalAntial
 Its work is bounded per display pixel: a moving image's resolve issues 23 fetches at the display's
 size and about 27 (26.97) reconstructing a frame drawn at half of it — an uncovered pixel, which
 reads no history to clamp, 16 and 20 —, 32 natively for the as-is resolve, each identifier it
-needs once (`bench/runner/taaFetchCount.ts`, #1369).
+needs once (`bench/runner/counts/taaFetchCount.ts`, #1369).
 
 **Render scale.** The options of `createWorld(canvas, { renderScale })` — a number, `'auto'` (the
 default) or `{ min, max }` within [0.5, 1], read back by `world.renderScale` — are
@@ -249,12 +249,12 @@ radiance, in chain order; `after-tone-mapping` passes will read the display imag
 The chain is one object for the world's life, shared by reference with every session; a change of
 the chain or of a pass's setting counts one revision and asks for a frame.
 
-- **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `effects/webgpuEffects.ts`): between
+- **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `webgpu/effects/webgpuEffects.ts`): between
   `encodeTaaPass` and the composition, which tone-maps whatever view it is handed. Each pass writes
   a full-size `rgba16float` target, two in turn at most. The programs compile in the background on
   the first frame with a pass; until then the image is drawn without the chain, never held, and
   drawn again when they arrive, without restarting the temporal accumulation.
-- **WebGL2** (`world/render/compose.ts`, `effects/webglEffects.ts`): with a pass, the composer asks
+- **WebGL2** (`world/render/compose.ts`, `webgl/effects/webglEffects.ts`): with a pass, the composer asks
   the engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as
   coverage over transparent black) into a half-float target with depth, runs the passes, then one
   output program applies the scene's curve and the sRGB transfer over the background, as the WebGPU
@@ -263,7 +263,7 @@ the chain or of a pass's setting counts one revision and asks for a frame.
   without a chain, the program and uniforms are the ones drawn before the chain existed. Its second
   output marks, one byte a pixel, the coverage of surfaces whose material skips the curve
   (`toneMapped: false`), left as drawn; coverage past one is read as light
-  (`effects/webglOutput.ts`). With a chain, a `none`-blended surface covers as an opaque one.
+  (`webgl/effects/webglOutput.ts`). With a chain, a `none`-blended surface covers as an opaque one.
   Multiply and subtractive filter the background, which the linear target does not hold: before
   binding the target, the composer asks the engine (`BackendHostDraw.linearRefusal`), whose scene
   draw answers from the one walk of the graph per drawn image it already makes, never on a held
@@ -325,7 +325,7 @@ where its list starts. A column the pool has no room for walks every light, exac
 overflow is named (`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). Each
 pixel walks the list of the cell its depth falls in; a blend surface, the cell of its own depth.
 200 lamps of range 4 m list 6.91–8.88 lights per covered pixel of a sponza-sized atrium at
-3456 × 2234, where 5.90–7.46 reach it, none missed (`bench/runner/lightGridCount.ts`); the pass
+3456 × 2234, where 5.90–7.46 reach it, none missed (`bench/runner/lighting/lightGridCount.ts`); the pass
 tests 378,000 column × light pairs and solves 53,000–73,000 runs, where the 2.5D tiles it replaces
 read 7.7 million depth texels and tested 6.05 million tile × light pairs. A scene of 64 lights or
 fewer resolves with a 64-light array (the narrow program), compiled on first use, its wide twin
@@ -369,7 +369,7 @@ lights that holds a shadowed light is sampled; a list with none is summed in ful
 is, bit for bit, from the same one call site (`contractLighting`,
 `tests/gpu/lighting/sampled-resolve.gpu.ts`, #1249, excluded while #1369 holds). 200 unshadowed lamps of range 4 m in a
 sponza-sized atrium walk their cell's list once, 6.91–8.88 light evaluations per covered pixel at
-3456 × 2234, where the resolve before #1249 drew 15.7–21.0 (`bench/runner/lightTileSampledCount.ts`).
+3456 × 2234, where the resolve before #1249 drew 15.7–21.0 (`bench/runner/lighting/lightTileSampledCount.ts`).
 `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint
 grain on lit surfaces where lights of different colours overlap and in penumbrae, while the camera
 moves (`tests/gpu/lighting/sampled-lighting.gpu.ts`). What
@@ -422,7 +422,7 @@ a wall; where no level reaches, the term is zero. Against the compiler's path tr
 (`trillion3d-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The bounce
 is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission and
 transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
-the quantity `bench/runner/oracle.ts` compares.
+the quantity `bench/runner/references/oracle.ts` compares.
 
 **Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
 transparent standard materials included, whatever the bounce setting, by one projected pixel-grid
@@ -642,11 +642,11 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   and named by the page); `PhysicsSystem::Update`'s errors (body pairs, contact constraints,
   manifold cache) are sent as `PHYSICS_BUDGET`, capacities `budget.physics.bodyPairs` and
   `contactConstraints`.
-- **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
+- **Page.** `physics/session/session.ts` reconciles bodies with the scene once per frame that changed it,
   sends the view, posts the frame's commands in one message, then the steps the frame owes. The
   frame's time is set at its start, before the controller (`worldFrames.ts`), one step behind what
   the frame before asked, and everything the physics draws is drawn at it by one mechanism
-  (`twoSteps.ts`): a body's pose (`poses.ts`), a vehicle's wheels, a soft body's vertices, the
+  (`twoSteps.ts`): a body's pose (`bench/runner/trajectory/poses.ts`), a vehicle's wheels, a soft body's vertices, the
   character's feet, each between its states of the two steps that bracket that time, at the one
   fraction of a step the session reads (`stepClock.ts` `along`) — places on the line between
   them, turns on the arc —, the same frames drawing the same image whenever the ticks came. A
@@ -670,7 +670,7 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   and events size the module's own buffers.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is
   the page's share; the worker's per-step time, the module's step alone, is
-  `world.physics.stats.stepMs`, the clock `scripts/bench-physics.ts` reads in Node. Its GPU column
+  `world.physics.stats.stepMs`, the clock `bench/physics/bodies.ts` reads in Node. Its GPU column
   is the particle step ([Particles](#particles)).
 - **Threads.** A cross-origin isolated page loads `joltPhysicsThreads.wasm` (atomics, bulk memory,
   shared memory), stepped by Jolt's own thread pool: each thread starts in C through
@@ -679,17 +679,17 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   entry point. `budget.physics.threads` fixes the count, capped at the logical cores minus the
   page's own; elsewhere the single-threaded module runs. `docs:serve` answers with COOP
   `same-origin` and COEP `credentialless`; the production server's headers are set outside this
-  repository. `scripts/bench-physics.ts` steps the example's scene in Node on both modules and on
+  repository. `bench/physics/bodies.ts` steps the example's scene in Node on both modules and on
   the same C API compiled natively (`packages/physics-jolt-wasm/bench/`), with a per-phase profile
   from Jolt's own scopes in a profiled build.
 
 ### Particles
 
-The particle step is `Trillion3D particles` (`particles/webgpuParticles.ts`); each pool is then one
-instanced disc draw over the lit image after the transparents (`particles/webgpuParticleDraw.ts`),
+The particle step is `Trillion3D particles` (`webgpu/particles/webgpuParticles.ts`); each pool is then one
+instanced disc draw over the lit image after the transparents (`webgpu/particles/webgpuParticleDraw.ts`),
 unsorted: `additive` in any order, `premultiplied` far to near by origin, soft within `softness` of
 the opaque depth. WebGL2 steps the same pools in a 32-bit float ping-pong pass
-(`particles/webglParticles.ts`) and draws them alike (`particles/webglParticleDraw.ts`), soft on a
+(`webgl/particles/webglParticles.ts`) and draws them alike (`webgl/particles/webglParticleDraw.ts`), soft on a
 copy of the frame's depth in `DEPTH24_STENCIL8`, else `DEPTH_COMPONENT24`, as the blit allows. A
 context without `EXT_color_buffer_float`, or a depth neither format copies, refuses the pools by
 name (`PARTICLES_UNSUPPORTED`), never drawing them hard-edged: the world notice `particles-refused`,

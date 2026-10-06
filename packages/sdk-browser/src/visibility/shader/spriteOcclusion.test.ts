@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createHizCounts, type HizPage } from '../../hiz/hiz.ts';
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -47,7 +47,7 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
     [constant, attenuated],
     identityRoots(),
     pyramid,
-    cameraMoteur(cameraAt()),
+    engineCamera(cameraAt()),
     [48, 48],
     createHizCounts(),
   );

@@ -5,16 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 import { runSelectionKernel } from './selectionKernel.ts';
+import { posedSelection } from './selectionCase.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 /** Name, camera x and z, threshold in pixels. */
@@ -41,12 +38,7 @@ test('pruning drops candidates and keeps exactly the same pages', async () => {
       ),
       true,
     );
-    camera.position.set(x, 0, z);
-    camera.lookAt(x, 0, 0);
-    camera.updateMatrixWorld(true);
-    const uniforms = cameraSelectionUniforms(cameraMoteur(camera), threshold, VIEWPORT);
-    // The kernel works in the render frame: the worlds are brought there, as the engine does.
-    const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
+    const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots);
     return { name, packed, uniforms };
   });
   const pruned = await runSelectionKernel(cases);

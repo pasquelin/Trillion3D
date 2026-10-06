@@ -40,7 +40,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { source, pageSources, resources } = inputs;
   const { autonomous } = choice;
   const { pages, geometryPages, cacheCap } = pageSources;
-  const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
+  const batchCompute = prepareMathBatch(options.mathPath ?? 'auto');
   if (!directGpu) {
     // The engine's surface is the session's only WebGL2 resource: the composition host builds
     // its programs and targets on it later.
@@ -57,7 +57,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
     canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
   }
-  await calculEnLot;
+  await batchCompute;
   // The provenance table, a family loaded with the scene when a channel listens (`familyUse.ts`);
   // unheard, the record is dropped unread and nothing loads it.
   const sdk = diagnosticChannel.enabled

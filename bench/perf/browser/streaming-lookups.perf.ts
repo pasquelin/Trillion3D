@@ -1,15 +1,15 @@
 // the two linear searches of the streaming path.
 import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
-import { empileEnAttente } from '../../../packages/sdk-browser/src/world/render/draw.ts';
+import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts';
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import {
-  referenceEmpileEnAttente,
+  referencePushPending,
   referenceRetireDeLaFile,
 } from '../../oracles/browser/streaming-lookups.ts';
 
 function rafale(total: number, annulations: number, depart: number) {
-  const alea = graine(depart);
+  const alea = xorshiftRandom(depart);
   const urls: string[] = [];
   for (let i = 0; i < total; i++) urls.push(`pages/${i}-${Math.floor(alea() * 1e6)}.bin`);
   const vises: number[] = [];
@@ -41,7 +41,7 @@ function passeReference({ urls, vises }: { urls: string[]; vises: number[] }) {
   return queue.map((job) => job.url);
 }
 
-function passeOptimisee({ urls, vises }: { urls: string[]; vises: number[] }) {
+function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
   const queue = file({ urls });
   const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean);
   for (const job of cibles) job.state = 'dropped';
@@ -50,7 +50,7 @@ function passeOptimisee({ urls, vises }: { urls: string[]; vises: number[] }) {
 }
 
 function adresses(total: number, depart: number) {
-  const alea = graine(depart);
+  const alea = xorshiftRandom(depart);
   const output: string[] = [];
   for (let i = 0; i < total; i++)
     output.push(
@@ -59,31 +59,31 @@ function adresses(total: number, depart: number) {
   return output;
 }
 
-const resG5 = await mesure({
+const resG5 = await measure({
   name: 'removing a cancelled request from the queue',
   fichier: 'packages/sdk-browser/src/streaming/queue.ts',
   cas: [
     { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
     { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },
   ],
-  calcul: passeOptimisee,
-  attendu: passeReference,
+  calculation: optimisedPass,
+  expected: passeReference,
   options: { tours: 40, budgetMs: 1500 },
 });
 
 const urlsEmpilees = adresses(4000, 0x61);
-const resG6 = await mesure({
+const resG6 = await measure({
   name: 'pending stack',
   fichier: 'packages/sdk-browser/src/world/render/draw.ts',
   cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
-  calcul: (urls: readonly string[]) => {
+  calculation: (urls: readonly string[]) => {
     const set = new Set<string>();
-    empileEnAttente(set, urls);
+    pushPending(set, urls);
     return [...set];
   },
-  attendu: (urls: readonly string[]) => {
+  expected: (urls: readonly string[]) => {
     const arr: string[] = [];
-    referenceEmpileEnAttente(arr, urls);
+    referencePushPending(arr, urls);
     return arr;
   },
   options: { tours: 100, budgetMs: 1500 },
@@ -91,7 +91,7 @@ const resG6 = await mesure({
 
 await stress({
   name: 'compacteFile extremes',
-  calcul: (q: Job[]) => compacteFile(q),
+  calculation: (q: Job[]) => compacteFile(q),
   extremes: [{ name: 'empty', input: [] }],
 });
 

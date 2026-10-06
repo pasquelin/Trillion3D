@@ -6,7 +6,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { wrapTexel } from '../../../packages/sdk-browser/src/visibility/math.ts';
 import { sampleLinear, sampleMap } from '../../oracles/browser/cpu-image/math.ts';
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 
 function referenceSrgbToLinear(c: number) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -60,7 +60,7 @@ function texture(
   wrapT: THREE.Wrapping,
   dressed = false,
 ) {
-  const alea = graine(seed),
+  const alea = xorshiftRandom(seed),
     data = new Uint8Array(width * height * 4);
   for (let i = 0; i < data.length; i++)
     data[i] = i < 1024 ? i & 255 : Math.floor(alea() * 256) & 255;
@@ -98,7 +98,7 @@ function parcours(sampler: EchantillonneurTexel) {
   };
 }
 
-const alea = graine(31);
+const alea = xorshiftRandom(31);
 const points: [number, number][] = [];
 for (let i = 0; i < 4000; i++) points.push([alea() * 4 - 2, alea() * 4 - 2]);
 
@@ -112,27 +112,27 @@ const cas = [
   { name: 'no image', input: { map: sansImage, coords: points.slice(0, 10) }, size: 10 },
 ];
 
-const resSrgb = await mesure({
+const resSrgb = await measure({
   name: 'sRGB to linear',
   fichier: 'bench/oracles/browser/cpu-image/math.ts',
   cas,
-  calcul: parcours(sampleMap),
-  attendu: parcours(referenceSampleMap),
+  calculation: parcours(sampleMap),
+  expected: parcours(referenceSampleMap),
   options: { tours: 60, budgetMs: 1500 },
 });
 
-const resLinear = await mesure({
+const resLinear = await measure({
   name: 'linear sampling',
   fichier: 'bench/oracles/browser/cpu-image/math.ts',
   cas,
-  calcul: parcours(sampleLinear),
-  attendu: parcours(referenceSampleLinear),
+  calculation: parcours(sampleLinear),
+  expected: parcours(referenceSampleLinear),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'sampleMap extremes',
-  calcul: ([u, v]) => sampleMap(atlas, u, v),
+  calculation: ([u, v]) => sampleMap(atlas, u, v),
   extremes: [
     { name: 'NaN', input: [NaN, NaN] },
     { name: 'infinity', input: [Infinity, -Infinity] },

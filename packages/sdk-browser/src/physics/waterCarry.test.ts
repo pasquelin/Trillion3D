@@ -18,7 +18,10 @@ import { createWaterCarry } from './waterCarry.ts';
 const SWELL: readonly [WaveSpec] = [
   { direction: [1, 0.35], wavelength: 11, amplitude: 0.42, steepness: 0.3 },
 ];
-const water = (level: number, waves: readonly WaveSpec[] = SWELL) => ({ level, waves: waves.map((w) => ({ ...w })) });
+const water = (level: number, waves: readonly WaveSpec[] = SWELL) => ({
+  level,
+  waves: waves.map((w) => ({ ...w })),
+});
 
 /** A world's scene and physics, the content changes the world was told counted by mesh. */
 function world() {

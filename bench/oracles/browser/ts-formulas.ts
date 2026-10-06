@@ -53,7 +53,7 @@ export function referenceNsToMs(nanoseconds: number) {
   return nanoseconds / 1e6;
 }
 
-/** `bench/runner/lamps.ts:11` and `poses.ts:56` from before: the model floor. */
+/** `bench/runner/lighting/lamps.ts:11` and `poses.ts:56` from before: the model floor. */
 export function referenceFloorOf(bounds: { min: { y: number }; max: { y: number } }) {
   return bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 }

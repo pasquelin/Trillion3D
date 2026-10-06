@@ -1,6 +1,6 @@
-// Stress cases and the reference/optimised comparison, over `mesure`.
-import { mesure } from './measure.ts';
-import type { MesureParams } from './measure.ts';
+// Stress cases and the reference/optimised comparison, over `measure`.
+import { measure } from './measure.ts';
+import type { MeasureParams } from './measure.ts';
 
 export interface CasExtreme<Entree = unknown> {
   name: string;
@@ -10,16 +10,16 @@ export interface CasExtreme<Entree = unknown> {
 /** Checks that a calculation absorbs its extremes without throwing: no exception is the contract. */
 export async function stress<Entree = unknown>({
   name,
-  calcul,
+  calculation,
   extremes,
 }: {
   name: string;
-  calcul: (input: Entree) => unknown;
+  calculation: (input: Entree) => unknown;
   extremes: CasExtreme<Entree>[];
 }): Promise<void> {
   for (const cas of extremes) {
     try {
-      await calcul(cas.input);
+      await calculation(cas.input);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       throw new Error(`Stress ${name} / ${cas.name} : ${message}`, { cause: e });
@@ -27,18 +27,19 @@ export async function stress<Entree = unknown>({
   }
 }
 
-/** Parameters of `compare`: `mesure` under different names for the reference/optimised split. */
+/** Parameters of `compare`: `measure` under different names for the reference/optimised split. */
 export interface CompareParams<Entree = unknown, Sortie = unknown> extends Omit<
-  MesureParams<Entree, Sortie>,
-  'calcul' | 'attendu'
+  MeasureParams<Entree, Sortie>,
+  'calculation' | 'expected'
 > {
   reference: (input: Entree) => Sortie | Promise<Sortie>;
-  optimisee: (input: Entree) => Sortie | Promise<Sortie>;
+  optimised: (input: Entree) => Sortie | Promise<Sortie>;
 }
 
 /** Measures package code using the pre-optimisation implementation as the oracle. */
 export const compare = <Entree = unknown, Sortie = unknown>({
   reference,
-  optimisee,
+  optimised,
   ...reste
-}: CompareParams<Entree, Sortie>) => mesure({ ...reste, calcul: optimisee, attendu: reference });
+}: CompareParams<Entree, Sortie>) =>
+  measure({ ...reste, calculation: optimised, expected: reference });

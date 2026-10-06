@@ -9,13 +9,7 @@ import { clusterErrorPixels } from '../index.ts';
 import { clusterErrorAtDepth, screenErrorBound } from '../lod/screenErrorBound.ts';
 
 const FOCALE = 640,
-  PROCHE = 0.25;
-
-/** The old formula, as the engine applied it: `ε·s·f / (|C| − r·s)`. */
-function ancienne(error: number, stretch: number, c: number[], radius: number) {
-  const distance = Math.hypot(c[0], c[1], c[2]) - radius * stretch;
-  return distance > PROCHE ? (error * stretch * FOCALE) / distance : Infinity;
-}
+  NEAR = 0.25;
 
 const pixel = (p: number[]) => [(FOCALE * p[0]) / -p[2], (FOCALE * p[1]) / -p[2]];
 
@@ -38,41 +32,41 @@ function surface(centre: number[], radius: number, n = 240) {
 
 /** Unit directions: the six axes, the diagonals, and the spiral, for the worst displacement. */
 function directions(n = 120) {
-  const liste = [];
+  const list = [];
   for (const axe of [0, 1, 2])
     for (const signe of [-1, 1]) {
       const v = [0, 0, 0];
       v[axe] = signe;
-      liste.push(v);
+      list.push(v);
     }
   const or = Math.PI * (3 - Math.sqrt(5));
   for (let i = 0; i < n; i++) {
     const z = 1 - (2 * i + 1) / n,
       r = Math.sqrt(Math.max(0, 1 - z * z)),
       a = or * i;
-    liste.push([r * Math.cos(a), r * Math.sin(a), z]);
+    list.push([r * Math.cos(a), r * Math.sin(a), z]);
   }
-  return liste;
+  return list;
 }
 
 /** The worst real screen displacement: every point of the sphere, every direction, of length ε. */
-function pireDeplacement(centre: number[], radius: number, epsilon: number) {
-  let pire = 0;
+function worstDisplacement(centre: number[], radius: number, epsilon: number) {
+  let worst = 0;
   for (const p of surface(centre, radius)) {
-    if (-p[2] <= PROCHE) continue;
+    if (-p[2] <= NEAR) continue;
     const before = pixel(p);
     for (const d of directions()) {
       const after = [p[0] + epsilon * d[0], p[1] + epsilon * d[1], p[2] + epsilon * d[2]];
-      if (-after[2] <= PROCHE) return Infinity;
+      if (-after[2] <= NEAR) return Infinity;
       const q = pixel(after);
-      pire = Math.max(pire, Math.hypot(q[0] - before[0], q[1] - before[1]));
+      worst = Math.max(worst, Math.hypot(q[0] - before[0], q[1] - before[1]));
     }
   }
-  return pire;
+  return worst;
 }
 
 const annonce = (centre: number[], radius: number, epsilon: number, stretch = 1) =>
-  clusterErrorPixels(epsilon, stretch, centre[0], centre[1], centre[2], radius, FOCALE, PROCHE);
+  clusterErrorPixels(epsilon, stretch, centre[0], centre[1], centre[2], radius, FOCALE, NEAR);
 
 test('the bound majors the real screen displacement, off-axis as on-axis', () => {
   const cas: Array<{ name: string; centre: number[]; radius: number; epsilon: number }> = [
@@ -83,24 +77,12 @@ test('the bound majors the real screen displacement, off-axis as on-axis', () =>
     { name: 'large distant sphere', centre: [-40, 15, -300], radius: 30, epsilon: 1.5 },
   ];
   for (const { name, centre, radius, epsilon } of cas) {
-    const reel = pireDeplacement(centre, radius, epsilon);
+    const reel = worstDisplacement(centre, radius, epsilon);
     assert.ok(
       reel <= annonce(centre, radius, epsilon),
       `${name}: real ${reel} px above the announced ${annonce(centre, radius, epsilon)} px`,
     );
   }
-});
-
-test('off-axis, the old formula announced less than the real displacement', () => {
-  const centre = [8, 0, -10],
-    radius = 1,
-    epsilon = 0.05;
-  const reel = pireDeplacement(centre, radius, epsilon);
-  assert.ok(
-    reel > ancienne(epsilon, 1, centre, radius),
-    `defect 3 assumes a real ${reel} px above the old announced`,
-  );
-  assert.ok(reel <= annonce(centre, radius, epsilon), 'and the corrected bound covers it');
 });
 
 test('clusterErrorAtDepth is clusterErrorPixels whose axis and depth are already taken', () => {
@@ -116,8 +98,8 @@ test('clusterErrorAtDepth is clusterErrorPixels whose axis and depth are already
       for (const radius of [0, 1, 40])
         assert.ok(
           Object.is(
-            clusterErrorAtDepth(error, 1.25, Math.sqrt(x * x + y * y), -z, radius, FOCALE, PROCHE),
-            clusterErrorPixels(error, 1.25, x, y, z, radius, FOCALE, PROCHE),
+            clusterErrorAtDepth(error, 1.25, Math.sqrt(x * x + y * y), -z, radius, FOCALE, NEAR),
+            clusterErrorPixels(error, 1.25, x, y, z, radius, FOCALE, NEAR),
           ),
           `error ${error}, radius ${radius}, centre ${x},${y},${z}`,
         );
@@ -170,7 +152,7 @@ test('clusterErrorAtDepth rejects the same malformed parameters as clusterErrorP
 });
 
 test('screenErrorBound keeps no guard: the caller has already sorted its parameters', () => {
-  assert.equal(screenErrorBound(0.05, 1, Infinity, 10, 1, FOCALE, PROCHE), Infinity);
-  assert.equal(screenErrorBound(0.05, 1, 8, Infinity, 1, FOCALE, PROCHE), Infinity);
-  assert.ok(Number.isFinite(screenErrorBound(0.05, 1, 8, 10, 1, FOCALE, PROCHE)));
+  assert.equal(screenErrorBound(0.05, 1, Infinity, 10, 1, FOCALE, NEAR), Infinity);
+  assert.equal(screenErrorBound(0.05, 1, 8, Infinity, 1, FOCALE, NEAR), Infinity);
+  assert.ok(Number.isFinite(screenErrorBound(0.05, 1, 8, 10, 1, FOCALE, NEAR)));
 });

@@ -5,14 +5,14 @@
  */
 
 /**
- * The page-word families of the world API and the placement rows (`world/core/`, the `index.ts` of
+ * The page-word families of the world API and the placement rows (`world/core/`, the `world/api/*Family.ts` modules, the `index.ts` of
  * each family, `placement/`): they pose the core's own scene objects, so the camera-pose and
  * host-matrix rules of `engine-structure.test.ts` and `engine-without-three-math.test.ts` do not
  * read them. The host-library rules of `engine-without-three.test.ts` read them like any other
  * source: no file there names the host library.
  */
 export const PUBLIC_FAMILIES =
-  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
+  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/api\/\w+Family\.ts$|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
 
 /**
  * A module specifier of the host library, in a source, in emitted code or in a declaration: the

@@ -6,6 +6,7 @@ repository, and `bench/dawn/proofs.test.ts` tracks the GPU proofs.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
+
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -21,6 +22,7 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
+
 <!-- tests-inventory:end -->
 
 `node scripts/tests-inventory.ts --write` renders the tree; `scripts/tests-inventory.test.ts` fails
@@ -52,7 +54,7 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 `pnpm run check:changed`, the one local gate, runs only what changed files touch
 (`scripts/affected-tests.ts`); it does not replace `validate`, which the CI runs. A change of
 documentation, translations or example thumbnails also runs the tests that read them
-(`pnpm run test:docs`, `scripts/docs-tests.ts`), which the CI's `quick` job runs too. It also
+(`pnpm run test:docs`, `scripts/docs/tests.ts`), which the CI's `quick` job runs too. It also
 type-checks (`tsc --noEmit`) every tracked `tsconfig*.json` project owning a changed TypeScript
 file, by listing it or by import (`scripts/ts-projects.ts`); a changed file no project reaches
 fails, unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
@@ -133,16 +135,16 @@ printed before starting — never in silence:
   with the proofs: in a tenth of a second it asserts
   what each public scene's cache guarantees — a DAG climbing above level 0 wherever a primitive
   holds more than one cluster, a mirrored mapping locking no vertex. It never builds caches: without
-  `node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`, then
-  `node bench/runner/assets.ts --only facade-7`) it fails by name on the missing cache.
+  `node bench/runner/assets/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`, then
+  `node bench/runner/assets/assets.ts --only facade-7`) it fails by name on the missing cache.
 - `page-tangents` compares a normal-mapped surface with authored and mirrored tangents drawn from
   its geometry pages and from its source buffers, on WebGPU: to the pixel when blended, recorded
   when opaque (its header says why). `node bench/runner/scenes/tangentScenes.ts` writes its four
-  scenes derived from `normal-tangent-mirror-test` and prints the `assets.ts --only` line compiling
+  scenes derived from `normal-tangent-mirror-test` and prints the `assets/assets.ts --only` line compiling
   them; `node bench/dawn/proofs.ts tests/gpu/webgpu/page-tangents.gpu.ts` runs it. The
   acceptance session runs it on `develop` after the merge (AGENTS.md rule 2).
 
-`node bench/runner/assets.ts` fetches and compiles every scene the proofs read
+`node bench/runner/assets/assets.ts` fetches and compiles every scene the proofs read
 ([Assets](../bench/runner/README.md#assets)).
 
 #### Chrome proofs, the recette's

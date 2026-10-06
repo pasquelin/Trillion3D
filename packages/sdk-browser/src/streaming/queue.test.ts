@@ -8,9 +8,9 @@ import { sortStreamJobs } from './queueOrder.fixture.ts';
 import { referenceAdmission } from '../../../../bench/oracles/browser/arrival-admission.ts';
 import type { Job } from './types.ts';
 
-const LIMITE = 6,
+const LIMIT = 6,
   BUDGET = 2 * 1024 * 1024;
-function optimiseeAdmission(
+function optimizedAdmission(
   queue: { url: string; priority: number; order: number; consumers: number }[],
   octetsDe: (url: string) => number | undefined,
 ) {
@@ -18,7 +18,7 @@ function optimiseeAdmission(
   let active = 0,
     activeBytes = 0,
     triee = false;
-  while (active < LIMITE && queue.length) {
+  while (active < LIMIT && queue.length) {
     if (!triee) {
       sortStreamJobs(queue);
       triee = true;
@@ -36,7 +36,7 @@ function optimiseeAdmission(
 
 test('an empty queue admits nothing, matching the reference', () => {
   assert.deepEqual(
-    optimiseeAdmission([], () => 0),
+    optimizedAdmission([], () => 0),
     [],
   );
   assert.deepEqual(
@@ -53,10 +53,10 @@ test('priority then arrival order decides admission, identically to the referenc
   ];
   const octetsDe = () => 1024;
   assert.deepEqual(
-    optimiseeAdmission(jobs.slice(), octetsDe),
+    optimizedAdmission(jobs.slice(), octetsDe),
     referenceAdmission(jobs.slice(), octetsDe),
   );
-  assert.deepEqual(optimiseeAdmission(jobs.slice(), octetsDe), ['a', 'b', 'c']);
+  assert.deepEqual(optimizedAdmission(jobs.slice(), octetsDe), ['a', 'b', 'c']);
 });
 
 test('a job with zero consumers is skipped by both sides without stopping admission', () => {
@@ -65,7 +65,7 @@ test('a job with zero consumers is skipped by both sides without stopping admiss
     { url: 'b', priority: 1, order: 1, consumers: 1 },
   ];
   const octetsDe = () => 1024;
-  assert.deepEqual(optimiseeAdmission(jobs.slice(), octetsDe), ['b']);
+  assert.deepEqual(optimizedAdmission(jobs.slice(), octetsDe), ['b']);
   assert.deepEqual(referenceAdmission(jobs.slice(), octetsDe), ['b']);
 });
 
@@ -77,11 +77,11 @@ test('the first transfer always admits even alone over budget, then blocks every
     consumers: 1,
   }));
   const octetsDe = (url: string) => (url === 'p0' ? BUDGET * 4 : 1024);
-  const optimisee = optimiseeAdmission(jobs.slice(), octetsDe);
+  const optimized = optimizedAdmission(jobs.slice(), octetsDe);
   const reference = referenceAdmission(jobs.slice(), octetsDe);
-  assert.deepEqual(optimisee, reference);
+  assert.deepEqual(optimized, reference);
   assert.deepEqual(
-    optimisee,
+    optimized,
     ['p0'],
     'the oversized first transfer admits alone, then no budget remains',
   );
@@ -95,17 +95,17 @@ test('same-size jobs within budget fill up to the active-transfer limit, identic
     consumers: 1,
   }));
   const octetsDe = () => 1024;
-  const optimisee = optimiseeAdmission(jobs.slice(), octetsDe);
+  const optimized = optimizedAdmission(jobs.slice(), octetsDe);
   const reference = referenceAdmission(jobs.slice(), octetsDe);
-  assert.deepEqual(optimisee, reference);
-  assert.equal(optimisee.length, LIMITE);
+  assert.deepEqual(optimized, reference);
+  assert.equal(optimized.length, LIMIT);
 });
 
 test('an unknown url (no byte size) is treated as zero cost by both sides', () => {
   const jobs = [{ url: 'missing', priority: 0, order: 0, consumers: 1 }];
   const octetsDe = () => undefined;
   assert.deepEqual(
-    optimiseeAdmission(jobs.slice(), octetsDe),
+    optimizedAdmission(jobs.slice(), octetsDe),
     referenceAdmission(jobs.slice(), octetsDe),
   );
 });
@@ -137,32 +137,32 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
   }
 
   test('cancel, readmit then drain yield the same queue as an immediate remove', () => {
-    const ancienne = ['a', 'b', 'c', 'd'].map(job);
+    const old = ['a', 'b', 'c', 'd'].map(job);
     const nouvelle = ['a', 'b', 'c', 'd'].map(job);
 
     // Cancel 'b': the old one removes it at once, the new one only marks it.
     referenceRetireDeLaFile(
-      ancienne,
-      ancienne.find((j) => j.url === 'b')!,
+      old,
+      old.find((j) => j.url === 'b')!,
     );
-    const cible = nouvelle.find((j) => j.url === 'b')!;
-    cible.state = 'dropped';
+    const target = nouvelle.find((j) => j.url === 'b')!;
+    target.state = 'dropped';
 
     // Readmit: a new request arrives while 'b' is still in the array on the new side.
-    ancienne.push(job('e'));
+    old.push(job('e'));
     nouvelle.push(job('e'));
 
     // A second cancellation, on 'd' this time.
     referenceRetireDeLaFile(
-      ancienne,
-      ancienne.find((j) => j.url === 'd')!,
+      old,
+      old.find((j) => j.url === 'd')!,
     );
     nouvelle.find((j) => j.url === 'd')!.state = 'dropped';
 
     // Drain: the new one finally compacts, in one pass.
     compacteFile(nouvelle);
 
-    assert.deepEqual(urls(nouvelle), urls(ancienne));
+    assert.deepEqual(urls(nouvelle), urls(old));
     assert.deepEqual(urls(nouvelle), ['a', 'c', 'e']);
   });
 
@@ -180,12 +180,12 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
   });
 
   test('cancelling the whole queue empties it, like one-by-one removes', () => {
-    const ancienne = ['p0', 'p1', 'p2', 'p3'].map(job);
+    const old = ['p0', 'p1', 'p2', 'p3'].map(job);
     const nouvelle = ['p0', 'p1', 'p2', 'p3'].map(job);
-    for (const j of [...ancienne]) referenceRetireDeLaFile(ancienne, j);
+    for (const j of [...old]) referenceRetireDeLaFile(old, j);
     for (const j of nouvelle) j.state = 'dropped';
     compacteFile(nouvelle);
-    assert.deepEqual(urls(ancienne), []);
+    assert.deepEqual(urls(old), []);
     assert.deepEqual(urls(nouvelle), []);
   });
 }

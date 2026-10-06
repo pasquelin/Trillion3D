@@ -29,7 +29,6 @@ export const STYLE_SOURCES = [
   'site/content',
   'site/demos',
   'site/examples/kit',
-  'site/reports',
 ];
 
 async function collectCandidates(root: string): Promise<string[]> {

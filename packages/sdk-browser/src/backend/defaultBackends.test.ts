@@ -7,13 +7,17 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { chooseBackends } from './defaultBackends.ts';
 import { engineBackends } from './engines.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
-import { referenceBackend } from '../../../../bench/witnesses/referenceBackend.ts';
+import type { BackendFactory } from './types.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
 import { autonomousCacheReady } from './autonomousCacheReady.ts';
 
 const cache = (autonomousScene: string | null) =>
   ({ autonomousScene, primitives: [] }) as unknown as ClusterManifest;
 const { device } = fakeDevice();
+// A factory the host hands in: the choice only carries it, so it is never built.
+const hostBackend: BackendFactory = () => {
+  throw new Error('a host factory is chosen, not built');
+};
 
 test('a WebGPU machine renders through the engine page raster by default', () => {
   const choice = chooseBackends({}, cache('scene.gltf'), device);
@@ -36,7 +40,7 @@ test("a WebGL2-only machine renders through the engine's own autonomous path", (
 });
 
 test('a witness renders only because the host opted into it', () => {
-  const witnesses = [referenceBackend, exactPagesBackend];
+  const witnesses = [hostBackend, exactPagesBackend];
   for (const gpu of [device, undefined]) {
     const choice = chooseBackends({ backends: witnesses }, cache('scene.gltf'), gpu);
     assert.deepEqual(choice.factories, witnesses);

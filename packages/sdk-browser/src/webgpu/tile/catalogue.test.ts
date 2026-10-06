@@ -8,7 +8,7 @@ import {
   type TexturePreview,
 } from '../../../../sdk-core/src/index.ts';
 import { PREVIEW_ATLAS_COVERAGE } from '../../../../sdk-core/src/texture/previewFormat.ts';
-import { previewLevels } from '../../../../../tests/fixtures/manifestBinary.ts';
+import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinary.ts';
 import { previewsByAtlas, tileCatalogue } from './catalogue.ts';
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts';
 

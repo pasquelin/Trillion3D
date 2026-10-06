@@ -17,12 +17,12 @@ import {
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
-import { triangleCone } from '../../kit/cone.ts';
+import { triangleCone } from '../../kit/reference/cone.ts';
 import { project } from '../kit/cameraRig.ts';
 import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts';
 
@@ -51,7 +51,7 @@ function coneCases(
   page: object,
   cone: NormalCone,
 ) {
-  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(engineCamera(camera), 0, VIEWPORT);
   const pack = (pageCone: NormalCone) =>
     packedWorldsToRenderOrigin(
       packDagSelection([
@@ -83,7 +83,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
   assert.ok(facing > 0 && area > 100, 'the case must show a visible face');
   assert.ok(ndc.every((v) => Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && Math.abs(v.z) < 1));
 
-  const context = coneContextFor(createConeContext(), world, cameraMoteur(camera).eye);
+  const context = coneContextFor(createConeContext(), world, engineCamera(camera).eye);
   assert.equal(
     coneCullsPageWith(context, cone, world, MIN, MAX),
     false,
@@ -106,7 +106,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
     const worldBox = new Float64Array([...box.min.toArray(), ...box.max.toArray()]);
     const { displayedTriangles } = selectVisiblePages(
       [{ world, pages: [page], cones, worldBox }],
-      cameraMoteur(camera),
+      engineCamera(camera),
       { pixelError: 0, viewport: VIEWPORT },
     );
     assert.equal(displayedTriangles, triangles, `CPU cut, cones ${cones}: the face is lost`);

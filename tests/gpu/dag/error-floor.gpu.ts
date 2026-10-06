@@ -11,18 +11,16 @@ import assert from 'node:assert/strict';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts';
 import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { requestPriority } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 import { runSelectionKernel } from './selectionKernel.ts';
+import { posedSelection } from './selectionCase.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 /**
@@ -44,19 +42,14 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
   const cases = POSES.map(([name, x, z, threshold, depths]) => {
     const worlds = depths.map((depth) => new G.Matrix4().makeTranslation(0, 0, -depth));
     const roots = sceneRoots(pages, worlds);
-    camera.position.set(x, 0, z);
-    camera.lookAt(x, 0, 0);
-    camera.updateMatrixWorld(true);
-    const uniforms = cameraSelectionUniforms(cameraMoteur(camera), threshold, VIEWPORT);
-    // The kernel works in the render frame: the worlds are brought there, as the engine does.
-    const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
+    const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots);
     // The CPU cut walks the same nodes with its own bounds, in f64: the reference.
     const culling = roots[0].culling;
     assert.ok(culling, 'the scene root carries no culling nodes');
     const bounds = cullingBounds(culling, pages);
     const cpu = selectVisiblePages(
       worlds.map((world) => ({ world, pages, cones: false, culling: { ...culling, bounds } })),
-      cameraMoteur(camera),
+      engineCamera(camera),
       { pixelError: threshold, viewport: VIEWPORT },
     );
     return {

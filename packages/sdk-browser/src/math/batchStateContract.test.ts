@@ -24,10 +24,10 @@ test('unknown compute contract leaves everything on JavaScript with published re
   try {
     const { prepareMathBatch, mathBatchMetrics } = await import('./batchState.ts');
     await prepareMathBatch('auto');
-    const etat = mathBatchMetrics();
-    assert.equal(etat.wasmAvailable, false);
-    assert.equal(etat.wasmSimd, null);
-    assert.match(etat.unavailableReason ?? '', /computation contract/);
+    const state = mathBatchMetrics();
+    assert.equal(state.wasmAvailable, false);
+    assert.equal(state.wasmSimd, null);
+    assert.match(state.unavailableReason ?? '', /computation contract/);
   } finally {
     WebAssembly.instantiate = instantiateOriginal;
     globalThis.fetch = fetchOriginal;

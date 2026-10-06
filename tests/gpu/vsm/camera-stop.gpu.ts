@@ -7,8 +7,8 @@
 // pixels it shades otherwise than the settled one away from every edge of the settled image.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SUN } from '../../../bench/runner/lamps.ts';
-import { poseAt, VIEWS } from '../../../bench/runner/poses.ts';
+import { SUN } from '../../../bench/runner/lighting/lamps.ts';
+import { poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts';
 import { animationFrame, runOnDawn } from '../kit/onDawn.ts';
 import { settle } from '../world/proofWorld.ts';
 import { canvasImage, openBenchWorld, shadingGap } from './shadowScene.ts';

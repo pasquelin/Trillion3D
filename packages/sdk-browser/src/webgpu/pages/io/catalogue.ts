@@ -31,7 +31,7 @@ export function pageSourceBytes(rec: PageRec | undefined) {
  * The three numbers the texture diagnostic publishes, taken in one walk: a `map` of all pages and two
  * copies of the geometry table were allocated just to read them.
  */
-export function compteMateriauxEtTangentes(
+export function materialsAndTangentsCount(
   allPages: readonly PageRec[],
   geometryBlocks: ReadonlyMap<unknown, { hasTangent: boolean }>,
 ) {

@@ -46,7 +46,7 @@ export function fakeWorkers(post: (message: unknown) => void = () => {}) {
 
 /** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
 export const loaded = () =>
-  import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
+  import('./session/session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
 
 /** A tick from the worker that moves nothing; a test spreads what it sends over it. */
 export const idleTick: PhysicsResults = {

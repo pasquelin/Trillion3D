@@ -1,4 +1,4 @@
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 
 /** A geometry page of `vertices` random vertices — signed zeros among them — with normals and
  *  texture coordinates on one page in two, so attribute names travel too. */

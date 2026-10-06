@@ -21,7 +21,13 @@ import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts';
-import { caches, describe, describeShape, serveFiles, type Ranks } from '../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts';
+import {
+  caches,
+  describe,
+  describeShape,
+  serveFiles,
+  type Ranks,
+} from '../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
   text ??= await readFile(new URL(document, folder), 'utf8');
@@ -75,7 +81,15 @@ async function prepared(folder: URL, document: string, written?: unknown) {
 test('the scene built from the tables is the scene the loader built, on every compiled cache', async (t) => {
   serveFiles(t);
   const folders = await caches();
-  assert.ok(folders.length >= 10, 'the compiled caches are found');
+  // Every pointer the fixture scenes hold names one cache folder, and the fixtures hold some.
+  const { glob } = await import('node:fs/promises');
+  const held: string[] = [];
+  for await (const pointer of glob('tests/fixtures/scenes/*/cache{,-*}/native/full/manifest.json', {
+    cwd: fileURLToPath(new URL('../../../../../', import.meta.url)),
+  }))
+    held.push(pointer);
+  assert.ok(held.length > 0, 'the fixture scenes hold compiled caches');
+  assert.equal(folders.length, held.length, 'every compiled cache the fixtures hold is found');
   for (const folder of folders) {
     // A partitioned cache draws its placements from rows, not nodes: `partition.test.ts` proves
     // them against the loader's.

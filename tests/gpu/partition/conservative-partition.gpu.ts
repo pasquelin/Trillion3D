@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { DEFAULT_SCENE, sceneDerived } from '../../../bench/runner/scene.ts';
-import { cacheHoldsBlend } from '../../../bench/runner/cacheManifest.ts';
+import { DEFAULT_SCENE, sceneDerived } from '../../../bench/runner/assets/scene.ts';
+import { cacheHoldsBlend } from '../../../bench/runner/assets/cacheManifest.ts';
 import { loadPage, runOnDawn } from '../kit/onDawn.ts';
 
 const POSES = 30;
@@ -41,9 +41,9 @@ test('the GPU partition is conservative on every row of every pose', async () =>
     pageErrors,
   );
   console.log(JSON.stringify({ ...reading, frames: reading.frames?.slice(-3) }, null, 2));
-  assert.equal(reading.erreur ?? null, null, String(reading.erreur));
+  assert.equal(reading.error ?? null, null, String(reading.error));
   assert.deepEqual(pageErrors, []);
-  assert.deepEqual(reading.evenements, [], 'the engine reported a fallback or an error');
+  assert.deepEqual(reading.events, [], 'the engine reported a fallback or an error');
   const { total, frames, occlusion, occlusionViolations } = reading;
   assert.ok(total && frames && occlusion && occlusionViolations);
   assert.equal(frames.length, POSES, 'every pose is audited');

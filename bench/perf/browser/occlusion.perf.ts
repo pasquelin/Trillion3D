@@ -3,26 +3,26 @@ import { createHizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts
 import { countUnoccluded } from '../../../packages/sdk-browser/src/hiz/unoccluded.ts';
 import { splitOccludersInto } from '../../../packages/sdk-browser/src/hiz/split.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
-import { boites, camera, located } from './support/scenes.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
+import { boxes, camera, located } from './support/scenes.ts';
 import {
   referenceCountUnoccluded,
   referenceSplitOccluders,
 } from '../../oracles/browser/occlusion.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { SceneBox } from './support/scenes.ts';
 
-const LARGEUR = 640,
-  HAUTEUR = 360;
-const alea = graine(29),
-  profondeur = new Float32Array(LARGEUR * HAUTEUR);
-for (let i = 0; i < profondeur.length; i++) profondeur[i] = alea() * 0.4 + 0.5;
-const pyramide = buildHizPyramid(profondeur, LARGEUR, HAUTEUR);
-const cam = camera(6, 0.1, LARGEUR / HAUTEUR),
-  viewport: [number, number] = [LARGEUR, HAUTEUR];
-const grande: SceneBox[] = boites({ count: 20000 }),
+const WIDTH = 640,
+  HEIGHT = 360;
+const alea = xorshiftRandom(29),
+  depth = new Float32Array(WIDTH * HEIGHT);
+for (let i = 0; i < depth.length; i++) depth[i] = alea() * 0.4 + 0.5;
+const pyramide = buildHizPyramid(depth, WIDTH, HEIGHT);
+const cam = camera(6, 0.1, WIDTH / HEIGHT),
+  viewport: [number, number] = [WIDTH, HEIGHT];
+const grande: SceneBox[] = boxes({ count: 20000 }),
   cas = (pages: SceneBox[], name: string) => ({ name, input: pages, size: pages.length });
-const jeux = [
+const sets = [
   cas(grande, '20 000 boxes including degenerate'),
   cas(grande.slice(0, 1), 'one box'),
   cas([], 'no box'),
@@ -33,26 +33,26 @@ const urls = (pages: SceneBox[]) => pages.map((page) => page.url);
 const occluders: SceneBox[] = [],
   rest: SceneBox[] = [];
 
-const resSplit = await mesure({
+const resSplit = await measure({
   name: 'splitOccluders',
   fichier: 'packages/sdk-browser/src/hiz/split.ts',
-  cas: jeux,
-  calcul: (pages) => {
-    splitOccludersInto(pages, located(pages.length), cameraMoteur(cam), viewport, occluders, rest);
+  cas: sets,
+  calculation: (pages) => {
+    splitOccludersInto(pages, located(pages.length), engineCamera(cam), viewport, occluders, rest);
     return { occluders: urls(occluders), rest: urls(rest) };
   },
-  attendu: (pages) => {
+  expected: (pages) => {
     const split = referenceSplitOccluders(pages, cam, viewport);
     return { occluders: urls(split.occluders), rest: urls(split.rest) };
   },
   options: { tours: 60, budgetMs: 1500 },
 });
 
-const resCount = await mesure({
+const resCount = await measure({
   name: 'countUnoccluded',
   fichier: 'packages/sdk-browser/src/hiz/unoccluded.ts',
-  cas: jeux,
-  calcul: (pages) => {
+  cas: sets,
+  calculation: (pages) => {
     const counts = createHizCounts();
     return {
       kept: urls(
@@ -60,7 +60,7 @@ const resCount = await mesure({
           pages,
           located(pages.length),
           pyramide,
-          cameraMoteur(cam),
+          engineCamera(cam),
           viewport,
           counts,
         ),
@@ -68,7 +68,7 @@ const resCount = await mesure({
       counts,
     };
   },
-  attendu: (pages) => {
+  expected: (pages) => {
     const counts = createHizCounts();
     return {
       kept: urls(referenceCountUnoccluded(pages, pyramide, cam, viewport, counts)),
@@ -80,8 +80,8 @@ const resCount = await mesure({
 
 await stress({
   name: 'splitOccludersInto extremes',
-  calcul: (p: SceneBox[]) =>
-    splitOccludersInto(p, located(p.length), cameraMoteur(cam), viewport, [], []),
+  calculation: (p: SceneBox[]) =>
+    splitOccludersInto(p, located(p.length), engineCamera(cam), viewport, [], []),
   extremes: [{ name: 'empty', input: [] }],
 });
 

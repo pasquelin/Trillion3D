@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts';
+import { integers } from '../../texture/integerVectors.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 
 /** The text of WGSL function `name` of the resolve, to its closing brace. */
@@ -27,14 +28,6 @@ test('shade_fs writes each storage texel exactly once, after the resolve, which 
   for (const set of ['thinOut=', 'rcvOffset=', 'rcvPlane='])
     assert.equal(resolve.split(set).length, 2, set);
 });
-
-/** WGSL's integer vector constructor: its arguments flattened, one scalar splat to `size`. */
-const integers =
-  (size: number, unsigned: boolean) =>
-  (...args: Array<number | number[]>) => {
-    const flat = args.flat().map((x) => (unsigned ? Math.trunc(x) >>> 0 : Math.trunc(x)));
-    return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat;
-  };
 
 test('every way out of the resolve leaves the receiver word the double write left', () => {
   let texel: number[] = [];

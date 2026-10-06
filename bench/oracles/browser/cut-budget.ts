@@ -46,7 +46,7 @@ export function referenceProjectedClusterError(
 }
 
 /** `errorFloorPixels` from before batch 4c, on the depth that defect-3's corrected bound
- *  uses (`−vue(C).z`) where the old one took the distance to the eye: the floor stays the
+ *  uses (`−view(C).z`) where the old one took the distance to the eye: the floor stays the
  *  lower bound of a subtree; the proof is at the `errorFloorAt` site. */
 export function referenceErrorFloorPixels(
   error: number | null | undefined,

@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, type ResultatPagePreuve } from '../kit/enginePageProof.ts';
+import { runPageProof, type PageProofResult } from '../kit/enginePageProof.ts';
 
 type Reading = {
   fellBack: boolean;
@@ -15,7 +15,7 @@ type Reading = {
   tiles: Array<{ mode: string } & Record<string, number[]>>;
 };
 
-interface Result extends ResultatPagePreuve {
+interface Result extends PageProofResult {
   main?: Reading;
   fallback?: Reading;
 }
@@ -24,20 +24,20 @@ interface Result extends ResultatPagePreuve {
 const differs = (a: number[], b: number[]) => a.some((value, i) => Math.abs(value - b[i]) > 8);
 
 test('the fallback pass draws every blending mode once the visibility buffer is refused', async () => {
-  const result = (await preuveDansLaPage(
+  const result = (await runPageProof(
     resolve(import.meta.dirname, 'fallbackBlendPage.ts'),
     'fallbackBlend',
     'run',
   )) as Result;
-  assert.equal(result.indisponible ?? null, null, String(result.indisponible));
-  assert.equal(result.erreur ?? null, null, String(result.erreur));
-  assert.deepEqual(result.erreurs, []);
+  assert.equal(result.unavailable ?? null, null, String(result.unavailable));
+  assert.equal(result.error ?? null, null, String(result.error));
+  assert.deepEqual(result.errors, []);
   const { main, fallback } = result;
   assert.ok(main && fallback, 'both images read');
   assert.equal(main.fellBack, false, 'the main side kept its visibility buffer');
   assert.equal(fallback.fellBack, true, 'the refusing side fell back');
   // The one failure the fallback side is built to cause; any other says the engine went wrong.
-  const failures = (result.evenements ?? []).filter((e) => /failed/.test(e.phase));
+  const failures = (result.events ?? []).filter((e) => /failed/.test(e.phase));
   assert.ok(
     failures.every((e) => e.phase === 'material-pipeline-failed'),
     JSON.stringify(failures),

@@ -4,7 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { VIS_SHADER, type VisPage } from './buffer.ts';
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { camera, quadPages, centerId } from './buffer.fixture.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
@@ -19,8 +19,8 @@ test('MeshStandardMaterial pure metal retains the punctual specular highlight', 
   const { pages, geometry } = quadPages(metalMat);
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-  const shaded = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+  const shaded = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size);
   const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4;
   // The directional source still contributes a tinted specular highlight.
   assert.ok(shaded[o] > 0);
@@ -82,7 +82,7 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
     clusterId: 'near',
   };
   const cam = camera(),
-    ids = rasterVisibilityIds([far, near], identityRoots(), cameraMoteur(cam), [16, 16]);
+    ids = rasterVisibilityIds([far, near], identityRoots(), engineCamera(cam), [16, 16]);
   const unpacked = unpackVisibilityId(centerId(ids, 16, 16));
   assert.ok(unpacked);
   assert.equal(unpacked.pageIndex, 0);
@@ -107,8 +107,8 @@ test('standard-material irradiance matches the reference linear capture without 
     cam.position.z = 3;
     cam.updateMatrixWorld();
     const size: [number, number] = [64, 64],
-      ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-    const pixels = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size),
+      ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+    const pixels = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size),
       offset = (32 * 64 + 32) * 4;
     for (let c = 0; c < 3; c++)
       assert.ok(

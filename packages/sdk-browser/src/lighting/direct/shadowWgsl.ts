@@ -1,6 +1,6 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts';
-import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../../vsm/constants.ts';
+import { VSM_CONSTANTS_WGSL, VSM_MASK_MAX_RAYS, VSM_UNIT_PER_CM } from '../../vsm/constants.ts';
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts';
 import { vsmPoolTexelIndexWgsl } from '../../vsm/resources.ts';
 import {
@@ -26,7 +26,6 @@ import {
 import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts';
 import { PCF_TAPS } from './pcfTaps.ts';
 import {
-  VSM_MASK_MAX_RAYS,
   VSM_MASK_TABLE_BINDING,
   VSM_MASK_TILES_BINDING,
   vsmMaskTableReadWgsl,

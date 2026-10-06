@@ -4619,6 +4619,21 @@
       "name": "`cells`, `cellPage`: il file da cui è stata letta la sorgente, che un rifiuto nomina."
     }
   },
+  "PageHome": {
+    "summary": "Il posto proprio di una pagina in un serbatoio che contiene l'intero catalogo: il suo rango, il suo primo byte e la sua larghezza.",
+    "members": {
+      "rank": "Il suo rango nell'ordine del catalogo.",
+      "offset": "Il suo primo byte nel serbatoio.",
+      "bytes": "La sua larghezza, in byte."
+    }
+  },
+  "PageHomes": {
+    "summary": "Il posto di ogni pagina per chiave, e i byte che occupano insieme.",
+    "members": {
+      "homes": "Il posto di ogni pagina, per chiave.",
+      "bytes": "I byte che tutti i posti occupano insieme."
+    }
+  },
   "pageDecodeWorkerCount": {
     "summary": "Dimensione della riserva di decodifica: mai più dei core annunciati dalla macchina, mai più del limite del pacchetto, mai più del limite di ammissione già in vigore sui trasferimenti, e almeno uno.",
     "description": "Un valore assente o non intero equivale a un solo esecutore: su una piattaforma che non dice nulla, non si inventa parallelismo."
@@ -5097,6 +5112,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Numeri per rotazione in un lotto: quattro."
+  },
+  "QualityResolution": {
+    "summary": "La risoluzione a cui un mondo disegna: una modalità, oppure una `scale` dello schermo per asse che sostituisce quella della modalità, fissa o `dynamic` — il budget di fotogramma sceglie allora la scala tra la sua metà e se stessa.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` o `'turbo'`: 1, 1/1,5, 1/1,7, 1/2 o 1/3 dello schermo per asse.",
+      "scale": "Una frazione dello schermo per asse, al posto di quella della modalità.",
+      "dynamic": "Se il budget di fotogramma abbassa la scala mentre l'immagine si muove."
+    }
   },
   "Ray": {
     "summary": "Una semiretta: origine e direzione unitaria.",
@@ -7359,6 +7382,14 @@
       "budget": "Limiti fissi, letti una volta all’avvio della fisica.",
       "simulationRange": "Metri attorno alla camera entro cui i corpi sono simulati (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "La gravità del mondo: una preimpostazione o un vettore."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "La qualità che una pagina chiede creando un mondo (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Ogni gruppo al livello di questo nome.",
+      "groups": "I gruppi che la pagina imposta a un livello proprio, sopra il preset.",
+      "resolution": "La risoluzione; `WorldOptions.renderScale`, se data, prevale."
     }
   },
   "VehicleDriver": {

@@ -1,6 +1,6 @@
 // Pseudo-random draws of the correctness campaigns: the generators their cases were drawn with,
 // and the two distributions every campaign draws from. The generators stay distinct —
-// changing one would move its cases — but `entre` (between) and `log` have only one writing.
+// changing one would move its cases — but `between` (between) and `log` have only one writing.
 
 /** A linear congruential step on 32-bit integers: the light-grid and resolve probes' draw. */
 export function seeded(seed: number): () => number {
@@ -20,18 +20,18 @@ export function xorshift32(seed: number): () => number {
 }
 
 /**
- * The two distributions drawn from a generator: `entre(a, b)` uniform on the interval, `log(a, b)`
+ * The two distributions drawn from a generator: `between(a, b)` uniform on the interval, `log(a, b)`
  * uniform on a log scale — the one that covers the decades of a distance, a radius or an error
  * equally.
  */
 export function lois(draw: () => number): {
   hasard: () => number;
-  entre: (a: number, b: number) => number;
+  between: (a: number, b: number) => number;
   log: (a: number, b: number) => number;
 } {
   return {
     hasard: draw,
-    entre: (a: number, b: number) => a + (b - a) * draw(),
+    between: (a: number, b: number) => a + (b - a) * draw(),
     log: (a: number, b: number) => a * (b / a) ** draw(),
   };
 }

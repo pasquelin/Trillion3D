@@ -8,7 +8,7 @@ import {
   isDocumentation,
   sourcePattern,
 } from './changed-steps.ts';
-import { documentationTests } from './docs-tests.ts';
+import { documentationTests } from './docs/tests.ts';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { heavyStep } from './heavy-lock.ts';
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
       .filter((file) => code && sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   );
-  // A documentation change also runs the tests that read documentation (`scripts/docs-tests.ts`).
+  // A documentation change also runs the tests that read documentation (`scripts/docs/tests.ts`).
   const testFiles = [
     ...new Set([
       ...relatedTests(files, changed),

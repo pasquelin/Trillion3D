@@ -4,7 +4,6 @@
 import { createHash } from 'node:crypto';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
-import { threeLodBackend } from '../../../../bench/witnesses/three/lod.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
 import { camera as mainCamera, quadScene } from '../webgpu/pages/testScenes.fixture.ts';
@@ -133,15 +132,6 @@ export const engineSites: Site[] = [
       const backend = state as RenderBackend;
       backend.render(camera);
       return { ...counts(backend.metrics()), pending: backend.pendingUrls?.() ?? null };
-    },
-  },
-  {
-    name: 'threeLodBackend (host-library LOD)',
-    create: () => threeLodBackend(transparentFan()),
-    measure: (state, camera) => {
-      const backend = state as RenderBackend;
-      backend.render(camera);
-      return counts(backend.metrics());
     },
   },
 ];

@@ -1,8 +1,8 @@
 import { useWords } from '../i18n.ts';
 import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
-import { runName } from '../../reports/names.ts';
-import type { Report } from '../../reports/types.ts';
+import { runName } from './model/names.ts';
+import type { Report } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface CampaignRunsProps {

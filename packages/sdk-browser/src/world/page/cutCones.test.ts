@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
-import { coneHolds } from '../../../../../tests/kit/cone.ts';
+import { coneHolds } from '../../../../../tests/kit/reference/cone.ts';
 import { cutRuntimePrimitive } from './runtimePrimitive.ts';
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts';
 

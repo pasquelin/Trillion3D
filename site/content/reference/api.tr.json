@@ -2873,6 +2873,21 @@
       "name": "`cells`, `cellPage`: kaynağın okunduğu dosya; bir ret onu adlandırır."
     }
   },
+  "PageHome": {
+    "summary": "Tüm kataloğu tutan bir havuzda bir sayfanın kendi yeri: sırası, ilk baytı ve genişliği.",
+    "members": {
+      "rank": "Katalog sırasındaki sırası.",
+      "offset": "Havuzdaki ilk baytı.",
+      "bytes": "Bayt cinsinden genişliği."
+    }
+  },
+  "PageHomes": {
+    "summary": "Her sayfanın anahtarına göre yeri ve birlikte kapladıkları bayt.",
+    "members": {
+      "homes": "Her sayfanın anahtarına göre yeri.",
+      "bytes": "Tüm yerlerin birlikte kapladığı bayt."
+    }
+  },
   "PageIntegrationAnswer": {
     "summary": "Bir worker'ın bir varışa yanıtı: planlandı ya da başarısız."
   },
@@ -3247,6 +3262,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Bir yığında dönüş başına sayı: dört."
+  },
+  "QualityResolution": {
+    "summary": "Bir dünyanın çizdiği çözünürlük: bir kip ya da kipinkinin yerini alan, sabit veya `dynamic` olan, eksen başına ekranın `scale` değeri — kare bütçesi o zaman ölçeği yarısı ile kendisi arasında seçer.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` veya `'turbo'`: eksen başına ekranın 1, 1/1,5, 1/1,7, 1/2 veya 1/3'ü.",
+      "scale": "Kipinkinin yerine eksen başına ekranın bir kesri.",
+      "dynamic": "Görüntü hareket ederken kare bütçesinin ölçeği düşürüp düşürmediği."
+    }
   },
   "Quaternion": {
     "summary": "`math/matrix/quaternion.ts` üzerinde birim bir kuaterniyon olarak bir dönüş.",
@@ -5245,6 +5268,14 @@
       "budget": "Sabit sınırlar, fizik başlarken bir kez okunur.",
       "simulationRange": "Kameranın çevresinde cisimlerin simüle edildiği metre (`world.physics.simulationRange`); `null`, `camera.far` değerini izler.",
       "gravity": "Dünyanın yerçekimi: bir ön ayar ya da vektör."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "Bir sayfanın dünya oluştururken istediği kalite (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Her grup bu adın düzeyinde.",
+      "groups": "Sayfanın ön ayarın üzerinde kendi düzeyine ayarladığı gruplar.",
+      "resolution": "Çözünürlük; verilmişse `WorldOptions.renderScale` önceliklidir."
     }
   },
   "WorldRenderer": {

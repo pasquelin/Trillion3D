@@ -4,10 +4,10 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./geometryPage.ts"
+    ".": "./src/geometryPage.ts"
   },
   "files": [
-    "*.ts"
+    "src/*.ts"
   ],
   "engines": {
     "node": ">=22.18"

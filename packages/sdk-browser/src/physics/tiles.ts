@@ -1,24 +1,19 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
-  LAYER,
-  MOTION,
-  SHAPE,
   collisionBytesOf,
-  physicsMatterOf,
   type CommandWriter,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
 import { createModelBodies } from './modelBodies.ts';
+import { restoreTile, wantedTiles } from './tileResident.ts';
 import {
   cookedBytes,
   cookedPhysics,
   isModel,
   locate,
-  moversOf,
-  nearness,
   placedOf,
   tilePose,
   type Model,
@@ -93,20 +88,7 @@ export function createTileStreamer(
       if (signal.aborted) return;
       // Left out since, or its room taken by a static mesh: it waits, the room kept for the nearer.
       if (p.out || bodies.count.collisionBytes + p.tile.bytes > share) return;
-      p.id = bodies.claim(p.tile.bytes, 0, { model: p.model, tile: p });
-      const handle = p.id & BODY_INDEX;
-      const { position, quaternion, scale } = tilePose(p);
-      // The matter the node's collider declares, over the engine's default, as for every body.
-      const matter = physicsMatterOf(p.instance);
-      // Restored, built into one static body, and its handle dropped: the body keeps the shape.
-      writer.restore(handle, bytes);
-      writer.add({
-        ...{ id: p.id, motion: MOTION.static, layer: LAYER.static, shape: SHAPE.cooked },
-        ...{ flags: 0, position, quaternion, size: [scale.x, scale.y, scale.z] },
-        ...{ mass: 0, density: 0, friction: matter.friction, restitution: matter.restitution },
-        ...{ gravityScale: 1, indices: [handle] },
-      });
-      writer.release(handle);
+      restoreTile(writer, bodies, p, bytes);
       invalidate();
     } catch (error) {
       // Its model left: the read was let go, which is no failure. A 4xx is not asked at the next
@@ -140,16 +122,7 @@ export function createTileStreamer(
     update(eye: ArrayLike<number>, range: number) {
       if (!models.size) return;
       declared.carry();
-      const wanted: [number, Placed][] = [],
-        movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity);
-      let held = 0; // What the wanted resident tiles hold.
-      for (const { placed } of models.values())
-        for (const p of placed) {
-          const near = nearness(p, eye, range, movers);
-          if (near === Infinity || declared.holds(p.model, p.instance.node)) evict(p);
-          else wanted.push([near, p]);
-          if (p.id >= 0) held += p.tile.bytes;
-        }
+      const { wanted, held } = wantedTiles(models.values(), bodies, declared, evict, eye, range);
       wanted.sort((a, b) => a[0] - b[0]);
       // The share beside the static meshes: a tile past it never fits, and holds no one back.
       const free = share - bodies.count.collisionBytes + held;

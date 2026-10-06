@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { manifest, TEMPLATES } from '../../../../tests/fixtures/manifestBinary.ts';
-import { EMPTY, pagedManifest } from '../../../../tests/fixtures/pagedManifest.ts';
+import { manifest, TEMPLATES } from '../../../../tests/fixtures/manifest/manifestBinary.ts';
+import { EMPTY, pagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts';
 import type { EngineError } from '../contracts/index.ts';
 import { decodeManifestBinary } from './binaryDecode.ts';
-import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts';
 import { openPagedManifest, readPagedManifest } from './paged.ts';
 
 /** The manifest one column file gave, before the manifest was paged. */

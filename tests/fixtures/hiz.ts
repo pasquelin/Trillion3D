@@ -1,7 +1,7 @@
 import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts';
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts';
-import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
 import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import type { HizPage } from '../../packages/sdk-browser/src/hiz/types.ts';
@@ -67,7 +67,7 @@ export function projectBoxToScreen(
     [{ min, max }],
     { roots: [{ world: matrix }], packed: [0], rootOfPacked: Int32Array.from([0]) },
     1,
-    cameraMoteur(camera),
+    engineCamera(camera),
     viewport,
     boxScratch,
   );
@@ -86,4 +86,13 @@ export function occluderPyramid(occluders: VisPage[], cam: EngineCamera, size: [
   const locations = identityLocations(occluders.length);
   const ids = rasterVisibilityIds(occluders, locations, cam, size);
   return buildHizPyramid(visibilityDepth(ids, occluders, locations, cam, size), ...size);
+}
+
+/** A small deterministic generator in [0, 1): the same seed gives the same generated cases. */
+export function seededRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
 }

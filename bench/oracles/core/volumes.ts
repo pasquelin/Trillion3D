@@ -4,9 +4,9 @@
 import * as THREE from 'three';
 
 /** A Three.js Box3 built from `[minX, minY, minZ, maxX, maxY, maxZ]`. */
-export const boite3 = (b: ArrayLike<number>) =>
+export const box3 = (b: ArrayLike<number>) =>
   new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
 
-/** Box3 bounds copied flat, in the order of `boite3`. */
+/** Box3 bounds copied flat, in the order of `box3`. */
 export const aPlat = (box: THREE.Box3) =>
   Float64Array.of(box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z);

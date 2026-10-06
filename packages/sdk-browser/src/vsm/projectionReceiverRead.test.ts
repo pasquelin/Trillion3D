@@ -4,8 +4,8 @@
 // calls (`receiverOffsetReaders.test.ts` runs it).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { vsmLayout } from './resources.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27);
 

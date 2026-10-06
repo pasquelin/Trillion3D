@@ -7,7 +7,7 @@
  * panel takes its colours from the page it opens on. Its source, translations and tests live
  * in the `pasquelin/site` repository, under `public/shared/`.
  *
- * Only the published build carries it (`docs-build.ts --published`, run by the site workflow):
+ * Only the published build carries it (`docs/build.ts --published`, run by the site workflow):
  * a local serve, a browser proof or a thumbnail capture never calls the audience host.
  *
  * The tag is injected at copy time rather than written into the hundred page sources: a page

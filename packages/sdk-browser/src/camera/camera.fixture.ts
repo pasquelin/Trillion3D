@@ -11,6 +11,6 @@ import {
  * knowing what it holds. It allocates: the per-frame path rewrites the camera the engine
  * already owns (`run.cam`).
  */
-export function cameraMoteur(source: HostCamera | EngineCamera): EngineCamera {
+export function engineCamera(source: HostCamera | EngineCamera): EngineCamera {
   return 'viewProjection' in source ? source : readCameraWorld(createEngineCamera(), source);
 }

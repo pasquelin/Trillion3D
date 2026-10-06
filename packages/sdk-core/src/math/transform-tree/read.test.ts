@@ -13,16 +13,16 @@ import {
 } from './transformTree.ts';
 import { nodeWorldDirection, nodeWorldPosition, nodeWorldQuaternion } from './read.ts';
 
-const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
+const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
 test('nodeWorldPosition updates a stale ancestor before reading', () => {
   const tree = createTransformTree(4);
-  const racine = addTransformNode(tree);
-  const enfant = addTransformNode(tree, racine);
-  setNodePosition(tree, racine, 10, 0, 0);
-  setNodePosition(tree, enfant, 1, 2, 3);
+  const root = addTransformNode(tree);
+  const child = addTransformNode(tree, root);
+  setNodePosition(tree, root, 10, 0, 0);
+  setNodePosition(tree, child, 1, 2, 3);
   const out = new Float64Array(3);
-  nodeWorldPosition(out, tree, enfant); // no explicit update before the call
+  nodeWorldPosition(out, tree, child); // no explicit update before the call
   assert.deepEqual([...out], [11, 2, 3]);
 });
 
@@ -33,7 +33,7 @@ test('nodeWorldQuaternion decomposes the world matrix of a rotated and scaled no
   setNodeScale(tree, node, 2, 3, 4);
   const q = new Float64Array(4);
   nodeWorldQuaternion(q, tree, node);
-  assert.ok(proche(Math.abs(q[1]), 1) && proche(q[0], 0) && proche(q[2], 0));
+  assert.ok(near(Math.abs(q[1]), 1) && near(q[0], 0) && near(q[2], 0));
 });
 
 test('nodeWorldDirection: object presents +z, camera looks toward -z, at identity', () => {

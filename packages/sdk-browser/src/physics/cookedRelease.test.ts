@@ -7,7 +7,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsSession } from './session.ts';
+import { createPhysicsSession } from './session/session.ts';
 import {
   compiledModel,
   cooked,

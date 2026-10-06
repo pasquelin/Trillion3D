@@ -5,11 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import {
-  preuveDansLaPage,
-  publieEtVerifie,
-  type ResultatPagePreuve,
-} from '../kit/enginePageProof.ts';
+import { runPageProof, publishAndVerify, type PageProofResult } from '../kit/enginePageProof.ts';
 
 interface Step {
   name: string;
@@ -19,7 +15,7 @@ interface Step {
   held: boolean;
 }
 
-interface Result extends ResultatPagePreuve {
+interface Result extends PageProofResult {
   passes: Record<string, Step[]>;
 }
 
@@ -27,12 +23,12 @@ interface Result extends ResultatPagePreuve {
 const [LEFT, RIGHT, CORNER] = [0, 1, 2];
 
 test('a transparent follows setTransform, paged and unpaged', async () => {
-  const result = (await preuveDansLaPage(
+  const result = (await runPageProof(
     resolve(import.meta.dirname, 'transparentTransformPage.ts'),
     'transparentTransform',
     'run',
   )) as Result;
-  publieEtVerifie(result);
+  publishAndVerify(result);
   for (const [pass, steps] of Object.entries(result.passes)) {
     const at = (name: string) =>
       steps.find((e) => e.name === name) ?? assert.fail(`${pass}: ${name} missing`);

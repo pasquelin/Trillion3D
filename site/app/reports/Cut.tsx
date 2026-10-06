@@ -1,8 +1,8 @@
 import { useWords } from '../i18n.ts';
 import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
-import { formatValue } from '../../reports/metrics.ts';
-import type { CutAnalysis, CutRow } from '../../reports/types.ts';
+import { formatValue } from './model/metrics.ts';
+import type { CutAnalysis, CutRow } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface CutProps {

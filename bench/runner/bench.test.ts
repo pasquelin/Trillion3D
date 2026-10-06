@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './scene.ts';
+import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './assets/scene.ts';
 import { CAMPAIGN, BASE } from './campaign.ts';
 import {
   ENGINES,
@@ -11,7 +11,7 @@ import {
   poseAt,
   readOptions,
   trajectoryPoses,
-} from './options.ts';
+} from './harness/options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';

@@ -2,7 +2,6 @@
 // shipped module, generated tiles and lights, and what `shaderRun` needs to run the kernel's pieces.
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts';
-import { vsmLayout } from './resources.ts';
 import {
   VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL,
   VSM_LIGHT_KIND_POINT as POINT,
@@ -10,6 +9,7 @@ import {
   VSM_LIGHT_KIND_SPOT as SPOT,
 } from './constants.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
+import { vsmLayout } from './layout.ts';
 
 export const CODE = vsmProjectionWgsl(
   vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),

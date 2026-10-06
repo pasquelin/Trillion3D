@@ -8,7 +8,7 @@ import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { createFrameComposer } from './compose.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
-import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
+import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts';
 import { frameStart } from '../../frame/scheduling.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
@@ -33,8 +33,8 @@ type Inputs = {
  * order as a hand-deduped array: membership is that of the structure, where an `includes`
  * rewalked the whole list for every address, frame after frame.
  */
-export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
-  for (const url of urls) attente.add(url);
+export function pushPending(pending: Set<string>, urls: readonly string[]) {
+  for (const url of urls) pending.add(url);
 }
 
 /** The sample of an image WebGL2 timed, named by its frame: the passes the draw path named under
@@ -81,7 +81,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       if (needFetch.length > 0) {
         if (!measuring && !streaming.promise) streaming.startFetch(needFetch);
         else if (!measuring && streaming.promise) {
-          empileEnAttente(streaming.queuedFetch, needFetch);
+          pushPending(streaming.queuedFetch, needFetch);
           streaming.backgroundFetchController?.abort(
             new DOMException('Camera request superseded', 'AbortError'),
           );

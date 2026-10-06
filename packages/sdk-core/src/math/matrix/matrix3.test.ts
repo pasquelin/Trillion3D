@@ -38,23 +38,23 @@ test('normalMatrix3: rank 2, several distinct vertex normals all land on the fac
   // zero): three different vertex normals, but with a positive z component as on a
   // face that has not flipped, must all land on +X once unit — the flattened
   // face has only one normal left, the face one, and per-vertex smoothing disappears.
-  const normalesLocales: Array<[number, number, number]> = [
+  const normalsLocal: Array<[number, number, number]> = [
     [0, 0, 1],
     [0.5, 0.3, 0.8],
     [-0.2, 0.9, 0.4],
   ];
-  for (const [x, y, z] of normalesLocales) {
-    const rendue: [number, number, number] = [
+  for (const [x, y, z] of normalsLocal) {
+    const rendered: [number, number, number] = [
       n[0] * x + n[3] * y + n[6] * z,
       n[1] * x + n[4] * y + n[7] * z,
       n[2] * x + n[5] * y + n[8] * z,
     ];
-    const norme = Math.hypot(...rendue);
-    assert.ok(norme > 0, `vertex normal (${x},${y},${z}): yielded zero, ${rendue}`);
+    const norm = Math.hypot(...rendered);
+    assert.ok(norm > 0, `vertex normal (${x},${y},${z}): yielded zero, ${rendered}`);
     assert.deepEqual(
-      [rendue[0] / norme, rendue[1] / norme, rendue[2] / norme],
+      [rendered[0] / norm, rendered[1] / norm, rendered[2] / norm],
       [1, 0, 0],
-      `vertex normal (${x},${y},${z}): ${rendue}, expected face normal +X`,
+      `vertex normal (${x},${y},${z}): ${rendered}, expected face normal +X`,
     );
   }
 });
@@ -97,19 +97,19 @@ test('normalMatrix3: preserves normal/tangent perpendicularity under shear', () 
   // Shear in x along y: a normal and a tangent perpendicular in object space
   // must stay so in transformed space once the normal is carried by the normal matrix.
   const m = Float64Array.from([1, 0, 0, 0, 0.7, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-  const normaleObjet: [number, number, number] = [0, 1, 0];
-  const tangenteObjet: [number, number, number] = [1, 0, 0];
-  assert.equal(dotVector3(normaleObjet, tangenteObjet), 0);
+  const normalObject: [number, number, number] = [0, 1, 0];
+  const tangentObject: [number, number, number] = [1, 0, 0];
+  assert.equal(dotVector3(normalObject, tangentObject), 0);
   const n = normalMatrix3(new Float64Array(9), m);
-  const normaleMonde: [number, number, number] = [
-    n[0] * normaleObjet[0] + n[3] * normaleObjet[1] + n[6] * normaleObjet[2],
-    n[1] * normaleObjet[0] + n[4] * normaleObjet[1] + n[7] * normaleObjet[2],
-    n[2] * normaleObjet[0] + n[5] * normaleObjet[1] + n[8] * normaleObjet[2],
+  const normalWorld: [number, number, number] = [
+    n[0] * normalObject[0] + n[3] * normalObject[1] + n[6] * normalObject[2],
+    n[1] * normalObject[0] + n[4] * normalObject[1] + n[7] * normalObject[2],
+    n[2] * normalObject[0] + n[5] * normalObject[1] + n[8] * normalObject[2],
   ];
-  const tangenteMonde: [number, number, number] = [
-    m[0] * tangenteObjet[0] + m[4] * tangenteObjet[1] + m[8] * tangenteObjet[2],
-    m[1] * tangenteObjet[0] + m[5] * tangenteObjet[1] + m[9] * tangenteObjet[2],
-    m[2] * tangenteObjet[0] + m[6] * tangenteObjet[1] + m[10] * tangenteObjet[2],
+  const tangentWorld: [number, number, number] = [
+    m[0] * tangentObject[0] + m[4] * tangentObject[1] + m[8] * tangentObject[2],
+    m[1] * tangentObject[0] + m[5] * tangentObject[1] + m[9] * tangentObject[2],
+    m[2] * tangentObject[0] + m[6] * tangentObject[1] + m[10] * tangentObject[2],
   ];
-  assert.ok(Math.abs(dotVector3(normaleMonde, tangenteMonde)) < 1e-12);
+  assert.ok(Math.abs(dotVector3(normalWorld, tangentWorld)) < 1e-12);
 });

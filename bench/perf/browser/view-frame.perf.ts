@@ -10,7 +10,7 @@ import type {
   PageRec,
   ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-import { mesure, rapport } from '../../core/index.ts';
+import { measure, rapport } from '../../core/index.ts';
 import { referenceAttachments, referenceUpdateInstance } from '../../oracles/browser/view-frame.ts';
 import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 const DUMMY_TEXTURE = {} as GPUTexture;
@@ -115,31 +115,31 @@ const readInstance = (_: Instances, { instance }: Instance) => {
   return Float64Array.from(output);
 };
 
-const resAttachments = await mesure({
+const resAttachments = await measure({
   name: 'surface attachments',
   fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts',
   cas: [
     { name: '2 000 frames without resize', input: steadyFrames, size: 2000 },
     { name: 'resizes and a disposed target', input: resized, size: 7 },
   ],
-  calcul: eachAttachments(surfaceColorAttachments),
-  attendu: eachAttachments(referenceAttachments),
+  calculation: eachAttachments(surfaceColorAttachments),
+  expected: eachAttachments(referenceAttachments),
   lecture: readAttachments,
   options: { tours: 100, budgetMs: 1500 },
 });
 
-const resInstance = await mesure({
+const resInstance = await measure({
   name: 'instance displacement',
   fichier: 'packages/sdk-browser/src/backend/autonomous/instancePose.ts',
   cas: [
     { name: '5 000 pages', input: largeInstance, size: 5000 },
     { name: '100 pages', input: smallInstance, size: 100 },
   ],
-  calcul: ({ engine }: Instances) => {
+  calculation: ({ engine }: Instances) => {
     deplaceInstance(engine.instance, engine.baseRoots, transformation, engine.instance.draws);
     return engine;
   },
-  attendu: ({ oracle }: Instances) => {
+  expected: ({ oracle }: Instances) => {
     referenceUpdateInstance(
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>(oracle.instance),
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(oracle.baseRoots),

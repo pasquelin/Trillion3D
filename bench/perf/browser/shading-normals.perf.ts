@@ -3,17 +3,17 @@ import { importHostTexture } from '../../../packages/sdk-browser/src/host/textur
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { shadingNormal } from '../../oracles/browser/cpu-image/shadingNormal.ts';
-import { graine, mesure, stress, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
 import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts';
 import { reperes } from './support/scenesNormal.ts';
 import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
-const alea = graine(0x4e07);
+const alea = xorshiftRandom(0x4e07);
 
-function carteNormales(depart: number) {
+function normalsMap(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
-    tire = graine(depart);
+    tire = xorshiftRandom(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
   const map = new G.GraphTexture();
   map.image = { data, width: 8, height: 8 };
@@ -22,7 +22,7 @@ function carteNormales(depart: number) {
   return importHostTexture(map);
 }
 
-const CARTE = carteNormales(0x51);
+const CARTE = normalsMap(0x51);
 const matieres = [
   { carte: false, doubleSided: false, backSide: false, normalScale: 1, normalScaleY: 1 },
   { carte: true, doubleSided: false, backSide: false, normalScale: 1.25, normalScaleY: -0.75 },
@@ -77,7 +77,7 @@ function preparerLot(): Item[] {
 const lot = preparerLot();
 const passe =
   <N>(
-    normale: (
+    normal: (
       page: VisPage,
       tri: NonNullable<ReturnType<typeof triangleAt>>,
       bary: { w0: number; w1: number; w2: number },
@@ -91,7 +91,7 @@ const passe =
     const output = new Float64Array(items.length * 3);
     for (let i = 0; i < items.length; i++) {
       const p = items[i];
-      const n = normale(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
+      const n = normal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
       output[i * 3] = lit(n, 0);
       output[i * 3 + 1] = lit(n, 1);
       output[i * 3 + 2] = lit(n, 2);
@@ -99,7 +99,7 @@ const passe =
     return output;
   };
 
-const res = await mesure({
+const res = await measure({
   name: 'shadingNormal hostile frames',
   fichier: 'bench/oracles/browser/cpu-image/shadingNormal.ts',
   cas: [
@@ -107,14 +107,14 @@ const res = await mesure({
     { name: 'one frame', input: lot.slice(0, 1), size: 1 },
     { name: 'no frame', input: [], size: 0 },
   ],
-  calcul: passe(shadingNormal, (n, c) => n[c]),
-  attendu: passe(referenceShadingNormal, (n, c) => (c === 0 ? n.x : c === 1 ? n.y : n.z)),
+  calculation: passe(shadingNormal, (n, c) => n[c]),
+  expected: passe(referenceShadingNormal, (n, c) => (c === 0 ? n.x : c === 1 ? n.y : n.z)),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'shadingNormal extremes',
-  calcul: (p) => shadingNormal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace),
+  calculation: (p) => shadingNormal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace),
   extremes: [
     { name: 'first', input: lot[0] },
     { name: 'last', input: lot[lot.length - 1] },

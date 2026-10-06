@@ -2,12 +2,12 @@
 // `ecartTemoin`; `null` on a row without one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mesure } from './measure.ts';
+import { measure } from './measure.ts';
 import { TOURS_MIN } from './chrono.ts';
 
 const conf = {
   fichier: 'bench/core/measure.ts',
-  options: { chauffe: 1, tours: 5 },
+  options: { warmup: 1, tours: 5 },
 };
 const cas = [{ name: 'one case', size: 4, input: 4 }];
 /** Enough work for the clock to see it, whatever its resolution. */
@@ -18,14 +18,14 @@ const travail = (n: number) => {
 };
 
 test('a witness is timed like the calculation, and its median gives ecartTemoin', async () => {
-  const { resultats } = await mesure({
+  const { resultats: results } = await measure({
     ...conf,
     name: 'witnessed',
     cas,
     temoin: travail,
-    calcul: travail,
+    calculation: travail,
   });
-  const [r] = resultats;
+  const [r] = results;
   assert.ok(r.temoin);
   // Interleaved rounds: one sample of each side per round, never fewer than the floor.
   assert.equal(r.temoin.tours, r.tours);
@@ -35,14 +35,14 @@ test('a witness is timed like the calculation, and its median gives ecartTemoin'
 });
 
 test('without a witness the row says so with null, never zero; an untimed case too', async () => {
-  const alone = await mesure({ ...conf, name: 'alone', cas, calcul: travail });
-  const untimed = await mesure({
+  const alone = await measure({ ...conf, name: 'alone', cas, calculation: travail });
+  const untimed = await measure({
     ...conf,
     name: 'untimed',
-    cas: [{ name: 'untimed', input: 4, mesure: false }],
+    cas: [{ name: 'untimed', input: 4, measure: false }],
     temoin: travail,
-    calcul: travail,
-    attendu: travail,
+    calculation: travail,
+    expected: travail,
   });
   for (const r of [alone.resultats[0], untimed.resultats[0]]) {
     assert.equal(r.temoin, null);

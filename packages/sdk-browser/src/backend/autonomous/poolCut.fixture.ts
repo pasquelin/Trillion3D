@@ -3,10 +3,10 @@ import type { BackendDiagnostic } from '../types.ts';
 import {
   dag,
   dagCamera,
-  racine,
+  root,
   type DagPage,
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
 import { createRefusalAnswer } from './refusals.ts';
@@ -15,7 +15,7 @@ import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
 import { createEngineCamera } from '../../camera/world.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { createPageParents } from '../../residency/pageParents.ts';
+import { createPageParents } from '../../page/selection/pageParents.ts';
 import { postPackedBases } from '../../page/selection/placements.ts';
 import { rootChildren } from '../../residency/minimumCapacity.ts';
 import type { HostCamera } from '../../camera/world.ts';
@@ -58,7 +58,7 @@ export function mount(
     diagnostics: BackendDiagnostic[] = [];
   for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
   const roots = primitives.map((pages, i) => ({
-    ...racine(pages),
+    ...root(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
   // The per-placement tables and the packed rank of each page, as the layout posts them (#1235):
@@ -132,7 +132,7 @@ export function mount(
     answerRefusals();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
-    const drawn = (last = cut(cameraMoteur(camera), pixelError));
+    const drawn = (last = cut(engineCamera(camera), pixelError));
     frame.after = state.allocationBytes;
     pool.follow(requested, shown);
     // The resident pages drawn in place of missing ones: the ancestors a refinement replaces.

@@ -11,12 +11,10 @@ import {
   type Stores,
 } from './geometryPoolLayout.ts';
 import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryPoolStores.ts';
+import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts';
 import { writeFloatAtlas } from './floatAtlas.ts';
 export type { PoolList } from './geometryPoolLayout.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
-type List = HostAttributes[string];
-/** Floats, grown to the largest write and kept: a steady frame allocates nothing. */
-let scratch = new Float32Array(0);
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no
  * quantized page covers, a cache that carries none, a world's dynamic geometry (#573). Its stores
@@ -45,23 +43,9 @@ export function createVertexPool(
   /** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
   const upload = (name: PoolList, at: number, n: number) => {
     const key = LAYOUT[name].buffer;
-    if (key === 'concatNrm') writeFloatAtlas(device.queue, stores.concatNrm, at, scratch, 0, n);
-    else device.queue.writeBuffer(stores[key], at * 4, scratch, 0, n);
-  };
-  /** Fills the scratch with vertices `from` to `from + n - 1` of list `name` of `a`: its floats. */
-  const fill = (a: HostAttributes, name: PoolList, from: number, n: number) => {
-    const { stride, parts } = LAYOUT[name];
-    if (scratch.length < n * stride) scratch = new Float32Array(n * stride);
-    let part = 0;
-    for (const [source, width, missing] of parts) {
-      const list: List | undefined = a[source];
-      if (list) list.readInto(scratch, part, stride, from, n, width, missing);
-      else
-        for (let i = 0; i < n; i++)
-          scratch.fill(missing, part + i * stride, part + i * stride + width);
-      part += width;
-    }
-    return n * stride;
+    if (key === 'concatNrm')
+      writeFloatAtlas(device.queue, stores.concatNrm, at, scratchFloats(), 0, n);
+    else device.queue.writeBuffer(stores[key], at * 4, scratchFloats(), 0, n);
   };
   /** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
   const holds = (attributes: HostAttributes, name: PoolList) =>
@@ -92,9 +76,9 @@ export function createVertexPool(
         upload(
           'normal',
           offsetOf('normal', next, block.vertexBase),
-          fill(attributes, 'normal', 0, block.count),
+          fillScratch(attributes, 'normal', 0, block.count),
         );
-    scratch = new Float32Array(0); // a growth's largest list is not kept, as the open's
+    releaseScratch(); // a growth's largest list is not kept, as the open's
     grown?.(next);
     return true;
   };
@@ -146,9 +130,9 @@ export function createVertexPool(
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
           if (!block || !holds(attributes, name)) continue;
-          const n = fill(attributes, name, 0, block.count); // grows the scratch: read it after
+          const n = fillScratch(attributes, name, 0, block.count); // grows the scratch: read it after
           arrays[LAYOUT[name].buffer].set(
-            scratch.subarray(0, n),
+            scratchFloats().subarray(0, n),
             offsetOf(name, size, block.vertexBase),
           );
         }
@@ -156,7 +140,7 @@ export function createVertexPool(
       for (const key of BUFFERS) device.queue.writeBuffer(stores[key], 0, arrays[key]);
       const normals = arrays.concatNrm;
       writeFloatAtlas(device.queue, stores.concatNrm, 0, normals, 0, normals.length);
-      scratch = new Float32Array(0); // the open's largest list is not kept
+      releaseScratch(); // the open's largest list is not kept
     },
     /** The block of `attributes`, placed in the room the open left when it has none — a record
      *  mounted since —; a mount past that room grows it in place (#1293). `dynamic` marks its
@@ -182,7 +166,7 @@ export function createVertexPool(
     write(attributes: HostAttributes, name: PoolList, from: number, count: number) {
       const block = blocks.get(attributes);
       if (!block || !holds(attributes, name)) return 0;
-      const written = fill(attributes, name, from, Math.min(count, block.count - from));
+      const written = fillScratch(attributes, name, from, Math.min(count, block.count - from));
       upload(name, offsetOf(name, size, block.vertexBase + from), written);
       return written * 4;
     },

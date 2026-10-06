@@ -10,8 +10,8 @@ import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/enco
 import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { encodeAvant, ressourcesAvant } from '../../../bench/oracles/browser/cut-dispatches.ts';
-import { DAG_SELECTION_SHADER_AVANT } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
+import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cut-dispatches.ts';
+import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
 import { median } from '../../../scripts/median.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';
 import { countCommands, sceneView } from './cutScene.ts';
@@ -36,14 +36,14 @@ export async function measureDispatches(sweep: DispatchSweep) {
   const { packed, uniforms } = sceneView(sweep.leaves, sweep.levels);
   const shipped = await createDagResources(device, packed, true);
   if (!shipped) throw new Error('the shipped cut does not mount');
-  const { module, compilation } = await gpu.compile(DAG_SELECTION_SHADER_AVANT);
+  const { module, compilation } = await gpu.compile(DAG_SELECTION_SHADER_BEFORE);
   if (compilation.length) throw new Error(`the frozen cut does not compile: ${compilation}`);
   // The oracle reads the fields `packed` carries under its own, private, shape.
-  const before = ressourcesAvant(
+  const before = resourcesBefore(
     device,
     module,
     shipped.layout,
-    packed as unknown as Parameters<typeof ressourcesAvant>[3],
+    packed as unknown as Parameters<typeof resourcesBefore>[3],
   );
   const block = new Float32Array(DAG_VIEW_WORDS);
   writeDagUniforms(block, packed, uniforms, true, shipped.listCap);
@@ -98,7 +98,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
   const variants = [
     {
       output: before.output,
-      encode: (e: GPUCommandEncoder, d: number) => encodeAvant(e, before, d),
+      encode: (e: GPUCommandEncoder, d: number) => encodeBefore(e, before, d),
     },
     {
       output: shipped.output,

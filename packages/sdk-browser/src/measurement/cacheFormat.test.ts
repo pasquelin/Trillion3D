@@ -7,8 +7,8 @@ import {
   EngineError,
   FORMAT_VERSION,
 } from '../../../sdk-core/src/index.ts';
-import { manifest } from '../../../../tests/fixtures/manifestBinary.ts';
-import { pagedManifest } from '../../../../tests/fixtures/pagedManifest.ts';
+import { manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts';
+import { pagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts';
 
 /** A page location for the test's lifetime, the previous one given back after. */
 function stubLocation(t: TestContext) {

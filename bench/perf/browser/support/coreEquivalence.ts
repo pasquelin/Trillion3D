@@ -15,8 +15,8 @@ import {
 } from '../../../../packages/sdk-core/src/index.ts';
 import { parElement, type Measurement } from '../../../core/index.ts';
 import { chainesHostiles, lectureReference, lectureSocle } from './coreHierarchy.ts';
-import { f64, ligne, m4, normaleReference, trsReference } from './coreLine.ts';
-import { affines, matrices, paires, paires32, points } from './scenesCore.ts';
+import { f64, ligne, m4, referenceNormal, trsReference } from './coreLine.ts';
+import { affines, matrices, pairs, pairs32, points } from './scenesCore.ts';
 import * as S from './coreOutputs.ts';
 
 const v3 = (p: ArrayLike<number>) => new THREE.Vector3(p[0], p[1], p[2]);
@@ -40,7 +40,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       '4×4 product, double precision',
       'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires hostiles',
-      paires,
+      pairs,
       (l) => l.map(([a, b]) => f64(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements)),
       parElement(([a, b]: Float64Array[], i) => multiplyMatrix4(S.products[i], a, b)),
     ),
@@ -48,7 +48,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       '4×4 product written on its input',
       'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires hostiles',
-      paires,
+      pairs,
       (l) => l.map(([a, b]) => f64(m4(b).premultiply(m4(a)).elements)),
       parElement(([a, b]: Float64Array[], i) => {
         const out = S.inPlace[i];
@@ -60,7 +60,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       '4×4 product toward single precision',
       'packages/sdk-core/src/math/matrix/matrix4.ts',
       'paires arrondies',
-      paires32,
+      pairs32,
       (l) =>
         l.map(([a, b]) =>
           Float32Array.from(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements),
@@ -98,7 +98,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       'packages/sdk-core/src/math/matrix/matrix3.ts',
       'matrices hostiles',
       matrices,
-      (l) => l.map((m) => normaleReference(m4(m))),
+      (l) => l.map((m) => referenceNormal(m4(m))),
       parElement((m: Float64Array, i) => normalMatrix3(S.normals[i], m)),
     ),
     await ligne(
@@ -154,7 +154,7 @@ async function lignesOperations(): Promise<Measurement[]> {
       'node displacement: parent⁻¹ · world, then TRS',
       'packages/sdk-browser/src/webgpu/pages/render/transform.ts',
       'paires hostiles',
-      paires,
+      pairs,
       (l) =>
         l.map(([parent, world]) =>
           trsReference(m4(world).premultiply(m4(parent).clone().invert())),
@@ -170,7 +170,7 @@ async function lignesOperations(): Promise<Measurement[]> {
   ];
 }
 
-export const noeudsHierarchie = chainesHostiles();
+export const hierarchyNodes = chainesHostiles();
 
 export async function lignesEquivalence(): Promise<Measurement[]> {
   return [
@@ -178,8 +178,8 @@ export async function lignesEquivalence(): Promise<Measurement[]> {
     await ligne(
       'hierarchies: world, position, quaternion, scale, determinant and sign, normal, inverse',
       'packages/sdk-core/src/math/matrix/matrix4Trs.ts',
-      `${noeudsHierarchie.length} nodes, depths 1 to 6 and branches`,
-      noeudsHierarchie,
+      `${hierarchyNodes.length} nodes, depths 1 to 6 and branches`,
+      hierarchyNodes,
       (l) => l.map(lectureReference),
       (l) => l.map(lectureSocle),
     ),

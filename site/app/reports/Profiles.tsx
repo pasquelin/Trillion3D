@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useWords } from '../i18n.ts';
 import { Select } from '../ui/Input.tsx';
-import { viewName } from '../../reports/names.ts';
+import { viewName } from './model/names.ts';
 import { Card } from '../ui/Card.tsx';
-import { runOf, sceneName } from '../../reports/presentation.ts';
+import { runOf, sceneName } from './model/presentation.ts';
 import { ProfileReading } from './ProfileReading.tsx';
-import type { Report, ReportRecord } from '../../reports/types.ts';
+import type { Report, ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ProfilesProps {

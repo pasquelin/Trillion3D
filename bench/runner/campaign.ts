@@ -2,21 +2,21 @@
 // =====================================================================================
 // The complete benchmark campaign: everything the benchmark can measure, run in a single command,
 // each reference scene (`REFERENCE_SCENES` of `scene.ts`) then each run under
-// `--out/<scene>/<name>/` (default `.mesure/out/global/`). A run whose directory already
+// `--out/<scene>/<name>/` (default `.measure/out/global/`). A run whose directory already
 // contains a `measure.json` is skipped to resume an interrupted campaign.
 //
 //   node bench/runner/campaign.ts [--out .mesure/out/global] [--scene a,b] [--only name,name] [--list]
 //
 // Each line names what it isolates: a single option distinguishes it from its neighbor, and it is
-// this difference that is read in `summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
+// this difference that is read in `summary/summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
 // are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
-import { launchChrome } from './chrome.ts';
+import { launchChrome } from './harness/chrome.ts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { campaignIdentity, canResume } from './report/provenance.ts';
-import { parseArgs, scenesOf } from './options.ts';
+import { parseArgs, scenesOf } from './harness/options.ts';
 import { measureOutput } from '../core/paths.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');

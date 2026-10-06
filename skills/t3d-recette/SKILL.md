@@ -22,7 +22,7 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
    previous batch's scripts (player, A/B loop, capture harness, summaries) from
    `.worktrees/logs/recette-<its after>/` into `.worktrees/logs/recette-<after>/`; never rebuild
    them. One headless Chrome at a time, killed by PID; each run has a fitting time limit. Every
-   harness opens it through `launchChrome` (`bench/runner/chrome.ts`), never `chromium.launch`:
+   harness opens it through `launchChrome` (`bench/runner/harness/chrome.ts`), never `chromium.launch`:
    Playwright's own headless shell loses the WebGPU device after the first frame (#1364).
 2. **Time** first, with nothing else of the batch running (no build, no capture), each `to measure`
    issue, labelled `measuring` meanwhile: what its Proof names, before and after, same scene, camera
@@ -39,7 +39,7 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
    timing or proving that merge alone. Each pull request is proved in the class its
    `Image proof class:` line declares, per CONTRIBUTING.md "Image and fidelity" (class 2 through
    `bench.ts --reference`; a missing reference or a changed exact engine image is redrawn by
-   `bench/runner/reference.ts`, `bench/runner/README.md`). Every batch runs `pnpm run test:chrome`
+   `bench/runner/references/reference.ts`, `bench/runner/README.md`). Every batch runs `pnpm run test:chrome`
    once on the after side (the WebGL2 proofs, `docs/TESTS.md`): a failure is an image ko.
 4. **Promise**: re-read each diff against its issue, line by line: every To-do and Proof item
    delivered, no image loss, no scene tuning, reuse, a test per changed behaviour.
@@ -53,7 +53,7 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
 7. **Thumbnails**, after the images, on the after tree: each example the batch added or changed
    (`git diff --name-only <before> <after> -- 'site/examples/*.html'`, one `<id>.html` each), plus
    each `pnpm run check:thumbnails` lists, captured with
-   `node scripts/docs-examples-thumbnails.ts <id>` (one Chrome). Look at each before committing: a
+   `node scripts/docs/examples-thumbnails.ts <id>` (one Chrome). Look at each before committing: a
    blank or broken render is a defect (`/t3d-writer`), not a thumbnail. One issue you open for the
    batch ("Thumbnails of batch `<after>`"), one branch `<issue>-thumbnails` from `develop` in
    `.worktrees/`, one pull request starting `Closes #<issue>`, saying "Thumbnail only", with the

@@ -66,7 +66,7 @@ export function typeErrors(program: ts.Program, root: string): string[] {
 }
 
 /** Whether `project`, a type-check-only (`noEmit`) project, carves `file` (absolute) out on purpose:
- *  its `include` covers it and its `exclude` takes it back, such as the `tests/fixtures/public*`
+ *  its `include` covers it and its `exclude` takes it back, such as the `tests/fixtures/public/`
  *  sources a test type-checks with its own options. An emitting project's `exclude` only says what
  *  not to emit. TypeScript expands the `include` itself, so the globs mean what they mean to `tsc`. */
 export function excludes(project: ts.ParsedCommandLine, file: string): boolean {

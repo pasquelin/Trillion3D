@@ -3,7 +3,7 @@
   "commit": "5b07d815235a7b0add77ead835f01f93f2e3dc2e",
   "dirty": false,
   "from": "folder",
-  "command": "node bench/runner/reference.ts --scene facade-7",
+  "command": "node bench/runner/references/reference.ts --scene facade-7",
   "generatedAt": "2026-09-29T17:16:08.939Z",
   "pathVersion": 9,
   "engine": "webgpu",

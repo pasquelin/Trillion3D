@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TEMPLATES, sha } from '../../../../tests/fixtures/manifestBinary.ts';
-import { preview } from '../../../../tests/fixtures/manifestBinaryPreview.ts';
+import { TEMPLATES, sha } from '../../../../tests/fixtures/manifest/manifestBinary.ts';
+import { preview } from '../../../../tests/fixtures/manifest/manifestBinaryPreview.ts';
 import { decodeManifestBinary } from './binaryDecode.ts';
-import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts';
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   EngineError,

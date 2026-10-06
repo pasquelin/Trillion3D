@@ -33,8 +33,8 @@ import {
 } from '../../../oracles/browser/transparent-orders.ts';
 
 /** What the encode loop counted on the last lap: read by the sample, not by the lap. */
-let comptes = 0;
-const appelsEncodes = () => comptes;
+let counts = 0;
+const encodedCalls = () => counts;
 
 /**
  * THE ENCODE LOOP, counted: an own slot whose item the frustum rejects is not encoded; a slot of
@@ -45,7 +45,7 @@ const appelsEncodes = () => comptes;
  * loop does not touch: from +7.6% to −7.6% on the double-sided camera jump, at strictly
  * identical work. A bench that measures something other than the shipped form measures nothing.
  */
-function compteAppels(blendState: BenchSide['blendState']) {
+function callCount(blendState: BenchSide['blendState']) {
   const seeds = blendState.seeds[0],
     own = blendState.ownSeeds[0],
     slotOwns = blendState.slotOwns[0],
@@ -63,7 +63,7 @@ function compteAppels(blendState: BenchSide['blendState']) {
  *  see. */
 function etale(
   blendState: BenchSide['blendState'],
-  miroir: { expanded: Uint32Array; args: Uint32Array },
+  mirror: { expanded: Uint32Array; args: Uint32Array },
   output: Uint32Array,
 ) {
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`.
@@ -81,16 +81,16 @@ function etale(
     vertexShift: blendState.vertexShift,
     instanceBase: 0,
     argsBase: 0,
-    expanded: miroir.expanded,
-    args: miroir.args,
+    expanded: mirror.expanded,
+    args: mirror.args,
   });
   let at = 0;
   for (let i = 0; i < instances; i++) {
-    const item = instanceItem(miroir.expanded[i * 2]),
-      cle = miroir.expanded[i * 2 + 1];
+    const item = instanceItem(mirror.expanded[i * 2]),
+      key = mirror.expanded[i * 2 + 1];
     output[at++] = item;
-    output[at++] = items[item].paged ? spans[cle * 2] : cle;
-    output[at++] = items[item].paged ? spans[cle * 2 + 1] : items[item].count - cle;
+    output[at++] = items[item].paged ? spans[key * 2] : key;
+    output[at++] = items[item].paged ? spans[key * 2 + 1] : items[item].count - key;
   }
   return at;
 }
@@ -98,7 +98,7 @@ function etale(
 /** The four laps of a scene, and the CPU-fallback mirrors allocated outside the lap. */
 function tours(before: BenchSide, after: BenchSide) {
   const blendState = after.blendState;
-  const miroir = {
+  const mirror = {
     expanded: new Uint32Array(blendState.instanceCapacity * 2),
     args: new Uint32Array(slotCapacity(blendState.maxPlanEntries) * 4),
   };
@@ -109,31 +109,31 @@ function tours(before: BenchSide, after: BenchSide) {
       pose(before, image);
       classementReference(before.scene, before.order, image.eye);
       argumentsReference(before.scene, before.args);
-      const rendu = encodeReference(before.scene, before.order, before.args, before.output);
-      output.push(sequence ? before.output.subarray(0, rendu.length) : rendu.rejected);
+      const rendered = encodeReference(before.scene, before.order, before.args, before.output);
+      output.push(sequence ? before.output.subarray(0, rendered.length) : rendered.rejected);
     }
     return output;
   };
   /** The batch path: frustum and own entries on the CPU, then one call per slot. */
-  const optimisee = (images: Frame[], sequence: boolean) => {
+  const optimised = (images: Frame[], sequence: boolean) => {
     const output = [];
     for (const image of images) {
       pose(after, image);
-      const rejets = orderBlendPasses(blendState, image.eye);
+      const rejections = orderBlendPasses(blendState, image.eye);
       if (sequence) {
-        output.push(after.output.subarray(0, etale(blendState, miroir, after.output)));
+        output.push(after.output.subarray(0, etale(blendState, mirror, after.output)));
         continue;
       }
-      comptes = compteAppels(blendState);
-      output.push(rejets);
+      counts = callCount(blendState);
+      output.push(rejections);
     }
     return output;
   };
   return {
-    tourAvant: (images: Frame[]) => reference(images, false),
-    tourApres: (images: Frame[]) => optimisee(images, false),
-    tourAvantSeq: (images: Frame[]) => reference(images, true),
-    tourApresSeq: (images: Frame[]) => optimisee(images, true),
+    passBefore: (images: Frame[]) => reference(images, false),
+    passAfter: (images: Frame[]) => optimised(images, false),
+    passBeforeSeq: (images: Frame[]) => reference(images, true),
+    passAfterSeq: (images: Frame[]) => optimised(images, true),
   };
 }
 
@@ -146,13 +146,13 @@ export function sceneDe(name: string, side: THREE.Side) {
 export type Scene = ReturnType<typeof sceneDe>;
 
 /** The draw calls of a scene's first frame: one per plan entry before, one per slot after. */
-export function appelsDe(scene: Scene) {
+export function callsOf(scene: Scene) {
   const image = glisse[0],
-    etat = scene.before;
-  pose(etat, image);
-  classementReference(etat.scene, etat.order, image.eye);
-  argumentsReference(etat.scene, etat.args);
-  const before = encodeReference(etat.scene, etat.order, etat.args, etat.output);
-  scene.tourApres([image]);
-  return { name: scene.name, before: before.encoded, after: appelsEncodes() };
+    state = scene.before;
+  pose(state, image);
+  classementReference(state.scene, state.order, image.eye);
+  argumentsReference(state.scene, state.args);
+  const before = encodeReference(state.scene, state.order, state.args, state.output);
+  scene.passAfter([image]);
+  return { name: scene.name, before: before.encoded, after: encodedCalls() };
 }

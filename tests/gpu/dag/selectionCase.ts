@@ -1,8 +1,16 @@
 // A DAG selection case laid out the way the engine's host uploads it: the buffers' contents and
 // sizes the selection kernel binds (`selectionKernel.ts`), each derived from the engine's own
 // layout functions, never restated.
+import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import type { sceneRoots } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
-import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import {
+  SELECTION_WORKGROUP,
+  cameraSelectionUniforms,
+} from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
@@ -26,6 +34,22 @@ export interface SelectionCase {
   packed: PackedDag;
   uniforms: SelectionUniforms;
   resident?: ArrayLike<number>;
+}
+
+/** `camera` looking at the scene's origin from (`x`, 0, `z`), and `roots` packed for it: the kernel
+ *  works in the render frame, so the worlds are brought there, as the engine does. */
+export function posedSelection(
+  camera: ReturnType<typeof G.perspectiveCamera>,
+  [x, z, threshold]: [number, number, number],
+  viewport: [number, number],
+  roots: ReturnType<typeof sceneRoots>,
+) {
+  camera.position.set(x, 0, z);
+  camera.lookAt(x, 0, 0);
+  camera.updateMatrixWorld(true);
+  const uniforms = cameraSelectionUniforms(engineCamera(camera), threshold, viewport);
+  const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
+  return { packed, uniforms };
 }
 
 /** The cut rule's two residency bit sets over a copy of the cold words, and each node's open

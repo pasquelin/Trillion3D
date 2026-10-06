@@ -30,9 +30,9 @@ fn three_keys(source: &Path, tag: &str) -> [String; 3] {
 fn three_imports_of_an_obj_give_the_same_key() {
     let root = scratch("identite", "obj");
     let obj = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\n");
-    let [une, deux, trois] = three_keys(&obj, "identite-obj");
-    assert_eq!(une, deux, "two conversions of the same bytes, one key");
-    assert_eq!(deux, trois, "the third does not drift either");
+    let [une, two, trois] = three_keys(&obj, "identite-obj");
+    assert_eq!(une, two, "two conversions of the same bytes, one key");
+    assert_eq!(two, trois, "the third does not drift either");
 
     fs::write(obj.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 1 0\n").expect("mtl");
     let modifiee = key_in_a_fresh_cache(&obj, "identite-obj-mtl");
@@ -45,7 +45,7 @@ fn three_imports_of_an_obj_give_the_same_key() {
 #[test]
 fn three_imports_of_a_usd_layer_give_the_same_key() {
     let couche = wrap("", QUAD);
-    let cles: Vec<String> = (0..3)
+    let keys: Vec<String> = (0..3)
         .map(|_| {
             compile_layer("identite-usd", &couche).result["key"]
                 .as_str()
@@ -53,15 +53,15 @@ fn three_imports_of_a_usd_layer_give_the_same_key() {
                 .to_string()
         })
         .collect();
-    assert_eq!(cles[0], cles[1], "two conversions, one key");
-    assert_eq!(cles[1], cles[2], "the third does not drift either");
+    assert_eq!(keys[0], keys[1], "two conversions, one key");
+    assert_eq!(keys[1], keys[2], "the third does not drift either");
 
     let autre = compile_layer(
         "identite-usd-autre",
         &wrap("", &QUAD.replace("(1, 1, 0)", "(2, 1, 0)")),
     );
     assert_ne!(
-        cles[0],
+        keys[0],
         autre.result["key"].as_str().expect("key"),
         "a modified layer changes the key"
     );

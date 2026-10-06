@@ -30,28 +30,38 @@ test('a record is the shader struct: its size', () => {
   assert.equal(VSM_PROJECTION_RECORD_BYTES, rawOffsets().size);
 });
 
-/** Throws unless the struct of `text` has the offsets the lighting shader reads, as numbers. */
+/** The offsets the lighting shader reads, as numbers: each field of the struct and its byte
+ *  offset. */
+const PINNED_OFFSETS: readonly (readonly [string, number])[] = [
+  ['lightKind', 0],
+  ['emitterSize', 4],
+  ['finestMip', 8],
+  ['mapLevel', 12],
+  ['lightViewToClip', 16],
+  ['lightDirection', 80],
+  ['levelsLeft', 92],
+  ['planesToMapUv', 96],
+  ['shiftedToMapUv', 160],
+  ['originShiftHigh', 224],
+  ['flags', 236],
+  ['originShiftLow', 240],
+  ['levelBias', 252],
+  ['clipmapOrigin', 256],
+  ['ditherTexels', 268],
+  ['cornerSteps', 272],
+  ['lightRange', 280],
+];
+
+/** Throws unless the struct of `text` has the offsets the lighting shader reads, as numbers: no
+ *  field more or fewer, each at its pinned offset, and the pinned size. */
 function assertPinnedOffsets(text: string) {
   const { offsets, size } = wgslStructLayout(text, 'VsmProjectionRecord');
-  assert.deepEqual(offsets, {
-    lightKind: 0,
-    emitterSize: 4,
-    finestMip: 8,
-    mapLevel: 12,
-    lightViewToClip: 16,
-    lightDirection: 80,
-    levelsLeft: 92,
-    planesToMapUv: 96,
-    shiftedToMapUv: 160,
-    originShiftHigh: 224,
-    flags: 236,
-    originShiftLow: 240,
-    levelBias: 252,
-    clipmapOrigin: 256,
-    ditherTexels: 268,
-    cornerSteps: 272,
-    lightRange: 280,
-  });
+  assert.equal(
+    Object.keys(offsets).length,
+    PINNED_OFFSETS.length,
+    'the struct has the pinned fields',
+  );
+  for (const [field, offset] of PINNED_OFFSETS) assert.equal(offsets[field], offset, field);
   assert.equal(size, 288);
 }
 

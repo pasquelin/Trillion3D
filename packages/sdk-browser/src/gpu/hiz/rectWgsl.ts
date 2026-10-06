@@ -2,7 +2,7 @@ import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
 
 /**
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
- * mirror of `premierNiveau` then of the search `hizTestRect` did box by box on the CPU.
+ * mirror of `firstLevel` then of the search `hizTestRect` did box by box on the CPU.
  *
  * This snippet is written once because three kernels depend on it — packing the opaque tested-
  * half bounds, the opaque main-pass cull and the transparent-cluster occlusion test — and two

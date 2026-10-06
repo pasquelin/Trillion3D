@@ -22,13 +22,13 @@ export function residentFlags(
  */
 export function writeTriangleTotals(
   ints: Uint32Array,
-  totaux: {
+  totals: {
     selectedTriangles?: number;
     transparentTriangles?: number;
   },
 ) {
-  ints[OUT_SELECTED_TRIANGLES] = totaux.selectedTriangles ?? 0;
-  ints[OUT_TRANSPARENT_TRIANGLES] = totaux.transparentTriangles ?? 0;
+  ints[OUT_SELECTED_TRIANGLES] = totals.selectedTriangles ?? 0;
+  ints[OUT_TRANSPARENT_TRIANGLES] = totals.transparentTriangles ?? 0;
 }
 
 const residentBit = (bits: Uint32Array, base: number, page: number) =>

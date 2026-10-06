@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts';
 import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts';
-import { cameraMoteur } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import { locatedBy } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import { rasterVisibility } from './raster.ts';
@@ -45,7 +45,7 @@ function drawnTriangles(matrix: G.Matrix4, side: number) {
   const { ids } = rasterVisibility(
     [page(side)],
     locatedBy([{ world: matrix }]),
-    cameraMoteur(camera()),
+    engineCamera(camera()),
     VIEW,
   );
   const pixels = new Map<number, number>();

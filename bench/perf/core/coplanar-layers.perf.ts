@@ -1,9 +1,9 @@
 // coplanar layer units against their oracle.
 import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
-import { graine, mesure, rapport } from '../../core/index.ts';
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
 import { referenceDepthLayerUnits } from '../../oracles/core/coplanar-layers.ts';
 
-const alea = graine(107);
+const alea = xorshiftRandom(107);
 
 /** A hostile layer: out of bounds, non-finite, or missing (`null` behaves as `undefined` on the
  *  engine's `!layer` guard — this bench deliberately probes that wider, unsigned contract). */
@@ -16,23 +16,23 @@ const couche = (): Couche =>
   alea() < 0.3 ? HOSTILES[Math.floor(alea() * HOSTILES.length)] : Math.floor(alea() * 16);
 
 // Output belongs to the test case: the timer only measures engine calls.
-const couches = (nombre: number) => ({
-  liste: Array.from({ length: nombre }, couche),
-  output: new Float64Array(nombre),
+const couches = (count: number) => ({
+  list: Array.from({ length: count }, couche),
+  output: new Float64Array(count),
 });
 const unites =
   (calcule: (layer: number | undefined) => number) =>
-  ({ liste, output }: { liste: Couche[]; output: Float64Array }) => {
-    for (let i = 0; i < liste.length; i++) output[i] = calcule(liste[i] as number | undefined);
+  ({ list, output }: { list: Couche[]; output: Float64Array }) => {
+    for (let i = 0; i < list.length; i++) output[i] = calcule(list[i] as number | undefined);
     return output;
   };
 
-const mesureUnites = await mesure({
+const measureUnits = await measure({
   name: 'coplanar layer units',
   fichier: 'packages/sdk-core/src/lod/depthLayer.ts',
   cas: [{ name: '50 000 layers', size: 50000, input: couches(50000) }],
-  calcul: unites(depthLayerUnits),
-  attendu: unites(referenceDepthLayerUnits),
+  calculation: unites(depthLayerUnits),
+  expected: unites(referenceDepthLayerUnits),
 });
 
-rapport('couches-coplanaires', [mesureUnites], 'layer units return the same values');
+rapport('couches-coplanaires', [measureUnits], 'layer units return the same values');

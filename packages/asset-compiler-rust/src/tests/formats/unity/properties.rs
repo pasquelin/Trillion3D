@@ -22,9 +22,9 @@ const PIXEL: [u8; 70] = [
 // value is less than one.
 #[test]
 fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
-    let projet = UnityProject::new("opaque");
+    let project = UnityProject::new("opaque");
     let guid = "000000000000000000000000000000d1";
-    projet.data(
+    project.data(
         "Materials/Plein.mat",
         guid,
         &mat(
@@ -33,8 +33,8 @@ fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
             "    - _Color: {r: 1, g: 1, b: 1, a: 0.5}\n",
         ),
     );
-    projet.scene(&cube(100, "Boite", guid));
-    let (_, gltf) = projet.compile("unity-opaque").prepared("unity");
+    project.scene(&cube(100, "Boite", guid));
+    let (_, gltf) = project.compile("unity-opaque").prepared("unity");
     let plein = material_named(&gltf, "Plein");
     assert_eq!(
         plein["alphaMode"],
@@ -54,18 +54,18 @@ fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
 // that declares neither stays opaque.
 #[test]
 fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
-    let projet = UnityProject::new("surface-type");
+    let project = UnityProject::new("surface-type");
     let (fondu, masque, plein) = (
         "000000000000000000000000000000d2",
         "000000000000000000000000000000d3",
         "000000000000000000000000000000d4",
     );
-    projet.data(
+    project.data(
         "Materials/Fondu.mat",
         fondu,
         &white_mat("Fondu", "    - _SurfaceType: 1\n"),
     );
-    projet.data(
+    project.data(
         "Materials/Masque.mat",
         masque,
         &white_mat(
@@ -73,18 +73,18 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
             "    - _SurfaceType: 0\n    - _AlphaCutoffEnable: 1\n    - _AlphaCutoff: 0.3\n",
         ),
     );
-    projet.data(
+    project.data(
         "Materials/Plein.mat",
         plein,
         &white_mat("Plein", "    - _Metallic: 0.5\n"),
     );
-    projet.scene(&format!(
+    project.scene(&format!(
         "{}{}{}",
         cube(100, "Vitre", fondu),
         cube(200, "Grille", masque),
         cube(300, "Mur", plein)
     ));
-    let (_, gltf) = projet.compile("unity-surface-type").prepared("unity");
+    let (_, gltf) = project.compile("unity-surface-type").prepared("unity");
     assert_eq!(material_named(&gltf, "Fondu")["alphaMode"], "BLEND");
     assert_eq!(material_named(&gltf, "Masque")["alphaMode"], "MASK");
     assert_eq!(material_named(&gltf, "Masque")["alphaCutoff"], json!(0.3));
@@ -100,14 +100,14 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
 // codes rise there under their own name, and two models that miss the same thing add up.
 #[test]
 fn the_report_of_the_model_driver_reaches_the_unity_report() {
-    let projet = UnityProject::new("rapport-modele");
+    let project = UnityProject::new("rapport-modele");
     let obj = b"mtllib absente.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Uni\nf 1 2 3\n";
-    projet.model_bytes("Models/Triangle.obj", MODEL, obj, "");
-    projet.scene(&instance_of(
+    project.model_bytes("Models/Triangle.obj", MODEL, obj, "");
+    project.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
     ));
-    let (manifest, _) = projet.compile("unity-rapport-modele").prepared("unity");
+    let (manifest, _) = project.compile("unity-rapport-modele").prepared("unity");
     assert_eq!(
         manifest["unsupported"]["material-library-missing"],
         json!(1),
@@ -121,24 +121,24 @@ fn the_report_of_the_model_driver_reaches_the_unity_report() {
 // repeated on the other keeps both modes, and nearest filtering is not smoothed.
 #[test]
 fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
-    let projet = UnityProject::new("sampler");
-    let (image, matiere) = (
+    let project = UnityProject::new("sampler");
+    let (image, material) = (
         "000000000000000000000000000000f1",
         "000000000000000000000000000000f2",
     );
-    projet.asset(
+    project.asset(
         "Textures/pixel.png",
         &PIXEL,
         image,
         "TextureImporter:\n  wrapU: 1\n  wrapV: 0\n  filterMode: 0\n  sRGBTexture: 1\n",
     );
-    projet.data(
+    project.data(
         "Materials/Peinte.mat",
-        matiere,
+        material,
         &white_mat_texture("Peinte", image),
     );
-    projet.scene(&cube(100, "Boite", matiere));
-    let (_, gltf) = projet.compile("unity-sampler").prepared("unity");
+    project.scene(&cube(100, "Boite", material));
+    let (_, gltf) = project.compile("unity-sampler").prepared("unity");
     let sampler = &gltf["samplers"][0];
     assert_eq!(
         sampler["wrapS"],

@@ -2,7 +2,7 @@ import type { ShadeClasses } from '../visibility/shadePipelines.ts';
 import type { ShadeCensus } from '../visibility/shadeCensus.ts';
 import { askGuidePass } from '../pages/render/encodeGuides.ts';
 import { askAsIsSeed } from '../../lighting/deferred/asIsShare.ts';
-import { askParticles } from '../../particles/webgpuParticleFrame.ts';
+import { askParticles } from '../particles/webgpuParticleFrame.ts';
 import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts';
 import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts';

@@ -1,18 +1,24 @@
 // The regression gate of `rapport`, run in a child against a baseline this test writes: a case
-// past `SEUIL_ECHEC` of its recorded median fails the benchmark, one within it passes, and a
+// past `FAILURE_THRESHOLD` of its recorded median fails the benchmark, one within it passes, and a
 // domain without a baseline says the gate is off instead of passing as "nothing slowed down".
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cheminBaseline, cheminFragment, dossierBaselines } from './paths.ts';
+import { baselinePath, fragmentPath, dossierBaselines } from './paths.ts';
 
-const mediane = process.env.GATE_MEDIAN;
-if (mediane !== undefined) {
+const median = process.env.GATE_MEDIAN;
+if (median !== undefined) {
   const { rapport } = await import('./report.ts');
-  const [medianeMs, name] = [Number(mediane), 'one case'];
-  const stats = { medianeMs, p95Ms: medianeMs, minMs: medianeMs, tours: 1, nsParElement: null };
+  const [medianMs, name] = [Number(median), 'one case'];
+  const stats = {
+    medianeMs: medianMs,
+    p95Ms: medianMs,
+    minMs: medianMs,
+    tours: 1,
+    nsParElement: null,
+  };
   const verdict = {
     opsParSec: null,
     temoin: null,
@@ -46,7 +52,7 @@ if (mediane !== undefined) {
 
   test('a case 30 % slower than its baseline fails; 20 % passes; no baseline says so', () => {
     mkdirSync(dossierBaselines, { recursive: true });
-    writeFileSync(cheminBaseline(domaine), JSON.stringify(baseline));
+    writeFileSync(baselinePath(domaine), JSON.stringify(baseline));
     try {
       const slower = run(1.3);
       assert.notEqual(slower.status, 0, 'the gate let a 30 % regression through');
@@ -56,8 +62,8 @@ if (mediane !== undefined) {
       assert.equal(none.status, 0);
       assert.match(none.stdout, /no baseline on this machine, the regression gate is off/);
     } finally {
-      for (const d of [domaine, `${domaine}-none`]) rmSync(cheminFragment(d), { force: true });
-      rmSync(cheminBaseline(domaine), { force: true });
+      for (const d of [domaine, `${domaine}-none`]) rmSync(fragmentPath(d), { force: true });
+      rmSync(baselinePath(domaine), { force: true });
     }
   });
 }

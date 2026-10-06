@@ -33,25 +33,25 @@ The geometry is the foundation; the lighting is what it is for.
 
 Parity means four things, and none of them is a pixel count:
 
-|  |  |
-| --- | --- |
-| **Fixed budgets** | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
-| **Residency by the frame** | what stays on the GPU is what the frame actually read, pages and texture tiles alike |
-| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them |
-| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed |
+|                              |                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| **Fixed budgets**            | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
+| **Residency by the frame**   | what stays on the GPU is what the frame actually read, pages and texture tiles alike  |
+| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them           |
+| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed                             |
 
 ## What it does
 
-| Area | Implemented scope |
-| --- | --- |
-| **Native compiler** | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
-| **Cache** | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected |
-| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing |
-| **Textures** | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled |
-| **Lighting** | a metallic-roughness microfacet model (GGX distribution, Schlick Fresnel), no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the mip chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
-| **Memory** | fixed reservoirs for pages and tiles, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile |
-| **Fallbacks** | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped |
-| **Jobs** | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics |
+| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine                      |
+| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                                                                                                                                                             |
+| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                                                                                                                                                        |
+| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                                                                                                                                                                   |
+| **Lighting**           | a metallic-roughness microfacet model (GGX distribution, Schlick Fresnel), no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the mip chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
+| **Memory**             | fixed reservoirs for pages and tiles, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                                                                                                                                                                                    |
+| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped                                                                                                                                                                                                                                                                   |
+| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                                                                                                                                                             |
 
 ## Quick start
 
@@ -69,7 +69,7 @@ This builds the repository. The package is not on npm yet; from its first releas
 installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models — as
 the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows step by step, with the CDN
 `importmap`, the supported platforms and the server headers. A host supplies its own scenes; the
-bench's are fetched and cooked off git into `.mesure/assets/` by `node bench/runner/assets.ts`
+bench's are fetched and cooked off git into `.mesure/assets/` by `node bench/runner/assets/assets.ts`
 ([Assets](bench/runner/README.md#assets)).
 
 ```js
@@ -126,7 +126,9 @@ budget.
 
 ```html
 <script type="importmap">
-  { "imports": { "trillion3d": "https://cdn.jsdelivr.net/npm/trillion3d/dist/trillion3d.module.js" } }
+  {
+    "imports": { "trillion3d": "https://cdn.jsdelivr.net/npm/trillion3d/dist/trillion3d.module.js" }
+  }
 </script>
 <script type="module">
   import { createWorld } from 'trillion3d';
@@ -159,15 +161,15 @@ Node adapter → Native Rust compiler
 Core: contracts · jobs · cancellation · diagnostics · safety policy
 ```
 
-| Directory | Responsibility |
-| --- | --- |
-| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI |
-| [`packages/page-codec`](packages/page-codec) | Reference geometry-page encoder used to test the browser decoder |
-| [`packages/sdk-core`](packages/sdk-core) | Platform-independent TypeScript contracts and policies |
-| [`packages/sdk-node`](packages/sdk-node) | Native process and filesystem integration |
-| [`packages/sdk-browser`](packages/sdk-browser) | Browser rendering and GPU resource adapters |
-| [`bench/runner`](bench/runner) | The bench: one harness, campaigns and the HTML report |
-| [`tests`](tests) | Public package integration tests and GPU proofs |
+| Directory                                                      | Responsibility                                                   |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI                               |
+| [`packages/page-codec`](packages/page-codec)                   | Reference geometry-page encoder used to test the browser decoder |
+| [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
+| [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
+| [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
+| [`bench/runner`](bench/runner)                                 | The bench: one harness, campaigns and the HTML report            |
+| [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
 
 ## Measuring
 
@@ -177,7 +179,7 @@ Nothing is optimised before it is measured, and no claim outlives its measuremen
 node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
      --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
-node bench/runner/summaryGlobal.ts --id <campaign>   # its report data, for the portal
+node bench/runner/summary/summaryGlobal.ts --id <campaign>   # its report data, for the portal
 ```
 
 - One harness, Playwright driving the machine's Chrome, nothing on disk beyond `.mesure/assets/`.

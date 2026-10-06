@@ -16,7 +16,7 @@ export const SHARE_TARGET: GPUColorTargetState = {
 };
 
 /** The reactive value's target as a particle and the water composite write it
- *  (`../../particles/webgpuParticleDraw.ts`, `../../webgpu/water/pipelines.ts`): the same, green
+ *  (`../../webgpu/particles/webgpuParticleDraw.ts`, `../../webgpu/water/pipelines.ts`): the same, green
  *  alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 };
 

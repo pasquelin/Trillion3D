@@ -1,7 +1,7 @@
 // A gallery example with no capture of its own shows the shared placeholder card. The recette
 // lists every written example the engine draws — not parked (`parkedExampleIds`) — that has no
 // `site/assets/examples/thumbnails/<id>.png` yet, and captures it after the merge with
-// `node scripts/docs-examples-thumbnails.ts <id>` (AGENTS.md rule 2). A report, never a gate: a
+// `node scripts/docs/examples-thumbnails.ts <id>` (AGENTS.md rule 2). A report, never a gate: a
 // missing thumbnail blocks no pull request. `pnpm run check:thumbnails`.
 import { pathToFileURL } from 'node:url';
 import { writtenEntries } from '../site/app/examples/list.ts';

@@ -9,7 +9,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { createFrameGateCore } from './gateCore.ts';
 import { createWebglFrameGate } from '../webgl/core/frameGate.ts';
 import type { CameraMotion } from '../camera/world.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import {
   POSES_PARENT,
   flattenedCamera,
@@ -27,7 +27,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
   const rig = creeRig();
   const motion: CameraMotion = {};
   const image = () => {
-    // `hote = false`: nobody walks the rig, as the contract announces for a parent outside the
+    // `host = false`: nobody walks the rig, as the contract announces for a parent outside the
     // prepared scene. If `enterFrame` read the local pose, or resolved it AFTER the view
     // fingerprint, this move would change nothing there and the frame would stay held wrongly.
     const held = gate.enterFrame({}, rig.camera, motion, VIEWPORT, source, []);
@@ -51,10 +51,10 @@ test('enterFrame resolves the pose before the adaptive threshold: the measured s
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.
   gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, []);
-  const eyeAplatie = [...cameraMoteur(flattenedCamera(DEPLACE_ET_TOURNE)).eye];
+  const flattenedEye = [...engineCamera(flattenedCamera(DEPLACE_ET_TOURNE)).eye];
   assert.deepEqual(
     [...(motion.last ?? [])],
-    eyeAplatie,
+    flattenedEye,
     'speed must start from the eye position in the world, ancestors included',
   );
   assert.notDeepEqual(

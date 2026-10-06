@@ -13,7 +13,7 @@ import { resourceProgress } from './resourceProgress.ts';
 import { openWorldRoots } from '../../scene/worldRoots.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
-import { createPartitionCells } from '../../scene/partition/cells.ts';
+import { createPartitionCells } from '../../partition/cells.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';

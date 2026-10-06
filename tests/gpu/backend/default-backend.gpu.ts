@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { SUN } from '../../../bench/runner/lamps.ts';
+import { SUN } from '../../../bench/runner/lighting/lamps.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 import { manifestUrlOf } from '../../kit/scenes/caches.ts';
 import { runOnDawn } from '../kit/onDawn.ts';

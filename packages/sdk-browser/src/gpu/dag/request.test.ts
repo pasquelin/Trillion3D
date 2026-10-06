@@ -36,12 +36,12 @@ test('the request word yields the page and the priority that were put in it', ()
 });
 
 test('quantification is monotone: it never reverses two errors', () => {
-  const erreurs = [0, 0.001, 0.01, 0.1, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65536, Infinity];
+  const errors = [0, 0.001, 0.01, 0.1, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65536, Infinity];
   let precedent = -1;
-  for (const pixels of erreurs) {
+  for (const pixels of errors) {
     const q = quantizeRequestPriority(pixels);
     assert.ok(q >= precedent, `${pixels} px : ${q} < ${precedent}`);
-    assert.ok(q >= 0 && q <= REQUEST_PRIORITY_MAX, `${pixels} px hors bornes : ${q}`);
+    assert.ok(q >= 0 && q <= REQUEST_PRIORITY_MAX, `${pixels} px outside bounds : ${q}`);
     precedent = q;
   }
   // A null or absurd error never goes ahead of a real error.
@@ -65,27 +65,27 @@ test('every visible request outranks every request ahead, served soonest first, 
   assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now');
 });
 
-function coupe(seuil: number) {
-  const scene = requestScene(seuil);
-  return { ...scene, releve: evaluateDagSelectionKernel(scene.packed, scene.uni) };
+function coupe(threshold: number) {
+  const scene = requestScene(threshold);
+  return { ...scene, reading: evaluateDagSelectionKernel(scene.packed, scene.uni) };
 }
 
 test('published order decreases with the substitute’s screen error, like the WebGL2 path', () => {
-  const { pages, packed, cam, uni, releve } = coupe(1);
-  assert.ok(releve.pageIds.length > 100, 'the cut must keep enough to rank');
+  const { pages, packed, cam, uni, reading } = coupe(1);
+  assert.ok(reading.pageIds.length > 100, 'the cut must keep enough to rank');
   const focal = Math.max(uni.pixelScale[0], uni.pixelScale[1]);
   // View of each pose, composed as the kernel composes it: on matrices BROUGHT TO THE RENDER
   // FRAME, those `packedWorldsToRenderOrigin` wrote into `packed.worlds`. Taking the roots'
   // would mix an absolute world with a relative view, and put the whole scene on the eye — which
   // would yield an infinite error for half the cut, in silence.
-  const vues = Array.from({ length: packed.worldCount }, (_, w) => {
-    const vue = new Float64Array(16);
+  const views = Array.from({ length: packed.worldCount }, (_, w) => {
+    const view = new Float64Array(16);
     multiplyMatrix4(
-      vue,
+      view,
       cam.viewRelative,
       Float64Array.from(packed.worlds.subarray(w * 16, w * 16 + 16)),
     );
-    return { vue, stretch: maxStretch(vue as unknown as readonly number[]) };
+    return { view, stretch: maxStretch(view as unknown as readonly number[]) };
   });
   // SUBSTITUTE screen error, by the core formula (`clusterErrorPixels`), of which `projected`
   // (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
@@ -93,10 +93,10 @@ test('published order decreases with the substitute’s screen error, like the W
   const centre = new Float64Array(4);
   const pixelsDe = (id: number) => {
     const page = pages[id % pages.length],
-      { vue, stretch } = vues[Math.floor(id / pages.length)];
+      { view, stretch } = views[Math.floor(id / pages.length)];
     const sphere = (page.parentError === null ? page.sphere : page.parentSphere) as number[];
     const bande = page.parentError === null ? (page.lodError ?? 0) : page.parentError;
-    transformAffinePoint(centre, vue, sphere[0], sphere[1], sphere[2]);
+    transformAffinePoint(centre, view, sphere[0], sphere[1], sphere[2]);
     return clusterErrorPixels(
       bande,
       stretch,
@@ -108,7 +108,7 @@ test('published order decreases with the substitute’s screen error, like the W
       cam.near,
     );
   };
-  const pixels = releve.pageIds.map(pixelsDe);
+  const pixels = reading.pageIds.map(pixelsDe);
   assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors');
   // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
   // between two clusters of the same step order is indifferent — ties are not broken —, and the boundary between two steps is floating, the kernel rounding in

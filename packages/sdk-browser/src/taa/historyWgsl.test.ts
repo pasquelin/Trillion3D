@@ -15,7 +15,7 @@ import { blendTargets } from '../webgpu/blend/blendTargets.ts';
 import { particleTargets } from '../particles/particleTargets.ts';
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
-import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts';
+import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts';
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number };
 const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {});
@@ -146,7 +146,7 @@ test('the uniform carries the camera parallax, the flicker rates and a pixel wid
     writeTaaView(device, {} as GPUBuffer, state, cam, [960, 540], [1920, 1080], false);
     return writes.at(-1)!.data as Float32Array;
   };
-  let u = written();
+  const u = written();
   // `previous · (lastEye − eye, 0)`: the identity's image of (−0.5, 0, 0, 0).
   assert.deepEqual([...u.subarray(68, 72)], [-0.5, 0, 0, 0]);
   assert.ok(Math.abs(u[72] - (1 - 0.95 ** 2)) < 1e-7, 'two images a period: 1 − 0.95²');

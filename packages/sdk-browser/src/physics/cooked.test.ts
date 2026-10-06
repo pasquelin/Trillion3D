@@ -14,7 +14,7 @@ import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { castDown, startModule } from './module.fixture.ts';
 import { physicsRaycast } from './raycast.ts';
-import type { PhysicsSession } from './session.ts';
+import type { PhysicsSession } from './session/session.ts';
 import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
 

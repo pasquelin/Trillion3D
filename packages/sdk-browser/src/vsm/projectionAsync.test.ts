@@ -3,18 +3,9 @@ import { test } from 'node:test';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createVsmResources } from './resources.ts';
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts';
+import { camera, sun } from './projectionScene.fixture.ts';
 
 const view = {} as GPUTextureView;
-const camera = {
-  view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-  projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-  perspective: true,
-};
-const sun: VsmProjectionLight = {
-  type: 'directional',
-  mapId: 0,
-  direction: [0, -1, 0],
-};
 const lamp: VsmProjectionLight = {
   type: 'point',
   mapId: 8192,

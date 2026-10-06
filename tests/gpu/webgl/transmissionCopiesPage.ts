@@ -6,7 +6,8 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { readDegraded } from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
 import { keptClusterScene } from '../../../bench/witnesses/exact/keptClusterScene.ts';
-import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './clusterPixels.ts';
+import { clear, clusterRecord, mountClusterRenderer, pixel } from './clusterPixels.ts';
+import { quad } from '../../kit/scenes/quad.ts';
 import { listenMaterialDegraded } from './degradedNotices.ts';
 
 /** A rough glass quad at depth 1, white, fully transmissive, shaped by `options`. */

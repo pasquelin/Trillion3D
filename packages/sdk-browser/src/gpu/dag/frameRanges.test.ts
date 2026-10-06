@@ -9,7 +9,7 @@ import { createDagResources } from './resources.ts';
 import { packDagSelection } from './selection.ts';
 import { primitiveWordAt } from './worlds.ts';
 import { encodeDagKernels } from './encode.ts';
-import { encodeurTemoin, ressources } from './encode.fixture.ts';
+import { witnessEncoder, cutResources } from './encode.fixture.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -90,17 +90,17 @@ test("the host's rows and words land in their range, at their row there", async 
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
   const ranges = [100, 30].map((count, r) => ({ count, bindGroup: `r${r}` }));
-  const { encoder, lancements, groupesLies } = encodeurTemoin();
-  const cut = { ...ressources(false, 5), ranges } as unknown as Parameters<
+  const { encoder, dispatches, boundGroups } = witnessEncoder();
+  const cut = { ...cutResources(false, 5), ranges } as unknown as Parameters<
     typeof encodeDagKernels
   >[1];
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut);
-  const of = (kernel: string) => lancements.filter((l) => l.kernel === kernel).map((l) => l.groups);
+  const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups);
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks');
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots");
   assert.deepEqual(of('dagLevel1'), [1, 1, 1, 1], 'levels 1 and 4: each range walks the queue');
   assert.deepEqual(of('dagWanted'), ['indirect', 'indirect']);
   assert.deepEqual(of('dagMask'), ['indirect', 'indirect']);
   assert.deepEqual(of('dagSortRequests'), [1], 'a kernel that reads no primitive runs once');
-  assert.ok(groupesLies.includes('r1'));
+  assert.ok(boundGroups.includes('r1'));
 });

@@ -4619,6 +4619,21 @@
       "name": "`cells`, `cellPage`: el archivo del que se leyó la fuente, que un rechazo nombra."
     }
   },
+  "PageHome": {
+    "summary": "El lugar propio de una página en un reservorio que contiene todo el catálogo: su rango, su primer byte y su ancho.",
+    "members": {
+      "rank": "Su rango en el orden del catálogo.",
+      "offset": "Su primer byte en el reservorio.",
+      "bytes": "Su ancho, en bytes."
+    }
+  },
+  "PageHomes": {
+    "summary": "El lugar de cada página por clave, y los bytes que ocupan juntas.",
+    "members": {
+      "homes": "El lugar de cada página, por clave.",
+      "bytes": "Los bytes que ocupan todos los lugares juntos."
+    }
+  },
   "pageDecodeWorkerCount": {
     "summary": "Tamaño de la reserva de decodificación: nunca más que los núcleos que anuncia la máquina, nunca más que el límite del paquete, nunca más que el límite de admisión ya vigente en las transferencias, y al menos uno.",
     "description": "Un valor ausente o no entero equivale a un solo ejecutor: en una plataforma que no dice nada, no se inventa paralelismo."
@@ -5097,6 +5112,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Números por rotación en un lote: cuatro."
+  },
+  "QualityResolution": {
+    "summary": "La resolución a la que dibuja un mundo: un modo, o una `scale` de la pantalla por eje que sustituye la del modo, fija o `dynamic` — el presupuesto de fotograma elige entonces la escala entre la mitad de ella y ella misma.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` o `'turbo'`: 1, 1/1,5, 1/1,7, 1/2 o 1/3 de la pantalla por eje.",
+      "scale": "Una fracción de la pantalla por eje, en lugar de la del modo.",
+      "dynamic": "Si el presupuesto de fotograma baja la escala mientras la imagen se mueve."
+    }
   },
   "Ray": {
     "summary": "Una semirrecta: origen y dirección unitaria.",
@@ -7359,6 +7382,14 @@
       "budget": "Límites fijos, leídos una vez al arrancar la física.",
       "simulationRange": "Metros alrededor de la cámara dentro de los cuales se simulan los cuerpos (`world.physics.simulationRange`); `null` sigue `camera.far`.",
       "gravity": "La gravedad del mundo: un preajuste o un vector."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "La calidad que una página pide al crear un mundo (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Cada grupo en el nivel de este nombre.",
+      "groups": "Grupos que la página fija en un nivel propio, por encima del preajuste.",
+      "resolution": "La resolución; `WorldOptions.renderScale`, si se da, prevalece."
     }
   },
   "VehicleDriver": {

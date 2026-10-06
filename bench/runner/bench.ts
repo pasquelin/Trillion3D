@@ -10,22 +10,22 @@ import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { onFreshPage } from './chrome.ts';
-import * as options from './options.ts';
+import { onFreshPage } from './harness/chrome.ts';
+import * as options from './harness/options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readStreet } from './street.ts';
-import { imageDiff } from './imageDiff.ts';
-import { benchLights } from './lamps.ts';
+import { readStreet } from './street/street.ts';
+import { imageDiff } from './references/imageDiff.ts';
+import { benchLights } from './lighting/lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs } from './report/evidence.ts';
-import { runSerie } from './series.ts';
-import { runGazeSeries } from './gazeNetworkRun.ts';
-import { publish } from './benchPublish.ts';
-import { readsCache } from './scene.ts';
-import { runFluids } from './fluids.ts';
-import { readLimits } from './limits.ts';
-import { againstReference, sceneReference } from './referenceProof.ts';
-import type { Report, RunContext, Serie } from './report/types.ts';
+import { runSeries } from './series/series.ts';
+import { runGazeSeries } from './gaze/gazeNetworkRun.ts';
+import { publish } from './harness/benchPublish.ts';
+import { readsCache } from './assets/scene.ts';
+import { runFluids } from './fluids/fluids.ts';
+import { readLimits } from './harness/limits.ts';
+import { againstReference, sceneReference } from './references/referenceProof.ts';
+import type { Report, RunContext, Series } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const {
@@ -125,7 +125,7 @@ async function main() {
       manifestUrl: sides[0].manifestUrl ?? MANIFEST,
     };
     // The box, then the camera's street read off the model's own geometry, on one page: the poses
-    // walk it (`poses.ts`).
+    // walk it (`trajectory/poses.ts`).
     const bounds = (report.bounds = await onPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
@@ -142,7 +142,7 @@ async function main() {
         CTX.poses = settings.movingCamera
           ? options.trajectoryPoses(bounds, index, settings.frames)
           : null;
-        const serie: Serie = {
+        const series: Series = {
           view,
           pixelError,
           segment: options.VIEWS[view].segment,
@@ -150,30 +150,31 @@ async function main() {
           pose,
           sides: {},
         };
-        report.series.push(serie);
+        report.series.push(series);
         const files: Record<string, string> = {};
         for (const side of sides) {
           const { row, captureFile } = await onPage((page) =>
-            runSerie(CTX, page, side, view, pixelError, pose, captures),
+            runSeries(CTX, page, side, view, pixelError, pose, captures),
           );
-          serie.sides[side.name] = row;
+          series.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
         const witness = await onPage((page) =>
-          runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
+          runSeries(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
-        serie.sides[`${sides[0].name}-aa`] = witness.row;
-        serie.witnessAA = imageDiff(
+        series.sides[`${sides[0].name}-aa`] = witness.row;
+        series.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
           captures.get(witness.captureFile),
         );
-        serie.beforeAfterDiff = files.before
+        series.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
-        if (reference) serie.referenceDiff = againstReference(reference, serie, files, captures);
-        const { before, after } = serie.sides;
-        serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
+        if (reference) series.referenceDiff = againstReference(reference, series, files, captures);
+        const { before, after } = series.sides;
+        series.sameCut =
+          before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));

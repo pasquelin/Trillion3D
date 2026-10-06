@@ -17,7 +17,7 @@ import type {
   DagViewUniforms,
   PackedDag,
 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
-import { mesure, rapport } from '../../core/index.ts';
+import { measure, rapport } from '../../core/index.ts';
 import {
   readViewBlock,
   referenceCameraUniforms,
@@ -57,19 +57,19 @@ const walk = (frames: number, motion: CameraMotion): Walk => ({
   into: createSelectionUniforms(),
 });
 
-const resCamera = await mesure({
+const resCamera = await measure({
   name: 'camera selection uniforms',
   fichier: 'packages/sdk-browser/src/gpu/core/selection.ts',
   cas: [
     { name: '400 frames, walking and turning', input: walk(400, moving), size: 400 },
     { name: '400 frames, still', input: walk(400, {}), size: 400 },
   ],
-  calcul: ({ cameras, motion, into }: Walk) => {
+  calculation: ({ cameras, motion, into }: Walk) => {
     for (const cam of cameras) cameraSelectionUniforms(cam, PIXEL_ERROR, VIEWPORT, into, motion);
     return into;
   },
   // The block the last frame left, in place over the 399 before it, against that frame's contract.
-  attendu: ({ cameras, motion }: Walk) =>
+  expected: ({ cameras, motion }: Walk) =>
     referenceCameraUniforms(cameras[cameras.length - 1], PIXEL_ERROR, VIEWPORT, motion),
   lecture: (e: Walk, u: unknown) => (u === e.into ? uniformsOf(e.into) : u),
   options: { tours: 200, budgetMs: 1000 },
@@ -90,7 +90,7 @@ const blockCase = (blocks: number, b: Omit<BlockCase, 'target'>): BlockCase => (
 });
 const LIST_CAP = 65536;
 
-const resBlock = await mesure({
+const resBlock = await measure({
   name: 'view uniform block',
   fichier: 'packages/sdk-browser/src/gpu/dag/uniforms.ts',
   cas: [
@@ -100,11 +100,11 @@ const resBlock = await mesure({
       size: 1,
     },
   ],
-  calcul: ({ target, packed, uniforms }: BlockCase) => {
+  calculation: ({ target, packed, uniforms }: BlockCase) => {
     writeDagUniforms(target, packed as unknown as PackedDag, uniforms, true, LIST_CAP);
     return target;
   },
-  attendu: ({ target, packed, uniforms }: BlockCase) =>
+  expected: ({ target, packed, uniforms }: BlockCase) =>
     referenceViewBlocks(packed, uniforms, true, LIST_CAP, target.length / VIEW_BLOCK_WORDS),
   lecture: (e: BlockCase, t: unknown) =>
     t === e.target

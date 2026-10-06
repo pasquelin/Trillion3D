@@ -13,7 +13,7 @@ import {
   readCameraWorld,
   type EngineCamera,
 } from '../../../camera/world.ts';
-import { cameraMoteur } from '../../../camera/camera.fixture.ts';
+import { engineCamera } from '../../../camera/camera.fixture.ts';
 import { moveRootRows } from './movedRoot.ts';
 import { createWebgpuRowState } from '../../row/state.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
@@ -37,7 +37,7 @@ test('copying a view into a kept engine camera matches a fresh one, verdict for 
   let neuve: EngineCamera | undefined;
   let gardee: EngineCamera | undefined;
   for (const frame of frames) {
-    const courante = cameraMoteur(frame);
+    const courante = engineCamera(frame);
     const viaNeuve = sameHizView(neuve, courante);
     neuve = holdCameraWorld(createEngineCamera(), courante);
     const viaCopie = sameHizView(gardee, courante);
@@ -51,7 +51,7 @@ test('the kept camera is the same object across frames: never reallocated, never
   let kept: EngineCamera | undefined;
   const identities = new Set<EngineCamera>();
   for (const frame of frames) {
-    const courante = cameraMoteur(frame);
+    const courante = engineCamera(frame);
     sameHizView(kept, courante);
     kept = holdCameraWorld(kept ?? createEngineCamera(), courante);
     identities.add(kept);
@@ -64,8 +64,8 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   a.position.z = 5;
   a.lookAt(0, 0, 0);
   a.updateMatrixWorld();
-  const kept = holdCameraWorld(createEngineCamera(), cameraMoteur(a));
-  assert.equal(sameHizView(kept, cameraMoteur(a)), true);
+  const kept = holdCameraWorld(createEngineCamera(), engineCamera(a));
+  assert.equal(sameHizView(kept, engineCamera(a)), true);
   // The kept camera is frozen; THIS image's is copied from the host, which inverts its world matrix:
   // a NaN must enter through the local pose, not by touching the numbers by hand, or it would be
   // rewritten before the comparison.

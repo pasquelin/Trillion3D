@@ -5,7 +5,7 @@ import {
   blocsJavaScript,
   reserveArena,
   type ArenaBloc,
-  type ArenaDemande,
+  type ArenaRequest,
 } from '../page/decode/wasmArena.ts';
 
 /**
@@ -40,12 +40,12 @@ export interface Tampon {
 }
 
 /** Batch blocks in module memory if available, otherwise in JavaScript heap. */
-export async function tampon(demandes: readonly ArenaDemande[]): Promise<Tampon> {
+export async function tampon(requests: readonly ArenaRequest[]): Promise<Tampon> {
   await loadMathBatch();
   const wasm = mathBatchWasm();
-  const arena = wasm ? reserveArena(wasm, demandes) : null;
-  if (wasm && arena) return { wasm, blocs: arena.blocs, release: arena.libere };
-  const blocs = blocsJavaScript(demandes);
+  const arena = wasm ? reserveArena(wasm, requests) : null;
+  if (wasm && arena) return { wasm, blocs: arena.blocs, release: arena.freed };
+  const blocs = blocsJavaScript(requests);
   return { wasm: null, blocs: () => blocs, release: () => {} };
 }
 
@@ -69,8 +69,9 @@ export function joue(
   return path;
 }
 
-export const f64 = (bloc: ArenaBloc) => bloc.vue as Float64Array;
-export const vuesF64 = (bloc: ArenaBloc) => (bloc.vues ?? []) as readonly Float64Array[];
+export const f64 = (bloc: ArenaBloc) => bloc.view as Float64Array;
+export const f64Views = (bloc: ArenaBloc) => (bloc.views ?? []) as readonly Float64Array[];
 
-/** The `longueur` elements of block `index`, or zero when buffer released. */
-export const taille = (blocs: readonly ArenaBloc[], index: number) => blocs[index]?.vue.length ?? 0;
+/** The `length` elements of block `index`, or zero when buffer released. */
+export const taille = (blocs: readonly ArenaBloc[], index: number) =>
+  blocs[index]?.view.length ?? 0;

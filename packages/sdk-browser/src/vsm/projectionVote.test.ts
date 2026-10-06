@@ -7,9 +7,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import { vsmLayout } from './resources.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
 import { seeded } from './planFrames.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27), {
   subgroups: true,

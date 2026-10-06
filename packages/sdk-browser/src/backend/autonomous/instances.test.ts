@@ -43,11 +43,11 @@ function instanceEtBase(n: number, roots: number) {
   return { basePages, baseRoots, pages, instRoots };
 }
 
-function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecMesh = false) {
+function sameResult(transform: G.Matrix4, n: number, rootsCount: number, withMesh = false) {
   const a = instanceEtBase(n, rootsCount);
   const b = instanceEtBase(n, rootsCount);
   const draws = createPageDraws(a.instRoots);
-  if (avecMesh)
+  if (withMesh)
     for (let i = 0; i < n; i++) {
       draws.drawing(a.pages[i]).mesh = { matrix: new G.Matrix4() } as unknown as HostMesh;
       (b.pages[i] as { mesh?: { matrix: G.Matrix4 } }).mesh = { matrix: new G.Matrix4() };
@@ -65,7 +65,7 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
       pose(b.instRoots[i % rootsCount].world).toArray(),
       `page ${i}`,
     );
-    if (avecMesh)
+    if (withMesh)
       assert.deepEqual(
         (draws.find(a.pages[i])!.mesh as unknown as { matrix: G.Matrix4 }).matrix.toArray(),
         (b.pages[i] as { mesh?: { matrix: G.Matrix4 } }).mesh!.matrix.toArray(),
@@ -81,11 +81,11 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
 }
 
 test('no page and no root: nothing to move, neither side touches anything', () => {
-  memeResultat(new G.Matrix4().makeTranslation(5, 5, 5), 0, 0);
+  sameResult(new G.Matrix4().makeTranslation(5, 5, 5), 0, 0);
 });
 
 test('a single page and a single root, identity transform', () => {
-  memeResultat(new G.Matrix4(), 1, 1);
+  sameResult(new G.Matrix4(), 1, 1);
 });
 
 test('several pages and roots, composed transform (rotation + scale + translation)', () => {
@@ -93,15 +93,15 @@ test('several pages and roots, composed transform (rotation + scale + translatio
     .makeRotationY(Math.PI / 3)
     .multiply(new G.Matrix4().makeScale(2, 0.5, -1))
     .setPosition(3, -7, 11);
-  memeResultat(transform, 8, 3);
+  sameResult(transform, 8, 3);
 });
 
 test('a mesh attached to the page also receives the same matrix as the reference', () => {
-  memeResultat(new G.Matrix4().makeTranslation(1, 2, 3), 4, 1, true);
+  sameResult(new G.Matrix4().makeTranslation(1, 2, 3), 4, 1, true);
 });
 
 test('a degenerate transform (zero scale) yields the same matrix on both sides', () => {
-  memeResultat(new G.Matrix4().makeScale(0, 0, 0), 3, 2);
+  sameResult(new G.Matrix4().makeScale(0, 0, 0), 3, 2);
 });
 
 // Repainting a primitive replaces the pair the engine owns instead of stacking it: the host may

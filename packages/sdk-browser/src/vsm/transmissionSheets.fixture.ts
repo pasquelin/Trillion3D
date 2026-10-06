@@ -2,7 +2,7 @@
 // by `shaderRun`: the edge rule and the bin's cells, and the generated sheets they are proven on.
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { vsmTransmissionBinWgsl, vsmTransmissionReadWgsl } from './transmissionWgsl.ts';
-import { vsmLayout } from './resources.ts';
+import { vsmLayout } from './layout.ts';
 
 export type V = number[];
 export type Tri = [V, V, V];

@@ -140,7 +140,7 @@ const CALCULE_UNE_MATRICE =
  *  engine's own graph (`host/graph/`): its nodes ARE host objects of the engine's making, whose
  *  matrices the core's `Matrix4` composes as the reference does — a host resolution the engine
  *  path still only reads. */
-const TEMOINS =
+const WITNESSES =
   /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/lod|host\/graph\/|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/;
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
@@ -148,7 +148,7 @@ const TEMOINS =
  *  written into (`readCameraWorld`): no engine file composes into a host matrix any more. The
  *  boundary that gives a campaign its camera back writes the sixteen floats it was handed
  *  (`copyElements`), which is a copy and not a composition. */
-const ECRIT_L_HOTE: Record<string, Record<string, string>> = {};
+const ECRIT_L_HOST: Record<string, Record<string, string>> = {};
 
 test('engine reads the host matrix, it does not compute with it', async () => {
   const fichiers = (await readdir(browser, { recursive: true })).filter(
@@ -158,8 +158,8 @@ test('engine reads the host matrix, it does not compute with it', async () => {
   const fuites: string[] = [],
     inutiles: string[] = [];
   for (const file of fichiers) {
-    if (TEMOINS.test(file)) continue;
-    const permis = ECRIT_L_HOTE[file] ?? {},
+    if (WITNESSES.test(file)) continue;
+    const permis = ECRIT_L_HOST[file] ?? {},
       seen = new Set<string>();
     const text = await readFile(new URL(file, browser), 'utf8');
     for (const ligne of text

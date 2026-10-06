@@ -11,7 +11,7 @@ import {
 } from '../../blend/fallback.ts';
 import { encodeTransparentInstances } from '../../transparent/draw.ts';
 import { boundWaterPass, encodeWaterPass } from '../../water/pass.ts';
-import { encodeParticles } from '../../../particles/webgpuParticleFrame.ts';
+import { encodeParticles } from '../../particles/webgpuParticleFrame.ts';
 import { blendLightResources } from '../../blend/lighting.ts';
 import { directLightResources } from '../prepare/lightResources.ts';
 import { voidStaleBlendGroups } from '../../blend/identity.ts';

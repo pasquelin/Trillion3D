@@ -43,7 +43,6 @@ export async function openGpuDevice(
   return {
     device,
     errors,
-    erreurs: errors,
     async compile(code: string) {
       const module = device.createShaderModule({ code });
       const compilation = (await module.getCompilationInfo()).messages
@@ -73,13 +72,13 @@ export async function openGpuDevice(
 export async function openGpuModule(
   code: string,
 ): Promise<
-  | { indisponible: string; module?: undefined }
-  | { compilation: string[]; erreurs: string[]; module?: undefined }
+  | { unavailable: string; module?: undefined }
+  | { compilation: string[]; errors: string[]; module?: undefined }
   | { gpu: NonNullable<Awaited<ReturnType<typeof openGpuDevice>>>; module: GPUShaderModule }
 > {
   const gpu = await openGpuDevice();
-  if (!gpu) return { indisponible: 'no WebGPU adapter' };
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { module, compilation } = await gpu.compile(code);
-  if (compilation.length) return { compilation, erreurs: gpu.errors };
+  if (compilation.length) return { compilation, errors: gpu.errors };
   return { gpu, module };
 }

@@ -9,8 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import {
-  preuveDansLaPage as runPage,
-  preuveSaine as assertHealthy,
+  runPageProof as runPage,
+  assertSoundProof as assertHealthy,
 } from '../kit/enginePageProof.ts';
 import type { MirrorCase } from './screenMirrorPage.ts';
 

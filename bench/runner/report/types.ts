@@ -1,6 +1,6 @@
-// Shared shapes of the harness measurement: what `series.ts` builds, `bench.ts` assembles into
-// `measure.json`, and everything under `bench/runner/` (`summary.ts`, `summaryCompute.ts`,
-// `summaryMemory.ts`, `summaryTextures.ts`, `report/`) reads back. One record type here, typed
+// Shared shapes of the harness measurement: what `series/series.ts` builds, `bench.ts` assembles into
+// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`, `summary/summaryCompute.ts`,
+// `summary/summaryMemory.ts`, `summary/summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
 import type {
   CameraPose,
@@ -8,15 +8,15 @@ import type {
   StageProfile,
 } from '../../../packages/sdk-core/src/index.ts';
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
-import type { Distribution, PassesGpu } from '../summaryPasses.ts';
-import type { BenchSettings } from '../options.ts';
-import type { Bounds } from '../poses.ts';
-import type { LightsPlan } from '../lamps.ts';
-import type { LimitsRecord } from '../limits.ts';
-import type { FluidsRow } from '../fluids.ts';
-import type { GazeNetworkReading } from '../gazeNetworkRun.ts';
+import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts';
+import type { BenchSettings } from '../harness/options.ts';
+import type { Bounds } from '../trajectory/poses.ts';
+import type { LightsPlan } from '../lighting/lamps.ts';
+import type { LimitsRecord } from '../harness/limits.ts';
+import type { FluidsRow } from '../fluids/fluids.ts';
+import type { GazeNetworkReading } from '../gaze/gazeNetworkRun.ts';
 
-/** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
+/** What `bench.ts` builds before playing series, and `series/series.ts` reads to run one. */
 export interface RunContext {
   MANIFEST: string | null;
   OUT: string;
@@ -26,7 +26,7 @@ export interface RunContext {
   bounds?: Bounds;
 }
 
-/** The selected cut of a series, read inside the page (`cutPage.ts`). */
+/** The selected cut of a series, read inside the page (`series/cutPage.ts`). */
 export interface CutSelection {
   source: string | null;
   ids: string[];
@@ -43,14 +43,14 @@ interface HiZCounters {
   image: number | null;
 }
 
-/** The page budget as the last frame saw it (`seriesPools.ts`). */
+/** The page budget as the last frame saw it (`series/seriesPools.ts`). */
 export interface PageBudget {
   requested: number | null;
   resident: number | null;
   budgetLimitedCoverage: boolean | null;
 }
 
-/** The geometry pool as the engine held it (`seriesPools.ts`). */
+/** The geometry pool as the engine held it (`series/seriesPools.ts`). */
 export interface GeometryPool {
   bytes: number | null;
   slots: number | null;
@@ -82,7 +82,7 @@ type PageError =
   | { kind: 'cut-analysis'; message: string }
   | { kind: 'black-capture'; message: string };
 
-/** A generic-rule light placement summary (`lamps.ts`), for `measure.json` and `resume.md`. */
+/** A generic-rule light placement summary (`lighting/lamps.ts`), for `measure.json` and `resume.md`. */
 export interface LightsSummary {
   count: number;
   points: number;
@@ -94,13 +94,13 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
+/** Delta between two RGBA captures (`references/imageDiff.ts::imageDiff`). */
 export type ImageDiff =
   | null
   | { error: string }
   | { pixels: number; maxChannel: number; meanChannel: number; p999Channel: number; total: number };
 
-/** One row of the series table: one side, one view, one threshold (`series.ts::runSerie`). */
+/** One row of the series table: one side, one view, one threshold (`series/series.ts::runSeries`). */
 export interface Row {
   cpuFrameMs: Distribution;
   cpuSelectMs: Distribution;
@@ -146,7 +146,7 @@ export interface Row {
 }
 
 /** One series: one view, one threshold, every side's row. */
-export interface Serie {
+export interface Series {
   view: string;
   pixelError: number;
   segment: string;
@@ -156,7 +156,7 @@ export interface Serie {
   witnessAA?: ImageDiff;
   beforeAfterDiff?: ImageDiff;
   /** Each side's capture against the engine's reference image (`--reference`, class 2). */
-  referenceDiff?: Record<string, import('../imageDiff.ts').ReferenceDiff>;
+  referenceDiff?: Record<string, import('../references/imageDiff.ts').ReferenceDiff>;
   sameCut?: boolean | null;
 }
 
@@ -172,7 +172,7 @@ interface SideIdentity {
   buildHash?: string;
 }
 
-/** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary.ts`. */
+/** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary/summary.ts`. */
 export interface Report {
   startedAt: string;
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null };
@@ -186,14 +186,14 @@ export interface Report {
   flags: string[];
   resources: string | null;
   sides: Record<string, SideIdentity>;
-  series: Serie[];
+  series: Series[];
   gazeNetwork?: GazeNetworkReading[];
   errors: PageError[];
   bounds?: Bounds;
   lights?: LightsSummary | null;
-  /** The browser limits, probed once per run (`limits.ts`). */
+  /** The browser limits, probed once per run (`harness/limits.ts`). */
   limits?: LimitsRecord;
-  /** One row per side on the fluids scene (`fluids.ts`). */
+  /** One row per side on the fluids scene (`fluids/fluids.ts`). */
   fluids?: FluidsRow[];
   finishedAt?: string;
 }

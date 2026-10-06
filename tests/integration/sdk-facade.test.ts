@@ -99,8 +99,10 @@ test('generated inventory and explicit facade files are current', async () => {
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
   // 737 since the cleanup waves: the old shadow atlas, the CPU transport experiment, the nested
-  // Hi-Z oracles and the example-only helpers left the public API (789 before).
-  assert.equal(inventory.exports.length, 737);
+  // Hi-Z oracles and the example-only helpers left the public API (789 before); then four names
+  // the public signatures already carried joined it: PageHome, PageHomes, QualityResolution and
+  // WorldQualityOptions.
+  assert.equal(inventory.exports.length, 741);
   assert.deepEqual(inventory.collisions, []);
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

@@ -96,7 +96,7 @@ export function createAutonomousRender(options: {
     pool,
   } = options;
   const cut = createImageCut({ ...options, held: geometry.held });
-  const sourcesDessinees = roots.map((root) => root.pages[0]);
+  const drawnSources = roots.map((root) => root.pages[0]);
   /** What the image asks for and draws moved: the streamer's pins and the pool follow it. */
   const follow = () => {
     residency.keptChanged();
@@ -121,7 +121,7 @@ export function createAutonomousRender(options: {
       view.motion,
       view.viewport,
       context.source,
-      sourcesDessinees,
+      drawnSources,
     );
     // Once still, a held frame stays still: no cut ran, the pages asked are the same.
     state.frameHeld = held && (state.frameHeld || stillFrame(view.requested));

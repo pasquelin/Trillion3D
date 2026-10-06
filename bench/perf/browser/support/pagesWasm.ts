@@ -2,14 +2,14 @@
 // reference encoder `packages/page-codec`, the same one that serves as oracle to the JavaScript
 // decoder: what is compared is thus two reads of a real page, not of a buffer made for the
 // occasion.
-import { encodeGeometryPage } from '../../../../packages/page-codec/geometryPage.ts';
-import { graine } from '../../../core/index.ts';
+import { encodeGeometryPage } from '../../../../packages/page-codec/src/geometryPage.ts';
+import { xorshiftRandom } from '../../../core/index.ts';
 import type {
   OptionalAttributeName,
   PageAttributes,
-} from '../../../../packages/page-codec/pageAttributes.ts';
+} from '../../../../packages/page-codec/src/pageAttributes.ts';
 
-const alea = graine(20260915);
+const alea = xorshiftRandom(20260915);
 
 /** Finite but hostile floats: signed zero, denormals, and noise within `±amplitude / 2`. */
 function hostiles(n: number, amplitude: number): Float32Array {
@@ -34,19 +34,19 @@ const LARGEURS: [OptionalAttributeName, number, number][] = [
   ['COLOR_0', 3, 2],
 ];
 
-/** A page of `sommets` vertices, with or without its four optional attributes. */
-export function page(sommets: number, tousLesAttributs: boolean) {
+/** A page of `vertices` vertices, with or without its four optional attributes. */
+export function page(vertices: number, tousLesAttributs: boolean) {
   const attributes: PageAttributes = {
-    POSITION: { itemSize: 3, array: hostiles(sommets * 3, 2048) },
+    POSITION: { itemSize: 3, array: hostiles(vertices * 3, 2048) },
   };
   if (tousLesAttributs)
-    for (const [name, largeur, amplitude] of LARGEURS)
-      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur, amplitude) };
-  const indices = new Uint32Array(sommets * 3);
-  for (let i = 0; i < sommets; i++) {
+    for (const [name, width, amplitude] of LARGEURS)
+      attributes[name] = { itemSize: width, array: hostiles(vertices * width, amplitude) };
+  const indices = new Uint32Array(vertices * 3);
+  for (let i = 0; i < vertices; i++) {
     indices[i * 3] = i;
-    indices[i * 3 + 1] = (i + 1) % sommets;
-    indices[i * 3 + 2] = (i + 2) % sommets;
+    indices[i * 3 + 1] = (i + 1) % vertices;
+    indices[i * 3 + 2] = (i + 2) % vertices;
   }
   return encodeGeometryPage(indices, attributes, -6).data;
 }
@@ -56,7 +56,7 @@ export function page(sommets: number, tousLesAttributs: boolean) {
  * the grid of `exponent`; the colour `colorWidth` wide, three for a source without alpha.
  * Returns the encoded page with the source indices and attributes it came from.
  */
-export function anneau(triangles: number, exponent: number, colorWidth = 4) {
+export function ringMesh(triangles: number, exponent: number, colorWidth = 4) {
   const count = triangles + 2,
     position = new Float32Array(count * 3),
     normal = new Float32Array(count * 3),

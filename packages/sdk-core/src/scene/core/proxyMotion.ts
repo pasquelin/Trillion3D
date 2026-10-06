@@ -1,7 +1,6 @@
 import type { SceneProxy } from '../../contracts/proxy.ts';
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
-import { transformAffinePoint } from '../../math/primitives/vector.ts';
-import { proxyAffineDelta } from './proxyDelta.ts';
+import { createProxyPoses, proxyNodeDelta, proxyStretch } from './proxyPoses.ts';
+import { createProxySettling } from './proxySettling.ts';
 import { createProxyLeaves } from './proxyLeaves.ts';
 import { createProxyRefit } from './proxyRefit.ts';
 
@@ -33,27 +32,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     data.triangles,
     canonical,
   );
-  const transforms = new Float32Array(proxy.instances * 16);
-  const groupsOf = new Map<number, Set<number>>();
-  const binds: Float64Array[] = [],
-    inverses: Float64Array[] = [],
-    deltas: Float32Array[] = [];
-  const identity = new Float64Array(16);
-  identity[0] = identity[5] = identity[10] = identity[15] = 1;
-  for (let node = 0; node < proxy.instances; node++) {
-    const bind = data.bindWorlds.subarray(node * 16, node * 16 + 16);
-    binds.push(bind);
-    inverses.push(invertMatrix4(new Float64Array(16), bind));
-    deltas.push(transforms.subarray(node * 16, node * 16 + 16));
-    deltas[node].set(identity);
-  }
-  for (let group = 0; group < proxy.groups; group++)
-    for (let owner = data.groupOffsets[group]; owner < data.groupOffsets[group + 1]; owner++) {
-      const node = data.owners[owner * 2];
-      let groups = groupsOf.get(node);
-      if (!groups) groupsOf.set(node, (groups = new Set()));
-      groups.add(group);
-    }
+  const { transforms, groupsOf, binds, inverses, deltas, identity } = createProxyPoses(proxy, data);
   const bounds = [...proxy.bounds] as SceneProxy['bounds'];
   // The refit reads canonical triangles and plain groups, whatever the leaves hold.
   const refit = createProxyRefit({ ...data, triangles: canonical, triangleGroups: groupOf }),
@@ -65,35 +44,11 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     pending = false,
     still = 0,
     gap = 0;
-  const { groupOffsets, owners } = data;
-  /** Every owner of the group under one pose: the only case one triangle still describes. */
-  const coincident = (group: number) => {
-    const first = deltas[owners[groupOffsets[group] * 2]];
-    for (let owner = groupOffsets[group] + 1; owner < groupOffsets[group + 1]; owner++)
-      for (let i = 0; i < 16; i++) if (deltas[owners[owner * 2]][i] !== first[i]) return false;
-    return true;
-  };
-  /** A triangle at its owners' pose. The pose's f32 evaluation, rounded once, stays inside the
-   *  padded boxes the last refit gave it: the tree already covers the settled pose. */
-  const write = (t: number) => {
-    const m = deltas[owners[groupOffsets[groupOf[t]] * 2]];
-    for (let v = t * 9; v < t * 9 + 9; v += 3)
-      transformAffinePoint(data.triangles, m, canonical[v], canonical[v + 1], canonical[v + 2], v);
-  };
-  /** Poses every owned leaf whose groups all agree; the others stay owned until motion. */
+  const settleLeaves = createProxySettling(data, canonical, groupOf, leaves, deltas);
+  /** Owned leaves written at their settled pose; the wait for a still streak is over. */
   const settle = () => {
     pending = false;
-    let settled = false;
-    for (let leaf = 0; leaf < leaves.count; leaf++) {
-      if (!leaves.owned[leaf]) continue;
-      let agree = true;
-      for (let t = leaves.firsts[leaf]; agree && t < leaves.ends[leaf]; t++)
-        agree = coincident(groupOf[t]);
-      if (!agree) continue;
-      leaves.pose(leaf, write);
-      settled = true;
-    }
-    return settled;
+    return settleLeaves();
   };
   return {
     data,
@@ -146,18 +101,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         }
         if (!world) world = identity;
         const bind = source === -1 ? identity : binds[source];
-        let unchanged = true;
-        for (let i = 0; i < 16; i++) unchanged &&= Math.fround(world[i]) === Math.fround(bind[i]);
-        if (unchanged) delta.set(identity);
-        else {
-          // Translation does not need an inverse, including an originally flattened instance.
-          let translation = true;
-          for (let i = 0; i < 12; i++) translation &&= world[i] === bind[i];
-          if (translation) {
-            delta.set(identity);
-            for (let a = 0; a < 3; a++) delta[12 + a] = world[12 + a] - bind[12 + a];
-          } else proxyAffineDelta(delta, bind, world, source === -1 ? identity : inverses[source]);
-        }
+        proxyNodeDelta(delta, world, bind, source === -1 ? identity : inverses[source], identity);
         let moved = false;
         for (let i = 0; i < 16; i++) moved ||= Math.fround(delta[i]) !== deltas[node][i];
         if (!moved) continue;
@@ -178,20 +122,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
           const leaf = leaves.leafOf[refit.slots[rank]];
           if (leaf !== 0xffffffff && !leaves.owned[leaf]) leaves.own(leaf);
         }
-      stretch = 1;
-      for (const node of groupsOf.keys()) {
-        const m = deltas[node];
-        let rows = 0,
-          columns = 0;
-        for (let a = 0; a < 3; a++) {
-          rows = Math.max(rows, Math.abs(m[a]) + Math.abs(m[a + 4]) + Math.abs(m[a + 8]));
-          columns = Math.max(
-            columns,
-            Math.abs(m[a * 4]) + Math.abs(m[a * 4 + 1]) + Math.abs(m[a * 4 + 2]),
-          );
-        }
-        stretch = Math.max(stretch, Math.sqrt(rows * columns));
-      }
+      stretch = proxyStretch(groupsOf.keys(), deltas);
       refit(dirty, transforms, bounds);
       revision++;
       return 'moved';

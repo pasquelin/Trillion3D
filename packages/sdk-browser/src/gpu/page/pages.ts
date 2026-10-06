@@ -2,7 +2,7 @@ import type { PageSource } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 import { createGpuPageReader } from './reader.ts';
 import { createGpuPageLoader } from './load.ts';
-import { createGpuPagePins } from './pins.ts';
+import { createGpuPagePins } from './gpuPagePins.ts';
 import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
 import { evictResident } from './commit.ts';
 import { heldHomes, type PageHomes } from './homes.ts';

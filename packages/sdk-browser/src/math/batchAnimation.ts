@@ -62,7 +62,7 @@ type PackedClip = {
 /** The packed clips, by the tracks array they were packed from (checked track by track). */
 const packed = new WeakMap<readonly Track[], PackedClip>();
 /** Frees the module memory of what the engine no longer holds. */
-const freed = new FinalizationRegistry<Arena>((arena) => arena.libere());
+const freed = new FinalizationRegistry<Arena>((arena) => arena.freed());
 
 /** A track's width and kind, or `undefined` when it does not pack. */
 function shapeOf(tr: Track) {
@@ -88,11 +88,11 @@ function pack(wasm: SdkWasm, tracks: readonly Track[]): PackedClip | undefined {
   for (const shape of shapes) outLength += shape!.width;
   const n = tracks.length,
     arena = reserveArena(wasm, [
-      { type: 'u32', longueur: Math.max(1, n * TRACK_WORDS) },
-      { type: 'f32', longueur: Math.max(1, dataLength) },
+      { type: 'u32', length: Math.max(1, n * TRACK_WORDS) },
+      { type: 'f32', length: Math.max(1, dataLength) },
     ]);
   if (!arena) return undefined;
-  const [described, data] = arena.blocs().map((bloc) => bloc.vue);
+  const [described, data] = arena.blocs().map((bloc) => bloc.view);
   const offsets = new Uint32Array(n);
   let at = 0,
     out = 0;
@@ -128,12 +128,12 @@ function boundSampler(
 ): BoundSampler | undefined {
   const { n, dataLength, outLength, offsets } = clip;
   const state = reserveArena(wasm, [
-    { type: 'u32', longueur: Math.max(1, n) },
-    { type: 'f64', longueur: Math.max(1, n * ARC_VALUES) },
-    { type: 'f64', longueur: Math.max(1, outLength) },
+    { type: 'u32', length: Math.max(1, n) },
+    { type: 'f64', length: Math.max(1, n * ARC_VALUES) },
+    { type: 'f64', length: Math.max(1, outLength) },
   ]);
   if (!state) return undefined;
-  state.blocs()[1].vue.fill(-1);
+  state.blocs()[1].view.fill(-1);
   const numbers = new Float64Array(Math.max(1, outLength));
   const handle = aheadHandle(clip, clip.tracks, outLength);
   let time = 0;
@@ -141,7 +141,7 @@ function boundSampler(
     [keys, arcs, out] = state.blocs().map((bloc) => bloc.offset);
   const wasmRun = () =>
       wasm.anim_sample_tracks(tracks, n, data, dataLength, keys, arcs, out, outLength, time),
-    jsRun = () => fallback(time, state.blocs()[2].vue as Float64Array, offsets);
+    jsRun = () => fallback(time, state.blocs()[2].view as Float64Array, offsets);
   const bound = {
     offsets,
     at: 0,
@@ -153,7 +153,7 @@ function boundSampler(
       joue(ANIMATION_SAMPLE, n, wasmRun, jsRun);
       // Copied out in one move: the writes then read an ordinary array, not the module's memory,
       // whose every read the engine checks against its growth.
-      return (numbers.set(state.blocs()[2].vue as Float64Array), numbers);
+      return (numbers.set(state.blocs()[2].view as Float64Array), numbers);
     },
     ahead(t: number) {
       askAhead(handle, t);
@@ -161,7 +161,7 @@ function boundSampler(
     release() {
       freed.unregister(bound);
       releaseAhead(handle);
-      state.libere();
+      state.freed();
     },
   };
   freed.register(bound, state, bound);

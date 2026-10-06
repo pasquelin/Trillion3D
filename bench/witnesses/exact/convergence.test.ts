@@ -41,13 +41,13 @@ function image(
   camera = wideCamera(),
 ) {
   backend.render(camera);
-  const demandes = [...backend.pendingUrls!()];
-  for (const url of demandes) {
+  const requests = [...backend.pendingUrls!()];
+  for (const url of requests) {
     const bytes = octets.get(url);
     if (bytes) backend.acceptPage!(url, bytes);
   }
   backend.syncResident!();
-  return demandes;
+  return requests;
 }
 
 test('still pose: the cut converges to a cover and stops asking', () => {
@@ -57,14 +57,14 @@ test('still pose: the cut converges to a cover and stops asking', () => {
   for (let i = 0; i < 10; i++) image(backend, octets, camera);
   const converge = backend.metrics().clusters;
   const couvertures = new Set<string>();
-  let demandesApres = 0;
+  let requestsAfter = 0;
   for (let i = 0; i < 8; i++) {
-    demandesApres += image(backend, octets, camera).length;
+    requestsAfter += image(backend, octets, camera).length;
     couvertures.add(couverture(backend));
     assert.equal(backend.metrics().clusters, converge, 'the cluster count has changed');
   }
   assert.equal(couvertures.size, 1, `the cut alternates between ${couvertures.size} covers`);
-  assert.equal(demandesApres, 0, 'the engine is still asking while its cut is complete');
+  assert.equal(requestsAfter, 0, 'the engine is still asking while its cut is complete');
   backend.dispose();
   dispose();
 });

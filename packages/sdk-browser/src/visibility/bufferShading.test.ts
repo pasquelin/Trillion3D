@@ -12,7 +12,7 @@ import {
   nearestQuadTexture,
   visibilityUvDerivatives,
 } from './buffer.fixture.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
@@ -42,7 +42,7 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
     clusterId: 'near',
   };
   const cam = camera(),
-    ids = rasterVisibilityIds([far, near], identityRoots(), cameraMoteur(cam), [32, 32]);
+    ids = rasterVisibilityIds([far, near], identityRoots(), engineCamera(cam), [32, 32]);
   const unpacked = unpackVisibilityId(centerId(ids, 32, 32));
   assert.deepEqual(unpacked, { pageIndex: 1, triangleIndex: 0 });
   geometry.dispose();
@@ -55,8 +55,8 @@ test('visbuffer beauty for untextured MeshBasicMaterial matches the documented r
   const { pages, geometry } = quadPages(material);
   const cam = camera(),
     size: [number, number] = [32, 32];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-  const beauty = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+  const beauty = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size);
   const expected = rasterPages(pages, identityRoots(), cam, size);
   const image = compareImages(expected, beauty);
   assert.equal(image.maxChannelError, 0);
@@ -70,8 +70,8 @@ test('the second pass samples the source map at reconstructed UVs', () => {
   const { pages, geometry } = quadPages(material, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]);
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-  const beauty = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+  const beauty = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size);
   const id = centerId(ids, 16, 16);
   assert.notEqual(id, VIS_INVALID);
   const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4;
@@ -83,7 +83,7 @@ test('the second pass samples the source map at reconstructed UVs', () => {
     ids,
     pages.map((page) => ({ ...page, material: surfaceOf(untextured) })),
     identityRoots(),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
   );
   assert.ok(compareImages(beauty, white).maxChannelError > 0);
@@ -117,7 +117,7 @@ test('UV derivatives come from the winning triangle, not a neighbour across a vi
   ];
   const cam = camera(),
     size: [number, number] = [32, 32];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
   let left: { x: number; y: number } | undefined, right: { x: number; y: number } | undefined;
   for (let y = 0; y < 32; y++)
     for (let x = 0; x < 32; x++) {
@@ -131,7 +131,7 @@ test('UV derivatives come from the winning triangle, not a neighbour across a vi
     ids,
     pages,
     identityRoots(),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     left!.x,
     left!.y,
@@ -140,7 +140,7 @@ test('UV derivatives come from the winning triangle, not a neighbour across a vi
     ids,
     pages,
     identityRoots(),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     right!.x,
     right!.y,

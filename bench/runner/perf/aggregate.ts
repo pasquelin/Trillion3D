@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // Assembles fragments dropped by the `*.perf.ts` benches into a single table, on the console and
-// under `.mesure/out/perf/`. Regression thresholds come from `bench/core/baseline.ts` and
+// under `.measure/out/perf/`. Regression thresholds come from `bench/core/baseline.ts` and
 // the rendering of a line from `bench/core/table.ts`: a line and the conclusion of the
 // same table cannot contradict each other, and a bench console shows the same format as the aggregate.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { join } from 'node:path';
 import { commitCourant, compareBaseline } from '../../core/baseline.ts';
-import type { LigneAvecEcartBaseline } from '../../core/baseline.ts';
+import type { RowWithBaselineGap } from '../../core/baseline.ts';
 import { measureOutput } from '../../core/paths.ts';
 import { lisFragments } from '../../core/report.ts';
-import { entete, ligneMd } from '../../core/table.ts';
+import { header, ligneMd } from '../../core/table.ts';
 
 const SORTIE = measureOutput('perf');
 const pourCent = (v: number) => `${(v * 100).toFixed(0)} %`;
@@ -29,22 +29,22 @@ const lignes = fragments.flatMap((f) =>
 const tous = fragments.flatMap((f) => f.mesures.flatMap((m) => m.resultats));
 // Every fragment on disk was written by `rapport()`, which always fills `ecartBaseline`;
 // the type only marks it optional because a fresh, unwritten row would not have it yet.
-const bilan = compareBaseline(tous as LigneAvecEcartBaseline[]);
+const tally = compareBaseline(tous as RowWithBaselineGap[]);
 const sansOracle = tous.filter((r) => r.correct === null);
 
 const jour = new Date().toISOString().slice(0, 10);
 const sha = commitCourant();
 const charge = loadavg()[0];
 
-const tableau = [...entete(['Domain', 'Measure', 'Case']), ...lignes].join('\n');
+const tableau = [...header(['Domain', 'Measure', 'Case']), ...lignes].join('\n');
 // "0 regression" on a batch with no baseline would read as "nothing slowed down": that is
 // not the same thing, and the summary says so.
 const comparaison =
-  bilan.verdict === 'absent'
+  tally.verdict === 'absent'
     ? 'no baseline on this machine: nothing compared (`pnpm run perf:baseline` deposits one)'
-    : `${bilan.compares} compared: ${bilan.regressions.length} regression(s) (> ${pourCent(
-        bilan.seuilEchec,
-      )}), ${bilan.avertissements.length} warning(s) (> ${pourCent(bilan.seuilAvertissement)})`;
+    : `${tally.compares} compared: ${tally.regressions.length} regression(s) (> ${pourCent(
+        tally.failureThreshold,
+      )}), ${tally.warnings.length} warning(s) (> ${pourCent(tally.warningThreshold)})`;
 const resume = `${tous.length} measurements, ${sansOracle.length} without oracle, ${comparaison}.`;
 const contexte = `Machine: ${process.platform}/${process.arch}, Node ${process.version}, commit \`${sha}\`, load ${charge.toFixed(1)}.`;
 

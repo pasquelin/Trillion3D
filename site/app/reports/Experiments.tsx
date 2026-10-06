@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { useWords } from '../i18n.ts';
 import { Select } from '../ui/Input.tsx';
 import { Tabs } from '../ui/Tabs.tsx';
-import { viewName, runName, engineName } from '../../reports/names.ts';
+import { viewName, runName, engineName } from './model/names.ts';
 import { Card } from '../ui/Card.tsx';
-import { sceneName, runOf } from '../../reports/presentation.ts';
+import { sceneName, runOf } from './model/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
-import type { Report } from '../../reports/types.ts';
-import type { MetricKey } from '../../reports/metrics.ts';
+import type { Report } from './model/types.ts';
+import type { MetricKey } from './model/metrics.ts';
 import type { Dictionary } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 

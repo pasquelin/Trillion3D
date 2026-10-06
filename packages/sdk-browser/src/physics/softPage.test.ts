@@ -19,7 +19,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
-import { createSessionHost } from './sessionHost.ts';
+import { createSessionHost } from './session/sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createSoftVertices } from './softBodies.ts';
 import { createSoftTick } from './recordTick.ts';

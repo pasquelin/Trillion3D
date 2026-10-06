@@ -16,7 +16,7 @@ import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './testScenes.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
 
@@ -141,13 +141,13 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
       packed: pages.map((_, i) => i),
       rootOfPacked: new Int32Array(pages.length),
     };
-  const expected = rasterVisibilityIds(pages, locations, cameraMoteur(cam), [32, 32]);
+  const expected = rasterVisibilityIds(pages, locations, engineCamera(cam), [32, 32]);
   const observed = backendVisibilityIds(backend.rasterView());
   assert.deepEqual(observed, expected);
   assert.deepEqual(observed, backendVisibilityIds(backend.rasterView()));
   const image = compareImages(
     backendRasterRgba(backend.rasterView()),
-    shadeVisibility(expected, pages, locations, cameraMoteur(cam), [32, 32]),
+    shadeVisibility(expected, pages, locations, engineCamera(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
   // No map: no colour pool is allocated, the white fill reads the stand-in (#1345).

@@ -5,8 +5,8 @@
 // (`partitionReference.ts`). The transparent clusters the occlusion test removed are refuted the
 // same way (`transparentOcclusionReference.ts`).
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { readBounds } from '../../../bench/runner/page.ts';
-import { poseAt } from '../../../bench/runner/poses.ts';
+import { readBounds } from '../../../bench/runner/harness/page.ts';
+import { poseAt } from '../../../bench/runner/trajectory/poses.ts';
 import { SDK_URL } from '../world/proofWorld.ts';
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';
@@ -33,7 +33,7 @@ export async function auditPoses(options: AuditOptions) {
     poseAt(bounds, Math.round((i * (TRAJECTORY_FRAMES - 1)) / (options.poses - 1))),
   );
   const sdk = await measurementSdk();
-  const evenements: BackendDiagnostic[] = [];
+  const events: BackendDiagnostic[] = [];
   const world = await sdk.openMeasuredWorld(proofCanvas('partition-audit'), {
     manifestUrl: options.manifestUrl,
     scope: 'full',
@@ -52,7 +52,7 @@ export async function auditPoses(options: AuditOptions) {
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
     onDiagnostic: (event) => {
-      if (/error|fallback|failed|lost/.test(event.phase)) evenements.push(event);
+      if (/error|fallback|failed|lost/.test(event.phase)) events.push(event);
     },
   });
   const total = emptyTotals(),
@@ -69,7 +69,7 @@ export async function auditPoses(options: AuditOptions) {
       const metrics = world.render(pose);
       await world.flush();
       const audit = await world.partitionAudit();
-      if (!audit) return { erreur: 'no GPU partition: the audit returned nothing', evenements };
+      if (!audit) return { error: 'no GPU partition: the audit returned nothing', events };
       const rowsBefore = total.rows,
         clippedBefore = total.clipped,
         rejectedBefore = occlusion.rejected;
@@ -89,9 +89,9 @@ export async function auditPoses(options: AuditOptions) {
     }
   } catch (error) {
     const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, evenements, frames, total };
+    return { error: String(error) + trace, events, frames, total };
   } finally {
     world.dispose();
   }
-  return { evenements, frames, total, occlusion, occlusionViolations };
+  return { events, frames, total, occlusion, occlusionViolations };
 }

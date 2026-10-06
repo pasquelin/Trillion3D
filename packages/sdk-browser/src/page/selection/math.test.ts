@@ -17,14 +17,14 @@ const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 
 function agree(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number) {
-  const optimisee = frustumClipBox(planes, minX, minY, minZ, maxX, maxY, maxZ);
+  const optimized = frustumClipBox(planes, minX, minY, minZ, maxX, maxY, maxZ);
   const reference = referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ);
   assert.equal(
-    optimisee,
+    optimized,
     reference,
     `frustumClipBox(${minX},${minY},${minZ},${maxX},${maxY},${maxZ})`,
   );
-  return optimisee;
+  return optimized;
 }
 
 test('a box fully outside the frustum is rejected (0), one straddling the far plane is not fully inside (1)', () => {

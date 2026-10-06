@@ -10,8 +10,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { IDENTITY, constructors, unit } from './pageWorld.fixture.ts';
-import { vsmLayout } from './resources.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27);
 const SHIPPED = vsmProjectionWgsl(LAYOUT, { subgroups: false });

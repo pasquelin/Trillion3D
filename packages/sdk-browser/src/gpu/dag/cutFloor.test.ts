@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { dagRecords, worldOf } from './records.fixture.ts';
 import { dagViewFrames } from './oracle/math.fixture.ts';
 import { NODE_CEIL } from './nodeLayout.ts';
@@ -56,13 +56,13 @@ const POSES: Array<[string, number, number]> = [
 ];
 const SEUILS = [0.25, 1, 4];
 
-for (const parNiveaux of [false, true]) {
-  const nomHierarchie = parNiveaux ? 'compiler hierarchy' : 'packing hierarchy';
+for (const byLevels of [false, true]) {
+  const nomHierarchie = byLevels ? 'compiler hierarchy' : 'packing hierarchy';
   test(`${nomHierarchie}: top-down pruning removes no kept cluster`, () => {
     const roots = sceneRoots(
       pages,
       Array.from({ length: 4 }, () => new G.Matrix4()),
-      parNiveaux,
+      byLevels,
     );
     const packed = packDagSelection(roots);
     // The same packing with every replacement ceiling withdrawn: what the descent walks when
@@ -73,7 +73,7 @@ for (const parNiveaux of [false, true]) {
     let elagages = 0,
       plafonnes = 0;
     for (const [nom, x, z] of POSES)
-      for (const seuil of SEUILS) {
+      for (const threshold of SEUILS) {
         for (let w = 0; w < roots.length; w++)
           asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
             (w % 2) * 6.5 - 3.25,
@@ -83,13 +83,13 @@ for (const parNiveaux of [false, true]) {
         cam.position.set(x, 0, z);
         cam.lookAt(x, 0, 0);
         cam.updateMatrixWorld();
-        const uniforms = cameraSelectionUniforms(cameraMoteur(cam), seuil, [1280, 720]);
+        const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720]);
         packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-        const attendu = coupeSansElagage(packed, uniforms);
-        const obtenu = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
+        const expected = coupeSansElagage(packed, uniforms);
+        const actual = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
           (a, b) => a - b,
         );
-        assert.deepEqual(obtenu, attendu, `${nom} at ${seuil} px`);
+        assert.deepEqual(actual, expected, `${nom} at ${threshold} px`);
         elagages += descenteComptee(packed, uniforms, true).plancherCoupe;
         plafonnes +=
           descenteComptee(sansPlafond, uniforms).visites -

@@ -28,7 +28,7 @@ fn expected(alpha: &[u8; 8]) -> Vec<u8> {
 }
 
 /// Image the registry yields for this fixture, dimensions checked along the way.
-fn rendu(name: &str) -> image::RgbaImage {
+fn rendered(name: &str) -> image::RgbaImage {
     decoded_rgba8("gif", name, MAX_ALLOC, (4, 2))
 }
 
@@ -40,13 +40,13 @@ fn rendu(name: &str) -> image::RgbaImage {
 fn the_two_colour_tables_yield_the_same_pixels() {
     for name in ["palette-globale.gif", "palette-locale.gif"] {
         assert_eq!(
-            rendu(name).as_raw(),
+            rendered(name).as_raw(),
             &expected(&OPAQUE),
             "{name}: pixels diverge from the reference"
         );
     }
     assert_eq!(
-        rendu("transparence.gif").as_raw(),
+        rendered("transparence.gif").as_raw(),
         &expected(&ALPHA_TRANSPARENT),
         "the transparent index touches only alpha, never the table colour"
     );
@@ -71,9 +71,9 @@ fn a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     );
     // Both versions of the format carry the same structure: 87a has no extensions, and the walk
     // of the blocks must cross it as well as 89a.
-    let mut ancienne = fixture("gif", "palette-globale.gif");
-    ancienne[..6].copy_from_slice(b"GIF87a");
-    assert_eq!(rendered_bytes(&ancienne), expected(&OPAQUE));
+    let mut legacy = fixture("gif", "palette-globale.gif");
+    legacy[..6].copy_from_slice(b"GIF87a");
+    assert_eq!(rendered_bytes(&legacy), expected(&OPAQUE));
     // `anime.gif` cut at the end of its first image: no next block, and no terminator either.
     // The walk therefore does not conclude to animation, and the decoder reads the whole image
     // that remains — an image without a terminator is an image, not an animation.

@@ -5,14 +5,6 @@ import type { WebgpuPagesRuntime } from '../../runtime.ts';
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts';
 import { VSM_PRESSURE_CALM_FRAMES, VSM_POOL_PAGES } from '../../../../vsm/constants.ts';
 import {
-  vsmLayout,
-  vsmPoolWithin,
-  vsmResourceBytes,
-  vsmTableBytes,
-  type VsmLayout,
-} from '../../../../vsm/resources.ts';
-import {
-  vsmTransmissionBytes,
   vsmTransmissionContextBytes,
   vsmTransmissionFloorBytes,
 } from '../../../../vsm/transmissionPass.ts';
@@ -40,6 +32,14 @@ import {
   type EngineVsm,
 } from './engineVsm.ts';
 import { vsmRenderContextBytes, vsmRenderFloorBytes } from '../../../../vsm/renderPass.ts';
+import {
+  vsmLayout,
+  vsmPoolWithin,
+  vsmResourceBytes,
+  vsmTableBytes,
+  type VsmLayout,
+} from '../../../../vsm/layout.ts';
+import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts';
 
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps';

@@ -9,20 +9,20 @@ import type {
   RenderBackend,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';
-import { batisseur, carre, engine, libere, type ScenePreparee } from '../kit/sharedSceneProof.ts';
+import { batisseur, square, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts';
 
 function occluderScene(): ScenePreparee {
   const builder = batisseur();
-  const wall = G.mesh(carre(0.8), G.basicSurface({ color: 0xdedede, side: G.DOUBLE_SIDE }));
+  const wall = G.mesh(square(0.8), G.basicSurface({ color: 0xdedede, side: G.DOUBLE_SIDE }));
   wall.name = 'wall';
   wall.position.set(0, 0, 1);
   builder.source.add(wall);
-  builder.ajoute(wall, 'exact-clusters', 0.8);
-  const slab = G.mesh(carre(0.25), G.basicSurface({ color: 0x20c040, side: G.DOUBLE_SIDE }));
+  builder.add(wall, 'exact-clusters', 0.8);
+  const slab = G.mesh(square(0.25), G.basicSurface({ color: 0x20c040, side: G.DOUBLE_SIDE }));
   slab.name = 'slab';
   slab.position.set(0.9, 0, -3);
   builder.source.add(slab);
-  builder.ajoute(slab, 'exact-clusters', 0.25);
+  builder.add(slab, 'exact-clusters', 0.25);
   return builder.fini();
 }
 
@@ -43,7 +43,7 @@ export function occluderEngine(
 ) {
   const scene = occluderScene();
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiagnostic, options);
-  return { backend, release: () => libere(backend, canvas, scene) };
+  return { backend, release: () => release(backend, canvas, scene) };
 }
 
 /**
@@ -62,9 +62,9 @@ export async function onOccluderScene<Step>(
   ) => Promise<void>,
 ) {
   const gpu = await openGpuDevice();
-  if (!gpu) return { indisponible: 'no WebGPU adapter', steps: [] as Step[] };
-  const evenements: BackendDiagnostic[] = [];
-  const onDiagnostic = (e: BackendDiagnostic) => void evenements.push(e);
+  if (!gpu) return { unavailable: 'no WebGPU adapter', steps: [] as Step[] };
+  const events: BackendDiagnostic[] = [];
+  const onDiagnostic = (e: BackendDiagnostic) => void events.push(e);
   const { backend, release } = occluderEngine(gpu.device, onDiagnostic, options);
   const steps: Step[] = [];
   try {
@@ -72,10 +72,10 @@ export async function onOccluderScene<Step>(
     await body(backend, gpu.device, onDiagnostic, steps);
   } catch (error) {
     const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, steps, evenements, erreurs: gpu.errors };
+    return { error: String(error) + trace, steps, events, errors: gpu.errors };
   } finally {
     release();
   }
   const { court: adapter } = await gpu.fermer();
-  return { adapter, steps, evenements, erreurs: gpu.errors };
+  return { adapter, steps, events, errors: gpu.errors };
 }

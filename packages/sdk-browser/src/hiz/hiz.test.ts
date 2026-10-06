@@ -13,7 +13,7 @@ import {
   projectBoxToScreen,
   quad,
 } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 import { hizRejects } from '../../../../bench/oracles/browser/hizRejects.ts';
@@ -21,15 +21,15 @@ import { hizRejects } from '../../../../bench/oracles/browser/hizRejects.ts';
 test('Hi-Z history is invalidated by camera motion and projection cuts', () => {
   const previous = cameraAt(),
     current = previous.clone();
-  assert.equal(sameHizView(cameraMoteur(previous), cameraMoteur(current)), true);
+  assert.equal(sameHizView(engineCamera(previous), engineCamera(current)), true);
   current.position.x = 1;
   current.updateMatrixWorld();
-  assert.equal(sameHizView(cameraMoteur(previous), cameraMoteur(current)), false);
+  assert.equal(sameHizView(engineCamera(previous), engineCamera(current)), false);
   current.position.x = 0;
   current.fov = 75;
   current.updateProjectionMatrix();
   current.updateMatrixWorld();
-  assert.equal(sameHizView(cameraMoteur(previous), cameraMoteur(current)), false);
+  assert.equal(sameHizView(engineCamera(previous), engineCamera(current)), false);
 });
 
 test('visibility depth after the visbuffer uses the far value as background and larger-wins z', () => {
@@ -37,8 +37,8 @@ test('visibility depth after the visbuffer uses the far value as background and 
   const { page, geometry } = quad(material, [-1, -1, 0], [1, 1, 0], 'front');
   const cam = cameraAt(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds([page], identityRoots(), cameraMoteur(cam), size);
-  const depth = visibilityDepth(ids, [page], identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size);
+  const depth = visibilityDepth(ids, [page], identityRoots(), engineCamera(cam), size);
   assert.equal(depth.length, 16 * 16);
   const center = depth[((16 / 2) | 0) * 16 + ((16 / 2) | 0)];
   assert.ok(center < 1);
@@ -106,7 +106,7 @@ test('pages that cross the near plane are not used as Hi-Z occluders', () => {
   splitOccludersInto(
     [crossing.page, far.page],
     identityRoots(),
-    cameraMoteur(cam),
+    engineCamera(cam),
     [16, 16],
     occluders,
     rest,
@@ -132,20 +132,20 @@ test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole',
   const open = quad(backMat, [0.35, -0.2, -2], [0.8, 0.2, -2], 'open');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
+  const pyramid = occluderPyramid([front.page], engineCamera(cam), size);
   const selected = [front.page, back.page];
-  const remaining = filterUnoccluded(selected, identityRoots(), pyramid, cameraMoteur(cam), size);
+  const remaining = filterUnoccluded(selected, identityRoots(), pyramid, engineCamera(cam), size);
   assert.deepEqual(
     remaining.map((page) => page.url),
     ['front'],
   );
   assert.ok(remaining.every((page) => selected.includes(page)));
-  const holePyramid = occluderPyramid([hole.page], cameraMoteur(cam), size);
+  const holePyramid = occluderPyramid([hole.page], engineCamera(cam), size);
   const beside = filterUnoccluded(
     [hole.page, open.page],
     identityRoots(),
     holePyramid,
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
   );
   assert.ok(beside.some((page) => page.url === 'open'));

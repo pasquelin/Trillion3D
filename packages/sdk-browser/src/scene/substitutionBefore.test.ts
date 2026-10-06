@@ -124,9 +124,9 @@ test('a previous form that no longer carries the marker reproduces nothing', () 
 });
 
 test('the previous form already present in the text: this is no longer a reproduction', () => {
-  const dejaAvant = DAG_SELECTION_SHADER.replace(
+  const alreadyBefore = DAG_SELECTION_SHADER.replace(
     INVERSE_TRANSPOSE_WGSL,
     () => INVERSE_TRANSPOSE_BEFORE_WGSL,
   );
-  fails(real(dejaAvant, 'shader already rolled back'), 'appears 0 times');
+  fails(real(alreadyBefore, 'shader already rolled back'), 'appears 0 times');
 });

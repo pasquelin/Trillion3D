@@ -9,7 +9,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { LoadedModel } from '../core/loadedModel.ts';
-import { isHelper } from '../helper/mark.ts';
+import { isHelper } from '../core/helperMark.ts';
 import { savedPhysics } from './physics.ts';
 import {
   notSavable,

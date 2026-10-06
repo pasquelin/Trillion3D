@@ -26,7 +26,7 @@ export type Binding = {
 
 /**
  * Whether a transparent surface drawn into the effect chain's linear target, whose alpha is
- * coverage (`../../effects/webglOutput.ts`), covers its pixel whatever its alpha: one that
+ * coverage (`../effects/webglOutput.ts`), covers its pixel whatever its alpha: one that
  * replaces what is behind it (`none`), as the display path shows it. A mode the target
  * cannot hold (`refusesLinear`) never reaches here: the composer draws such a frame without the
  * chain (`linearRefusal`); a caller that skipped that read is refused by name.

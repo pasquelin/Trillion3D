@@ -46,7 +46,8 @@ import {
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts';
 import { VSM_HANDLE_WGSL } from './pageTableWgsl.ts';
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { type VsmBindingSpec, type VsmLayout, vsmBindingsWgsl } from './resources.ts';
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Group 1 of the raster: projection data (vertex) at 1, the pool (fragment, atomic) from 2. */
 export const VSM_RENDER_RASTER_VERTEX_SPECS: readonly VsmBindingSpec[] = [

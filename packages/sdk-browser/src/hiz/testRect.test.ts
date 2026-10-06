@@ -6,7 +6,7 @@ import { countUnoccluded } from './unoccluded.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './occlusion.ts';
 import { createHizCounts, HIZ_KERNEL_TEXELS } from './counts.ts';
 import { cameraAt, occluderPyramid, quad } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 test('hizTestRect clips rectangle to viewport: entirely inside', () => {
@@ -103,13 +103,13 @@ test('counters: tested and kept account for all pages', () => {
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
+  const pyramid = occluderPyramid([front.page], engineCamera(cam), size);
   const counts = createHizCounts();
   const kept = countUnoccluded(
     [front.page, back.page],
     identityRoots(),
     pyramid,
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     counts,
   );
@@ -130,13 +130,13 @@ test('counters: triangle counts reflect cluster rejection', () => {
   back.page.array = new Uint32Array(12);
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
+  const pyramid = occluderPyramid([front.page], engineCamera(cam), size);
   const counts = createHizCounts();
   countUnoccluded(
     [front.page, back.page],
     identityRoots(),
     pyramid,
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     counts,
   );
@@ -161,7 +161,7 @@ test('counters: oversized pages are counted separately', () => {
   depth.fill(0.5);
   const pyramid = buildHizPyramid(depth, 32, 32);
   const counts = createHizCounts();
-  countUnoccluded([huge.page], identityRoots(), pyramid, cameraMoteur(cam), size, counts);
+  countUnoccluded([huge.page], identityRoots(), pyramid, engineCamera(cam), size, counts);
   assert.equal(counts.tested, 1);
   assert.equal(counts.oversized, 1);
   assert.equal(counts.oversizedTriangles, 8);

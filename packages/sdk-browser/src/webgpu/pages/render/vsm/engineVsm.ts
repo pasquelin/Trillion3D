@@ -14,12 +14,7 @@
  * virtual shadow map this frame.
  */
 import type { WebgpuPagesRuntime } from '../../runtime.ts';
-import {
-  createVsmResources,
-  growVsmTables,
-  type VsmResourceOptions,
-  type VsmResources,
-} from '../../../../vsm/resources.ts';
+import { createVsmResources, growVsmTables, type VsmResources } from '../../../../vsm/resources.ts';
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts';
 import {
   releaseVsmInvalidation,
@@ -74,6 +69,7 @@ import {
   VSM_COUNT_WANTED,
   VSM_COUNT_STATIC_KEPT,
 } from '../../../../vsm/constants.ts';
+import type { VsmResourceOptions } from '../../../../vsm/layout.ts';
 
 /** Directional clipmap levels a sun takes. */
 const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1;

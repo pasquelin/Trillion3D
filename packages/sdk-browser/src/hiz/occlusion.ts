@@ -2,7 +2,7 @@ import { hizHides } from './hides.ts';
 import { HIZ_KERNEL_TEXELS } from './counts.ts';
 import type { HizPyramid } from './types.ts';
 
-// The test kernel is a power of two: `premierNiveau` depends on that to bound the search.
+// The test kernel is a power of two: `firstLevel` depends on that to bound the search.
 const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS);
 if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
 
@@ -14,10 +14,10 @@ if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
  * them one by one. The returned level is an exact lower bound, never the kept level: the loop
  * then evaluates the same predicate as before, on the same integers.
  */
-function premierNiveau(span: number) {
+function firstLevel(span: number) {
   if (span < HIZ_KERNEL_TEXELS) return 0;
-  const niveau = 31 - Math.clz32(span) - (KERNEL_LOG2 - 1);
-  return niveau > 0 ? niveau : 0;
+  const level = 31 - Math.clz32(span) - (KERNEL_LOG2 - 1);
+  return level > 0 ? level : 0;
 }
 
 /**
@@ -73,7 +73,7 @@ export function hizTestRect(
     x1 = maxX > width - 1 ? width - 1 : maxX,
     y1 = maxY > height - 1 ? height - 1 : maxY;
   if (x1 < x0 || y1 < y0) return false;
-  for (let level = premierNiveau(x1 - x0 > y1 - y0 ? x1 - x0 : y1 - y0); level < levels; level++) {
+  for (let level = firstLevel(x1 - x0 > y1 - y0 ? x1 - x0 : y1 - y0); level < levels; level++) {
     const scale = 2 ** level;
     if (
       Math.floor(x1 / scale) - Math.floor(x0 / scale) < HIZ_KERNEL_TEXELS &&

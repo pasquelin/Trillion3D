@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts';
-import { batisseur, engine, libere, type ScenePreparee } from '../kit/sharedSceneProof.ts';
-import { jusquaTenue, PLAFOND } from '../kit/sceneImageProof.ts';
+import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts';
+import { untilHeld, PLAFOND } from '../kit/sceneImageProof.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
 import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
@@ -54,7 +54,7 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
   if (fixture.back) mesh.rotation.y = Math.PI;
   if (fixture.tilt) mesh.rotation.x = fixture.tilt;
   builder.source.add(mesh);
-  builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
+  builder.add(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {
     const back = G.mesh(
       G.planeGeometry(BEHIND.side, BEHIND.side),
@@ -62,7 +62,7 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
     );
     back.position.z = BEHIND.z;
     builder.source.add(back);
-    builder.ajoute(back, 'exact-clusters', 2);
+    builder.add(back, 'exact-clusters', 2);
   }
   if (fixture.lit) builder.source.add(sun);
   return builder.fini();
@@ -119,16 +119,16 @@ export async function engineImage(
   );
   try {
     await backend.prepare();
-    const { tenue, rendue } = await jusquaTenue(backend, camera);
-    return { pixels: tenue ?? rendue, held: tenue !== null };
+    const { held, rendered } = await untilHeld(backend, camera);
+    return { pixels: held ?? rendered, held: held !== null };
   } finally {
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }
 
 /** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
  *  encoded from the scene's geometry, composed on its own canvas the way a world composes it.
- *  Rendered until the engine holds its frame, as `jusquaTenue` waits on WebGPU; releases the
+ *  Rendered until the engine holds its frame, as `untilHeld` waits on WebGPU; releases the
  *  scene. */
 export async function webgl2Image(
   autonomousPagesBackend: BackendFactory,
@@ -173,6 +173,6 @@ export async function webgl2Image(
     return { pixels, held };
   } finally {
     draw.dispose();
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }

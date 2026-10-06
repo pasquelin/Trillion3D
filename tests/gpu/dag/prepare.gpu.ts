@@ -19,7 +19,7 @@ import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import {
   readCameraMotion,
   type CameraMotion,
@@ -87,7 +87,7 @@ function pyramidCases() {
       camera.position.set(px, 0, 12);
       camera.lookAt(px, 0, 0);
       camera.updateMatrixWorld(true);
-      return cameraMoteur(camera);
+      return engineCamera(camera);
     };
     if (!speed) return { eye: at(x), motion: undefined };
     const motion: CameraMotion = {};

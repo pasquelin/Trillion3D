@@ -4,8 +4,8 @@
  * each reduced to the digest of its decoded block and its page bytes.
  */
 import { createHash } from 'node:crypto';
-import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import type { PageAttributes } from '../../../../page-codec/pageAttributes.ts';
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
+import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 
 export type Mesh = { indices: number[]; attributes: PageAttributes; exponent: number };

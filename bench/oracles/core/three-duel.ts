@@ -5,12 +5,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { copyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
-import { graine, mesure } from '../../core/index.ts';
-import { compteur, note } from '../../core/ulp.ts';
+import { xorshiftRandom, measure } from '../../core/index.ts';
+import { counter, note } from '../../core/ulp.ts';
 
 /** Elements per line: enough to leave the JIT warm and the caches cold, like a frame's batches. */
 export const N = 200000;
-export const alea = graine(19092026);
+export const alea = xorshiftRandom(19092026);
 export const rnd = (a = -10, b = 10) => a + alea() * (b - a);
 
 /**
@@ -122,7 +122,7 @@ export interface DuelParams<Sortie extends ArrayLike<number> = Float64Array> {
  */
 export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   name,
-  fichier,
+  fichier: file,
   size = N,
   three,
   oracle,
@@ -135,7 +135,7 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   let maxAbs = 0;
   const differences = (expected: unknown, actual: unknown, path: string) => {
     const [ref, obt] = [expected as Sortie, actual as Sortie],
-      c = compteur();
+      c = counter();
     // The strict path refuses a length mismatch; the tolerant path must not let one through.
     if (ref.length !== obt.length) maxAbs = Infinity;
     for (let i = 0; i < ref.length; i++) {
@@ -146,13 +146,13 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   };
   // With `readCore`, each side returns a token of its own and the read happens after the clock.
   const tokens = readCore ? { core: {}, three: {} } : null;
-  const engine = await mesure<null, unknown>({
+  const engine = await measure<null, unknown>({
     name,
-    fichier,
+    fichier: file,
     cas: [{ name, size, input: null }],
     temoin: three,
-    calcul: tokens ? () => (core(), tokens.core) : core,
-    attendu: () => {
+    calculation: tokens ? () => (core(), tokens.core) : core,
+    expected: () => {
       three();
       return tokens ? tokens.three : oracle();
     },
