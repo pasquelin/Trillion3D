@@ -13,6 +13,7 @@ import {
   vsmProjectionWgsl,
 } from './projectionWgsl.ts';
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts';
+import { camera, sun } from './projectionScene.fixture.ts';
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,
@@ -117,16 +118,6 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     maskTiles: view,
     width: 8,
     height: 8,
-  };
-  const camera = {
-    view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-    projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-    perspective: true,
-  };
-  const sun: VsmProjectionLight = {
-    type: 'directional',
-    mapId: 0,
-    direction: [0, -1, 0],
   };
   const asked = [lights.slice(0, 1), [sun], [sun, lights[0]]];
   // Each is asked once, off the frame, then served by its own pipeline (`pipelineFor`).
