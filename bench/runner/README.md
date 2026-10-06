@@ -384,7 +384,7 @@ Measurement, export and site build are separate; rebuilding the portal never lau
 2. Export:
    `node bench/runner/summary/summaryGlobal.ts --from .mesure/out/<campaign> --to .mesure/out/<campaign>-report --id <campaign>`
    (defaults: `--from .mesure/out/global`, `--to <from>/report-data`, `--id current`).
-3. Stage: `node bench/runner/publishReport.ts --from .mesure/out/<campaign>-report` writes
+3. Stage: `node bench/runner/report/publishReport.ts --from .mesure/out/<campaign>-report` writes
    `site/reports/<id>/`, removes the campaign staged before and writes a catalogue naming the new
    one (the portal's Measurements area); an ID already staged is refused. No deploy, no push.
 4. Validate, preview with `pnpm docs:serve` (builds the bundles first); publishing follows the

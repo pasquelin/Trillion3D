@@ -53,7 +53,7 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
 });
 
 test('the published campaign has every image it references, each stored once', () => {
-  const reports = resolve(import.meta.dirname, '../../site/reports');
+  const reports = resolve(import.meta.dirname, '../../../site/reports');
   const [{ id }] = JSON.parse(readFileSync(join(reports, 'index.json'), 'utf8'));
   const report = JSON.parse(readFileSync(join(reports, id, 'report.json'), 'utf8'));
   for (const { image } of report.records as { image: string | null }[])

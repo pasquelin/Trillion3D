@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { exportReport } from './report/export.ts';
-import { assertReport } from '../../site/reports/contract.ts';
-import { comparison } from '../../site/reports/compare.ts';
-import { metricValue } from '../../site/reports/metrics.ts';
-import { canResume } from './report/provenance.ts';
-import type { ReportRecord } from '../../site/reports/types.ts';
-import type { Report as MesureReport } from './report/types.ts';
+import { exportReport } from './export.ts';
+import { assertReport } from '../../../site/reports/contract.ts';
+import { comparison } from '../../../site/reports/compare.ts';
+import { metricValue } from '../../../site/reports/metrics.ts';
+import { canResume } from './provenance.ts';
+import type { ReportRecord } from '../../../site/reports/types.ts';
+import type { Report as MesureReport } from './types.ts';
 const reading = (): ReportRecord => ({
   id: 'a',
   runId: 'run-a',

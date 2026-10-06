@@ -10,9 +10,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { assertReport } from '../../site/reports/contract.ts';
-import { parseArgs } from './options.ts';
-import { measureOutput } from '../core/paths.ts';
+import { assertReport } from '../../../site/reports/contract.ts';
+import { parseArgs } from '../options.ts';
+import { measureOutput } from '../../core/paths.ts';
 export function publierRapport(source: string, dest: string): string {
   const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')));
   const reports = join(dest, 'reports'),

@@ -320,7 +320,7 @@ DaisyUI `stats`, `stat`, `stat-title`, `stat-value` and `stat-desc`.
 ## Benchmark reports
 
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads the one published campaign from
-`site/reports/`, which `bench/runner/publishReport.ts` replaces. Shared React components own its
+`site/reports/`, which `bench/runner/report/publishReport.ts` replaces. Shared React components own its
 presentation; `site/reports/` modules own contract, metric semantics, comparison eligibility and
 bilingual labels ([report pipeline](../bench/runner/README.md#published-reports) for export and
 staging). The page is a `DocPage`, its sidebar the campaign's parts. Campaign data is independent of
