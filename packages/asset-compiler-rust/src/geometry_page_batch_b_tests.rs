@@ -36,7 +36,7 @@ fn localise_uses_the_declared_vertex_count_not_a_positions_buffer() {
 #[test]
 fn localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices() {
     let indices: Vec<u32> = (0..65_535).collect();
-    let (original, local) = localise(&indices, 65_535).expect("limite exacte");
+    let (original, local) = localise(&indices, 65_535).expect("exact limit");
     assert_eq!(original.len(), 65_535);
     assert_eq!(*local.last().unwrap(), 65_534);
 }

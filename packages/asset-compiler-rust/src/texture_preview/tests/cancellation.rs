@@ -23,7 +23,7 @@ fn one_thread() -> rayon::ThreadPool {
     rayon::ThreadPoolBuilder::new()
         .num_threads(1)
         .build()
-        .expect("grappe")
+        .expect("cluster")
 }
 
 // Behavior 8: cancellation re-checked before each image, not just start —

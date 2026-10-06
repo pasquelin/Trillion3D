@@ -133,9 +133,9 @@ fn unpacked() -> Vec<u8> {
     let mut rest = &raw[..];
     let mut out = Vec::new();
     while rest.len() >= 4 {
-        let magic = u32::from_le_bytes(rest[..4].try_into().expect("nombre magique"));
+        let magic = u32::from_le_bytes(rest[..4].try_into().expect("magic number"));
         if magic & 0xFFFF_FFF0 == 0x184D_2A50 {
-            let length = u32::from_le_bytes(rest[4..8].try_into().expect("longueur")) as usize;
+            let length = u32::from_le_bytes(rest[4..8].try_into().expect("length")) as usize;
             rest = &rest[8 + length..];
             continue;
         }

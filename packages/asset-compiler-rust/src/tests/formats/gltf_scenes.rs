@@ -49,7 +49,7 @@ fn compiled(options: &Options) -> (u64, u64, u64) {
     (
         result["selectedNodes"].as_u64().expect("nodes"),
         result["selectedTriangles"].as_u64().expect("triangles"),
-        lights["count"].as_u64().expect("lampes"),
+        lights["count"].as_u64().expect("lamps"),
     )
 }
 
@@ -58,10 +58,10 @@ fn compiled(options: &Options) -> (u64, u64, u64) {
 #[test]
 fn only_the_selected_scene_is_compiled() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(0));
-    let (nodes, triangles, lampes) = compiled(&options);
+    let (nodes, triangles, lamps) = compiled(&options);
     assert_eq!(nodes, 2, "only scene 0's nodes");
     assert_eq!(triangles, 2, "one triangle per kept node");
-    assert_eq!(lampes, 0, "scene 1's light is not of this scene");
+    assert_eq!(lamps, 0, "scene 1's light is not of this scene");
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -69,10 +69,10 @@ fn only_the_selected_scene_is_compiled() {
 #[test]
 fn the_named_scene_carries_its_own_lamps() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(1));
-    let (nodes, triangles, lampes) = compiled(&options);
+    let (nodes, triangles, lamps) = compiled(&options);
     assert_eq!(nodes, 2, "only scene 1's nodes");
     assert_eq!(triangles, 2);
-    assert_eq!(lampes, 1, "node 3's light is in scene 1");
+    assert_eq!(lamps, 1, "node 3's light is in scene 1");
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -83,10 +83,10 @@ fn the_children_of_the_scene_roots_follow() {
     let mut gltf = read_gltf(&options);
     gltf["nodes"][0]["children"] = json!([1]);
     rewrite(&options, &gltf);
-    let (nodes, triangles, lampes) = compiled(&options);
+    let (nodes, triangles, lamps) = compiled(&options);
     assert_eq!(nodes, 2, "node 0's child is in scene 0");
     assert_eq!(triangles, 2);
-    assert_eq!(lampes, 0);
+    assert_eq!(lamps, 0);
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -95,9 +95,9 @@ fn the_children_of_the_scene_roots_follow() {
 #[test]
 fn without_scenes_every_root_is_compiled() {
     let (root, options) = scenes_fixture(None, None);
-    let (nodes, triangles, lampes) = compiled(&options);
+    let (nodes, triangles, lamps) = compiled(&options);
     assert_eq!(nodes, 5);
     assert_eq!(triangles, 5);
-    assert_eq!(lampes, 1);
+    assert_eq!(lamps, 1);
     fs::remove_dir_all(root).expect("cleanup");
 }

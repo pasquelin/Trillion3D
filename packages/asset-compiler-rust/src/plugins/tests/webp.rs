@@ -7,7 +7,7 @@ use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 /// Fixtures are 256 × 256 RGBA8, that is 262 144 bytes: this ceiling does not let them through.
-const MAX_ALLOC_TROP_PETIT: u64 = 64 * 1024;
+const MAX_ALLOC_TOO_PETIT: u64 = 64 * 1024;
 
 /// Five texels of `sans-perte.webp` — four corners then the centre — verified by an independent
 /// decoder (Pillow 12.2.0) before being written here. Alphas 0 and 255 sit side by side: an
@@ -21,7 +21,7 @@ const TEXELS: [(u32, u32, [u8; 4]); 5] = [
 ];
 
 /// Image the registry yields for this fixture.
-fn rendu(name: &str) -> image::RgbaImage {
+fn rendered(name: &str) -> image::RgbaImage {
     decoded_rgba8("webp", name, MAX_ALLOC, (256, 256))
 }
 
@@ -30,12 +30,12 @@ fn rendu(name: &str) -> image::RgbaImage {
 // difference, from one writing of the format to the other.
 #[test]
 fn the_two_writings_of_lossless_yield_the_same_bytes() {
-    let simple = rendu("sans-perte.webp");
-    for (x, y, attendu) in TEXELS {
-        assert_eq!(simple.get_pixel(x, y).0, attendu, "texel ({x}, {y})");
+    let simple = rendered("sans-perte.webp");
+    for (x, y, expected) in TEXELS {
+        assert_eq!(simple.get_pixel(x, y).0, expected, "texel ({x}, {y})");
     }
     assert_eq!(
-        rendu("etendu-sans-perte.webp").as_raw(),
+        rendered("etendu-sans-perte.webp").as_raw(),
         simple.as_raw(),
         "the extended container carries the same VP8L: its ICCP and header touch no pixel"
     );
@@ -78,7 +78,7 @@ fn a_webp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     // The allocation ceiling is a limit, not a suggestion: above it, it is a refusal, and it
     // carries its name — the final RGBA8 size is known before anything is decoded.
     assert_eq!(
-        registry::decode(&fixture("webp", "sans-perte.webp"), MAX_ALLOC_TROP_PETIT).err(),
+        registry::decode(&fixture("webp", "sans-perte.webp"), MAX_ALLOC_TOO_PETIT).err(),
         Some("image-too-large")
     );
     // RIFF serves other formats: without the `WEBP` form type, the driver claims nothing, and

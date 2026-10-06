@@ -188,7 +188,7 @@ sit under "Textures", "Image Feedback", "Broadcaster": the pool is fixed, "resid
 use.
 
 The capture is taken on a **still pose**: after warmup the pose renders until held — accumulation
-converged, no pending work — at most 64 frames (`poseCalme`, `harness/measurePage.ts`), since
+converged, no pending work — at most 64 frames (`calmPose`, `harness/measurePage.ts`), since
 mid-accumulation captures carry non-deterministic streaming. `series[].sides[].settleFrames` gives
 the count, `null` if the engine holds no frames (Three witness). Each series runs in a fresh page
 closed right after: reused pages made `new THREE.WebGLRenderer` fail ("Error creating WebGL

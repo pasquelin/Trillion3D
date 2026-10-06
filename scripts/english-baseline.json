@@ -1,6 +1,6 @@
 {
   "bench": 87,
-  "packages/asset-compiler-rust": 341,
+  "packages/asset-compiler-rust": 128,
   "packages/page-codec-wasm": 16,
   "packages/sdk-browser": 210,
   "packages/sdk-node": 8,

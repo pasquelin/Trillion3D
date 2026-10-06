@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn a_job_hungrier_than_the_batch_is_named() {
         let jobs = [job("enorme", 4096)];
-        let refusal = fit_workers(1, 256, &jobs).expect_err("refus");
+        let refusal = fit_workers(1, 256, &jobs).expect_err("refusal");
         assert!(refusal.contains("enorme"), "{refusal}");
         assert!(
             refusal.contains("4096") && refusal.contains("256"),

@@ -11,7 +11,7 @@ const SOURCE: &str = "000000000000000000000000000000a2";
 const OUTER: &str = "000000000000000000000000000000a3";
 
 /// A plain `.mat`, the shortest the driver reads.
-fn matiere(name: &str) -> String {
+fn material(name: &str) -> String {
     white_mat(name, "    - _Metallic: 0\n")
 }
 
@@ -32,10 +32,10 @@ fn retouche(target: u32, guid: &str, path: &str, value: &str) -> String {
 // the author changed from the scene on an object of the nested prefab is lost.
 #[test]
 fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
-    let projet = UnityProject::new("prefab-imbrique");
-    projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
-    projet.data("Prefabs/Inner.prefab", SOURCE, &cube(100, "Boite", MAT));
-    projet.data(
+    let project = UnityProject::new("prefab-imbrique");
+    project.data("Materials/Uni.mat", MAT, &material("Uni"));
+    project.data("Prefabs/Inner.prefab", SOURCE, &cube(100, "Boite", MAT));
+    project.data(
         "Prefabs/Outer.prefab",
         OUTER,
         &instance(
@@ -47,7 +47,7 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
             ),
         ),
     );
-    projet.scene(&instance(
+    project.scene(&instance(
         5000,
         OUTER,
         &format!(
@@ -55,7 +55,7 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
             retouche(101, OUTER, "m_LocalPosition.x", "5")
         ),
     ));
-    let (_, gltf) = projet.compile("unity-prefab-imbrique").prepared("unity");
+    let (_, gltf) = project.compile("unity-prefab-imbrique").prepared("unity");
     assert_eq!(
         node_named(&gltf, "Boite").expect("the nested prefab's object")["translation"],
         json!([5.0, 0.0, 0.0]),
@@ -69,14 +69,14 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
 // out of reach is counted by its name.
 #[test]
 fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
-    let projet = UnityProject::new("prefab-retire");
-    projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
-    projet.data(
+    let project = UnityProject::new("prefab-retire");
+    project.data("Materials/Uni.mat", MAT, &material("Uni"));
+    project.data(
         "Prefabs/Source.prefab",
         SOURCE,
         &format!("{}{}", cube(100, "Gardee", MAT), cube(200, "Retiree", MAT)),
     );
-    projet.scene(&format!(
+    project.scene(&format!(
         "{}{}",
         instance(
             5000,
@@ -85,7 +85,7 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
         ),
         game_object(700, "Ajoutee", BUILTIN, &material_entry(MAT), 5001)
     ));
-    let (manifest, gltf) = projet.compile("unity-prefab-retire").prepared("unity");
+    let (manifest, gltf) = project.compile("unity-prefab-retire").prepared("unity");
     assert!(
         node_named(&gltf, "Retiree").expect("the object remains")["mesh"].is_null(),
         "a renderer removed by the instance emits no mesh"
@@ -108,15 +108,15 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
 // not name, itself, still keeps the prefab's.
 #[test]
 fn a_null_material_override_leaves_its_slot_without_a_material() {
-    let projet = UnityProject::new("materiau-nul");
-    projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
-    projet.data("Prefabs/Source.prefab", SOURCE, &cube(100, "Boite", MAT));
-    projet.scene(&instance(
+    let project = UnityProject::new("materiau-nul");
+    project.data("Materials/Uni.mat", MAT, &material("Uni"));
+    project.data("Prefabs/Source.prefab", SOURCE, &cube(100, "Boite", MAT));
+    project.scene(&instance(
         5000,
         SOURCE,
         "    m_Modifications:\n    - target: {fileID: 103, guid: 000000000000000000000000000000a2, type: 3}\n      propertyPath: m_Materials.Array.data[0]\n      value: \n      objectReference: {fileID: 0}\n",
     ));
-    let (_, gltf) = projet.compile("unity-materiau-nul").prepared("unity");
+    let (_, gltf) = project.compile("unity-materiau-nul").prepared("unity");
     let mesh = node_named(&gltf, "Boite").expect("the object")["mesh"]
         .as_u64()
         .expect("its mesh") as usize;

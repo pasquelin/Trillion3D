@@ -23,15 +23,15 @@ const REFERENCE: [[u8; 4]; 4] = [
 fn each_read_depth_yields_the_reference_pixels() {
     for name in ["rgb8.png", "palette4.png"] {
         let bytes = fixture("png", name);
-        let pilote = registry::by_head(&bytes).expect("a driver claims these bytes");
-        assert_eq!(pilote.name(), "png", "{name}");
-        assert_eq!(pilote.mime(), "image/png", "{name}");
-        let rendu = rgba8(
-            registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
+        let driver = registry::by_head(&bytes).expect("a driver claims these bytes");
+        assert_eq!(driver.name(), "png", "{name}");
+        assert_eq!(driver.mime(), "image/png", "{name}");
+        let rendered = rgba8(
+            registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("{name}: {error}")),
         );
-        assert_eq!((rendu.width(), rendu.height()), (2, 2), "{name}");
+        assert_eq!((rendered.width(), rendered.height()), (2, 2), "{name}");
         assert_eq!(
-            rendu.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
+            rendered.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
             REFERENCE,
             "{name}"
         );
@@ -46,7 +46,7 @@ fn each_read_depth_yields_the_reference_pixels() {
 fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
     let bytes = fixture("png", "rgb16.png");
     assert_eq!(
-        registry::by_head(&bytes).map(|pilote| pilote.name()),
+        registry::by_head(&bytes).map(|driver| driver.name()),
         Some("png")
     );
     assert_eq!(
@@ -57,7 +57,7 @@ fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
     // carries it, otherwise an entry written in the silent-lowering days would be reread as
     // correct.
     assert_eq!(
-        registry::by_head(&bytes).map(|pilote| pilote.version()),
+        registry::by_head(&bytes).map(|driver| driver.version()),
         Some("png-image-0.25-depth8-apng-icc-gama")
     );
     // It is depth that refuses, not size: the reason does not move with the allocation
@@ -82,13 +82,13 @@ fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
 #[test]
 fn an_animated_png_yields_its_default_image_and_counts_the_animation() {
     let bytes = fixture("png", "anime.png");
-    let rendu = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("anime.png: {erreur}")),
+    let rendered = rgba8(
+        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("anime.png: {error}")),
     );
-    assert_eq!((rendu.width(), rendu.height()), (2, 2));
+    assert_eq!((rendered.width(), rendered.height()), (2, 2));
     // The default image is pure red; the second frame, green, does not enter the output.
     assert_eq!(
-        rendu.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
+        rendered.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
         vec![[255, 0, 0, 255]; 4]
     );
     let (transfert, raisons) = declared("png", "anime.png", MAX_ALLOC);

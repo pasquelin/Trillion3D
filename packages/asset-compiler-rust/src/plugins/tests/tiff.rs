@@ -90,13 +90,13 @@ fn a_tiff_outside_profile_comes_out_as_a_report_reason_never_as_a_panic() {
     // BigTIFF shares the extension and almost the header; its addresses fit on eight bytes, it
     // is another format. The driver claims it to name it, rather than letting it come out as an
     // unknown format.
-    for entete in [b"II\x2b\x00\x08\x00\x00\x00", b"MM\x00\x2b\x00\x08\x00\x00"] {
+    for header in [b"II\x2b\x00\x08\x00\x00\x00", b"MM\x00\x2b\x00\x08\x00\x00"] {
         assert_eq!(
-            registry::by_head(entete).map(|pilote| pilote.name()),
+            registry::by_head(header).map(|driver| driver.name()),
             Some("tiff")
         );
         assert_eq!(
-            registry::decode(entete, MAX_ALLOC).err(),
+            registry::decode(header, MAX_ALLOC).err(),
             Some("image-profile-unsupported")
         );
     }

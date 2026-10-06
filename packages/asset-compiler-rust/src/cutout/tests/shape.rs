@@ -4,11 +4,11 @@
 use super::*;
 
 /// Disc of radius  entirely present, absent beyond , softened between the two.
-fn sheet_image(plein: f32, vide: f32) -> image::RgbaImage {
+fn sheet_image(plein: f32, empty: f32) -> image::RgbaImage {
     image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
-        let part = ((vide - rayon) / (vide - plein)).clamp(0.0, 1.0);
+        let part = ((empty - rayon) / (empty - plein)).clamp(0.0, 1.0);
         image::Rgba([40, 120, 40, (part * 255.0).round() as u8])
     })
 }

@@ -34,7 +34,7 @@ fn with_layer_count(name: &str, count: i16) -> Vec<u8> {
 /// Pixels and named reasons of bytes built by the test.
 fn decode(case: &str, bytes: &[u8]) -> (Vec<[u8; 4]>, Vec<&'static str>) {
     let decoded =
-        registry::decode(bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{case}: {erreur}"));
+        registry::decode(bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("{case}: {error}"));
     let raisons = decoded.notes.clone();
     let image = rgba8(decoded);
     assert_eq!(image.dimensions(), SIZE, "{case}");

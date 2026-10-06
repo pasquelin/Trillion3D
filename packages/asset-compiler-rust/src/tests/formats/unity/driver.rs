@@ -104,17 +104,17 @@ fn a_unity_data_file_is_recognised_by_its_head() {
 #[test]
 fn a_material_slot_override_beyond_what_a_renderer_carries_is_counted() {
     const MODEL: &str = "0000000000000000000000000000000a";
-    let projet = super::project::UnityProject::new("emplacement");
-    projet.model(
+    let project = super::project::UnityProject::new("emplacement");
+    project.model(
         "Models/Piece.glb",
         MODEL,
         json!([{"name":"Piece","mesh":0}]),
         "",
     );
-    projet.scene(&format!(
+    project.scene(&format!(
         "--- !u!1001 &5000\nPrefabInstance:\n  serializedVersion: 2\n  m_Modification:\n    m_TransformParent: {{fileID: 0}}\n    m_Modifications:\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Materials.Array.data[18446744073709551615]\n      value:\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Name\n      value: Instance\n      objectReference: {{fileID: 0}}\n  m_SourcePrefab: {{fileID: 100100000, guid: {MODEL}, type: 3}}\n"
     ));
-    let run = projet.compile("unity-emplacement");
+    let run = project.compile("unity-emplacement");
     let (manifest, gltf) = run.prepared("unity");
     assert_eq!(
         manifest["unsupported"]["unity-prefab-material-slot-invalid"], 1,
