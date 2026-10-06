@@ -83,7 +83,7 @@ test('a failed hold keeps its pages wanted until the plan asks again, at the pri
       world.held++
       world.priorities.push(asked?.priority)
       await Promise.resolve()
-      if (world.fails-- > 0) throw new Error('world read failed')
+      if (world.fails-- > 0) throw Object.assign(new Error('world read failed'), { due: 500 })
     },
     release: () => void world.held--,
   })

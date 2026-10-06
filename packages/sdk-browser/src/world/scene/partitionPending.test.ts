@@ -106,7 +106,7 @@ test("a still camera never waits for a failed hold's wait: one timer asks the lo
   let woken = 0
   const holder = {
     async hold() {
-      throw new Error('refused')
+      throw Object.assign(new Error('refused'), { due: 500 }) // its read's wait
     },
     release() {},
   }

@@ -7,16 +7,16 @@
  * `../scene/worldRoots.ts`). Both are read through the session's queue at the priority the cell is
  * held with, and a cell that leaves while its hold reads lets its reads go at once: those still
  * queued are never fetched. A hold that failed holds nothing; the plan asks it again, at the
- * priority its view gives it then, once its own wait is over — 0.5 s · 2^(k−1) after its k-th
- * failure in a row, at most 8 s, never for one another request would meet again (`backoff`) —,
- * the earliest wait read by a frame at O(1) cost (`due`). Without `pages` the manifest was read
+ * priority its view gives it then, once the wait of the read that failed it is over — the one
+ * clock, its streamer's (`retryAt`); never when another read would meet it again —, the earliest
+ * wait read by a frame at O(1) cost (`due`). Without `pages` the manifest was read
  * whole: every mesh the cells place has its primitive from the open.
  */
 import type { ManifestPages, PageAsk } from '../../../sdk-core/src/manifest/paged.ts'
 import type { PlacedMesh } from './rows.ts'
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-import { backoff } from '../streaming/failures.ts'
+import { retryAt } from '../streaming/failures.ts'
 
 /** What a placed cell holds from one source, counted per cell. */
 type Holder = Pick<WorldRootsHold, 'hold' | 'release'>
@@ -81,34 +81,33 @@ function createLandings() {
   }
 }
 
-/** The cells whose hold failed: each its failures in a row and when it is asked again, and the
- *  earliest of those (`due`, `Infinity` while none waits). */
+/** The cells whose hold failed, each with when it is asked again, and the earliest of those
+ *  (`due`, `Infinity` while none waits). */
 function createFailedHolds() {
-  const failed = new Map<number, { tries: number; due: number }>()
+  const failed = new Map<number, number>()
   let next = Infinity
   return {
-    /** `cell`'s hold failed its `tries`-th time in a row, with `error`. */
-    add(cell: number, tries: number, error: unknown) {
-      const due = performance.now() + backoff(tries, error)
-      failed.set(cell, { tries, due })
+    /** `cell`'s hold failed with `error`: asked again once its read's wait is over. */
+    add(cell: number, error: unknown) {
+      const due = retryAt(error)
+      failed.set(cell, due)
       next = Math.min(next, due)
     },
     delete: (cell: number) => failed.delete(cell),
     due: () => next,
-    /** The failed holds due at `now`, each taken out as it is given with its failures in a row. */
+    /** The failed holds due at `now`, each taken out as it is given. */
     *take(now: number) {
       next = Infinity
-      for (const [cell, own] of failed)
-        if (own.due > now) next = Math.min(next, own.due)
-        else if (failed.delete(cell)) yield [cell, own.tries] as const
+      for (const [cell, due] of failed)
+        if (due > now) next = Math.min(next, due)
+        else if (failed.delete(cell)) yield cell
     },
   }
 }
 
-/** A cell's hold, held or read, left while it reads, what lets its reads go, and the failures in a
- *  row before it. Each hold is released once on every holder, landed or not
- *  (`WorldRootsHold.hold`). */
-type Hold = { landed: boolean; left: boolean; stop: AbortController; tries: number }
+/** A cell's hold, held or read, left while it reads, and what lets its reads go. Each hold is
+ *  released once on every holder, landed or not (`WorldRootsHold.hold`). */
+type Hold = { landed: boolean; left: boolean; stop: AbortController }
 
 /** The holds of the cells placed on `pages` and `world`. */
 export function createCellPages(
@@ -130,11 +129,11 @@ export function createCellPages(
     if (own.left) return releaseAll(cell) // left while it read
     if (own.landed) return
     holding.delete(cell)
-    failed.add(cell, own.tries + 1, held.find((each) => each.status === 'rejected')?.reason)
+    failed.add(cell, held.find((each) => each.status === 'rejected')?.reason)
   }
-  const hold = (cell: number, priority = PRIORITY_VISIBLE, tries = 0) => {
+  const hold = (cell: number, priority = PRIORITY_VISIBLE) => {
     if (!holders.length || holding.has(cell)) return
-    const own: Hold = { landed: false, left: false, stop: new AbortController(), tries }
+    const own: Hold = { landed: false, left: false, stop: new AbortController() }
     holding.set(cell, own)
     landings.started()
     const asked = { signal: own.stop.signal, priority }
@@ -144,7 +143,7 @@ export function createCellPages(
     /** The manifest's pages, `undefined` when it was read whole. */
     pages,
     /** `cell` was placed: its pages are held, and read at `priority` if they are not. */
-    hold: (cell: number, priority?: number) => hold(cell, priority),
+    hold,
     /** `cell` left: its pages are released, its reads still queued let go. */
     release(cell: number) {
       if (failed.delete(cell)) return releaseAll(cell)
@@ -160,8 +159,8 @@ export function createCellPages(
     /** The failed holds whose wait is over at `now` are held at the priority `priorityOf` gives
      *  each, and let go once the new hold counts. */
     retry(priorityOf: (cell: number) => number, now: number) {
-      for (const [cell, tries] of failed.take(now)) {
-        hold(cell, priorityOf(cell), tries)
+      for (const cell of failed.take(now)) {
+        hold(cell, priorityOf(cell))
         releaseAll(cell)
       }
     },

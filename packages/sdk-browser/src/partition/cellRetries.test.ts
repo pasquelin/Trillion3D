@@ -1,6 +1,6 @@
-// A placed cell whose hold failed is asked again by the plan once its own wait is over — 0.5 s, then
-// twice as long each time up to 8 s, never frame after frame before —, at the priority its view
-// gives it then, whatever failed; one another request would meet again (a 404) is never asked again.
+// A placed cell whose hold failed is asked again by the plan once the wait of the read that failed
+// it is over — the streamer's one clock, never frame after frame before —, at the priority its view
+// gives it then; one another read would meet again (a 404, a world not bound) is never asked again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -34,14 +34,14 @@ function oneCell(world: Pick<WorldRootsHold, 'hold' | 'release'>) {
 
 /** One cell whose world hold throws `failure` while `refusing()`, framed by a clock in the test's
  *  hands: the priorities its holds were asked at, and a frame from `eye` at time `at`. */
-async function failing(t: TestContext, failure: () => Error, refusing: () => boolean) {
+async function failing(t: TestContext, failure: (now: number) => Error, refusing: () => boolean) {
   let now = 0
   t.mock.method(performance, 'now', () => now)
   const priorities: number[] = []
   const world = {
     async hold(_cell: number, asked?: PageAsk) {
       priorities.push(asked!.priority!)
-      if (refusing()) throw failure()
+      if (refusing()) throw failure(now)
     },
     release() {},
   }
@@ -61,7 +61,7 @@ test('a failed hold is asked again once its own wait is over, at its priority th
   let refuse = true
   const { priorities, manifest, frame, due } = await failing(
     t,
-    () => new Error('refused'),
+    (now) => Object.assign(new Error('refused'), { due: now + 500 }), // its read's wait
     () => refuse,
   )
   for (const at of [0, 250, 499]) await frame(at)
@@ -75,21 +75,21 @@ test('a failed hold is asked again once its own wait is over, at its priority th
   assert.deepEqual(priorities, [at([0, 0, 0]), at([5, 0, 0])], 'at the priority its view gives it')
 })
 
-test('a hold that fails without any read, its world not bound yet, waits as long, doubling', async (t) => {
-  const { priorities, frame } = await failing(
+test('a hold failed by no read — its world not bound — is never asked again: it would fail again', async (t) => {
+  const { priorities, frame, due } = await failing(
     t,
     () => new Error('WORLD_ROOTS_UNBOUND: a cell holds within a session'),
     () => true,
   )
-  for (let at = 0; at <= 4000; at += 250) await frame(at)
-  assert.equal(priorities.length, 4, 'asked at 0, 0.5, 1.5 and 3.5 s')
+  for (let at = 0; at <= 20_000; at += 1000) await frame(at)
+  assert.deepEqual([priorities.length, due()], [1, Infinity])
 })
 
 test('a hold another request would meet again (404) is never asked again', async (t) => {
   const missing = new EngineError('RESOURCE_HTTP_ERROR', 'absent', { status: 404 })
   const { priorities, frame, due } = await failing(
     t,
-    () => new Error('PAGE_STREAM_FAILED', { cause: missing }),
+    () => Object.assign(new Error('PAGE_STREAM_FAILED', { cause: missing }), { due: Infinity }),
     () => true,
   )
   for (let at = 0; at <= 20_000; at += 1000) await frame(at)
