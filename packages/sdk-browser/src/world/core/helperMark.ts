@@ -2,7 +2,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 
 /** The roots the `helper` family built: marks a scene is worked on with, never its content. */
 const marks = new WeakSet<Object3D>();
-/** The light or camera each following helper takes its pose from (`following`, `./index.ts`). */
+/** The light or camera each following helper takes its pose from (`following`, `../api/helperFamily.ts`). */
 const targets = new WeakMap<Object3D, Object3D>();
 
 /** Every member of `family`, its result marked as a helper: a pick and a saved scene skip it. */

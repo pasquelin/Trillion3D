@@ -4,7 +4,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { createControlBase } from '../../camera/controls/base.ts';
 import { canvasRay } from '../core/worldRaycast.ts';
-import { isHelper } from '../helper/mark.ts';
+import { isHelper } from '../core/helperMark.ts';
 import type { buildTransformHandles } from './transformHandles.ts';
 import type { TransformEvent, TransformHost } from './transform.ts';
 import {

@@ -12,7 +12,7 @@ import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Plane } from '../../../../sdk-core/src/world/math/volumes.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import { markedFamily, markFollowing } from './mark.ts';
+import { markedFamily, markFollowing } from '../core/helperMark.ts';
 
 /** Line segments through `points` (two corners per segment), in one colour. */
 function lines(points: number[], color: ColorInput) {

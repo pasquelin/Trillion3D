@@ -1,6 +1,6 @@
 import type { LoadOptions } from './scene.ts';
 import { loadModel } from './loadedModel.ts';
-import { loadModelOfAnyFormat } from '../loader/modelFormat.ts';
+import { loadModelOfAnyFormat } from './modelFormat.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 
 /**

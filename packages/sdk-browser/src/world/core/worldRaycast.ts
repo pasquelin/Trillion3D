@@ -3,7 +3,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { raycast, type Intersection } from '../../../../sdk-core/src/world/object/raycast.ts';
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
-import { isHelper } from '../helper/mark.ts';
+import { isHelper } from './helperMark.ts';
 import { drawnAspect } from './worldCamera.ts';
 import {
   asksPhysics,

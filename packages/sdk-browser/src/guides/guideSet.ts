@@ -1,7 +1,7 @@
 import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { poseSourceOf } from '../world/helper/mark.ts';
+import { poseSourceOf } from '../world/core/helperMark.ts';
 import {
   followNode,
   objectPieces,

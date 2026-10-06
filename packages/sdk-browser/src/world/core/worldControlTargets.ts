@@ -3,7 +3,7 @@ import type { CharacterCollision } from '../../../../sdk-core/src/collision/char
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { VehicleDriver } from '../../../../sdk-core/src/physics/vehicle.ts';
 import type { CharacterBodyFactory } from '../../../../sdk-core/src/collision/characterBody.ts';
-import { isHelper } from '../helper/mark.ts';
+import { isHelper } from './helperMark.ts';
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 
 /** Where the character's body comes from while the world's physics runs: `body()` is `null`
