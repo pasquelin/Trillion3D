@@ -17,7 +17,7 @@ import {
   type Vec3,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { gridSlice } from '../../../bench/oracles/browser/gpuLightGridOracle.ts';
-import { gridLists, reaches } from '../../../bench/runner/lightGridWalk.ts';
+import { gridLists, reaches } from '../../../bench/runner/lighting/lightGridWalk.ts';
 import { runOnDawn, loadPage } from '../kit/onDawn.ts';
 import type { GridLamp } from './lightGridPage.ts';
 

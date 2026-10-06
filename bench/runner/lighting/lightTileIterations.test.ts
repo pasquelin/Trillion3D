@@ -2,7 +2,10 @@
 // model multiplies them by the covered pixels, never by every pixel of the image.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NEAR, camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import {
+  NEAR,
+  camera,
+} from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { blockIndex, depthField, emptyBlocks, type City, type Light } from './lightTileCity.ts';
 import { countGrid } from './lightGridCount.ts';
 import { COST_MODEL, modelMs } from './lightTileIterations.ts';

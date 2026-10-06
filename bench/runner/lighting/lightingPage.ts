@@ -1,11 +1,11 @@
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { MeasureViewOptions, MeasureViewResult } from './measureOptions.ts';
-import type * as PageCoupe from './series/cutPage.ts';
-import type * as PageTemoin from './witnessPage.ts';
-import type * as PageExplorateur from './explorerPage.ts';
-import type * as PageMesure from './measurePage.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
-import type { MovingNode } from './report/types.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
+import type * as PageCoupe from '../series/cutPage.ts';
+import type * as PageTemoin from '../witnessPage.ts';
+import type * as PageExplorateur from '../explorerPage.ts';
+import type * as PageMesure from '../measurePage.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
+import type { MovingNode } from '../report/types.ts';
 
 /** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */
 // Named by its backend export at build time (`exactPagesBackend`, `webgpuPagesBackend`,

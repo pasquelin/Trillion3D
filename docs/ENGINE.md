@@ -172,7 +172,7 @@ page past the table and another class are rejected before any write (`classAdmit
 only the maps it has. No material depth is written or tested: the resolve writes storage textures,
 which already made any depth test late, so the test excluded nothing the stage did not. A class
 past the 64th, or on a device refusing the pass, draws one full-screen triangle, as before. A
-one-class image shades full screen. Counted on the atrium (`bench/runner/materialTileCount.ts`, 3456 × 2234, six
+one-class image shades full screen. Counted on the atrium (`bench/runner/lighting/materialTileCount.ts`, 3456 × 2234, six
 classes): 1.11–1.16 fragments rasterised per pixel, where the full-screen triangles rasterised 6.
 The `material-classes-ready` diagnostic lists the classes; the `materials` view colours each pixel
 by its class.
@@ -325,7 +325,7 @@ where its list starts. A column the pool has no room for walks every light, exac
 overflow is named (`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). Each
 pixel walks the list of the cell its depth falls in; a blend surface, the cell of its own depth.
 200 lamps of range 4 m list 6.91–8.88 lights per covered pixel of a sponza-sized atrium at
-3456 × 2234, where 5.90–7.46 reach it, none missed (`bench/runner/lightGridCount.ts`); the pass
+3456 × 2234, where 5.90–7.46 reach it, none missed (`bench/runner/lighting/lightGridCount.ts`); the pass
 tests 378,000 column × light pairs and solves 53,000–73,000 runs, where the 2.5D tiles it replaces
 read 7.7 million depth texels and tested 6.05 million tile × light pairs. A scene of 64 lights or
 fewer resolves with a 64-light array (the narrow program), compiled on first use, its wide twin
@@ -369,7 +369,7 @@ lights that holds a shadowed light is sampled; a list with none is summed in ful
 is, bit for bit, from the same one call site (`contractLighting`,
 `tests/gpu/lighting/sampled-resolve.gpu.ts`, #1249, excluded while #1369 holds). 200 unshadowed lamps of range 4 m in a
 sponza-sized atrium walk their cell's list once, 6.91–8.88 light evaluations per covered pixel at
-3456 × 2234, where the resolve before #1249 drew 15.7–21.0 (`bench/runner/lightTileSampledCount.ts`).
+3456 × 2234, where the resolve before #1249 drew 15.7–21.0 (`bench/runner/lighting/lightTileSampledCount.ts`).
 `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint
 grain on lit surfaces where lights of different colours overlap and in penumbrae, while the camera
 moves (`tests/gpu/lighting/sampled-lighting.gpu.ts`). What

@@ -4,13 +4,13 @@
 // `--classes` classes in turn. COUNTED, never timed: the fragments that pass the test, and so the
 // material evaluations — one per covered pixel —, are the same before and after.
 //
-//   node bench/runner/materialTileCount.ts [--width 3456] [--height 2234] [--classes 6]
+//   node bench/runner/lighting/materialTileCount.ts [--width 3456] [--height 2234] [--classes 6]
 import { parseArgs } from 'node:util';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import {
   classFragments,
   classifyTiles,
-} from '../../packages/sdk-browser/src/webgpu/core/materialTiles.fixture.ts';
+} from '../../../packages/sdk-browser/src/webgpu/core/materialTiles.fixture.ts';
 import { ATRIUM_POSES, atriumDepth } from './lightTileAtrium.ts';
 
 /** Per pixel of a `width` × `height` pose: fragments rasterised before and after, and the

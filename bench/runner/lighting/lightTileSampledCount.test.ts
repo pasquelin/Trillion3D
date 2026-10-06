@@ -3,8 +3,8 @@
 // a shadowed light is drawn as before. Counted on the shipped WGSL, over a sponza-sized atrium.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import { countSampled } from './lightTileSampledCount.ts';
 

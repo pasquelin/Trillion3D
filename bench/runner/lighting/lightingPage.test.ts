@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './lightingPage.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
-import type { MeasuredWorld } from '../witnesses/measurement.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
+import type { MeasureViewOptions } from '../measureOptions.ts';
+import type { MeasuredWorld } from '../../witnesses/measurement.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 
 /** The fake SDK that `measureView` imports by URL: a `openMeasuredWorld` returning the mock set
  *  on `globalThis` before the call, as Playwright serializes `measureView` into the real page. */
@@ -81,12 +81,12 @@ async function mesurer(
   const base: MeasureViewOptions = {
     sdkUrl: FAKE_SDK_URL,
     manifestUrl: 'manifest.json',
-    modulesUrl: './',
+    modulesUrl: '../',
     backend: 'creerMoteur',
     engineId: 'engine-test',
     autonomous: false,
     witness: false,
-    page: 'lightingPage.ts',
+    page: 'lighting/lightingPage.ts',
     gltfUrl: null,
     pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
     poses: null,

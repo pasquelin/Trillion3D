@@ -2,14 +2,14 @@
 // and the per-pixel accesses it counts where no counter walks the shipped shader.
 import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
 import { hizLevelSizes } from '../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts';
-import { benchLights } from './lamps.ts';
-import { LIGHTING_RATES } from './lightGridCount.ts';
-import { ATRIUM_BOUNDS } from './lightTileAtrium.ts';
-import type { Light } from './lightTileCity.ts';
+import { benchLights } from './lighting/lamps.ts';
+import { LIGHTING_RATES } from './lighting/lightGridCount.ts';
+import { ATRIUM_BOUNDS } from './lighting/lightTileAtrium.ts';
+import type { Light } from './lighting/lightTileCity.ts';
 
 /** Sponza's triangles, from its glTF's index accessors (103 primitives). */
 export const SPONZA_TRIANGLES = 262_267;
-/** Material classes the atrium's boxes are drawn with (`materialTileCount.ts`). */
+/** Material classes the atrium's boxes are drawn with (`lighting/materialTileCount.ts`). */
 export const CLASSES = 6;
 
 /**

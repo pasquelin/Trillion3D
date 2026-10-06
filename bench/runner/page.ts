@@ -1,7 +1,7 @@
 // What runs INSIDE the page. Playwright serialises this function: it cannot read any variable or
 // call any module function; everything reaches it through its single argument. That is the reason,
 // and the only one, why world creation is duplicated between `readBounds` below and
-// `measureView` in `lightingPage.ts`, which the page imports by URL.
+// `measureView` in `lighting/lightingPage.ts`, which the page imports by URL.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { Bounds } from './trajectory/poses.ts';
 

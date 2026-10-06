@@ -5,7 +5,7 @@ import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import { reservoirs } from './seriesPools.ts';
 import type { Side } from '../sideOptions.ts';
 import type { BenchSettings } from '../options.ts';
-import type { LightsPlan } from '../lamps.ts';
+import type { LightsPlan } from '../lighting/lamps.ts';
 import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
 import { sdkEntryUrl } from '../dists.ts';
 

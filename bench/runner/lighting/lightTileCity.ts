@@ -4,14 +4,14 @@
 // axes, 1,500 lit windows and 40 large lights. Synthetic: it stands for an aerial view over many
 // lights, never for a scene of the repository. `depthField` ray-casts it as the engine's depth
 // buffer holds it — reverse-Z, infinite far, 0 on the sky.
-import { seeded } from '../../site/examples/kit/random.ts';
+import { seeded } from '../../../site/examples/kit/random.ts';
 import {
   pixelRay,
   rayDepth,
   rayParameter,
   type Vec3,
-} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+} from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
 
 export type Light = { centre: Vec3; radius: number };
 /** `blocks`: each block's building height by `blockIndex`, 0 for an empty block. */

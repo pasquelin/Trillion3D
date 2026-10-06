@@ -11,7 +11,7 @@ import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/inde
 import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts';
 import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../trajectory/poses.ts';
-import type { LightsPlan } from '../lamps.ts';
+import type { LightsPlan } from '../lighting/lamps.ts';
 import type { LimitsRecord } from '../limits.ts';
 import type { FluidsRow } from '../fluids/fluids.ts';
 import type { GazeNetworkReading } from '../gaze/gazeNetworkRun.ts';
@@ -82,7 +82,7 @@ type PageError =
   | { kind: 'cut-analysis'; message: string }
   | { kind: 'black-capture'; message: string };
 
-/** A generic-rule light placement summary (`lamps.ts`), for `measure.json` and `resume.md`. */
+/** A generic-rule light placement summary (`lighting/lamps.ts`), for `measure.json` and `resume.md`. */
 export interface LightsSummary {
   count: number;
   points: number;

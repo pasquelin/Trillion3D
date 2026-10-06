@@ -6,7 +6,7 @@
 // trajectory with the sun, then checks the camera at rest holds its frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SUN } from '../../../bench/runner/lamps.ts';
+import { SUN } from '../../../bench/runner/lighting/lamps.ts';
 import { PATH_POSES, poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts';
 import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts';
 import { streetBounds } from '../../../bench/runner/street/street.ts';

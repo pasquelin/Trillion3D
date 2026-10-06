@@ -8,7 +8,7 @@ export function lightingSettings(
   return {
     // Bounced light is disabled by default in the engine: benchmark enables it on demand.
     bounce: (flags.get('bounce') ?? 'off') === 'on',
-    // Contract lights placed by generic rule in `lamps.ts`: count, shadow status, and motion.
+    // Contract lights placed by generic rule in `lighting/lamps.ts`: count, shadow status, and motion.
     lights: number('lights', 0),
     lightShadows: (flags.get('shadows') ?? 'on') !== 'off',
     // `--intensity` sets point light emission uniformly across scenes.
@@ -19,7 +19,7 @@ export function lightingSettings(
     movingLight: flags.get('moving-light') === 'true',
     // `--file-lights off` opens the scene without imported lights from source file.
     importedLights: (flags.get('file-lights') ?? 'on') !== 'off',
-    // `--sun` adds the generic directional light from `lamps.ts` with its shadow maps.
+    // `--sun` adds the generic directional light from `lighting/lamps.ts` with its shadow maps.
     sun: flags.get('sun') === 'true',
     // `--moving-node <node>` moves a named node in a small circle each frame.
     movingNode: flags.get('moving-node') ?? null,

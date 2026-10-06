@@ -15,7 +15,7 @@ import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readStreet } from './street/street.ts';
 import { imageDiff } from './references/imageDiff.ts';
-import { benchLights } from './lamps.ts';
+import { benchLights } from './lighting/lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs } from './report/evidence.ts';
 import { runSerie } from './series/series.ts';

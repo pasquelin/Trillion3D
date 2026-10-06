@@ -1,5 +1,5 @@
 // What the deferred resolve of a MOVING image spends per covered pixel beyond its G-buffer reads
-// (#1369), develop's resolve against this branch's, both on the light grid's lists (`lightGridWalk.ts`),
+// (#1369), develop's resolve against this branch's, both on the light grid's lists (`lighting/lightGridWalk.ts`),
 // each pixel's point against each listed light's range. COUNTED, never timed; upper bounds where a
 // term depends on a weight or a facing the atrium does not model.
 //
@@ -15,11 +15,11 @@
 // - `demand`: the lights holding a slot that reach the pixel, each marked by the shadow demand pass
 //   (`vsm/markingWgsl.ts`), whatever the draw shades.
 //
-//   node bench/runner/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
+//   node bench/runner/lighting/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { parseArgs } from 'node:util';
-import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
 import { reaches, walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';

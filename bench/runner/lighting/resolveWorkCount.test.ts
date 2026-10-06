@@ -3,7 +3,7 @@
 // three, the same lights and shadows shaded.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import { countResolveWork } from './resolveWorkCount.ts';
 

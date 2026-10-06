@@ -15,7 +15,7 @@ import {
   gridSlice,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
-import { gridLists } from '../../../../../bench/runner/lightGridWalk.ts';
+import { gridLists } from '../../../../../bench/runner/lighting/lightGridWalk.ts';
 import { validateSceneLight } from '../../../../sdk-core/src/scene/light/validate.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';

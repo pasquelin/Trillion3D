@@ -10,10 +10,10 @@
 // The lighting's MODEL, never a timing: the counts above priced at rates taken from measured numbers
 // (`LIGHTING_RATES`).
 //
-//   node bench/runner/lightGridCount.ts [--width 3456] [--height 2234] [--range 4]
+//   node bench/runner/lighting/lightGridCount.ts [--width 3456] [--height 2234] [--range 4]
 import { parseArgs } from 'node:util';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
 import { reaches, tilePassWork, walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';

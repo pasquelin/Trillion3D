@@ -3,13 +3,13 @@
 // grid (#1369), never timed on a GPU: the milliseconds are a MODEL (declared assumptions below), not
 // a frame time nor an FPS gain.
 //
-//   node bench/runner/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150]
+//   node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150]
 import assert from 'node:assert/strict';
 import { parseArgs } from 'node:util';
 import {
   camera,
   type Vec3,
-} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+} from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { buildCity, depthField } from './lightTileCity.ts';
 import { countGrid } from './lightGridCount.ts';
 

@@ -19,7 +19,7 @@ import { launchChrome } from '../chrome.ts';
 import * as options from '../options.ts';
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
 import { readStreet } from '../street/street.ts';
-import { benchLights } from '../lamps.ts';
+import { benchLights } from '../lighting/lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from '../summary/summary.ts';
 import { runView } from './oracleView.ts';

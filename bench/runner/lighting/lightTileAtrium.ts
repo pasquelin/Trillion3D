@@ -3,13 +3,13 @@
 // drapes and end walls, open to the sky over the court. Synthetic: it stands for sponza's depth
 // (near columns in front of far walls in the same tiles), never for its image. `atriumDepth`
 // ray-casts it as the engine's depth buffer holds it — reverse-Z, infinite far, 0 on the sky.
-import { mulberry32 } from '../../site/examples/kit/random.ts';
+import { mulberry32 } from '../../../site/examples/kit/random.ts';
 import {
   pixelRay,
   rayDepth,
   type Vec3,
-} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+} from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
 import { slab, type Light } from './lightTileCity.ts';
 
 type Box = { lo: Vec3; hi: Vec3 };

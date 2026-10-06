@@ -9,7 +9,7 @@ import type { Side } from '../sideOptions.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 
 /** A mock Playwright `page`: `evaluate` directly returns the metrics provided to it, without
- *  ever entering a page — `measureView` (`lightingPage.ts`) does not run there. */
+ *  ever entering a page — `measureView` (`lighting/lightingPage.ts`) does not run there. */
 export function page(metrics: Record<string, unknown>): Page {
   return {
     evaluate: async () => ({
@@ -62,7 +62,7 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
       backend: 'creerMoteur',
       id: 'engine-test',
       flags: [],
-      page: 'lightingPage.ts',
+      page: 'lighting/lightingPage.ts',
       source: 'cache',
     },
     variant: null,

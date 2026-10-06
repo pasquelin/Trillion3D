@@ -54,7 +54,7 @@ const config: KnipConfig = {
         'bench/runner/series/cutPage.ts',
         'bench/runner/witnessPage.ts',
         'bench/runner/explorerPage.ts',
-        'bench/runner/lightingPage.ts',
+        'bench/runner/lighting/lightingPage.ts',
         'bench/runner/references/referencePage.ts',
         'bench/runner/trajectory/trajectoryPage.ts',
         'bench/runner/trajectory/poses.ts',
@@ -77,7 +77,7 @@ const config: KnipConfig = {
         'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/pageQuantization.ts',
         'bench/runner/references/oracle.ts',
-        'bench/runner/lampFixture.ts',
+        'bench/runner/lighting/lampFixture.ts',
         'bench/runner/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',

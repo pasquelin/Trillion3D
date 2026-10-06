@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { pixelDifference } from '../../../bench/dawn/capture.ts';
 import { readCacheManifest } from '../../../bench/runner/assets/cacheManifest.ts';
-import { SUN } from '../../../bench/runner/lamps.ts';
+import { SUN } from '../../../bench/runner/lighting/lamps.ts';
 import { sceneDerived } from '../../../bench/runner/assets/scene.ts';
 import { TANGENT_SCENES } from '../../../bench/runner/scenes/tangentScenes.ts';
 import { runOnDawn } from '../kit/onDawn.ts';

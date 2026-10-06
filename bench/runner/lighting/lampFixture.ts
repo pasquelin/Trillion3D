@@ -3,12 +3,12 @@
 // lights declared in the file. It serves as proof for the "light import from files" feature —
 // no actual scene file is needed, geometry is calculated here.
 //
-//   node bench/runner/lampFixture.ts --out .mesure/fixture-lampes
+//   node bench/runner/lighting/lampFixture.ts --out .mesure/fixture-lampes
 //
 // Writes `scene.gltf` and `scene.bin`. The native compiler reads it like any glTF.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { parseArgs } from './options.ts';
+import { parseArgs } from '../options.ts';
 
 /** The room: a hollow box with inward-facing normals, subdivided `n` times. */
 function room(size: number, height: number, n: number) {

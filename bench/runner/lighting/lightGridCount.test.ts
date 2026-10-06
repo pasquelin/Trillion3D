@@ -2,7 +2,7 @@
 // reaches it missed —, and the grid pass reads no depth: its tests follow its columns and lights.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import {
   LIGHTING_RATES,
@@ -11,8 +11,8 @@ import {
   gbufferAccesses,
   lightingModel,
 } from './lightGridCount.ts';
-import { contractSurfaceBody } from '../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts';
-import { SURFACE_EMISSIVE_AO_WGSL } from '../../packages/sdk-browser/src/scene/surfaceEmission.ts';
+import { contractSurfaceBody } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts';
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../../packages/sdk-browser/src/scene/surfaceEmission.ts';
 
 test('the cell lists hold every light that reaches a pixel, and few more', () => {
   const { eye, yaw, pitch } = ATRIUM_POSES[1];

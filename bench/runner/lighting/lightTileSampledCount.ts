@@ -1,19 +1,19 @@
 // Light evaluations per covered pixel of a MOVING image (#1249): the shipped `contractLighting`,
 // run as JavaScript on each pixel's cell list as the light grid's oracle builds it
-// (`lightGridWalk.ts`), its shadow flag the count's high bit the pass sets once, never a per-pixel
+// (`lighting/lightGridWalk.ts`), its shadow flag the count's high bit the pass sets once, never a per-pixel
 // walk. COUNTED, never timed. A full sum walks its `L` lights once; `sampledSliceLighting` walks a list of
 // `LIGHT_SAMPLES` to `TILE_LIGHTS` lights twice — its two `lightWeight` loops (#1369) — then
 // shades `LIGHT_SAMPLES` of them: `2·L + LIGHT_SAMPLES`.
 //
-//   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
+//   node bench/runner/lighting/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
-import { directLightingWgsl } from '../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
 import {
   shaderFunctions,
   wgslConstants,
-} from '../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+} from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
 import { walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';

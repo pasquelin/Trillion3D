@@ -1,7 +1,7 @@
 // The light grid as its pass builds it (#1369), from its oracle (`gpuLightGridOracle.ts`): every
 // column of cells, each light tested against the column's planes, the run of slices it meets solved
 // for those it may meet, and each covered pixel handed its cell's list. The one walk the grid
-// counters share (`lightGridCount.ts`, `resolveWorkCount.ts`, `lightTileSampledCount.ts`). COUNTED,
+// counters share (`lighting/lightGridCount.ts`, `lighting/resolveWorkCount.ts`, `lighting/lightTileSampledCount.ts`). COUNTED,
 // never timed.
 import {
   GRID,
@@ -10,12 +10,12 @@ import {
   sphereInColumn,
   toTileFrame,
   type TileView,
-} from '../oracles/browser/gpuLightGridOracle.ts';
-import { columnFrame, lightRun } from '../oracles/browser/gpuLightGridRunOracle.ts';
+} from '../../oracles/browser/gpuLightGridOracle.ts';
+import { columnFrame, lightRun } from '../../oracles/browser/gpuLightGridRunOracle.ts';
 import {
   pixelPoint,
   type Vec3,
-} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+} from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import type { Light } from './lightTileCity.ts';
 
 /** The pass's work: its columns and cells, a light against a column's planes, the runs solved

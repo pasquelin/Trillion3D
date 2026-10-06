@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join, resolve } from 'node:path';
 import { rmSync } from 'node:fs';
-import { SUN } from '../../../bench/runner/lamps.ts';
+import { SUN } from '../../../bench/runner/lighting/lamps.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';

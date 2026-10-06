@@ -1,4 +1,4 @@
-// The payload `series/series.ts` sends into the page, and the result `measureView` (`lightingPage.ts`)
+// The payload `series/series.ts` sends into the page, and the result `measureView` (`lighting/lightingPage.ts`)
 // sends back. One shape on each side of the `page.evaluate` boundary, read by both the Node
 // harness and the browser page module — hence type-only imports here, erased at build.
 import type {
@@ -10,7 +10,7 @@ import type {
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
-import type { MovingLightPlan } from './lamps.ts';
+import type { MovingLightPlan } from './lighting/lamps.ts';
 import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from './report/types.ts';
 import type { LivePools } from './benchSettings.ts';
 

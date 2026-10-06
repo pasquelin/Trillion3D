@@ -363,9 +363,9 @@ timed passes where timestamp queries exist. The camera slides a hair each image,
 
 ## Light Iterations per Covered Pixel
 
-    node bench/runner/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150,roof30]
+    node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150,roof30]
 
-The R&D audit's synthetic open city (`lightTileCity.ts`: 1,480 buildings, 11,140 lights and the
+The R&D audit's synthetic open city (`lighting/lightTileCity.ts`: 1,480 buildings, 11,140 lights and the
 sun), ray-cast into reverse-Z depth from five views; each pixel walks the list of its cell of the
 light grid, built by the grid pass's oracle (`bench/oracles/browser/gpuLightGridOracle.ts`, #1369):
 lights listed, lights reaching a covered pixel (the floor). Counts are per **covered** pixel (sky

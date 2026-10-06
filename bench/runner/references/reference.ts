@@ -13,7 +13,7 @@ import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
 import { onFreshPage } from '../chrome.ts';
-import { benchLights } from '../lamps.ts';
+import { benchLights } from '../lighting/lamps.ts';
 import * as options from '../options.ts';
 import type * as ReferencePage from './referencePage.ts';
 import {

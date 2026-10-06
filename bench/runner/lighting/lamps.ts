@@ -4,10 +4,10 @@
 // its floor, each light bearing a range derived from the cell size. It applies to any imported model;
 // the benchmark knows nothing of the measurement set provided to it.
 
-import { modelFloor } from './trajectory/poses.ts';
-import type { Bounds } from './trajectory/poses.ts';
-import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
-import type { LightsSummary } from './report/types.ts';
+import { modelFloor } from '../trajectory/poses.ts';
+import type { Bounds } from '../trajectory/poses.ts';
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import type { LightsSummary } from '../report/types.ts';
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */
 type PointLight = SceneLight & { position: [number, number, number] };

@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { FRAMES_PER_SEGMENT, VIEWS } from './trajectory/poses.ts';
 import { ASSETS, applySceneFlag, sceneOf } from './assets/scene.ts';
-import { lightingSettings } from './lightingOptions.ts';
+import { lightingSettings } from './lighting/lightingOptions.ts';
 import type { SideBase } from './dists.ts';
 import type { BenchSettings, LivePools } from './benchSettings.ts';
 import { residentFraction } from './poolFill.ts';

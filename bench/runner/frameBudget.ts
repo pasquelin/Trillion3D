@@ -1,6 +1,6 @@
 // The whole frame of the boss's case, counted (#1369): sponza, 200 lamps, a moving camera, WebGPU,
 // 1728 × 1117 at DPR 2 — 3456 × 2234, the bench's scale 1 —, the sponza-sized atrium standing for
-// sponza's depth (`lightTileAtrium.ts`), the bench's own lamps (`lamps.ts`: a grid over the model's
+// sponza's depth (`lighting/lightTileAtrium.ts`), the bench's own lamps (`lighting/lamps.ts`: a grid over the model's
 // footprint two metres up, a range of 0.75 cell, each casting a shadow; the first 64 hold a slot,
 // `MAX_SHADOW_SLICES`). Each stage's work is counted at the display, then priced at a rate taken from
 // a measured number (`FRAME_RATES`): a MODEL, never a timing; the recette's timing after the merge
@@ -10,10 +10,15 @@
 import { parseArgs } from 'node:util';
 import { MAX_SHADOW_SLICES } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import { ATRIUM_POSES, atriumDepth } from './lightTileAtrium.ts';
-import { RESOLVE_GBUFFER, countGrid, gbufferAccesses, lightingModel } from './lightGridCount.ts';
-import { countResolveWork } from './resolveWorkCount.ts';
-import { countClassFragments } from './materialTileCount.ts';
+import { ATRIUM_POSES, atriumDepth } from './lighting/lightTileAtrium.ts';
+import {
+  RESOLVE_GBUFFER,
+  countGrid,
+  gbufferAccesses,
+  lightingModel,
+} from './lighting/lightGridCount.ts';
+import { countResolveWork } from './lighting/resolveWorkCount.ts';
+import { countClassFragments } from './lighting/materialTileCount.ts';
 import { countTaaFetches } from './taaFetchCount.ts';
 import {
   CLASSES,
