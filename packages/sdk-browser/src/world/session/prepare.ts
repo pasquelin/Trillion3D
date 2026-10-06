@@ -10,7 +10,7 @@ import { directWebgpu } from './interactiveOptions.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerBackends } from './backends.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
-import { bindScene, createExplorerPageSources } from './pageSources.ts'
+import { createExplorerPageSources, sceneThrough } from './pageSources.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts'
@@ -98,9 +98,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
   )
-  const loadedScene =
-    inputs.scene ??
-    (await loadPreparedScene(
+  const loadedScene = await sceneThrough(pageSources.streamer, inputs.scene, () =>
+    loadPreparedScene(
       { ...options, textureSource },
       metadata,
       sceneFile,
@@ -112,9 +111,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       (source) => {
         resources.source = source
       },
-    ))
+    ),
+  )
   const source = (resources.source = loadedScene.source)
-  bindScene(pageSources.streamer, loadedScene)
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {

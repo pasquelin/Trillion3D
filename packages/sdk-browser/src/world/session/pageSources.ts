@@ -11,6 +11,21 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
+/** How a session hears its streamer's failed reads: a wait over wakes its loop, once it runs
+ *  (`whenTurned`), to ask the read again; a read that keeps failing is said on `channel`. */
+function failedReads(channel: ReturnType<typeof createDiagnosticChannel>) {
+  let turned = () => {}
+  return {
+    onTurn: () => turned(),
+    onStalled: ({ url, cause }: { url: string; cause: unknown }) =>
+      channel.emit({
+        ...{ phase: 'page-read-stalled', message: 'A read keeps failing past its longest wait' },
+        context: { kind: 'error', url, error: String(cause) },
+      }),
+    whenTurned: (wake: () => void) => void (turned = wake),
+  }
+}
+
 export async function createExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
@@ -42,8 +57,7 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)))
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
-  /** Who hears a failed read's wait end: the session's loop, once it runs (`whenTurned`). */
-  let turned = () => {}
+  const turns = failedReads(diagnosticChannel)
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
     cache: options.pageCache,
     signal,
@@ -57,12 +71,7 @@ export async function createExplorerPageSources(
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
         ? diagnosticChannel.emit
         : undefined,
-    onTurn: () => turned(),
-    onStalled: ({ url, cause }) =>
-      diagnosticChannel.emit({
-        ...{ phase: 'page-read-stalled', message: 'A read keeps failing past its longest wait' },
-        context: { kind: 'error', url, error: String(cause) },
-      }),
+    ...{ onTurn: turns.onTurn, onStalled: turns.onStalled },
   })
   let loaded = 0,
     pageBytesRead = 0
@@ -92,17 +101,26 @@ export async function createExplorerPageSources(
     loaded,
     pageBytesRead,
     indices,
-    /** The session's loop asks the frame that holds a failed read again once its wait is over. */
-    whenTurned: (wake: () => void) => void (turned = wake),
+    whenTurned: turns.whenTurned,
   }
 }
 
-/** `scene` read through the session's `streamer`: its partitions' index pages catalogued, and
- *  its readers — world roots, a lazy manifest's mesh pages — bound to its queue. */
-export function bindScene(
-  streamer: PageQueue,
-  scene: Pick<ExplorerScene, 'partitions' | 'readers'>,
+/** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
+ *  its partitions' index pages catalogued, and its readers — world roots, a lazy manifest's mesh
+ *  pages — bound to the queue. A load that fails closes the queue: none of it outlives the
+ *  session. */
+export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'readers'>>(
+  streamer: PageQueue & { dispose(): void },
+  given: T | undefined,
+  load: () => Promise<T>,
 ) {
+  const scene =
+    given ??
+    (await load().catch((error: unknown) => {
+      streamer.dispose()
+      throw error
+    }))
   streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
   for (const reader of scene.readers) reader.bind(streamer)
+  return scene
 }

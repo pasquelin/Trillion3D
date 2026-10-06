@@ -57,7 +57,6 @@ export function createTileStreamer(
       .then((cooked) => {
         // A model compiled before the cook collides nowhere.
         if (!cooked || signal.aborted) return
-        // Taken whole: a world places more tiles than a call takes arguments.
         opening.placed = placedOf(model, cooked)
         declared.open(model, cooked, signal)
         invalidate()

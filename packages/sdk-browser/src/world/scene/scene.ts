@@ -11,7 +11,6 @@ import type { MeasuredWorldOptions } from '../../backend/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
 import { openWorldRoots } from '../../scene/worldRoots.ts'
-import type { PageQueue } from '../../streaming/types.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
@@ -158,15 +157,12 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous)
-  // The world roots each model holds, which the session counts in its CPU budget: only that count
-  // leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
+  // The world roots each model holds, which the session counts in its CPU budget, and what its
+  // queue binds (`readers`): only those leave the scene, its page source and DAG stay the engine's.
   const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
     ? [worldRoots]
     : []
-  // What the scene reads through the queue of the session drawing it, which binds it.
-  const readers: { bind(queue: PageQueue): void }[] = []
-  if (worldRoots) readers.push(worldRoots)
-  if (options.pages) readers.push(options.pages)
+  const readers = [worldRoots, options.pages].filter((reader) => reader !== undefined)
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
     /** The clips the file plays. */

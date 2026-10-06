@@ -12,6 +12,18 @@ import { createExplorerApi } from '../api/api.ts'
 import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts'
 import { referenceTilesCapture } from '../../frame/referenceTiles.ts'
 
+/** The session's profiler on the page, for its console. */
+function exposeProfiler(profiler: ReturnType<typeof createExplorerHostRuntime>['profiler']) {
+  if (typeof window === 'undefined') return
+  ;(window as unknown as { __trillion3d: unknown }).__trillion3d = {
+    profiler,
+    getReport: () => profiler.getReport(),
+    printReport: () => profiler.printReport(),
+    enableAutoLog: (sec = 2) => profiler.startAutoLog(sec),
+    disableAutoLog: () => profiler.stopAutoLog(),
+  }
+}
+
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
  *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
 export async function openMeasuredWorld(
@@ -72,29 +84,19 @@ export async function openMeasuredWorld(
     const runtime = createExplorerHostRuntime(session, { prepared, resources, backends })
     disposeRuntime = runtime.dispose
     if (lifetime) runtime.hostedControls.push({ dispose: () => lifetime.abort() })
-    const { profiler } = runtime
     progress('ready', 1, 1, 'MeasuredWorld ready')
-    if (typeof window !== 'undefined') {
-      ;(window as unknown as { __trillion3d: unknown }).__trillion3d = {
-        profiler,
-        getReport: () => profiler.getReport(),
-        printReport: () => profiler.printReport(),
-        enableAutoLog: (sec = 2) => profiler.startAutoLog(sec),
-        disableAutoLog: () => profiler.stopAutoLog(),
-      }
-    }
+    exposeProfiler(runtime.profiler)
     const explorer = createExplorerApi({
       ...runtime,
       capabilities: prepared.capabilities,
       preparationMs: performance.now() - preparationStart,
       moveNamed: source?.moveNamed,
     })
-    // A change asks the session's own loop for a frame; without one, the host draws (`render`)
-    // and a change asks nothing.
+    // A change, or a failed read whose wait is over, asks the session's own loop for a frame;
+    // without one, the host draws (`render`) and a change asks nothing.
     const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
       : () => {}
-    // A failed read whose wait is over asks a frame: the view holds it again.
     prepared.pageSources.whenTurned(invalidate)
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
     const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias
