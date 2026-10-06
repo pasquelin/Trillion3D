@@ -435,7 +435,7 @@ within one centimetre. Recette runs these after the merge on `develop`.
 A one-off diagnostic, run on the quiet measurement machine after building:
 
     pnpm run build && pnpm run build:native
-    node bench/runner/feedbackTargetAb.ts --scene sponza,alpha-blend-mode-test \
+    node bench/runner/feedback/feedbackTargetAb.ts --scene sponza,alpha-blend-mode-test \
       --rebuild-cache alpha-blend-mode-test --images 120
 
 `--rebuild-cache` refreshes named derived caches through the owned compiler. Each scene and view is

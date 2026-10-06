@@ -1,14 +1,14 @@
-import type * as Sdk from '../witnesses/measurement.ts';
+import type * as Sdk from '../../witnesses/measurement.ts';
 import type {
   CameraPose,
   FrameMetrics,
   GpuPassTimings,
-} from '../../packages/sdk-core/src/index.ts';
-import { posterCapture } from './measurePage.ts';
+} from '../../../packages/sdk-core/src/index.ts';
+import { posterCapture } from '../measurePage.ts';
 import {
   type SpatialFeedback,
   type SurfaceKind,
-} from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
 
 type Probe = {
   captureFeedbackAb(): Promise<Uint8Array>;

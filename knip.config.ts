@@ -45,7 +45,7 @@ const config: KnipConfig = {
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
-        'bench/runner/feedbackTargetAb.ts',
+        'bench/runner/feedback/feedbackTargetAb.ts',
         'bench/runner/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
@@ -65,7 +65,7 @@ const config: KnipConfig = {
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
         'bench/runner/deformationEnvelope.ts',
         'bench/runner/deformationWitness.ts',
-        'bench/runner/feedbackTargetPage.ts',
+        'bench/runner/feedback/feedbackTargetPage.ts',
         'bench/runner/gazeNetworkPage.ts',
         'bench/runner/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
@@ -106,7 +106,7 @@ const config: KnipConfig = {
         '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
       },
       // The harness server maps this browser URL to the page entry above.
-      ignoreUnresolved: ['/runner/feedbackTargetPage.ts'],
+      ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
       // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
       // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.

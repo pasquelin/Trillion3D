@@ -1,14 +1,14 @@
-import type * as Sdk from '../witnesses/measurement.ts';
+import type * as Sdk from '../../witnesses/measurement.ts';
 import type {
   CameraPose,
   FrameMetrics,
   GpuPassTimings,
-} from '../../packages/sdk-core/src/index.ts';
-import { poseAt } from './poses.ts';
-import { streetBounds } from './street.ts';
-import { posterCapture } from './measurePage.ts';
+} from '../../../packages/sdk-core/src/index.ts';
+import { poseAt } from '../poses.ts';
+import { streetBounds } from '../street.ts';
+import { posterCapture } from '../measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
-import { type SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
+import { type SpatialFeedback } from '../../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
 
 type Probe = {
   setFeedbackTargetAb(target: boolean): Promise<void>;

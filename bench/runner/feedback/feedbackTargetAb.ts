@@ -2,13 +2,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { launchChrome } from './chrome.ts';
-import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from './options.ts';
-import { assetsManifest, sceneDerived } from './assets/scene.ts';
+import { launchChrome } from '../chrome.ts';
+import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from '../options.ts';
+import { assetsManifest, sceneDerived } from '../assets/scene.ts';
 import { summarizeFeedbackRun } from './feedbackTargetReport.ts';
-import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..');
 const flags = parseArgs(process.argv.slice(2));
 const scenes = (flags.get('scene') ?? 'sponza,alpha-blend-mode-test').split(',').filter(Boolean);
 const views = (flags.get('views') ?? 'overview,ground,street').split(',').filter(Boolean);
@@ -43,7 +43,7 @@ async function main() {
   const captures = new Map<string, Capture>();
   const { server, port } = await startServer({ mounts: resolveMounts(ROOT, [side]), captures });
   const report = {
-    command: `node bench/runner/feedbackTargetAb.ts ${process.argv.slice(2).join(' ')}`,
+    command: `node bench/runner/feedback/feedbackTargetAb.ts ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     size: { width: 2496, height: 1404, dpr: 1 },
     frames,
@@ -73,7 +73,7 @@ async function main() {
         for (const view of views) {
           const raw = await page.evaluate(
             async (options) => {
-              const module = await import('/runner/feedbackTargetPage.ts');
+              const module = await import('/runner/feedback/feedbackTargetPage.ts');
               return module.runFeedbackTarget(options);
             },
             {

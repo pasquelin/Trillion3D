@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { summarizeFeedbackRun } from './feedbackTargetReport.ts';
 import type { FeedbackTargetResult } from './feedbackTargetPage.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 
 const bytes = 2496 * 1404 * 4;
 const sample = (frame: number, target: boolean) => ({
