@@ -6,10 +6,12 @@
  * way are read in runs: a cell's bundles contiguous in the binary are one ranged request, a page of
  * the session's one read queue (`worldRuns.ts`), asked at the priority its cell holds with — after
  * the view's own pages, nearer first, the prefetch ring last (`holdPriority`) —, so no more than
- * the queue's transfers are in flight whatever the cells in reach. Each hold joins the read of every
- * run its bundles wait on with its own signal: a bundle on its way is shared, never read twice,
- * and the queue drops a run unread once every hold waiting on it let go. A failed run waits its
- * turn in the queue, which refuses it at once meanwhile (`../streaming/failures.ts`).
+ * the queue's transfers are in flight whatever the cells in reach. A run is read for the bundles
+ * held on it, whoever asked: it lands into every one still held on it — a bundle on its way is
+ * shared, never read twice —, and stops, dropped unread while it waits in the queue, once none is.
+ * A hold waits on the runs its bundles are on with its own signal; one more urgent than a run's
+ * read lifts it in the queue. A failed run keeps its bundles wanted, the queue refusing its page
+ * at once while its wait runs (`../streaming/failures.ts`), and the next hold reads it again.
  *
  * Cost, for C cells in reach holding b bundles in r contiguous runs each (r ≤ b), K transfers and
  * t the time of one read: at most K requests in flight and K / t started a second whatever C, C·r
@@ -23,25 +25,21 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue } from '../streaming/types.ts'
-import { bundleIn, runPage } from './worldRuns.ts'
+import {
+  bundleIn,
+  readAtOpen,
+  runPage,
+  startRuns,
+  type Held,
+  type Run,
+  type SpanRead,
+} from './worldRuns.ts'
 
-/** A run of bundles `[first, end)` read as one page of the queue, at `url`, and whether it landed. */
-type Run = { first: number; end: number; url: string; landed: boolean }
-/** A bundle a cell holds: how many cells, its pages once read, the run reading them till then. */
-type Held = { cells: number; pages?: WorldRootsPage[]; run?: Run }
 /** How a cell holds: the read priority of its runs, and the signal that lets its hold go. */
 type WorldHold = { signal?: AbortSignal; priority?: number }
 
-/** The end of the run of `bundles` from `at`: those after it contiguous in the binary and
- *  `wanted`. */
-function runEnd(bundles: readonly number[], at: number, wanted: (at: number) => boolean) {
-  let end = at + 1
-  while (end < bundles.length && bundles[end] === bundles[end - 1] + 1 && wanted(end)) end++
-  return end
-}
-
 /** The runs of `table`'s binary at `url` read through the session's queue (`bind`), each viewed,
- *  as it lands, on the bundles of `held` still waiting on it. */
+ *  as it lands, on the bundles of `held` still on it. */
 function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
   let queue: PageQueue | undefined
   /** The session's queue: a cell holds only within a session, which binds it first. */
@@ -49,52 +47,51 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
     if (!queue) throw new Error('WORLD_ROOTS_UNBOUND: a cell holds within a session')
     return queue
   }
-  /** Bundles `[first, end)`, a page of the queue. */
-  const run = (first: number, end: number): Run => {
-    const page = runPage(table, url, first, end)
-    bound().admit([page])
-    return { first, end, url: page.url, landed: false }
+  /** Bundles `[first, end)`, a page of the queue read at `priority`. */
+  const run = (first: number, end: number, priority = PRIORITY_VISIBLE) => {
+    const page = runPage(table, url, first, end),
+      queue = bound(),
+      stop = new AbortController()
+    queue.admit([page])
+    const own = { first, end, url: page.url, stop } as Run
+    own.landing = queue.readBytes(own.url, stop.signal, priority).then((bytes) => {
+      // Every bundle still held on it gets its pages, all or — one refused, it failed — none.
+      const views: [Held, WorldRootsPage[]][] = []
+      for (let bundle = first; bundle < end; bundle++) {
+        const waiting = held.get(bundle)
+        if (waiting?.run === own) views.push([waiting, bundleIn(bytes, table, first, bundle)])
+      }
+      for (const [waiting, pages] of views) [waiting.pages, waiting.run] = [pages, undefined]
+      queue.forget([own.url]) // landed: its page leaves the catalogue
+      return bytes
+    })
+    own.landing.catch(() => stop.abort()) // failed: read again by the next hold
+    return own
   }
-  /** `own` read for whoever asks at `priority`, with the `signal` that lets the asker go: the
-   *  first to land views each bundle still held on it on the bytes. */
-  const land = async (own: Run, signal?: AbortSignal, priority = PRIORITY_VISIBLE) => {
-    const queue = bound(),
-      bytes = await queue.readBytes(own.url, signal, priority)
-    if (own.landed) return bytes
-    own.landed = true
-    queue.forget([own.url])
-    for (let bundle = own.first; bundle < own.end; bundle++) {
-      const waiting = held.get(bundle)
-      if (waiting?.run !== own) continue
-      waiting.pages = bundleIn(bytes, table, own.first, bundle)
-      waiting.run = undefined
-    }
-    return bytes
+  /** No held bundle is on `own`'s page any more: its read stops, and it leaves the catalogue with
+   *  its failure if it failed. */
+  const forsake = (own: Run) => {
+    for (let bundle = own.first; bundle < own.end; bundle++)
+      if (held.get(bundle)?.run?.url === own.url) return
+    own.stop.abort()
+    queue?.forget([own.url])
+  }
+  /** `own` waited on by a hold as `asked`: its read joined at its priority — one more urgent lifts
+   *  it in the queue — till its signal lets it go, then its bundles' pages in. */
+  const join = async (own: Run, { signal, priority = PRIORITY_VISIBLE }: WorldHold) => {
+    await bound().readBytes(own.url, signal, priority)
+    await own.landing
   }
   return {
     run,
-    land,
-    /** The pages of `bundles`, held as `owns`, read as `asked`: each run of those neither read nor
-     *  on their way, contiguous in the binary, a page of the queue, and every run they wait on
-     *  joined. */
+    forsake,
+    /** The pages of `bundles`, held as `owns`, read as `asked`: their runs started (`startRuns`),
+     *  the stopped ones they replace forsaken, and every run they wait on joined. */
     async read(bundles: readonly number[], owns: readonly Held[], asked: WorldHold) {
-      const unread = (at: number) => !owns[at].pages && !owns[at].run
-      for (let at = 0, end = 0; at < bundles.length; at = Math.max(at + 1, end)) {
-        if (!unread(at)) continue
-        end = runEnd(bundles, at, unread)
-        const own = run(bundles[at], bundles[end - 1] + 1)
-        for (let i = at; i < end; i++) owns[i].run = own
-      }
+      startRuns(bundles, owns, (first, end) => run(first, end, asked.priority)).forEach(forsake)
       const waits = new Set<Run>()
       for (const own of owns) if (own.run) waits.add(own.run)
-      await Promise.all([...waits].map((own) => land(own, asked.signal, asked.priority)))
-    },
-    /** No held bundle waits on `own`'s page any more: it leaves the catalogue, with its failure if
-     *  it failed. */
-    forsake(own: Run) {
-      for (let bundle = own.first; bundle < own.end; bundle++)
-        if (held.get(bundle)?.run?.url === own.url) return
-      queue?.forget([own.url])
+      await Promise.all([...waits].map((own) => join(own, asked)))
     },
     bind(session: PageQueue) {
       queue = session
@@ -107,22 +104,9 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
 async function readAlone(runs: ReturnType<typeof createRuns>, table: WorldRoots, bundle: number) {
   const own = runs.run(bundle, bundle + 1)
   try {
-    return bundleIn(await runs.land(own), table, bundle, bundle)
+    return bundleIn(await own.landing, table, bundle, bundle)
   } finally {
     runs.forsake(own)
-  }
-}
-
-/** A read of bundles `[first, end)` at open: their pages, bundle by bundle. */
-type SpanRead = (span: [number, number]) => Promise<WorldRootsPage[][]>
-
-/** The pages of `bundles`, held as `owns`, read at open in their contiguous runs by `read`. */
-async function readAtOpen(bundles: readonly number[], owns: readonly Held[], read: SpanRead) {
-  for (let at = 0; at < bundles.length;) {
-    const end = runEnd(bundles, at, () => true)
-    const pages = await read([bundles[at], bundles[end - 1] + 1])
-    pages.forEach((own, i) => (owns[at + i].pages = own))
-    at = end
   }
 }
 
@@ -146,13 +130,13 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
     if (!own || --own.cells > 0) return
     held.delete(bundle)
     heldBytes -= table.bundles[bundle].bytes
-    if (own.run && !own.run.landed) runs.forsake(own.run)
+    if (own.run) runs.forsake(own.run)
   }
   return {
     /** `cell` is placed: the bundles its objects' roots need past the top are held, those neither
      *  read nor on their way read. Each hold is released once (`release`), landed or not: a hold
-     *  that failed keeps its bundles wanted, so their failed reads wait their turn and are asked
-     *  again by the same pages, and one whose `signal` aborted lets the queue drop its reads. */
+     *  that failed keeps its bundles wanted till then, and one whose `signal` aborted stops waiting,
+     *  its runs read on while a held bundle is on them. */
     async hold(cell: number, asked: WorldHold = {}) {
       const bundles = cellDependencies(table, cell),
         owns = bundles.map(take)
@@ -174,8 +158,8 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       const own = held.get(bundle),
         run = own?.run
       if (own?.pages) return own.pages
-      if (!run) return readAlone(runs, table, bundle)
-      return bundleIn(await runs.land(run), table, run.first, bundle)
+      if (!run || run.stop.signal.aborted) return readAlone(runs, table, bundle)
+      return bundleIn(await run.landing, table, run.first, bundle)
     },
     /** The bundles held now, ascending. */
     held: () => [...held.keys()].sort((a, b) => a - b),

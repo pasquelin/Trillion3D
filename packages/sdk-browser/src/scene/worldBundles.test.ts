@@ -3,8 +3,13 @@
 // one the server refuses for good is never asked again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { opened, rangeOf, served } from './worldRoots.fixture.ts'
+import {
+  worldRootsDag,
+  worldRootsFixture,
+} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
+import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
+import { opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
 
 test("a cell's bundles contiguous in the binary are one ranged read", async (t) => {
   const { manifest, ranges, table } = served(t)
@@ -106,5 +111,40 @@ test('a cell let go while its run transfers and held again joins that read: read
   land()
   await back
   assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'read once')
+  assert.deepEqual(roots.held(), [2, 3])
+})
+
+test('a run every hold let go while it transfers lands into the bundles still held on it: never read twice', async (t) => {
+  let land = () => {}
+  const landing = new Promise<void>((resolve) => (land = resolve))
+  const world = served(t, {
+    answer: async (from, _to, respond) => {
+      if (from === world.table.bundles[2].offset) await landing
+      return respond()
+    },
+  })
+  const { roots } = await opened(t, world.manifest)
+  const leaving = new AbortController()
+  const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one run
+  await new Promise(setImmediate)
+  leaving.abort() // the cell leaves; its hold is released once it settles
+  await assert.rejects(left, { name: 'AbortError' })
+  land()
+  await new Promise(setImmediate)
+  await roots.hold(1) // back before its first hold was released
+  assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'read once')
+})
+
+test('a landed run one of whose bundles is unreadable fails whole: its bundles read again, never stuck', async (t) => {
+  const fixture = worldRootsFixture(sha)
+  const spec = { ...fixture.spec, bundles: fixture.spec.bundles.map((b) => ({ ...b })) }
+  spec.bundles[3].count = 0 // its bytes hold a page its table does not name
+  const bytes = encodeWorldRoots(spec)
+  const world = served(t, { world: { bytes, bin: fixture.bin, table: readWorldRoots(bytes) } })
+  const { roots } = await opened(t, world.manifest)
+  await assert.rejects(roots.hold(1), /bundle 3/)
+  await assert.rejects(roots.hold(1), /bundle 3/)
+  const run = rangeOf(world.table, 2, 4)
+  assert.deepEqual(world.ranges.slice(1), [run, run], 'read again, its bundles never left unread')
   assert.deepEqual(roots.held(), [2, 3])
 })
