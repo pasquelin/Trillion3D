@@ -54,6 +54,7 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   identity.entries[0] ??= blendEntries(rt)
   identity.entries[1] ??= fallbackBindEntries(rt)
   if (!identity.entriesMoved(vis.blendBindGroupLayout, gpu.bindGroupLayout)) return
-  blendState.pagedGroup = undefined
-  for (const item of blendState.blendGpu) item.group = undefined
+  const { slot } = identity
+  blendState.pagedGroups[slot] = undefined
+  for (const item of blendState.blendGpu) if (item.groups) item.groups[slot] = undefined
 }

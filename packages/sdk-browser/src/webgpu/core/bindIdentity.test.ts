@@ -25,6 +25,35 @@ test('a family moves when one of the resources it names changes identity, and on
   assert.equal(identity.moved(), true)
 })
 
+test('a family holding two identities finds both again when its resources take turns', () => {
+  const identity = createWebgpuBindIdentity(2)
+  const lights = {},
+    even = {},
+    odd = {}
+  const name = (table: object) => {
+    identity.next[0] = lights
+    identity.next[1] = table
+    return identity.moved()
+  }
+  assert.equal(name(even), true, 'the first frame set is new')
+  const evenSlot = identity.slot
+  assert.equal(name(odd), true, 'so is the second')
+  const oddSlot = identity.slot
+  assert.notEqual(oddSlot, evenSlot, 'each in a slot of its own')
+  for (let frame = 0; frame < 4; frame++) {
+    assert.equal(name(even), false, 'the sets take turns: nothing moves')
+    assert.equal(identity.slot, evenSlot)
+    assert.equal(name(odd), false)
+    assert.equal(identity.slot, oddSlot)
+  }
+  // A third set takes the slot named longest ago: the even one, the odd set named last.
+  assert.equal(name(even), false)
+  assert.equal(name({}), true)
+  assert.equal(identity.slot, oddSlot, 'the odd set, named before the even one, gives its slot')
+  assert.equal(name(even), false, 'the set named last is still held')
+  assert.equal(name(odd), true, 'the set given up is new again')
+})
+
 test('entry membership, binding numbers and buffer ranges all invalidate without a second resource list', () => {
   const identity = createWebgpuBindIdentity()
   const binding = { buffer: {} as GPUBuffer, offset: 0, size: 16 }

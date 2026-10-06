@@ -128,7 +128,9 @@ export function drawFallbackBlendPass(
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  const held = blendState.identity.slot
   let bound: GPURenderPipeline | undefined,
+    group: GPUBindGroup | undefined,
     last = -1
   for (let d = 0; d < draws; d++) {
     const at = d * DRAW_WORDS,
@@ -141,12 +143,12 @@ export function drawFallbackBlendPass(
       const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive)
       const pipeline = gpu.pipelineBlend!.at(mode, 0)
       if (pipeline !== bound) pass.setPipeline((bound = pipeline))
-      item.group ??= device.createBindGroup({
+      group = (item.groups ??= [])[held] ??= device.createBindGroup({
         layout: gpu.bindGroupLayout!,
         entries: fallbackBindEntries(rt, item),
       })
     }
-    pass.setBindGroup(0, item.group!, [(uniformBase + d) * UNIFORM_STRIDE])
+    pass.setBindGroup(0, group!, [(uniformBase + d) * UNIFORM_STRIDE])
     pass.draw(indices)
     // A paged item's triangles are the cut's, counted with it.
     if (!item.paged) unpaged += indices / 3

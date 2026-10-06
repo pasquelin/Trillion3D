@@ -64,7 +64,9 @@ export function drawBlendRuns(
     args = blendState.argsBuffer!
   if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group)
   if (filter) pass.setBindGroup(2, filter.maskGroup)
-  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined)
+  // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
+  const held = blendState.identity.slot,
+    pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
     encoded = 0
@@ -90,8 +92,8 @@ export function drawBlendRuns(
     }
     const group =
       item && !item.paged
-        ? (item.group ??= blendBindGroup(rt, device, item))
-        : blendState.pagedGroup!
+        ? ((item.groups ??= [])[held] ??= blendBindGroup(rt, device, item))
+        : pagedGroup
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.
     if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group))

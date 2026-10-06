@@ -29,20 +29,23 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
 }`
 
 /** Same closest-surface selection for native and reconstructed display pixels. Reversed depth
- * makes the largest depth the foreground; its identity and motion travel together. `w` is the
- * surface's depth step across one texel, a measure of its depth error: per axis the smaller of
- * the two one-sided differences around the centre, so a silhouette on one side does not count,
- * the larger of both axes.
+ * makes the largest depth the foreground; its identity and motion travel together: the identifier
+ * of its texel, which the pixel's page record and motion are read by. `slope` is the surface's
+ * depth step across one texel, a measure of its depth error: per axis the smaller of the two
+ * one-sided differences around the centre, so a silhouette on one side does not count, the larger
+ * of both axes.
  *
- * The 3×3 depths come in four gathers, not nine loads: each gathers the 2×2 whose shared corner it
- * is taken at — exactly, half a texel from any other footprint. The right and lower ones are taken
- * at most at `last`, so every tap is clamped to the drawn image as `clamp(coord+d,0,last)` would
- * (the targets may be allocated larger, `drawFrameAt`), the upper left ones by the sampler's edge.
+ * The 3×3 depths come in four gathers, not nine loads, and their identifiers in four more, taken
+ * with them: the nearest's identifier waits on no read of its own. Each gathers the 2×2 whose
+ * shared corner it is taken at — exactly, half a texel from any other footprint. The right and
+ * lower ones are taken at most at `last`, so every tap is clamped to the drawn image as
+ * `clamp(coord+d,0,last)` would (the targets may be allocated larger, `drawFrameAt`), the upper
+ * left ones by the sampler's edge.
  * Lanes (WGSL `textureGather`): x the lower left, y the lower right, z the upper right, w the upper
  * left. The strict `>` keeps the first nearest in the same row-major order; the centre, compared
  * with itself, never passes it (`nearestOf`). */
 export const closestSurfaceWgsl = `
-fn closestSurface(coord:vec2i,last:vec2i)->vec4f{
+fn closestSurface(coord:vec2i,last:vec2i)->TaaNearest{
  let size=vec2f(textureDimensions(depth));
  let after=min(coord+vec2i(1),last);
  let lo=vec2f(coord)/size;let hi=vec2f(after)/size;
@@ -50,25 +53,34 @@ fn closestSurface(coord:vec2i,last:vec2i)->vec4f{
  let upRight=textureGather(depth,texelSampler,vec2f(hi.x,lo.y));
  let downLeft=textureGather(depth,texelSampler,vec2f(lo.x,hi.y));
  let downRight=textureGather(depth,texelSampler,hi);
+ let idSize=vec2f(textureDimensions(ids));
+ let idLo=vec2f(coord)/idSize;let idHi=vec2f(after)/idSize;
+ let idUpLeft=textureGather(0,ids,texelSampler,idLo);
+ let idUpRight=textureGather(0,ids,texelSampler,vec2f(idHi.x,idLo.y));
+ let idDownLeft=textureGather(0,ids,texelSampler,vec2f(idLo.x,idHi.y));
+ let idDownRight=textureGather(0,ids,texelSampler,idHi);
  let above=vec3f(upLeft.w,upLeft.z,upRight.z);let middle=vec3f(upLeft.x,upLeft.y,upRight.y);
  let below=vec3f(downLeft.x,downLeft.y,downRight.y);
- return nearestOf(coord,last,above,middle,below);
+ let aboveIds=vec3u(idUpLeft.w,idUpLeft.z,idUpRight.z);let middleIds=vec3u(idUpLeft.x,idUpLeft.y,idUpRight.y);
+ let belowIds=vec3u(idDownLeft.x,idDownLeft.y,idDownRight.y);
+ return nearestOf(above,middle,below,aboveIds,middleIds,belowIds);
 }`
 
-/** The nearest of the 3×3 depths `above`, `middle` and `below` around `coord`, and the surface's
- *  depth step (`closestSurfaceWgsl`). */
+/** The nearest of the 3×3 depths `above`, `middle` and `below`, the identifier of its texel among
+ *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step (`closestSurfaceWgsl`). */
 export const NEAREST_OF_WGSL = `
-fn nearestOf(coord:vec2i,last:vec2i,above:vec3f,middle:vec3f,below:vec3f)->vec4f{
+struct TaaNearest{depth:f32,slope:f32,id:u32}
+fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u)->TaaNearest{
  let centre=middle.y;
- var near=coord;var nearDepth=centre;
+ var nearDepth=centre;var nearId=middleIds.y;
  for(var dy=-1;dy<=1;dy++){
-  var row=middle;if(dy<0){row=above;}if(dy>0){row=below;}
+  var row=middle;var rowIds=middleIds;if(dy<0){row=above;rowIds=aboveIds;}if(dy>0){row=below;rowIds=belowIds;}
   for(var dx=-1;dx<=1;dx++){
    let z=row[dx+1];
-   if(z>nearDepth){nearDepth=z;near=clamp(coord+vec2i(dx,dy),vec2i(0),last);}
+   if(z>nearDepth){nearDepth=z;nearId=rowIds[dx+1];}
   }
  }
  let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
  let slope=max(min(abs(west-centre),abs(east-centre)),min(abs(north-centre),abs(south-centre)));
- return vec4f(vec2f(near),nearDepth,slope);
+ return TaaNearest(nearDepth,slope,nearId);
 }`

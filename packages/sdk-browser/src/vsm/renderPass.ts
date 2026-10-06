@@ -795,7 +795,6 @@ export function vsmSetChunking(
 function vsmChunkPasses(prefix: string) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
-    candidatesPass: { label: `${prefix}.candidates` },
     chunk: (c: number) =>
       (held[c] ??= {
         cullPass: { label: `${prefix}.cull ${c}` },
@@ -807,7 +806,8 @@ function vsmChunkPasses(prefix: string) {
 
 /**
  * The candidates' kernel over `rowCount` rows, then, for each of `chunks`, its compute pass (the
- * cull and the expand) and its raster pass.
+ * cull and the expand) and its raster pass. The candidates open chunk 0's pass: its dispatches read
+ * what theirs wrote, as a following pass would, and no command of the encoder lies between them.
  */
 function vsmEncodeChunks(
   encoder: GPUCommandEncoder,
@@ -823,12 +823,13 @@ function vsmEncodeChunks(
   rowCount: number,
   chunks: number,
 ) {
-  const first = encoder.beginComputePass(passes.candidatesPass)
+  const opening = passes.chunk(0),
+    first = encoder.beginComputePass(opening.cullPass)
   encodeVsmCandidates(first, ctx.candidates.pipeline, groups.cand, ctx, groups.chunk.args, rowCount)
-  first.end()
+  if (!chunks) first.end()
   for (let c = 0; c < chunks; c++) {
     const each = passes.chunk(c)
-    const pass = encoder.beginComputePass(each.cullPass)
+    const pass = c ? encoder.beginComputePass(each.cullPass) : first
     encodeVsmChunkCull(pass, ctx, groups.chunk, args, c, each.offset)
     pass.end()
     // The non-cluster raster: one page viewport, atomicMax into the pool.

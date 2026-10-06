@@ -15,7 +15,7 @@ const DISPLAY = 16
 
 /** Mean fetches per display pixel of a frame drawn at `scale`, `moving` or still, by the flagless
  *  or the `asIs` resolve; `reactive`, a frame whose blends wrote a reactive value, otherwise none
- *  (`resolve.ts`, `unreactive`): the fragment resolve's, and its identifier reads. */
+ *  (`resolve.ts`, `unreactive`): the fragment resolve's, and the identifier texels it reads. */
 export function countTaaFetches(
   scale: number,
   uncovered: boolean,

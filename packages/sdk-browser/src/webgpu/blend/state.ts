@@ -54,7 +54,8 @@ export type BlendGpuItem = {
   /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
   flags: number
-  group?: GPUBindGroup
+  /** Its own bind group, by the slot of the identity it names (`identity`). */
+  groups?: (GPUBindGroup | undefined)[]
   paged?: boolean
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
   pagedIndex?: number
@@ -103,8 +104,10 @@ export function createWebgpuBlendState() {
     cpuItemCounts: new Uint32Array(0),
     /** The fallback pass's draws of the image, three words each (`fallback.ts`). */
     fallbackDraws: [] as number[],
-    /** What the transparent groups currently name: a moved identity voids them. */
-    identity: createWebgpuBindIdentity(),
+    /** What the transparent groups currently name: a moved identity voids them. Two are held,
+     *  with the groups of each: the shadow maps' tables a lit pass binds are double-buffered, and
+     *  their frames take turns. */
+    identity: createWebgpuBindIdentity(2),
     /** Lighting resources of the image, resolved once by `encodeBlend`: the blends, the water
      *  surfaces and the water composite bind the same. */
     lighting: undefined as BlendLighting | undefined,
@@ -206,8 +209,8 @@ export function createWebgpuBlendState() {
     filtersDisplay: false,
     /** The blending modes the plan draws, built with it: what a later change must compile for. */
     planModes: [] as Blending[],
-    /** Bind group ALL paged items share. */
-    pagedGroup: undefined as GPUBindGroup | undefined,
+    /** Bind group ALL paged items share, by identity slot. */
+    pagedGroups: [] as (GPUBindGroup | undefined)[],
   }
   return state
 }

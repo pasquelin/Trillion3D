@@ -7,39 +7,70 @@ export type WebgpuBindIdentity = {
   next: unknown[]
   /** Canonical live entry lists, shared with createBindGroup. */
   entries: GPUBindGroupEntry[][]
-  /** True when `next` differs from what was held; the identity then holds `next`. */
+  /** True when `next` differs from every identity held; the identity then holds `next`, in place
+   *  of the one named longest ago. */
   moved(): boolean
   /** Writes the family's layouts then every list of `entries` into `next`, and returns `moved()`. */
   entriesMoved(layout: unknown, other?: unknown): boolean
+  /** Where the identity `next` named at the last `moved()` is held, below `depth`: the family keeps
+   *  the groups it made for it at that rank, and makes them again when `moved()` was true. */
+  readonly slot: number
 }
 
-export function createWebgpuBindIdentity(): WebgpuBindIdentity {
-  const held: unknown[] = [],
+/**
+ * The identity of a family's groups: the resources they name. It holds the last `depth` it was
+ * given, each at its `slot`. With a depth of two, a family whose resources take turns frame after
+ * frame — a double-buffered set, its current frame's then the other's — finds each of them held
+ * and keeps a group for each, where a single identity would move, and its groups be made again,
+ * every frame.
+ */
+export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
+  /** The identities held, by slot, and when each was last named. */
+  const held: unknown[][] = [[]],
+    named = [0],
     next: unknown[] = [],
     entries: GPUBindGroupEntry[][] = []
-  const moved = () => {
-    let moved = held.length !== next.length
-    held.length = next.length
-    for (let i = 0; i < next.length; i++)
-      if (held[i] !== next[i]) {
-        held[i] = next[i]
-        moved = true
-      }
-    return moved
+  let clock = 0
+  const holds = (at: number) => {
+    const words = held[at]
+    if (words.length !== next.length) return false
+    for (let i = 0; i < next.length; i++) if (words[i] !== next[i]) return false
+    return true
   }
-  return {
+  const identity = {
     next,
     entries,
-    moved,
-    entriesMoved(layout, other) {
+    slot: 0,
+    moved() {
+      clock++
+      for (let at = 0; at < held.length; at++)
+        if (holds(at)) {
+          identity.slot = at
+          named[at] = clock
+          return false
+        }
+      let at = held.length
+      if (at === depth) {
+        at = 0
+        for (let k = 1; k < depth; k++) if (named[k] < named[at]) at = k
+      }
+      const words = (held[at] ??= [])
+      words.length = next.length
+      for (let i = 0; i < next.length; i++) words[i] = next[i]
+      identity.slot = at
+      named[at] = clock
+      return true
+    },
+    entriesMoved(layout: unknown, other?: unknown) {
       next[0] = layout
       next[1] = other
       let at = 2
       for (let i = 0; i < entries.length; i++) at = entriesIdentity(entries[i], next, at)
       next.length = at
-      return moved()
+      return identity.moved()
     },
   }
+  return identity
 }
 
 /** True when every resource an entry list names exists: the readiness of its group. */

@@ -3,67 +3,11 @@
 // pass announces the move to the selection on exactly the frames a parent moved.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import {
-  askComposedPlacements,
-  composeWebgpuPlacements,
-  encodeComposedRoots,
-  encodeComposedRows,
-} from './gpuCompose.ts'
+import { askComposedPlacements, composeWebgpuPlacements, encodeComposedRows } from './gpuCompose.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/fullscreen.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
-import { createPlacementRows } from './rows.ts'
 import { NONE } from './gpuComposeWgsl.ts'
-import { composeRuntime } from './composeRuntime.fixture.ts'
-
-const turn = (angle: number) => {
-  const c = Math.cos(angle),
-    s = Math.sin(angle)
-  return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 2, 0, -3, 1]
-}
-
-/** A session of two linked roots, its selection counting the world revisions it is told of. */
-function session() {
-  const fake = fakeDevice(),
-    device = fake.device as unknown as GPUDevice
-  // The recording device's compute pipeline is its stage; the pass binds through its layout.
-  const createComputePipeline = device.createComputePipeline.bind(device)
-  const compiled = { sync: 0, async: 0 }
-  const bindable = (descriptor: GPUComputePipelineDescriptor) =>
-    Object.assign(createComputePipeline(descriptor), { getBindGroupLayout: () => ({}) })
-  device.createComputePipeline = (descriptor) => (compiled.sync++, bindable(descriptor))
-  device.createComputePipelineAsync = async (descriptor) => (compiled.async++, bindable(descriptor))
-  const rows = createPlacementRows(2)
-  const roots = [0, 1].map((index) => ({
-    placement: { rows, index },
-    world: { elements: new Float32Array(turn(index)) },
-  }))
-  let revision = 0
-  const selection = {
-    worldRanges: [{ first: 0, count: 2, buffer: device.createBuffer({ size: 128, usage: 0 }) }],
-    worldsMovedOnGpu: () => void revision++,
-  }
-  const rt = composeRuntime(roots, {
-    frame: 0,
-    worldUploadOrigin: new Float64Array(3),
-    gpuSelection: selection,
-    gpuComputeDispatches: 0,
-  })
-  const encoder = {
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups() {},
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder
-  const frame = () => {
-    rt.run.frame++
-    encodeComposedRoots(rt, device, encoder)
-    return revision
-  }
-  return { rt, rows, frame, device, encoder, compiled, writes: fake.writes }
-}
+import { session, turn } from './composeSession.fixture.ts'
 
 test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
   const { rt, rows, frame } = session()
@@ -112,6 +56,27 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   Object.assign(rt.layout, { rows: { rowCount: 2 } })
   encodeComposedRows(rt, device, encoder)
   assert.deepEqual(compiled, { sync: 0, async: 2 }, 'both kernels compiled off the frame, once')
+})
+
+test('the compose passes make their groups once, then only when a buffer one names is replaced', () => {
+  const { rt, rows, frame, device, encoder, bindGroups } = session()
+  const parent = {},
+    links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
+  composeWebgpuPlacements(rt, parent, turn(0), links, true)
+  Object.assign(rt, { vis: { pageTable: device.createBuffer({ size: 64, usage: 0 }) } })
+  Object.assign(rt.layout, { rows: { rowCount: 2 } })
+  const image = () => {
+    frame()
+    encodeComposedRows(rt, device, encoder)
+    return bindGroups.length
+  }
+  const made = image()
+  assert.equal(image(), made, 'a still frame makes no group')
+  composeWebgpuPlacements(rt, parent, turn(0.5), [], false)
+  assert.equal(image(), made, 'nor does a turning parent: its worlds go up in the same buffer')
+  rt.vis.pageTable = device.createBuffer({ size: 128, usage: 0 })
+  assert.equal(image(), made + 1, 'a page table made again: the rows pass binds it, once')
+  assert.equal(image(), made + 1)
 })
 
 test("the linked roots' motion waits for the temporal pass's decision, written before the image leaves", () => {

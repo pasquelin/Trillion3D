@@ -44,6 +44,14 @@ import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../math/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+
+/** A compose pass's bind group and what it names: made again only when one of them moves. */
+const heldGroup = () => ({
+  identity: createWebgpuBindIdentity(),
+  group: undefined as GPUBindGroup | undefined,
+})
+type HeldGroup = ReturnType<typeof heldGroup>
 
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
@@ -236,6 +244,9 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     noMotion,
     previous,
     motionMode,
+    /** The roots pass's group of each range of the cut's worlds, and the rows pass's. */
+    rootGroups: [] as HeldGroup[],
+    rowsGroup: heldGroup(),
     dispose() {
       locals.destroy()
       parentOf.destroy()
@@ -283,14 +294,15 @@ function writeParents(state: ComposeState) {
   if (state.packed.length < count * MATRIX_DOUBLES * 2)
     state.packed = new Uint32Array(count * MATRIX_DOUBLES * 2)
   state.moving = false
+  const { worlds, previous } = state
   for (let p = 0; p < count; p++) {
-    const at = p * 16,
-      world = state.worlds.subarray(at, at + 16)
-    packDoubles(state.packed, p * MATRIX_DOUBLES * 2, world)
-    if (!sameElements(state.previous, world, at)) {
-      state.moving = true
-      state.previous.set(world, at)
-    }
+    const at = p * 16
+    packDoubles(state.packed, p * MATRIX_DOUBLES * 2, worlds, at, 16)
+    for (let k = at; k < at + 16; k++)
+      if (previous[k] !== worlds[k]) {
+        state.moving = true
+        previous[k] = worlds[k]
+      }
   }
 }
 
@@ -356,22 +368,32 @@ export function encodeComposedRoots(
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     })
   }
-  selection.worldRanges.forEach(({ first, count }, r) => {
+  const ranges = selection.worldRanges
+  for (let r = 0; r < ranges.length; r++) {
     const at = r * 64
     params[at] = state.roots
-    params[at + 1] = first
-    params[at + 2] = count
+    params[at + 1] = ranges[r].first
+    params[at + 2] = ranges[r].count
     params[at + 3] = motionBuffer ? 1 : 0
     packDoubles(params, at + 4, state.eye)
-  })
+  }
   device.queue.writeBuffer(gpu.uniforms[0], 0, params, 0, words)
   const pipeline = composeKernels(device).roots.get()
   const pass = encoder.beginComputePass({ label: 'Trillion3D compose roots' })
   pass.setPipeline(pipeline)
-  selection.worldRanges.forEach(({ count, buffer }, r) => {
-    pass.setBindGroup(
-      0,
-      device.createBindGroup({
+  for (let r = 0; r < ranges.length; r++) {
+    const { count, buffer } = ranges[r],
+      motion = motionBuffer ?? gpu.noMotion,
+      held = (gpu.rootGroups[r] ??= heldGroup()),
+      next = held.identity.next
+    next[0] = pipeline
+    next[1] = gpu.uniforms[0]
+    next[2] = gpu.parents
+    next[3] = buffer
+    next[4] = count
+    next[5] = motion
+    if (held.identity.moved() || !held.group)
+      held.group = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
         entries: [
           { binding: 0, resource: { buffer: gpu.uniforms[0], offset: r * 256, size: 48 } },
@@ -379,14 +401,14 @@ export function encodeComposedRoots(
           { binding: 2, resource: { buffer: gpu.parentOf } },
           { binding: 3, resource: { buffer: gpu.parents! } },
           { binding: 4, resource: { buffer, offset: 0, size: count * 64 } },
-          { binding: 5, resource: { buffer: motionBuffer ?? gpu.noMotion } },
+          { binding: 5, resource: { buffer: motion } },
           { binding: 6, resource: { buffer: gpu.motionMode } },
           { binding: 7, resource: { buffer: gpu.previous } },
         ],
-      }),
-    )
+      })
+    pass.setBindGroup(0, held.group)
     pass.dispatchWorkgroups(Math.ceil(count / 64))
-  })
+  }
   pass.end()
   rt.run.gpuComputeDispatches += selection.worldRanges.length
 }
@@ -413,9 +435,17 @@ export function encodeComposedRows(
   const pipeline = composeKernels(device).rows.get()
   const pass = encoder.beginComputePass({ label: 'Trillion3D compose rows' })
   pass.setPipeline(pipeline)
-  pass.setBindGroup(
-    0,
-    device.createBindGroup({
+  const held = gpu.rowsGroup,
+    next = held.identity.next,
+    sphereWorlds = spheres?.buffer ?? gpu.noMotion,
+    sphereLocals = spheres?.local ?? gpu.locals
+  next[0] = pipeline
+  next[1] = gpu.parents
+  next[2] = table
+  next[3] = sphereWorlds
+  next[4] = sphereLocals
+  if (held.identity.moved() || !held.group)
+    held.group = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: gpu.uniforms[1], offset: 0, size: 16 } },
@@ -423,11 +453,11 @@ export function encodeComposedRows(
         { binding: 2, resource: { buffer: gpu.parentOf } },
         { binding: 3, resource: { buffer: gpu.parents } },
         { binding: 4, resource: { buffer: table } },
-        { binding: 5, resource: { buffer: spheres?.buffer ?? gpu.noMotion } },
-        { binding: 6, resource: { buffer: spheres?.local ?? gpu.locals } },
+        { binding: 5, resource: { buffer: sphereWorlds } },
+        { binding: 6, resource: { buffer: sphereLocals } },
       ],
-    }),
-  )
+    })
+  pass.setBindGroup(0, held.group)
   pass.dispatchWorkgroups(Math.ceil(rows / 64))
   pass.end()
   rt.run.gpuComputeDispatches++

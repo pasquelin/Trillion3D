@@ -37,7 +37,17 @@ const ShadingMoire = (
 /** The page record's two terms a pixel carries (`PAGE_OF_WGSL`), built by member name. */
 const TaaPage = (identity: number, animated: number) => ({ identity, animated })
 
-export const taaBuiltins = { pack2x16float, unpack2x16float, hashUnit, ShadingMoire, TaaPage }
+/** The nearest surface of a pixel's 3×3 (`NEAREST_OF_WGSL`), built by member name. */
+const TaaNearest = (depth: number, slope: number, id: number) => ({ depth, slope, id })
+
+export const taaBuiltins = {
+  pack2x16float,
+  unpack2x16float,
+  hashUnit,
+  ShadingMoire,
+  TaaPage,
+  TaaNearest,
+}
 
 /** A texture the fixtures read by texel: a vector, or a depth texture's value. */
 type Texels = (at: number[]) => number | number[]

@@ -47,7 +47,12 @@ export async function createWaterFrame(
     createWaterDepthRestore(device, waterSurfaceTargets(feedback)),
   ])
   const freeze = createWaterFreeze()
-  const identity = createWebgpuBindIdentity()
+  /** What the composite's group names, two of them held with a group each: the shadow maps'
+   *  tables the lighting binds are double-buffered, and their frames take turns. What the passes'
+   *  targets name, apart: they are rebound when one of them moves, never with the lighting. */
+  const identity = createWebgpuBindIdentity(2),
+    targets = createWebgpuBindIdentity(),
+    groups: (GPUBindGroup | undefined)[] = []
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined
   // Cleared, then restored over the surface rectangle by the pass's first draw: the only texels a
   // surface draw tests and the composite reads (where the word is set).
@@ -121,20 +126,35 @@ export async function createWaterFrame(
       next[16] = lighting.surfaceCache
       next[17] = gpu.colorView
       next[18] = lighting.shadowTranslucentDepth
-      if (!identity.moved()) return true
-      surfaces = gpu.surfaces
-      freeze.bind(gpu.hdrTexture, backdrop)
-      restore.bind(gpu.depthView)
-      surfaceDepth.view = backdrop.waterDepthView
-      target.view = gpu.hdrView
-      word.view = gpu.colorView
-      attachments.length = 0
-      attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
+      const named = targets.next
+      named[0] = gpu.surfaces
+      named[1] = gpu.hdrTexture
+      named[2] = gpu.depthView
+      named[3] = backdrop
+      named[4] = gpu.colorView
+      named[5] = gpu.hdrView
+      if (targets.moved()) {
+        surfaces = gpu.surfaces
+        freeze.bind(gpu.hdrTexture, backdrop)
+        restore.bind(gpu.depthView)
+        surfaceDepth.view = backdrop.waterDepthView
+        target.view = gpu.hdrView
+        word.view = gpu.colorView
+        attachments.length = 0
+        attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
+      }
+      const kept = identity.moved() ? undefined : groups[identity.slot]
+      if (kept) {
+        group = kept
+        return true
+      }
+      // Until it is made, the slot holds no group: a refused one is asked again.
+      groups[identity.slot] = undefined
       const b = WATER_BINDINGS
-      group = device.createBindGroup({
+      group = groups[identity.slot] = device.createBindGroup({
         layout,
         entries: [
-          ...surfaces
+          ...gpu.surfaces
             .views()
             .slice(0, 3)
             .map((resource, binding) => ({ binding, resource })),
@@ -218,6 +238,7 @@ export async function createWaterFrame(
     dispose() {
       restore.dispose()
       group = undefined
+      groups.length = 0
       surfaces = undefined
     },
   }
