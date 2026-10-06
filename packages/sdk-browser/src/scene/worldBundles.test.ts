@@ -11,12 +11,15 @@ import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecor
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
 
-/** A world whose run from bundle `first` is answered once `land` runs, opened on a queue of
- *  `transfers`: its roots, the ranges asked, its table, and `land`. */
-async function heldAt(t: TestContext, first: number, transfers?: number) {
+type Dag = ReturnType<typeof worldRootsDag>
+
+/** A world, its DAG `dag`, whose run from bundle `first` is answered once `land` runs, opened on
+ *  a queue of `transfers`: its roots, the ranges asked, its table, and `land`. */
+async function heldAt(t: TestContext, first: number, transfers?: number, dag?: Dag) {
   let land = () => {}
   const landing = new Promise<void>((resolve) => (land = resolve))
   const world = served(t, {
+    dag,
     answer: async (from, _to, respond) => {
       if (from === world.table.bundles[first].offset) await landing
       return respond()
@@ -138,4 +141,20 @@ test('a landed run one of whose bundles is unreadable fails whole: its bundles r
   const run = rangeOf(world.table, 2, 4)
   assert.deepEqual(world.ranges.slice(1), [run, run], 'read again, its bundles never left unread')
   assert.deepEqual(roots.held(), [2, 3])
+})
+
+test("a page asked while its bundle's run transfers holds the bundle: its cell leaving stops nothing", async (t) => {
+  const { roots, ranges, land } = await heldAt(t, 2, undefined, worldRootsDag())
+  const stream = await roots.stream()
+  const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
+  const leaving = new AbortController()
+  const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one run
+  await new Promise(setImmediate)
+  const page = stream.source.page(far.url)
+  leaving.abort()
+  await assert.rejects(left, { name: 'AbortError' })
+  roots.release(1) // the cell left
+  land()
+  assert.ok((await page).positions.length > 0, 'the page lands')
+  assert.deepEqual([ranges.length, roots.held()], [2, []], 'its run read once, then let go')
 })

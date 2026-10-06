@@ -83,7 +83,6 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
     await own.landing
   }
   return {
-    run,
     forsake,
     /** The pages of `bundles`, held as `owns`, read as `asked`: their runs started (`startRuns`),
      *  the stopped ones they replace forsaken, and every run they wait on joined. */
@@ -96,17 +95,6 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
     bind(session: PageQueue) {
       queue = session
     },
-  }
-}
-
-/** `bundle`'s pages read through `runs` for one request alone, at the view's priority: its page
- *  leaves the catalogue once read, landed or failed (the GPU page pool keeps what it uploads). */
-async function readAlone(runs: ReturnType<typeof createRuns>, table: WorldRoots, bundle: number) {
-  const own = runs.run(bundle, bundle + 1)
-  try {
-    return bundleIn(await own.landing, table, bundle, bundle)
-  } finally {
-    runs.forsake(own)
   }
 }
 
@@ -151,15 +139,18 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       const bundles = cellDependencies(table, cell)
       await readAtOpen(bundles, bundles.map(take), read)
     },
-    /** A bundle's pages: the pinned top's or a held one's, joining the run on its way, else read
-     *  for the one request alone (`readAlone`). */
+    /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a
+     *  cell holds it — the run on its way joined, kept while it waits whatever the cells do —, and
+     *  let go once read (the GPU page pool keeps what it uploads). */
     async pages(bundle: number) {
       if (bundle < table.pinned) return top[bundle]
-      const own = held.get(bundle),
-        run = own?.run
-      if (own?.pages) return own.pages
-      if (!run || run.stop.signal.aborted) return readAlone(runs, table, bundle)
-      return bundleIn(await run.landing, table, run.first, bundle)
+      const own = take(bundle)
+      try {
+        if (!own.pages) await runs.read([bundle], [own], {})
+        return own.pages!
+      } finally {
+        letGo(bundle)
+      }
     },
     /** The bundles held now, ascending. */
     held: () => [...held.keys()].sort((a, b) => a - b),
