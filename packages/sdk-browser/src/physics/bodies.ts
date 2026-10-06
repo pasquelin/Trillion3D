@@ -6,6 +6,7 @@ import {
   LAYER,
   MOTION,
   checkPhysicsBudget,
+  collisionBytesOf,
   physicsMatterOf,
   isSoftType,
   resolveShape,
@@ -16,8 +17,6 @@ import {
 } from '../../../sdk-core/src/physics/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
-// What a body IS lives in `bodied.ts`: `hasBody` reads a node and creates nothing, and held
-// here the modules that only ask whether a node has one had to import the module that builds them.
 export { hasBody, type Bodied } from './bodied.ts'
 import { hasBody, type Bodied } from './bodied.ts'
 import { addSoftBody, fits } from './softBodies.ts'
@@ -156,16 +155,13 @@ export function createPhysicsBodies(
     slots,
     /** Each geometry vertex's simulated vertex, for the soft body in slot `index`. */
     softMap: (index: number) => softMaps[index] ?? null,
-    /** A body no mesh holds — a cooked tile or soft body (`tiles.ts`) —: its slot, then its
-     *  removal. */
+    /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
-    /** A shape bodies share (a cooked tile's): its collision `bytes` counted once, beside their
-     *  slots, refused past the budget; negative, given back. */
-    countShape(bytes: number) {
-      if (bytes > 0) check('collisionBytes', bytes)
-      count.collisionBytes += bytes
-    },
+    /** A shared shape's collision `bytes` counted once if they fit (negative: given back). */
+    countShape: (bytes: number) =>
+      (bytes <= 0 || count.collisionBytes + bytes <= collisionBytesOf(budget)) &&
+      ((count.collisionBytes += bytes), true),
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
     retire(index: number, scale: readonly number[] | null = null) {

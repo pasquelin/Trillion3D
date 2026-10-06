@@ -12,6 +12,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Bodied } from './bodies.ts'
 import type { NodeMove } from './cookedBodies.ts'
+import type { SharedShape, SharedShapes } from './sharedShapes.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { checked, optionalFile } from '../cluster/checked.ts'
@@ -33,8 +34,7 @@ export const isModel = (node: Object3D): node is Model =>
 export interface Placed {
   model: Model
   instance: CookedInstance
-  tile: CookedTile
-  /** Its tile as every placement of it in its model shares it. */
+  /** Its tile, shared by every placement of it in the session. */
   shape: TileShape
   /** The glTF material of every triangle the tile holds, `-1` for none: its collider's. */
   material: number
@@ -42,25 +42,14 @@ export interface Placed {
   box: Float64Array
   /** The body's engine id once resident, -1 while out. */
   id: number
-  /** Left out by the last update, past the share or unwanted: its tile landing builds no body. */
+  /** Left out by the last update, past the share or unwanted. */
   out: boolean
+  /** How near the last update wanted it (`nearness`). */
+  near: number
 }
 
-/** A cooked tile as the placements of it in one model share it: read once, restored once in the
- *  physics module, each placement's static body built on it. */
-export interface TileShape {
-  tile: CookedTile
-  /** Every placement of it. */
-  placed: Placed[]
-  /** Its handle in the module while restored (`CommandWriter.restore`), -1 while not. */
-  handle: number
-  /** Its bytes are on their way. */
-  reading: boolean
-  /** The bodies built on it: its handle is released once the last one leaves. */
-  bodies: number
-  /** The update that last counted its bytes against the share (`tileRoom.ts`). */
-  counted: number
-}
+/** A cooked tile as the session shares it (`sharedShapes.ts`): its manifest entry beside. */
+export type TileShape = SharedShape & { tile: CookedTile }
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1
@@ -75,10 +64,13 @@ const place = new Matrix4(),
   size = new Vector3(),
   bounds = new Box3()
 
-/** The bytes of a cooked object beside `model`'s manifest — a tile, a soft body's settings —
- *  read as every cache file is (`checked`, in `tries` requests), until `signal` aborts. */
-export async function cookedBytes(model: Model, url: string, signal: AbortSignal, tries?: number) {
-  const response = await checked(new URL(url, model.record.base).href, signal, tries)
+/** The absolute URL of the cooked object `url` names beside `model`'s manifest. */
+export const cookedHref = (model: Model, url: string) => new URL(url, model.record.base).href
+
+/** The bytes of a cooked object — a tile, a hull, a soft body's settings — read as every cache
+ *  file is (`checked`, in `tries` requests), until `signal` aborts. */
+export async function cookedBytes(href: string, signal: AbortSignal, tries?: number) {
+  const response = await checked(href, signal, tries)
   return new Uint8Array(await response.arrayBuffer())
 }
 
@@ -90,33 +82,26 @@ export async function cookedPhysics(model: Model, signal: AbortSignal) {
   return response && readCookedPhysics(await response.json())
 }
 
-/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out; the
- *  placements of one tile — one object, one URL — share its shape. */
-export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
-  const shapes = new Map<string, TileShape>()
-  const shapeOf = (tile: CookedTile) => {
-    let shape = shapes.get(tile.url)
-    if (!shape) {
-      shape = { tile, placed: [], handle: -1, reading: false, bodies: 0, counted: -1 }
-      shapes.set(tile.url, shape)
-    }
-    return shape
+/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out, its shape
+ *  held from `shapes` (`SharedShapes`) by every placement of it. */
+export function placedOf(
+  model: Model,
+  cooked: CookedPhysics,
+  shapes: Pick<SharedShapes, 'hold'>,
+): Placed[] {
+  const hrefs = new Map<string, string>()
+  const hold = (tile: CookedTile) => {
+    let href = hrefs.get(tile.url)
+    if (!href) hrefs.set(tile.url, (href = cookedHref(model, tile.url)))
+    return shapes.hold(href, tile.bytes, { tile })
   }
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider]
     return tiles.map((tile) => {
-      const shape = shapeOf(tile)
       const p: Placed = {
-        model,
-        instance,
-        tile,
-        shape,
-        material: material ?? -1,
-        box: new Float64Array(6),
-        id: -1,
-        out: false,
+        ...{ model, instance, shape: hold(tile), material: material ?? -1 },
+        ...{ box: new Float64Array(6), id: -1, out: false, near: Infinity },
       }
-      shape.placed.push(p)
       locate(p)
       return p
     })
@@ -137,20 +122,21 @@ export function tilePose(p: { model: Model; instance: Omit<CookedInstance, 'coll
 
 /** Places a tile's world box from its pose. */
 export function locate(p: Placed) {
-  boxTransform(p.box, 0, p.tile.bounds, 0, tilePose(p).place.elements)
+  boxTransform(p.box, 0, p.shape.tile.bounds, 0, tilePose(p).place.elements)
 }
 
 /**
  * Where each moving body wants ground: `x, y, z, reach` per dynamic body — a page's mesh, or a
  * compiled model's body moving its node (`nested`, its `velocity` by slot) —, the reach its half
- * size plus the way it travels in `LOOKAHEAD_S` seconds.
+ * size plus the way it travels in `LOOKAHEAD_S` seconds; written into `out`, emptied first.
  */
 export function moversOf(
   meshes: readonly (Bodied | null)[],
   nested: ReadonlyMap<number, NodeMove>,
   velocity: Float32Array,
+  out: number[] = [],
 ) {
-  const out: number[] = []
+  out.length = 0
   for (const mesh of meshes) {
     if (!mesh || mesh.physics.type !== 'dynamic') continue
     const box = mesh.localBounds()

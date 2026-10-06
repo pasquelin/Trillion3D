@@ -38,6 +38,18 @@ export const declared = (
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate)
 
+/** An update at `eye` within `range`, the reads it starts landed, and the next update, which
+ *  builds the bodies of the tiles they restored. */
+export async function settled(
+  tiles: { update(eye: ArrayLike<number>, range: number): void },
+  eye: number[],
+  range: number,
+) {
+  tiles.update(eye, range)
+  await landed()
+  tiles.update(eye, range)
+}
+
 /** A two-triangle tile at `x` along its collider. */
 export const tile = (x = 0) => ({
   ...{ url: `t${x}.bin`, sha256: 'a'.repeat(64), bytes: 2, triangles: 2 },

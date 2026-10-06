@@ -10,7 +10,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts'
+import { cooked, landed, place, settled, streamedModel, tile } from './tiles.fixture.ts'
 import { createWorldPhysics } from './worldPhysics.ts'
 
 /** Tiles of the generated scene, 10 m apart along x, and the triangles of each: 15 M in all. */
@@ -51,7 +51,7 @@ test('a 15 M-triangle static scene is never refused: its tiles follow a moving b
   /** The x of every resident tile's centre. */
   const resident = () =>
     Array.from({ length: 1024 }, (_, i) => bodies.slots.at(i))
-      .flatMap((owner) => (owner && 'tile' in owner ? [owner.tile.tile.bounds[0] + 5] : []))
+      .flatMap((owner) => (owner && 'tile' in owner ? [owner.tile.shape.tile.bounds[0] + 5] : []))
       .sort((a, b) => a - b)
   /** The body at `x`, the eye riding it or left behind: updates until one asks no tile. */
   const settleAt = async (x: number, eye = [x, 0.5, 0], range = RANGE) => {
@@ -88,8 +88,7 @@ test('a resident tile stays until half as far again as it came in: no load and r
   const file = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)])
   const { tiles, bodies, fetched } = await streamedModel(file, new Uint8Array(1))
   const heldAt = async (x: number) => {
-    tiles.update([x, 0, 0], 10)
-    await landed()
+    await settled(tiles, [x, 0, 0], 10)
     return bodies.count.collisionBytes
   }
   // The tile spans x 0 to 2: it comes in within 10 m, and leaves past 15.

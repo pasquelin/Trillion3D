@@ -57,6 +57,7 @@ test('a model back while its physics.json or a tile is on its way holds one set 
   await answer('physics.json')
   near()
   await answer('t0.bin')
+  near()
   assert.deepEqual(held(), [1, 2], 'the later opening’s tile alone')
   // A tile on its way while its model leaves and comes back, landing after the new opening.
   back()
@@ -67,6 +68,7 @@ test('a model back while its physics.json or a tile is on its way holds one set 
   await answer('t0.bin')
   near()
   await answer('t0.bin')
+  near()
   assert.deepEqual(held(), [1, 2], 'the new opening’s tile alone')
 })
 
@@ -100,6 +102,7 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     await landed() // opened: its cloth made in the first slot
     session.frame(camera, null)
     await landed() // its tile loaded in the second
+    session.frame(camera, null) // its body built
     const [soft, ground] = [0, 1].map((index) => index | (1 << GENERATION_SHIFT))
     assert.deepEqual([session.objectOf(soft), session.objectOf(ground)], [model, model])
     const refusal = { type: 'error', code: 'PHYSICS_FAILED', message: '', fatal: false }

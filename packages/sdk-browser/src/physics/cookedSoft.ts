@@ -10,7 +10,7 @@ import {
 import { flagsOf, type createPhysicsBodies } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'
-import { cookedBytes, tilePose, type Model } from './tilePlace.ts'
+import { cookedBytes, cookedHref, tilePose, type Model } from './tilePlace.ts'
 
 /** A cooked soft body made: its entry, its options, its engine id. */
 export type CookedMade = {
@@ -44,7 +44,8 @@ export function createCookedSoftBodies(
   const settings = new WeakMap<CookedSoftBody, Promise<Uint8Array>>()
   function settingsOf(model: Model, soft: CookedSoftBody, signal: AbortSignal) {
     let bytes = settings.get(soft)
-    if (!bytes) settings.set(soft, (bytes = cookedBytes(model, soft.settings.url, signal)))
+    if (!bytes)
+      settings.set(soft, (bytes = cookedBytes(cookedHref(model, soft.settings.url), signal)))
     return bytes
   }
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was

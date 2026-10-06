@@ -29,12 +29,12 @@ test('a tile of sub-millimetre triangles is restored whole, its scale nested und
   const small = await readFile(
     new URL('../../../../tests/fixtures/physics/small-ramp-tile.bin', import.meta.url),
   )
-  const ramp = writer.restore(new Uint8Array(small))
+  writer.restore(0, new Uint8Array(small))
   writer.add({
     ...body(0, 0, 0, 1),
     shape: SHAPE.cooked,
     size: [SCALE, SCALE, SCALE],
-    indices: [ramp],
+    indices: [0],
   })
   jolt.step(writer.take(), 0)
   hitsTheScaledRamp(jolt)

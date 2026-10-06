@@ -4,15 +4,20 @@ import type { Model } from './tilePlace.ts'
 /**
  * Each open model's opening of the bodies it declares, one per model, `made` holding the bodies
  * made from it (`cookedBodies.ts`, `cookedSoft.ts`): a model opened again, or forgotten, gives
- * its last opening's slots back, and a read that lands after that is not wanted.
+ * its last opening's slots back, then hands that opening to `left`, and a read that lands after
+ * that is not wanted.
  */
 export function createOpenings<O extends { made: { id: number }[] }>(
   release: (index: number) => void,
+  left?: (opening: O) => void,
 ) {
   const held = new Map<Model, O>()
   const forget = (model: Model) => {
-    held.get(model)?.made.forEach(({ id }) => release(id & BODY_INDEX))
+    const opening = held.get(model)
+    if (!opening) return
+    opening.made.forEach(({ id }) => release(id & BODY_INDEX))
     held.delete(model)
+    left?.(opening)
   }
   return {
     get: (model: Model) => held.get(model),
