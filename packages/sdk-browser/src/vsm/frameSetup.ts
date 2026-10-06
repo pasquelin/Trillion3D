@@ -22,7 +22,7 @@ import {
 import { vsmProjectionWords, writeVsmProjectionData } from './projectionData.ts'
 import type { VsmResources } from './resources.ts'
 import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { vsmWriteChanged, vsmWriteChangedRecords } from './writeChanged.ts'
 import {
   VsmCacheManager,
   type VsmIdAllocator,
@@ -449,14 +449,25 @@ function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   )
 }
 
+/** The ids whose next-map records a frame may change, increasing (`uploadNextMaps`). */
+let touchedIds = new Int32Array(64)
+
 /** The page address update: the next-map data by previous id. The image drops the last frame's
  *  records and takes this frame's: below the count, the words a whole write would send; those that
- *  changed go up (`vsmWriteChanged`). */
+ *  changed go up. Only the records of the ids dropped or taken can change — the full maps' ids
+ *  start past the single-page slots, so the table is wide and those few —: they alone are compared
+ *  (`vsmWriteChangedRecords`). */
 function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   const { u, i } = nextMapWords(state.nextMapsImage),
-    held = state.nextMapsHeld
-  for (let j = 0; j < state.nextMapsHeldCount; j++) u.fill(0, held[j] * 4, held[j] * 4 + 4)
-  for (let j = 0; j < ids.nextMapIdCount; j++) {
+    held = state.nextMapsHeld,
+    dropped = state.nextMapsHeldCount,
+    taken = ids.nextMapIdCount
+  if (touchedIds.length < dropped + taken) touchedIds = new Int32Array(2 * (dropped + taken))
+  for (let j = 0; j < dropped; j++) {
+    u.fill(0, held[j] * 4, held[j] * 4 + 4)
+    touchedIds[j] = held[j]
+  }
+  for (let j = 0; j < taken; j++) {
     const id = ids.nextMapIds[j],
       d = ids.nextMaps[id]
     u[id * 4] = d.flags >>> 0
@@ -464,16 +475,21 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
     i[id * 4 + 2] = d.pageShift[0]
     i[id * 4 + 3] = d.pageShift[1]
     held[j] = id
+    touchedIds[dropped + j] = id
   }
-  state.nextMapsHeldCount = ids.nextMapIdCount
-  if (ids.nextMapCount > 0)
-    vsmWriteChanged(
-      state.device,
-      state.resources.nextMaps,
-      u,
-      0,
-      (ids.nextMapCount * VSM_NEXT_MAP_BYTES) / 4,
-    )
+  state.nextMapsHeldCount = taken
+  const touched = touchedIds.subarray(0, dropped + taken).sort()
+  let distinct = 0
+  for (let j = 0; j < touched.length; j++)
+    if (j === 0 || touched[j] !== touched[j - 1]) touched[distinct++] = touched[j]
+  vsmWriteChangedRecords(
+    state.device,
+    state.resources.nextMaps,
+    u,
+    touched,
+    distinct,
+    VSM_NEXT_MAP_BYTES / 4,
+  )
 }
 
 /** The frame's uniform counts. */

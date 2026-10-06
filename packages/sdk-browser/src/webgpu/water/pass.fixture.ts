@@ -155,7 +155,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
         setViewport() {},
         setScissorRect: (...rect: number[]) => scissors.push(rect),
         setBindGroup(_slot: number, group: GPUBindGroup) {
-          const rank = items.findIndex((item) => item.group === group)
+          const rank = items.findIndex((item) => item.groups?.includes(group))
           if (rank >= 0) drawn.push(rank)
         },
         setPipeline: (p: GPURenderPipelineDescriptor) =>
@@ -189,12 +189,12 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       feedbackWritten: true,
     },
   } as unknown as WebgpuPagesRuntime
-  // Groups are already built on these resources: their identity is primed on them, so the pass
-  // need not rebuild them — this test observes draw order, not group construction. The lighting
-  // is resolved once, as `encodeBlend` does before any pass.
+  // Groups are already built on these resources, in both identity slots: their identity is primed
+  // on them, so the pass need not rebuild them — this test observes draw order, not group
+  // construction. The lighting is resolved once, as `encodeBlend` does before any pass.
   voidStaleBlendGroups(rt, blendLightResources(rt))
-  for (const item of items) item.group = {} as GPUBindGroup
+  for (const item of items) item.groups = [{} as GPUBindGroup, {} as GPUBindGroup]
   // No paged item here, and the shared group is posted ahead for the same reason.
-  blendState.pagedGroup = {} as GPUBindGroup
+  blendState.pagedGroups[0] = blendState.pagedGroups[1] = {} as GPUBindGroup
   return { rt, encoder, passes, counters, copies }
 }
