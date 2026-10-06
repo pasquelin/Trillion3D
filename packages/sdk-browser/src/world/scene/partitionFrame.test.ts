@@ -30,6 +30,7 @@ function recording() {
         io.request(['ahead.json'], true)
       },
       decodes: () => [],
+      reads: () => [],
       due: () => Infinity,
     } as unknown as PartitionCells,
   )

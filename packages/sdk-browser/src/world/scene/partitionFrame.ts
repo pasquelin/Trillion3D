@@ -16,7 +16,6 @@ import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
-import { cellHoldings } from '../../partition/cellPages.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts'
 import { createPartitionMounts } from './partitionMounts.ts'
@@ -102,15 +101,17 @@ type Inputs = {
   wake?: () => void
 }
 
-/** One timer, set for the earliest failed hold's wait, `due`: it asks `wake` for a frame then. */
+/** One timer, set for the earliest failed hold's wait, `due`: it asks `wake` for a frame then,
+ *  and is set again by the next frame however the clock read the wait then. */
 function wakeAt(wake: () => void) {
   let timer: ReturnType<typeof setTimeout> | undefined,
     armed = Infinity
+  const fire = () => ((armed = Infinity), wake())
   return (due: number) => {
     if (due === armed) return
     clearTimeout(timer)
     armed = due
-    if (due < Infinity) timer = setTimeout(wake, due - performance.now())
+    if (due < Infinity) timer = setTimeout(fire, due - performance.now())
   }
 }
 
@@ -127,7 +128,6 @@ export function createPartitionFrame(inputs: Inputs) {
   const arm = wake ? wakeAt(wake) : () => {}
   if (!partitions.length) return null
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
-  const manifests = partitions.map((cells) => cellHoldings(cells).manifest)
   let reads: Promise<void>[] = [],
     later = false
   const request = (urls: readonly string[], ahead: boolean) => {
@@ -143,7 +143,7 @@ export function createPartitionFrame(inputs: Inputs) {
     const asked = reads,
       turned = [
         ...mounts.asked(),
-        ...manifests.flatMap((manifest) => manifest.reads()),
+        ...partitions.flatMap((cells) => cells.reads()),
         ...partitions.flatMap((cells) => cells.decodes()),
       ]
     reads = []

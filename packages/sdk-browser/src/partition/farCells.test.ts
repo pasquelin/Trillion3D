@@ -99,3 +99,22 @@ test('a placed cell the cut no longer needs is demoted, its world bundles held b
   // then read again.
   assert.equal(holdsBeforeLeave, 1)
 })
+
+test("a far hold that fails is told to the frame as it settles, and waits its read's wait", async () => {
+  const { index, placed } = partition()
+  const holder = {
+    hold: async () => {
+      throw Object.assign(new Error('refused'), { due: 500 }) // its read's wait
+    },
+    release() {},
+    stream: async () => ({ superRoots: bounds }) as never,
+  }
+  const far = createFarCells(holder, placed)
+  far.plan(index, local, eye, lens, leave)
+  await Promise.resolve()
+  far.plan(index, local, eye, lens, leave)
+  const settling = far.reads()
+  assert.equal(settling.length, 1, 'the frame waits on the next far hold to settle')
+  await Promise.all(settling)
+  assert.equal(far.due(), 500, 'then asks it again once its wait is over')
+})

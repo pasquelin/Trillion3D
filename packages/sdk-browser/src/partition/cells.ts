@@ -177,6 +177,8 @@ export function createPartitionCells(inputs: Inputs) {
     /** When the first failed hold is asked again, `Infinity` while none waits: a still camera
      *  is drawn again then. */
     due,
+    /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
+    reads: () => [...manifest.reads(), ...far.reads()],
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   }

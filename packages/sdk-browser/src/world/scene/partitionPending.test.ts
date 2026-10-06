@@ -24,6 +24,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
         return later
       },
       decodes: () => decodes.splice(0),
+      reads: () => [],
       due: () => Infinity,
     } as unknown as PartitionCells,
   )
@@ -65,6 +66,7 @@ function stillFrame(holder: Parameters<typeof createCellPages>[2], wake?: () => 
   const cells = withHoldings({ meshes: new Map(), manifest }, {
     frame: () => false,
     decodes: () => [],
+    reads: manifest.reads,
     due: manifest.due,
   } as unknown as PartitionCells)
   const frame = createPartitionFrame({
@@ -120,4 +122,7 @@ test("a still camera never waits for a failed hold's wait: one timer asks the lo
   assert.equal(woken, 0)
   t.mock.timers.tick(1)
   assert.equal(woken, 1, 'its wait over, the loop is asked once')
+  frame() // a clock that still reads the wait as running: the timer is set again
+  t.mock.timers.tick(500)
+  assert.equal(woken, 2)
 })
