@@ -6,7 +6,7 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 
 /**
  * Whether a transparent surface in `mode` cannot be drawn into the effect chain's linear target,
- * whose alpha is coverage over transparent black (`../../effects/webglOutput.ts`): multiply and
+ * whose alpha is coverage over transparent black (`../effects/webglOutput.ts`): multiply and
  * subtractive filter what the display target holds, the background included, which that target
  * does not hold. WebGPU composes them with the chain; WebGL2 draws such a frame without it.
  */

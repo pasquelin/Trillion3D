@@ -1,6 +1,6 @@
-import type { EffectKind } from '../../../sdk-core/src/world/effect/chain.ts';
-import { type WebglRenderTarget } from '../webgl/core/renderTarget.ts';
-import { type EffectPassOf } from './targets.ts';
+import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts';
+import { type WebglRenderTarget } from '../core/renderTarget.ts';
+import { type EffectPassOf } from '../../effects/targets.ts';
 import { createWebglBloom } from './webglBloom.ts';
 
 /** One kind of pass on WebGL2: its programs, made with the context, and the resources its passes

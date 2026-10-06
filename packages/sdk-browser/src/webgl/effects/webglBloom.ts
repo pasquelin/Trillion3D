@@ -1,13 +1,13 @@
-import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
-import { createWebglProgram } from '../webgl/core/program.ts';
+import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts';
+import { FULLSCREEN_VERTEX } from '../core/fullscreenPass.ts';
+import { createWebglProgram } from '../core/program.ts';
 import {
   bindWebglTarget,
   bindWebglTexture,
   createWebglRenderTarget,
   type WebglRenderTarget,
-} from '../webgl/core/renderTarget.ts';
-import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
+} from '../core/renderTarget.ts';
+import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts';
 import { BLOOM_GLSL } from './bloomGlsl.ts';
 import { type WebglEffectKind } from './webglKinds.ts';
 

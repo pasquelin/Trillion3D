@@ -6,7 +6,7 @@ import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred
 const COMPILING = -1;
 
 /**
- * The world's effect chain on this image (`../../../effects/webgpuEffects.ts`): the passes that
+ * The world's effect chain on this image (`../../effects/webgpuEffects.ts`): the passes that
  * run before tone mapping, over the resolved linear image — `accumulated`, or the lit image when
  * the image does not accumulate —; returns what composition reads, `accumulated` itself when the
  * chain draws nothing, and the last bloom's blend when the composition takes it over. The chain's

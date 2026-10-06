@@ -1,6 +1,6 @@
-import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
-import { BLOOM_DOWN_TAPS, bloomTapText } from './bloomFilter.ts';
-import { bloomLevelWgsl, levelTap } from './bloomLevel.ts';
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts';
+import { BLOOM_DOWN_TAPS, bloomTapText } from '../../effects/bloomFilter.ts';
+import { bloomLevelWgsl, levelTap } from '../../effects/bloomLevel.ts';
 
 /**
  * The bloom's three WebGPU programs (`bloomFilter.ts`), on premultiplied linear radiance, alpha

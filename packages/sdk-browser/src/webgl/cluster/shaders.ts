@@ -163,7 +163,7 @@ export function variant(text: string, from: string, to: string, upTo?: string) {
 }
 
 /**
- * The fragment program of a draw into the effect chain's target (`../../effects/webglEffects.ts`):
+ * The fragment program of a draw into the effect chain's target (`../effects/webglEffects.ts`):
  * `CLUSTER_FRAGMENT` with its last line changed, compiled only while a chain has a pass. It writes
  * linear radiance — the curve and the encoding come after the passes — whose alpha is coverage
  * (`coversLinear`, `./materialBinding.ts`).

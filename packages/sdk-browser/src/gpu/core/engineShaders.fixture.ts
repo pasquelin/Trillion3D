@@ -17,7 +17,7 @@ import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts';
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts';
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts';
-import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
+import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts';
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
 import {

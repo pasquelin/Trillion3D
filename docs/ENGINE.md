@@ -249,12 +249,12 @@ radiance, in chain order; `after-tone-mapping` passes will read the display imag
 The chain is one object for the world's life, shared by reference with every session; a change of
 the chain or of a pass's setting counts one revision and asks for a frame.
 
-- **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `effects/webgpuEffects.ts`): between
+- **WebGPU** (`webgpu/pages/render/encodeEffects.ts`, `webgpu/effects/webgpuEffects.ts`): between
   `encodeTaaPass` and the composition, which tone-maps whatever view it is handed. Each pass writes
   a full-size `rgba16float` target, two in turn at most. The programs compile in the background on
   the first frame with a pass; until then the image is drawn without the chain, never held, and
   drawn again when they arrive, without restarting the temporal accumulation.
-- **WebGL2** (`world/render/compose.ts`, `effects/webglEffects.ts`): with a pass, the composer asks
+- **WebGL2** (`world/render/compose.ts`, `webgl/effects/webglEffects.ts`): with a pass, the composer asks
   the engine for linear radiance (`HostDrawOutput.linear`: no curve, no sRGB transfer, alpha as
   coverage over transparent black) into a half-float target with depth, runs the passes, then one
   output program applies the scene's curve and the sRGB transfer over the background, as the WebGPU
@@ -263,7 +263,7 @@ the chain or of a pass's setting counts one revision and asks for a frame.
   without a chain, the program and uniforms are the ones drawn before the chain existed. Its second
   output marks, one byte a pixel, the coverage of surfaces whose material skips the curve
   (`toneMapped: false`), left as drawn; coverage past one is read as light
-  (`effects/webglOutput.ts`). With a chain, a `none`-blended surface covers as an opaque one.
+  (`webgl/effects/webglOutput.ts`). With a chain, a `none`-blended surface covers as an opaque one.
   Multiply and subtractive filter the background, which the linear target does not hold: before
   binding the target, the composer asks the engine (`BackendHostDraw.linearRefusal`), whose scene
   draw answers from the one walk of the graph per drawn image it already makes, never on a held

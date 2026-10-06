@@ -17,7 +17,7 @@ import {
   type HostDrawOutput,
   type WebglRenderTarget,
 } from '../../webgl/core/renderTarget.ts';
-import type { createWebglEffects, WebglEffectOutput } from '../../effects/webglEffects.ts';
+import type { createWebglEffects, WebglEffectOutput } from '../../webgl/effects/webglEffects.ts';
 import { families } from '../../host/families.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
@@ -43,7 +43,7 @@ export type ComposedChain = {
  * engine to draw its whole image there, keeping the copy of the last complete frame that spares a
  * redraw. With an effect chain that holds passes, the engine draws linear radiance into the
  * chain's target instead, and the chain brings its image to the destination
- * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed since
+ * (`../../webgl/effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed since
  * it was kept is drawn again. The page's `guides` are drawn over the image the destination got,
  * the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to them
  * spares no redraw. The world's `particles` step before, and draw over the engine's image before

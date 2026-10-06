@@ -1,5 +1,5 @@
 import type { RenderBackend } from '../../backend/types.ts';
-import { createWebglSceneTarget, type WebglSceneTarget } from '../../effects/webglOutput.ts';
+import { createWebglSceneTarget, type WebglSceneTarget } from '../../webgl/effects/webglOutput.ts';
 import { sceneTargetBytes } from '../../effects/targets.ts';
 import { boundToContext } from '../../webgl/core/contextBound.ts';
 import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../../webgl/core/fullscreenPass.ts';

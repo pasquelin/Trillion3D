@@ -11,7 +11,7 @@ import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { DisplayFilter } from '../../blend/displayFilter.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
-import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
+import type { WebgpuEffects } from '../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';

@@ -7,7 +7,7 @@ import { noticeEffectBudget } from '../diagnostic/worldNotices.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import { DEFAULT_BUDGET_CANVAS } from '../../residency/memoryBudget.ts';
 import { effectChainBytesAt } from '../../effects/targets.ts';
-import { createWebglEffects } from '../../effects/webglEffects.ts';
+import { createWebglEffects } from '../../webgl/effects/webglEffects.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';

@@ -1,20 +1,20 @@
-import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
-import { boundToContext } from '../webgl/core/contextBound.ts';
-import { setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
+import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts';
+import { boundToContext } from '../core/contextBound.ts';
+import { setFullscreenPassState } from '../core/fullscreenPass.ts';
 import {
   bindWebglTarget,
   clearWebglTarget,
   createWebglRenderTarget,
   halfFloatTargets,
   type WebglRenderTarget,
-} from '../webgl/core/renderTarget.ts';
+} from '../core/renderTarget.ts';
 import {
   countKinds,
   EFFECT_KINDS as KINDS,
   effectPassTargets,
   effectTargetBytes,
   type EffectPassOf,
-} from './targets.ts';
+} from '../../effects/targets.ts';
 import {
   createWebglOutput,
   createWebglSceneTarget,
@@ -64,7 +64,7 @@ function createResources(gl: WebGL2RenderingContext) {
     },
     /** The scene's target, then the pass targets and each kind's own, for `passes` at `w` × `h`. */
     ensure(passes: readonly EffectPass[], w: number, h: number) {
-      // A target the context refused (`../webgl/core/allocation.ts`) is made again with the rest.
+      // A target the context refused (`../core/allocation.ts`) is made again with the rest.
       const refused = scene?.refused || targets.some((t) => t.width !== width);
       if (w !== width || h !== height || refused) release();
       width = w;

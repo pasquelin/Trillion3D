@@ -1,4 +1,4 @@
-import { BLOOM_DOWN_TAPS, BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts';
+import { BLOOM_DOWN_TAPS, BLOOM_UP_TAPS, bloomTapText } from '../../effects/bloomFilter.ts';
 
 const read = (offset: string) => `texture(level,uv+${offset}*stride)`;
 

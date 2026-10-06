@@ -6,7 +6,7 @@ import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
 import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { WebgpuEffects } from '../../effects/webgpuEffects.ts';
+import type { WebgpuEffects } from '../effects/webgpuEffects.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 

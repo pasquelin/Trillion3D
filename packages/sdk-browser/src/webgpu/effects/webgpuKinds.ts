@@ -1,5 +1,5 @@
-import type { EffectKind } from '../../../sdk-core/src/world/effect/chain.ts';
-import { type EffectPassOf } from './targets.ts';
+import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts';
+import { type EffectPassOf } from '../../effects/targets.ts';
 import { createWebgpuBloom } from './webgpuBloom.ts';
 
 /** A pass's last blend left to the composition (#963): the group it reads, at its dynamic offset. */

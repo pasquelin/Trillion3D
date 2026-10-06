@@ -1,10 +1,10 @@
 // #840: a scene target whose storage the context refused says so, and its owners (`webglEffects.ts`,
-// `../world/render/renderScale.ts`) make it again at their next draw instead of drawing into it.
+// `../../world/render/renderScale.ts`) make it again at their next draw instead of drawing into it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebglSceneTarget } from './webglOutput.ts';
-import { refusedNow } from '../webgl/core/allocation.ts';
-import { createTestContext } from '../webgl/core/testContext.fixture.ts';
+import { refusedNow } from '../core/allocation.ts';
+import { createTestContext } from '../core/testContext.fixture.ts';
 
 test('a refused scene target is marked to be made again', () => {
   let refuse = false;

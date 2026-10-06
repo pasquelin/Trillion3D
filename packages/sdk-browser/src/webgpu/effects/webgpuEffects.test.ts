@@ -3,9 +3,9 @@
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { effect } from '../../../sdk-core/src/world/effect/index.ts';
-import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
+import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts';
 import { createWebgpuEffects } from './webgpuEffects.ts';
 
 /** An encoder that records the passes begun on it, their target and the dynamic offset of

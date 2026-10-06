@@ -1,12 +1,12 @@
-import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
-import { allocated } from '../webgl/core/allocation.ts';
-import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
-import { createWebglProgram } from '../webgl/core/program.ts';
+import { FULLSCREEN_VERTEX } from '../core/fullscreenPass.ts';
+import { allocated } from '../core/allocation.ts';
+import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
+import { createWebglProgram } from '../core/program.ts';
 import {
   bindWebglTexture,
   createWebglRenderTarget,
   type WebglRenderTarget,
-} from '../webgl/core/renderTarget.ts';
+} from '../core/renderTarget.ts';
 
 /**
  * The display chain's last links after the effects: premultiplied linear radiance over the
@@ -68,7 +68,7 @@ export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h:
     target,
     untoned,
     depth,
-    /** The context refused its storage (`../webgl/core/allocation.ts`): made again, never drawn. */
+    /** The context refused its storage (`../core/allocation.ts`): made again, never drawn. */
     get refused() {
       return refused || target.width !== w;
     },

@@ -1,11 +1,11 @@
-import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
+import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts';
 import {
   countKinds,
   EFFECT_KINDS as KINDS,
   effectPassTargets,
   effectTargetBytes,
   type EffectPassOf,
-} from './targets.ts';
+} from '../../effects/targets.ts';
 import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts';
 
 /**
