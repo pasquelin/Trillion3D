@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHostRankDelta } from './hostRanks.ts';
-import { random } from './cut/cutRuleChecks.fixture.ts';
+import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 
 const URLS = Array.from({ length: 40 }, (_, rank) => `r${rank}`);
 

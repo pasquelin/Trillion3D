@@ -1,4 +1,4 @@
-import type { HostRetentionDelta } from '../streaming/types.ts';
+import type { HostRetentionDelta } from './types.ts';
 
 /** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number };

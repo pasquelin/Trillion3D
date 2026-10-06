@@ -2,7 +2,7 @@ import { awaitBackendPages } from '../../backend/awaitBackendPages.ts';
 import { decodePageOffThread, releasePageDecoders } from '../../page/decode/host.ts';
 import { releasePageIntegration } from '../../page/integration/host.ts';
 import { disposeSource } from './disposeSource.ts';
-import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
+import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts';
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { createExplorerHostState, ExplorerHostState } from '../render/hostState.ts';

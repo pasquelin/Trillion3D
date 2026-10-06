@@ -8,7 +8,7 @@ import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { createFrameComposer } from './compose.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
-import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
+import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts';
 import { frameStart } from '../../frame/scheduling.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';

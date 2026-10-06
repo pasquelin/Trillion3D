@@ -1,5 +1,5 @@
 import type { RenderBackend } from '../backend/types.ts';
-import type { createPageStreamer } from '../streaming/pageStreamer.ts';
+import type { createPageStreamer } from './pageStreamer.ts';
 
 /** Pin the pages of either page backend through its request-rank difference. */
 export function retainVisiblePages(

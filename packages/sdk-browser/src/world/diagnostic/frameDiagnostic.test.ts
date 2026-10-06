@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import { createHostRankDelta } from '../../page/hostRanks.ts';
+import { createHostRankDelta } from '../../streaming/hostRanks.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
   const rig = new G.Object3D();
