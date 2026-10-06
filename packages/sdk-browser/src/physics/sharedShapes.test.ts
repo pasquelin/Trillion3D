@@ -1,9 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import { SharedShapes } from './sharedShapes.ts'
 import { hulled, opened, recorded, repeated, settle } from './tileShapes.fixture.ts'
 import {
   compiledModel,
+  cooked,
   landed,
   modelStreamer,
   sharedShapes,
@@ -95,8 +97,28 @@ test('a read failing with no error object is reported, never thrown', async () =
   const { tiles, scene, errors } = modelStreamer({}, 1, crates)
   tiles.scan(scene)
   await landed()
-  assert.deepEqual(
-    errors.map((error) => (error as unknown as Error).message),
-    ['torn'],
-  )
+  assert.deepEqual(errors, ['torn'])
+})
+
+test('a shape its restore refuses is reported once and left unrestored, never built on', async () => {
+  stubFetch(cooked([], []), new Uint8Array(4))
+  // A share of 4 bytes, past which a shape of ten is refused.
+  const { bodies } = modelStreamer({ memoryBytes: 8 })
+  const errors: { code: string }[] = []
+  const writer = new CommandWriter()
+  const shapes = new SharedShapes({ writer, bodies, failed: (error) => errors.push(error) })
+  const shape = shapes.hold('hull', 'https://cache.test/model/x.bin', 10, {})
+  assert.equal(await shapes.restored(shape), false)
+  assert.deepEqual([shape.handle, errors.map((error) => error.code)], [-1, ['PHYSICS_BUDGET']])
+})
+
+test('a shared shape’s bytes are claimed in the bodies’ ledger under it, checked as theirs', () => {
+  // A share of 4 bytes.
+  const { bodies } = modelStreamer({ memoryBytes: 8 })
+  const [shape, other] = [{}, {}]
+  bodies.claimShape(shape, 3)
+  assert.throws(() => bodies.claimShape(other, 2), { code: 'PHYSICS_BUDGET' })
+  bodies.releaseShape(shape)
+  bodies.claimShape(other, 2)
+  assert.equal(bodies.count.collisionBytes, 2)
 })

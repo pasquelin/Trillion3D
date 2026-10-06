@@ -20,7 +20,6 @@ import { carriedFrom, driveCarried, type Carried } from './carriedBodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { followModel } from './cookedMoved.ts'
 import { cookedHull, holdObjects, hullOf, letGoAll, type HeldObjects } from './cookedObjects.ts'
-import { hasReported } from './cookedReads.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
@@ -107,16 +106,17 @@ export function createCookedBodies(
   }
   async function add(model: Model, opening: Opening, body: CookedBody) {
     const hull = hullOf(opening.hulls, body)
-    // Read and restored by the first body that needs it, of this opening or another.
-    if (hull) await shapes.restored(hull)
+    // Read and restored by the first body that needs it, of this opening or another; refused
+    // there, reported by the registry, the body is refused too.
+    if (hull && !(await shapes.restored(hull))) return refuse(opening, body)
     if (held.current(model, opening)) opening.made.push(make(model, opening, body))
   }
-  /** `body` refused — but for a read its model let go of —: reported, but for a failed read the
-   *  registry reported, its nodes static ground again. */
-  const refuse = (opening: Opening, body: CookedBody, error: unknown) => {
+  /** `body` refused — but for a read its model let go of —: its nodes static ground again, and
+   *  its `error` reported, if any. */
+  const refuse = (opening: Opening, body: CookedBody, error?: unknown) => {
     if (opening.signal.aborted) return
     countNodes(opening, body, -1)
-    if (!hasReported(error)) failed(error as EngineError)
+    if (error !== undefined) failed(error as EngineError)
   }
   const start = (model: Model, opening: Opening, body: CookedBody) =>
     void add(model, opening, body).catch((error) => refuse(opening, body, error))

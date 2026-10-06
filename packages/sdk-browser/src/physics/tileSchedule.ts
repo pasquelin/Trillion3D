@@ -1,7 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { createModelBodies } from './modelBodies.ts'
-import { partition, selectNearest } from './nearest.ts'
+import { partitionBy, selectByKey } from '../../../sdk-core/src/math/select.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import type { createResidentTiles } from './tileResident.ts'
 import { moversOf, nearness, type Placed, type TileShape } from './tilePlace.ts'
@@ -31,6 +31,11 @@ type ScheduleParts = {
 }
 
 const byNear = (a: TileShape, b: TileShape) => a.near - b.near
+const nearOf = (p: Placed) => p.near
+
+/** Rearranges `list[0, count)` so its first `k` are its `k` nearest, in no order. */
+const selectNearest = (list: Placed[], count: number, k: number) =>
+  k > 0 && selectByKey(list, nearOf, 0, count, k - 1)
 
 /**
  * What an update does for the tiles: `want` lists the placements wanted and their tiles, each tile
@@ -69,6 +74,7 @@ export class TileSchedule {
     this.eye = eye
     this.range = range
     this.pass++
+    this.wanted.length = this.tiles.length = 0
     openings.forEach(this.collect)
     this.tiles.sort(byNear)
   }
@@ -94,7 +100,7 @@ export class TileSchedule {
       bytes -= shape.bytes
       shape.counted = pass
     }
-    const counted = partition(wanted, 0, wanted.length, this.counted),
+    const counted = partitionBy(wanted, wanted.length, this.counted),
       n = Math.min(counted, near)
     if (n < counted) selectNearest(wanted, counted, n)
     for (let i = 0; i < wanted.length; i++)
@@ -108,7 +114,7 @@ export class TileSchedule {
   start() {
     const wanted = this.wanted,
       parts = this.parts
-    const waiting = partition(wanted, 0, this.in, this.buildable)
+    const waiting = partitionBy(wanted, this.in, this.buildable)
     if (waiting > BUILDS) {
       selectNearest(wanted, waiting, BUILDS)
       parts.invalidate()
@@ -121,7 +127,6 @@ export class TileSchedule {
       loads--
       this.read(shape)
     }
-    wanted.length = tiles.length = 0
     this.settle()
   }
   /** Lets go of the tiles no one uses, but those the last update let in. */
@@ -129,15 +134,21 @@ export class TileSchedule {
     this.parts.shapes.settle(this.pass)
   }
   /** Lists the placements of `opening` wanted, and their tiles, each with its nearest; evicts the
-   *  others. */
+   *  others, and takes those of a refused tile out of `opening` for good, its model's opening. */
   private readonly collect = (opening: { placed: Placed[] }) => {
     const placed = opening.placed,
       parts = this.parts
+    let kept = 0
     for (let i = 0; i < placed.length; i++) {
       const p = placed[i],
-        shape = p.shape,
-        near = nearness(p, this.eye, this.range, this.movers)
-      if (near === Infinity || shape.refused || parts.declared.holds(p.model, p.instance.node)) {
+        shape = p.shape
+      if (shape.refused) {
+        parts.resident.remove(p)
+        continue
+      }
+      placed[kept++] = p
+      const near = nearness(p, this.eye, this.range, this.movers)
+      if (near === Infinity || parts.declared.holds(p.model, p.instance.node)) {
         parts.resident.evict(p)
         continue
       }
@@ -149,6 +160,7 @@ export class TileSchedule {
         this.tiles.push(shape)
       } else if (near < shape.near) shape.near = near
     }
+    placed.length = kept
   }
   /** Whether placement `p`'s tile had its bytes counted by this update. */
   private readonly counted = (p: Placed) => p.shape.counted === this.pass
@@ -172,7 +184,14 @@ export class TileSchedule {
   /** `shape`'s bytes landed: restored if the last update let it in and they fit, its bodies built
    *  by the next, asked at once; else they are let go, and it is read again once it fits. */
   private land(shape: TileShape, bytes: Uint8Array) {
-    if (shape.holders && shape.wanted === this.pass && this.parts.shapes.restore(shape, bytes))
-      this.parts.invalidate()
+    if (!shape.holders || shape.wanted !== this.pass) return
+    try {
+      this.parts.shapes.restore(shape, bytes)
+    } catch (error) {
+      // Its room taken meanwhile, by a static mesh: it waits.
+      if ((error as EngineError).code === 'PHYSICS_BUDGET') return
+      throw error
+    }
+    this.parts.invalidate()
   }
 }

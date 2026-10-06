@@ -11,7 +11,28 @@ import { createModelBodies } from './modelBodies.ts'
 import { SharedShapes } from './sharedShapes.ts'
 import { createResidentTiles } from './tileResident.ts'
 import { TileSchedule, type TileOpening } from './tileSchedule.ts'
-import { cookedPhysics, isModel, locate, placedOf, tilePose, type Model } from './tilePlace.ts'
+import {
+  cookedPhysics,
+  isModel,
+  locate,
+  placedOf,
+  tilePose,
+  type Model,
+  type Placed,
+  type TileShape,
+} from './tilePlace.ts'
+
+/** The placements of tiles the worker refused a body of: a tile all of whose bodies it refused
+ *  had its shape refused, which leaves whole (`tileSchedule.ts`), each of these bodies `evict`ed;
+ *  another, its refused placements alone (`leave`). */
+function refuseTiles(refused: Placed[], evict: (p: Placed) => void, leave: (p: Placed) => void) {
+  const counts = new Map<TileShape, number>()
+  for (const { shape } of refused) counts.set(shape, (counts.get(shape) ?? 0) + 1)
+  for (const [shape, count] of counts) shape.refused ||= count === shape.users
+  for (const p of refused)
+    if (p.shape.refused) evict(p)
+    else leave(p)
+}
 
 /**
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
@@ -53,12 +74,18 @@ export function createTileStreamer(
       .then((cooked) => {
         // A model compiled before the cook collides nowhere.
         if (!cooked || signal.aborted) return
-        opening.placed.push(...placedOf(model, cooked, shapes))
+        opening.placed = placedOf(model, cooked, shapes)
         declared.open(model, cooked, signal)
         invalidate()
       })
       // A read its model let go of by leaving is no failure.
       .catch((error) => signal.aborted || failed(error as EngineError))
+  }
+  /** Placement `p` out of its opening for good, until its model opens again. */
+  const leave = (p: Placed) => {
+    const placed = models.get(p.model)!.placed
+    resident.remove(p)
+    placed.splice(placed.indexOf(p), 1)
   }
   /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
@@ -99,16 +126,17 @@ export function createTileStreamer(
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused body `id`, by its own pose or scale: a cooked body, or the placement of a
-     *  tile, leaves alone until its model opens again — a tile whose object is refused leaves
-     *  whole by its read (`sharedShapes.ts`). */
-    refused(id: number) {
-      const owner = bodies.slots.of(id)
-      if (owner && 'tile' in owner) {
-        const placed = models.get(owner.model)!.placed
-        resident.remove(owner.tile)
-        placed.splice(placed.indexOf(owner.tile), 1)
-      } else if (owner) declared.refused(owner)
+    /** The worker refused the bodies `ids`: a cooked body leaves alone, until its model opens
+     *  again. A tile all of whose bodies it refused had its shape refused, which leaves whole
+     *  with every placement of it (`tileSchedule.ts`); another, its refused placements alone. */
+    refused(ids: readonly number[]) {
+      const tiles: Placed[] = []
+      for (const id of ids) {
+        const owner = bodies.slots.of(id)
+        if (owner && 'tile' in owner) tiles.push(owner.tile)
+        else if (owner) declared.refused(owner)
+      }
+      refuseTiles(tiles, resident.evict, leave)
       schedule.settle()
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */

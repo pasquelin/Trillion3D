@@ -1,7 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cloth, hulled, opened, recorded } from './tileShapes.fixture.ts'
-import { cooked, declared, fixture, landed, modelStreamer, stubFetch } from './tiles.fixture.ts'
+import {
+  compiledModel,
+  cooked,
+  declared,
+  fixture,
+  landed,
+  modelStreamer,
+  stubFetch,
+} from './tiles.fixture.ts'
 
 /** The engine ids of the declared bodies among the first eight slots of `bodies`. */
 const crateIds = (bodies: Awaited<ReturnType<typeof opened>>['bodies']) =>
@@ -45,7 +53,7 @@ test('a declared body’s hull counts no static collision: a share the tiles fil
 test('a hull lives while its opening holds it, every body of it refused, and leaves with it', async () => {
   const { file, crates } = hulled(3, 'hull.bin', 5)
   const { tiles, scene, bodies, released, fetched } = await opened(file, crates)
-  for (const id of crateIds(bodies)) tiles.refused(id)
+  tiles.refused(crateIds(bodies))
   assert.deepEqual([released, bodies.count.bodies], [[], 1], 'its opening holds it')
   scene.clear()
   tiles.scan(scene)
@@ -71,4 +79,18 @@ test('a cloth’s settings serve its remake at its scale, and leave with its mod
   tiles.scan(scene)
   await landed()
   assert.deepEqual([reads(), bodies.count.softVertices], [2, 9], 'opened again: read again')
+})
+
+test('a second load of an asset makes its cloth from the settings the first one read', async () => {
+  const settings = { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 4 }
+  const fetched = stubFetch(cooked([], [], [cloth(0, settings)]), new Uint8Array(4))
+  const { tiles, scene, bodies } = modelStreamer()
+  tiles.scan(scene)
+  await landed()
+  // The same asset loaded again once the first one's cloth is made.
+  scene.add(compiledModel())
+  tiles.scan(scene)
+  await landed()
+  const reads = fetched.filter((name) => name === 'cloth.bin').length
+  assert.deepEqual([reads, bodies.count.softVertices], [1, 18])
 })

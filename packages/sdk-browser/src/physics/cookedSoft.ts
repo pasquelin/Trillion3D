@@ -11,7 +11,6 @@ import { flagsOf, type createPhysicsBodies } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'
 import { holdObjects, letGoAll, type HeldObjects } from './cookedObjects.ts'
-import { hasReported } from './cookedReads.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
@@ -43,8 +42,9 @@ export function createCookedSoftBodies(
   failed: (error: EngineError) => void,
 ) {
   /** Each open model's opening: its soft bodies made, those refused at another scale, the
-   *  settings they are made from, held (`cookedObjects.ts`), and the signal its model's leaving
-   *  aborts its reads by. */
+   *  settings they are made from — held (`cookedObjects.ts`), read once by URL for every body and
+   *  model naming them and kept while held: a body made again never waits on the network —, and
+   *  the signal its model's leaving aborts its reads by. */
   type Opening = {
     made: CookedMade[]
     refused: CookedSoftBody[]
@@ -54,14 +54,6 @@ export function createCookedSoftBodies(
   const held = createOpenings<Opening>(bodies.release, (opening) =>
     letGoAll(shapes, opening.settings),
   )
-  /** Each soft body's settings, read once (`SharedShapes.read`) and kept by its cooked entry,
-   *  freed with it: a body made again, back at its scale, never waits on the network. */
-  const kept = new WeakMap<CookedSoftBody, Promise<Uint8Array>>()
-  function settingsOf(opening: Opening, soft: CookedSoftBody) {
-    let bytes = kept.get(soft)
-    if (!bytes) kept.set(soft, (bytes = shapes.read(opening.settings.get(soft.settings.url)!)))
-    return bytes
-  }
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
    *  cooked at. */
   function refuse(opening: Opening, soft: CookedSoftBody) {
@@ -69,8 +61,9 @@ export function createCookedSoftBodies(
     failed(rescaledSoft(`of node ${soft.node}`, soft.scale, { node: soft.node }))
   }
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
-    const cooked = await settingsOf(opening, soft)
-    if (!held.current(model, opening)) return
+    // Its settings' read failed: reported by the registry, the body not made.
+    const cooked = await shapes.read(opening.settings.get(soft.settings.url)!).catch(() => null)
+    if (!cooked || !held.current(model, opening)) return
     const { position, quaternion, scale } = tilePose({ model, instance: soft })
     if (!fits(scale, soft.scale)) return refuse(opening, soft)
     const p = new ObjectPhysics(soft.physics)
@@ -89,7 +82,7 @@ export function createCookedSoftBodies(
   /** Restores `soft` in `opening`, a failure reported but for a read its model let go of. */
   const start = (model: Model, opening: Opening, soft: CookedSoftBody) =>
     void add(model, opening, soft).catch(
-      (error) => opening.signal.aborted || hasReported(error) || failed(error as EngineError),
+      (error) => opening.signal.aborted || failed(error as EngineError),
     )
   return {
     /** Makes the soft bodies `model` was cooked with, read until `signal` aborts, the last

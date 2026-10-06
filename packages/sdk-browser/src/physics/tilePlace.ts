@@ -90,29 +90,26 @@ export async function cookedPhysics(model: Model, signal: AbortSignal) {
 }
 
 /** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out, its shape
- *  held from `shapes` (`SharedShapes`) by every placement of it. */
+ *  held from `shapes` (`SharedShapes`) by every placement of it: once per tile, by their count. */
 export function placedOf(
   model: Model,
   cooked: CookedPhysics,
   shapes: Pick<SharedShapes, 'hold'>,
 ): Placed[] {
-  const hrefs = new Map<string, string>()
-  const hold = (tile: CookedTile) => {
-    let href = hrefs.get(tile.url)
-    if (!href) hrefs.set(tile.url, (href = cookedHref(model, tile.url)))
-    return shapes.hold('tile', href, tile.bytes, {
-      tile,
-      near: Infinity,
-      seen: -1,
-      slotted: -1,
-      counted: -1,
-    })
+  const placements = new Map<CookedTile, number>()
+  for (const { collider } of cooked.instances)
+    for (const tile of cooked.colliders[collider].tiles)
+      placements.set(tile, (placements.get(tile) ?? 0) + 1)
+  const held = new Map<CookedTile, TileShape>()
+  for (const [tile, count] of placements) {
+    const extra = { tile, near: Infinity, seen: -1, slotted: -1, counted: -1 }
+    held.set(tile, shapes.hold('tile', cookedHref(model, tile.url), tile.bytes, extra, count))
   }
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider]
     return tiles.map((tile) => {
       const p: Placed = {
-        ...{ model, instance, shape: hold(tile), material: material ?? -1 },
+        ...{ model, instance, shape: held.get(tile)!, material: material ?? -1 },
         ...{ box: new Float64Array(6), id: -1, near: Infinity },
       }
       locate(p)

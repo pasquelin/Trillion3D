@@ -120,7 +120,7 @@ test('a body the worker refuses takes its placement out alone: the others stay o
   await settle(streamer, [0, 0, 0], 1e5)
   const owner = bodies.slots.at(0)
   assert.ok(owner && 'tile' in owner)
-  tiles.refused(owner.tile.id)
+  tiles.refused([owner.tile.id])
   await settle(streamer, [0, 0, 0], 1e5)
   assert.deepEqual([bodies.count.bodies, released, builtOn.length], [2, [], 3], 'never built again')
 })
@@ -137,4 +137,22 @@ test('a tile that fails as it lands is reported, never left unhandled', async ()
     errors.map((error) => (error as unknown as Error).message),
     ['the module is gone'],
   )
+})
+
+test('a tile all of whose bodies the worker refuses has its shape refused: it leaves whole', async () => {
+  const streamer = await streamed(3)
+  const { tiles, bodies, builtOn, reads } = streamer
+  await settle(streamer, [0, 0, 0], 1e5)
+  const ids = Array.from({ length: 6 }, (_, slot) => bodies.slots.at(slot)).flatMap((owner) =>
+    owner && 'tile' in owner ? [owner.tile.id] : [],
+  )
+  tiles.refused(ids)
+  await settle(streamer, [0, 0, 0], 1e5)
+  assert.deepEqual([bodies.count.bodies, builtOn.length, reads()], [0, 3, 1], 'built on no more')
+})
+
+test('a model placing a tile 200,000 times opens: its placements are no call’s arguments', async () => {
+  const streamer = await streamed(200_000, { bodies: 16 })
+  await settle(streamer, [0, 0, 0], 25)
+  assert.deepEqual([streamer.bodies.count.bodies, streamer.errors], [3, []])
 })
