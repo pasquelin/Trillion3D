@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts';
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts';
-import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { integers, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import {
   FRAMEBUFFER_WGSL,
@@ -53,14 +53,6 @@ test('the lighting calls one shared offset function and binds no offset target',
   assert.match(SHADE_SHADER, /=transformedNormals\(/, 'the resolve calls the shared normals');
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target');
 });
-
-/** WGSL's integer vector constructor: its arguments flattened, one scalar splat to `size`. */
-const integers =
-  (size: number, unsigned: boolean) =>
-  (...args: Array<number | number[]>) => {
-    const flat = args.flat().map((x) => (unsigned ? Math.trunc(x) >>> 0 : Math.trunc(x)));
-    return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat;
-  };
 
 test('the receiver target keeps the offset to 1/4095 of its largest component and the plane to 4.2e-3 rad; a zero plane is no receiver', () => {
   // One texel: what the resolve's `storeReceiver` writes, the projection's `shadowReceiver` reads.
