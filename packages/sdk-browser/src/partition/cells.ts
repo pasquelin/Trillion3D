@@ -33,6 +33,10 @@ import { createCellPages, withHoldings } from './cellPages.ts'
 import { createFarCells } from './farCells.ts'
 import type { CellFrameIo, CellPrimeIo } from './cellIo.ts'
 
+/** Where a frame sees the cells from, in their frame, and whether the list it places is read
+ *  ahead. */
+type Seen = { local: { eye: ArrayLike<number>; reach: number }; ahead: boolean }
+
 type Inputs = {
   partition: TablePartition
   /** The folder the tables were read from. */ base: string
@@ -76,16 +80,16 @@ export function createPartitionCells(inputs: Inputs) {
     return true
   }
   const cellUrl = (cell: number) => index.cell(cell).url
-  /** Where the frame placing cells sees them from, and whether it places those read ahead. */
-  const seen = { local: { eye: [0, 0, 0] as ArrayLike<number>, reach: 0 }, ahead: false }
-  /** Places `cell`, its holds read at the plan's priority once its rows took it (`holdPriority`). */
-  const place = (cell: number, decoded: CellRows) =>
+  /** Places `cell`, seen from `local` in a list read `ahead` or not, its holds read at the plan's
+   *  priority once its rows took it (`holdPriority`). */
+  const place = (cell: number, decoded: CellRows, { local, ahead }: Seen) =>
     rows.place(cell, decoded, cellUrl(cell)) &&
-    (manifest.hold(cell, holdPriority(index, seen.local, cell, seen.ahead)), true)
-  const placed = (cell: number, decoded: CellRows) => place(cell, decoded) || (waiting++, false)
+    (manifest.hold(cell, holdPriority(index, local, cell, ahead)), true)
+  const placed = (cell: number, decoded: CellRows, seen: Seen) =>
+    place(cell, decoded, seen) || (waiting++, false)
   /** A failed read's wait ended since a failed hold was held: it is asked again, at its priority
    *  now. */
-  const retry = (local: typeof seen.local) => {
+  const retry = (local: Seen['local']) => {
     const priority = (cell: number) => holdPriority(index, local, cell)
     manifest.retry(priority)
     far.retry(priority)
@@ -131,11 +135,9 @@ export function createPartitionCells(inputs: Inputs) {
       let later = false
       const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true)
       const pageUrl = (page: IndexPage) => page.slot.url
-      seen.local = local
       for (const ahead of [false, true]) {
-        seen.ahead = ahead
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
-        const at = { io, budget, ahead }
+        const at = { io, budget, ahead, local }
         later = takeDecoded(pages, at, pageDecodes, pageUrl, io.decodePage, open) || later
         // A page opened now brings its cells to the next frame's plan.
         later ||= !ahead && pages.some((page) => page.body)
@@ -167,8 +169,8 @@ export function createPartitionCells(inputs: Inputs) {
       }
       plan.leave.forEach(leave)
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      Object.assign(seen, { local, ahead: false })
-      plan.visible.forEach((cell, at) => place(cell, decoded[at]))
+      const seen = { local, ahead: false }
+      plan.visible.forEach((cell, at) => place(cell, decoded[at], seen))
       touched.clear()
       return bytes
     },

@@ -59,18 +59,19 @@ type Taking = {
   ahead: boolean
 }
 
-/** Takes each file of `list` whose decode landed while the budget admits it (`taken`: false while
- *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer. True when
- *  one needed now is left for a later frame. */
-export function takeDecoded<Key, Decoded extends object>(
+/** Takes each file of `list` whose decode landed while the budget admits it (`taken`, told `at`:
+ *  false while it waits), hands the read ones to `decode`, and asks the unread ones of the streamer.
+ *  True when one needed now is left for a later frame. */
+export function takeDecoded<Key, Decoded extends object, At extends Taking>(
   list: readonly Key[],
-  { io, budget, ahead }: Taking,
+  at: At,
   files: ReturnType<typeof createDecodes<Key, Decoded>>,
   url: (key: Key) => string,
   decode: (bytes: Uint8Array, url: string) => Promise<Decoded>,
-  taken: (key: Key, decoded: Decoded) => boolean,
+  taken: (key: Key, decoded: Decoded, at: At) => boolean,
 ) {
-  const ask: string[] = []
+  const { io, budget, ahead } = at,
+    ask: string[] = []
   let later = false
   for (const key of list) {
     const address = url(key)
@@ -84,7 +85,7 @@ export function takeDecoded<Key, Decoded extends object>(
       later ||= !ahead
       continue
     }
-    if (!taken(key, decoded)) continue
+    if (!taken(key, decoded, at)) continue
     files.drop(key)
     budget.spend()
   }
