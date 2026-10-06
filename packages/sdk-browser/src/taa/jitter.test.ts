@@ -30,17 +30,17 @@ test('the Halton sequence starts with the known terms and stays in [0, 1)', () =
 test('a prime number of distinct jitters, centred in the pixel, deterministic and cyclic', () => {
   assert.equal(TAA_SAMPLES, 11, 'eleven at native size: eight positions raised to a prime');
   const out = new Float64Array(2),
-    views = new Set<string>();
+    vues = new Set<string>();
   let sx = 0,
     sy = 0;
   for (let sample = 0; sample < TAA_SAMPLES; sample++) {
     const [x, y] = taaJitter(sample, out);
     assert.ok(Math.abs(x) < 0.5 && Math.abs(y) < 0.5, `jitter ${sample} outside the pixel`);
-    views.add(`${x},${y}`);
+    vues.add(`${x},${y}`);
     sx += x;
     sy += y;
   }
-  assert.equal(views.size, TAA_SAMPLES, 'two frames of the cycle share a position');
+  assert.equal(vues.size, TAA_SAMPLES, 'two frames of the cycle share a position');
   // The cycle mean stays near the centre: no bias to one side of the pixel.
   assert.ok(Math.abs(sx / TAA_SAMPLES) < 0.1 && Math.abs(sy / TAA_SAMPLES) < 0.1);
   // The same rank yields the same jitter, and the cycle closes: that is what makes two runs

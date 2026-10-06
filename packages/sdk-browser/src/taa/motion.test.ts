@@ -44,12 +44,12 @@ test('a still root keeps identity, a moved root carries previous·current⁻¹, 
 
 test('a moved rotation anchors on the eye: translation is R·eye + t − eye', () => {
   const { device, writes } = fakeDevice();
-  const root = { world: { elements: [...IDENTITY] } };
-  const motion = createPlacementMotion(device, [root]);
+  const racine = { world: { elements: [...IDENTITY] } };
+  const motion = createPlacementMotion(device, [racine]);
   writes.length = 0;
   // Quarter-turn rotation around z: (x, y) → (−y, x). Its inverse turns the other
   // way, and "previous" is identity, so M = R⁻¹.
-  root.world.elements = [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  racine.world.elements = [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   motion.update([2, 0, 0], true);
   const m = floats(writes)[0].data;
   // R⁻¹: (x, y) → (y, −x); column 0 = (0, −1, 0), column 1 = (1, 0, 0).
