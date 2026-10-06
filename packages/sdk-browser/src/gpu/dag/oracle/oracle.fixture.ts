@@ -25,12 +25,6 @@ import type { SelectionResult } from '../../core/selection.ts';
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
  *
- * `cacheCone`: false (default) recomputes coneRejects at every call site, like the oracle always
- * has. true caches it once per page the first time a visible page reaches it — the pageIds loop
- * runs first, so that is always dagWanted's moment — and every later site rereads the same value,
- * like ../shader/shader.ts has done since the lot D5 cache. Both modes must select the same pages: this
- * flag exists only so ../coneCacheEquivalence.test.ts can prove that without forking the kernel.
- *
  * `rule`: the cut rule applied, `drawsCluster` by default; the rule's tests pass the kernel's
  * `dagMask` call site run in Node (`../../../page/cut/cutRule.test.ts`), so the kernel's own text
  * decides, on the residency bits its host uploaded.
@@ -39,7 +33,6 @@ export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: DagViewUniforms,
   resident?: DagCutResidency,
-  cacheCone = false,
   rule?: CutRuleAt,
 ): DagOracleResult {
   if (
@@ -94,15 +87,6 @@ export function evaluateDagSelectionKernel(
     const due = aheadDue(frames.planes[w], aheadFrames.planes[w], box.min, box.max);
     requestWords.push(packRequest(i, quantizeAheadPriority(replaced(aheadView, i), due)));
   };
-  const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
-  const cone = (i: number, w: number): boolean => {
-    if (!coneCache) return coneRejects(i, w);
-    const cached = coneCache.get(i);
-    if (cached !== undefined) return cached;
-    const rejected = coneRejects(i, w);
-    coneCache.set(i, rejected);
-    return rejected;
-  };
   // Totals the GPU holds, replayed where `dagMask` notes them (`../shader/totalsWgsl.ts`).
   const totaux = { drawn: 0, transparent: 0 };
   const note = (i: number) => {
@@ -119,7 +103,7 @@ export function evaluateDagSelectionKernel(
       wantAhead(i);
       continue;
     }
-    if (!draws(i, pixelError, true, true) || cone(i, w)) {
+    if (!draws(i, pixelError, true, true) || coneRejects(i, w)) {
       wantAhead(i);
       continue;
     }
@@ -132,7 +116,7 @@ export function evaluateDagSelectionKernel(
   const drawablePageIds: number[] = [];
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
-    if (!visible(i) || cone(i, w)) continue;
+    if (!visible(i) || coneRejects(i, w)) continue;
     const ready = !resident || !!resident.ready[i],
       childReady = !resident || !!resident.childReady[i];
     if (!draws(i, pixelError, ready, childReady)) continue;
