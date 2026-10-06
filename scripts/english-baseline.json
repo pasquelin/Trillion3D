@@ -3,7 +3,7 @@
   "packages/asset-compiler-rust": 351,
   "packages/page-codec-wasm": 16,
   "packages/sdk-browser": 1658,
-  "packages/sdk-core": 326,
+  "packages/sdk-core": 321,
   "packages/sdk-node": 8,
   "scripts": 67,
   "site": 3,
