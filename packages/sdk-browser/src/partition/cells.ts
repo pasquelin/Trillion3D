@@ -27,7 +27,7 @@ import { createCellBoxes } from './boxes.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
-import { inCellFrame, planCells } from './plan.ts'
+import { holdPriority, inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
@@ -42,6 +42,7 @@ type Inputs = {
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>
   /** The manifest's pages the view holds. */ pages?: Parameters<typeof createCellPages>[0]
   /** The world bundles its roots need. */ world?: Parameters<typeof createFarCells>[0]
+  /** Hears a cell whose hold keeps failing. */ said?: Parameters<typeof createCellPages>[3]
 }
 
 export function createPartitionCells(inputs: Inputs) {
@@ -50,10 +51,10 @@ export function createPartitionCells(inputs: Inputs) {
   const index = createCellIndex(partition.pages, base, boxes)
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>()
-  const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages, world)
+  const manifest = createCellPages(inputs.pages, (c) => index.cell(c).meshPages, world, inputs.said)
   const rows = createCellPlacements(root, parents, meshes)
   const { held, touched } = rows
-  const far = createFarCells(world, held)
+  const far = createFarCells(world, held, inputs.said)
   /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
   let waiting = 0,
     sized = -1,
@@ -77,8 +78,9 @@ export function createPartitionCells(inputs: Inputs) {
     return true
   }
   const cellUrl = (cell: number) => index.cell(cell).url
-  const place = (cell: number, decoded: CellRows) =>
-    rows.place(cell, decoded, cellUrl(cell)) && (manifest.hold(cell), true)
+  /** Places `cell`, its holds read at `priority`, the plan's (`holdPriority`). */
+  const place = (cell: number, decoded: CellRows, priority: number) =>
+    rows.place(cell, decoded, cellUrl(cell)) && (manifest.hold(cell, priority), true)
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell))
   const partitionCells = {
@@ -137,9 +139,10 @@ export function createPartitionCells(inputs: Inputs) {
       waiting = 0
       let later = false
       const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true)
-      const placed = (cell: number, decoded: CellRows) => place(cell, decoded) || (waiting++, false)
       const pageUrl = (page: IndexPage) => page.slot.url
       for (const ahead of [false, true]) {
+        const placed = (cell: number, decoded: CellRows) =>
+          place(cell, decoded, holdPriority(index, local, cell, ahead)) || (waiting++, false)
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
         const at = { io, budget, ahead }
         later = takeDecoded(pages, at, pageDecodes, pageUrl, io.decodePage, open) || later
@@ -184,7 +187,7 @@ export function createPartitionCells(inputs: Inputs) {
       }
       plan.leave.forEach(leave)
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      plan.visible.forEach((cell, at) => place(cell, decoded[at]))
+      plan.visible.forEach((cell, at) => place(cell, decoded[at], holdPriority(index, local, cell)))
       touched.clear()
       return bytes
     },

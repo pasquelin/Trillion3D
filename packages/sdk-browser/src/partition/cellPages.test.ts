@@ -32,6 +32,11 @@ const cell =
   (at: number) =>
     lists[at]
 
+/** Until no hold of `held` is on its way, without a frame's time passing. */
+async function settled(held: ReturnType<typeof createCellPages>) {
+  for (let asked = held.reads(); asked.length; asked = held.reads()) await Promise.all(asked)
+}
+
 // A cell that leaves while its read is in flight, the read then failing, drops no page
 // another placed cell still holds.
 test('a cell that leaves mid-read releases nothing more when its read fails', async () => {
@@ -41,7 +46,7 @@ test('a cell that leaves mid-read releases nothing more when its read fails', as
   held.hold(1)
   held.release(0)
   land()
-  await Promise.all(held.reads())
+  await settled(held)
   assert.deepEqual([counts.get('x'), counts.get('y'), held.held()], [1, 0, 1])
 })
 
@@ -52,7 +57,7 @@ test('a cell that leaves and comes back mid-read releases its pages once each', 
   held.release(0)
   held.hold(0)
   land()
-  await Promise.all(held.reads())
+  await settled(held)
   assert.deepEqual([counts.get('x'), held.held()], [1, 1])
   held.release(0)
   assert.deepEqual([counts.get('x'), held.held()], [0, 0])
@@ -64,13 +69,15 @@ test('a cell that leaves mid-read releases its pages once they land', async () =
   held.hold(0)
   held.release(0)
   land()
-  await Promise.all(held.reads())
+  await settled(held)
   assert.deepEqual([counts.get('x'), held.held()], [0, 0])
 })
 
 // A placed cell also holds the world bundles its objects' roots depend on; a hold whose
-// world read fails lets its pages go, and the whole hold is asked again at the next frame.
-test('a placed cell holds its world bundles with its pages, both or neither', async () => {
+// world read fails lets its pages go, and the whole hold is asked again once its wait is over.
+test('a placed cell holds its world bundles with its pages, both or neither', async (t) => {
+  let clock = 0
+  t.mock.method(performance, 'now', () => clock)
   const { pages, counts, land } = countedPages(new Set())
   const world = { cells: [] as number[], fails: 1 }
   const held = createCellPages(pages, cell(['x']), {
@@ -83,10 +90,55 @@ test('a placed cell holds its world bundles with its pages, both or neither', as
   })
   held.hold(0)
   land()
-  await Promise.all(held.reads())
+  await settled(held)
   assert.deepEqual([counts.get('x'), world.cells, held.held()], [0, [], 0], 'neither held')
-  await Promise.all(held.reads())
+  clock = 499
+  await settled(held)
+  assert.equal(held.held(), 0, 'not asked again before its wait is over')
+  clock = 500
+  await settled(held)
   assert.deepEqual([counts.get('x'), world.cells, held.held()], [1, [0], 1], 'asked again: both')
   held.release(0)
   assert.deepEqual([counts.get('x'), world.cells], [0, []])
+})
+
+test('a failed hold is asked again after 0.5 s · 2^k, at most 8 s, never in its own frame', async (t) => {
+  let clock = 0
+  t.mock.method(performance, 'now', () => clock)
+  const asked: number[] = [],
+    said: { cell: number; cause: unknown }[] = []
+  const refusing = {
+    async hold() {
+      asked.push(clock)
+      throw new Error('refused')
+    },
+    release() {},
+  }
+  const held = createCellPages(
+    undefined,
+    () => [],
+    refusing,
+    (failure) => said.push(failure),
+  )
+  held.hold(7)
+  // A frame every 50 ms for 40 s, each asking again the holds whose wait is over.
+  for (; clock <= 40_000; clock += 50) await settled(held)
+  const waits = asked.slice(1).map((at, i) => at - asked[i])
+  assert.deepEqual(waits, [500, 1000, 2000, 4000, 8000, 8000, 8000, 8000])
+  assert.deepEqual(
+    said.map(({ cell, cause }) => [cell, String(cause)]),
+    [[7, 'Error: refused']],
+    'said once, as it first waits the longest',
+  )
+})
+
+test('a cell that leaves while its hold reads lets its world reads go at once', () => {
+  const asked: { signal?: AbortSignal; priority?: number }[] = []
+  const held = createCellPages(undefined, () => [], {
+    hold: (_, options) => (asked.push(options!), new Promise<void>(() => {})),
+    release() {},
+  })
+  held.hold(3, 1.25)
+  held.release(3)
+  assert.deepEqual([asked[0].priority, asked[0].signal!.aborted], [1.25, true])
 })

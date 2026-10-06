@@ -56,3 +56,64 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   decodes = [Promise.resolve()]
   assert.equal(await frame.pending(), true, 'a decode landed')
 })
+
+/** The frame step of a still camera over one partition holding its cells on `holder`. */
+function stillFrame(holder: Parameters<typeof createCellPages>[2]) {
+  const manifest = createCellPages(undefined, () => [], holder)
+  const cells = withHoldings({ meshes: new Map(), manifest }, {
+    frame: () => false,
+    decodes: () => [],
+  } as unknown as PartitionCells)
+  const frame = createPartitionFrame({
+    partitions: [cells],
+    streamer: {} as ReturnType<typeof createPageStreamer>,
+    camera: hostFramingCamera(60, 1, 0.1, 100),
+    active: () => ({}) as RenderBackend,
+    budget: { admits: () => true, spend() {} },
+  })!
+  return { manifest, frame }
+}
+
+test('a still camera is drawn again as each hold lands, never waiting for every placed cell', async () => {
+  const lands: (() => void)[] = []
+  const { manifest, frame } = stillFrame({
+    hold: () => new Promise<void>((resolve) => lands.push(resolve)),
+    release() {},
+  })
+  for (const cell of [0, 1, 2]) manifest.hold(cell)
+  frame()
+  const first = frame.pending()
+  lands[1]()
+  assert.equal(await first, true, 'one landed, two still reading: a frame')
+  frame()
+  const next = frame.pending()
+  lands[0]()
+  assert.equal(await next, true)
+  lands[2]()
+  frame()
+  assert.equal(await frame.pending(), true)
+  frame()
+  assert.equal(await frame.pending(), false, 'every hold landed')
+})
+
+test('with nothing on its way, a still camera waits for a failed hold to be due again', async (t) => {
+  let clock = 0
+  t.mock.method(performance, 'now', () => clock)
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { manifest, frame } = stillFrame({
+    async hold() {
+      throw new Error('refused')
+    },
+    release() {},
+  })
+  manifest.hold(0)
+  frame()
+  assert.equal(await frame.pending(), true, 'the hold failed: a frame is drawn')
+  let woke: boolean | undefined
+  const waiting = frame.pending().then((again) => (woke = again))
+  await new Promise(setImmediate)
+  assert.equal(woke, undefined, 'nothing is asked before the wait is over')
+  clock = 500
+  t.mock.timers.tick(500)
+  assert.equal(await waiting, true, 'its wait over, a frame asks it again')
+})

@@ -103,9 +103,11 @@ type Inputs = {
 /**
  * The step a frame runs before it draws, or `null` when the scene is not partitioned. Its
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
- * it handed to the decode pool decoded, and the manifest pages and mounts they asked, true
- * while one of them waits for a frame to place or mount it, or a decode or a mount landed: a still
- * camera is drawn again until they all are.
+ * it handed to the decode pool decoded, the mounts they asked, and the next of the cells' holds
+ * on its way landed, true while one of them waits for a frame to place or mount it, or a decode,
+ * a hold or a mount landed: a still camera is drawn again until they all are. With nothing on its
+ * way, it waits for the next cell whose hold failed to be due again, and asks the frame that holds
+ * it.
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget } = inputs
@@ -132,7 +134,10 @@ export function createPartitionFrame(inputs: Inputs) {
       ]
     reads = []
     await Promise.all([...asked, ...turned])
-    return later || turned.length > 0 || mounts.stale()
+    if (later || turned.length > 0 || mounts.stale()) return true
+    // Nothing else on its way: a still camera waits for the next failed hold to be due again.
+    const due = manifests.flatMap((manifest) => manifest.retry() ?? [])
+    return due.length > 0 && Promise.race(due).then(() => true)
   }
   const step = () => {
     mounts.sync()

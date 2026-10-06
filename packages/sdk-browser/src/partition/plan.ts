@@ -28,6 +28,7 @@ import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
 import { AHEAD } from './aheadShare.ts'
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 const inverse = new Float64Array(MATRIX_VALUES),
   view = new Float64Array(4)
@@ -78,6 +79,20 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   for (let at = 0; at < bounds.length; at += 6)
     nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]))
   return nearest
+}
+
+/** The read priority of what `cell` holds, seen from `local` (`cellPages.ts`): after the view's own
+ *  pages, in the visible priority's band — the prefetch one's when `ahead`, by default past the
+ *  reach —, nearer first within each. */
+export function holdPriority(
+  index: Pick<CellIndex, 'distance'>,
+  local: { eye: ArrayLike<number>; reach: number },
+  cell: number,
+  ahead?: boolean,
+) {
+  const distance = index.distance(cell, local.eye)
+  const band = (ahead ?? distance > local.reach) ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
+  return band + (distance / (distance + local.reach) || 0)
 }
 
 /**

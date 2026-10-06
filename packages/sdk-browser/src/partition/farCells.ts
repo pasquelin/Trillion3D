@@ -14,16 +14,21 @@
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { createCellPages } from './cellPages.ts'
-import { planCells, type SuperRootPlan } from './plan.ts'
+import { holdPriority, planCells, type SuperRootPlan } from './plan.ts'
+import type { HoldFailure } from './retries.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
 /** The world bundles a cell holds, and the stream its super-roots' bound is read from. */
 type World = Pick<WorldRootsHold, 'hold' | 'release'> & Partial<Pick<WorldRootsHold, 'stream'>>
 
-/** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
-export function createFarCells(world: World | undefined, placed: ReadonlyMap<number, unknown>) {
+/** The cells a partition places, by rank. */
+type Placed = ReadonlyMap<number, unknown>
+
+/** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`, a
+ *  hold that keeps failing told `said`. */
+export function createFarCells(world: World | undefined, placed: Placed, said?: HoldFailure) {
   const far = new Set<number>()
-  const holds = createCellPages(undefined, () => [], world)
+  const holds = createCellPages(undefined, () => [], world, said)
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
   let bounds: Float64Array | undefined,
     opening = false
@@ -78,12 +83,12 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)
       for (const cell of plan.far) {
         far.add(cell)
-        holds.hold(cell)
+        holds.hold(cell, holdPriority(index, local, cell))
       }
       // A demoted cell's far hold is taken before its placed hold goes: the world bundles both
       // need stay held, never read again.
       for (const cell of plan.demoted) {
-        holds.hold(cell)
+        holds.hold(cell, holdPriority(index, local, cell))
         leave(cell)
         far.add(cell)
       }

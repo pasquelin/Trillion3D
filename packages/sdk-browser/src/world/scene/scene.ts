@@ -14,6 +14,8 @@ import { openWorldRoots, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
+import type { HoldFailure } from '../../partition/retries.ts'
+import { cellDependencies } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -27,6 +29,18 @@ function missingPages(): never {
     'Prepared scene primitive has no geometry pages',
   )
 }
+
+/** Says once a cell of the partition whose hold keeps failing, its world bundles named. */
+const holdFailure =
+  (diagnose: ExplorerEmitters['diagnose'], scope: string, roots?: WorldRootsHold): HoldFailure =>
+  ({ cell, cause }) =>
+    diagnose('partition-hold-failed', 'A cell keeps failing to read what it holds', {
+      kind: 'error',
+      scope,
+      cell,
+      bundles: roots ? cellDependencies(roots.table, cell) : [],
+      error: String(cause),
+    })
 
 /** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
  * mesh pages of a manifest the view holds. */
@@ -117,6 +131,7 @@ export async function loadPreparedScene(
           meshes: built.placed,
           pages: options.pages,
           world: worldRoots,
+          said: holdFailure(diagnose, scope, worldRoots),
         }),
       ]
     : []
