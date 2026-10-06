@@ -1,7 +1,7 @@
 import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 import { entrySummary, SECTIONS } from '../../content/model.ts';
-import { REPORT_SECTIONS } from '../../reports/presentation.ts';
+import { REPORT_SECTIONS } from '../reports/model/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { exampleTitle, themeTitle, thumbnailOf, writtenThemes } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';

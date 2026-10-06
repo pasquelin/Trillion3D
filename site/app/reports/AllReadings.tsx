@@ -1,13 +1,13 @@
 import type { TFunction } from 'i18next';
 import { useWords } from '../i18n.ts';
-import { readingGroups } from '../../reports/sources.ts';
+import { readingGroups } from './model/sources.ts';
 import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
-import { flattenFields } from '../../reports/availability.ts';
-import { recordLabel, sceneName } from '../../reports/presentation.ts';
-import { viewName } from '../../reports/names.ts';
+import { flattenFields } from './model/availability.ts';
+import { recordLabel, sceneName } from './model/presentation.ts';
+import { viewName } from './model/names.ts';
 import { Collapse } from '../ui/Collapse.tsx';
-import type { Report, ReportSource } from '../../reports/types.ts';
+import type { Report, ReportSource } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface AllReadingsProps {

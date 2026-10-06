@@ -36,11 +36,9 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
     assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'portal');
     assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8'))[0].id, 'test');
     assert.throws(() => publierRapport(source, dest), /already published/);
-    writeFileSync(join(dest, 'reports/contract.ts'), 'export {};');
     writeFileSync(join(source, 'report.json'), JSON.stringify({ ...report, id: 'next' }));
     assert.equal(publierRapport(source, dest), join(dest, 'reports/next'));
     assert.equal(existsSync(join(dest, 'reports/test')), false, 'the previous campaign is gone');
-    assert.equal(existsSync(join(dest, 'reports/contract.ts')), true, 'the modules stay');
     assert.deepEqual(
       JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8')).map(
         (item: { id: string }) => item.id,

@@ -1,4 +1,4 @@
-import type { Locale } from '../content/locale.ts';
+import type { Locale } from '../../../content/locale.ts';
 import { isObject, readPath } from './contract.ts';
 import type { ReportRecord, TimingStat } from './types.ts';
 

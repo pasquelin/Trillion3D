@@ -1,5 +1,5 @@
-import { wordsOf } from '../app/i18n.ts';
-import type { Locale } from '../content/locale.ts';
+import { wordsOf } from '../../i18n.ts';
+import type { Locale } from '../../../content/locale.ts';
 import type { MetricKey } from './metrics.ts';
 import type { ReportRecord } from './types.ts';
 

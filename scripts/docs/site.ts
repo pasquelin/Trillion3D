@@ -28,7 +28,7 @@ const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
 /** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
  *  redirects. */
 const METADATA_ENTRIES = ['index.html', 'robots.txt', ...Object.keys(REDIRECTS)];
-/** Source modules living beside the reports' records are not served. */
+/** Source modules living beside the statics (the examples' kit) are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 
 async function unchanged(source: string, target: string): Promise<boolean> {

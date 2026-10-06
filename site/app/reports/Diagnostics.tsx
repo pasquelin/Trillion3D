@@ -1,10 +1,10 @@
 import { useWords } from '../i18n.ts';
 import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
-import { readingName } from '../../reports/presentation.ts';
-import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
-import { formatValue } from '../../reports/metrics.ts';
-import type { ReportRecord } from '../../reports/types.ts';
+import { readingName } from './model/presentation.ts';
+import { DIAGNOSTICS, diagnosticValue } from './model/diagnostics.ts';
+import { formatValue } from './model/metrics.ts';
+import type { ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface DiagnosticsProps {

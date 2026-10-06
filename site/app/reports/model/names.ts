@@ -1,6 +1,6 @@
-import { wordFor } from '../content/i18n/dictionary.ts';
-import { wordsOf } from '../app/i18n.ts';
-import type { Locale } from '../content/locale.ts';
+import { wordFor } from '../../../content/i18n/dictionary.ts';
+import { wordsOf } from '../../i18n.ts';
+import type { Locale } from '../../../content/locale.ts';
 
 /** A camera view's name in `locale`: `report.views.<id>`, or the id itself. */
 export const viewName = (id: string, locale: Locale) =>

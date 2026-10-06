@@ -1,4 +1,4 @@
-import type { Locale } from '../content/locale.ts';
+import type { Locale } from '../../../content/locale.ts';
 import { engineName, runName, viewName } from './names.ts';
 import type { Report, ReportRecord, SourceReadingRecord } from './types.ts';
 

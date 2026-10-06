@@ -1,5 +1,5 @@
-import { REPORT_VERSION } from '../../site/reports/contract.ts';
-import type { Report, ReportRecord } from '../../site/reports/types.ts';
+import { REPORT_VERSION } from '../../site/app/reports/model/contract.ts';
+import type { Report, ReportRecord } from '../../site/app/reports/model/types.ts';
 
 type ReportRun = Report['runs'][number];
 

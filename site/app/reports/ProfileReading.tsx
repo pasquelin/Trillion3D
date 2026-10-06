@@ -4,13 +4,13 @@ import type { ReactNode } from 'react';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Tabs } from '../ui/Tabs.tsx';
 import { Alert } from '../ui/Alert.tsx';
-import { formatValue, metricValue } from '../../reports/metrics.ts';
-import { recordLabel } from '../../reports/presentation.ts';
+import { formatValue, metricValue } from './model/metrics.ts';
+import { recordLabel } from './model/presentation.ts';
 import { BarChart } from '../ui/BarChart.tsx';
 import { Details } from './Details.tsx';
 import { Conditions } from './Conditions.tsx';
 import { Diagnostics } from './Diagnostics.tsx';
-import type { Report, ReportRecord } from '../../reports/types.ts';
+import type { Report, ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { BarChartRow } from '../ui/BarChart.tsx';
 

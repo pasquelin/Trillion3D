@@ -15,7 +15,7 @@ repository documentation only.
 | `site/content/`                                 | what no language changes: `entries/*.ts` (guide entries and written notes completing a generated API entry, without words), `reference/` (the generated API reference and its translations, [below](#the-api-reference)), `model.ts` (entry shape, sections), `i18n/` (dictionary helpers; `localizeEntries()` gives an entry its words, keeping technical fields), `gallery-roadmap.json` (the examples list) |
 | `site/examples/`                                | one standalone HTML file per example ([Examples](#examples))                                                                                                                                                                                                                                                                                                                                                   |
 | `site/demos/`                                   | pure per-entry demo models: `kit.ts` declares controls and result views, `registry.ts` maps entry ids to demos, `engine.ts` is the one list of what demos import from the engine, so every demo runs the engine itself                                                                                                                                                                                         |
-| `site/reports/`                                 | the report contract (`contract.ts`), metric semantics, comparison eligibility, bilingual labels, beside the records it reads (`index.json`, one folder per campaign)                                                                                                                                                                                                                                           |
+| `site/reports/`                                 | the records the Measurements route reads (`index.json`, one folder per campaign), served as they are; its code is `site/app/reports/model/`                                                                                                                                                                                                                                                                    |
 | `site/styles/`                                  | `tailwind.css`, and `portal.css` with only the design tokens and the primitives' rules                                                                                                                                                                                                                                                                                                                         |
 | `site/assets/`, `site/data/`, `site/index.html` | served as they are                                                                                                                                                                                                                                                                                                                                                                                             |
 
@@ -46,7 +46,7 @@ it (header button, `/` or ⌘K; arrows and Enter). `Entry.tsx` renders API entri
 pure demo models.
 
 Types are declared where the data is — entry shape in `site/content/model.ts`, demo model in
-`site/demos/kit.ts`, report in `site/reports/contract.ts`; components declare their props inline.
+`site/demos/kit.ts`, report in `site/app/reports/model/contract.ts`; components declare their props inline.
 `tsconfig.site.json` checks the folder with `strict` and `allowJs` off (`check:site-types`);
 `check:no-js` refuses any JavaScript source under `site/`.
 
@@ -321,7 +321,7 @@ DaisyUI `stats`, `stat`, `stat-title`, `stat-value` and `stat-desc`.
 
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads the one published campaign from
 `site/reports/`, which `bench/runner/report/publishReport.ts` replaces. Shared React components own its
-presentation; `site/reports/` modules own contract, metric semantics, comparison eligibility and
+presentation; `site/app/reports/model/` modules own contract, metric semantics, comparison eligibility and
 bilingual labels ([report pipeline](../bench/runner/README.md#published-reports) for export and
 staging). The page is a `DocPage`, its sidebar the campaign's parts. Campaign data is independent of
 the site build.

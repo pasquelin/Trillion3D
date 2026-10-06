@@ -1,6 +1,6 @@
 import { useWords } from '../i18n.ts';
-import { engineTone } from '../../reports/assessment.ts';
-import { engineName } from '../../reports/names.ts';
+import { engineTone } from './model/assessment.ts';
+import { engineName } from './model/names.ts';
 import { Badge } from '../ui/Badge.tsx';
 import type { Locale } from '../../content/locale.ts';
 

@@ -1,11 +1,11 @@
 import { useWords } from '../i18n.ts';
 import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
-import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
-import { missingMetric } from '../../reports/availability.ts';
-import { readingName } from '../../reports/presentation.ts';
-import { comparison } from '../../reports/compare.ts';
-import type { ReportRecord } from '../../reports/types.ts';
+import { METRICS, METRIC_KEYS, metricValue, formatValue } from './model/metrics.ts';
+import { missingMetric } from './model/availability.ts';
+import { readingName } from './model/presentation.ts';
+import { comparison } from './model/compare.ts';
+import type { ReportRecord } from './model/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ComparisonProps {

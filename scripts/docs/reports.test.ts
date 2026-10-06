@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseRoute, routeHref, resolvePage } from '../../site/app/portal/routes.ts';
-import { runName, viewName } from '../../site/reports/names.ts';
-import { flattenFields } from '../../site/reports/availability.ts';
-import { pairedImages } from '../../site/reports/presentation.ts';
-import { readingGroups } from '../../site/reports/sources.ts';
-import { metricValue } from '../../site/reports/metrics.ts';
+import { runName, viewName } from '../../site/app/reports/model/names.ts';
+import { flattenFields } from '../../site/app/reports/model/availability.ts';
+import { pairedImages } from '../../site/app/reports/model/presentation.ts';
+import { readingGroups } from '../../site/app/reports/model/sources.ts';
+import { metricValue } from '../../site/app/reports/model/metrics.ts';
 import { baseRecord, baseRun, baseReport } from './report-fixtures.ts';
 import {
   Comparison,
