@@ -1,7 +1,7 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
 import type * as PageCoupe from '../series/cutPage.ts';
-import type * as PageTemoin from '../witnessPage.ts';
+import type * as PageTemoin from '../witness/witnessPage.ts';
 import type * as PageExplorateur from '../explorerPage.ts';
 import type * as PageMesure from '../measurePage.ts';
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
@@ -17,12 +17,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const sdk = (await import(options.sdkUrl)) as SdkNamespace;
   const coupe = (await import(`${options.modulesUrl}series/cutPage.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
-  // other, itself places in Three the lights that store declares (`witnessPage.ts`).
+  // other, itself places in Three the lights that store declares (`witness/witnessPage.ts`).
   // A dist whose witness entry exports no light group `Group` gives its witness none.
   const lighting =
     options.witness && sdk.Group
       ? (
-          (await import(`${options.modulesUrl}witnessPage.ts`)) as typeof PageTemoin
+          (await import(`${options.modulesUrl}witness/witnessPage.ts`)) as typeof PageTemoin
         ).creerEclairageTemoin(sdk)
       : null;
   const factory = options.backend ? sdk[options.backend] : undefined;

@@ -64,20 +64,20 @@ export const ENGINES: Record<string, EngineDescriptor> = {
     source: 'cache',
     renderer: 'webgpu',
   },
-  // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`threeBarePage.ts`).
+  // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`witness/threeBarePage.ts`).
   'three-nu': {
     backend: null,
     id: 'three-nu',
     flags: BASE_FLAGS,
-    page: 'threeBarePage.ts',
+    page: 'witness/threeBarePage.ts',
     source: 'gltf',
   },
-  // Three.js witness with levels of detail: raw Three plus `THREE.LOD` per mesh (`threeLodPage.ts`).
+  // Three.js witness with levels of detail: raw Three plus `THREE.LOD` per mesh (`witness/threeLodPage.ts`).
   'three-lod': {
     backend: null,
     id: 'three-lod',
     flags: BASE_FLAGS,
-    page: 'threeLodPage.ts',
+    page: 'witness/threeLodPage.ts',
     source: 'gltf',
   },
   webgl2: {

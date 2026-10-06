@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { octets } from './threeBareScene.ts';
-import { posterCapture } from './measurePage.ts';
+import { posterCapture } from '../measurePage.ts';
 
 /** Source graph and mixers for the walking/crowd and morph examples; no engine implementation. */
 export async function deformationWitness(source: string, count: 1 | 10 | 100) {

@@ -19,11 +19,11 @@
 // compile a shader that reads a missing map. A fidelity campaign therefore runs `--shadows
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
-import type { MeasuredWorld } from '../witnesses/measurement.ts';
-import type { Light } from '../../packages/sdk-core/src/world/light/light.ts';
-import type { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts';
-import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
-import type { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
+import type { MeasuredWorld } from '../../witnesses/measurement.ts';
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
+import type { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import type { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
 const DECAY = 2;
@@ -38,7 +38,7 @@ function penombre(coneAngle: number, douceur: number) {
   return Math.min(1, Math.max(0, 1 - interieur / Math.max(coneAngle, 1e-6)));
 }
 
-/** The graph classes the witness entry exports (`../witnesses/measurement.ts`), and the engine's
+/** The graph classes the witness entry exports (`../../witnesses/measurement.ts`), and the engine's
  *  numbering of what it builds: this module is served alone to the page, so it builds with the
  *  ones the page's dist hands it. */
 export type WitnessGraph = { Group: typeof Group; Light: typeof Light; numbered: typeof numbered };
@@ -59,7 +59,7 @@ export function creer(graph: WitnessGraph, light: SceneLight): Light {
  * direction counts, which Three reads as `position − target`, hence the opposite of
  * propagation.
  */
-/** A light as `appliquer` writes it: the graph's, or the bare witness's (`threeBareScene.ts`). */
+/** A light as `appliquer` writes it: the graph's, or the bare witness's (`witness/threeBareScene.ts`). */
 export type Lampe = {
   readonly color: { setRGB(r: number, g: number, b: number): unknown };
   intensity: number;

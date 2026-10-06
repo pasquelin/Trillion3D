@@ -35,7 +35,7 @@ function packageDir(root: string, name: string) {
 export function resolveMounts(root: string, sides: SideBase[], resources: string | null = null) {
   return [
     { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
-    // Modules imported by the page via URL: `series/cutPage.ts`, `witnessPage.ts`.
+    // Modules imported by the page via URL: `series/cutPage.ts`, `witness/witnessPage.ts`.
     { prefix: '/runner/', dir: join(root, 'bench/runner') },
     { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: ASSETS },

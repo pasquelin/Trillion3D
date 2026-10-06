@@ -119,7 +119,7 @@ and `exactPagesBackend`, opt-in through the session's `backends` option.
 
 `three-nu` and `three-lod` copy lights from the source graph, not the `SceneLight` store, so the
 harness, an ordinary host, creates in Three the store's lights through the `sceneLighting` option of
-`openMeasuredWorld` (`witnessPage.ts`, served under `/runner/`, imported by URL), all from the
+`openMeasuredWorld` (`witness/witnessPage.ts`, served under `/runner/`, imported by URL), all from the
 measured world's `lights()` — cache and contract, no scene named. `exact-cluster-pages` translates
 the store itself on each revision (`packages/sdk-browser/src/lighting/contractLights.ts`).
 
@@ -417,7 +417,7 @@ Fixtures: CesiumMan and AnimatedMorphCube under `site/assets/examples/`; compile
 caches first. `a-character-that-walks.html`, `a-shape-that-morphs.html`,
 `a-crowd-of-characters.html?count=1` (then 10, 100) and `additive-poses.html` expose
 `deformationCase.world` and `setTime(seconds)`: freeze at 0, 0.25, 0.5 and 1 second.
-`deformationWitness.ts` loads the same public glTF and evaluates its first clip at those times in
+`witness/deformationWitness.ts` loads the same public glTF and evaluates its first clip at those times in
 the witness; with the same camera, lights, viewport, tone mapping and shadows,
 `captureDeformationWitness` posts pixels through the capture transport (crowds on the example's
 two-unit grid). Compare with `imageDiff`, never against a rest pose or black capture.

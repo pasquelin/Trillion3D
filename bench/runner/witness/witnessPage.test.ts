@@ -1,10 +1,10 @@
 // The Three reference witness receives lights from contract: one test per behavior, headless.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import type { Light } from '../../packages/sdk-core/src/world/light/light.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
 import { creerEclairageTemoin } from './witnessPage.ts';
-import type { MeasuredWorld } from '../witnesses/measurement.ts';
+import type { MeasuredWorld } from '../../witnesses/measurement.ts';
 
 const DOUCEUR = 0.02;
 

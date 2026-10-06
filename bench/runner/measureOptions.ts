@@ -81,7 +81,7 @@ interface MeasureViewSuccess {
   metrics: Partial<FrameMetrics> & Record<string, unknown>;
   preparationMs: number;
   network: NetworkBytes;
-  // Absent from the Three witnesses (`threeMeasurePage.ts`): they have no reservoir tuning, no
+  // Absent from the Three witnesses (`witness/threeMeasurePage.ts`): they have no reservoir tuning, no
   // held-pose loop, no compiler warnings and no per-step CPU profile of their own.
   settleFrames?: number | null;
   liveTuning?: LiveTuning | null;

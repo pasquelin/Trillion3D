@@ -1,4 +1,4 @@
-// What both measurement pages (`lighting/lightingPage.ts`, `threeBarePage.ts`) do the same: the moving
+// What both measurement pages (`lighting/lightingPage.ts`, `witness/threeBarePage.ts`) do the same: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
 import type { MeasuredWorld } from '../witnesses/measurement.ts';

@@ -1,5 +1,5 @@
 // The selected set of a series, read INSIDE the page. Served under `/runner/` and imported by its
-// URL like `witnessPage.ts`: `measureView` is serialised by Playwright and cannot call any module
+// URL like `witness/witnessPage.ts`: `measureView` is serialised by Playwright and cannot call any module
 // function, but a URL `import()` remains open to it.
 
 /**

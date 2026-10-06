@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 
 type Source = {
   onFrame(hook: (frame: { metrics: FrameMetrics }) => void): () => void;

@@ -6,9 +6,9 @@
 // What it renders: the source glTF loaded as-is, Three's `MeshStandardMaterial`, everything drawn
 // every frame with no selection and no streaming, the contract lights placed in Three. What it
 // does not render, named: no cascades, no temporal antialiasing, no bounce, no instances, no
-// level of detail. The measurement loop and what it records are in `threeMeasurePage.ts`.
+// level of detail. The measurement loop and what it records are in `witness/threeMeasurePage.ts`.
 import { mesurerThree } from './threeMeasurePage.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
+import type { MeasureViewOptions } from '../measureOptions.ts';
 
 /** One view, one threshold (ignored: Three has none), the capture. Same contract as `measureView`. */
 export const measureView = (options: MeasureViewOptions) => mesurerThree(options);

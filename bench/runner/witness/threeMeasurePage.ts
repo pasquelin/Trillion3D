@@ -1,4 +1,4 @@
-// What the Three witnesses — bare (`threeBarePage.ts`) and with levels of detail (`threeLodPage.ts`)
+// What the Three witnesses — bare (`witness/threeBarePage.ts`) and with levels of detail (`witness/threeLodPage.ts`)
 // — measure the same: the same glTF scene loaded by Three, contract lights placed in Three
 // (sun as `DirectionalLight` with ONE shadow map covering the model, point lights as
 // `PointLight` with their shadow cube), ACES and sRGB like the engine, and the same
@@ -14,9 +14,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { lampe, octets } from './threeBareScene.ts';
-import { positionLampeMobile, posterCapture, reseauDepuis } from './measurePage.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import type { MeasureViewOptions, MeasureViewResult } from './measureOptions.ts';
+import { positionLampeMobile, posterCapture, reseauDepuis } from '../measurePage.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
 
 function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov;
