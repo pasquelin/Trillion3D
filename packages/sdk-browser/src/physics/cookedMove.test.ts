@@ -3,12 +3,19 @@ import assert from 'node:assert/strict'
 import { MOTION, OP, type CookedBody } from '../../../sdk-core/src/physics/index.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createCookedBodies } from './cookedBodies.ts'
-import { SharedShapes } from './sharedShapes.ts'
 import { followMove } from './nodePose.ts'
 import { createPosePlacer } from './placer.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { moversOf } from './tilePlace.ts'
-import { cooked, landed, modelStreamer, place, streamedModel, tile } from './tiles.fixture.ts'
+import {
+  cooked,
+  landed,
+  modelStreamer,
+  place,
+  sharedShapes,
+  streamedModel,
+  tile,
+} from './tiles.fixture.ts'
 import { poseRecord } from './worker.fixture.ts'
 
 /** Node 0's dynamic crate, two metres up, and node 1 kinematic, each placed by its own tile. */
@@ -117,7 +124,7 @@ test('a body inside a dynamic body’s subtree keeps its node’s tile out when 
   const rigid = createCookedBodies(
     writer,
     bodies,
-    new SharedShapes(writer, bodies),
+    sharedShapes(writer, bodies),
     () => {},
     assert.fail,
   )

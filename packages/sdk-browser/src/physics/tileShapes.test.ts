@@ -114,15 +114,15 @@ test('the bodies an update leaves unbuilt ask another frame; none left, none is 
   assert.deepEqual([await asks(), bodies.count.bodies], [false, 100])
 })
 
-test('a tile the worker refuses leaves with every placement of it, built on no more', async () => {
+test('a body the worker refuses takes its placement out alone: the others stay on the tile', async () => {
   const streamer = await streamed(3)
-  const { tiles, bodies, restored, released, builtOn } = streamer
+  const { tiles, bodies, released, builtOn } = streamer
   await settle(streamer, [0, 0, 0], 1e5)
   const owner = bodies.slots.at(0)
   assert.ok(owner && 'tile' in owner)
   tiles.refused(owner.tile.id)
   await settle(streamer, [0, 0, 0], 1e5)
-  assert.deepEqual([bodies.count.bodies, released, builtOn.length], [0, restored, 3])
+  assert.deepEqual([bodies.count.bodies, released, builtOn.length], [2, [], 3], 'never built again')
 })
 
 test('a tile that fails as it lands is reported, never left unhandled', async () => {

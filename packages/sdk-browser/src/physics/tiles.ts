@@ -19,9 +19,11 @@ import { cookedPhysics, isModel, locate, placedOf, tilePose, type Model } from '
  * simulation within the static collision's share of `budget.memoryBytes` (`collisionBytesOf`) and
  * of `budget.bodies` (`COLLISION_SHARE`), the other bodies keeping the rest: tiles load around
  * every moving body first, then around the eye up to the active range — the camera's draw
- * distance, the scene's own —, nearest first, and leave once no longer wanted. A scene is never refused for its size: a tile that does not fit
- * waits, the farther ones leaving for it. A tile is restored from the module's binary state, never
- * rebuilt; so are the bodies its nodes declare (`cookedBodies.ts`), made as it opens.
+ * distance, the scene's own —, nearest first, and leave once no longer wanted. A scene is never
+ * refused for its size: a tile that does not fit waits, the farther ones leaving for it; a hull a
+ * declared body needs comes first, the tiles leaving it room (`sharedShapes.ts`). A tile is
+ * restored from the module's binary state, never rebuilt; so are the bodies its nodes declare
+ * (`cookedBodies.ts`), made as it opens.
  *
  * A tile is one shape for the session (`sharedShapes.ts`), however many placements and models
  * place it. With U tiles of b bytes wanted by P placements (P ≫ U for a prop repeated over a
@@ -38,12 +40,12 @@ export function createTileStreamer(
   failed: (error: EngineError) => void,
 ) {
   const models = new Map<Model, TileOpening>()
-  const shapes = new SharedShapes(writer, bodies)
+  // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
+  const [share, bodyShare] = [collisionBytesOf(budget), Math.floor(budget.bodies * COLLISION_SHARE)]
+  const shapes = new SharedShapes({ writer, bodies, share, invalidate, failed })
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
-  // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
-  const [share, bodyShare] = [collisionBytesOf(budget), Math.floor(budget.bodies * COLLISION_SHARE)]
   function open(model: Model) {
     const opening: TileOpening = { placed: [], abort: new AbortController() }
     const { signal } = opening.abort
@@ -59,7 +61,7 @@ export function createTileStreamer(
       // A read its model let go of by leaving is no failure.
       .catch((error) => signal.aborted || failed(error as EngineError))
   }
-  /** Everything `model` holds out: its tiles, each letting its shape go, and its declared bodies. */
+  /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
     abort.abort()
     placed.forEach(resident.remove)
@@ -91,20 +93,22 @@ export function createTileStreamer(
       const count = bodies.count,
         held = resident.held.bodies
       schedule.admit(
-        share - count.collisionBytes + shapes.tileBytes,
+        share - count.collisionBytes + shapes.tileBytes - shapes.demand,
         Math.min(bodyShare, budget.bodies - count.bodies + held),
       )
       schedule.start()
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused body `id`: a cooked body leaves until its model opens again; a tile's
-     *  shape is refused, every placement of it leaving with it while it is held. */
+    /** The worker refused body `id`, by its own pose or scale: a cooked body, or the placement of a
+     *  tile, leaves alone until its model opens again — a tile whose object is refused leaves
+     *  whole by its read (`sharedShapes.ts`). */
     refused(id: number) {
       const owner = bodies.slots.of(id)
       if (owner && 'tile' in owner) {
-        owner.tile.shape.refused = true
-        resident.evict(owner.tile)
+        const placed = models.get(owner.model)!.placed
+        resident.remove(owner.tile)
+        placed.splice(placed.indexOf(owner.tile), 1)
       } else if (owner) declared.refused(owner)
       schedule.settle()
     },

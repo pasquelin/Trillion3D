@@ -11,7 +11,7 @@ type Moving<O> = O & BodyNodes & { made: CookedMadeBody[]; refused: Refused[] }
 
 /**
  * `model` moved: the bodies of its `opening` follow — a kinematic one driven there, pushing what
- * it meets, a dynamic one put where its node is now drawn —; one rescaled is `free`d and made
+ * it meets, a dynamic one put where its node is now drawn —; one rescaled is released and made
  * again at once at its new scale (`remake`), the module scaling no body once made, and one a
  * rescale refused is made again once its model is at another scale. The lists are compacted in
  * place: a model moved every frame makes no new one.
@@ -21,7 +21,7 @@ export function followModel<O>(
   model: Model,
   opening: Moving<O>,
   remake: (model: Model, opening: O, one: Refused, scale: number[]) => CookedMadeBody | null | void,
-  free: (made: CookedMadeBody) => void,
+  release: (index: number) => void,
 ) {
   const { made, refused } = opening
   for (const one of refused.splice(0)) {
@@ -38,7 +38,7 @@ export function followModel<O>(
     const { position, quaternion, scale } = tilePose({ model, instance: one.body })
     const slot = one.id & BODY_INDEX
     if (!fits(scale, one.scale)) {
-      free(one)
+      release(slot)
       const again = remake(model, opening, one, [scale.x, scale.y, scale.z])
       if (again) made[kept++] = again
       continue

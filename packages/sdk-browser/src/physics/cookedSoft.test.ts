@@ -10,10 +10,9 @@ import {
 } from '../../../sdk-core/src/physics/index.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'
-import { SharedShapes } from './sharedShapes.ts'
 import { startModule } from './module.fixture.ts'
 import { addSoft, at, settle, softWorld } from './soft.fixture.ts'
-import { cooked, landed, streamedModel } from './tiles.fixture.ts'
+import { cooked, landed, sharedShapes, streamedModel } from './tiles.fixture.ts'
 import { FLAT } from './records.fixture.ts'
 import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts'
 
@@ -84,12 +83,9 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
   assert.equal(tiles.modelOf(words[1]), null)
 })
 
-/** The cooked soft bodies a session over `writer` and `bodies` makes, failing the test on a refusal. */
-const cookedSofts = (
-  writer: Parameters<typeof createCookedSoftBodies>[0],
-  bodies: Parameters<typeof createCookedSoftBodies>[1] &
-    ConstructorParameters<typeof SharedShapes>[1],
-) => createCookedSoftBodies(writer, bodies, new SharedShapes(writer, bodies), () => {}, assert.fail)
+/** The cooked soft bodies of a session over `writer` and `bodies`, a refusal failing the test. */
+const cookedSofts = (...[writer, bodies]: Parameters<typeof sharedShapes>) =>
+  createCookedSoftBodies(writer, bodies, sharedShapes(writer, bodies), () => {}, assert.fail)
 
 test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
   const { model, writer, bodies } = await opened()

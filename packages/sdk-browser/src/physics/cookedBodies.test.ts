@@ -10,7 +10,6 @@ import {
   SHAPE,
 } from '../../../sdk-core/src/physics/index.ts'
 import { createCookedBodies } from './cookedBodies.ts'
-import { SharedShapes } from './sharedShapes.ts'
 import { castDown, startModule, type Module } from './module.fixture.ts'
 import {
   cooked,
@@ -21,6 +20,7 @@ import {
   place,
   stubFetch,
   settled,
+  sharedShapes,
   streamedModel,
   tile,
 } from './tiles.fixture.ts'
@@ -105,7 +105,7 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   const rigid = createCookedBodies(
     writer,
     bodies,
-    new SharedShapes(writer, bodies),
+    sharedShapes(writer, bodies),
     () => {},
     assert.fail,
   )

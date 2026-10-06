@@ -1,6 +1,10 @@
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type {
+  CommandWriter,
+  CookedBody,
+  CookedSoftBody,
+} from '../../../sdk-core/src/physics/index.ts'
 import type { createPhysicsBodies } from './bodies.ts'
-import { cooked, landed, tile } from './tiles.fixture.ts'
+import { cooked, declared, landed, modelStreamer, place, stubFetch, tile } from './tiles.fixture.ts'
 
 /** A model placing one two-byte tile, `t0.bin`, `count` times, ten metres apart along x from the
  *  origin: the `i`-th spans x `10 i` to `10 i + 2`. */
@@ -54,3 +58,38 @@ export const residentAt = (bodies: ReturnType<typeof createPhysicsBodies>, slots
   Array.from({ length: slots }, (_, i) => bodies.slots.at(i)).flatMap((owner) =>
     owner && 'tile' in owner ? [owner.tile.box[0]] : [],
   )
+
+/** A model's `physics.json`: one tile of `tile.bin`, two bytes, placed at the origin, and kinematic
+ *  bodies on nodes 1 to `count`, 3 m apart from x = 3, each built on the hull `url` of `bytes`. */
+export function hulled(count: number, url: string, bytes: number) {
+  const hull = { type: 'cooked', url, sha256: 'h'.repeat(64), bytes }
+  const crates = Array.from({ length: count }, (_, i) =>
+    declared(i + 1, [i * 3 + 3, 0, 0], { isKinematic: true }, hull),
+  )
+  const file = cooked([{ kind: 'mesh', tiles: [{ ...tile(), url: 'tile.bin' }] }], [place(0)])
+  return { file: { ...file, bodies: crates }, crates }
+}
+
+/** A cloth of nine vertices on node `node`, `node` × 3 m along x, made from `settings`. */
+export const cloth = (node: number, settings: CookedSoftBody['settings']): CookedSoftBody => ({
+  ...{ node, position: [node * 3, 2, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+  ...{ physics: { type: 'cloth', pins: [0] }, vertices: 9, pressure: 0 },
+  ...{ friction: 0.5, restitution: 0, settings },
+})
+
+/** `file` opened by a streamer within `budget`, its `crates` numbered, every file `bytes`, and
+ *  settled around the origin: the streamer, what its writer writes, and the files it asked. */
+export async function opened(
+  file: object,
+  crates: CookedBody[],
+  budget = {},
+  bytes = new Uint8Array(4),
+) {
+  const fetched = stubFetch(file, bytes)
+  const streamer = modelStreamer(budget, 1, crates)
+  const written = recorded(streamer.writer)
+  streamer.tiles.scan(streamer.scene)
+  await landed()
+  await settle({ ...streamer, fetched }, [0, 0, 0], 100)
+  return { ...streamer, ...written, fetched }
+}

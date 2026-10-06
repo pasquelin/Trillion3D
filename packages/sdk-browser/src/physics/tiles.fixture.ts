@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import {
   PHYSICS_STEP,
   CommandWriter,
+  collisionBytesOf,
   DEFAULT_PHYSICS_BUDGET,
   type CookedBody,
   type PhysicsBudget,
@@ -10,6 +11,7 @@ import {
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts'
 import { createPhysicsPoses } from './poses.ts'
+import { SharedShapes } from './sharedShapes.ts'
 import { createTileStreamer } from './tiles.ts'
 import { JOLT_COMMIT } from '../../../sdk-core/src/physics/joltCommit.ts'
 
@@ -33,6 +35,17 @@ export const declared = (
     scale: [1, 1, 1],
     ...more,
   }) as CookedBody
+
+/** The cooked objects of a session over `writer` and `bodies` (`SharedShapes`), within the default
+ *  memory, a failure thrown. */
+export const sharedShapes = (writer: CommandWriter, bodies: SharedShapesBodies) =>
+  new SharedShapes({
+    ...{ writer, bodies, share: collisionBytesOf(DEFAULT_PHYSICS_BUDGET), invalidate() {} },
+    failed: (error) => {
+      throw error
+    },
+  })
+type SharedShapesBodies = ReturnType<typeof createPhysicsBodies>
 
 /** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
  *  next turn of the event loop comes once every answer has been read. */

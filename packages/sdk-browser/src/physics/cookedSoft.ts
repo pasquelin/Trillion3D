@@ -11,6 +11,7 @@ import { flagsOf, type createPhysicsBodies } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'
 import { holdObjects, letGoAll, type HeldObjects } from './cookedObjects.ts'
+import { hasReported } from './cookedReads.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
@@ -51,9 +52,8 @@ export function createCookedSoftBodies(
     settings: HeldObjects
     signal: AbortSignal
   }
-  const held = createOpenings<Opening>(
-    ({ id }) => bodies.release(id & BODY_INDEX),
-    (opening) => letGoAll(shapes, opening.settings),
+  const held = createOpenings<Opening>(bodies.release, (opening) =>
+    letGoAll(shapes, opening.settings),
   )
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
    *  cooked at. */
@@ -82,7 +82,7 @@ export function createCookedSoftBodies(
   /** Restores `soft` in `opening`, a failure reported but for a read its model let go of. */
   const start = (model: Model, opening: Opening, soft: CookedSoftBody) =>
     void add(model, opening, soft).catch(
-      (error) => opening.signal.aborted || failed(error as EngineError),
+      (error) => opening.signal.aborted || hasReported(error) || failed(error as EngineError),
     )
   return {
     /** Makes the soft bodies `model` was cooked with, read until `signal` aborts, the last

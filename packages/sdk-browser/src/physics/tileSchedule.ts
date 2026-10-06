@@ -153,15 +153,16 @@ export class TileSchedule {
   /** Whether placement `p` waits for its body on its resident tile. */
   private readonly buildable = (p: Placed) => p.id < 0 && p.shape.handle >= 0
   /** One request: a tile still wanted is asked again at the next update, but for a 4xx; a read
-   *  its last holder let go of is no failure, one that cannot land is. */
+   *  that cannot land is a failure. */
   private read(shape: TileShape) {
     const parts = this.parts
     this.fetching++
     void parts.shapes
       .read(shape, ONE_REQUEST)
+      // A failed read is reported by the registry, once.
       .then(
         (bytes) => this.land(shape, bytes),
-        (error) => shape.holders && parts.failed(error as EngineError),
+        () => {},
       )
       .catch((error) => parts.failed(error as EngineError))
       .finally(() => this.fetching--)
