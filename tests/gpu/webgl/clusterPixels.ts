@@ -1,4 +1,4 @@
-// What the WebGL2 proofs share, in the page: a pixel read, a quad, a batch record as the owner
+// What the WebGL2 proofs share, in the page: a pixel read, a batch record as the owner
 // receives it, a posable record matrix, the clear, a hearer that refuses any surface WebGL2 leaves
 // out, the cluster renderer mounted on a 32 × 32 canvas, and a context with the engine's attributes.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
@@ -22,19 +22,6 @@ export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
   gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
   return [...value];
 }
-
-/** A quad facing the camera at depth `z`, with the normal a lit surface needs. */
-export const quad = (z: number, half = 1) => {
-  const geometry = new G.Geometry();
-  geometry.setAttribute(
-    'position',
-    G.floatAttribute([-half, -half, z, half, -half, z, half, half, z, -half, half, z], 3),
-  );
-  geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
-  // A 32-bit index, the one the owner's multi-draw ranges address.
-  geometry.setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
-  return geometry;
-};
 
 /** A batch record as the owner receives it: index ranges given in indices, held in bytes. */
 export const clusterRecord = (
