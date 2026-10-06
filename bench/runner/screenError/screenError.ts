@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 // The measured screen error of what WebGPU and WebGL2 draw, against the source (#959).
 //
-//   node bench/runner/screenError.ts --scene sponza --poses bench|orbit|terrain \
+//   node bench/runner/screenError/screenError.ts --scene sponza --poses bench|orbit|terrain \
 //     [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/959]
 //
 // Each (backend, threshold) opens one world in a fresh Chrome at 1728×1117, DPR 2, holds every
-// pose until its cut is held and reads what it drew (`screenErrorPage.ts`); Node then measures
-// it against the cache's source glTF (`screenErrorMeasure.ts`). The bound is the audit's:
+// pose until its cut is held and reads what it drew (`screenError/screenErrorPage.ts`); Node then measures
+// it against the cache's source glTF (`screenError/screenErrorMeasure.ts`). The bound is the audit's:
 // max ≤ pixelError + 0.1 px, forward and reverse. The scene is a compiled cache under the assets
 // folder (`TRILLION3D_ASSETS`, `.mesure/assets` by default); one row per view is printed and the
 // whole run written to `<out>/<scene>.json`.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { onFreshPage } from './chrome.ts';
-import { readBounds } from './page.ts';
-import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from './options.ts';
-import { sceneDerived } from './assets/scene.ts';
+import { onFreshPage } from '../chrome.ts';
+import { readBounds } from '../page.ts';
+import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from '../options.ts';
+import { sceneDerived } from '../assets/scene.ts';
 import {
   auditPoses,
   benchPoses,
@@ -28,12 +28,12 @@ import { cacheSurfaces } from './screenErrorSurface.ts';
 import { measureView } from './screenErrorMeasure.ts';
 import { screenErrorPass } from './screenErrorVerdict.ts';
 import type { HoldOptions } from './screenErrorPage.ts';
-import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { buildTriangleTree } from '../../packages/sdk-core/src/collision/triangleTree.ts';
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
+import { buildTriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts';
 
-const ROOT = resolve(import.meta.dirname, '../..');
+const ROOT = resolve(import.meta.dirname, '../../..');
 const [WIDTH, HEIGHT, DPR] = [1728, 1117, 2];
-const PAGE = '/runner/screenErrorPage.ts';
+const PAGE = '/runner/screenError/screenErrorPage.ts';
 
 const flags = parseArgs(process.argv.slice(2));
 const scene = flags.get('scene'),
@@ -54,7 +54,7 @@ const { triangles: source, twoSided, drawn: clusterTriangles } = await cacheSurf
 const captures = new Map<string, Capture>();
 const { server, port } = await startServer({ captures, mounts: resolveMounts(ROOT, sides) });
 
-/** WebGL2's drawn corners in the world and their per-triangle sides, as `screenErrorPage.ts`
+/** WebGL2's drawn corners in the world and their per-triangle sides, as `screenError/screenErrorPage.ts`
  *  captured them: the sides padded to whole words, a capture without them refused. */
 function webgl2Triangles(tri: NonNullable<Capture>, two: Capture | undefined) {
   const triangles = Float32Array.from(new Float64Array(new Uint8Array(tri.body).buffer));

@@ -4,7 +4,7 @@
 // (`screenErrorBound`, radius zero); the camera, its frustum and its focal length are the
 // engine's (`lookAtNode`, `updateCameraFrame`, `pixelScaleOf`), and the nearest-surface queries
 // run on the engine's triangle tree.
-import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
 import {
   addTransformNode,
   createCameraFrame,
@@ -14,21 +14,21 @@ import {
   setNodePosition,
   updateCameraFrame,
   updateNodeMatrixWorld,
-} from '../../packages/sdk-core/src/math/index.ts';
-import { screenErrorBound } from '../../packages/sdk-core/src/lod/screenErrorBound.ts';
+} from '../../../packages/sdk-core/src/math/index.ts';
+import { screenErrorBound } from '../../../packages/sdk-core/src/lod/screenErrorBound.ts';
 import {
   closestSegmentTriangle,
   triangleNormal,
-} from '../../packages/sdk-core/src/collision/closest.ts';
+} from '../../../packages/sdk-core/src/collision/closest.ts';
 import {
   buildTriangleTree,
   type TriangleTree,
-} from '../../packages/sdk-core/src/collision/triangleTree.ts';
+} from '../../../packages/sdk-core/src/collision/triangleTree.ts';
 import {
   forEachTriangleInBox,
   nearestTriangleOnRay,
-} from '../../packages/sdk-core/src/collision/triangleQuery.ts';
-import { pixelScaleOf } from '../../packages/sdk-browser/src/streaming/priority.ts';
+} from '../../../packages/sdk-core/src/collision/triangleQuery.ts';
+import { pixelScaleOf } from '../../../packages/sdk-browser/src/streaming/priority.ts';
 
 /** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner
  *  points. Fixed, so two runs read the same points. */

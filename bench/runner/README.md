@@ -334,7 +334,7 @@ angle. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `
 ## The Screen Error of What Is Drawn
 
     pnpm run build
-    TRILLION3D_ASSETS=<assets> node bench/runner/screenError.ts --scene sponza --poses bench \
+    TRILLION3D_ASSETS=<assets> node bench/runner/screenError/screenError.ts --scene sponza --poses bench \
       [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/<issue>]
 
 The audit's oracle (#959): the screen error of what WebGPU and WebGL2 draw against the source glTF —

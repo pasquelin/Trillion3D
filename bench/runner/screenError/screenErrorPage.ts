@@ -1,11 +1,11 @@
 // What the screen-error measure (#959) reads INSIDE the page, served under `/runner/` and imported
 // by its URL like `series/cutPage.ts`. One world on one backend holds each pose until its cut is held,
 // then hands back what it drew: WebGPU the clusters its cut selected (`selectedClusterIds`,
-// decoded in Node by `screenErrorSurface.ts`), WebGL2 the triangles of the meshes it drew, decoded
+// decoded in Node by `screenError/screenErrorSurface.ts`), WebGL2 the triangles of the meshes it drew, decoded
 // by the engine's worker and placed by their own matrices. Both leave through the server's `/capture`.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
-import { posterCapture } from './measurePage.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
+import { posterCapture } from '../measurePage.ts';
 
 export interface HoldOptions {
   sdkUrl: string;

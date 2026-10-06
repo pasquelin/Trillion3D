@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView, viewOf } from './screenErrorMeasure.ts';
-import { screenErrorBound } from '../../packages/sdk-core/src/lod/screenErrorBound.ts';
+import { screenErrorBound } from '../../../packages/sdk-core/src/lod/screenErrorBound.ts';
 import { screenErrorPass } from './screenErrorVerdict.ts';
 
 const pose = {

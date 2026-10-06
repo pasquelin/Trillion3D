@@ -68,7 +68,7 @@ const config: KnipConfig = {
         'bench/runner/feedbackTargetPage.ts',
         'bench/runner/gazeNetworkPage.ts',
         'bench/runner/limits.ts',
-        'bench/runner/screenErrorPage.ts',
+        'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
         // pages; it re-exports the engine's measurement seam.
         'bench/witnesses/measurement.ts',
@@ -81,7 +81,7 @@ const config: KnipConfig = {
         'bench/runner/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',
-        'bench/runner/screenError.ts',
+        'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
         // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case

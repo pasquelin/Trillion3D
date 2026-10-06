@@ -2,9 +2,9 @@
 // (the CMP scripts' `dagsim.py`, `cameras`), placed from the source's own box: three angles
 // at 1.2, 2, 5 and 20 radii around an object, and a terrain seen from the ground, the air and
 // afar. `bench` is the bench's four named views (`poses.ts`, `VIEWS`), read off the engine's box.
-import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
-import type { TriangleTree } from '../../packages/sdk-core/src/collision/triangleTree.ts';
-import { VIEWS, poseAt, type Bounds } from './poses.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
+import type { TriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts';
+import { VIEWS, poseAt, type Bounds } from '../poses.ts';
 
 export const POSE_SETS = ['orbit', 'terrain', 'bench'] as const;
 export type PoseSet = (typeof POSE_SETS)[number];

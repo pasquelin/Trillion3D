@@ -26,7 +26,7 @@ const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | type
 };
 
 /** Accessors of the source glTF, read out of `source.bin`: floats held by accessor index, and
- *  indices widened to 32 bits (`screenErrorSurface.ts` reads the triangles through it). */
+ *  indices widened to 32 bits (`screenError/screenErrorSurface.ts` reads the triangles through it). */
 export function accessorReader(dir: string) {
   const gltf = JSON.parse(readFileSync(join(dir, 'source.gltf'), 'utf8'));
   const bin = readFileSync(join(dir, 'source.bin'));
