@@ -1,5 +1,6 @@
 // A range of another file is a page of the queue: read by an HTTP Range, its parts checked where
-// they lie, never cached, and stopped once no one asks it.
+// they lie, kept by those who ask it alone, and, once under way, read to its end for whoever asks it
+// again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { sha256Hex } from './sha256Hex.ts'
@@ -31,11 +32,12 @@ async function served(t: TestContext, gap = 0) {
       offset: 0,
       parts: [0, 4 + gap].map((offset, at) => ({ offset, bytes: 4, sha256: sha[at] })),
     },
+    kept: false,
   })
   return { page, asked, signals, release }
 }
 
-test('a range of another file is a page of the queue: by a Range, checked part by part, never cached', async (t) => {
+test('a range of another file is a page of the queue: by a Range, checked part by part, kept by its askers', async (t) => {
   const { page, asked, release } = await served(t)
   const streamer = createPageStreamer([page('near'), page('far')], 'http://cache/', {
     workerCount: 1,
@@ -60,16 +62,18 @@ test('a range whose parts are not end to end is checked where each part lies', a
   assert.equal(streamer.stats().failed, 0)
 })
 
-test('a range whose last asker lets go while it transfers stops: it never lands unread', async (t) => {
-  const { page, signals } = await served(t)
-  const streamer = createPageStreamer([page('gone')], 'http://cache/')
+test('a range whose last asker lets go while it transfers is read to its end: asked again meanwhile, read once', async (t) => {
+  const { page, asked, signals, release } = await served(t)
+  const streamer = createPageStreamer([page('back')], 'http://cache/')
   t.after(() => streamer.dispose())
   const letGo = new AbortController()
-  const gone = streamer.readBytes('gone', letGo.signal)
+  const left = streamer.readBytes('back', letGo.signal)
   await new Promise(setImmediate)
-  assert.equal(streamer.stats().loading, 1, 'under way')
   letGo.abort()
-  await assert.rejects(gone, { name: 'AbortError' })
-  assert.equal(signals[0].aborted, true, 'its request is cancelled')
-  assert.equal(streamer.loading('gone'), false, 'a later ask reads it anew')
+  await assert.rejects(left, { name: 'AbortError' })
+  assert.deepEqual([signals[0].aborted, streamer.loading('back')], [false, true], 'still under way')
+  const again = streamer.readBytes('back') // the cell held again
+  release()
+  assert.equal((await again).byteLength, 8)
+  assert.deepEqual(asked, ['bytes=0-7'], 'read once')
 })

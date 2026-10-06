@@ -59,20 +59,20 @@ export function jobFor(
 }
 
 /** `job`'s last consumer left: still queued, it is taken out of the queue. A page under way is
- *  paid for: landing in the cache, it is there for a superseded camera that asks it again. A
- *  range of a file never enters the cache: its read stops, and a later ask reads it anew. */
+ *  paid for and lands, every page alike: a view that asks it again meanwhile — a camera turning
+ *  back, a cell held again — joins its read rather than starting it anew, and the cache keeps it
+ *  for a later ask unless its askers keep it (`StreamPage.kept`). */
 export function dropQueued(
   context: StreamContext,
   url: string,
   job: Job,
   end: (url: string, job: Job) => void,
 ) {
-  const { jobs, queue, catalog, emit, abortError } = context
-  const kept = job.state === 'active' && !catalog.get(url)?.range
-  if (jobs.get(url) !== job || job.state === 'dropped' || kept) return
+  const { jobs, queue, emit, abortError } = context
+  if (jobs.get(url) !== job || job.state !== 'queued') return
   end(url, job)
   job.controller.abort(abortError())
   emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
-  if (job.state === 'queued') queue.remove(job)
+  queue.remove(job)
   job.state = 'dropped'
 }

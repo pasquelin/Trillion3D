@@ -1,7 +1,8 @@
 /**
  * ONE ATTEMPT AT A STREAMED PAGE: one request of its bytes — its file, or its range of another
- * (`StreamPage.range`, one reader a file) —, checked against what it announced, counted, and a
- * whole page kept in the cache, each step told to the diagnostics that listen.
+ * (`StreamPage.range`, one reader a file) —, checked against what it announced, counted, and kept
+ * in the cache unless its askers keep it (`StreamPage.kept`), each step told to the diagnostics
+ * that listen.
  */
 import { corruptObject } from '../cluster/pages.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
@@ -98,7 +99,8 @@ export function createPageAttempt(
   /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
   const roundTrip = createRoundTrip()
   const { request, readFrom, keptBytes } = createPageRequests(base)
-  /** One attempt at `page`: its bytes read, checked and counted, a whole page kept in the cache. */
+  /** One attempt at `page`: its bytes read, checked and counted, kept in the cache unless its
+   *  askers keep it. */
   const attempt = async (page: StreamPage, url: string, signal: AbortSignal, n: number) => {
     const started = onDiagnostic ? performance.now() : 0,
       expectedBytes = page.bytes
@@ -125,7 +127,7 @@ export function createPageAttempt(
     signal.throwIfAborted()
     const array = new Uint8Array(await checkedBytes(context, page, url, n, buffer))
     signal.throwIfAborted()
-    if (!page.range) touch(url, array, page.sha256)
+    if (page.kept !== false) touch(url, array, page.sha256)
     state.bytesRead += actualBytes
     state.loaded++
     emit?.('page-attempt-end', 'Page read attempt succeeded', () => ({

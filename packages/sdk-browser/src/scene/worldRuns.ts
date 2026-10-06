@@ -19,11 +19,11 @@ function bundleSpan(table: WorldRoots, first: number, end: number) {
 }
 
 /** The page of the session's queue that reads bundles `[first, end)` of `table`'s binary at `url`,
- *  checked bundle by bundle. */
+ *  checked bundle by bundle; the holds that read it keep its bundles' pages, not the page cache. */
 export function runPage(table: WorldRoots, url: string, first: number, end: number): StreamPage {
   const { offset, bytes } = bundleSpan(table, first, end)
-  const parts = table.bundles.slice(first, end)
-  return { url: `${url}#${first}-${end}`, bytes, sha256: '', range: { file: url, offset, parts } }
+  const range = { file: url, offset, parts: table.bundles.slice(first, end) }
+  return { url: `${url}#${first}-${end}`, bytes, sha256: '', range, kept: false }
 }
 
 /** The pages of bundle `bundle` on `bytes`, the run read from bundle `first`. */

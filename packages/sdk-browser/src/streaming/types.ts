@@ -47,9 +47,11 @@ export interface StreamPage {
   /** Fingerprint of its bytes; a `range` is checked by its parts' instead. */
   sha256: string
   /** A page that is a range of the file at `file`, from `offset`: read by an HTTP Range, its
-   *  bytes checked part by part, end to end, against each part's size and fingerprint, and never
-   *  kept in the page cache — whoever asks it keeps what it decodes. */
+   *  bytes checked part by part, where each lies, against each part's size and fingerprint. */
   range?: { file: string; offset: number; parts: readonly RangePart[] }
+  /** False for a page whoever asks it keeps what it decodes: read for those who join its read,
+   *  never kept in the page cache, its bytes held once. */
+  kept?: boolean
 }
 /** The pages a resource mounted in the open session brings: `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */

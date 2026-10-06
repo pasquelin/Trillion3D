@@ -84,3 +84,27 @@ test('a bundle read for one page request alone leaves the catalogue, failed or n
   await assert.rejects(queue.readBytes('http://world/world-roots.bin#2-3'), /Unknown page/)
   assert.equal(queue.stats().failed, 0, 'its failure left with it')
 })
+
+test('a cell let go while its run transfers and held again joins that read: read once', async (t) => {
+  let land = () => {}
+  const landing = new Promise<void>((resolve) => (land = resolve))
+  const world = served(t, {
+    answer: async (from, _to, respond) => {
+      if (from === world.table.bundles[2].offset) await landing
+      return respond()
+    },
+  })
+  const { roots } = await opened(t, world.manifest)
+  t.after(land)
+  const leaving = new AbortController()
+  const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one run
+  await new Promise(setImmediate)
+  leaving.abort()
+  await assert.rejects(left, { name: 'AbortError' })
+  roots.release(1)
+  const back = roots.hold(1)
+  land()
+  await back
+  assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'read once')
+  assert.deepEqual(roots.held(), [2, 3])
+})
