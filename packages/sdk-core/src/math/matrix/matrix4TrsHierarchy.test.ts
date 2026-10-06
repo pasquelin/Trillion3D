@@ -62,14 +62,11 @@ function chains(): Level[][] {
 }
 
 const worldOf = (chain: Level[]) => {
-  let world = composeMatrix4(
-    new Float64Array(16),
-    chain[0].position,
-    chain[0].rotation,
-    chain[0].scale,
-  );
+  let world = new Float64Array(16);
+  composeMatrix4(world, chain[0].position, chain[0].rotation, chain[0].scale);
   for (const level of chain.slice(1)) {
-    const local = composeMatrix4(new Float64Array(16), level.position, level.rotation, level.scale);
+    const local = new Float64Array(16);
+    composeMatrix4(local, level.position, level.rotation, level.scale);
     world = multiplyMatrix4(new Float64Array(16), world, local);
   }
   return world;
