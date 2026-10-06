@@ -109,6 +109,21 @@ test('a tile past the whole share holds no one back: the farther tiles still loa
   assert.deepEqual(errors, [])
 })
 
+test('a world of 100 × 100 cells opens its 160 000 placed tiles without overflowing the stack', async () => {
+  // Sixteen instances a cell, 5 m apart: more tiles than a call takes as arguments.
+  const instances = Array.from({ length: 100 * 100 * 16 }, (_, at) => ({
+    ...place(0),
+    node: at,
+    position: [(at % 400) * 5, 0, Math.floor(at / 400) * 5],
+  }))
+  const file = cooked([{ kind: 'mesh', tiles: [tile()] }], instances)
+  const { tiles, bodies, errors } = await streamedModel(file, new Uint8Array(1))
+  assert.deepEqual(errors, [], 'the model opened')
+  tiles.update([0, 0, 0], 1)
+  await landed()
+  assert.equal(bodies.count.collisionBytes, 2, 'the tile at the eye is resident')
+})
+
 test('a tile left out while its bytes are on their way is not claimed when they land', async () => {
   const file = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)])
   const { tiles, bodies, fetched } = await streamedModel(file, new Uint8Array(1))
