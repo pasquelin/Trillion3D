@@ -70,9 +70,10 @@ export function createPageHolds(
 ) {
   const held = new Map<string, Held>()
   let changes = 0
-  /** `slot`'s one read, started for the first hold that asks it and joined by the later ones. */
+  /** `slot`'s one read, started for the first hold that asks it and joined by the later ones; one
+   *  its last asker stopped is never joined, a new one starts. */
   const join = (slot: string, entry: Held, asked: PageAsk = {}) => {
-    if (!entry.reading) {
+    if (!entry.reading || entry.reading.stop.signal.aborted) {
       const stop = new AbortController(),
         own = { priority: asked.priority, signal: stop.signal }
       const reading: Reading = { askers: 0, stop, promise: place(slot, entry, own) }

@@ -82,3 +82,24 @@ test('holds of one unread page share its read, cancelled once the last of them l
   assert.equal(signals[0].aborted, true, 'the last let go: cancelled')
   for (const hold of holds) await assert.rejects(hold, { name: 'AbortError' })
 })
+
+test('a hold arriving as the last asker of a page lets its read go starts a new read, never joins the stopped one', async () => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  const signals: AbortSignal[] = []
+  const read = (page: { url: string }, asked?: PageAsk) =>
+    new Promise<Uint8Array>((resolve, reject) => {
+      if (!asked?.signal) return resolve(files.get(page.url)!)
+      signals.push(asked.signal)
+      asked.signal.addEventListener('abort', () => reject(asked.signal!.reason))
+      if (signals.length > 1) resolve(files.get(page.url)!)
+    })
+  const { pages } = await openPagedManifest(root, read)
+  const [first] = root.pages as string[]
+  const leaving = new AbortController()
+  const left = pages.hold([first], { signal: leaving.signal })
+  leaving.abort()
+  const late = pages.hold([first], { signal: new AbortController().signal })
+  await assert.rejects(left, { name: 'AbortError' })
+  await late
+  assert.deepEqual([signals.length, pages.primitives.length], [3, 1], 'read anew, then placed')
+})
