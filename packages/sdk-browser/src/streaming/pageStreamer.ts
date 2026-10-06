@@ -2,7 +2,7 @@ import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
 import { createJobHeap } from './queueOrder.ts'
-import { refusalOf, type ReadFailure } from './failures.ts'
+import { refusalOf, refusals, type ReadFailure } from './failures.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
 import { createPageCache, type PageCache } from './pageCache.ts'
@@ -159,7 +159,8 @@ export function createPageStreamerWith(
         cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
-        failed: failures.size,
+        /** Reads refused now (`failures.ts`): one whose wait is over is asked again. */
+        failed: refusals(context),
         admissionBlocked: state.admissionBlocked,
       }
     },

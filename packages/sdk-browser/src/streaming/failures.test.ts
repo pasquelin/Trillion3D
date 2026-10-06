@@ -83,3 +83,15 @@ test('a read is asked again once its turn is told, even on a clock still short o
     streamer.dispose()
   }
 })
+
+test('the failed reads a streamer counts are those refused now: one whose wait is over is not', async (t) => {
+  const { streamer, frames, clock } = refusing(t, 503)
+  try {
+    await frames(0) // read and refused at 0, its wait running till 500
+    assert.equal(streamer.stats().failed, 1)
+    clock.now = 500
+    assert.equal(streamer.stats().failed, 0, 'its wait over, it may be asked')
+  } finally {
+    streamer.dispose()
+  }
+})

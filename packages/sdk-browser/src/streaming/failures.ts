@@ -23,6 +23,14 @@ export function refusalOf(context: StreamContext, url: string) {
   return failure && failure.due > performance.now() ? failure.error : undefined
 }
 
+/** How many reads are refused now: their wait not over, or never passing. */
+export function refusals(context: StreamContext) {
+  const now = performance.now()
+  let refused = 0
+  for (const failure of context.failures.values()) if (failure.due > now) refused++
+  return refused
+}
+
 /** `url` failed with `error`, its last attempt by `cause`: it waits its turn, or is refused for
  *  good. */
 export function recordFailure(context: StreamContext, url: string, error: Error, cause: unknown) {
