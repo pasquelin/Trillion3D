@@ -160,6 +160,12 @@ export function createPhysicsBodies(
      *  removal. */
     claim,
     release,
+    /** A shape bodies share (a cooked tile's): its collision `bytes` counted once, beside their
+     *  slots, refused past the budget; negative, given back. */
+    countShape(bytes: number) {
+      if (bytes > 0) check('collisionBytes', bytes)
+      count.collisionBytes += bytes
+    },
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
     retire(index: number, scale: readonly number[] | null = null) {

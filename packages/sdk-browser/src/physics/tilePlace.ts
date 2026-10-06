@@ -34,16 +34,32 @@ export interface Placed {
   model: Model
   instance: CookedInstance
   tile: CookedTile
+  /** Its tile as every placement of it in its model shares it. */
+  shape: TileShape
   /** The glTF material of every triangle the tile holds, `-1` for none: its collider's. */
   material: number
   /** Its world box, six values (`boxTransform`). */
   box: Float64Array
   /** The body's engine id once resident, -1 while out. */
   id: number
-  /** Its bytes are on their way. */
-  loading: boolean
-  /** Left out by the last update, past the share or unwanted: its bytes landing are not claimed. */
+  /** Left out by the last update, past the share or unwanted: its tile landing builds no body. */
   out: boolean
+}
+
+/** A cooked tile as the placements of it in one model share it: read once, restored once in the
+ *  physics module, each placement's static body built on it. */
+export interface TileShape {
+  tile: CookedTile
+  /** Every placement of it. */
+  placed: Placed[]
+  /** Its handle in the module while restored (`CommandWriter.restore`), -1 while not. */
+  handle: number
+  /** Its bytes are on their way. */
+  reading: boolean
+  /** The bodies built on it: its handle is released once the last one leaves. */
+  bodies: number
+  /** The update that last counted its bytes against the share (`tileRoom.ts`). */
+  counted: number
 }
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
@@ -74,21 +90,33 @@ export async function cookedPhysics(model: Model, signal: AbortSignal) {
   return response && readCookedPhysics(await response.json())
 }
 
-/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out. */
+/** Each cooked tile of `cooked` placed by each instance of its collider in `model`, out; the
+ *  placements of one tile — one object, one URL — share its shape. */
 export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
+  const shapes = new Map<string, TileShape>()
+  const shapeOf = (tile: CookedTile) => {
+    let shape = shapes.get(tile.url)
+    if (!shape) {
+      shape = { tile, placed: [], handle: -1, reading: false, bodies: 0, counted: -1 }
+      shapes.set(tile.url, shape)
+    }
+    return shape
+  }
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider]
     return tiles.map((tile) => {
+      const shape = shapeOf(tile)
       const p: Placed = {
         model,
         instance,
         tile,
+        shape,
         material: material ?? -1,
         box: new Float64Array(6),
         id: -1,
-        loading: false,
         out: false,
       }
+      shape.placed.push(p)
       locate(p)
       return p
     })
