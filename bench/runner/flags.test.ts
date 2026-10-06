@@ -62,8 +62,8 @@ const SHAPES = [
   'report/types.ts',
   'benchSettings.ts',
   'measureOptions.ts',
-  'oracleView.ts',
-  'oracleCompare.ts',
+  'references/oracleView.ts',
+  'references/oracleCompare.ts',
 ];
 
 test('no key of the published report, the page reply or the oracle report is French', () => {

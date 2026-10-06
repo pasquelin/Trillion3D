@@ -39,7 +39,7 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
    timing or proving that merge alone. Each pull request is proved in the class its
    `Image proof class:` line declares, per CONTRIBUTING.md "Image and fidelity" (class 2 through
    `bench.ts --reference`; a missing reference or a changed exact engine image is redrawn by
-   `bench/runner/reference.ts`, `bench/runner/README.md`). Every batch runs `pnpm run test:chrome`
+   `bench/runner/references/reference.ts`, `bench/runner/README.md`). Every batch runs `pnpm run test:chrome`
    once on the after side (the WebGL2 proofs, `docs/TESTS.md`): a failure is an image ko.
 4. **Promise**: re-read each diff against its issue, line by line: every To-do and Proof item
    delivered, no image loss, no scene tuning, reuse, a test per changed behaviour.

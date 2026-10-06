@@ -47,7 +47,7 @@ const config: KnipConfig = {
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
         'bench/runner/feedbackTargetAb.ts',
         'bench/runner/trajectory.ts',
-        'bench/runner/reference.ts',
+        'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
         'tests/integration/public-types-union.fixture.ts',
         // Served to the harness page and imported by URL, never by local import.
@@ -55,7 +55,7 @@ const config: KnipConfig = {
         'bench/runner/witnessPage.ts',
         'bench/runner/explorerPage.ts',
         'bench/runner/lightingPage.ts',
-        'bench/runner/referencePage.ts',
+        'bench/runner/references/referencePage.ts',
         'bench/runner/trajectoryPage.ts',
         'bench/runner/poses.ts',
         'bench/runner/threeBarePage.ts',
@@ -76,7 +76,7 @@ const config: KnipConfig = {
         'bench/runner/campaign.ts',
         'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/pageQuantization.ts',
-        'bench/runner/oracle.ts',
+        'bench/runner/references/oracle.ts',
         'bench/runner/lampFixture.ts',
         'bench/runner/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).

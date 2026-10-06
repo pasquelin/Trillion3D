@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { imageDiff, referenceDiff, refuseBlackCaptures } from './imageDiff.ts';
-import type { Report } from './report/types.ts';
+import type { Report } from '../report/types.ts';
 
 /** A 2 × 2 capture of one RGBA colour. */
 const capture = (rgba: number[]) => ({

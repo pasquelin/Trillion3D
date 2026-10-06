@@ -3,9 +3,9 @@
 // Chosen over SSIM or CIEDE2000 because it models what a viewer flipping between the two images
 // sees (contrast sensitivity per opponent channel, then edges and points), is the metric real-time
 // rendering papers report, and needs no dependency: a few separable Gaussian filters, below.
-// Checked against NVIDIA's `flip-evaluator` 1.7 on the fixtures of `imageDiff.test.ts` and on random
+// Checked against NVIDIA's `flip-evaluator` 1.7 on the fixtures of `references/imageDiff.test.ts` and on random
 // and structured images: same mean, each pixel within 3e-5.
-import { srgbToLinear } from '../../packages/sdk-core/src/index.ts';
+import { srgbToLinear } from '../../../packages/sdk-core/src/index.ts';
 
 type Planes = [Float32Array, Float32Array, Float32Array];
 

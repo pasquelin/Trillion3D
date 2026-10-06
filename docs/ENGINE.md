@@ -422,7 +422,7 @@ a wall; where no level reaches, the term is zero. Against the compiler's path tr
 (`trillion3d-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The bounce
 is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission and
 transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
-the quantity `bench/runner/oracle.ts` compares.
+the quantity `bench/runner/references/oracle.ts` compares.
 
 **Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
 transparent standard materials included, whatever the bounce setting, by one projected pixel-grid

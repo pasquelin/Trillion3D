@@ -65,8 +65,8 @@
   1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`), no discussion.
   2. **Rendering technique** (temporal upscaler, radiance cache, cached shadow pages, f16 or wave
      intrinsics): within a stated bound of a named reference image — mean and 99.9th-percentile
-     channel error and mean LDR-FLIP (`bench/runner/flip.ts`), by
-     `bench/runner/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the references
+     channel error and mean LDR-FLIP (`bench/runner/references/flip.ts`), by
+     `bench/runner/references/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the references
      `bench/references/` names, drawn off git into `.mesure/references/`) — and no flicker, trail,
      hole or lost detail on still and moving captures.
 - **A proof needs a stable A/A** (0 px, or the exception below); a broad spread proves nothing. An

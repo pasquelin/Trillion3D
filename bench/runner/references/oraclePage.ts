@@ -1,8 +1,8 @@
 // Executed WITHIN page for oracle campaign. Playwright serializes this function:
 // it reads no module variables, receiving everything via its single argument.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
-import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
 
 /** What `measureIrradiance` needs: SDK and manifest, camera and lights, and the light move
  *  whose reconvergence delay is measured. */

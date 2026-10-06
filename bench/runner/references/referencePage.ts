@@ -1,10 +1,10 @@
-// The page side of `reference.ts`: one pose drawn by the engine in its reference mode
+// The page side of `references/reference.ts`: one pose drawn by the engine in its reference mode
 // (`packages/sdk-browser/src/frame/referenceMode.ts`), held, and its resolved capture sent to
 // Node. Served under `/runner/` and imported by URL, like `lightingPage.ts`.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type * as ExplorerPageModule from './explorerPage.ts';
-import type * as MeasurePageModule from './measurePage.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type * as ExplorerPageModule from '../explorerPage.ts';
+import type * as MeasurePageModule from '../measurePage.ts';
+import type { MeasureViewOptions } from '../measureOptions.ts';
 
 /** Frames a reference pose may take to hold: bounced light converges over many more frames than
  *  temporal accumulation does (`HOLD_FRAME_LIMIT`). */

@@ -94,7 +94,7 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
+/** Delta between two RGBA captures (`references/imageDiff.ts::imageDiff`). */
 export type ImageDiff =
   | null
   | { error: string }
@@ -156,7 +156,7 @@ export interface Serie {
   witnessAA?: ImageDiff;
   beforeAfterDiff?: ImageDiff;
   /** Each side's capture against the engine's reference image (`--reference`, class 2). */
-  referenceDiff?: Record<string, import('../imageDiff.ts').ReferenceDiff>;
+  referenceDiff?: Record<string, import('../references/imageDiff.ts').ReferenceDiff>;
   sameCut?: boolean | null;
 }
 

@@ -1,9 +1,9 @@
 // Image deltas between the harness's captures, for `bench.ts`. A black capture compares equal to
 // any other black capture: it is refused by name, never counted as 0 px (#1016).
-import { compareImages } from '../../packages/sdk-core/src/index.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { compareImages } from '../../../packages/sdk-core/src/index.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import { flipMap } from './flip.ts';
-import type { ImageDiff, Report } from './report/types.ts';
+import type { ImageDiff, Report } from '../report/types.ts';
 
 /** True when no pixel carries light: RGB 0 everywhere, whatever the alpha. */
 function black({ body }: NonNullable<Capture>) {

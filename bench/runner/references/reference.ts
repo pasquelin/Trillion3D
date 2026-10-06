@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The engine's reference images (#1281), regenerated on demand by one command:
-//   node bench/runner/reference.ts [--scene sponza,facade-7] [--after <dist|ref>] [--references <dir>]
+//   node bench/runner/references/reference.ts [--scene sponza,facade-7] [--after <dist|ref>] [--references <dir>]
 // `reference.json` goes to `bench/references/` (git), the images to `.mesure/references/` (off git);
 // `--references <dir>` writes both there.
 // Each scene's bench poses (`poses.ts`), at the boss's case (`REFERENCE_ARGS`, any bench flag after
@@ -9,12 +9,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
-import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { onFreshPage } from './chrome.ts';
-import { benchLights } from './lamps.ts';
-import * as options from './options.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
+import { onFreshPage } from '../chrome.ts';
+import { benchLights } from '../lamps.ts';
+import * as options from '../options.ts';
 import type * as ReferencePage from './referencePage.ts';
 import {
   REFERENCE_ARGS,
@@ -24,10 +24,10 @@ import {
   imageSettings,
   type ReferenceRecord,
 } from './referenceStore.ts';
-import { measurePayload, withGpuIncidents } from './series/seriesPage.ts';
-import { readStreet } from './street.ts';
+import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts';
+import { readStreet } from '../street.ts';
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..');
 const git = (...args: string[]) =>
   execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim();
 
@@ -75,7 +75,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
         ':(exclude)bench/references',
       ) !== '',
     from: side.from,
-    command: `node bench/runner/reference.ts ${[...argv, '--scene', scene].join(' ')}`,
+    command: `node bench/runner/references/reference.ts ${[...argv, '--scene', scene].join(' ')}`,
     generatedAt: new Date().toISOString(),
     pathVersion: options.PATH_VERSION,
     engine: settings.engine,
@@ -98,7 +98,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
         withGpuIncidents(page, () =>
           page.evaluate(async (o) => {
             const module = (await import(
-              `${o.modulesUrl}referencePage.ts`
+              `${o.modulesUrl}references/referencePage.ts`
             )) as typeof ReferencePage;
             return module.referenceView(o);
           }, payload),

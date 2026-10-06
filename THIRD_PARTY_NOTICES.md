@@ -232,7 +232,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - What it is: LDR-FLIP, the perceptual image difference metric of Andersson et al., "FLIP: A
   Difference Evaluator for Alternating Images" (NVIDIA, HPG 2020).
 - Source: https://github.com/NVlabs/flip (official repository; reference tool `flip-evaluator` 1.7).
-- Used by: `bench/runner/flip.ts`, a measurement tool. It is not shipped: the `files` of
+- Used by: `bench/runner/references/flip.ts`, a measurement tool. It is not shipped: the `files` of
   `package.json` lists only `dist` (without `dist/site` and `dist/witnesses`), a few documents and
   the licence files, and `bench/` is in none of them.
 - This repository's implementation is written here from the published description; the colour-space

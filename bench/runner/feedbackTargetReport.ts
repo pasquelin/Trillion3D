@@ -2,7 +2,7 @@ import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
 import { distribution } from './summary/summary.ts';
 import { passesGpu } from './series/seriesPasses.ts';
-import { imageDiff } from './imageDiff.ts';
+import { imageDiff } from './references/imageDiff.ts';
 import type { FeedbackTargetResult } from './feedbackTargetPage.ts';
 const MIN_GPU_SAMPLES = 12;
 const RESOLVE = 'Trillion3D material surfaces v1';

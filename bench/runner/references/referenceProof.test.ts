@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
 import { againstReference, referenceLines, sceneReference } from './referenceProof.ts';
 import { imageSettings, referenceImage, type ReferenceRecord } from './referenceStore.ts';
-import { rapport } from './summary/summaryTestFixtures.ts';
-import type { BenchSettings } from './benchSettings.ts';
+import { rapport } from '../summary/summaryTestFixtures.ts';
+import type { BenchSettings } from '../benchSettings.ts';
 
 /** A 2 × 2 reference of `scene-test`, drawn bottom row red and top row green, written in `dir`. */
 function stored(settings: BenchSettings, pose: unknown) {

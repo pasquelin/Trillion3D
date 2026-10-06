@@ -3,7 +3,7 @@
 // Rebound oracle campaign: converged indirect irradiance of the engine compared against
 // the compiler path tracer. Single command, no manual server launch required:
 //
-//   node bench/runner/oracle.ts --cache .mesure/cache-piece --source piece/piece.gltf \
+//   node bench/runner/references/oracle.ts --cache .mesure/cache-piece --source piece/piece.gltf \
 //        --resources piece --width 160 --height 120 --lights 1 --samples 256 --visible
 //
 // Engine and oracle receive identical pose, lights, and size. Engine renders `bounce` view —
@@ -14,20 +14,20 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import { launchChrome } from './chrome.ts';
-import * as options from './options.ts';
-import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readStreet } from './street.ts';
-import { benchLights } from './lamps.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import { launchChrome } from '../chrome.ts';
+import * as options from '../options.ts';
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
+import { readStreet } from '../street.ts';
+import { benchLights } from '../lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
-import { machineLoad } from './summary/summary.ts';
+import { machineLoad } from '../summary/summary.ts';
 import { runView } from './oracleView.ts';
 import type { OracleSettings, OracleView } from './oracleView.ts';
-import { sdkEntryUrl } from './dists.ts';
-import { measureOutput } from '../core/paths.ts';
+import { sdkEntryUrl } from '../dists.ts';
+import { measureOutput } from '../../core/paths.ts';
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..');
 const args = process.argv.slice(2);
 // Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
 const flags = options.parseArgs(args);
@@ -106,7 +106,7 @@ async function main() {
     views: OracleView[];
   } = {
     startedAt: new Date().toISOString(),
-    command: `node bench/runner/oracle.ts ${args.join(' ')}`,
+    command: `node bench/runner/references/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     settings,
     load: { before: machineLoad() },

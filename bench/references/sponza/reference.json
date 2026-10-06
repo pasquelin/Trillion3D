@@ -3,7 +3,7 @@
   "commit": "5b07d815235a7b0add77ead835f01f93f2e3dc2e",
   "dirty": false,
   "from": "folder",
-  "command": "node bench/runner/reference.ts --scene sponza",
+  "command": "node bench/runner/references/reference.ts --scene sponza",
   "generatedAt": "2026-09-29T17:05:18.526Z",
   "pathVersion": 9,
   "engine": "webgpu",

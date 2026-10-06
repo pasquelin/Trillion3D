@@ -1,18 +1,18 @@
 // One measured view of the oracle campaign: engine capture, compiler oracle, gap and delay.
-// Split from `oracle.ts` to keep it under the file line budget.
+// Split from `references/oracle.ts` to keep it under the file line budget.
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import * as options from './options.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import * as options from '../options.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import { measureIrradiance } from './oraclePage.ts';
-import type { LightsPlan } from './lamps.ts';
-import type { SideBase } from './dists.ts';
+import type { LightsPlan } from '../lamps.ts';
+import type { SideBase } from '../dists.ts';
 import { compareIrradiance, convergenceDelay, oracleJob, runOracle } from './oracleCompare.ts';
 import type { OracleReport } from './oracleCompare.ts';
-import { sdkEntryUrl } from './dists.ts';
+import { sdkEntryUrl } from '../dists.ts';
 
 /** The oracle campaign's own settings, read once from flags. */
 export interface OracleSettings {

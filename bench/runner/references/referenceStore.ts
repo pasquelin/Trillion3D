@@ -1,16 +1,16 @@
-// The engine's reference images (#1281): where `reference.ts` writes them, what each carries, and
-// how the class-2 proof (`referenceProof.ts`) reads them back.
+// The engine's reference images (#1281): where `references/reference.ts` writes them, what each carries, and
+// how the class-2 proof (`references/referenceProof.ts`) reads them back.
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { decodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import type { BenchSettings } from './benchSettings.ts';
+import { decodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import type { BenchSettings } from '../benchSettings.ts';
 
 /** The published references, one folder per scene: its `reference.json`, in git. */
-export const REFERENCES_DIR = resolve(import.meta.dirname, '../references');
-/** Their images, a PNG per view, off git (`.mesure/`, AGENTS.md rule 10): `reference.ts` draws
+export const REFERENCES_DIR = resolve(import.meta.dirname, '../../references');
+/** Their images, a PNG per view, off git (`.mesure/`, AGENTS.md rule 10): `references/reference.ts` draws
  *  them there, and the SHA-256 of `reference.json` says which image each record names. */
 export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../.mesure/references');
 
@@ -101,7 +101,7 @@ export function referenceImage(record: ReferenceRecord, view: string, dir = REFE
   if (image) return image;
   const { scene, commit, views } = record;
   const file = join(dir, scene, views[view].file);
-  const redraw = `draw it at ${commit.slice(0, 12)}: node bench/runner/reference.ts --scene ${scene}`;
+  const redraw = `draw it at ${commit.slice(0, 12)}: node bench/runner/references/reference.ts --scene ${scene}`;
   if (!existsSync(file)) throw new Error(`no reference image ${file}; ${redraw}`);
   const { width, height, rgba } = decodePng(readFileSync(file), true);
   image = { body: Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength), w: width, h: height };

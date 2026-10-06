@@ -1,7 +1,7 @@
 // The class-2 image proof (CONTRIBUTING.md, "Image and fidelity"): `bench.ts --reference` holds each
-// side's capture to the engine's reference image of its scene and view (`reference.ts`, #1281),
+// side's capture to the engine's reference image of its scene and view (`references/reference.ts`, #1281),
 // through `referenceDiff`. A run that cannot be compared with it is refused by name, never scored.
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import { referenceDiff, type ReferenceDiff } from './imageDiff.ts';
 import {
   REFERENCES_DIR,
@@ -11,7 +11,7 @@ import {
   settingsMismatch,
   type ReferenceRecord,
 } from './referenceStore.ts';
-import type { Report } from './report/types.ts';
+import type { Report } from '../report/types.ts';
 
 /** The scene's reference, once the run is known comparable: drawn from a commit, at the same
  *  image settings and pose path, on a still camera, with a reference for each of `views` —
@@ -26,7 +26,9 @@ export function sceneReference(
   const record = readReference(scene, dir);
   const refused = (why: string) => new Error(`--reference on ${scene}: ${why}`);
   if (!record)
-    throw refused(`no reference image; draw it: node bench/runner/reference.ts --scene ${scene}`);
+    throw refused(
+      `no reference image; draw it: node bench/runner/references/reference.ts --scene ${scene}`,
+    );
   if (record.dirty)
     throw refused(`the reference was drawn from uncommitted changes on ${record.commit}`);
   const mismatch = settingsMismatch(record, settings);
@@ -101,7 +103,7 @@ export function referenceLines(report: Report) {
   return [
     '## Against the reference image (class 2)',
     '',
-    'Channel errors in 1/255 steps, FLIP in [0, 1] (`imageDiff.ts::referenceDiff`).',
+    'Channel errors in 1/255 steps, FLIP in [0, 1] (`references/imageDiff.ts::referenceDiff`).',
     '',
     '| view | pixelError | side | reference | mean | p99.9 | mean FLIP |',
     '|---|---|---|---|---|---|---|',

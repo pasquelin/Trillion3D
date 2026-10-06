@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import { resume } from './summary/summary.ts';
-import { refuseBlackCaptures } from './imageDiff.ts';
+import { refuseBlackCaptures } from './references/imageDiff.ts';
 import { recordCuts } from './report/evidence.ts';
 import { gazeNetworkLines } from './gazeNetworkRun.ts';
 import { fluidsLines } from './fluids.ts';

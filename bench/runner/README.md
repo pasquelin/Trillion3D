@@ -12,7 +12,7 @@ live under `.mesure/assets/`.
 
 A flag the harness never reads — misspelt, retired (the French names, `--moteur`, `--vues`,
 `--largeur`, `--lampes`, …) or naming a side the run does not measure — stops `bench.ts`,
-`trajectory.ts`, `oracle.ts` and `campaign.ts` with `unknown flag: --<name>` before any build or
+`trajectory.ts`, `references/oracle.ts` and `campaign.ts` with `unknown flag: --<name>` before any build or
 browser. The report is rendered by the bilingual React portal ([Published
 reports](#published-reports)); rebuilding the site does not rerun benchmarks.
 
@@ -70,7 +70,7 @@ engines they are the union of both sides' requirements.
 4. `--engine webgpu --before dist --after dist --scale-after 0.67` compares converged still
    captures, native vs reconstructed; `resume.md` adds the mean and 99.9th percentile channel error
    in 1/255 steps (#816's bar: mean ≤ 1, p99.9 ≤ 8).
-5. `imageDiff.ts::referenceDiff`: mean and 99.9th-percentile channel error, mean LDR-FLIP, under
+5. `references/imageDiff.ts::referenceDiff`: mean and 99.9th-percentile channel error, mean LDR-FLIP, under
    `series[].referenceDiff` and in `resume.md`. The run stops by name when there is no reference for
    the scene or view, or another pose, image setting (size, DPR, lights, sun, bounce, instances), a
    moving camera or light, a reference from uncommitted changes, or an image absent from
@@ -151,7 +151,7 @@ In `--out` (gitignored, un-linted): `measure.json`, `resume.md`, and per view, t
 `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page
 budget, system load — plus the A/A check (a side run twice) and before/after delta per channel. A
 capture whose every pixel is RGB 0 is refused by file name (`black-capture` in `errors`, exit
-code 1) and its deltas read "black capture", never 0 px: two black frames prove nothing (`imageDiff.ts`,
+code 1) and its deltas read "black capture", never 0 px: two black frames prove nothing (`references/imageDiff.ts`,
 #1016). `null` = unmeasured, never inferred; every launched task exits cleanly.
 
 ### Triangle and Fallback Counters
@@ -251,10 +251,10 @@ shadows at the level they ask (a page pool the budget shrank, or whose fill coar
 refuses the capture), and the frame supersampled as TILES — 8 samples per output pixel and axis
 within the portable 8192-texel side, box-filtered and assembled in linear light.
 
-    pnpm run build && node bench/runner/reference.ts [--scene sponza,facade-7] [--references <dir>]
+    pnpm run build && node bench/runner/references/reference.ts [--scene sponza,facade-7] [--references <dir>]
 
 Each scene's views (`overview`, `ground`, `street`, `poses.ts`) at 1728 × 1117 CSS, DPR 2, sun and
-bounce on the WebGPU engine (`referenceStore.ts::REFERENCE_ARGS`; a later bench flag wins) go to
+bounce on the WebGPU engine (`references/referenceStore.ts::REFERENCE_ARGS`; a later bench flag wins) go to
 `.mesure/references/<scene>/<view>.png`, off git (AGENTS.md rule 10), recorded in git by
 `bench/references/<scene>/reference.json`: the engine commit (the last to change `packages/`), the
 command, a dirty tree or not, image settings, supersampling, approximations switched off, and per
