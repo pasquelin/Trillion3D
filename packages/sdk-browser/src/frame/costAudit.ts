@@ -22,7 +22,7 @@ export function logFrameCostAudit(backend: string, context: Record<string, unkno
 }
 
 /** The view as the audit publishes it: the engine camera’s world pose, and its field. */
-const poseDeLaVue = (cam: EngineCamera) => ({
+const viewPose = (cam: EngineCamera) => ({
   ...enginePose(cam),
   fov: cam.fov,
   near: cam.near,
@@ -54,7 +54,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
     // The published pose is the engine camera’s, which frame entry has just copied:
     // no host camera is reread here, and nothing is read until a frame has been rendered.
-    camera: run.lastCamera && poseDeLaVue(run.gate.cam),
+    camera: run.lastCamera && viewPose(run.gate.cam),
     resolution: [...rt.gpu.targetSize],
     pixelError: run.diagnosticPixelError,
     transparentCandidates: blendState.blendGpu.length,

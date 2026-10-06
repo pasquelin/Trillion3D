@@ -97,10 +97,14 @@ export function createFrameGateCore(holdValues: number) {
     /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
     /** Rereads this frame's view; returns true if any of its numbers moved. */
-    viewChanged(vue: EngineCamera, viewport: readonly [number, number] | undefined, error: number) {
+    viewChanged(
+      view: EngineCamera,
+      viewport: readonly [number, number] | undefined,
+      error: number,
+    ) {
       return own.fingerprint.read(
         revisions,
-        vue,
+        view,
         viewport ? viewport[0] : -1,
         viewport ? viewport[1] : -1,
         error,
