@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
-import { distribution, machineLoad } from '../summary.ts';
+import { distribution, machineLoad } from '../summary/summary.ts';
 import { passesGpu } from './seriesPasses.ts';
 import { pageBudget, geometryPool } from './seriesPools.ts';
 import { measurePayload, runInPage } from './seriesPage.ts';

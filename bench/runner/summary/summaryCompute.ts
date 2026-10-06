@@ -1,6 +1,6 @@
 // The batch calculation path, as the governor published it, for `resume.md`.
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
-import type { Report } from './report/types.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
+import type { Report } from '../report/types.ts';
 
 export type MathBatch = NonNullable<FrameMetrics['mathBatch']>;
 export type MathOperation = MathBatch['operations'][string];

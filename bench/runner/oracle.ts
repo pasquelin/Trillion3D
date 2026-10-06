@@ -21,7 +21,7 @@ import { startServer, type Capture } from '../../tests/kit/server/staticServer.t
 import { readStreet } from './street.ts';
 import { benchLights } from './lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
-import { machineLoad } from './summary.ts';
+import { machineLoad } from './summary/summary.ts';
 import { runView } from './oracleView.ts';
 import type { OracleSettings, OracleView } from './oracleView.ts';
 import { sdkEntryUrl } from './dists.ts';

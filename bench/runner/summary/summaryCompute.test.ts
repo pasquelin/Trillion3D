@@ -1,10 +1,10 @@
-// Computation path table (`summaryCompute.ts`): publishes what the governor chose,
+// Computation path table (`summary/summaryCompute.ts`): publishes what the governor chose,
 // operation by operation, and never replaces an unmeasured median with a zero.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cheminsCalcul } from './summaryCompute.ts';
 import type { MathBatch, MathOperation } from './summaryCompute.ts';
-import type { Report, Row } from './report/types.ts';
+import type { Report, Row } from '../report/types.ts';
 import { rapport as rapportDe } from './summaryTestFixtures.ts';
 
 /** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */

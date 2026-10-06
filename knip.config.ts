@@ -74,7 +74,7 @@ const config: KnipConfig = {
         'bench/witnesses/measurement.ts',
         // Full campaign and its report, launched manually.
         'bench/runner/campaign.ts',
-        'bench/runner/summaryGlobal.ts',
+        'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/pageQuantization.ts',
         'bench/runner/oracle.ts',
         'bench/runner/lampFixture.ts',

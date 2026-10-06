@@ -8,7 +8,7 @@
 //   node bench/runner/campaign.ts [--out .mesure/out/global] [--scene a,b] [--only name,name] [--list]
 //
 // Each line names what it isolates: a single option distinguishes it from its neighbor, and it is
-// this difference that is read in `summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
+// this difference that is read in `summary/summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
 // are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
 import { launchChrome } from './chrome.ts';

@@ -1,5 +1,5 @@
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
-import type { Row } from './report/types.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
+import type { Row } from '../report/types.ts';
 
 export const go = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured';

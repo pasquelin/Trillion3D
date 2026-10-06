@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readOptions } from './options.ts';
 import { residentFraction, residentFractionBudget } from './poolFill.ts';
-import { textures } from './summaryTextures.ts';
+import { textures } from './summary/summaryTextures.ts';
 
 const ROOT = '/tmp/trillion3d-bench';
 /** The live pools the command line asks with a texture pool of `value`. */

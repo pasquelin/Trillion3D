@@ -1,13 +1,13 @@
 // Statistics, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os';
-import { summarize } from '../../packages/sdk-core/src/index.ts';
+import { summarize } from '../../../packages/sdk-core/src/index.ts';
 import { cheminsCalcul } from './summaryCompute.ts';
 import { p50p95, passes, type Distribution } from './summaryPasses.ts';
 import { textures } from './summaryTextures.ts';
 import { memoire } from './summaryMemory.ts';
 import { stalls } from './summaryDag.ts';
-import { referenceLines } from './referenceProof.ts';
-import type { ImageDiff, Report, Row } from './report/types.ts';
+import { referenceLines } from '../referenceProof.ts';
+import type { ImageDiff, Report, Row } from '../report/types.ts';
 
 /** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
 export const distribution = (values?: readonly number[] | null): Distribution =>

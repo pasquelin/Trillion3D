@@ -1,6 +1,6 @@
 import { go, mo } from './summaryTextures.ts';
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
-import type { Report } from './report/types.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
+import type { Report } from '../report/types.ts';
 
 const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null);
 /** Labels published in the summary: beyond them, the full reading is in `measure.json`. */

@@ -1,6 +1,6 @@
-// Shared fixtures for `summary.test.ts`, `summaryCoverage.test.ts` and `summaryCompute.test.ts`:
+// Shared fixtures for `summary/summary.test.ts`, `summary/summaryCoverage.test.ts` and `summary/summaryCompute.test.ts`:
 // split out to keep the files under the line budget.
-import type { Report, Row } from './report/types.ts';
+import type { Report, Row } from '../report/types.ts';
 
 /** A minimal report: one series, one side, just what `resume()` reads. */
 export function rapport(side: Partial<Row>): Report {

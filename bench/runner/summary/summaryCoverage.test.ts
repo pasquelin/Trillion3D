@@ -1,6 +1,6 @@
 // Synchronous triangles batch: "coverage" column displays `selected − drawn − uncovered`,
 // expected at zero, and a dash as soon as one of three counters is missing — never an inferred
-// value. Split from `summary.test.ts` to keep both files under the line budget.
+// value. Split from `summary/summary.test.ts` to keep both files under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resume } from './summary.ts';

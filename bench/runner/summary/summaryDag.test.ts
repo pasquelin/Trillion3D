@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stalls } from './summaryDag.ts';
-import type { Report } from './report/types.ts';
+import type { Report } from '../report/types.ts';
 
 const stalled = (mesh: number, rootTriangles: number) => ({
   index: mesh,

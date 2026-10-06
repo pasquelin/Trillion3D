@@ -8,7 +8,7 @@ live under `.mesure/assets/`.
          --views overview,ground,street --images 60 --pixelError 0,1
 
     node bench/runner/campaign.ts                      # writes .mesure/out/global/ by default
-    node bench/runner/summaryGlobal.ts --id my-campaign   # exports its report data (see Published reports)
+    node bench/runner/summary/summaryGlobal.ts --id my-campaign   # exports its report data (see Published reports)
 
 A flag the harness never reads — misspelt, retired (the French names, `--moteur`, `--vues`,
 `--largeur`, `--lampes`, …) or naming a side the run does not measure — stops `bench.ts`,
@@ -382,7 +382,7 @@ Measurement, export and site build are separate; rebuilding the portal never lau
    manifest, browser version and machine, and an error-free measurement; a mismatch refuses to
    overwrite evidence — pick another directory. A browser change invalidates resume and comparisons.
 2. Export:
-   `node bench/runner/summaryGlobal.ts --from .mesure/out/<campaign> --to .mesure/out/<campaign>-report --id <campaign>`
+   `node bench/runner/summary/summaryGlobal.ts --from .mesure/out/<campaign> --to .mesure/out/<campaign>-report --id <campaign>`
    (defaults: `--from .mesure/out/global`, `--to <from>/report-data`, `--id current`).
 3. Stage: `node bench/runner/publishReport.ts --from .mesure/out/<campaign>-report` writes
    `site/reports/<id>/`, removes the campaign staged before and writes a catalogue naming the new

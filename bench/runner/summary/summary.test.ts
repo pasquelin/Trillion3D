@@ -2,7 +2,7 @@
 // triangles, held image, GPU selection fallback) and never writes 0 for an absent measurement — only a
 // dash does, as for columns already in place (`num`, `mo`). Each check reads the cell under its
 // header, never a pattern anywhere in the text.
-// Coverage-column tests live in `summaryCoverage.test.ts`, to keep both files under the line budget.
+// Coverage-column tests live in `summary/summaryCoverage.test.ts`, to keep both files under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resume } from './summary.ts';

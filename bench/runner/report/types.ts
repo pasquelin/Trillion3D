@@ -1,6 +1,6 @@
 // Shared shapes of the harness measurement: what `series/series.ts` builds, `bench.ts` assembles into
-// `measure.json`, and everything under `bench/runner/` (`summary.ts`, `summaryCompute.ts`,
-// `summaryMemory.ts`, `summaryTextures.ts`, `report/`) reads back. One record type here, typed
+// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`, `summary/summaryCompute.ts`,
+// `summary/summaryMemory.ts`, `summary/summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
 import type {
   CameraPose,
@@ -8,7 +8,7 @@ import type {
   StageProfile,
 } from '../../../packages/sdk-core/src/index.ts';
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
-import type { Distribution, PassesGpu } from '../summaryPasses.ts';
+import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts';
 import type { BenchSettings } from '../options.ts';
 import type { Bounds } from '../poses.ts';
 import type { LightsPlan } from '../lamps.ts';
@@ -172,7 +172,7 @@ interface SideIdentity {
   buildHash?: string;
 }
 
-/** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary.ts`. */
+/** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary/summary.ts`. */
 export interface Report {
   startedAt: string;
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null };

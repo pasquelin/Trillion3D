@@ -179,7 +179,7 @@ Nothing is optimised before it is measured, and no claim outlives its measuremen
 node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
      --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
-node bench/runner/summaryGlobal.ts --id <campaign>   # its report data, for the portal
+node bench/runner/summary/summaryGlobal.ts --id <campaign>   # its report data, for the portal
 ```
 
 - One harness, Playwright driving the machine's Chrome, nothing on disk beyond `.mesure/assets/`.

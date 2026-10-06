@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoire } from './summaryMemory.ts';
-import type { Report, Row, Serie } from './report/types.ts';
+import type { Report, Row, Serie } from '../report/types.ts';
 
 const serie = (view: string, sides: Record<string, Partial<Row>>): Serie => ({
   view,
