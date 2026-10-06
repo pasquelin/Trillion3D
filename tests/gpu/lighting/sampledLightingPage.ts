@@ -11,13 +11,13 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import {
   VIEWPORT,
   batisseur as sceneBuilder,
-  carre as square,
+  square,
   cameraFace as facingCamera,
-  libere as release,
+  release as release,
   engine,
 } from '../kit/sharedSceneProof.ts';
 import { image, jusquaTenue as untilHeld } from '../kit/sceneImageProof.ts';
-import { executerAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
+import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
 const SHAKES = 24;
@@ -34,7 +34,7 @@ function scene() {
   );
   plane.name = 'plane';
   builder.source.add(plane);
-  builder.ajoute(plane, 'exact-clusters', 1.2);
+  builder.add(plane, 'exact-clusters', 1.2);
   return builder.fini();
 }
 
@@ -75,7 +75,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
       const frame = await image(backend, facingCamera(i % 2 ? 0.0003 : -0.0003));
       if (i === 1) first = Array.from(frame.pixels);
       if (i === SHAKES) last = Array.from(frame.pixels);
-      if (frame.metriques.frameHeld) heldWhileShaken++;
+      if (frame.metrics.frameHeld) heldWhileShaken++;
     }
     return { held, rendered, first, last, heldWhileShaken };
   } finally {

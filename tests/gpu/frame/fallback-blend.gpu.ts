@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, type ResultatPagePreuve } from '../kit/enginePageProof.ts';
+import { runPageProof, type PageProofResult } from '../kit/enginePageProof.ts';
 
 type Reading = {
   fellBack: boolean;
@@ -15,7 +15,7 @@ type Reading = {
   tiles: Array<{ mode: string } & Record<string, number[]>>;
 };
 
-interface Result extends ResultatPagePreuve {
+interface Result extends PageProofResult {
   main?: Reading;
   fallback?: Reading;
 }
@@ -24,7 +24,7 @@ interface Result extends ResultatPagePreuve {
 const differs = (a: number[], b: number[]) => a.some((value, i) => Math.abs(value - b[i]) > 8);
 
 test('the fallback pass draws every blending mode once the visibility buffer is refused', async () => {
-  const result = (await preuveDansLaPage(
+  const result = (await runPageProof(
     resolve(import.meta.dirname, 'fallbackBlendPage.ts'),
     'fallbackBlend',
     'run',

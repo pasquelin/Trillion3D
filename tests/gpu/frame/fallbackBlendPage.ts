@@ -8,9 +8,9 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { hostBlending } from '../../../packages/sdk-browser/src/scene/materialBlending.ts';
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts';
-import { batisseur, cameraFace, carre, engine, libere } from '../kit/sharedSceneProof.ts';
+import { batisseur, cameraFace, square, engine, release } from '../kit/sharedSceneProof.ts';
 import { couleurEn, image } from '../kit/sceneImageProof.ts';
-import { executerAppareil } from '../kit/deviceProof.ts';
+import { runOnDevice } from '../kit/deviceProof.ts';
 
 export const MODES: readonly Blending[] = ['normal', 'additive', 'subtractive', 'multiply'];
 /** Where each tile's row sits, top to bottom, and the half-size of a tile. */
@@ -27,10 +27,10 @@ function scene() {
     [-1.2, 0x0b1020],
     [1.2, 0xf4efe6],
   ] as const) {
-    const background = G.mesh(carre(1.2), G.basicSurface({ color, side: G.DOUBLE_SIDE }));
+    const background = G.mesh(square(1.2), G.basicSurface({ color, side: G.DOUBLE_SIDE }));
     background.position.set(x, 0, -1);
     builder.source.add(background);
-    builder.ajoute(background, 'exact-clusters', 1.2);
+    builder.add(background, 'exact-clusters', 1.2);
   }
   MODES.forEach((mode, rank) => {
     const surface = G.basicSurface({
@@ -40,10 +40,10 @@ function scene() {
       side: G.DOUBLE_SIDE,
     });
     Object.assign(surface, { blending: hostBlending(mode) });
-    const tile = G.mesh(carre(HALF), surface);
+    const tile = G.mesh(square(HALF), surface);
     tile.position.y = ROWS[rank];
     builder.source.add(tile);
-    builder.ajoute(tile, 'clustered-blend', HALF);
+    builder.add(tile, 'clustered-blend', HALF);
   });
   return builder.fini();
 }
@@ -105,13 +105,13 @@ async function side(device: GPUDevice, events: unknown[], name: string) {
     const fellBack = backend.capabilities.unsupported.includes('visibility buffer');
     return { fellBack, background: over(pixels, 0), tiles };
   } finally {
-    libere(backend, canvas, s);
+    release(backend, canvas, s);
   }
 }
 
 /** Both sides on one device: the image as it is, then the image once the visibility target is refused. */
 export function run() {
-  return executerAppareil<{ main: unknown; fallback: unknown }>(async (device, events, result) => {
+  return runOnDevice<{ main: unknown; fallback: unknown }>(async (device, events, result) => {
     result.main = await side(device, events, 'main');
     result.fallback = await withoutVisibility(device, () => side(device, events, 'fallback'));
   });

@@ -8,9 +8,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import {
-  preuveDansLaPage,
-  publieEtVerifie,
-  type ResultatPagePreuve,
+  runPageProof,
+  publishAndVerify,
+  type PageProofResult,
 } from '../kit/enginePageProof.ts';
 
 interface Pass {
@@ -23,17 +23,17 @@ interface Pass {
   singular: string;
 }
 
-interface Result extends ResultatPagePreuve {
+interface Result extends PageProofResult {
   passes: Record<string, Pass>;
 }
 
 test('setTransform under a stale parent poses what it was asked, paged and unpaged', async () => {
-  const result = (await preuveDansLaPage(
+  const result = (await runPageProof(
     resolve(import.meta.dirname, 'staleParentTransformPage.ts'),
     'staleParentTransform',
     'run',
   )) as Result;
-  publieEtVerifie(result);
+  publishAndVerify(result);
   for (const [pass, r] of Object.entries(result.passes)) {
     const say = (message: string) => `${pass}: ${message}`;
     const held = (prefix: string) => r.steps.some((e) => e.name.startsWith(prefix) && e.held);

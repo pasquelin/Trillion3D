@@ -22,12 +22,12 @@ interface BackendWithCpuFrameEnd extends RenderBackend {
 export async function image(
   backend: RenderBackend,
   camera: G.Camera,
-): Promise<{ pixels: Uint8Array; metriques: ReturnType<RenderBackend['metrics']> }> {
+): Promise<{ pixels: Uint8Array; metrics: ReturnType<RenderBackend['metrics']> }> {
   await animationFrame();
   backend.render(camera);
   (backend as BackendWithCpuFrameEnd).cpuFrameEnd?.();
   await backend.flush!();
-  return { pixels: backend.capture!(), metriques: backend.metrics() };
+  return { pixels: backend.capture!(), metrics: backend.metrics() };
 }
 
 /**
@@ -46,8 +46,8 @@ export async function jusquaTenue(
   let rendue: number[] | undefined,
     rendues = 0;
   for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metriques } = await image(backend, camera);
-    if (metriques.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
+    const { pixels, metrics } = await image(backend, camera);
+    if (metrics.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
     rendue = Array.from(pixels);
     rendues++;
   }

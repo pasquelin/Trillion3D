@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, preuveSaine, type ResultatPagePreuve } from '../kit/enginePageProof.ts';
+import { runPageProof, assertSoundProof, type PageProofResult } from '../kit/enginePageProof.ts';
 import { BACKGROUND, GROUND, WATER } from './waterPassCases.ts';
 
 interface WaterCaseReading {
@@ -24,7 +24,7 @@ interface WaterCaseReading {
   drawsLast: number;
 }
 
-interface Result extends ResultatPagePreuve {
+interface Result extends PageProofResult {
   cases?: WaterCaseReading[];
 }
 
@@ -52,12 +52,12 @@ const EXPECTED: Record<string, number[]> = {
 const TOLERANCE = 3;
 
 test('the water pass composes the predicted image and holds it, paged and unpaged', async () => {
-  const result = (await preuveDansLaPage(
+  const result = (await runPageProof(
     resolve(import.meta.dirname, 'waterPassPage.ts'),
     'waterPass',
     'run',
   )) as Result;
-  preuveSaine(result);
+  assertSoundProof(result);
   const cases = result.cases ?? [];
   assert.equal(cases.length, 8, 'four cases, paged and unpaged');
   for (const c of cases) {

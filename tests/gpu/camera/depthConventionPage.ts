@@ -7,9 +7,9 @@
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { cameraFace, libere, engine } from '../kit/sharedSceneProof.ts';
+import { cameraFace, release, engine } from '../kit/sharedSceneProof.ts';
 import { difference, image, redCount } from '../kit/sceneImageProof.ts';
-import { executerPasses } from '../kit/deviceProof.ts';
+import { runPasses } from '../kit/deviceProof.ts';
 import { TILE, transformScene } from '../placement/transformScene.ts';
 
 /** Frames rendered under each convention: enough for the image to be held. */
@@ -36,7 +36,7 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     let pixels: Uint8Array | undefined;
     for (let i = 0; i < FRAMES; i++) {
       const frame = await image(backend, camera);
-      frames.push({ name: `${phase}-${i}`, held: frame.metriques.frameHeld });
+      frames.push({ name: `${phase}-${i}`, held: frame.metrics.frameHeld });
       pixels = frame.pixels;
     }
     if (!pixels) throw new Error('no frame was rendered');
@@ -58,10 +58,10 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
       back: difference(webgl, back),
     };
   } finally {
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }
 
 export function runConventionFlip() {
-  return executerPasses(sequence);
+  return runPasses(sequence);
 }

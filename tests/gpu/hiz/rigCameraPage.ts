@@ -72,10 +72,10 @@ export function runRigCamera() {
         const witness = await freshPose(device, x, onDiagnostic);
         steps.push({
           x,
-          clusters: moved.metriques.clusters,
+          clusters: moved.metrics.clusters,
           rowsMoved,
           rowsStill: rows(backend),
-          stillHeld: still.metriques.frameHeld,
+          stillHeld: still.metrics.frameHeld,
           slab: slabPixels(moved.pixels),
           gapMoved: differingBytes(moved.pixels, witness),
           gapStill: differingBytes(still.pixels, witness),

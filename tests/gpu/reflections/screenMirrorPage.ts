@@ -3,7 +3,7 @@
 // image, a moved red source, an offscreen one, a resized view —, each held image read where the
 // sources and their analytic reflections land.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
-import { executerAppareil as withDevice } from '../kit/deviceProof.ts';
+import { runOnDevice as withDevice } from '../kit/deviceProof.ts';
 import { couleurEn as sampleColor } from '../kit/sceneImageProof.ts';
 import { versApi } from '../kit/sharedSceneProof.ts';
 import { mirrorScene, type MirrorOptions } from './screenMirrorScene.ts';

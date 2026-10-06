@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, publieEtVerifie } from '../kit/enginePageProof.ts';
+import { runPageProof, publishAndVerify } from '../kit/enginePageProof.ts';
 
 interface Pass {
   frames: { name: string; held: boolean }[];
@@ -17,12 +17,12 @@ interface Pass {
 }
 
 test('flipping the host’s clip convention changes no pixel and drops no held image', async () => {
-  const reading = (await preuveDansLaPage(
+  const reading = (await runPageProof(
     resolve(import.meta.dirname, 'depthConventionPage.ts'),
     'depthConvention',
     'runConventionFlip',
-  )) as Parameters<typeof publieEtVerifie>[0] & { passes: Record<string, Pass> };
-  publieEtVerifie(reading);
+  )) as Parameters<typeof publishAndVerify>[0] & { passes: Record<string, Pass> };
+  publishAndVerify(reading);
   for (const [pass, { frames, red, toWebgpu, back }] of Object.entries(reading.passes)) {
     const held = (name: string) => frames.find((frame) => frame.name === name)?.held;
     assert.ok(red > 0, `${pass}: the tilted tile is not seen under the WebGL convention`);

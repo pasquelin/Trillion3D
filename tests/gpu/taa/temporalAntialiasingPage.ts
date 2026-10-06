@@ -8,14 +8,14 @@ import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backen
 import {
   VIEWPORT,
   batisseur as sceneBuilder,
-  carre as square,
+  square,
   cameraFace as facingCamera,
-  libere as release,
+  release as release,
   engine,
   versApi as toApiMatrix,
 } from '../kit/sharedSceneProof.ts';
 import { image, jusquaTenue as untilHeld } from '../kit/sceneImageProof.ts';
-import { executerAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
+import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
 
 /** The tile's rotation, a third of a radian: its edges are oblique. */
 const TURN = 0.33;
@@ -27,12 +27,12 @@ function scene() {
   background.name = 'background';
   background.position.z = -2;
   builder.source.add(background);
-  builder.ajoute(background, 'exact-clusters', 4);
+  builder.add(background, 'exact-clusters', 4);
   const tile = G.mesh(square(0.6), G.basicSurface({ color: 0xff2020 }));
   tile.name = 'tile';
   tile.rotation.z = TURN;
   builder.source.add(tile);
-  builder.ajoute(tile, 'exact-clusters', 0.6);
+  builder.add(tile, 'exact-clusters', 0.6);
   return builder.fini();
 }
 

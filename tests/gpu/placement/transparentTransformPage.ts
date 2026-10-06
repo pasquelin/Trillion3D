@@ -3,9 +3,9 @@
 // one side, pixels and public counters on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { libere, versApi } from '../kit/sharedSceneProof.ts';
+import { release, versApi } from '../kit/sharedSceneProof.ts';
 import { couleurEn, estRouge, image } from '../kit/sceneImageProof.ts';
-import { executerPasses } from '../kit/deviceProof.ts';
+import { runPasses } from '../kit/deviceProof.ts';
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts';
 
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale product yields it, and the
@@ -45,8 +45,8 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
   const { s, backend, canvas, setTransform, camera } = openPass(device, paged, events);
   const steps: ReturnType<typeof reading>[] = [];
   const step = async (name: string) => {
-    const { pixels, metriques } = await image(backend, camera);
-    steps.push(reading(name, camera, pixels, metriques));
+    const { pixels, metrics } = await image(backend, camera);
+    steps.push(reading(name, camera, pixels, metrics));
   };
   try {
     await backend.prepare();
@@ -71,10 +71,10 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     setTransform(TILE, translation(0.8));
     await step('after-hold');
   } finally {
-    libere(backend, canvas, s);
+    release(backend, canvas, s);
   }
   return steps;
 }
 
 /** The sequence, unpaged then paged. */
-export const run = () => executerPasses(sequence);
+export const run = () => runPasses(sequence);

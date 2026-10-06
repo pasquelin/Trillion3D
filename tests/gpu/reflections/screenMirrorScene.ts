@@ -14,7 +14,7 @@ export type MirrorOptions = {
 
 export function mirrorScene(options: MirrorOptions, roughness: number) {
   const builder = batisseur();
-  const { ajoute: add } = builder;
+  const { add } = builder;
   const tilt = options.arrangement ? -Math.PI / 3 : -Math.PI / 4;
   const normal = new G.Vector3(0, -Math.sin(tilt), Math.cos(tilt));
   const receiver = G.mesh(

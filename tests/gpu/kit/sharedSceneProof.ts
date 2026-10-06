@@ -19,7 +19,7 @@ import type {
 export const VIEWPORT: [number, number] = [96, 96];
 
 /** An indexed square of half-side `half` in the plane `z = 0`, its two triangles already bounded. */
-export function carre(half: number): G.Geometry {
+export function square(half: number): G.Geometry {
   const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
@@ -43,7 +43,7 @@ export function batisseur() {
     materials: G.GraphSurface[] = [];
   return {
     source,
-    ajoute(mesh: G.HostMesh, pass: string, half: number) {
+    add(mesh: G.HostMesh, pass: string, half: number) {
       const rank = primitives.length,
         radius = half * Math.SQRT2;
       const pages: Page[] = [0, 1].map((id) => ({
@@ -51,7 +51,7 @@ export function batisseur() {
         url: `carreau-${rank}-${id}`,
         count: 3,
         bytes: 12,
-        sha256: 'preuve',
+        sha256: 'proof',
         min: [-half, -half, 0],
         max: [half, half, 0],
         role: 'exact',
@@ -166,7 +166,7 @@ export function comptesEtape(
 }
 
 /** Releases the engine of a proof and its scene: geometries, materials and their textures. */
-export function libere(
+export function release(
   backend: RenderBackend,
   canvas: HTMLCanvasElement,
   scene: ScenePreparee,

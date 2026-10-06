@@ -12,18 +12,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { coverFault } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts';
-import { preuveDansLaPage, preuveSaine } from '../kit/enginePageProof.ts';
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts';
 
 type Reading = Awaited<ReturnType<typeof import('./heldGpuCutPage.ts').runHeldCut>>;
 
 test('the GPU cut keeps choosing over missing pages, and covers each leaf once', async () => {
-  const reading = (await preuveDansLaPage(
+  const reading = (await runPageProof(
     resolve(import.meta.dirname, 'heldGpuCutPage.ts'),
     'heldGpuCut',
     'runHeldCut',
   )) as Reading;
   console.log(JSON.stringify({ adapter: reading.adapter, frames: reading.frames }));
-  preuveSaine(reading);
+  assertSoundProof(reading);
   const frames = reading.frames ?? [];
   assert.equal(frames.length, 30, 'thirty frames after load');
   const strip = { leaves: 4, pages: reading.pages ?? [] };

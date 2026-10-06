@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts';
-import { batisseur, engine, libere, type ScenePreparee } from '../kit/sharedSceneProof.ts';
+import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts';
 import { jusquaTenue, PLAFOND } from '../kit/sceneImageProof.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
 import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
@@ -54,7 +54,7 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
   if (fixture.back) mesh.rotation.y = Math.PI;
   if (fixture.tilt) mesh.rotation.x = fixture.tilt;
   builder.source.add(mesh);
-  builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
+  builder.add(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {
     const back = G.mesh(
       G.planeGeometry(BEHIND.side, BEHIND.side),
@@ -62,7 +62,7 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
     );
     back.position.z = BEHIND.z;
     builder.source.add(back);
-    builder.ajoute(back, 'exact-clusters', 2);
+    builder.add(back, 'exact-clusters', 2);
   }
   if (fixture.lit) builder.source.add(sun);
   return builder.fini();
@@ -122,7 +122,7 @@ export async function engineImage(
     const { tenue, rendue } = await jusquaTenue(backend, camera);
     return { pixels: tenue ?? rendue, held: tenue !== null };
   } finally {
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }
 
@@ -173,6 +173,6 @@ export async function webgl2Image(
     return { pixels, held };
   } finally {
     draw.dispose();
-    libere(backend, canvas, scene);
+    release(backend, canvas, scene);
   }
 }

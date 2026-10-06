@@ -6,7 +6,7 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import {
   batisseur,
   cameraFace,
-  carre,
+  square,
   engine,
   versApi,
   type ScenePreparee,
@@ -25,13 +25,13 @@ export const translation = (x: number) => versApi(new G.Matrix4().makeTranslatio
  *  `shared-blend` through the unpaged path. */
 export function transformScene(paged: boolean): ScenePreparee {
   const builder = batisseur();
-  const background = G.mesh(carre(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }));
+  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }));
   background.name = 'background';
   background.position.z = -2;
   builder.source.add(background);
-  builder.ajoute(background, 'exact-clusters', 4);
+  builder.add(background, 'exact-clusters', 4);
   const tile = G.mesh(
-    carre(HALF),
+    square(HALF),
     G.basicSurface({ color: 0xff2020, transparent: true, opacity: 0.85, side: G.DOUBLE_SIDE }),
   );
   tile.name = TILE;
@@ -39,7 +39,7 @@ export function transformScene(paged: boolean): ScenePreparee {
   pivot.name = PIVOT;
   pivot.add(tile);
   builder.source.add(pivot);
-  builder.ajoute(tile, paged ? 'clustered-blend' : 'shared-blend', HALF);
+  builder.add(tile, paged ? 'clustered-blend' : 'shared-blend', HALF);
   return builder.fini();
 }
 

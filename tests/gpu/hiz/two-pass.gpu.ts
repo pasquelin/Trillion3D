@@ -7,18 +7,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { preuveDansLaPage, preuveSaine } from '../kit/enginePageProof.ts';
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts';
 
 type Reading = Awaited<ReturnType<typeof import('./twoPassPage.ts').runTwoPass>>;
 
 test('the previous pyramid withdraws, this one rejects, and the still view holds', async () => {
-  const reading = (await preuveDansLaPage(
+  const reading = (await runPageProof(
     resolve(import.meta.dirname, 'twoPassPage.ts'),
     'hizTwoPass',
     'runTwoPass',
   )) as Reading;
   console.log(JSON.stringify({ adapter: reading.adapter, steps: reading.steps }));
-  preuveSaine(reading);
+  assertSoundProof(reading);
   const [beside, hidden, again] = reading.steps;
   for (const { x, images, gap, rows } of reading.steps) {
     assert.ok(images !== null, `at x=${x}, the still view was never held`);

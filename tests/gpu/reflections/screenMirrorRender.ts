@@ -3,7 +3,7 @@
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { libere as releaseScene } from '../kit/sharedSceneProof.ts';
+import { release as releaseScene } from '../kit/sharedSceneProof.ts';
 import { image, PLAFOND, difference } from '../kit/sceneImageProof.ts';
 import { mirrorProxy } from './mirrorProxy.ts';
 import type { mirrorScene } from './screenMirrorScene.ts';
@@ -53,7 +53,7 @@ export async function mirrorRenderer(
   await backend.prepare();
   const frame = async () => {
     const result = await image(backend, camera);
-    return { pixels: result.pixels.slice(), held: result.metriques.frameHeld === true };
+    return { pixels: result.pixels.slice(), held: result.metrics.frameHeld === true };
   };
   return {
     backend,

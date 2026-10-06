@@ -13,8 +13,8 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import {
-  preuveDansLaPage as runPage,
-  preuveSaine as assertHealthy,
+  runPageProof as runPage,
+  assertSoundProof as assertHealthy,
 } from '../kit/enginePageProof.ts';
 
 interface Run {
@@ -29,7 +29,7 @@ type Result = Awaited<ReturnType<typeof runPage>> & {
   lights: number;
   sans: Run;
   avec: Run;
-  temoin: Run;
+  witness: Run;
 };
 
 /** The square's interior, three pixels inside its projected edge: the lit surface alone, away from
@@ -41,7 +41,7 @@ test('a still image shades every light, a moving one a drawn subset that history
   const result = (await runPage(page, 'sampledLighting', 'run')) as Result;
   assertHealthy(result);
   const [width] = result.viewport;
-  const { sans: plain, avec: accumulated, temoin: witness } = result;
+  const { sans: plain, avec: accumulated, witness } = result;
   /** The largest channel difference of each interior pixel: its mean, and its maximum. */
   const interiorGap = (a: number[], b: number[]) => {
     let sum = 0,
