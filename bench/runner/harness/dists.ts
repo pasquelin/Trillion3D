@@ -1,17 +1,17 @@
 // The dist of one side of the comparison: an already built `dist/` directory, or a git reference
-// extracted outside the repository then built. Separated from `options.ts`: resolving a side is
+// extracted outside the repository then built. Separated from `harness/options.ts`: resolving a side is
 // repository and build work, not reading arguments.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pnpmCommand } from '../../scripts/only-pnpm.ts';
+import { pnpmCommand } from '../../../scripts/only-pnpm.ts';
 
 const buildDist = (dir: string) =>
   execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' });
 
 /**
- * One side of the comparison, before `equipSide` (`sideOptions.ts`) turns it into a `Side` by
+ * One side of the comparison, before `equipSide` (`harness/sideOptions.ts`) turns it into a `Side` by
  * filling its engine, variant and error metric. `dist`/`from` are set here; `cache` too, once a
  * side names its own; `manifestUrl`/`sourceUrl` are set by `bench.ts`/`references/oracle.ts` once the scene
  * and cache are known.

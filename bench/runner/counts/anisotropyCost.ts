@@ -8,7 +8,7 @@
 //        [--width 1920] [--height 1080]
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { parseArgs } from '../options.ts';
+import { parseArgs } from '../harness/options.ts';
 import { takeBenchLock } from '../../dawn/lock.ts';
 import { loadPage, runOnDawn } from '../../../tests/gpu/kit/onDawn.ts';
 import type { run } from '../../../tests/gpu/texture/anisotropyCostPage.ts';

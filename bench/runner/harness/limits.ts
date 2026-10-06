@@ -3,7 +3,7 @@
 // Imported by URL in the page (`probeLimits`), by Node to run it (`readLimits`) and for the report
 // (`limitsLines`): no Node module here.
 import type { Page } from 'playwright';
-import type * as SdkBrowser from '../witnesses/measurement.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
 
 /** The numeric limits of a `GPUSupportedLimits`, by name: its attributes are enumerable. */
 function numbers(limits: object) {
@@ -71,7 +71,7 @@ export const readLimits = (page: Page, sdkUrl: string): Promise<LimitsRecord> =>
     .evaluate(
       async ({ module, url }) =>
         ((await import(module)) as { probeLimits: typeof probeLimits }).probeLimits(url),
-      { module: '/runner/limits.ts', url: sdkUrl },
+      { module: '/runner/harness/limits.ts', url: sdkUrl },
     )
     .catch((error: unknown) => ({ failed: String(error) }));
 

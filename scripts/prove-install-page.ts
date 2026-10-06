@@ -15,7 +15,7 @@ import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { launchChrome } from '../bench/runner/chrome.ts';
+import { launchChrome } from '../bench/runner/harness/chrome.ts';
 import { drawnShare } from './docs/examples/capture.ts';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 import { codeBlocks, installPageHtml, walkthrough } from './install-page.ts';

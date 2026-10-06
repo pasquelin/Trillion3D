@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 
 /**
  * The device's readings of a series, one per sampled image and not per render — the device is

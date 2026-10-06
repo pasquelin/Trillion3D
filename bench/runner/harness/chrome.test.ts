@@ -10,9 +10,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { assertBrowserEntryPoint, launchChrome } from './chrome.ts';
-import { CHROME_SUFFIX, listProofFiles } from '../dawn/proofs.ts';
+import { CHROME_SUFFIX, listProofFiles } from '../../dawn/proofs.ts';
 
-const at = (path: string) => join(import.meta.dirname, '..', '..', path);
+const at = (path: string) => join(import.meta.dirname, '../../..', path);
 
 test('under node --test, only a Chrome proof may open Chrome', () => {
   const proof = at(listProofFiles(CHROME_SUFFIX)[0]);

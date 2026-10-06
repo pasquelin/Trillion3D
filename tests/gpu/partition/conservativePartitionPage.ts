@@ -5,7 +5,7 @@
 // (`partitionReference.ts`). The transparent clusters the occlusion test removed are refuted the
 // same way (`transparentOcclusionReference.ts`).
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { readBounds } from '../../../bench/runner/page.ts';
+import { readBounds } from '../../../bench/runner/harness/page.ts';
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts';
 import { SDK_URL } from '../world/proofWorld.ts';
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts';

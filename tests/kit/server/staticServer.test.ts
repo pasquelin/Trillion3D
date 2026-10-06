@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from './staticServer.ts';
 import { resolve } from 'node:path';
-import { readOptions } from '../../../bench/runner/options.ts';
+import { readOptions } from '../../../bench/runner/harness/options.ts';
 
 /** The response a harness server started with `options` gives on `path`, its body read, the
  *  server closed. */

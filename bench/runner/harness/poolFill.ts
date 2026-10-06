@@ -1,7 +1,7 @@
 // A texture pool that fills: its budget derived from what the scene itself holds resident, never a
-// number tuned for one scene. Read by `options.ts` in Node and `measurePage.ts` in the page.
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import type { MeasuredWorld } from '../witnesses/measurement.ts';
+// number tuned for one scene. Read by `harness/options.ts` in Node and `harness/measurePage.ts` in the page.
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import type { MeasuredWorld } from '../../witnesses/measurement.ts';
 
 /** The fraction of the resident working set a live texture pool asked as `<n>%` takes, or `undefined`
  *  when the value is not a percentage (then a number of MiB). */

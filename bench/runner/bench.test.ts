@@ -11,7 +11,7 @@ import {
   poseAt,
   readOptions,
   trajectoryPoses,
-} from './options.ts';
+} from './harness/options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';

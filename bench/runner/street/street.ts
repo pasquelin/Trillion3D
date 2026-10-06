@@ -4,7 +4,7 @@
 import type { Page } from 'playwright';
 import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from '../trajectory/poses.ts';
 import { probeColumns } from './streetPage.ts';
-import { readBounds } from '../page.ts';
+import { readBounds } from '../harness/page.ts';
 
 /** The street the camera walks: a column under open sky, its ground, and the radius around it at
  *  eye height that no wall crosses. */

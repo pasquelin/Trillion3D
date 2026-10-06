@@ -1,16 +1,16 @@
 // Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { FRAMES_PER_SEGMENT, VIEWS } from './trajectory/poses.ts';
-import { ASSETS, applySceneFlag, sceneOf } from './assets/scene.ts';
-import { lightingSettings } from './lighting/lightingOptions.ts';
+import { FRAMES_PER_SEGMENT, VIEWS } from '../trajectory/poses.ts';
+import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts';
+import { lightingSettings } from '../lighting/lightingOptions.ts';
 import type { SideBase } from './dists.ts';
 import type { BenchSettings, LivePools } from './benchSettings.ts';
 import { residentFraction } from './poolFill.ts';
 export type { BenchSettings } from './benchSettings.ts';
 
-export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './trajectory/poses.ts';
-export { assetsManifest, sceneGltf, scenesOf } from './assets/scene.ts';
+export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from '../trajectory/poses.ts';
+export { assetsManifest, sceneGltf, scenesOf } from '../assets/scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
 export { parseArgs } from './flags.ts';

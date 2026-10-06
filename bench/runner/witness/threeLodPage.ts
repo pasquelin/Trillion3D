@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import { mesurerThree } from './threeMeasurePage.ts';
-import type { MeasureViewOptions } from '../measureOptions.ts';
+import type { MeasureViewOptions } from '../harness/measureOptions.ts';
 
 /** Each level beyond the original: target triangle fraction, tolerated error (relative to
  *  mesh size), and on-screen height in pixels under which it replaces the previous one. */

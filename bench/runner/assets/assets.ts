@@ -17,7 +17,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { availableParallelism, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
-import { parseArgs } from '../options.ts';
+import { parseArgs } from '../harness/options.ts';
 import { ASSETS, sceneDerived } from './scene.ts';
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts';
 import { fetchModels } from './assetsFetch.ts';

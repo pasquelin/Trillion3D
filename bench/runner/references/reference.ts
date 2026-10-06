@@ -12,9 +12,9 @@ import type { Page } from 'playwright';
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
-import { onFreshPage } from '../chrome.ts';
+import { onFreshPage } from '../harness/chrome.ts';
 import { benchLights } from '../lighting/lamps.ts';
-import * as options from '../options.ts';
+import * as options from '../harness/options.ts';
 import type * as ReferencePage from './referencePage.ts';
 import {
   REFERENCE_ARGS,
@@ -56,7 +56,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
   const onPage = <T>(run: (page: Page) => Promise<T>) =>
     onFreshPage({ headless: !settings.visible, args: side.engine.flags }, view, run);
   // The engine commit that drew them: the last one to change `packages/` in the tree drawn from,
-  // the working tree or the commit `--after` named (`git <sha>` in `dists.ts`).
+  // the working tree or the commit `--after` named (`git <sha>` in `harness/dists.ts`).
   const tree = /^git ([0-9a-f]+)/.exec(side.from)?.[1] ?? 'HEAD';
   const commit = git('log', '-1', '--format=%H', tree, '--', 'packages');
   const record: ReferenceRecord = {

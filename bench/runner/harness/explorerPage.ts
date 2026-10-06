@@ -5,9 +5,9 @@ import type {
   BackendFactory,
   MeasuredWorld,
   MeasuredWorldOptions,
-} from '../witnesses/measurement.ts';
+} from '../../witnesses/measurement.ts';
 import type { MeasureViewOptions } from './measureOptions.ts';
-import type { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
+import type { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** The witness light group, of the engine's graph, and its store-tracking function. */
 export interface WitnessLighting {
@@ -30,7 +30,7 @@ export function explorerOptions(
     width: options.width,
     height: options.height,
     pixelRatio: options.pixelRatio,
-    // Validated to one of these four values by `options.ts` before it ever reaches the page.
+    // Validated to one of these four values by `harness/options.ts` before it ever reaches the page.
     replicaCount: (options.instances ?? 1) as 1 | 4 | 9 | 12,
     detail: 'source',
     pixelError: options.pixelError,

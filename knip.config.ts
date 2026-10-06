@@ -53,21 +53,21 @@ const config: KnipConfig = {
         // Served to the harness page and imported by URL, never by local import.
         'bench/runner/series/cutPage.ts',
         'bench/runner/witness/witnessPage.ts',
-        'bench/runner/explorerPage.ts',
+        'bench/runner/harness/explorerPage.ts',
         'bench/runner/lighting/lightingPage.ts',
         'bench/runner/references/referencePage.ts',
         'bench/runner/trajectory/trajectoryPage.ts',
         'bench/runner/trajectory/poses.ts',
         'bench/runner/witness/threeBarePage.ts',
         'bench/runner/witness/threeLodPage.ts',
-        'bench/runner/measurePage.ts',
+        'bench/runner/harness/measurePage.ts',
         'bench/runner/fluids/fluidsPage.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
         'bench/runner/witness/deformationEnvelope.ts',
         'bench/runner/witness/deformationWitness.ts',
         'bench/runner/feedback/feedbackTargetPage.ts',
         'bench/runner/gaze/gazeNetworkPage.ts',
-        'bench/runner/limits.ts',
+        'bench/runner/harness/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
         // pages; it re-exports the engine's measurement seam.

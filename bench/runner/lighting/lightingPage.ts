@@ -1,9 +1,9 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts';
-import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
+import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
 import type * as PageCoupe from '../series/cutPage.ts';
 import type * as PageTemoin from '../witness/witnessPage.ts';
-import type * as PageExplorateur from '../explorerPage.ts';
-import type * as PageMesure from '../measurePage.ts';
+import type * as PageExplorateur from '../harness/explorerPage.ts';
+import type * as PageMesure from '../harness/measurePage.ts';
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import type { MovingNode } from '../report/types.ts';
 
@@ -34,8 +34,10 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // bench comes looking for it there.
   const lost: string[] = (globalThis.gpuIncidents = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
-  const reglages = (await import(`${options.modulesUrl}explorerPage.ts`)) as typeof PageExplorateur;
-  const mesure = (await import(`${options.modulesUrl}measurePage.ts`)) as typeof PageMesure;
+  const reglages = (await import(
+    `${options.modulesUrl}harness/explorerPage.ts`
+  )) as typeof PageExplorateur;
+  const mesure = (await import(`${options.modulesUrl}harness/measurePage.ts`)) as typeof PageMesure;
   // Preparation, timed from the call to the return, and what it transferred on the network:
   // resources the page already loaded are not counted, only those after.
   const preparationStart = performance.now();
@@ -143,7 +145,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // drain and the calm below file images of their own. A dist older than #80 has no such function.
   const cpuBounds =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
-  // The capture is that of a HELD pose (`measurePage.ts`): `settleFrames` says how many frames
+  // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
   const settleFrames = await mesure.poseCalme(explorer, capturePose);
   const response = await mesure.posterCapture(

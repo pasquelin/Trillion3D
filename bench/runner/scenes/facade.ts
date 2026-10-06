@@ -17,7 +17,7 @@
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { parseArgs } from '../options.ts';
+import { parseArgs } from '../harness/options.ts';
 import { ASSETS } from '../assets/scene.ts';
 import { mulberry32 } from '../../../site/examples/kit/random.ts';
 import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts';

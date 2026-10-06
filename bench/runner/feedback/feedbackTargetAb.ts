@@ -2,8 +2,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { launchChrome } from '../chrome.ts';
-import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from '../options.ts';
+import { launchChrome } from '../harness/chrome.ts';
+import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from '../harness/options.ts';
 import { assetsManifest, sceneDerived } from '../assets/scene.ts';
 import { summarizeFeedbackRun } from './feedbackTargetReport.ts';
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';

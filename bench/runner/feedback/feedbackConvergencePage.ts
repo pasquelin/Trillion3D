@@ -4,7 +4,7 @@ import type {
   FrameMetrics,
   GpuPassTimings,
 } from '../../../packages/sdk-core/src/index.ts';
-import { posterCapture } from '../measurePage.ts';
+import { posterCapture } from '../harness/measurePage.ts';
 import {
   type SpatialFeedback,
   type SurfaceKind,

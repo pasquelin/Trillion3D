@@ -11,12 +11,12 @@
 // this difference that is read in `summary/summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
 // are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
-import { launchChrome } from './chrome.ts';
+import { launchChrome } from './harness/chrome.ts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { campaignIdentity, canResume } from './report/provenance.ts';
-import { parseArgs, scenesOf } from './options.ts';
+import { parseArgs, scenesOf } from './harness/options.ts';
 import { measureOutput } from '../core/paths.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');

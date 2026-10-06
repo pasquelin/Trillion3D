@@ -5,7 +5,7 @@
 // by the engine's worker and placed by their own matrices. Both leave through the server's `/capture`.
 import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
-import { posterCapture } from '../measurePage.ts';
+import { posterCapture } from '../harness/measurePage.ts';
 
 export interface HoldOptions {
   sdkUrl: string;

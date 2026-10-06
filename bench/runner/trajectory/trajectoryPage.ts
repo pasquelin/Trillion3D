@@ -1,9 +1,9 @@
 // One continuous navigation session with bounded stops at image checkpoints; no timing loop.
 import type * as Sdk from '../../witnesses/measurement.ts';
-import type { MeasureViewOptions } from '../measureOptions.ts';
+import type { MeasureViewOptions } from '../harness/measureOptions.ts';
 import { walkTrajectory } from './trajectoryWalk.ts';
-import { explorerOptions } from '../explorerPage.ts';
-import { collecteDiagnostics, posterCapture } from '../measurePage.ts';
+import { explorerOptions } from '../harness/explorerPage.ts';
+import { collecteDiagnostics, posterCapture } from '../harness/measurePage.ts';
 
 export async function captureTrajectory(
   options: MeasureViewOptions,

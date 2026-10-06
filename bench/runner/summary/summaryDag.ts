@@ -4,7 +4,7 @@
 import type { PrimitiveDagStall } from '../../../packages/sdk-core/src/index.ts';
 import type { Report } from '../report/types.ts';
 
-/** The `dag-warnings` diagnostic a side recorded, as `measurePage.ts` keeps it. */
+/** The `dag-warnings` diagnostic a side recorded, as `harness/measurePage.ts` keeps it. */
 interface DagWarnings {
   stalled?: PrimitiveDagStall[];
 }

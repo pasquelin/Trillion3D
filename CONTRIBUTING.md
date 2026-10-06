@@ -142,7 +142,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off git). Nothing
   reads another project on disk (no neighbour path, no external harness); no host code to make the
   engine work, no writing into a host's folders. Every browser, a scratch harness's included, is
-  the system Chrome opened by `launchChrome` (`bench/runner/chrome.ts`), never `chromium.launch`:
+  the system Chrome opened by `launchChrome` (`bench/runner/harness/chrome.ts`), never `chromium.launch`:
   Playwright's own headless shell loses the WebGPU device after the first frame (#1364).
 - React/Electron/Vite, DOM and platform filesystem APIs stay out of runtime-core/shared contracts
   (use adapters); consume public entry points, never application internals. Generic Rust

@@ -8,8 +8,8 @@
 import assert from 'node:assert/strict';
 import { relative, resolve, sep } from 'node:path';
 import { takeBenchLock } from '../../../bench/dawn/lock.ts';
-import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/chrome.ts';
-import { ENGINES, resolveMounts } from '../../../bench/runner/options.ts';
+import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/harness/chrome.ts';
+import { ENGINES, resolveMounts } from '../../../bench/runner/harness/options.ts';
 import { startServer } from '../../kit/server/staticServer.ts';
 import type { Mount } from '../../../scripts/static-server.ts';
 

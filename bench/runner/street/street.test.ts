@@ -82,7 +82,7 @@ test('a model with no street to probe says why by name and walks its box', () =>
 // `readBounds` had just loaded. The box and the street come from one world, closed once.
 test('the box and the street are read on one world, which the probe closes', async () => {
   const fixture = await import('./streetWorld.fixture.ts');
-  const { readBounds } = await import('../page.ts');
+  const { readBounds } = await import('../harness/page.ts');
   const { probeColumns } = await import('./streetPage.ts');
   fixture.pageGlobals();
   const urls = { sdkUrl: import.meta.resolve('./streetWorld.fixture.ts'), manifestUrl: 'm.json' };

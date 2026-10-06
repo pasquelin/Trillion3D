@@ -6,9 +6,9 @@
 // measurements and proofs run on the browser used by end users.
 import { chromium } from 'playwright';
 import type { Browser, LaunchOptions, Page } from 'playwright';
-import { isUnitTest } from '../../scripts/unit-tests.ts';
-import { entryPath, underNodeTest } from '../core/entryPoint.ts';
-import { CHROME_SUFFIX, isProof } from '../dawn/proofs.ts';
+import { isUnitTest } from '../../../scripts/unit-tests.ts';
+import { entryPath, underNodeTest } from '../../core/entryPoint.ts';
+import { CHROME_SUFFIX, isProof } from '../../dawn/proofs.ts';
 
 /** How every refusal starts, for the tests that count them. */
 export const CHROME_REFUSED = 'Chrome refused';

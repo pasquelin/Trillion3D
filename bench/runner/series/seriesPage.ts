@@ -3,11 +3,11 @@
 import type { Page } from 'playwright';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import { reservoirs } from './seriesPools.ts';
-import type { Side } from '../sideOptions.ts';
-import type { BenchSettings } from '../options.ts';
+import type { Side } from '../harness/sideOptions.ts';
+import type { BenchSettings } from '../harness/options.ts';
 import type { LightsPlan } from '../lighting/lamps.ts';
-import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
-import { sdkEntryUrl } from '../dists.ts';
+import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
+import { sdkEntryUrl } from '../harness/dists.ts';
 
 /** The payload one series sends into the page: everything `measureView` needs. */
 export function measurePayload(
@@ -87,7 +87,9 @@ export async function runInPage(
   return withGpuIncidents(page, () =>
     page.evaluate(async (o) => {
       const module = (await import(`${o.modulesUrl}${o.page}`)) as {
-        measureView(options: typeof o): Promise<import('../measureOptions.ts').MeasureViewResult>;
+        measureView(
+          options: typeof o,
+        ): Promise<import('../harness/measureOptions.ts').MeasureViewResult>;
       };
       const result = await module.measureView(o);
       if ('error' in result) return result;

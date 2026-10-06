@@ -2,8 +2,8 @@
 // call any module function; everything reaches it through its single argument. That is the reason,
 // and the only one, why world creation is duplicated between `readBounds` below and
 // `measureView` in `lighting/lightingPage.ts`, which the page imports by URL.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { Bounds } from './trajectory/poses.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { Bounds } from '../trajectory/poses.ts';
 
 /** What `readBounds` needs to open a tiny world: the SDK and manifest it points the page at. */
 export interface BoundsOptions {

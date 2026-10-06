@@ -18,7 +18,7 @@ reports](#published-reports)); rebuilding the site does not rerun benchmarks.
 
 ## Flags
 
-`<side>` is `before` or `after`. Chromium flags come from the engine (`sideOptions.ts`); with two
+`<side>` is `before` or `after`. Chromium flags come from the engine (`harness/sideOptions.ts`); with two
 engines they are the union of both sides' requirements.
 
 | Flag                                                                   | Default                                 | Effect                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -82,7 +82,7 @@ engines they are the union of both sides' requirements.
    p50 from 17.6 to 12.1 ms at threshold 0 and 7.2 to 4.5 ms at threshold 1, invisible to a static
    camera.
 
-Every run first probes browser limits (`limits.ts`): WebGL2 half-float and float colour targets,
+Every run first probes browser limits (`harness/limits.ts`): WebGL2 half-float and float colour targets,
 `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the limits the adapter grants past
 the defaults (`limits` in `measure.json`, "Browser limits" in `resume.md`).
 
@@ -188,7 +188,7 @@ sit under "Textures", "Image Feedback", "Broadcaster": the pool is fixed, "resid
 use.
 
 The capture is taken on a **still pose**: after warmup the pose renders until held — accumulation
-converged, no pending work — at most 64 frames (`poseCalme`, `measurePage.ts`), since
+converged, no pending work — at most 64 frames (`poseCalme`, `harness/measurePage.ts`), since
 mid-accumulation captures carry non-deterministic streaming. `series[].sides[].settleFrames` gives
 the count, `null` if the engine holds no frames (Three witness). Each series runs in a fresh page
 closed right after: reused pages made `new THREE.WebGLRenderer` fail ("Error creating WebGL
@@ -311,7 +311,7 @@ IN-SESSION changes (an app slider via `explorer.setMemoryBudgets`): `--geometry-
 `--texture-pool-live <MiB>` resize after warmup and log the response (`series[].sides[].liveTuning`:
 retained pools, evicted items, resize time, prior residency) and frames to recover the held pose
 (`recoveryFrames`, `null` if the pool is smaller than the view); `--warmup 60` fills pools first.
-`--texture-pool-live <n>%` derives the budget from the scene (`poolFill.ts`): twice n % of the
+`--texture-pool-live <n>%` derives the budget from the scene (`harness/poolFill.ts`): twice n % of the
 texture bytes the settled pose holds — a lower bound per atlas, since the engine gives each of its
 two atlases half (`texturePoolFor`) and publishes one residency. The `Texture pool set live` line
 prints bytes asked, held (and clamp), tiles evicted and ms; `Streamer` gives evictions and texture

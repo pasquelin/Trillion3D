@@ -1,4 +1,4 @@
-// Lighting options for harness: lights, sun, bounce, and intensity for `options.ts`.
+// Lighting options for harness: lights, sun, bounce, and intensity for `harness/options.ts`.
 
 /** Lighting options: lights, sun, bounce, intensity, and shadows. */
 export function lightingSettings(

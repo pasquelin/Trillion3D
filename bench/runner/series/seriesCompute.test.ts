@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
-import { readOptions } from '../options.ts';
+import { readOptions } from '../harness/options.ts';
 import { runSerie } from './series.ts';
 import { contexte, pose } from './seriesTestFixtures.ts';
 import type { Page } from 'playwright';

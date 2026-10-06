@@ -10,7 +10,7 @@ import { resolve } from 'node:path';
 import type { Browser } from 'playwright';
 import { routeThree } from './three-route.ts';
 import { median } from './median.ts';
-import { launchChrome } from '../bench/runner/chrome.ts';
+import { launchChrome } from '../bench/runner/harness/chrome.ts';
 import { createDocsServer } from './docs/serve.ts';
 import { listen } from './static-server.ts';
 import { SITE_OUTPUT } from './docs/site.ts';

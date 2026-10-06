@@ -1,14 +1,14 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import { resume } from './summary/summary.ts';
-import { refuseBlackCaptures } from './references/imageDiff.ts';
-import { recordCuts } from './report/evidence.ts';
-import { gazeNetworkLines } from './gaze/gazeNetworkRun.ts';
-import { fluidsLines } from './fluids/fluids.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import { resume } from '../summary/summary.ts';
+import { refuseBlackCaptures } from '../references/imageDiff.ts';
+import { recordCuts } from '../report/evidence.ts';
+import { gazeNetworkLines } from '../gaze/gazeNetworkRun.ts';
+import { fluidsLines } from '../fluids/fluids.ts';
 import { limitsLines } from './limits.ts';
 import type { Side } from './sideOptions.ts';
-import type { Report } from './report/types.ts';
+import type { Report } from '../report/types.ts';
 
 /** Writes `measure.json` and `resume.md`, and says where. */
 export async function publish(

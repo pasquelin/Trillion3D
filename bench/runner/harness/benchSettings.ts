@@ -1,8 +1,8 @@
-// Validated, resolved campaign settings, split out of `options.ts` to keep it under the file
+// Validated, resolved campaign settings, split out of `harness/options.ts` to keep it under the file
 // line budget.
 
 /** Pools set in session after warmup; a texture pool either in bytes or as a fraction of the
- *  texture bytes the settled pose holds resident (`poolFill.ts`). */
+ *  texture bytes the settled pose holds resident (`harness/poolFill.ts`). */
 export type LivePools = {
   geometryPoolBytes?: number | null;
   texturePoolBytes?: number | null;

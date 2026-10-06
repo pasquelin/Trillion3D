@@ -20,10 +20,10 @@ import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import { distribution, machineLoad } from '../summary/summary.ts';
 import { passesGpu } from '../series/seriesPasses.ts';
 import { p50p95, passes } from '../summary/summaryPasses.ts';
-import { sdkEntryUrl } from '../dists.ts';
+import { sdkEntryUrl } from '../harness/dists.ts';
 import { withGpuIncidents } from '../series/seriesPage.ts';
-import type { Side } from '../sideOptions.ts';
-import type { BenchSettings } from '../options.ts';
+import type { Side } from '../harness/sideOptions.ts';
+import type { BenchSettings } from '../harness/options.ts';
 import type * as FluidsPage from './fluidsPage.ts';
 
 type Vec3 = [number, number, number];

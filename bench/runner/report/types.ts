@@ -9,10 +9,10 @@ import type {
 } from '../../../packages/sdk-core/src/index.ts';
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
 import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts';
-import type { BenchSettings } from '../options.ts';
+import type { BenchSettings } from '../harness/options.ts';
 import type { Bounds } from '../trajectory/poses.ts';
 import type { LightsPlan } from '../lighting/lamps.ts';
-import type { LimitsRecord } from '../limits.ts';
+import type { LimitsRecord } from '../harness/limits.ts';
 import type { FluidsRow } from '../fluids/fluids.ts';
 import type { GazeNetworkReading } from '../gaze/gazeNetworkRun.ts';
 
@@ -191,7 +191,7 @@ export interface Report {
   errors: PageError[];
   bounds?: Bounds;
   lights?: LightsSummary | null;
-  /** The browser limits, probed once per run (`limits.ts`). */
+  /** The browser limits, probed once per run (`harness/limits.ts`). */
   limits?: LimitsRecord;
   /** One row per side on the fluids scene (`fluids/fluids.ts`). */
   fluids?: FluidsRow[];

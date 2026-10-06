@@ -6,7 +6,7 @@ import type {
 } from '../../../packages/sdk-core/src/index.ts';
 import { poseAt } from '../trajectory/poses.ts';
 import { streetBounds } from '../street/street.ts';
-import { posterCapture } from '../measurePage.ts';
+import { posterCapture } from '../harness/measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
 import { type SpatialFeedback } from '../../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
 

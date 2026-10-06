@@ -2,9 +2,9 @@
 // (`packages/sdk-browser/src/frame/referenceMode.ts`), held, and its resolved capture sent to
 // Node. Served under `/runner/` and imported by URL, like `lighting/lightingPage.ts`.
 import type * as SdkBrowser from '../../witnesses/measurement.ts';
-import type * as ExplorerPageModule from '../explorerPage.ts';
-import type * as MeasurePageModule from '../measurePage.ts';
-import type { MeasureViewOptions } from '../measureOptions.ts';
+import type * as ExplorerPageModule from '../harness/explorerPage.ts';
+import type * as MeasurePageModule from '../harness/measurePage.ts';
+import type { MeasureViewOptions } from '../harness/measureOptions.ts';
 
 /** Frames a reference pose may take to hold: bounced light converges over many more frames than
  *  temporal accumulation does (`HOLD_FRAME_LIMIT`). */
@@ -23,9 +23,11 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
   const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { error: `engine missing from dist: ${options.backend}` };
   const explorerPage = (await import(
-    `${options.modulesUrl}explorerPage.ts`
+    `${options.modulesUrl}harness/explorerPage.ts`
   )) as typeof ExplorerPageModule;
-  const measure = (await import(`${options.modulesUrl}measurePage.ts`)) as typeof MeasurePageModule;
+  const measure = (await import(
+    `${options.modulesUrl}harness/measurePage.ts`
+  )) as typeof MeasurePageModule;
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const lost: string[] = (globalThis.gpuIncidents = []);

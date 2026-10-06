@@ -5,9 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { frenchWords } from '../../scripts/check-english.ts';
+import { frenchWords } from '../../../scripts/check-english.ts';
 
-const HERE = import.meta.dirname;
+const HERE = join(import.meta.dirname, '..');
 const read = (file: string) => readFileSync(join(HERE, file), 'utf8');
 
 /** How a harness names a flag: read from its map, through a reader taking the name first, as a
@@ -60,8 +60,8 @@ test('no campaign run and no view is named in French', () => {
  *  oracle's report. */
 const SHAPES = [
   'report/types.ts',
-  'benchSettings.ts',
-  'measureOptions.ts',
+  'harness/benchSettings.ts',
+  'harness/measureOptions.ts',
   'references/oracleView.ts',
   'references/oracleCompare.ts',
 ];

@@ -5,7 +5,7 @@ import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { FluidsPayload, FluidsScene } from './fluids.ts';
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts';
-import { posterCapture } from '../measurePage.ts';
+import { posterCapture } from '../harness/measurePage.ts';
 
 type Sdk = typeof SdkBrowser;
 

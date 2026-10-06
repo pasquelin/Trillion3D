@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './lightingPage.ts';
-import type { MeasureViewOptions } from '../measureOptions.ts';
+import type { MeasureViewOptions } from '../harness/measureOptions.ts';
 import type { MeasuredWorld } from '../../witnesses/measurement.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 

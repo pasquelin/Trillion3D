@@ -8,7 +8,7 @@ import { distribution, machineLoad } from '../summary/summary.ts';
 import { passesGpu } from './seriesPasses.ts';
 import { pageBudget, geometryPool } from './seriesPools.ts';
 import { measurePayload, runInPage } from './seriesPage.ts';
-import type { Side } from '../sideOptions.ts';
+import type { Side } from '../harness/sideOptions.ts';
 import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import type { Row, RunContext } from '../report/types.ts';
 

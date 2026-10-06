@@ -14,9 +14,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { lampe, octets } from './threeBareScene.ts';
-import { positionLampeMobile, posterCapture, reseauDepuis } from '../measurePage.ts';
+import { positionLampeMobile, posterCapture, reseauDepuis } from '../harness/measurePage.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import type { MeasureViewOptions, MeasureViewResult } from '../measureOptions.ts';
+import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
 
 function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov;
