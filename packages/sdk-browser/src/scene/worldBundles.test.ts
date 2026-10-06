@@ -1,7 +1,7 @@
 // A placed cell's world bundles are read in runs, pages of the session's one read queue: a run is
 // one ranged request, a bundle on its way is shared, a run no hold waits on is dropped unread, and
 // one the server refuses for good is never asked again.
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   worldRootsDag,
@@ -10,6 +10,22 @@ import {
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
+
+/** A world whose run from bundle `first` is answered once `land` runs, opened on a queue of
+ *  `transfers`: its roots, the ranges asked, its table, and `land`. */
+async function heldAt(t: TestContext, first: number, transfers?: number) {
+  let land = () => {}
+  const landing = new Promise<void>((resolve) => (land = resolve))
+  const world = served(t, {
+    answer: async (from, _to, respond) => {
+      if (from === world.table.bundles[first].offset) await landing
+      return respond()
+    },
+  })
+  const { roots } = await opened(t, world.manifest, { transfers })
+  t.after(land)
+  return { roots, ranges: world.ranges, table: world.table, land }
+}
 
 test("a cell's bundles contiguous in the binary are one ranged read", async (t) => {
   const { manifest, ranges, table } = served(t)
@@ -20,18 +36,8 @@ test("a cell's bundles contiguous in the binary are one ranged read", async (t) 
 })
 
 test('a cell let go while its run waits in the queue is never fetched; a shared bundle is read once', async (t) => {
-  let land = () => {}
-  const landing = new Promise<void>((resolve) => (land = resolve))
-  const world = served(t, {
-    // The first run past the top holds the queue's one transfer until `land`.
-    answer: async (from, _to, respond) => {
-      if (from === world.table.bundles[1].offset) await landing
-      return respond()
-    },
-  })
-  const { manifest, ranges, table } = world
-  const { roots } = await opened(t, manifest, { transfers: 1 })
-  t.after(land)
+  // The first run past the top holds the queue's one transfer until `land`.
+  const { roots, ranges, table, land } = await heldAt(t, 1, 1)
   const placed = roots.hold(0) // bundles 1 and 3: two runs
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundle 3 on its way, bundle 2 queued
@@ -91,16 +97,7 @@ test('a bundle read for one page request alone leaves the catalogue, failed or n
 })
 
 test('a cell let go while its run transfers and held again joins that read: read once', async (t) => {
-  let land = () => {}
-  const landing = new Promise<void>((resolve) => (land = resolve))
-  const world = served(t, {
-    answer: async (from, _to, respond) => {
-      if (from === world.table.bundles[2].offset) await landing
-      return respond()
-    },
-  })
-  const { roots } = await opened(t, world.manifest)
-  t.after(land)
+  const { roots, ranges, table, land } = await heldAt(t, 2)
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one run
   await new Promise(setImmediate)
@@ -110,20 +107,12 @@ test('a cell let go while its run transfers and held again joins that read: read
   const back = roots.hold(1)
   land()
   await back
-  assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'read once')
+  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)], 'read once')
   assert.deepEqual(roots.held(), [2, 3])
 })
 
 test('a run every hold let go while it transfers lands into the bundles still held on it: never read twice', async (t) => {
-  let land = () => {}
-  const landing = new Promise<void>((resolve) => (land = resolve))
-  const world = served(t, {
-    answer: async (from, _to, respond) => {
-      if (from === world.table.bundles[2].offset) await landing
-      return respond()
-    },
-  })
-  const { roots } = await opened(t, world.manifest)
+  const { roots, ranges, table, land } = await heldAt(t, 2)
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one run
   await new Promise(setImmediate)
@@ -132,7 +121,7 @@ test('a run every hold let go while it transfers lands into the bundles still he
   land()
   await new Promise(setImmediate)
   await roots.hold(1) // back before its first hold was released
-  assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'read once')
+  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)], 'read once')
 })
 
 test('a landed run one of whose bundles is unreadable fails whole: its bundles read again, never stuck', async (t) => {
