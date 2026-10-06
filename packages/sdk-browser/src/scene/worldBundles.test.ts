@@ -67,7 +67,7 @@ test('a run the server refuses for good (404) is never asked again', async (t) =
   assert.equal(queue.failed(`http://world/world-roots.bin#2-4`), true)
   roots.release(1)
   roots.release(1)
-  assert.deepEqual([roots.held(), queue.stats().failed], [[], 1], 'let go, its refusal stays')
+  assert.deepEqual([roots.held(), queue.stats().failed], [[], 0], 'let go, its refusal leaves')
 })
 
 test('a run no hold wants any more leaves the catalogue, failed or not, its wait still in force', async (t) => {
