@@ -63,4 +63,9 @@ export const FRENCH_EXCEPTIONS: Record<string, FrenchException> = {
       'a value of the public engine API (`ScreenErrorVariant`, `packages/sdk-core/src/lod/' +
       'screenErrorVariant.ts`): hosts pass it by name, so renaming it breaks their code',
   },
+  'atlas-couleur': {
+    reason:
+      'a fixture folder and file name (`tests/fixtures/formats/previews/atlas-couleur`) read by the ' +
+      'texture preview tests of the asset compiler and by `scripts/texture-coverage-levels.test.ts`',
+  },
 };

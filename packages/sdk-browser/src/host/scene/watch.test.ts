@@ -14,19 +14,19 @@ import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.
 function graphe() {
   const source = new G.Group();
   const mesh = G.mesh(new G.Geometry(), G.basicSurface());
-  const lampe = G.pointLight(0xffffff, 1);
+  const light = G.pointLight(0xffffff, 1);
   const sun = G.directionalLight(0xffffff, 1);
-  source.add(mesh, lampe, sun);
+  source.add(mesh, light, sun);
   source.updateMatrixWorld(true);
-  return { source, mesh, lampe, sun };
+  return { source, mesh, light, sun };
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const dessine = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
+const drawn = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
 
 function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
   const watch = createHostSceneWatch();
-  watch.observe(source, dessine(...meshes));
+  watch.observe(source, drawn(...meshes));
   return watch;
 }
 
@@ -60,14 +60,14 @@ test('visibility written directly by the host is seen; a reparent reshapes', () 
 });
 
 test("a lamp's intensity, colour, range and pose are seen", () => {
-  const { source, lampe } = graphe();
+  const { source, light } = graphe();
   const watch = veille(source);
   for (const ecriture of [
-    () => (lampe.intensity = 7),
-    () => (lampe.position.x = 9),
-    () => lampe.color.setRGB(0.25, 0.5, 0.75),
-    () => (lampe.distance = 42),
-    () => (lampe.decay = 3),
+    () => (light.intensity = 7),
+    () => (light.position.x = 9),
+    () => light.color.setRGB(0.25, 0.5, 0.75),
+    () => (light.distance = 42),
+    () => (light.decay = 3),
   ]) {
     watch.take();
     ecriture();
@@ -89,37 +89,37 @@ test('the frame gate no longer holds a frame when the host has written the scene
   const gate = createWebglFrameGate();
   const { source, mesh } = graphe();
   const coupe = [{ id: 1 }] as Array<{ id: number }>;
-  const dessins = dessine(mesh);
-  gate.readScene(source, dessins);
+  const draws = drawn(mesh);
+  gate.readScene(source, draws);
   gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
   gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
   assert.equal(gate.held(), true, 'with no write, the frame must be held');
   mesh.position.x = 100;
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
   assert.equal(gate.held(), false, 'the scene moved under the held frame');
 });
 
 test('a write the engine made itself is settled with its revision, not announced twice', () => {
   const gate = createWebglFrameGate();
   const { source, mesh } = graphe();
-  const dessins = dessine(mesh);
-  gate.readScene(source, dessins);
-  gate.readScene(source, dessins);
+  const draws = drawn(mesh);
+  gate.readScene(source, draws);
+  gate.readScene(source, draws);
   const before = gate.revisions.scene;
   // What `setTransform` does: writes the node, then declares the scene changed.
   mesh.position.x = 5;
   gate.sceneChanged();
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
   assert.equal(gate.revisions.scene, before + 1, 'one change, one revision');
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
   assert.equal(gate.revisions.scene, before + 1, 'and none after');
   // A structural engine write settled the same way leaves no reshape pending either.
   new G.Group().add(mesh);
   gate.sceneChanged();
-  gate.readScene(source, dessins);
-  gate.readScene(source, dessins);
+  gate.readScene(source, draws);
+  gate.readScene(source, draws);
   assert.equal(gate.revisions.scene, before + 2, 'the reparent costs its one revision');
 });
 
@@ -144,20 +144,20 @@ test("a lamp's target moved under another node: the new parent is hooked, its la
 /** The host-library engine with a lamp declared in the source graph, which the host will write directly. */
 function litEngine() {
   const { geometry, material, source, context } = quadRootsContext(true);
-  const lampe = G.pointLight(0xffffff, 1);
-  source.add(lampe);
+  const light = G.pointLight(0xffffff, 1);
+  source.add(light);
   const backend = exactPagesBackend(context);
   const copie = () => backend.scene.children.find(G.isPlacedLight) as G.Light;
-  return { backend, lampe, copie, dispose: () => (geometry.dispose(), material.dispose()) };
+  return { backend, light, copie, dispose: () => (geometry.dispose(), material.dispose()) };
 }
 
 test('a lamp written directly by the host is copied on the next frame', () => {
-  const { backend, lampe, copie, dispose } = litEngine();
+  const { backend, light, copie, dispose } = litEngine();
   const camera = frontCamera();
   backend.render(camera);
   assert.equal(copie().intensity, 1, 'the declared lamp is copied as-is');
-  lampe.intensity = 7;
-  lampe.position.x = 9;
+  light.intensity = 7;
+  light.position.x = 9;
   backend.render(camera);
   assert.equal(copie().intensity, 7, 'the intensity written by the host did not follow');
   assert.equal(copie().position.x, 9, 'the pose written by the host did not follow');
