@@ -8,7 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { selectVisiblePages, type PageRec } from './selection.ts';
 import { wideCamera } from './dag.fixture.ts';
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 
 /** A camera that sees none of the model: its cut is empty. */
 function ailleurs() {
@@ -25,7 +25,7 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
     wanted: PageRec[] = [];
   const large = selectVisiblePages(
     roots,
-    cameraMoteur(wideCamera()),
+    engineCamera(wideCamera()),
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );
@@ -35,7 +35,7 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
 
   const vide = selectVisiblePages(
     roots,
-    cameraMoteur(ailleurs()),
+    engineCamera(ailleurs()),
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );
@@ -51,7 +51,7 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
   // And the list returns to its full length without keeping a trace of the empty pass.
   const encore = selectVisiblePages(
     roots,
-    cameraMoteur(wideCamera()),
+    engineCamera(wideCamera()),
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );

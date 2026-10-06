@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { SPRITE_GLSL, SPRITE_WGSL, spriteAt } from './spriteWgsl.ts';
 import { runShaderText } from './shaderText.fixture.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { locatedBy } from '../../page/selection/placements.fixture.ts';
 import { hostSurface } from '../../world/core/worldSurface.ts';
@@ -23,7 +23,7 @@ function camera(eye: number[]) {
   cam.position.set(eye[0], eye[1], eye[2]);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
-  return cameraMoteur(cam);
+  return engineCamera(cam);
 }
 const columns = (m: ArrayLike<number>) =>
   [0, 1, 2, 3].map((c) => Array.from(m).slice(c * 4, c * 4 + 4));

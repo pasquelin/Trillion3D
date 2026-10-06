@@ -2,7 +2,7 @@
 // sizes the selection kernel binds (`selectionKernel.ts`), each derived from the engine's own
 // layout functions, never restated.
 import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { sceneRoots } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
@@ -47,7 +47,7 @@ export function posedSelection(
   camera.position.set(x, 0, z);
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);
-  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), threshold, viewport);
+  const uniforms = cameraSelectionUniforms(engineCamera(camera), threshold, viewport);
   const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
   return { packed, uniforms };
 }

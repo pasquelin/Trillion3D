@@ -5,7 +5,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../surface.ts';
 import { OPEN_CONE, coneContextFor, coneCullsPageWith, createConeContext } from './cone.ts';
 import { coneCullsPage } from './cone.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { leafCone } from './cone.ts';
 import { coneSkipsPage } from '../selection/helpers.ts';
 
@@ -30,7 +30,7 @@ test('OPEN_CONE never rejects', () => {
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
   assert.equal(
-    coneCullsPage(OPEN_CONE, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(cam).eye),
+    coneCullsPage(OPEN_CONE, world, [-1, -1, 0], [1, 1, 0], engineCamera(cam).eye),
     false,
   );
 });
@@ -43,7 +43,7 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
   assert.equal(
-    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye),
+    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], engineCamera(behind).eye),
     true,
   );
   const grazing = G.perspectiveCamera(55, 1, 0.1, 100);
@@ -51,7 +51,7 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
   grazing.lookAt(0, 0, 0);
   grazing.updateMatrixWorld();
   assert.equal(
-    coneCullsPage(cone, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(grazing).eye),
+    coneCullsPage(cone, world, [-1, -1, 0], [1, 1, 0], engineCamera(grazing).eye),
     false,
   );
 });
@@ -69,7 +69,7 @@ test('an anisotropic scale does not reject a still-visible cone member', () => {
     .normalize();
   assert.ok(visible.dot(new G.Vector3().copy(cam.position).normalize()) > 0);
   assert.equal(
-    coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], cameraMoteur(cam).eye),
+    coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], engineCamera(cam).eye),
     false,
   );
 });
@@ -88,7 +88,7 @@ test('BackSide materials are not cone-culled from behind', () => {
       world,
       [-0.1, -0.1, 0],
       [0.1, 0.1, 0],
-      cameraMoteur(behind).eye,
+      engineCamera(behind).eye,
       surfaceOf(material),
     ),
     false,
@@ -105,7 +105,7 @@ test('the root context yields the same reject as the per-cluster compute, and is
   cam.updateMatrixWorld();
   const ctx = createConeContext();
   assert.equal(ctx.ready, false, 'no root read until someone asks for a reject');
-  coneContextFor(ctx, world, cameraMoteur(cam).eye);
+  coneContextFor(ctx, world, engineCamera(cam).eye);
   assert.equal(ctx.ready, true);
   for (const [min, max] of [
     [
@@ -123,7 +123,7 @@ test('the root context yields the same reject as the per-cluster compute, and is
   ])
     assert.equal(
       coneCullsPageWith(ctx, cone, world, min, max),
-      coneCullsPage(cone, world, min, max, cameraMoteur(cam).eye),
+      coneCullsPage(cone, world, min, max, engineCamera(cam).eye),
       `box ${min} ${max}`,
     );
 });
@@ -135,7 +135,7 @@ test('a surface switched to double-sided in place gets its page back at the cut'
   behind.position.set(0, 0, -5);
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
-  const cam = cameraMoteur(behind);
+  const cam = engineCamera(behind);
   const min = [-0.1, -0.1, 0],
     max = [0.1, 0.1, 0];
   const material = G.basicSurface({ side: G.FRONT_SIDE });

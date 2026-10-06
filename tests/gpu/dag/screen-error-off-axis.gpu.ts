@@ -12,7 +12,7 @@ import { projectedClusterError } from '../../../packages/sdk-browser/src/page/se
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
@@ -85,7 +85,7 @@ function offAxisCase() {
 test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', async () => {
   const { camera, world, pages, culling, displacement, announced } = offAxisCase();
   const names = (ids: number[]) => ids.map((id) => (id === 0 ? 'coarse' : 'fine'));
-  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), THRESHOLD, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(engineCamera(camera), THRESHOLD, VIEWPORT);
   const variants = { flat: undefined, 'with a node': culling };
   const cuts: Record<string, string[]> = {};
   const cases = Object.entries(variants).map(([variant, node]) => {
@@ -98,7 +98,7 @@ test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', a
           culling: node && { ...node, bounds: cullingBounds(node, pages) },
         },
       ],
-      cameraMoteur(camera),
+      engineCamera(camera),
       { pixelError: THRESHOLD, viewport: VIEWPORT },
     );
     cuts[`cpu, ${variant}`] = names(cpu.shown.map((page) => page.id));

@@ -15,7 +15,7 @@ import {
 import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 import { lois, xorshift32 } from '../kit/randomDraw.ts';
 import { runSelectionKernel } from './selectionKernel.ts';
@@ -51,7 +51,7 @@ function sample() {
   const view = modelView.elements,
     toObject = modelView.clone().invert();
   const stretch = maxStretch(world.elements) * maxStretch(camera.matrixWorldInverse.elements);
-  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), THRESHOLD, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(engineCamera(camera), THRESHOLD, VIEWPORT);
   const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
   const [p00, p11] = [camera.projectionMatrix.elements[0], camera.projectionMatrix.elements[5]];
   const projected = (error: number, sphere: number[]) =>

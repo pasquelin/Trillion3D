@@ -17,7 +17,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { multiplyMatrix4, worldToRenderOrigin } from '../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { sameRenderOrigin } from './renderOrigin.ts';
-import { cameraMoteur } from './camera.fixture.ts';
+import { engineCamera } from './camera.fixture.ts';
 import { createEngineCamera, holdCameraWorld, readCameraWorld } from './world.ts';
 
 const DECALAGE: [number, number, number] = [50000, 50000, 50000];
@@ -41,7 +41,7 @@ function envoi(offset: readonly [number, number, number]) {
   camera.position.set(OEIL[0] + offset[0], OEIL[1] + offset[1], OEIL[2] + offset[2]);
   camera.lookAt(CIBLE[0] + offset[0], CIBLE[1] + offset[1], CIBLE[2] + offset[2]);
   camera.updateMatrixWorld(true);
-  const cam = cameraMoteur(camera);
+  const cam = engineCamera(camera);
   const world = new G.Matrix4()
     .makeRotationY(0.7)
     .setPosition(POSE[0] + offset[0], POSE[1] + offset[1], POSE[2] + offset[2]);
@@ -72,7 +72,7 @@ test('camera at the world origin: nothing changes by a bit', () => {
   const camera = G.perspectiveCamera(55, 16 / 9, 0.5, 1000);
   camera.lookAt(CIBLE[0], CIBLE[1], CIBLE[2]);
   camera.updateMatrixWorld(true);
-  const cam = cameraMoteur(camera);
+  const cam = engineCamera(camera);
   memesNombres(cam.eye, [0, 0, 0], 'the eye is at world zero');
   memesNombres(cam.viewRelative, cam.view, 'the relative view IS the view');
   memesNombres(cam.planesRelative, cam.planes, 'the relative planes ARE the planes');

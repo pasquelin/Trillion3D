@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { dagRecords, worldOf } from './records.fixture.ts';
 import { dagViewFrames } from './oracle/math.fixture.ts';
 import { NODE_CEIL } from './nodeLayout.ts';
@@ -83,7 +83,7 @@ for (const parNiveaux of [false, true]) {
         cam.position.set(x, 0, z);
         cam.lookAt(x, 0, 0);
         cam.updateMatrixWorld();
-        const uniforms = cameraSelectionUniforms(cameraMoteur(cam), seuil, [1280, 720]);
+        const uniforms = cameraSelectionUniforms(engineCamera(cam), seuil, [1280, 720]);
         packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
         const attendu = coupeSansElagage(packed, uniforms);
         const obtenu = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(

@@ -18,7 +18,7 @@ import {
 import { mockDagDevice } from './selection.fixture.ts';
 import { dagPageUrls } from './pack.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
@@ -27,7 +27,7 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
   // the moved point's closest depth, with Infinity at the near plane. Replaying it against the
   // published oracle keeps the GPU and CPU cuts on one formula.
   const cam = wideCamera();
-  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, VIEWPORT);
   const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
   const world = new G.Matrix4().makeRotationY(0.7).setPosition(1, -2, 3);
   const view = new G.Matrix4().multiplyMatrices(cam.matrixWorldInverse, world),

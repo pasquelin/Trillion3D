@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { dagFixture } from './dag.fixture.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 
 /** DAG fixture, every page resident, tight view on the left half: right-hand clusters
@@ -37,7 +37,7 @@ function coupe() {
   return {
     pages,
     shown,
-    tour: () => selectVisiblePages(roots, cameraMoteur(camera), options, shown),
+    tour: () => selectVisiblePages(roots, engineCamera(camera), options, shown),
   };
 }
 

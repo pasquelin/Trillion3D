@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/projection.ts';
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts';
-import { cameraMoteur } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import { lineDash } from '../../../../packages/sdk-browser/src/visibility/shader/lineWgsl.ts';
 import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
@@ -33,7 +33,7 @@ function camera() {
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld(true);
-  return cameraMoteur(cam);
+  return engineCamera(cam);
 }
 
 test('the CPU raster widens a line corner by the CSS width times the pixel ratio', () => {

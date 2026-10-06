@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import type { ClusterRoot } from './types.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 
 /** A fixture whose nearest page carries a cone that looks opposite the camera: honoured, it
  *  rejects it; ignored, it stays. The material is single-sided, without which cone reject has
@@ -25,7 +25,7 @@ function fixtureAvecCone() {
 }
 
 function urls(roots: ReadonlyArray<ClusterRoot<PageRec>>) {
-  return selectVisiblePages(roots, cameraMoteur(camera()), {}).shown.map((page) => page.url);
+  return selectVisiblePages(roots, engineCamera(camera()), {}).shown.map((page) => page.url);
 }
 
 test('collection declares a root without a cone, which is true of all its pages', () => {

@@ -9,7 +9,7 @@ import type { CameraMotion } from './motion.ts';
 import type { EngineCamera } from './engineCamera.ts';
 import { aheadViewOf } from '../gpu/core/aheadView.ts';
 import * as G from '../host/graph/graph.fixture.ts';
-import { cameraMoteur as engineCameraOf } from './camera.fixture.ts';
+import { engineCamera as engineCameraOf } from './camera.fixture.ts';
 import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts';
 import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../backend/common.ts';
 import { restartCameraMotion } from './motion.fixture.ts';

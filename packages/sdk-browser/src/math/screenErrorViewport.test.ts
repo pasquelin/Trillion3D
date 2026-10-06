@@ -9,7 +9,7 @@ import { maxStretch } from '../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts';
 import { clusterPixels, projectedClusterError } from '../page/selection/math.ts';
 import { drawsCluster } from '../page/cut/rule.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 
 const FULL: [number, number] = [2496, 1404],
   HALF: [number, number] = [1248, 702];
@@ -19,7 +19,7 @@ function camera() {
   cam.position.set(3, 1.6, 7);
   cam.lookAt(-4, 1, -20);
   cam.updateMatrixWorld(true);
-  return cameraMoteur(cam);
+  return engineCamera(cam);
 }
 
 /** Focal in pixels of the selection uniforms, the operand the kernel and the CPU cut project with. */

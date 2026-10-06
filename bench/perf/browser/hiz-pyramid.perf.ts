@@ -10,7 +10,7 @@ import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 import type { ScenePage } from './support/scenes.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe, located, rectangles } from './support/scenes.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { rasterVisibility } from '../../oracles/browser/cpu-image/raster.ts';
 import { hizRejects, type HizBounds } from '../../oracles/browser/hizRejects.ts';
 
@@ -67,7 +67,7 @@ interface Entree {
 function cas(width: number, height: number, pages: ScenePage[], seed: number): Entree {
   const cam = camera(6, 0.1, width / height),
     viewport: [number, number] = [width, height];
-  const depth = rasterVisibility(pages, located(pages.length), cameraMoteur(cam), viewport).depth;
+  const depth = rasterVisibility(pages, located(pages.length), engineCamera(cam), viewport).depth;
   const alea = graine(seed),
     bounds: HizBounds[] = [];
   const count = width >= 1280 ? 4000 : width >= 33 ? 200 : 2;

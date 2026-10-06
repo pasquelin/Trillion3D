@@ -12,12 +12,10 @@ import { splitOccludersInto } from './split.ts';
 import { rankByDepth } from './depthRank.ts';
 import { projectCornersInto, HIZ_BOUNDS_VALUES } from './corners.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { locatedBy } from '../page/selection/placements.fixture.ts';
 import type { Placements } from '../page/selection/placements.ts';
 import { projectBoxesFlat } from './projection.ts';
-
-const engineCamera = cameraMoteur;
 
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
   let seed = 12345;

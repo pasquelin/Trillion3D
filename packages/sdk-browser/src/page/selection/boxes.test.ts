@@ -8,12 +8,12 @@ import { wideCamera } from './dag.fixture.ts';
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts';
 import { blendFixture } from './blend.fixture.ts';
 import type { ClusterRoot } from './types.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 
 // The wide camera sees the whole root of `culledDagRoots`: the descent sets `inside` from the
 // first node, and that is the only case where the declaration changes anything.
 const montres = (roots: ReadonlyArray<ClusterRoot<PageRec>>) =>
-  selectVisiblePages(roots, cameraMoteur(wideCamera()), HELD_EXACT_ASK).shown.map(
+  selectVisiblePages(roots, engineCamera(wideCamera()), HELD_EXACT_ASK).shown.map(
     (page) => page.url,
   );
 

@@ -7,7 +7,7 @@ import {
   type SelectionResult,
 } from './selection.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 import { createSelectionResult } from '../cut/state.ts';
 
@@ -46,8 +46,8 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
       wanted,
       result,
     };
-  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
-  const second = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
+  const first = selectVisiblePages(roots, engineCamera(cam), ask, shown);
+  const second = selectVisiblePages(roots, engineCamera(cam), ask, shown);
   assert.equal(second, first, 'the returned result is the one supplied, frame after frame');
   assert.equal(second, result);
   assert.equal(second.shown, shown);
@@ -95,14 +95,14 @@ test('two successive calls with the same camera select the same set of clusters'
   const shown1: PageRec[] = [];
   const first = selectVisiblePages(
     roots,
-    cameraMoteur(cam),
+    engineCamera(cam),
     { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown1,
   );
   const shown2: PageRec[] = [];
   const second = selectVisiblePages(
     roots,
-    cameraMoteur(cam),
+    engineCamera(cam),
     { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown2,
   );
@@ -127,8 +127,8 @@ test('selection working arrays are reused from one frame to the next', () => {
       held: createHeldResidency(),
     };
   const hint: PageRec[] = [];
-  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
-  const second = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
+  const first = selectVisiblePages(roots, engineCamera(cam), ask, hint);
+  const second = selectVisiblePages(roots, engineCamera(cam), ask, hint);
   assertSameCut(first, second);
   fixture.geometry.dispose();
   fixture.material.dispose();

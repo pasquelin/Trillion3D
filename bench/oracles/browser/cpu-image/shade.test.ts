@@ -7,7 +7,7 @@ import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixtur
 import { shadeVisibility } from './shade.ts';
 import { referenceShadeVisibility } from '../image-shading.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { asHostLibrary } from '../../../../packages/sdk-browser/src/host/resources.ts';
 import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from './raster.ts';
@@ -42,8 +42,8 @@ function assertQuadLikeReference(
 ) {
   const { page, geometry } = quad(material, min, max, label);
   const cam = cameraAt();
-  const ids = rasterVisibilityIds([page], identityRoots(), cameraMoteur(cam), size);
-  const optimised = shadeVisibility(ids, [page], identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size);
+  const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size);
   const reference = oracleShade(ids, [page], cam, size);
   bitExactPixels(optimised, reference);
   geometry.dispose();
@@ -53,7 +53,7 @@ function assertQuadLikeReference(
 test('an empty scene is pure background, bit for bit', () => {
   const cam = cameraAt();
   const ids = new Uint32Array(4);
-  const optimised = shadeVisibility(ids, [], identityRoots(), cameraMoteur(cam), [2, 2]);
+  const optimised = shadeVisibility(ids, [], identityRoots(), engineCamera(cam), [2, 2]);
   const reference = oracleShade(ids, [], cam, [2, 2]);
   bitExactPixels(optimised, reference);
 });
@@ -66,8 +66,8 @@ test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
     [1, 1],
     [9, 9],
   ] as [number, number][]) {
-    const ids = rasterVisibilityIds([page], identityRoots(), cameraMoteur(cam), size);
-    const optimised = shadeVisibility(ids, [page], identityRoots(), cameraMoteur(cam), size);
+    const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size);
+    const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size);
     const reference = oracleShade(ids, [page], cam, size);
     bitExactPixels(optimised, reference);
   }

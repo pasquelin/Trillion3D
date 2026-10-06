@@ -10,7 +10,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
@@ -35,7 +35,7 @@ function uniforms(seuil: number, z = 16) {
   camera.position.set(0, 0, z);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);
-  return cameraSelectionUniforms(cameraMoteur(camera), seuil, VIEWPORT);
+  return cameraSelectionUniforms(engineCamera(camera), seuil, VIEWPORT);
 }
 
 test('the totals are taken on what the cut rule draws', () => {

@@ -5,7 +5,7 @@ import { collectClusterPages, rootCoverage, selectVisiblePages } from './selecti
 import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { kernelUniforms } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
 
@@ -23,7 +23,7 @@ test('clustered blend pages retain their source and only select the intersecting
     assert.equal(page.transparent, true);
     assert.equal(page.sourceMesh, fixture.mesh);
   }
-  const selected = selectVisiblePages(roots, cameraMoteur(camera()), {
+  const selected = selectVisiblePages(roots, engineCamera(camera()), {
     pixelError: 100,
     viewport: [960, 540],
     held: createHeldResidency(),
@@ -52,7 +52,7 @@ test('clustered blend never reports missing exact coverage as resident', () => {
     fixture.associations,
     { allowMissing: true },
   );
-  const selected = selectVisiblePages(roots, cameraMoteur(camera()), {
+  const selected = selectVisiblePages(roots, engineCamera(camera()), {
     held: createHeldResidency(),
   });
   assert.equal(selected.complete, false);
@@ -79,7 +79,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
   roots[0].cones = true;
   const cam = camera(),
     packed = packDagSelection(roots);
-  const cpu = selectVisiblePages(roots, cameraMoteur(cam), {});
+  const cpu = selectVisiblePages(roots, engineCamera(cam), {});
   const gpu = evaluateDagSelectionKernel(packed, kernelUniforms(packed, roots, cam, 0, [960, 540]));
   assert.deepEqual(
     cpu.shown.map((page) => page.url),

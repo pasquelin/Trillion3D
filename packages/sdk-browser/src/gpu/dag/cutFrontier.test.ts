@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { descenteComptee } from './cutFrontier.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
@@ -65,7 +65,7 @@ function image(
   cam.position.set(x, 0, z);
   cam.lookAt(x, 0, 0);
   cam.updateMatrixWorld();
-  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, [1280, 720]);
+  const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
   return descenteComptee(packed, uniforms, plancher);
 }

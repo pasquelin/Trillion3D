@@ -4,7 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts';
 import type { HizPage } from './types.ts';
 import { splitOccludersInto } from './split.ts';
 import { cameraAt, projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 export type Tagged = HizPage & { tag: number; array?: ArrayLike<number> };
@@ -29,7 +29,7 @@ export function randomBox(rand: () => number, tag: number) {
 
 export function split(
   pages: Tagged[],
-  cam = cameraMoteur(cameraAt()),
+  cam = engineCamera(cameraAt()),
   viewport: [number, number] = [64, 64],
 ) {
   const occluders: Tagged[] = [],

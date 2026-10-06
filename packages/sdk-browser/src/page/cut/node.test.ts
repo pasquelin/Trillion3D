@@ -15,7 +15,7 @@ import {
 } from './bounds.ts';
 import type { PageRecord, SelectionState } from './state.ts';
 import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { obliqueCamera } from '../selection/dag.fixture.ts';
 import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts';
 
@@ -36,7 +36,7 @@ const state = {
   flatStretch: STRETCH,
   flatFocal: FOCAL,
   flatReach: 0,
-  cam: cameraMoteur(camera),
+  cam: engineCamera(camera),
 } as unknown as SelectionState<PageRecord>;
 
 const ABSENTE = [0, 0, 0, -1];

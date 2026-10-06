@@ -17,7 +17,7 @@ import {
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { requestPriority } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 import { runSelectionKernel } from './selectionKernel.ts';
 import { posedSelection } from './selectionCase.ts';
@@ -49,7 +49,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
     const bounds = cullingBounds(culling, pages);
     const cpu = selectVisiblePages(
       worlds.map((world) => ({ world, pages, cones: false, culling: { ...culling, bounds } })),
-      cameraMoteur(camera),
+      engineCamera(camera),
       { pixelError: threshold, viewport: VIEWPORT },
     );
     return {

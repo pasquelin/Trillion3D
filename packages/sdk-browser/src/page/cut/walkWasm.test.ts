@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { prepareSdkWasm } from '../decode/geometryPageWasm.ts';
 import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts';
 import { scenePages, sceneRoots } from '../../gpu/dag/cutFrontierScene.fixture.ts';
@@ -44,7 +44,7 @@ function eye(from: [number, number, number], at: [number, number, number], ortho
   cam.position.set(...from);
   cam.lookAt(...at);
   cam.updateMatrixWorld();
-  return cameraMoteur(cam);
+  return engineCamera(cam);
 }
 
 const EYES = [
@@ -123,7 +123,7 @@ for (const byLevel of [false, true])
 
 test('cut walk: same cut on the prepared DAG fixture, held at a zero threshold', async () => {
   const { roots, fixture } = culledDagRoots();
-  for (const cam of [cameraMoteur(wideCamera()), cameraMoteur(obliqueCamera())])
+  for (const cam of [engineCamera(wideCamera()), engineCamera(obliqueCamera())])
     for (const ask of [{ pixelError: 0, held: createHeldResidency() }, { pixelError: 2 }])
       await assertSameCut(roots as ClusterRoot<PageRecord>[], cam, ask, 'dag fixture');
   fixture.geometry.dispose();

@@ -5,7 +5,7 @@ import { compareImages } from '../../../sdk-core/src/index.ts';
 import { isTransmissive } from './buffer.ts';
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { camera, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
@@ -23,14 +23,14 @@ test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const right = quadPages(b, [1.25, 0.25, 1.25, 0.25, 1.25, 0.25, 1.25, 0.25]);
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(left.pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(left.pages, identityRoots(), engineCamera(cam), size);
   const image = compareImages(
-    shadeVisibility(ids, left.pages, identityRoots(), cameraMoteur(cam), size),
+    shadeVisibility(ids, left.pages, identityRoots(), engineCamera(cam), size),
     shadeVisibility(
-      rasterVisibilityIds(right.pages, identityRoots(), cameraMoteur(cam), size),
+      rasterVisibilityIds(right.pages, identityRoots(), engineCamera(cam), size),
       right.pages,
       identityRoots(),
-      cameraMoteur(cam),
+      engineCamera(cam),
       size,
     ),
   );
@@ -49,7 +49,7 @@ test('FrontSide visbuffer culls a back-facing triangle', () => {
   cam.position.z = -5;
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), [16, 16]);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), [16, 16]);
   assert.ok([...ids].every((id) => id === VIS_INVALID));
   geometry.dispose();
   material.dispose();
@@ -74,9 +74,9 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
   const metalPages = pages.map((page) => ({ ...page, material: surfaceOf(b) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-  const dark = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size),
-    bright = shadeVisibility(ids, metalPages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+  const dark = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size),
+    bright = shadeVisibility(ids, metalPages, identityRoots(), engineCamera(cam), size);
   assert.ok(compareImages(dark, bright).maxChannelError > 0);
   assert.equal(visMaterial(a).metalness, 1);
   assert.ok(visMaterial(a).metalnessMap);
@@ -106,11 +106,11 @@ test('a roughness map G channel changes the GGX highlight', () => {
   const roughPages = pages.map((page) => ({ ...page, material: surfaceOf(b) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
   assert.ok(
     compareImages(
-      shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size),
-      shadeVisibility(ids, roughPages, identityRoots(), cameraMoteur(cam), size),
+      shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size),
+      shadeVisibility(ids, roughPages, identityRoots(), engineCamera(cam), size),
     ).maxChannelError > 0,
   );
   geometry.dispose();
@@ -141,10 +141,10 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
   const litPages = pages.map((page) => ({ ...page, material: surfaceOf(standard) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
-  assert.deepEqual(ids, rasterVisibilityIds(litPages, identityRoots(), cameraMoteur(cam), size));
-  const unlit = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
-  const lit = shadeVisibility(ids, litPages, identityRoots(), cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+  assert.deepEqual(ids, rasterVisibilityIds(litPages, identityRoots(), engineCamera(cam), size));
+  const unlit = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size);
+  const lit = shadeVisibility(ids, litPages, identityRoots(), engineCamera(cam), size);
   assert.ok(compareImages(unlit, lit).maxChannelError > 0);
   assert.match(DIRECT_LIGHTING_SHADER, /alpha2\s*\/\s*\(3\.14159265/);
   assert.match(DIRECT_LIGHTING_SHADER, /let Vis=0\.5\/\(gV\+gL\+1e-7\)/);

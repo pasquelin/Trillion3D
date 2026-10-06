@@ -1,6 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { frontCamera } from '../../page/selection/dag.fixture.ts';
@@ -17,7 +17,7 @@ export function requestScene(seuil: number, feuilles = 4096, niveaux = 8) {
   const roots = sceneRoots(pages, poses, true);
   const packed = packDagSelection(roots);
   // Posed by the scene builder that owns camera poses, read through the contract.
-  const cam = cameraMoteur(frontCamera(16, 200));
+  const cam = engineCamera(frontCamera(16, 200));
   const uni = cameraSelectionUniforms(cam, seuil, [1280, 720]);
   // WebGL2 ranking reads the SAME pose: the relative view of the render frame and the poses
   // brought into it. Giving them in absolute world under a relative view would compare two frames.

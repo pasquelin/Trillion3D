@@ -8,7 +8,7 @@ import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { visibilityDepth } from './visibilityDepth.fixture.ts';
 import { buildHizPyramid } from './depth.ts';
 import { cameraAt, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
@@ -19,7 +19,7 @@ test('no page and a zero viewport both stay pure background', () => {
     new Uint32Array(0),
     [],
     identityRoots(),
-    cameraMoteur(cameraAt()),
+    engineCamera(cameraAt()),
     [0, 0],
   );
   assert.equal(depth.length, 0);
@@ -27,7 +27,7 @@ test('no page and a zero viewport both stay pure background', () => {
 
 test('an id with no matching page falls back to background', () => {
   const ids = new Uint32Array(4).fill(packVisibilityId(3, 0));
-  const depth = visibilityDepth(ids, [], identityRoots(), cameraMoteur(cameraAt()), [2, 2]);
+  const depth = visibilityDepth(ids, [], identityRoots(), engineCamera(cameraAt()), [2, 2]);
   assert.ok(depth.every((z) => z === DEPTH_CLEAR));
 });
 
@@ -35,7 +35,7 @@ test('a degenerate (zero-area) triangle never wins a pixel', () => {
   const material = G.basicSurface();
   // Three collinear points: any pixel's barycentric area is exactly 0.
   const { page, geometry } = quad(material, [-1, 0, 0], [1, 0, 0], 'flat');
-  const cam = cameraMoteur(cameraAt()),
+  const cam = engineCamera(cameraAt()),
     size: [number, number] = [8, 8];
   const ids = rasterVisibilityIds([page], identityRoots(), cam, size);
   const depth = visibilityDepth(ids, [page], identityRoots(), cam, size);
@@ -51,7 +51,7 @@ test('a covered pixel holds a depth strictly between far and near, and only cove
     const half = 0.3 + rand() * 1.2,
       z = -3 + rand() * 6;
     const { page, geometry } = quad(material, [-half, -half, z], [half, half, z], 'q');
-    const cam = cameraMoteur(cameraAt()),
+    const cam = engineCamera(cameraAt()),
       size: [number, number] = [9 + Math.floor(rand() * 20), 9 + Math.floor(rand() * 20)];
     const ids = rasterVisibilityIds([page], identityRoots(), cam, size);
     const depth = visibilityDepth(ids, [page], identityRoots(), cam, size);
@@ -69,7 +69,7 @@ test('a covered pixel holds a depth strictly between far and near, and only cove
 });
 
 test('the nearer a quad is to the eye, the greater its depth at the centre', () => {
-  const cam = cameraMoteur(cameraAt()),
+  const cam = engineCamera(cameraAt()),
     size: [number, number] = [15, 15];
   let previous = DEPTH_CLEAR;
   // From far to near along the view axis, the camera sits at z = 5.
@@ -90,7 +90,7 @@ test('the nearer a quad is to the eye, the greater its depth at the centre', () 
 test('a pixel reads only its own id: blanking half the ids leaves the other half unchanged', () => {
   const material = G.basicSurface();
   const { page, geometry } = quad(material, [-1, -1, -0.3], [1, 1, -0.3], 'front');
-  const cam = cameraMoteur(cameraAt()),
+  const cam = engineCamera(cameraAt()),
     size: [number, number] = [17, 17];
   const ids = rasterVisibilityIds([page], identityRoots(), cam, size);
   const depth = visibilityDepth(ids, [page], identityRoots(), cam, size);
@@ -111,7 +111,7 @@ test('a page whose index reaches past its triangle stays background, not a throw
     material: surfaceOf(G.basicSurface()),
   };
   const ids = new Uint32Array(1).fill(packVisibilityId(0, 0));
-  const depth = visibilityDepth(ids, [page], identityRoots(), cameraMoteur(cameraAt()), [1, 1]);
+  const depth = visibilityDepth(ids, [page], identityRoots(), engineCamera(cameraAt()), [1, 1]);
   assert.equal(depth[0], DEPTH_CLEAR);
 });
 

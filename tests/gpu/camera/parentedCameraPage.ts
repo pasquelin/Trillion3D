@@ -9,7 +9,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../kit/cameraRig.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';
@@ -37,7 +37,7 @@ async function sequence(
   if (!selection) throw new Error('GPU_SELECTION_UNAVAILABLE');
   const frames: FrameSelection[] = [];
   for (const pose of POSES_PARENT) {
-    selection.dispatch(cameraSelectionUniforms(cameraMoteur(cameras(pose)), pixelError, VIEWPORT));
+    selection.dispatch(cameraSelectionUniforms(engineCamera(cameras(pose)), pixelError, VIEWPORT));
     const result = await selection.flush();
     if (!result) throw new Error('GPU_SELECTION_FAILED');
     frames.push({

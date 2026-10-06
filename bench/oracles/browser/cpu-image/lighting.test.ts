@@ -13,7 +13,7 @@ import type {
   VisMaterial,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts';
 import type { Projected } from '../../../../packages/sdk-browser/src/visibility/projection.ts';
-import { cameraMoteur } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import { litMaterial } from '../../../../packages/sdk-browser/src/visibility/shader/material.fixture.ts';
 import { asHostLibrary } from '../../../../packages/sdk-browser/src/host/resources.ts';
@@ -83,7 +83,7 @@ function assertSameShading(shading: ShadingCase, label: string) {
   ] as const;
   // The optimised one reads the engine camera; the oracle keeps the host-library camera, which
   // is what it proves equivalence of. Same eye, same bits.
-  const optimised = shadeLit(...a, cameraMoteur(CAMERA));
+  const optimised = shadeLit(...a, engineCamera(CAMERA));
   const reference = referenceShadeLit(
     ...a,
     asHostLibrary<Parameters<typeof referenceShadeLit>[9]>(CAMERA),

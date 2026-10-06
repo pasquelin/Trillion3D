@@ -9,7 +9,7 @@ import {
   referenceCountUnoccluded,
   referenceSplitOccluders,
 } from '../../oracles/browser/occlusion.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { SceneBox } from './support/scenes.ts';
 
 const LARGEUR = 640,
@@ -38,7 +38,7 @@ const resSplit = await mesure({
   fichier: 'packages/sdk-browser/src/hiz/split.ts',
   cas: jeux,
   calcul: (pages) => {
-    splitOccludersInto(pages, located(pages.length), cameraMoteur(cam), viewport, occluders, rest);
+    splitOccludersInto(pages, located(pages.length), engineCamera(cam), viewport, occluders, rest);
     return { occluders: urls(occluders), rest: urls(rest) };
   },
   attendu: (pages) => {
@@ -60,7 +60,7 @@ const resCount = await mesure({
           pages,
           located(pages.length),
           pyramide,
-          cameraMoteur(cam),
+          engineCamera(cam),
           viewport,
           counts,
         ),
@@ -81,7 +81,7 @@ const resCount = await mesure({
 await stress({
   name: 'splitOccludersInto extremes',
   calcul: (p: SceneBox[]) =>
-    splitOccludersInto(p, located(p.length), cameraMoteur(cam), viewport, [], []),
+    splitOccludersInto(p, located(p.length), engineCamera(cam), viewport, [], []),
   extremes: [{ name: 'empty', input: [] }],
 });
 

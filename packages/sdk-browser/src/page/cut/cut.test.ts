@@ -4,7 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages, type PageRec } from '../selection/selection.ts';
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts';
 import { dagCulling } from '../selection/helpers.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from './held.ts';
 import { createSelectionResult } from './state.ts';
 
@@ -33,7 +33,7 @@ function rootsOf(fixture: ReturnType<typeof dagFixture>) {
 /** Clusters requested and shown by a cut, flat then hierarchical, under the same camera. */
 function bothCuts(cam: G.Camera) {
   const cut = (fixture: ReturnType<typeof dagFixture>) => {
-    const result = selectVisiblePages(rootsOf(fixture), cameraMoteur(cam), ASK);
+    const result = selectVisiblePages(rootsOf(fixture), engineCamera(cam), ASK);
     fixture.geometry.dispose();
     return {
       shown: result.shown.map((page) => page.url).sort(),
@@ -66,7 +66,7 @@ test('a node accepted as a block only shows clusters under the threshold (monoto
   const fixture = hierarchicalFixture();
   const roots = rootsOf(fixture);
   for (const pixelError of [0, 0.01, 0.02, 0.1, 0.2, 1]) {
-    const result = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, pixelError });
+    const result = selectVisiblePages(roots, engineCamera(wideCamera()), { ...ASK, pixelError });
     for (const cluster of result.shown)
       if (cluster.lodError !== undefined)
         assert.ok(
@@ -90,7 +90,7 @@ test('nodesTested is a non-negative integer after a hierarchical cut frame', () 
   const fixture = hierarchicalFixture();
   const roots = rootsOf(fixture);
   for (let image = 0; image < 3; image++) {
-    const { nodesTested } = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK });
+    const { nodesTested } = selectVisiblePages(roots, engineCamera(wideCamera()), { ...ASK });
     assert.ok(Number.isInteger(nodesTested) && nodesTested >= 0, `nodesTested = ${nodesTested}`);
   }
   fixture.geometry.dispose();
@@ -104,8 +104,8 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
   const wanted: PageRec[] = [];
   const result = createSelectionResult<PageRec>();
   const ask = { ...ASK, result, wanted };
-  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
-  const second = selectVisiblePages(roots, cameraMoteur(cam), { ...ask }, shown);
+  const first = selectVisiblePages(roots, engineCamera(cam), ask, shown);
+  const second = selectVisiblePages(roots, engineCamera(cam), { ...ask }, shown);
   assert.equal(second, first, 'result object reused');
   assert.equal(second.shown, shown, 'shown array reused');
   assert.equal(second.wanted, wanted, 'wanted array reused');

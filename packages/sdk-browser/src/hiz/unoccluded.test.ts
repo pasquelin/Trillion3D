@@ -8,7 +8,7 @@ import type { HizPage } from './types.ts';
 import { buildHizPyramid } from './depth.ts';
 import { countUnoccluded, filterUnoccluded } from './unoccluded.ts';
 import { cameraAt, occluderPyramid, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { bounds, box, randomBox, type Tagged } from './occlusionCuts.fixture.ts';
@@ -17,7 +17,7 @@ import { bounds, box, randomBox, type Tagged } from './occlusionCuts.fixture.ts'
 function wall(size: [number, number]) {
   const material = G.basicSurface();
   const { page, geometry } = quad(material, [-6, -6, 0], [6, 6, 0], 'wall');
-  const pyramid = occluderPyramid([page], cameraMoteur(cameraAt()), size);
+  const pyramid = occluderPyramid([page], engineCamera(cameraAt()), size);
   geometry.dispose();
   material.dispose();
   return pyramid;
@@ -35,7 +35,7 @@ test('a box behind a wall that covers the view is rejected, one in front of it i
     pages,
     identityRoots(),
     pyramid,
-    cameraMoteur(cameraAt()),
+    engineCamera(cameraAt()),
     size,
     counts,
   );
@@ -52,7 +52,7 @@ test('a box behind a wall that covers the view is rejected, one in front of it i
 test('the test never culls a box that could be seen, over generated cuts and occluders', () => {
   const rand = seededRandom(31);
   const size: [number, number] = [40, 36];
-  const cam = cameraMoteur(cameraAt());
+  const cam = engineCamera(cameraAt());
   let rejected = 0;
   for (let round = 0; round < 30; round++) {
     // Random occluding quads: some pixels of the pyramid hold a depth, some stay background.
@@ -106,7 +106,7 @@ test('the test never culls a box that could be seen, over generated cuts and occ
 
 test('nothing is rejected over an empty pyramid, a near-plane crossing or a box with no extent', () => {
   const size: [number, number] = [32, 32];
-  const cam = cameraMoteur(cameraAt(0.5, 0.1));
+  const cam = engineCamera(cameraAt(0.5, 0.1));
   const empty = buildHizPyramid(new Float32Array(32 * 32).fill(DEPTH_CLEAR), 32, 32);
   const pages = [
     box([-0.4, -0.4, -3], [0.4, 0.4, -3], 0),
@@ -146,7 +146,7 @@ test('a page whose surface is never culled is kept behind a wall, and the ranks 
     pages,
     identityRoots(),
     pyramid,
-    cameraMoteur(cameraAt()),
+    engineCamera(cameraAt()),
     size,
     counts,
     ranks,
@@ -161,7 +161,7 @@ test('a page whose surface is never culled is kept behind a wall, and the ranks 
     pages,
     identityRoots(),
     pyramid,
-    cameraMoteur(cameraAt()),
+    engineCamera(cameraAt()),
     size,
   );
   assert.deepEqual(
@@ -173,7 +173,7 @@ test('a page whose surface is never culled is kept behind a wall, and the ranks 
 test('a bias keeps what the wall hides by less than the bias, and the counts add up', () => {
   const size: [number, number] = [48, 48];
   const pyramid = wall(size);
-  const cam = cameraMoteur(cameraAt());
+  const cam = engineCamera(cameraAt());
   // A box a hair behind the wall: hidden with no bias, kept once the bias exceeds the gap.
   const page = box([-0.5, -0.5, -0.01], [0.5, 0.5, -0.01], 0, 4);
   assert.equal(filterUnoccluded([page], identityRoots(), pyramid, cam, size).length, 0);

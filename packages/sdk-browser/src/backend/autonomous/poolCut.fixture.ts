@@ -6,7 +6,7 @@ import {
   racine,
   type DagPage,
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
 import { createRefusalAnswer } from './refusals.ts';
@@ -132,7 +132,7 @@ export function mount(
     answerRefusals();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
-    const drawn = (last = cut(cameraMoteur(camera), pixelError));
+    const drawn = (last = cut(engineCamera(camera), pixelError));
     frame.after = state.allocationBytes;
     pool.follow(requested, shown);
     // The resident pages drawn in place of missing ones: the ancestors a refinement replaces.

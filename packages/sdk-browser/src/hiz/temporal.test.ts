@@ -10,7 +10,7 @@ import { filterUnoccluded } from './unoccluded.ts';
 import { visibilityDepth } from './visibilityDepth.fixture.ts';
 import { splitOccludersInto } from './split.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { identityLocations } from '../page/selection/placements.fixture.ts';
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
 
@@ -29,7 +29,7 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
   splitOccludersInto(
     selected,
     identityLocations(selected.length),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     occluders,
     rest,
@@ -47,34 +47,34 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
   const ids = rasterVisibilityIds(
     occluders,
     identityLocations(occluders.length),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
   );
   const remaining = filterUnoccluded(
     selected,
     identityLocations(selected.length),
     buildHizPyramid(
-      visibilityDepth(ids, occluders, identityLocations(occluders.length), cameraMoteur(cam), size),
+      visibilityDepth(ids, occluders, identityLocations(occluders.length), engineCamera(cam), size),
       32,
       32,
     ),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
     [],
   );
   assert.ok(remaining.every((page) => selected.includes(page)));
   const full = shadeVisibility(
-    rasterVisibilityIds(selected, identityLocations(selected.length), cameraMoteur(cam), size),
+    rasterVisibilityIds(selected, identityLocations(selected.length), engineCamera(cam), size),
     selected,
     identityLocations(selected.length),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
   );
   const filtered = shadeVisibility(
-    rasterVisibilityIds(remaining, identityLocations(remaining.length), cameraMoteur(cam), size),
+    rasterVisibilityIds(remaining, identityLocations(remaining.length), engineCamera(cam), size),
     remaining,
     identityLocations(remaining.length),
-    cameraMoteur(cam),
+    engineCamera(cam),
     size,
   );
   assert.equal(compareImages(full, filtered).maxChannelError, 0);
@@ -97,7 +97,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   const res0 = applyTemporalHiz(
     [front.page, back.page],
     identityLocations(2),
-    cameraMoteur(cam0),
+    engineCamera(cam0),
     size,
     history,
   );
@@ -113,7 +113,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   const res1 = applyTemporalHiz(
     [front.page, back.page],
     identityLocations(2),
-    cameraMoteur(cam0),
+    engineCamera(cam0),
     size,
     history,
   );
@@ -131,7 +131,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   const res2 = applyTemporalHiz(
     [front.page, back.page],
     identityLocations(2),
-    cameraMoteur(cam2),
+    engineCamera(cam2),
     size,
     history,
   );

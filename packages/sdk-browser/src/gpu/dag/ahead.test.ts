@@ -8,7 +8,7 @@ import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { VIEWPORT } from './selectionHelpers.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { readCameraMotion, type CameraMotion } from '../../camera/motion.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
 import { restartCameraMotion } from '../../camera/motion.fixture.ts';
@@ -38,7 +38,7 @@ function cameraAt(x: number, yaw = 0) {
   camera.position.set(x, 0, 10);
   camera.lookAt(x + 10 * Math.tan(yaw), 0, 0);
   camera.updateMatrixWorld(true);
-  return cameraMoteur(camera);
+  return engineCamera(camera);
 }
 
 /** The cut of the camera at `x` and `yaw`, moving along +x at `speed` and turning at `turn` rad/s
@@ -147,7 +147,7 @@ test('a still camera whose way back is only rounded to unit length does not turn
   camera.position.set(1, 1, 1.2);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);
-  const cam = cameraMoteur(camera),
+  const cam = engineCamera(camera),
     motion: CameraMotion = {};
   readCameraMotion(cam, motion, 0);
   readCameraMotion(cam, motion, 16);

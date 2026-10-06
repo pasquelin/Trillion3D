@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraAt, seededRandom } from '../../../../tests/fixtures/hiz.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { engineCamera } from '../camera/camera.fixture.ts';
 import { bounds, box, randomBox, split } from './occlusionCuts.fixture.ts';
 
 test('no page splits into nothing, a single page in front is its own occluder', () => {
@@ -15,7 +15,7 @@ test('no page splits into nothing, a single page in front is its own occluder', 
 });
 
 test('a box crossing the near plane never becomes an occluder, NaN and Infinity bounds included', () => {
-  const cam = cameraMoteur(cameraAt(0.5, 0.1));
+  const cam = engineCamera(cameraAt(0.5, 0.1));
   const pages = [
     box([-5, -5, -5], [5, 5, 5], 0), // Straddles the camera: clips the near plane.
     box([-0.1, -0.1, -2], [0.1, 0.1, -2], 1),

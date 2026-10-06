@@ -6,7 +6,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { engineCamera } from '../../camera/camera.fixture.ts';
 import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
 import type { Placements } from '../../page/selection/placements.ts';
@@ -193,7 +193,7 @@ export async function preparedOccluderRun(
     viewport,
   });
   const cam = camera();
-  const cpu = selectVisiblePages(roots, cameraMoteur(cam), { pixelError: 0, viewport });
+  const cpu = selectVisiblePages(roots, engineCamera(cam), { pixelError: 0, viewport });
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
   return { backend, cam, cpu };
