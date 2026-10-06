@@ -16,14 +16,18 @@ export function holdObjects(
 ) {
   const held = new Map<string, SharedShape>()
   for (const object of objects)
-    if (object && !held.has(object.url))
-      held.set(object.url, shapes.hold(kind, cookedHref(model, object.url), 0, {}))
+    if (object && !held.has(object.url)) {
+      const shape = shapes.hold(kind, cookedHref(model, object.url), 0, {})
+      // The opening keeps it restored for its bodies, made or waiting for another scale.
+      shapes.use(shape)
+      held.set(object.url, shape)
+    }
   return held
 }
 
-/** The objects an opening held, let go as it leaves. */
+/** The objects an opening held and kept, let go as it leaves. */
 export const letGoAll = (shapes: SharedShapes, held: HeldObjects) =>
-  held.forEach((shape) => shapes.letGo(shape))
+  held.forEach((shape) => (shapes.done(shape), shapes.letGo(shape)))
 
 /** The cooked hull of `body`, `undefined` for a primitive. */
 export const cookedHull = ({ shape }: CookedBody) => (shape.type === 'cooked' ? shape : undefined)

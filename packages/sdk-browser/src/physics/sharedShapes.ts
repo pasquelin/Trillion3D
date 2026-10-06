@@ -12,22 +12,22 @@ export type CookedKind = 'tile' | 'hull' | 'settings'
 export interface SharedShape {
   kind: CookedKind
   url: string
-  /** The bytes it counts against the static collision's share while restored: a tile's; a
+  /** The bytes it counts against the static collision's share, landed or restored: a tile's; a
    *  declared body's hull, its own shape, counts none. */
   bytes: number
   /** Its handle in the module while restored, -1 while not. */
   handle: number
-  /** The bodies built on it; and the placements and openings naming it. */
+  /** What keeps it restored — the bodies built on it, and who keeps it for them —; and the
+   *  placements and openings naming it, which keep its read and its bytes. */
   users: number
   holders: number
-  /** Its read — in flight, with the abort its last holder leaving lets it go by; or landed, kept
-   *  while it is held until restored —: what every caller asks. */
+  /** Its read in flight, and the abort its last holder leaving lets it go by. */
   read: Promise<Uint8Array> | null
   abort: AbortController | null
+  /** Its bytes landed, counted against the share, kept while it is held until restored. */
+  landed: Uint8Array | null
   /** Its object answered a 4xx: not asked again while it is held. */
   refused: boolean
-  /** The last update that wanted it restored (`tileSchedule.ts`): kept through it bodiless. */
-  wanted: number
   /** Listed for `settle`. */
   listed: boolean
 }
@@ -43,12 +43,14 @@ type SharedParts = {
 /**
  * The cooked objects a session's bodies are built from, one per kind and object however many
  * models, placements or bodies name it, while one holds it: read once, a failed read reported
- * once; a shape restored once under a handle of the session's ids (`createSimulatedIds`: a handle
- * taken again is another), its bytes counted once (`countShape`), and released by `settle` once
- * no body uses it — a tile once no update wants it, a hull once no opening holds it —, never
- * before nor twice.
+ * once; its bytes landed kept, counted against the share (`claimShape`) when they fit; a shape
+ * restored once under a handle of the session's ids (`createSimulatedIds`: a handle taken again is
+ * another), and released by `settle` once no user keeps it or nothing holds it — never before,
+ * and never twice.
  */
 export class SharedShapes {
+  /** The shapes whose bytes landed and wait, counted, to be restored. */
+  readonly landedShapes: SharedShape[] = []
   private readonly known = new Map<string, SharedShape>()
   private readonly handles = createSimulatedIds<SharedShape>()
   /** Restored shapes whose users fell to zero, or none came yet: `settle` reads them. */
@@ -65,25 +67,34 @@ export class SharedShapes {
     if (!shape) {
       shape = {
         ...{ kind, url, bytes, handle: -1, users: 0, holders: 0, read: null, abort: null },
-        ...{ refused: false, wanted: -1, listed: false, ...extra },
+        ...{ landed: null, refused: false, listed: false, ...extra },
       }
       this.known.set(`${kind} ${url}`, shape)
     }
     shape.holders += holders
     return shape as SharedShape & E
   }
-  /** A holder of `shape` gone: the last one lets its read go, a hull be released, and the shape
-   *  be forgotten, refused or not. */
+  /** A holder of `shape` gone: the last one lets its read and its landed bytes go, and the shape
+   *  be forgotten, refused or not, once released. */
   letGo(shape: SharedShape) {
     if (--shape.holders) return
     shape.abort?.abort()
     shape.read = shape.abort = null
+    this.drop(shape)
     this.list(shape)
     this.forget(shape)
   }
-  /** `shape`'s object, read once for every caller (`readShared`), in `tries` requests. */
+  /** `shape`'s object, read once for every caller (`readShared`), in `tries` requests; landed,
+   *  its bytes are kept, counted, while it is held and they fit. */
   read(shape: SharedShape, tries?: number) {
-    return readShared(shape, this.parts.failed, tries)
+    if (shape.landed) return Promise.resolve(shape.landed)
+    if (shape.read) return shape.read
+    const read = readShared(shape, this.parts.failed, tries)
+    read.then(
+      (bytes) => this.keep(shape, bytes),
+      () => {},
+    )
+    return read
   }
   /** Whether `shape` is restored, read first when it is not: false when its read or its restore
    *  failed, reported once here. */
@@ -98,42 +109,54 @@ export class SharedShapes {
     }
     return shape.handle >= 0
   }
-  /** Restores `shape` from its object's `bytes`, its bytes claimed (`claimShape`): refused past
-   *  the share. Its read let go of: the module holds the shape. */
+  /** Restores `shape` from its object's `bytes`, counted when they were not yet (`claimShape`):
+   *  refused past the share. */
   restore(shape: SharedShape, bytes: Uint8Array) {
     if (shape.handle >= 0) return
-    this.parts.bodies.claimShape(shape, shape.bytes)
+    if (!shape.landed) this.parts.bodies.claimShape(shape, shape.bytes)
     shape.handle = this.handles.take(shape)
     this.parts.writer.restore(shape.handle, bytes)
-    shape.read = null
+    this.unland(shape)
     this.list(shape)
   }
-  /** A body built on `shape`. */
+  /** `shape`'s landed bytes let go of, and their count given back. */
+  drop(shape: SharedShape) {
+    if (!shape.landed) return
+    this.parts.bodies.releaseShape(shape)
+    this.unland(shape)
+  }
+  /** A user keeps `shape` restored: a body built on it, or who keeps it for them. */
   use(shape: SharedShape) {
     shape.users++
   }
-  /** A body built on `shape` left: the last one lists it for `settle`. */
+  /** A user of `shape` left: the last one lists it for `settle`. */
   done(shape: SharedShape) {
     if (!--shape.users) this.list(shape)
   }
-  /** Releases every restored shape no body uses, but a hull an opening holds and a tile a holder
-   *  of update `pass` wants. */
-  settle(pass: number) {
+  /** Releases every restored shape no user keeps any more, or nothing holds any more. */
+  settle() {
     const bare = this.bare
-    let kept = 0
     for (let i = 0; i < bare.length; i++) {
-      const shape = bare[i]
-      // Released already, or built on again; a hull an opening holds lives on, listed again once
-      // let go of; a tile the last update wants stays, bodiless, to be built on next.
-      if (shape.handle < 0 || shape.users || (shape.holders && shape.kind !== 'tile'))
-        shape.listed = false
-      else if (shape.holders && shape.wanted === pass) bare[kept++] = shape
-      else {
-        shape.listed = false
-        this.release(shape)
-      }
+      bare[i].listed = false
+      if (!bare[i].users || !bare[i].holders) this.release(bare[i])
     }
-    bare.length = kept
+    bare.length = 0
+  }
+  /** `bytes` landed for `shape`: kept while it is held, counted when they fit, else let go. */
+  private keep(shape: SharedShape, bytes: Uint8Array) {
+    if (!shape.holders || shape.handle >= 0 || shape.landed) return
+    try {
+      this.parts.bodies.claimShape(shape, shape.bytes)
+    } catch {
+      return
+    }
+    shape.landed = bytes
+    this.landedShapes.push(shape)
+  }
+  private unland(shape: SharedShape) {
+    shape.landed = null
+    const at = this.landedShapes.indexOf(shape)
+    if (at >= 0) this.landedShapes.splice(at, 1)
   }
   /** `shape` listed for `settle`, once. */
   private list(shape: SharedShape) {

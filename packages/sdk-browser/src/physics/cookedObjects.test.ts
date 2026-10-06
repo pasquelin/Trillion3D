@@ -94,3 +94,15 @@ test('a second load of an asset makes its cloth from the settings the first one 
   const reads = fetched.filter((name) => name === 'cloth.bin').length
   assert.deepEqual([reads, bodies.count.softVertices], [1, 18])
 })
+
+test('declared bodies on a cooked hull count no static bytes, each or shared, as before the registry', async () => {
+  const hull = { type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 500 }
+  const crates = [1, 2, 3].map((node) =>
+    declared(node, [node * 3, 0, 0], { isKinematic: true }, hull),
+  )
+  stubFetch({ ...cooked([], []), bodies: crates }, new Uint8Array(4))
+  const { tiles, scene, bodies } = modelStreamer({}, 1, crates)
+  tiles.scan(scene)
+  await landed()
+  assert.deepEqual([bodies.count.bodies, bodies.count.collisionBytes], [3, 0])
+})

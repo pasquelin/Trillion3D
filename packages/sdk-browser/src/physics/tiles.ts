@@ -74,12 +74,13 @@ export function createTileStreamer(
   }
   /** Placement `p` out of its opening for good, until its model opens again. */
   const leave = (p: Placed) => {
-    const placed = models.get(p.model)?.placed,
-      at = placed?.indexOf(p) ?? -1
+    const placed = models.get(p.model)?.placed
     // Out already: left, or its model gone.
-    if (at < 0) return
+    if (placed?.[p.at] !== p) return
     resident.remove(p)
-    placed!.splice(at, 1)
+    // Its place taken by the last one: O(1).
+    const last = placed.pop()!
+    if (last !== p) placed[(last.at = p.at)] = last
   }
   /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {

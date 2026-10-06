@@ -10,12 +10,22 @@ export function createBodyLedger(budget: Readonly<PhysicsBudget>) {
   /** Of the collision bytes, those the shared shapes hold. */
   const shared = { bytes: 0 }
   const held = new Map<number | object, { bytes: number; softVertices: number }>()
+  const check = (key: keyof typeof count, more: number) =>
+    checkPhysicsBudget(budget, key, count[key] + more)
+  /** Frees a slot for a body none is left for (`onFull`). */
+  let makeRoom = () => {}
   return {
     count,
     shared,
     /** Refuses `more` of `key` past its budget. */
-    check: (key: keyof typeof count, more: number) =>
-      checkPhysicsBudget(budget, key, count[key] + more),
+    check,
+    /** Refuses one more body past the budget, a slot freed for it first when none is left. */
+    checkSlot() {
+      if (count.bodies >= budget.bodies) makeRoom()
+      check('bodies', 1)
+    },
+    /** What frees a slot when none is left: the farthest tile body leaving (`tiles.ts`). */
+    onFull: (free: () => void) => void (makeRoom = free),
     /** `bytes` of collision and `softVertices` counted under `owner`, checked already. */
     hold(owner: number | object, bytes: number, softVertices: number) {
       if (bytes || softVertices) held.set(owner, { bytes, softVertices })

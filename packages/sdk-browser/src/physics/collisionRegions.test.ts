@@ -108,13 +108,13 @@ test('a tile past the whole share holds no one back: the farther tiles still loa
   assert.deepEqual(errors, [])
 })
 
-test('a tile left out while its bytes are on their way is not claimed when they land', async () => {
+test('a tile left out while its bytes are on their way keeps them counted, unrestored, when they land', async () => {
   const file = cooked([{ kind: 'mesh', tiles: [tile()] }], [place(0)])
   const { tiles, bodies, fetched } = await streamedModel(file, new Uint8Array(1))
   tiles.update([0, 0, 0], 10)
   tiles.update([100, 0, 0], 10)
   await landed()
-  assert.deepEqual([fetched.length, bodies.count.collisionBytes], [2, 0], 'asked, then left out')
+  assert.deepEqual([fetched.length, bodies.count.collisionBytes, bodies.count.bodies], [2, 2, 0])
 })
 
 test('a physics budget that does not exist, as the removed triangles, is refused by name', () => {

@@ -42,20 +42,22 @@ export interface Placed {
   box: Float64Array
   /** The body's engine id once resident, -1 while out. */
   id: number
-  /** How near the last update wanted it (`nearness`). */
+  /** How near the last update wanted it (`nearness`), and where it is in its opening's list. */
   near: number
+  at: number
 }
 
 /** A cooked tile as the session shares it (`sharedShapes.ts`), its manifest entry beside, and the
  *  marks an update leaves on it (`tileSchedule.ts`): how near its nearest wanted placement is, the
- *  update that saw it wanted, the one that gave a placement of it a body, and the one that
- *  counted its bytes against the share. */
+ *  update that saw it wanted, the one that gave a placement of it a body, the one that counted
+ *  its bytes against the share, and the one that keeps it, a placement of it let in. */
 export type TileShape = SharedShape & {
   tile: CookedTile
   near: number
   seen: number
   slotted: number
   counted: number
+  kept: number
 }
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
@@ -102,20 +104,22 @@ export function placedOf(
       placements.set(tile, (placements.get(tile) ?? 0) + 1)
   const held = new Map<CookedTile, TileShape>()
   for (const [tile, count] of placements) {
-    const extra = { tile, near: Infinity, seen: -1, slotted: -1, counted: -1 }
+    const extra = { tile, near: Infinity, seen: -1, slotted: -1, counted: -1, kept: -1 }
     held.set(tile, shapes.hold('tile', cookedHref(model, tile.url), tile.bytes, extra, count))
   }
-  return cooked.instances.flatMap((instance) => {
+  const placed: Placed[] = []
+  for (const instance of cooked.instances) {
     const { tiles, material } = cooked.colliders[instance.collider]
-    return tiles.map((tile) => {
+    for (const tile of tiles) {
       const p: Placed = {
         ...{ model, instance, shape: held.get(tile)!, material: material ?? -1 },
-        ...{ box: new Float64Array(6), id: -1, near: Infinity },
+        ...{ box: new Float64Array(6), id: -1, near: Infinity, at: placed.length },
       }
       locate(p)
-      return p
-    })
-  })
+      placed.push(p)
+    }
+  }
+  return placed
 }
 
 /** A tile's — or a cooked soft body's — world pose: its model's world matrix times its placement,

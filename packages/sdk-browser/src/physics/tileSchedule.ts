@@ -3,6 +3,7 @@ import type { createPhysicsBodies } from './bodies.ts'
 import type { createModelBodies } from './modelBodies.ts'
 import { partitionBy, selectByKey } from '../../../sdk-core/src/math/select.ts'
 import type { SharedShapes } from './sharedShapes.ts'
+import { createTileKeeps } from './tileKeeps.ts'
 import type { createResidentTiles } from './tileResident.ts'
 import { moversOf, nearness, type Placed, type TileShape } from './tilePlace.ts'
 import { ONE_REQUEST } from '../cluster/checked.ts'
@@ -51,9 +52,11 @@ export class TileSchedule {
   private eye: ArrayLike<number> = []
   private range = 0
   private readonly parts: ScheduleParts
+  private readonly keeps: ReturnType<typeof createTileKeeps>
 
   constructor(parts: ScheduleParts) {
     this.parts = parts
+    this.keeps = createTileKeeps(parts.shapes, parts.resident.evict)
   }
   /** Lists the placements of `openings` wanted around `eye` within `range` and the moving bodies
    *  (`nearness`), and their tiles nearest first; one unwanted, of a refused tile, or whose node a
@@ -76,8 +79,9 @@ export class TileSchedule {
    * Lets in the placements wanted within `free` bytes of the share and `slots` bodies: the bytes
    * counted once each of the tiles the `slots` nearest placements name, nearest tile first — past
    * the first that does not fit, no farther one is, the room kept for it; one past the whole share
-   * never fits, and holds no one back —, then the `slots` nearest placements of the tiles counted.
-   * The others are evicted.
+   * never fits, and holds no one back —, then the `slots` nearest placements of the tiles counted,
+   * their tiles kept (`tileKeeps.ts`). The others are evicted, and the bytes landed for tiles
+   * let in nowhere kept in the room left.
    */
   admit(free: number, slots: number) {
     const tiles = this.tiles,
@@ -97,9 +101,9 @@ export class TileSchedule {
     const counted = partitionBy(wanted, wanted.length, this.counted),
       n = Math.min(counted, near)
     if (n < counted) selectNearest(wanted, counted, n)
-    for (let i = 0; i < wanted.length; i++)
-      if (i >= n) this.parts.resident.evict(wanted[i])
-      else wanted[i].shape.wanted = pass
+    for (let i = n; i < wanted.length; i++) this.parts.resident.evict(wanted[i])
+    this.keeps.keep(wanted, n, pass)
+    this.keeps.trim(bytes, pass)
     this.in = n
   }
   /** Builds the `BUILDS` nearest bodies the placements let in wait for on their resident tiles,
@@ -118,24 +122,19 @@ export class TileSchedule {
     for (let i = 0, loads = LOADS; i < tiles.length && loads && this.fetching < FETCHES; i++) {
       const shape = tiles[i]
       // Its read in flight, it waits; landed and kept, it is restored now, nothing asked again.
-      if (shape.wanted !== this.pass || shape.handle >= 0 || shape.abort) continue
+      if (shape.kept !== this.pass || shape.handle >= 0 || shape.abort) continue
       loads--
       this.read(shape)
     }
     this.settle()
   }
-  /** Lets go of the tiles no one uses, but those the last update let in. */
+  /** Lets go of the tiles no one keeps (`SharedShapes.settle`). */
   settle() {
-    this.parts.shapes.settle(this.pass)
+    this.parts.shapes.settle()
   }
   /** Evicts the farthest tile body the last update let in, for a body that needs its slot. */
   evictFarthest() {
-    let far: Placed | null = null
-    for (let i = 0; i < this.in; i++) {
-      const p = this.wanted[i]
-      if (p.id >= 0 && (!far || p.near > far.near)) far = p
-    }
-    if (far) this.parts.resident.evict(far)
+    this.keeps.evictFarthest(this.wanted, this.in)
   }
   /** Lists the placements of `opening` wanted, and their tiles, each with its nearest; evicts the
    *  others, and takes those of a refused tile out of `opening` for good, its model's opening. */
@@ -150,7 +149,7 @@ export class TileSchedule {
         parts.resident.remove(p)
         continue
       }
-      placed[kept++] = p
+      placed[(p.at = kept++)] = p
       const near = nearness(p, this.eye, this.range, this.movers)
       if (near === Infinity || parts.declared.holds(p.model, p.instance.node)) {
         parts.resident.evict(p)
@@ -187,7 +186,7 @@ export class TileSchedule {
   }
   /** `shape`'s bytes landed: restored if the last update let it in, else kept for one that does. */
   private land(shape: TileShape, bytes: Uint8Array) {
-    if (!shape.holders || shape.wanted !== this.pass) return
+    if (!shape.holders || shape.kept !== this.pass) return
     try {
       this.parts.shapes.restore(shape, bytes)
     } catch (error) {

@@ -16,7 +16,7 @@ function scheduled(file: ReturnType<typeof cooked>) {
     if (!tiles.has(url))
       tiles.set(url, {
         ...{ kind, url, bytes, handle: -1, users: 0, holders, read: null, abort: null },
-        ...{ refused: false, wanted: -1, listed: false, ...extra },
+        ...{ refused: false, landed: null, listed: false, ...extra },
       } as TileShape)
     return tiles.get(url)!
   }
@@ -30,7 +30,10 @@ function scheduled(file: ReturnType<typeof cooked>) {
   const schedule = new TileSchedule({
     bodies: { meshes: [], nested: new Map(), state: { velocity: new Float32Array(0) } } as never,
     declared: { holds } as never,
-    shapes: { settle() {}, read: () => new Promise(() => {}) } as never,
+    shapes: {
+      ...{ settle() {}, read: () => new Promise(() => {}), use() {}, done() {} },
+      landedShapes: [],
+    } as never,
     resident: {
       ...{ evict: () => calls.evicted++, remove: () => calls.removed++ },
       build: (p: Placed) => calls.built.push(p),

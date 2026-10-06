@@ -68,7 +68,7 @@ export function createPhysicsBodies(
         'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
         { name: mesh.name },
       )
-    // Its slot claimed below (`claim`): a tile body's taken for it, when none is free.
+    ledger.checkSlot()
     if (p.decorative) check('decorative', 1)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
@@ -109,14 +109,13 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative++
     p._attach(host, index, state)
   }
-  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. */
-  /** Frees a slot when none is left for a body no tile holds (`onFull`). */
-  let makeRoom = () => {}
+  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. A
+   *  body no tile holds takes a tile body's slot when none is left, once all else fits. */
   const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
-    if (count.bodies >= budget.bodies && !('tile' in owner)) makeRoom()
-    check('bodies', 1)
     check('collisionBytes', bytes)
     check('softVertices', softVertices)
+    if ('tile' in owner) check('bodies', 1)
+    else ledger.checkSlot()
     const id = slots.take(owner)
     count.bodies++
     ledger.hold(id & BODY_INDEX, bytes, softVertices)
@@ -160,8 +159,7 @@ export function createPhysicsBodies(
       ledger.hold(shape, bytes, 0)
     },
     releaseShape: ledger.give,
-    /** The farthest tile body leaving for a body that needs a slot (`tiles.ts`): `free`. */
-    onFull: (free: () => void) => void (makeRoom = free),
+    onFull: ledger.onFull,
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
     retire(index: number, scale: readonly number[] | null = null) {

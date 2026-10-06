@@ -8,6 +8,7 @@ import {
   cooked,
   landed,
   modelStreamer,
+  place,
   sharedShapes,
   stubFetch,
   tile,
@@ -54,13 +55,13 @@ test('a shape left bodiless again and again is listed for release once', () => {
   const shapes = sharedShapes(new CommandWriter(), bodies)
   const shape = shapes.hold('tile', 'https://cache.test/t.bin', 2, { tile: tile() })
   shapes.restore(shape, new Uint8Array(4))
-  shape.wanted = 1
   for (let i = 0; i < 1000; i++) {
     shapes.use(shape)
     shapes.done(shape)
   }
-  shapes.settle(1)
-  assert.equal((shapes as unknown as { bare: unknown[] }).bare.length, 1, 'kept, listed once')
+  assert.equal((shapes as unknown as { bare: unknown[] }).bare.length, 1, 'listed once')
+  shapes.settle()
+  assert.equal(shape.handle, -1, 'released')
 })
 
 test('a 4xx is asked and reported once while its object is held; held again after, asked again', async () => {
@@ -132,4 +133,25 @@ test('a shape whose last holder let go while it was read is never restored', asy
   const made = shapes.restored(shape)
   shapes.letGo(shape)
   assert.deepEqual([await made, shape.handle, restored], [false, -1, []])
+})
+
+test('bytes landed for tiles no update lets in count in the share, the farthest let go first for room', async () => {
+  // A share of 4 bytes, two bodies.
+  const file = cooked([{ kind: 'mesh', tiles: [tile(0), tile(20), tile(30)] }], [place(0)])
+  const fetched = stubFetch(file, new Uint8Array(4))
+  const { tiles, scene, bodies, writer } = modelStreamer({ memoryBytes: 8, bodies: 2 })
+  const { restored } = recorded(writer)
+  const reads = (name: string) => fetched.filter((file) => file === name).length
+  tiles.scan(scene)
+  await landed()
+  // The two far tiles asked, then left before they land: their bytes kept, counted.
+  tiles.update([25, 0, 0], 6)
+  tiles.update([-50, 0, 0], 5)
+  await landed()
+  assert.deepEqual([bodies.count.collisionBytes, restored.length], [4, 0])
+  // The near tile let in with the nearer kept one: the farthest kept bytes let go for it.
+  await settle({ tiles, bodies, fetched }, [0, 0, 0], 40)
+  const counts = [reads('t0.bin'), reads('t20.bin'), reads('t30.bin'), restored.length]
+  assert.deepEqual(counts, [1, 1, 1, 2], 't20 restored from its kept bytes, t30 let go')
+  assert.equal(bodies.count.collisionBytes, 4)
 })
