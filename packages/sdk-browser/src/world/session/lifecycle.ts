@@ -11,7 +11,7 @@ import type { createExplorerStreaming } from '../scene/streaming.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
-import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts';
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };

@@ -8,7 +8,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { saveScene } from '../saved/write.ts';
 import { readScene } from '../saved/read.ts';
 import type { SavedScene } from '../saved/format.ts';
-import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts';
 import { validateSceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { sceneFogOf, type Fog } from './sceneFog.ts';
 export { sceneFogOf };
