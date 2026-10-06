@@ -6,37 +6,14 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createVsmResources } from './resources.ts';
 import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts';
-import type { VsmRenderScene } from './renderPass.ts';
-import { emptyRowSpheres } from './rowPageBound.fixture.ts';
+import { recordingRaster } from './rowPageBound.fixture.ts';
 
 function setup() {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } });
   const { device } = fake;
   const res = createVsmResources(device, { fullMapCapacity: 127, poolPages: 256 });
   const trans = createVsmTransmission(device, res.layout);
-  const pass = {
-    ...{ setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {} },
-    ...{ dispatchWorkgroupsIndirect() {}, drawIndirect() {}, end() {} },
-  };
-  const encoder = {
-    beginComputePass: () => pass,
-    beginRenderPass: () => pass,
-    clearBuffer() {},
-    copyBufferToBuffer() {},
-  } as unknown as GPUCommandEncoder;
-  const buffer = device.createBuffer({ size: 16, usage: 0 });
-  const scene: VsmRenderScene = {
-    rowCount: 4,
-    ...{ pageTable: buffer, spheres: buffer, mobility: buffer, rowLods: buffer },
-    pageLayout: {} as GPUBindGroupLayout,
-    pageGroup: {} as GPUBindGroup,
-    rowSpheres: emptyRowSpheres(),
-    camera: {
-      ...{ eye: [0, 0, 0], view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] },
-      ...{ focalPixels: 100, near: 0.1, perspective: true, threshold: 1 },
-    },
-  };
-  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }];
+  const { encoder, scene, lights } = recordingRaster(device, 4);
   const frame = (stamp: number) => {
     const groups = fake.bindGroups.length,
       writes = fake.writes.length;

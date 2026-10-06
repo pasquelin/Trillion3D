@@ -16,6 +16,7 @@ import { VSM_LOG2_PAGE, VSM_MIPS, VSM_LEVEL0_TEXELS } from './constants.ts';
 import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } from './localLight.ts';
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts';
 import { createVsmResources } from './resources.ts';
+import type { VsmRenderScene } from './renderPass.ts';
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts';
 
 import { seeded } from './planFrames.fixture.ts';
@@ -192,4 +193,33 @@ export function topSums(v: Float64Array) {
   const out = new Float64Array(v.length + 1);
   for (let k = 0; k < v.length; k++) out[k + 1] = out[k] + sorted[k];
   return out;
+}
+
+/** What a raster pass of `rowCount` rows under one sun is encoded with, on a recording device: an
+ *  encoder that records nothing, the scene on one tiny buffer, and the sun. */
+export function recordingRaster(device: GPUDevice, rowCount: number) {
+  const pass = {
+    ...{ setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {} },
+    ...{ dispatchWorkgroupsIndirect() {}, drawIndirect() {}, end() {} },
+  };
+  const encoder = {
+    beginComputePass: () => pass,
+    beginRenderPass: () => pass,
+    clearBuffer() {},
+    copyBufferToBuffer() {},
+  } as unknown as GPUCommandEncoder;
+  const buffer = device.createBuffer({ size: 16, usage: 0 });
+  const scene: VsmRenderScene = {
+    rowCount,
+    ...{ pageTable: buffer, spheres: buffer, mobility: buffer, rowLods: buffer },
+    pageLayout: {} as GPUBindGroupLayout,
+    pageGroup: {} as GPUBindGroup,
+    rowSpheres: emptyRowSpheres(),
+    camera: {
+      ...{ eye: [0, 0, 0], view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] },
+      ...{ focalPixels: 100, near: 0.1, perspective: true, threshold: 1 },
+    },
+  };
+  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }];
+  return { encoder, scene, lights };
 }
