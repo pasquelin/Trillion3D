@@ -3,7 +3,7 @@
 const ACTIVE_LIMIT = 6,
   TRANSFER_BUDGET = 2 * 1024 * 1024
 
-/** A queued job, as `packages/sdk-browser/src/streaming/queueOrder.fixture.ts` and the bench build it. */
+/** A queued job, as the bench and the unit tests build it. */
 interface AdmissionJob {
   url: string
   priority: number

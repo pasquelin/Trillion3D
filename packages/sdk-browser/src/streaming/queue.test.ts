@@ -1,47 +1,49 @@
-// A12: the transfer queue is sorted once per `while` pass, and `findAdmissible`
-// replaces the `queue.sort()` + `findIndex` repeated each turn. Oracle: the version that
-// systematically re-sorted, in `../../../../bench/oracles/browser/arrival-admission.ts`.
+// The transfer queue is a binary heap on (priority, arrival): a job leaves, or is taken out
+// wherever it stands, in O(log n). Oracles: the version that re-sorted the whole queue at every
+// admission, and the one that found a cancelled job by a sweep, in
+// `../../../../bench/oracles/browser/`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { compacteFile, findAdmissible } from './queueOrder.ts'
-import { sortStreamJobs } from './queueOrder.fixture.ts'
+import { createJobHeap, takeAdmissible } from './queueOrder.ts'
 import { referenceAdmission } from '../../../../bench/oracles/browser/arrival-admission.ts'
+import { referenceRetireDeLaFile } from '../../../../bench/oracles/browser/streaming-lookups.ts'
 import type { Job } from './types.ts'
 
 const LIMIT = 6,
   BUDGET = 2 * 1024 * 1024
-function optimizedAdmission(
-  queue: { url: string; priority: number; order: number; consumers: number }[],
-  octetsDe: (url: string) => number | undefined,
-) {
-  const admis: string[] = []
+
+type Plain = { url: string; priority: number; order: number; consumers: number }
+type Queued = Plain & { bytes: number; slot: number }
+
+/** The engine's admission of `jobs`, as `createPump` runs it on the heap. */
+function heapAdmission(jobs: readonly Plain[], bytesOf: (url: string) => number) {
+  const heap = createJobHeap<Queued>()
+  for (const job of jobs) heap.push({ ...job, bytes: bytesOf(job.url), slot: -1 })
+  const admitted: string[] = []
   let active = 0,
-    activeBytes = 0,
-    triee = false
-  while (active < LIMIT && queue.length) {
-    if (!triee) {
-      sortStreamJobs(queue)
-      triee = true
-    }
-    const at = findAdmissible(queue, active, activeBytes, octetsDe, BUDGET)
-    if (at < 0) break
-    const job = queue.splice(at, 1)[0]
+    activeBytes = 0
+  for (let job; active < LIMIT && (job = takeAdmissible(heap, active, activeBytes, BUDGET));) {
     if (job.consumers === 0) continue
     active++
-    activeBytes += octetsDe(job.url) ?? 0
-    admis.push(job.url)
+    activeBytes += job.bytes
+    admitted.push(job.url)
   }
-  return admis
+  return admitted
 }
+
+/** Both admissions of `jobs`, the heap's and the oracle's. */
+const both = (jobs: Plain[], bytesOf: (url: string) => number) => [
+  heapAdmission(jobs, bytesOf),
+  referenceAdmission(jobs.slice(), bytesOf),
+]
+
+const pages = (count: number) =>
+  Array.from({ length: count }, (_, i) => ({ url: `p${i}`, priority: 0, order: i, consumers: 1 }))
 
 test('an empty queue admits nothing, matching the reference', () => {
   assert.deepEqual(
-    optimizedAdmission([], () => 0),
-    [],
-  )
-  assert.deepEqual(
-    referenceAdmission([], () => 0),
-    [],
+    both([], () => 0),
+    [[], []],
   )
 })
 
@@ -51,12 +53,13 @@ test('priority then arrival order decides admission, identically to the referenc
     { url: 'a', priority: 1, order: 0, consumers: 1 },
     { url: 'b', priority: 1, order: 1, consumers: 1 },
   ]
-  const octetsDe = () => 1024
   assert.deepEqual(
-    optimizedAdmission(jobs.slice(), octetsDe),
-    referenceAdmission(jobs.slice(), octetsDe),
+    both(jobs, () => 1024),
+    [
+      ['a', 'b', 'c'],
+      ['a', 'b', 'c'],
+    ],
   )
-  assert.deepEqual(optimizedAdmission(jobs.slice(), octetsDe), ['a', 'b', 'c'])
 })
 
 test('a job with zero consumers is skipped by both sides without stopping admission', () => {
@@ -64,129 +67,84 @@ test('a job with zero consumers is skipped by both sides without stopping admiss
     { url: 'a', priority: 0, order: 0, consumers: 0 },
     { url: 'b', priority: 1, order: 1, consumers: 1 },
   ]
-  const octetsDe = () => 1024
-  assert.deepEqual(optimizedAdmission(jobs.slice(), octetsDe), ['b'])
-  assert.deepEqual(referenceAdmission(jobs.slice(), octetsDe), ['b'])
+  assert.deepEqual(
+    both(jobs, () => 1024),
+    [['b'], ['b']],
+  )
 })
 
 test('the first transfer always admits even alone over budget, then blocks everything behind it', () => {
-  const jobs = Array.from({ length: 10 }, (_, i) => ({
-    url: `p${i}`,
-    priority: 0,
-    order: i,
-    consumers: 1,
-  }))
-  const octetsDe = (url: string) => (url === 'p0' ? BUDGET * 4 : 1024)
-  const optimized = optimizedAdmission(jobs.slice(), octetsDe)
-  const reference = referenceAdmission(jobs.slice(), octetsDe)
-  assert.deepEqual(optimized, reference)
-  assert.deepEqual(
-    optimized,
-    ['p0'],
-    'the oversized first transfer admits alone, then no budget remains',
-  )
+  const [heap, reference] = both(pages(10), (url) => (url === 'p0' ? BUDGET * 4 : 1024))
+  assert.deepEqual([heap, reference], [['p0'], ['p0']])
+})
+
+test('a job past the budget is passed over, the smaller ones behind it admitted, as the reference', () => {
+  const [heap, reference] = both(pages(10), (url) => (url === 'p2' ? BUDGET : 1024))
+  assert.deepEqual(heap, reference)
+  assert.deepEqual(heap, ['p0', 'p1', 'p3', 'p4', 'p5', 'p6'])
 })
 
 test('same-size jobs within budget fill up to the active-transfer limit, identically to the reference', () => {
-  const jobs = Array.from({ length: 10 }, (_, i) => ({
-    url: `p${i}`,
-    priority: 0,
-    order: i,
-    consumers: 1,
-  }))
-  const octetsDe = () => 1024
-  const optimized = optimizedAdmission(jobs.slice(), octetsDe)
-  const reference = referenceAdmission(jobs.slice(), octetsDe)
-  assert.deepEqual(optimized, reference)
-  assert.equal(optimized.length, LIMIT)
+  const [heap, reference] = both(pages(10), () => 1024)
+  assert.deepEqual([heap, heap.length], [reference, LIMIT])
 })
 
-test('an unknown url (no byte size) is treated as zero cost by both sides', () => {
-  const jobs = [{ url: 'missing', priority: 0, order: 0, consumers: 1 }]
-  const octetsDe = () => undefined
+/** A job of `url` at `priority`, arrived `order`-th, out of any queue. */
+function job(url: string, order: number, priority = 0): Job {
+  return {
+    ...{ url, priority, order, bytes: 0, slot: -1, controller: new AbortController() },
+    ...{ state: 'queued', consumers: new Set(), promise: new Promise(() => {}) },
+    ...{ resolve: () => {}, reject: () => {} },
+  }
+}
+
+/** Every job of `heap`, first to last, taken out. */
+function drained(heap: ReturnType<typeof createJobHeap<Job>>) {
+  const urls: string[] = []
+  for (let first = heap.pop(); first; first = heap.pop()) urls.push(first.url)
+  return urls
+}
+
+test('a cancelled job taken out where it stands leaves the queue an immediate remove leaves', () => {
+  const old = ['a', 'b', 'c', 'd'].map((url, at) => job(url, at))
+  const heap = createJobHeap<Job>()
+  const queued = ['a', 'b', 'c', 'd'].map((url, at) => job(url, at))
+  queued.forEach((each) => heap.push(each))
+  for (const url of ['b', 'd']) {
+    referenceRetireDeLaFile(
+      old,
+      old.find((each) => each.url === url)!,
+    )
+    heap.remove(queued.find((each) => each.url === url)!)
+  }
+  old.push(job('e', 4))
+  heap.push(job('e', 4))
   assert.deepEqual(
-    optimizedAdmission(jobs.slice(), octetsDe),
-    referenceAdmission(jobs.slice(), octetsDe),
+    drained(heap),
+    old.map((each) => each.url),
+  )
+  assert.deepEqual(
+    old.map((each) => each.url),
+    ['a', 'c', 'e'],
   )
 })
 
-// G5: a cancelled request is marked `dropped` then the queue is compacted in one pass
-// (`compacteFile`) on the next `pump`, instead of being found by `queue.indexOf` and removed by
-// `splice` on each cancellation. Oracle of the immediate remove: `referenceRetireDeLaFile`, copied
-// as-is in `../../../../bench/oracles/browser/streaming-lookups.ts`.
-{
-  const { referenceRetireDeLaFile } =
-    await import('../../../../bench/oracles/browser/streaming-lookups.ts')
+test('a job out of the queue, or taken out twice, moves nothing', () => {
+  const heap = createJobHeap<Job>()
+  const [a, b] = [job('a', 0), job('b', 1)]
+  heap.push(a)
+  heap.push(b)
+  assert.equal(heap.remove(job('x', 9)), false)
+  assert.equal(heap.remove(a), true)
+  assert.equal(heap.remove(a), false)
+  assert.deepEqual(drained(heap), ['b'])
+})
 
-  function job(url: string): Job {
-    return {
-      url,
-      priority: 0,
-      order: 0,
-      bytes: 0,
-      controller: new AbortController(),
-      state: 'queued',
-      consumers: new Set(),
-      promise: new Promise(() => {}),
-      resolve: () => {},
-      reject: () => {},
-    }
-  }
-
-  function urls(queue: Job[]) {
-    return queue.map((j) => j.url)
-  }
-
-  test('cancel, readmit then drain yield the same queue as an immediate remove', () => {
-    const old = ['a', 'b', 'c', 'd'].map(job)
-    const nouvelle = ['a', 'b', 'c', 'd'].map(job)
-
-    // Cancel 'b': the sorted one removes it at once, the insertion-ordered one only marks it.
-    referenceRetireDeLaFile(
-      old,
-      old.find((j) => j.url === 'b')!,
-    )
-    const target = nouvelle.find((j) => j.url === 'b')!
-    target.state = 'dropped'
-
-    // Readmit: a new request arrives while 'b' is still in the array on the new side.
-    old.push(job('e'))
-    nouvelle.push(job('e'))
-
-    // A second cancellation, on 'd' this time.
-    referenceRetireDeLaFile(
-      old,
-      old.find((j) => j.url === 'd')!,
-    )
-    nouvelle.find((j) => j.url === 'd')!.state = 'dropped'
-
-    // Drain: the insertion-ordered one finally compacts, in one pass.
-    compacteFile(nouvelle)
-
-    assert.deepEqual(urls(nouvelle), urls(old))
-    assert.deepEqual(urls(nouvelle), ['a', 'c', 'e'])
-  })
-
-  test('cancelling a job absent from the queue, or already marked, does not disturb compaction', () => {
-    const queue = ['a', 'b'].map(job)
-    const outsider = job('x')
-    referenceRetireDeLaFile(queue, outsider) // absent: indexOf returns -1, nothing moves
-    compacteFile(queue) // nothing marked: nothing moves either
-    assert.deepEqual(urls(queue), ['a', 'b'])
-
-    queue[0].state = 'dropped'
-    compacteFile(queue)
-    compacteFile(queue) // a second compaction on an already clean queue is a no-op
-    assert.deepEqual(urls(queue), ['b'])
-  })
-
-  test('cancelling the whole queue empties it, like one-by-one removes', () => {
-    const old = ['p0', 'p1', 'p2', 'p3'].map(job)
-    const nouvelle = ['p0', 'p1', 'p2', 'p3'].map(job)
-    for (const j of [...old]) referenceRetireDeLaFile(old, j)
-    for (const j of nouvelle) j.state = 'dropped'
-    compacteFile(nouvelle)
-    assert.deepEqual(urls(old), [])
-    assert.deepEqual(urls(nouvelle), [])
-  })
-}
+test('a job whose priority rose climbs before those it now precedes', () => {
+  const heap = createJobHeap<Job>()
+  const queued = Array.from({ length: 8 }, (_, i) => job(`p${i}`, i, 3))
+  queued.forEach((each) => heap.push(each))
+  queued[6].priority = 1
+  heap.raise(queued[6])
+  assert.deepEqual(drained(heap), ['p6', 'p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p7'])
+})

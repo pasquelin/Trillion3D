@@ -4,18 +4,17 @@ import { pagesBounds, sceneBoundsLot } from './pagesBounds.ts'
 import { replicateInstances } from '../../scene/replicateInstances.ts'
 import { hostWorldBounds } from '../../host/world/bounds.ts'
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts'
+import type { SessionPages } from '../../scene/manifestPages.ts'
 import { createMultiplyLot } from '../../math/batchRuntime.ts'
 import { prepareMathBatch } from '../../math/batchState.ts'
 import type { MeasuredWorldOptions } from '../../backend/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
-import { openWorldRoots, type WorldRootsHold } from '../../scene/worldRoots.ts'
+import { openWorldRoots } from '../../scene/worldRoots.ts'
+import type { PageQueue } from '../../streaming/types.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
-import type { HoldFailure } from '../../partition/retries.ts'
-import { cellDependencies } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -30,24 +29,12 @@ function missingPages(): never {
   )
 }
 
-/** Says once a cell of the partition whose hold keeps failing, its world bundles named. */
-const holdFailure =
-  (diagnose: ExplorerEmitters['diagnose'], scope: string, roots?: WorldRootsHold): HoldFailure =>
-  ({ cell, cause }) =>
-    diagnose('partition-hold-failed', 'A cell keeps failing to read what it holds', {
-      kind: 'error',
-      scope,
-      cell,
-      bundles: roots ? cellDependencies(roots.table, cell) : [],
-      error: String(cause),
-    })
-
 /** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
  * mesh pages of a manifest the view holds. */
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
-  pages?: ManifestPages
+  pages?: SessionPages
 }
 
 /** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
@@ -101,11 +88,9 @@ export async function loadPreparedScene(
       meter: options.meter,
       listed,
     }),
-    openWorldRoots(metadata, base, signal, options.meter),
+    openWorldRoots(metadata, base, signal, options.meter, !tables.partition),
     listed,
   ])
-  // The world top is pinned; a scene not partitioned is one cell, placed for its whole life.
-  if (!tables.partition) await worldRoots?.hold(0)
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
@@ -131,7 +116,6 @@ export async function loadPreparedScene(
           meshes: built.placed,
           pages: options.pages,
           world: worldRoots,
-          said: holdFailure(diagnose, scope, worldRoots),
         }),
       ]
     : []
@@ -174,16 +158,21 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous)
-  // The world roots each model holds, which the session counts in its CPU budget and reads
-  // through its queue: only those leave the scene, its page source and DAG stay the engine's.
-  const counted: Pick<WorldRootsHold, 'pinned' | 'bytes' | 'readThrough'>[] = worldRoots
+  // The world roots each model holds, which the session counts in its CPU budget: only that count
+  // leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
+  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
     ? [worldRoots]
     : []
+  // What the scene reads through the queue of the session drawing it, which binds it.
+  const readers: { bind(queue: PageQueue): void }[] = []
+  if (worldRoots) readers.push(worldRoots)
+  if (options.pages) readers.push(options.pages)
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
     /** The clips the file plays. */
     clips: built.clips,
     worldRoots: counted,
+    readers,
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   }

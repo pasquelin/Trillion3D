@@ -1,6 +1,8 @@
 import type { BackendDiagnostic } from '../backend/types.ts'
 import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
+import type { JobHeap } from './queueOrder.ts'
+import type { ReadFailure } from './failures.ts'
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -36,12 +38,16 @@ export interface BatchRead {
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */
 export interface StreamPage {
-  /** Where it is read. */
+  /** Where it is read, or its name in the catalogue when it is a `range` of another file. */
   url: string
   /** Its size. */
   bytes: number
-  /** Fingerprint of its bytes. */
+  /** Fingerprint of its bytes; a `range` is checked by its parts' instead. */
   sha256: string
+  /** A page that is a range of the file at `file`, from `offset`: read by an HTTP Range, its
+   *  bytes checked part by part, end to end, against each part's size and fingerprint, and never
+   *  kept in the page cache — whoever asks it keeps what it decodes. */
+  range?: { file: string; offset: number; parts: readonly { bytes: number; sha256: string }[] }
 }
 /** The pages a resource mounted in the open session brings: `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */
@@ -70,6 +76,10 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+  /** Hears the wait of a failed read end: the view asks it again (`failures.ts`). */
+  onTurn?: () => void
+  /** Hears, once, a read that keeps failing past the longest wait. */
+  onStalled?: (failure: { url: string; cause: unknown }) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
   maxCachedBytes?: number
@@ -80,8 +90,8 @@ export type Job = {
   order: number
   /** The bytes its transfer holds in flight. */
   bytes: number
-  /** Its read, for a range the catalogue does not list (`RangedRead`); a page's is the fetcher's. */
-  load?: (signal: AbortSignal) => Promise<Uint8Array>
+  /** Its place in the queue's heap, −1 out of it (`queueOrder.ts`). */
+  slot: number
   controller: AbortController
   /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
   state: 'queued' | 'active' | 'dropped'
@@ -91,17 +101,6 @@ export type Job = {
   reject: (reason: unknown) => void
 }
 
-/** Reads `bytes` past the catalogue — a range of a file — by `load`, in one of the queue's
- *  transfers at `priority`: one read per `key` while it is asked, shared by whoever asks it, and
- *  dropped unread once every asker's `signal` aborted while it waits. */
-export type RangedRead = (
-  key: string,
-  bytes: number,
-  load: (signal: AbortSignal) => Promise<Uint8Array>,
-  signal?: AbortSignal,
-  priority?: number,
-) => Promise<Uint8Array>
-
 export type StreamContext = {
   base: string
   catalog: Map<string, StreamPage>
@@ -109,15 +108,17 @@ export type StreamContext = {
   store: PageCache
   cache: PageCache['pages']
   jobs: Map<string, Job>
-  queue: Job[]
+  queue: JobHeap<Job>
   pinned: Set<string>
-  failures: Map<string, Error>
+  failures: Map<string, ReadFailure>
   abort: AbortController
   limit: number
   maxPages?: number
   maxTransferBytes: number
   onEvict?: (url: string) => void
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+  onTurn?: () => void
+  onStalled?: PageStreamerOptions['onStalled']
   state: {
     order: number
     active: number
@@ -129,8 +130,8 @@ export type StreamContext = {
     loaded: number
     evictions: number
     admissionBlocked: number
-    /** Jobs marked abandoned but still in the queue array. */
-    dropped: number
+    /** Failed reads whose wait is over (`failures.ts`). */
+    turns: number
     disposed: boolean
     /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
      *  the cache weighs itself: those tables follow the view. */

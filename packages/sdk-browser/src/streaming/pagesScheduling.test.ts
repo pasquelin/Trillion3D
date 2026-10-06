@@ -112,35 +112,56 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
   }
 })
 
-test('a range the catalogue does not list waits for the transfers the pages hold, by priority', async () => {
-  const bytes = new Uint32Array([0, 1, 2])
-  const sha = await sha256Hex(bytes.buffer)
+test('a range of another file is a page of the queue: by a Range, checked part by part, never cached', async () => {
+  const parts = [new Uint8Array([1, 2, 3, 4]), new Uint8Array([5, 6, 7, 8])]
+  const digests = await Promise.all(parts.map((part) => sha256Hex(part.slice().buffer)))
+  const file = new Uint8Array([...parts[0], ...parts[1], ...parts[0], ...parts[1]])
   const previous = globalThis.fetch,
-    started: string[] = []
+    asked: string[] = []
   let release!: () => void
   const gate = new Promise<void>((resolve) => (release = resolve))
-  globalThis.fetch = async () => {
-    started.push('a.bin')
+  globalThis.fetch = async (_url, init) => {
+    const range = (init?.headers as Record<string, string>).Range
+    asked.push(range)
     await gate
-    return new Response(bytes)
+    const [from, to] = range.slice('bytes='.length).split('-').map(Number)
+    return new Response(file.slice(from, to + 1), { status: 206 })
   }
-  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 12, sha256: sha }], 'http://cache/', {
-    workerCount: 1,
+  const span = (url: string, offset: number) => ({
+    ...{ url, bytes: 8, sha256: '' },
+    range: {
+      file: 'world.bin',
+      offset,
+      parts: parts.map((p, at) => ({ bytes: p.byteLength, sha256: digests[at] })),
+    },
   })
-  const range = (key: string) => async () => (started.push(key), new Uint8Array([7]))
+  const streamer = createPageStreamer(
+    [span('near', 0), span('far', 8), span('gone', 0)],
+    'http://cache/',
+    {
+      workerCount: 1,
+    },
+  )
   const letGo = new AbortController()
   try {
-    const page = streamer.read('a.bin')
-    const far = streamer.ranged('far', 1, range('far'), undefined, 3)
-    const near = streamer.ranged('near', 1, range('near'), undefined, 1)
-    const gone = streamer.ranged('gone', 1, range('gone'), letGo.signal, 1)
-    assert.deepEqual([started, streamer.stats().queued], [['a.bin'], 3], 'one transfer, held')
+    const near = streamer.readBytes('near', undefined, 1)
+    const far = streamer.readBytes('far', undefined, 3)
+    const gone = streamer.readBytes('gone', letGo.signal, 2)
+    await new Promise(setImmediate)
+    assert.deepEqual([asked, streamer.stats().queued], [['bytes=0-7'], 2], 'one transfer, held')
     letGo.abort()
     release()
     await assert.rejects(gone, { name: 'AbortError' })
-    assert.deepEqual([...(await near), ...(await far)], [7, 7])
-    await page
-    assert.deepEqual(started, ['a.bin', 'near', 'far'], 'nearer first; the one let go is unread')
+    assert.deepEqual(
+      [...(await near), ...(await far)],
+      [1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8],
+    )
+    assert.deepEqual(asked, ['bytes=0-7', 'bytes=8-15'], 'nearer first; the one let go is unread')
+    assert.deepEqual(
+      [streamer.has('near'), streamer.stats().loaded],
+      [false, 2],
+      'read, not cached',
+    )
   } finally {
     release()
     streamer.dispose()

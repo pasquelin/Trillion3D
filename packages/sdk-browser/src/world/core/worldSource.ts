@@ -162,6 +162,7 @@ export function buildWorldSource(plan: WorldPlan) {
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
         worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
+        readers: models.flatMap((model) => model.record.scene.readers),
       },
     },
   }

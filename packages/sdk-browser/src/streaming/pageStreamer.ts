@@ -1,6 +1,8 @@
 import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
+import { createJobHeap } from './queueOrder.ts'
+import type { ReadFailure } from './failures.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
 import { createPageCache, type PageCache } from './pageCache.ts'
@@ -28,9 +30,9 @@ export function createPageStreamerWith(
   const store = kept ?? createPageCache(maxCachedBytes),
     cache = store.pages,
     jobs = new Map<string, Job>(),
-    queue: Job[] = []
+    queue = createJobHeap<Job>()
   const pinned = new Set<string>(),
-    failures = new Map<string, Error>(),
+    failures = new Map<string, ReadFailure>(),
     abort = new AbortController()
   if (signal) {
     if (signal.aborted) abort.abort(signal.reason)
@@ -51,7 +53,7 @@ export function createPageStreamerWith(
     loaded: 0,
     evictions: 0,
     admissionBlocked: 0,
-    dropped: 0,
+    turns: 0,
     disposed: false,
     reservedBytes: () => 0,
   }
@@ -72,11 +74,14 @@ export function createPageStreamerWith(
     maxTransferBytes,
     onEvict,
     onDiagnostic,
+    onTurn: options.onTurn,
+    onStalled: options.onStalled,
     state,
     emit,
     abortError,
   }
-  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes()
+  const { loadOne, roundTrip, keptBytes } = createStreamingFetcher(context, store.touch)
+  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
   // A kept page held under this name as another file leaves before the first read.
@@ -94,9 +99,7 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }))
-  const { loadOne, roundTrip } = createStreamingFetcher(context, touch)
-  const queued = createStreamingQueue(context, loadOne, touch, evict, sync)
-  const { subscribe, forget, keep } = queued
+  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict, sync)
   const { read, watch } = createReadWatch(subscribe)
   const asIndices = createIndexViews()
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
@@ -124,12 +127,11 @@ export function createPageStreamerWith(
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
+    /** How many failed reads' waits are over (`failures.ts`). */ turns: () => state.turns,
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,
     read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
-    /** A range of a file the catalogue does not list, read in the same queue (`RangedRead`). */
-    ranged: queued.ranged,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,
@@ -162,13 +164,13 @@ export function createPageStreamerWith(
         misses: state.misses,
         bytesRead: state.bytesRead,
         loading: state.active,
-        queued: queue.length - state.dropped,
+        queued: queue.size,
         transferInFlightBytes: state.activeBytes,
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
         /** CPU bytes held (manifest tables, transfers, pages, kept file, levels) of the total. */
-        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes,
+        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         failed: failures.size,
@@ -187,8 +189,7 @@ export function createPageStreamerWith(
       abort.abort(abortError())
       for (const job of jobs.values()) job.controller.abort(abortError())
       jobs.clear()
-      queue.length = 0
-      state.dropped = 0
+      queue.clear()
       release()
       // A kept cache is its owner's, for the next session; one of the streamer's own leaves now.
       if (!kept) store.clear()

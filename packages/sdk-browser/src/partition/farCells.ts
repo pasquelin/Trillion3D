@@ -15,7 +15,6 @@
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { createCellPages } from './cellPages.ts'
 import { holdPriority, planCells, type SuperRootPlan } from './plan.ts'
-import type { HoldFailure } from './retries.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
 /** The world bundles a cell holds, and the stream its super-roots' bound is read from. */
@@ -24,11 +23,10 @@ type World = Pick<WorldRootsHold, 'hold' | 'release'> & Partial<Pick<WorldRootsH
 /** The cells a partition places, by rank. */
 type Placed = ReadonlyMap<number, unknown>
 
-/** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`, a
- *  hold that keeps failing told `said`. */
-export function createFarCells(world: World | undefined, placed: Placed, said?: HoldFailure) {
+/** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
+export function createFarCells(world: World | undefined, placed: Placed) {
   const far = new Set<number>()
-  const holds = createCellPages(undefined, () => [], world, said)
+  const holds = createCellPages(undefined, () => [], world)
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
   let bounds: Float64Array | undefined,
     opening = false
@@ -92,10 +90,10 @@ export function createFarCells(world: World | undefined, placed: Placed, said?: 
         leave(cell)
         far.add(cell)
       }
-      // A hold that failed is asked again here, its cell still held far.
-      if (reading) void holds.reads()
       return plan
     },
     release,
+    /** The far cells whose hold failed are held again, at the priority `priorityOf` gives each. */
+    retry: holds.retry,
   }
 }

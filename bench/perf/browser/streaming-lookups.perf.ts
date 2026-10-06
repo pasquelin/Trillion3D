@@ -1,5 +1,5 @@
 // the two linear searches of the streaming path.
-import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
+import { createJobHeap } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
 import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts'
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
@@ -22,11 +22,12 @@ const DUMMY_CONTROLLER = new AbortController()
 const DUMMY_PROMISE = Promise.resolve(new Uint8Array())
 const noop = () => {}
 const file = ({ urls }: { urls: string[] }): Job[] =>
-  urls.map((url) => ({
+  urls.map((url, order) => ({
     url,
     priority: 0,
-    order: 0,
+    order,
     bytes: 0,
+    slot: -1,
     controller: DUMMY_CONTROLLER,
     state: 'queued',
     consumers: new Set<symbol>(),
@@ -44,10 +45,13 @@ function passeReference({ urls, vises }: { urls: string[]; vises: number[] }) {
 
 function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
   const queue = file({ urls })
+  const heap = createJobHeap<Job>()
+  for (const job of queue) heap.push(job)
   const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean)
-  for (const job of cibles) job.state = 'dropped'
-  compacteFile(queue)
-  return queue.map((job) => job.url)
+  for (const job of cibles) heap.remove(job)
+  const left: string[] = []
+  for (let job = heap.pop(); job; job = heap.pop()) left.push(job.url)
+  return left
 }
 
 function adresses(total: number, depart: number) {
@@ -62,7 +66,7 @@ function adresses(total: number, depart: number) {
 
 const resG5 = await measure({
   name: 'removing a cancelled request from the queue',
-  fichier: 'packages/sdk-browser/src/streaming/queue.ts',
+  fichier: 'packages/sdk-browser/src/streaming/queueOrder.ts',
   cas: [
     { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
     { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },
@@ -91,8 +95,12 @@ const resG6 = await measure({
 })
 
 await stress({
-  name: 'compacteFile extremes',
-  calculation: (q: Job[]) => compacteFile(q),
+  name: 'job heap extremes',
+  calculation: (q: Job[]) => {
+    const heap = createJobHeap<Job>()
+    for (const job of q) heap.push(job)
+    return heap.pop()
+  },
   extremes: [{ name: 'empty', input: [] }],
 })
 

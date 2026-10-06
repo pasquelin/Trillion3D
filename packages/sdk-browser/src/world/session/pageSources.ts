@@ -2,6 +2,7 @@ import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common
 import { configurePageDecoders } from '../../page/decode/host.ts'
 import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
+import type { PageQueue } from '../../streaming/types.ts'
 import { loadClusterPages } from '../../cluster/pages.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts'
@@ -19,9 +20,6 @@ export async function createExplorerPageSources(
   backends: RenderBackend[],
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
-  /** What the scene reads through the same queue beside the pages: its partitions' cells, and
-   *  the world bundles they hold. */
-  scene: Pick<ExplorerScene, 'partitions' | 'worldRoots'> = { partitions: [], worldRoots: [] },
 ) {
   const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata)
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse')
@@ -44,26 +42,28 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)))
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
-  const extra = scene.partitions.flatMap((cells) => cells.pages)
-  const streamer = createPageStreamerWith(
-    [...pages, ...geometryPages, ...bundles, ...extra],
-    base,
-    {
-      cache: options.pageCache,
-      signal,
-      workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-      maxPages: cacheCap,
-      onEvict: (url) => {
-        for (const b of backends) b.dropPage?.(url)
-      },
-      maxTransferBytes: options.maxPageTransferBytes,
-      onDiagnostic:
-        diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
-          ? diagnosticChannel.emit
-          : undefined,
+  /** Who hears a failed read's wait end: the session's loop, once it runs (`whenTurned`). */
+  let turned = () => {}
+  const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
+    cache: options.pageCache,
+    signal,
+    workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
+    maxPages: cacheCap,
+    onEvict: (url) => {
+      for (const b of backends) b.dropPage?.(url)
     },
-  )
-  for (const roots of scene.worldRoots) roots.readThrough(streamer.ranged)
+    maxTransferBytes: options.maxPageTransferBytes,
+    onDiagnostic:
+      diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
+        ? diagnosticChannel.emit
+        : undefined,
+    onTurn: () => turned(),
+    onStalled: ({ url, cause }) =>
+      diagnosticChannel.emit({
+        ...{ phase: 'page-read-stalled', message: 'A read keeps failing past its longest wait' },
+        context: { kind: 'error', url, error: String(cause) },
+      }),
+  })
   let loaded = 0,
     pageBytesRead = 0
   const indices = new Map<string, Uint32Array>()
@@ -92,5 +92,17 @@ export async function createExplorerPageSources(
     loaded,
     pageBytesRead,
     indices,
+    /** The session's loop asks the frame that holds a failed read again once its wait is over. */
+    whenTurned: (wake: () => void) => void (turned = wake),
   }
+}
+
+/** `scene` read through the session's `streamer`: its partitions' index pages catalogued, and
+ *  its readers — world roots, a lazy manifest's mesh pages — bound to its queue. */
+export function bindScene(
+  streamer: PageQueue,
+  scene: Pick<ExplorerScene, 'partitions' | 'readers'>,
+) {
+  streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
+  for (const reader of scene.readers) reader.bind(streamer)
 }

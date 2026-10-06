@@ -10,7 +10,7 @@ import { directWebgpu } from './interactiveOptions.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerBackends } from './backends.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
-import { createExplorerPageSources } from './pageSources.ts'
+import { bindScene, createExplorerPageSources } from './pageSources.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts'
@@ -88,6 +88,16 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     1,
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
   )
+  const pageSources = await createExplorerPageSources(
+    metadata,
+    options,
+    base,
+    signal,
+    autonomous,
+    backends,
+    diagnosticChannel,
+    progress,
+  )
   const loadedScene =
     inputs.scene ??
     (await loadPreparedScene(
@@ -104,6 +114,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       },
     ))
   const source = (resources.source = loadedScene.source)
+  bindScene(pageSources.streamer, loadedScene)
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {
@@ -114,17 +125,6 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       heldBytes: bytes() - pinned.bytes,
     })
   if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source))
-  const pageSources = await createExplorerPageSources(
-    metadata,
-    options,
-    base,
-    signal,
-    autonomous,
-    backends,
-    diagnosticChannel,
-    progress,
-    loadedScene,
-  )
   const directGpu = directWebgpu(options, choice.factories, gpuDevice)
   await configureExplorer(session, {
     choice,

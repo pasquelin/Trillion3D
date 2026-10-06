@@ -4,6 +4,10 @@ import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
+import { bundleSpan } from './worldRuns.ts'
+import { openWorldRoots } from './worldRoots.ts'
+import type { ByteMeter } from '../cluster/byteMeter.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 
 export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
@@ -15,14 +19,14 @@ type Serving = {
   bin?: Uint8Array
   ignoresRange?: boolean
   dag?: Parameters<typeof encodeWorldRootsDag>[0]
-  answer?: (range: string, respond: () => Response) => Promise<Response>
+  answer?: (from: number, to: number, respond: () => Response) => Promise<Response>
 }
 
 /** A world served over HTTP ranges: the manifest that declares its files, the ranges asked and
  *  the files read whole. */
 export function served(t: TestContext, serving: Serving = {}) {
   const world = serving.world ?? worldRootsFixture(sha),
-    { dag, ignoresRange, answer = async (_, respond) => respond() } = serving
+    { dag, ignoresRange, answer = async (_from, _to, respond) => respond() } = serving
   const records = { table: world.bytes, dag: dag && encodeWorldRootsDag(dag) }
   const held = serving.bin ?? world.bin,
     ranges: string[] = [],
@@ -34,7 +38,7 @@ export function served(t: TestContext, serving: Serving = {}) {
     ranges.push(range)
     if (ignoresRange) return new Response(held.slice())
     const [from, to] = range.slice('bytes='.length).split('-').map(Number)
-    return answer(range, () => new Response(held.slice(from, to + 1), { status: 206 }))
+    return answer(from, to, () => new Response(held.slice(from, to + 1), { status: 206 }))
   })
   const announce = (bytes: Uint8Array) => ({ bytes: bytes.byteLength, sha256: sha(bytes) })
   const files = {
@@ -45,11 +49,22 @@ export function served(t: TestContext, serving: Serving = {}) {
 }
 
 /** The Range header that reads bundles `[first, end)` of `table`. */
-export function rangeOf(
-  table: { bundles: readonly { offset: number; bytes: number }[] },
-  first: number,
-  end: number,
+export function rangeOf(table: Parameters<typeof bundleSpan>[0], first: number, end: number) {
+  const { offset, bytes } = bundleSpan(table, first, end)
+  return `bytes=${offset}-${offset + bytes - 1}`
+}
+
+/** The world `manifest` declares, opened at `http://world/` as a load opens it — `meter` counting,
+ *  `whole` for a scene not partitioned — and bound to a session's queue of `transfers`, closed
+ *  with the test. */
+export async function opened(
+  t: TestContext,
+  manifest: ClusterManifest,
+  { transfers, meter, whole }: { transfers?: number; meter?: ByteMeter; whole?: boolean } = {},
 ) {
-  const last = table.bundles[end - 1]
-  return `bytes=${table.bundles[first].offset}-${last.offset + last.bytes - 1}`
+  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, whole))!
+  const queue = createPageStreamer([], 'http://world/', { workerCount: transfers })
+  t.after(() => queue.dispose())
+  roots.bind(queue)
+  return { roots, queue }
 }

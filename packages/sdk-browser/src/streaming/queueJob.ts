@@ -1,13 +1,7 @@
 import type { Job } from './types.ts'
 
-/** A queued read of one page, or of a range `load` reads, with the promise its consumers share. */
-export function createJob(
-  url: string,
-  priority: number,
-  order: number,
-  bytes: number,
-  load?: Job['load'],
-): Job {
+/** A queued read of one page, of `bytes` bytes, with the promise its consumers share. */
+export function createJob(url: string, priority: number, order: number, bytes: number): Job {
   let resolve!: (value: Uint8Array) => void, reject!: (reason: unknown) => void
   const promise = new Promise<Uint8Array>((yes, no) => {
     resolve = yes
@@ -18,7 +12,7 @@ export function createJob(
     priority,
     order,
     bytes,
-    load,
+    slot: -1,
     controller: new AbortController(),
     state: 'queued',
     consumers: new Set(),

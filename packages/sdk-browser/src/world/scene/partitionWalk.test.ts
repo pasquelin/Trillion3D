@@ -54,6 +54,7 @@ function grid(side: number) {
     readBytes: async (url: string) => bodies.get(url)!,
     getBytes: (url: string) => bodies.get(url),
     loading: () => false,
+    turns: () => 0,
     request: async () => {},
     admit() {},
     forget() {},

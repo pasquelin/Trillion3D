@@ -94,6 +94,8 @@ export async function openMeasuredWorld(
     const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
       : () => {}
+    // A failed read whose wait is over asks a frame: the view holds it again.
+    prepared.pageSources.whenTurned(invalidate)
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
     const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias
     const capture = referenceCapture(explorer.capture, reference, shadowBias)

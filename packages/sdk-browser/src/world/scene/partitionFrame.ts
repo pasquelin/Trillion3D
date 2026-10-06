@@ -105,9 +105,8 @@ type Inputs = {
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
  * it handed to the decode pool decoded, the mounts they asked, and the next of the cells' holds
  * on its way landed, true while one of them waits for a frame to place or mount it, or a decode,
- * a hold or a mount landed: a still camera is drawn again until they all are. With nothing on its
- * way, it waits for the next cell whose hold failed to be due again, and asks the frame that holds
- * it.
+ * a hold or a mount landed: a still camera is drawn again until they all are. It never waits for a
+ * failed read's turn: the streamer asks the loop for the frame that holds it again (`onTurn`).
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget } = inputs
@@ -134,10 +133,7 @@ export function createPartitionFrame(inputs: Inputs) {
       ]
     reads = []
     await Promise.all([...asked, ...turned])
-    if (later || turned.length > 0 || mounts.stale()) return true
-    // Nothing else on its way: a still camera waits for the next failed hold to be due again.
-    const due = manifests.flatMap((manifest) => manifest.retry() ?? [])
-    return due.length > 0 && Promise.race(due).then(() => true)
+    return later || turned.length > 0 || mounts.stale()
   }
   const step = () => {
     mounts.sync()
@@ -147,6 +143,7 @@ export function createPartitionFrame(inputs: Inputs) {
       decode: decodeCell,
       decodePage,
       loading: (url: string) => streamer.loading(url),
+      turns: streamer.turns,
       request,
       admit: streamer.admit,
       forget: streamer.forget,

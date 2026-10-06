@@ -19,9 +19,7 @@
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts'
-import type { PlacementRows } from '../placement/rows.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { StreamPage } from '../streaming/types.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
@@ -33,6 +31,7 @@ import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
 import { createCellPages, withHoldings } from './cellPages.ts'
 import { createFarCells } from './farCells.ts'
+import type { CellFrameIo, CellPrimeIo } from './cellIo.ts'
 
 type Inputs = {
   partition: TablePartition
@@ -42,7 +41,6 @@ type Inputs = {
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>
   /** The manifest's pages the view holds. */ pages?: Parameters<typeof createCellPages>[0]
   /** The world bundles its roots need. */ world?: Parameters<typeof createFarCells>[0]
-  /** Hears a cell whose hold keeps failing. */ said?: Parameters<typeof createCellPages>[3]
 }
 
 export function createPartitionCells(inputs: Inputs) {
@@ -51,14 +49,16 @@ export function createPartitionCells(inputs: Inputs) {
   const index = createCellIndex(partition.pages, base, boxes)
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>()
-  const manifest = createCellPages(inputs.pages, (c) => index.cell(c).meshPages, world, inputs.said)
+  const manifest = createCellPages(inputs.pages, (c) => index.cell(c).meshPages, world)
   const rows = createCellPlacements(root, parents, meshes)
   const { held, touched } = rows
-  const far = createFarCells(world, held, inputs.said)
-  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
+  const far = createFarCells(world, held)
+  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked; the
+   *  failed reads' waits over when the plan last asked the failed holds again. */
   let waiting = 0,
     sized = -1,
-    wanted = -1
+    wanted = -1,
+    turns = 0
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
   const view = (eye: ArrayLike<number>, reach: number) => {
     const local = inCellFrame(resolveCameraWorld(root).worldMatrix, eye, reach)
@@ -78,9 +78,19 @@ export function createPartitionCells(inputs: Inputs) {
     return true
   }
   const cellUrl = (cell: number) => index.cell(cell).url
-  /** Places `cell`, its holds read at `priority`, the plan's (`holdPriority`). */
-  const place = (cell: number, decoded: CellRows, priority: number) =>
-    rows.place(cell, decoded, cellUrl(cell)) && (manifest.hold(cell, priority), true)
+  /** Where the frame placing cells sees them from, and whether it places those read ahead. */
+  const seen = { local: { eye: [0, 0, 0] as ArrayLike<number>, reach: 0 }, ahead: false }
+  /** Places `cell`, its holds read at the plan's priority once its rows took it (`holdPriority`). */
+  const place = (cell: number, decoded: CellRows) =>
+    rows.place(cell, decoded, cellUrl(cell)) &&
+    (manifest.hold(cell, holdPriority(index, seen.local, cell, seen.ahead)), true)
+  const placed = (cell: number, decoded: CellRows) => place(cell, decoded) || (waiting++, false)
+  /** A failed read's wait is over: the failed holds are asked again, at their priority now. */
+  const retry = (local: typeof seen.local) => {
+    const priority = (cell: number) => holdPriority(index, local, cell)
+    manifest.retry(priority)
+    far.retry(priority)
+  }
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell))
   const partitionCells = {
@@ -101,28 +111,7 @@ export function createPartitionCells(inputs: Inputs) {
     frame(
       eye: ArrayLike<number>,
       reach: number,
-      /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
-       *  thread, reads, requests (`ahead`: before needed), catalogue, rows, else the owner told. */
-      io: {
-        bytes(url: string): Uint8Array | undefined
-        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
-        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-        loading(url: string): boolean
-        request(urls: readonly string[], ahead: boolean): void
-        admit(pages: readonly StreamPage[]): void
-        forget(urls: readonly string[]): void
-        update(rows: PlacementRows, from: number, to: number): void
-        grow?: PlacementGrowth
-        outgrown?: () => void
-        /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
-        lens?: {
-          pixelScale: [number, number]
-          pixelError: number
-          near: number
-          perspective?: number
-          slope: number
-        }
-      },
+      io: CellFrameIo,
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
       rows.follow()
@@ -135,14 +124,18 @@ export function createPartitionCells(inputs: Inputs) {
       }
       const plan = far.plan(index, local, eye, io.lens, leave)
       plan.leave.forEach(leave)
+      if (turns !== io.turns()) {
+        turns = io.turns()
+        retry(local)
+      }
       io.forget(index.forgotten())
       waiting = 0
       let later = false
       const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true)
       const pageUrl = (page: IndexPage) => page.slot.url
+      seen.local = local
       for (const ahead of [false, true]) {
-        const placed = (cell: number, decoded: CellRows) =>
-          place(cell, decoded, holdPriority(index, local, cell, ahead)) || (waiting++, false)
+        seen.ahead = ahead
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
         const at = { io, budget, ahead }
         later = takeDecoded(pages, at, pageDecodes, pageUrl, io.decodePage, open) || later
@@ -159,18 +152,7 @@ export function createPartitionCells(inputs: Inputs) {
     /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
      *  frame asked (every node unless `owned`), then reads the pages of the index on its way and
      *  places the cells within its reach; the bytes read. */
-    async prime(
-      eye: ArrayLike<number>,
-      reach: number,
-      /** Kept internal as `frame`'s: the streamer's verified read, the decodes, the catalogue. */
-      io: {
-        read(url: string): Promise<Uint8Array>
-        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
-        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-        admit(pages: readonly StreamPage[]): void
-      },
-      owned: boolean,
-    ) {
+    async prime(eye: ArrayLike<number>, reach: number, io: CellPrimeIo, owned: boolean) {
       const local = view(eye, reach)
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS)
       let bytes = 0
@@ -187,7 +169,8 @@ export function createPartitionCells(inputs: Inputs) {
       }
       plan.leave.forEach(leave)
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      plan.visible.forEach((cell, at) => place(cell, decoded[at], holdPriority(index, local, cell)))
+      Object.assign(seen, { local, ahead: false })
+      plan.visible.forEach((cell, at) => place(cell, decoded[at]))
       touched.clear()
       return bytes
     },

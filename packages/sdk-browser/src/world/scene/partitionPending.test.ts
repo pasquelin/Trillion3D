@@ -96,10 +96,7 @@ test('a still camera is drawn again as each hold lands, never waiting for every 
   assert.equal(await frame.pending(), false, 'every hold landed')
 })
 
-test('with nothing on its way, a still camera waits for a failed hold to be due again', async (t) => {
-  let clock = 0
-  t.mock.method(performance, 'now', () => clock)
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test("a still camera never waits for a failed read's turn: the streamer asks the frame", async () => {
   const { manifest, frame } = stillFrame({
     async hold() {
       throw new Error('refused')
@@ -109,11 +106,6 @@ test('with nothing on its way, a still camera waits for a failed hold to be due 
   manifest.hold(0)
   frame()
   assert.equal(await frame.pending(), true, 'the hold failed: a frame is drawn')
-  let woke: boolean | undefined
-  const waiting = frame.pending().then((again) => (woke = again))
-  await new Promise(setImmediate)
-  assert.equal(woke, undefined, 'nothing is asked before the wait is over')
-  clock = 500
-  t.mock.timers.tick(500)
-  assert.equal(await waiting, true, 'its wait over, a frame asks it again')
+  frame()
+  assert.equal(await frame.pending(), false, 'then nothing is on its way, and nothing is awaited')
 })

@@ -1,54 +1,104 @@
-import type { Job } from './types.ts'
+/** What the queue reads of a job: its priority, its arrival number, the bytes its transfer holds,
+ *  and its place in the heap. */
+type Queued = { priority: number; order: number; bytes: number; slot: number }
 
-/**
- * Insertion rank of a priority in a queue already in order: the first job it precedes.
- * A binary search, hence a logarithm of comparisons where re-sorting the whole queue
- * cost `n log n` — and a moving camera stacks requests every frame.
- */
-function rangDInsertion(queue: readonly { priority: number }[], priority: number) {
-  let low = 0,
-    high = queue.length
-  while (low < high) {
-    const mid = (low + high) >> 1
-    if (queue[mid].priority <= priority) low = mid + 1
-    else high = mid
+/** Whether `a` leaves before `b`: the smaller priority, then the earlier arrival. */
+const before = (a: Queued, b: Queued) =>
+  a.priority < b.priority || (a.priority === b.priority && a.order < b.order)
+
+/** `job` at `at` of `heap`, its place noted. */
+function place<T extends Queued>(heap: T[], job: T, at: number) {
+  heap[at] = job
+  job.slot = at
+}
+
+/** The job at `at` of `heap` climbs while it leaves before its parent. */
+function up<T extends Queued>(heap: T[], at: number) {
+  const job = heap[at]
+  for (let parent = (at - 1) >> 1; at > 0 && before(job, heap[parent]); parent = (at - 1) >> 1) {
+    place(heap, heap[parent], at)
+    at = parent
   }
-  return low
+  place(heap, job, at)
+}
+
+/** The job at `at` of `heap` sinks while a child leaves before it. */
+function down<T extends Queued>(heap: T[], at: number) {
+  const job = heap[at]
+  for (let child = 2 * at + 1; child < heap.length; child = 2 * at + 1) {
+    if (child + 1 < heap.length && before(heap[child + 1], heap[child])) child++
+    if (!before(heap[child], job)) break
+    place(heap, heap[child], at)
+    at = child
+  }
+  place(heap, job, at)
 }
 
 /**
- * Place a job at its slot in a queue kept in order. Its arrival number is the largest
- * ever set: it therefore goes to the tail of its priority group, and order is kept without a sort.
+ * The queue of a streamer's jobs: a binary heap on (priority, arrival), each job's place in it kept
+ * in `slot`, −1 once out of it. A job is queued, leaves first or is taken out wherever it stands in
+ * O(log n), and one whose priority rose climbs to its place: a camera asking thousands of reads
+ * never pays a sweep of the queue.
  */
-export function insereTravail(queue: Job[], job: Job) {
-  const at = rangDInsertion(queue, job.priority)
-  if (at === queue.length) queue.push(job)
-  else queue.splice(at, 0, job)
+export function createJobHeap<T extends Queued>() {
+  const heap: T[] = []
+  /** Takes `job` out wherever it stands; false when it is not queued. */
+  const remove = (job: T) => {
+    const at = job.slot
+    if (heap[at] !== job) return false
+    job.slot = -1
+    const last = heap.pop()!
+    if (last === job) return true
+    place(heap, last, at)
+    up(heap, at)
+    down(heap, last.slot)
+    return true
+  }
+  return {
+    get size() {
+      return heap.length
+    },
+    push(job: T) {
+      place(heap, job, heap.length)
+      up(heap, job.slot)
+    },
+    /** The first job, taken out; `undefined` for an empty queue. */
+    pop() {
+      const first = heap[0]
+      if (first) remove(first)
+      return first as T | undefined
+    },
+    remove,
+    /** `job`'s priority rose: it climbs to its place, if queued. */
+    raise(job: T) {
+      if (heap[job.slot] === job) up(heap, job.slot)
+    },
+    clear() {
+      for (const job of heap) job.slot = -1
+      heap.length = 0
+    },
+  }
 }
 
-/**
- * Remove from the queue, in one pass and without disturbing order, the jobs a cancellation
- * marked. A burst of cancellations — what a fast camera produces every frame — would
- * pay a sweep of the queue per abandoned request to find its place.
- */
-export function compacteFile(queue: Job[]) {
-  let garde = 0
-  for (let i = 0; i < queue.length; i++) if (queue[i].state !== 'dropped') queue[garde++] = queue[i]
-  queue.length = garde
-}
+export type JobHeap<T extends Queued> = ReturnType<typeof createJobHeap<T>>
 
 /**
- * The first job the transfer budget lets go, or -1. The first transfer of a queue always
- * leaves: without it nothing would move when a single page exceeds the budget.
+ * The first job of `heap` the transfer budget lets go, taken out, or `undefined`: those it passes
+ * over stay queued. The first transfer always leaves: without it nothing would move when a single
+ * page exceeds the budget.
  */
-export function findAdmissible(
-  queue: readonly { url: string }[],
+export function takeAdmissible<T extends Queued>(
+  heap: JobHeap<T>,
   active: number,
   activeBytes: number,
-  bytesOf: (url: string) => number | undefined,
   maxTransferBytes: number,
 ) {
-  for (let i = 0; i < queue.length; i++)
-    if (active === 0 || activeBytes + (bytesOf(queue[i].url) ?? 0) <= maxTransferBytes) return i
-  return -1
+  const passed: T[] = []
+  let job = heap.pop()
+  while (job && active > 0 && activeBytes + job.bytes > maxTransferBytes) {
+    passed.push(job)
+    job = heap.pop()
+  }
+  for (const over of passed) heap.push(over)
+  return job
 }
