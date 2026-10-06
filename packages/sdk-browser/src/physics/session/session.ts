@@ -8,7 +8,7 @@ import { createSessionFrame } from './sessionFrame.ts';
 import { createSessionState, createWorkerLink } from './sessionLink.ts';
 import { listenToWorker } from './sessionMessages.ts';
 import type { SessionParts, WantedPhysics } from './sessionParts.ts';
-import { startPhysicsWorker } from './sessionWorker.ts';
+import { startPhysicsWorker } from '../sessionWorker.ts';
 import { createPhysicsVehicles } from '../vehicles.ts';
 import { createSoftVertices } from '../softBodies.ts';
 import { createTileStreamer } from '../tiles.ts';

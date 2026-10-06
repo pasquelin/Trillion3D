@@ -8,7 +8,7 @@ import type { createCharacterPort } from '../physicsCharacter.ts';
 import type { createPhysicsPoses } from '../poses.ts';
 import type { PhysicsStats } from '../protocol.ts';
 import type { SessionState, WorkerLink } from './sessionLink.ts';
-import type { startPhysicsWorker } from './sessionWorker.ts';
+import type { startPhysicsWorker } from '../sessionWorker.ts';
 import type { createSoftVertices } from '../softBodies.ts';
 import type { createStepClock } from '../stepClock.ts';
 import type { createTileStreamer } from '../tiles.ts';
