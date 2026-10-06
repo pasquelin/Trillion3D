@@ -27,9 +27,9 @@ test('a tile cooked natively is restored in the module, collides, and answers a 
   const jolt = await startModule()
   const writer = new CommandWriter()
   writer.gravity([0, -9.81, 0])
-  writer.restore(0, new Uint8Array(await golden()))
-  writer.add({ ...body(0, 0, 0, 1), shape: SHAPE.cooked, size: [1, 1, 1], indices: [0] })
-  writer.release(0)
+  const ramp = writer.restore(new Uint8Array(await golden()))
+  writer.add({ ...body(0, 0, 0, 1), shape: SHAPE.cooked, size: [1, 1, 1], indices: [ramp] })
+  writer.release(ramp)
   writer.add({ ...body(1, 2, 3, 0.25), position: [1, 3, 0.7] })
   jolt.step(writer.take(), 0)
   const hit = castDown(jolt, 1)
@@ -40,6 +40,28 @@ test('a tile cooked natively is restored in the module, collides, and answers a 
   assert.ok(f[5] < 0 && f[6] > 0.8, 'the normal leans back along the slope')
   for (let s = 0; s < 30; s++) jolt.step(null, 1 / 60)
   assert.equal(castDown(jolt, 3)[0], 0xffffffff, 'past the ramp, nothing')
+})
+
+test('a tile restored once keeps its handle across steps: the bodies built on it then and later all collide', async () => {
+  const jolt = await startModule()
+  const writer = new CommandWriter()
+  const ramp = writer.restore(new Uint8Array(await golden()))
+  /** Body `id` on the ramp's shape, `10 id` metres along x. */
+  const on = (id: number) =>
+    writer.add({
+      ...{ ...body(id, 0, 0, 1), position: [id * 10, 0, 0] },
+      ...{ shape: SHAPE.cooked, size: [1, 1, 1], indices: [ramp] },
+    })
+  on(0)
+  on(1)
+  jolt.step(writer.take(), 0)
+  on(2)
+  writer.release(ramp)
+  jolt.step(writer.take(), 0)
+  assert.deepEqual(
+    [1, 11, 21].map((x) => castDown(jolt, x)[0]),
+    [0, 1, 2],
+  )
 })
 
 /** A model whose `physics.json` is `file`, streamed in around the origin within `memoryBytes`:

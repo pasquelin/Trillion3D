@@ -118,14 +118,25 @@ test('RESTORE carries its handle and byte count, then the bytes padded with zero
     // The writer's buffer still holds the last frame's words: the padding is written, not assumed.
     writer.put(new Uint32Array(8).fill(0xffffffff), [])
     writer.take()
-    writer.restore(17, Uint8Array.from(bytes))
+    const handle = writer.restore(Uint8Array.from(bytes))
     const { words } = read(writer.take())
-    assert.deepEqual([...words.subarray(0, RESTORE_WORDS)], [OP.restore, 17, bytes.length])
+    assert.deepEqual([...words.subarray(0, RESTORE_WORDS)], [OP.restore, handle, bytes.length])
     const padded = Math.ceil(bytes.length / 4) * 4
     assert.equal(words.length, RESTORE_WORDS + padded / 4)
     const payload = [...new Uint8Array(words.buffer, RESTORE_WORDS * 4, padded)]
     assert.deepEqual(payload, [...bytes, ...new Array(padded - bytes.length).fill(0)])
   }
+})
+
+test('a restored shape keeps its handle until released: no other restore takes it, the next one after does', () => {
+  const writer = new CommandWriter()
+  const shape = () => writer.restore(new Uint8Array(4))
+  const kept = shape(),
+    passing = shape()
+  writer.release(passing)
+  const [again, more] = [shape(), shape()]
+  assert.equal(again, passing, 'a handle given back is taken again first')
+  assert.equal(new Set([kept, again, more]).size, 3, 'none taken while held')
 })
 
 test('VIEW carries the eye, the facing, the cone and the range', () => {

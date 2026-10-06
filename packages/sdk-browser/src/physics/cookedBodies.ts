@@ -85,11 +85,10 @@ export function createCookedBodies(
     const { position, quaternion } = drawn ? worldPoseOf(drawn) : placed
     const made: CookedMadeBody = { body, bytes, scale: size, id: -1, moves }
     made.id = bodies.claim(resolved.triangles * TRIANGLE_BYTES, 0, { model, body: made })
-    const handle = made.id & BODY_INDEX
     const matter = physicsMatterOf(body)
     const moving = !!moves
     if (follows) made.carried = carriedFrom(follows, position, quaternion)
-    if (bytes) writer.restore(handle, bytes)
+    const hull = bytes ? writer.restore(bytes) : -1
     writer.add({
       ...{ id: made.id, motion: moving ? MOTION.dynamic : MOTION.kinematic },
       ...{ layer: LAYER.moving, shape: resolved.shape, position, quaternion },
@@ -97,9 +96,9 @@ export function createCookedBodies(
       flags: moving ? 0 : FLAG.asleep,
       ...{ size: resolved.size, ...declaredMass(body, scale), density: matter.density },
       ...{ friction: matter.friction, restitution: matter.restitution },
-      ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: bytes && [handle] },
+      ...{ gravityScale: body.motion.gravityFactor ?? 1, indices: bytes && [hull] },
     })
-    if (bytes) writer.release(handle)
+    if (bytes) writer.release(hull)
     invalidate()
     return made
   }

@@ -13,6 +13,9 @@ export class CommandWriter {
   private words = new Uint32Array(1024)
   private floats = new Float32Array(this.words.buffer)
   private spare = new SpareBuffers()
+  /** The restored shapes' handles given back, taken again before a new one; and how many exist. */
+  private handles: number[] = []
+  private handleCount = 0
   /** Words written since the last `take`. */
   length = 0
 
@@ -101,13 +104,18 @@ export class CommandWriter {
   wake(index: number) {
     this.op(OP.wake, index, [])
   }
-  /** Restores a cooked shape's native binary state under `handle`, for the ADDs that follow. */
-  restore(handle: number, bytes: Uint8Array) {
+  /** Restores a cooked shape's native binary state under a handle no other restored shape holds,
+   *  kept until `release`: the handle every ADD built on it names, over any number of frames. */
+  restore(bytes: Uint8Array) {
+    const handle = this.handles.pop() ?? this.handleCount++
     this.put([OP.restore, handle, bytes.length], [], bytes)
+    return handle
   }
-  /** Drops a restored shape's handle; the bodies built from it keep the shape. */
+  /** Drops a restored shape's handle, free for the next `restore`; the bodies built from it keep
+   *  the shape. */
   release(handle: number) {
     this.op(OP.release, handle, [])
+    this.handles.push(handle)
   }
   /** Replaces a body's flag bits (`FLAG`). */
   flags(index: number, flags: number) {

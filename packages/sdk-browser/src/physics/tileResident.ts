@@ -1,5 +1,4 @@
 import {
-  BODY_INDEX,
   LAYER,
   MOTION,
   SHAPE,
@@ -19,12 +18,11 @@ export function restoreTile(
   bytes: Uint8Array,
 ) {
   p.id = bodies.claim(p.tile.bytes, 0, { model: p.model, tile: p })
-  const handle = p.id & BODY_INDEX
   const { position, quaternion, scale } = tilePose(p)
   // The matter the node's collider declares, over the engine's default, as for every body.
   const matter = physicsMatterOf(p.instance)
   // Restored, built into one static body, and its handle dropped: the body keeps the shape.
-  writer.restore(handle, bytes)
+  const handle = writer.restore(bytes)
   writer.add({
     ...{ id: p.id, motion: MOTION.static, layer: LAYER.static, shape: SHAPE.cooked },
     ...{ flags: 0, position, quaternion, size: [scale.x, scale.y, scale.z] },
