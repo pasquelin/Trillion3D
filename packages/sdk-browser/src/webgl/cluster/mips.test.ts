@@ -1,6 +1,5 @@
-// WebGL2 mips reduced as WebGPU's, weighted by alpha under the readers' rule. A level that sampled
-// the texture it draws into would be refused, every level would stay a null allocation (alpha 0),
-// and every leaf would be cut.
+// WebGL2 mips reduced as WebGPU's, weighted by alpha under the readers' rule; a level never
+// samples the texture it draws into (refused: a null level, alpha 0, every leaf cut).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WebglClusterTextures } from './textures.ts'

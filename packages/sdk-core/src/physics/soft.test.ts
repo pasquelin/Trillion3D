@@ -161,8 +161,7 @@ test('an open cloth holds no gas, even given a pressure', () => {
 
 test("spread masses are develop's, byte for byte: cloth, volume and rope at four scales", () => {
   // `spreadMass` runs on scratch vectors, not arrays made per triangle: the same operations in the
-  // same order. The digests are those of the reference computation (arrays per triangle,
-  // `Math.hypot`), refusals included.
+  // same order. The digests are the reference computation's (arrays, `Math.hypot`), refusals too.
   const digest = (f: () => Float32Array) => {
     try {
       const v = f()
