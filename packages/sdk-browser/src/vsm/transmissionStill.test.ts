@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createVsmResources } from './resources.ts';
 import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts';
-import { recordingRaster } from './rowPageBound.fixture.ts';
+import { recordingRaster } from './recordingRaster.fixture.ts';
 
 function setup() {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } });

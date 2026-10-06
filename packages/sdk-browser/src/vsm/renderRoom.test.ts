@@ -7,7 +7,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts';
 import { createVsmResources } from './resources.ts';
 import { encodeVsmRender, vsmChunkRowsWithin } from './renderPass.ts';
-import { recordingRaster } from './rowPageBound.fixture.ts';
+import { recordingRaster } from './recordingRaster.fixture.ts';
 
 const BINDING = 1 << 27;
 const sizes = (rows: number) => ({ pairs: rows * 4096, cmds: rows * 1024 });

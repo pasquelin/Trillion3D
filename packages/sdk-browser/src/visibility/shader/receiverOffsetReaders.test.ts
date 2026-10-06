@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts';
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts';
-import { integers, shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { integers } from '../../texture/integerVectors.fixture.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import {
   FRAMEBUFFER_WGSL,

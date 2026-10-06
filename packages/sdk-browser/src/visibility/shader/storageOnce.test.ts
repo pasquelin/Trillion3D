@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts';
-import { integers, shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { integers } from '../../texture/integerVectors.fixture.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 
 /** The text of WGSL function `name` of the resolve, to its closing brace. */
 const bodyOf = (name: string) => {
