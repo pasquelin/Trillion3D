@@ -25,12 +25,15 @@ test('another surface of the same placement revealing itself rejects the old dep
   }
 })
 
-// An uncovered pixel takes the current image whole, its history weighing nothing: it reads none
-// of it — colour, share target, flicker measure, reactive value, layers —, in every resolve.
-test('an uncovered pixel reads none of its history', () => {
+// An uncovered pixel takes the current image whole, its history weighing nothing: it keeps none
+// of it — colour, share target, flicker measure, reactive value, layers —, in every resolve. Its
+// history is read beside the geometry that rejects it, both in flight at once, and dropped: a
+// history of no number leaves no trace; the layers', read only once kept, are not read.
+test('an uncovered pixel keeps none of its history', () => {
   const unread = () => {
     throw new Error('a history read')
   }
+  const nothing = () => [NaN, NaN, NaN, NaN]
   for (const native of [false, true])
     for (const [asIs, filtered] of [
       [false, false],
@@ -38,11 +41,11 @@ test('an uncovered pixel reads none of its history', () => {
     ]) {
       const frame = image({
         historyGeometry: () => [2, 0.4],
-        history: unread,
-        tags: unread,
-        moire: unread,
+        history: nothing,
+        tags: nothing,
+        moire: nothing,
         layerHistory: unread,
-        reactive: unread,
+        reactive: () => NaN,
       })
       const { color, count } = upscaleRun(frame, asIs, filtered, native)(3, 3)
       assert.ok(color.every(Number.isFinite))
