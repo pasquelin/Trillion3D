@@ -11,7 +11,7 @@ import { prepareCones } from './cones.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from '../io/catalogue.ts';
 import {
   referenceIndexSourceBytes,
-  referenceCompteMateriauxEtTangentes,
+  referenceMaterialsAndTangentsCount,
 } from '../../../../../../bench/oracles/browser/normal-cones.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -82,14 +82,14 @@ test('compteMateriauxEtTangentes counts distinct materials and geometries with/w
   ]);
   assert.deepEqual(
     compteMateriauxEtTangentes(pages, geometryBlocks),
-    referenceCompteMateriauxEtTangentes(pages, geometryBlocks),
+    referenceMaterialsAndTangentsCount(pages, geometryBlocks),
   );
 });
 
 test('compteMateriauxEtTangentes on an empty catalogue and geometry table yields zeros', () => {
   assert.deepEqual(
     compteMateriauxEtTangentes([], new Map()),
-    referenceCompteMateriauxEtTangentes([], new Map()),
+    referenceMaterialsAndTangentsCount([], new Map()),
   );
 });
 

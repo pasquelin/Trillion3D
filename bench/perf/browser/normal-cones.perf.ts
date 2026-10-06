@@ -8,7 +8,7 @@ import {
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { measure, rapport } from '../../core/index.ts';
 import {
-  referenceCompteMateriauxEtTangentes,
+  referenceMaterialsAndTangentsCount,
   referenceIndexSourceBytes,
 } from '../../oracles/browser/normal-cones.ts';
 import { catalogueDePages } from './support/scenesLoading.ts';
@@ -51,7 +51,7 @@ const resDiagnostic = await measure({
   calculation: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
     compteMateriauxEtTangentes(e.pages, e.blocs),
   expected: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
-    referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
+    referenceMaterialsAndTangentsCount(e.pages, e.blocs),
   options: { tours: 60, budgetMs: 1500 },
 });
 

@@ -38,7 +38,7 @@ const doubles = (valeurs: ArrayLike<number>) => ({
   output: new Float32Array(valeurs.length * 2),
 });
 const decompose =
-  (ecrit: (out: Float32Array, haut: number, bas: number, value: number) => void) =>
+  (ecrit: (out: Float32Array, top: number, bas: number, value: number) => void) =>
   ({ valeurs, output }: { valeurs: ArrayLike<number>; output: Float32Array }) => {
     for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i]);
     return output;

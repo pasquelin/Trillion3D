@@ -119,7 +119,7 @@ const residenceResult = await measure({
     return {
       pending: [...h.obtenu.pendingUrls()],
       retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
-      attente: collectPendingUrls(h.pages, h.vers).slice(),
+      wait: collectPendingUrls(h.pages, h.vers).slice(),
     };
   },
   motif: 'time only — correctness in packages/sdk-browser/src/backend/autonomous/residency.test.ts',

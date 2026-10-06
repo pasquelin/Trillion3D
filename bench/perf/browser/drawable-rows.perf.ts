@@ -140,10 +140,10 @@ const referenceF5 = referenceRowState(pagesF5, SLOTS);
 const etrangeres = catalogue()
   .slice(0, 2000)
   .map((page, i) => ({ ...page, url: `x/${i}` }));
-const demandes: PageRec[] = [];
+const requests: PageRec[] = [];
 for (let i = 0; i < 20000; i++) {
   const r = alea();
-  demandes.push(
+  requests.push(
     r < 0.9 ? pagesF5[Math.floor(alea() * PAGES)] : etrangeres[Math.floor(alea() * 2000)],
   );
 }
@@ -158,7 +158,7 @@ const resRangs = await measure({
   name: 'rank of a catalogue page',
   fichier: 'packages/sdk-browser/src/webgpu/row/state.ts',
   cas: [
-    { name: '20 000 requests, 10% outside the catalogue', input: demandes, size: demandes.length },
+    { name: '20 000 requests, 10% outside the catalogue', input: requests, size: requests.length },
     { name: 'a single page', input: [pagesF5[0]], size: 1 },
     { name: 'foreign page at a usurped rank', input: [etrangeres[0]], size: 1 },
     { name: 'no requests', input: [], size: 0 },

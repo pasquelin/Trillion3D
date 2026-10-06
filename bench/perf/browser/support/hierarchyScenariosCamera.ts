@@ -101,10 +101,10 @@ export function visees(): HierarchyOp[] {
       [Infinity, 0, 0],
     ];
     for (const cible of cibles)
-      for (const haut of HAUTS)
+      for (const top of HAUTS)
         for (const vise of [camera, objet, surOeil]) {
           ops.push(
-            ['vise', vise, cible, haut],
+            ['vise', vise, cible, top],
             ['maj', parent ? racine : vise, false],
             ['lis', vise],
           );
@@ -122,9 +122,9 @@ export function visees(): HierarchyOp[] {
     [devant, [0, 0, 1]],
     [devant, [0, 0, -1]],
   ];
-  for (const [vise, haut] of suites)
+  for (const [vise, top] of suites)
     ops.push(
-      ['vise', vise, [0, 0, 0], haut],
+      ['vise', vise, [0, 0, 0], top],
       ['maj', vise, false],
       ['lis', vise],
       ['image', vise, true],

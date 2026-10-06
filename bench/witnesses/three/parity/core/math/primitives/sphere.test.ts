@@ -7,10 +7,10 @@ import {
   sphereFromBounds,
 } from '../../../../../../../packages/sdk-core/src/index.ts';
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts';
-import { aPlat, boite3 } from '../../../../../../oracles/core/volumes.ts';
+import { aPlat, box3 } from '../../../../../../oracles/core/volumes.ts';
 
 const witnessSphere = (b: ArrayLike<number>) => {
-  const s = boite3(b).getBoundingSphere(new THREE.Sphere());
+  const s = box3(b).getBoundingSphere(new THREE.Sphere());
   return Float64Array.of(s.center.x, s.center.y, s.center.z, s.radius);
 };
 
@@ -46,7 +46,7 @@ test('sphereFromBounds after boxTransform matches the host-library transformed b
     new THREE.Vector3(0.5, 4, -2),
   );
   const b = [-2, -1, -3, 1, 2, 4];
-  const expected = witnessSphere(aPlat(boite3(b).applyMatrix4(m)));
+  const expected = witnessSphere(aPlat(box3(b).applyMatrix4(m)));
   const transformed = new Float64Array(6);
   boxTransform(transformed, 0, b, 0, m.elements);
   assertBits(sphereOf(transformed), expected);

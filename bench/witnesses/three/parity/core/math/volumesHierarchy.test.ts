@@ -12,7 +12,7 @@ import {
   sphereFromBounds,
 } from '../../../../../../packages/sdk-core/src/index.ts';
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts';
-import { aPlat, boite3 } from '../../../../../oracles/core/volumes.ts';
+import { aPlat, box3 } from '../../../../../oracles/core/volumes.ts';
 
 /** Chain root → rotated parent with non-uniform scale → child with negative scale → grandchild. */
 function chainOfFour() {
@@ -55,7 +55,7 @@ test('boxTransform under each matrixWorld of a depth ≥ 3 chain equals the host
     for (const b of localBoxes) {
       const actual = new Float64Array(6);
       boxTransform(actual, 0, b, 0, treeNode.matrixWorld.elements);
-      assertBits(actual, aPlat(boite3(b).applyMatrix4(treeNode.matrixWorld)));
+      assertBits(actual, aPlat(box3(b).applyMatrix4(treeNode.matrixWorld)));
     }
   }
 });
@@ -63,7 +63,7 @@ test('boxTransform under each matrixWorld of a depth ≥ 3 chain equals the host
 test('sphereFromBounds after a grandchild matrixWorld equals getBoundingSphere bit-exact', () => {
   const { grandchild } = chainOfFour();
   for (const b of localBoxes) {
-    const expected = boite3(b)
+    const expected = box3(b)
       .applyMatrix4(grandchild.matrixWorld)
       .getBoundingSphere(new THREE.Sphere());
     const world = new Float64Array(6);
@@ -97,7 +97,7 @@ test('frustumExcludesBox for a camera posed in the hierarchy equals the host-lib
 
   for (const treeNode of [parent, child, grandchild]) {
     for (const b of localBoxes) {
-      const world = boite3(b).applyMatrix4(treeNode.matrixWorld);
+      const world = box3(b).applyMatrix4(treeNode.matrixWorld);
       const expectedExcluded = !frustum.intersectsBox(world);
       const actual = frustumExcludesBox(
         planes,

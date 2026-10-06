@@ -13,7 +13,7 @@ import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
 } from '../../../../../../../packages/sdk-core/src/index.ts';
-import { boite3 } from '../../../../../../oracles/core/volumes.ts';
+import { box3 } from '../../../../../../oracles/core/volumes.ts';
 import {
   frustumClipBoxBefore,
   hostileFloats,
@@ -37,7 +37,7 @@ clipPlanesFromMatrix(raw, vp.elements);
 
 /** Three-way state built with public host-library primitives, independent of frustumBox.ts. */
 function stateThree(b: number[]) {
-  const box = boite3(b);
+  const box = box3(b);
   if (!frustum.intersectsBox(box)) return 0;
   const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(
     (i) => new THREE.Vector3(i & 1 ? b[3] : b[0], i & 2 ? b[4] : b[1], i & 4 ? b[5] : b[2]),

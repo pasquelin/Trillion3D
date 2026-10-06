@@ -14,7 +14,7 @@ import {
 import type { MeasureCase } from '../../../core/index.ts';
 import { boitesHierarchiques } from './scenesHierarchies.ts';
 import { boites, matrices } from './scenesVolumes.ts';
-import { aPlat, boite3 } from '../../../oracles/core/volumes.ts';
+import { aPlat, box3 } from '../../../oracles/core/volumes.ts';
 import { casVolume, un, type CasVolume } from './volumeCase.ts';
 
 /** Hostile cases, then the world matrices of real Three.js hierarchies. */
@@ -40,7 +40,7 @@ export const casBoites: CasVolume[] = [
     cas: un('hostile boxes', boites),
     reference: (list: number[][]) => [
       aPlat(new THREE.Box3().makeEmpty()),
-      list.map((b) => boite3(b).isEmpty()),
+      list.map((b) => box3(b).isEmpty()),
     ],
     optimised: (list: number[][]) => {
       const vide = new Float64Array(6);
@@ -53,7 +53,7 @@ export const casBoites: CasVolume[] = [
     fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: un('hostile box pairs', paires),
     reference: (list: [number[], number[]][]) =>
-      list.map(([a, b]) => aPlat(boite3(a).union(boite3(b)))),
+      list.map(([a, b]) => aPlat(box3(a).union(box3(b)))),
     optimised: (list: [number[], number[]][]) =>
       list.map(([a, b]) => {
         const output = Float64Array.from(a);
@@ -67,7 +67,7 @@ export const casBoites: CasVolume[] = [
     cas: un('hostile box pairs', paires),
     reference: (list: [number[], number[]][]) =>
       list.map(([a, b]) => {
-        const box = boite3(a);
+        const box = box3(a);
         box.expandByPoint(new THREE.Vector3(b[0], b[1], b[2]));
         return aPlat(box.expandByPoint(new THREE.Vector3(b[3], b[4], b[5])));
       }),
@@ -84,7 +84,7 @@ export const casBoites: CasVolume[] = [
     fichier: 'packages/sdk-core/src/math/primitives/box.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
     reference: (list: [number[], number[]][]) =>
-      list.map(([b, m]) => aPlat(boite3(b).applyMatrix4(new THREE.Matrix4().fromArray(m)))),
+      list.map(([b, m]) => aPlat(box3(b).applyMatrix4(new THREE.Matrix4().fromArray(m)))),
     optimised: (list: [number[], number[]][]) =>
       list.map(([b, m]) => {
         const output = new Float64Array(6),
@@ -124,7 +124,7 @@ export const casBoites: CasVolume[] = [
     cas: etHierarchies('boxes × hostile matrices', transformations),
     reference: (list: [number[], number[]][]) =>
       list.map(([b, m]) => {
-        const box = boite3(b).applyMatrix4(new THREE.Matrix4().fromArray(m));
+        const box = box3(b).applyMatrix4(new THREE.Matrix4().fromArray(m));
         const sphere = box.getBoundingSphere(new THREE.Sphere());
         return Float64Array.of(sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius);
       }),
@@ -143,7 +143,7 @@ export const casBoites: CasVolume[] = [
     cas: un('hostile boxes', boites),
     reference: (list: number[][]) =>
       list.map((b) => {
-        const sphere = boite3(b).getBoundingSphere(new THREE.Sphere());
+        const sphere = box3(b).getBoundingSphere(new THREE.Sphere());
         return Float64Array.of(sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius);
       }),
     optimised: (list: number[][]) =>

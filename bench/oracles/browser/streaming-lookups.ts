@@ -14,6 +14,6 @@ export function referenceRetireDeLaFile(queue: Job[], job: Job) {
  * `packages/sdk-browser/src/world/render/draw.ts`: missing addresses were stacked in an array whose membership
  * was tested by `includes`, hence a full sweep for each added address.
  */
-export function referencePushPending(attente: string[], urls: readonly string[]) {
-  for (const url of urls) if (!attente.includes(url)) attente.push(url);
+export function referencePushPending(wait: string[], urls: readonly string[]) {
+  for (const url of urls) if (!wait.includes(url)) wait.push(url);
 }

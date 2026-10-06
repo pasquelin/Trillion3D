@@ -14,9 +14,9 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
 
-export function referenceSplitDouble(out: Float32Array, haut: number, bas: number, value: number) {
-  out[haut] = value;
-  out[bas] = value - out[haut];
+export function referenceSplitDouble(out: Float32Array, top: number, bas: number, value: number) {
+  out[top] = value;
+  out[bas] = value - out[top];
 }
 
 function ancree(elements: ArrayLike<number>, anchor: readonly number[]) {

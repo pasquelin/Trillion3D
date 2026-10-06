@@ -111,7 +111,7 @@ export function createExactPagesRender(options: {
   };
   // What this engine draws, by the source node each thing comes from: one page per root —
   // instances of the same model all name it —, and the transparent copies outside the DAG.
-  const sourcesDessinees = [
+  const drawnSources = [
     ...roots.map((root) => root.pages[0]),
     ...blendCopies.map((copy) => copy.userData),
   ];
@@ -135,7 +135,7 @@ export function createExactPagesRender(options: {
     // the host camera into the engine camera. Nothing has moved and the two previous frames
     // produced the same cut: the attached scene is already this frame, and the host redraws
     // it as-is.
-    state.frameHeld = gate.enterFrame(context, camera, motion, viewport, source, sourcesDessinees);
+    state.frameHeld = gate.enterFrame(context, camera, motion, viewport, source, drawnSources);
     state.lastPixelError = gate.pixelError;
     const cam = (state.cam = gate.cam);
     if (state.frameHeld) return heldProfile();
