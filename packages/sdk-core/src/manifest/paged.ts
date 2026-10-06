@@ -18,7 +18,9 @@ const MANIFEST_PAGES: PageKind = {
   invalid: 'INVALID_CACHE',
 }
 
-type Read = (page: TablePage) => Promise<Uint8Array>
+/** How a hold asks its pages read: the signal that lets it go, and its priority. */
+export type PageAsk = { signal?: AbortSignal; priority?: number }
+type Read = (page: TablePage, asked?: PageAsk) => Promise<Uint8Array>
 type Body = Awaited<ReturnType<typeof readLeaves>>[number]
 
 /** The bytes of `view` as a buffer of their own. */
@@ -74,9 +76,9 @@ export interface ManifestPages {
   readonly primitives: readonly Primitive[]
   /** Bumped each time a page's primitives join or leave `primitives`. */
   readonly changes: number
-  /** Counts one more holder of each page `slots` name; a page not yet read is, its primitives
-   *  appended once it lands. Settles once every one is; if one fails, none is counted. */
-  hold(slots: readonly string[]): Promise<void>
+  /** Counts one more holder of each page `slots` name; a page not yet read is, as `asked`, its
+   *  primitives appended once it lands. Settles once every one is; if one fails, none is counted. */
+  hold(slots: readonly string[], asked?: PageAsk): Promise<void>
   /** Counts one holder less of each; a page none holds any longer leaves with its primitives. */
   release(slots: readonly string[]): void
 }
@@ -95,15 +97,17 @@ export async function openPagedManifest(
   const [body] = await readLeaves(MANIFEST_PAGES, head, read)
   const { metadata, decode } = headed(fixed, await withSidecar(body, read))
   const list = metadata.primitives
-  type Held = { count: number; primitives?: Primitive[]; reading?: Promise<void> }
+  type Held = { count: number; primitives?: Primitive[] }
   const held = new Map<string, Held>()
   let changes = 0
-  const load = async (slot: string, entry: Held) => {
-    const [page] = await readLeaves(MANIFEST_PAGES, named(MANIFEST_PAGES, [slot]), read)
-    const primitives = accept(decode(await withSidecar(page, read)).primitives)
-    if (held.get(slot) !== entry) return // released before it landed
-    entry.primitives = primitives
-    for (const primitive of primitives) list.push(primitive)
+  /** `slot` read for one hold as `asked`, placed by the first to land unless released before. */
+  const load = async (slot: string, entry: Held, asked?: PageAsk) => {
+    const own = (page: TablePage) => read(page, asked)
+    const [page] = await readLeaves(MANIFEST_PAGES, named(MANIFEST_PAGES, [slot]), own)
+    const body = await withSidecar(page, own)
+    if (held.get(slot) !== entry || entry.primitives) return
+    entry.primitives = accept(decode(body).primitives)
+    for (const primitive of entry.primitives) list.push(primitive)
     // In rank order, whichever page landed first: the list is the same for the same pages held.
     list.sort((a, b) => a.mesh - b.mesh || a.primitive - b.primitive)
     changes++
@@ -113,15 +117,13 @@ export async function openPagedManifest(
     get changes() {
       return changes
     },
-    async hold(slots) {
+    async hold(slots, asked) {
       const settled = await Promise.allSettled(
         slots.map((slot) => {
           let entry = held.get(slot)
           if (!entry) held.set(slot, (entry = { count: 0 }))
           entry.count++
-          const reading = (entry.reading ??= load(slot, entry))
-          reading.catch(() => entry.reading === reading && (entry.reading = undefined))
-          return reading
+          return entry.primitives ? undefined : load(slot, entry, asked)
         }),
       )
       const failed = settled.find((result) => result.status === 'rejected')

@@ -5,7 +5,7 @@ import { EMPTY, pagedManifest } from '../../../../tests/fixtures/manifest/pagedM
 import type { EngineError } from '../contracts/index.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
-import { openPagedManifest, readPagedManifest } from './paged.ts'
+import { openPagedManifest, readPagedManifest, type PageAsk } from './paged.ts'
 
 /** The manifest one column file gave, before the manifest was paged. */
 function whole() {
@@ -29,19 +29,26 @@ test('a root that names no head page is refused', async () => {
   await assert.rejects(refused, (error: EngineError) => error.code === 'INVALID_CACHE')
 })
 
-test('an opened manifest holds the mesh pages it is asked for, each read once and dropped with its last holder', async () => {
+test('an opened manifest holds the mesh pages it is asked for, as each hold asks, placed once and dropped with its last holder', async () => {
   const { root, files } = pagedManifest(manifest(), false, true)
-  const reads: string[] = []
-  const read = async ({ url }: { url: string }) => (reads.push(url), files.get(url)!)
+  const reads: (number | undefined)[] = []
+  const read = async ({ url }: { url: string }, asked?: PageAsk) => (
+    reads.push(asked?.priority),
+    files.get(url)!
+  )
   const { metadata, pages } = await openPagedManifest(root, read)
   const { primitives: all, ...head } = whole()
   assert.deepEqual({ ...metadata, primitives: [] }, { ...head, primitives: [] }, 'the head alone')
   assert.equal(metadata.primitives, pages.primitives)
   const [first, second] = root.pages as string[]
   const opened = reads.length
-  await Promise.all([pages.hold([first]), pages.hold([first, second])])
-  assert.equal(reads.length, opened + 4, 'each page and its sidecar read once')
-  assert.deepEqual(metadata.primitives, all.slice(0, 2))
+  await Promise.all([
+    pages.hold([first], { priority: 1 }),
+    pages.hold([first, second], { priority: 3 }),
+  ])
+  // Each hold reads at its own priority, with its own signal: the reader shares the bytes.
+  assert.deepEqual(reads.slice(opened).sort(), [1, 1, 3, 3, 3, 3])
+  assert.deepEqual(metadata.primitives, all.slice(0, 2), 'each page placed once')
   pages.release([first, second])
   assert.deepEqual(metadata.primitives, all.slice(0, 1), 'the first is still held')
   pages.release([first])

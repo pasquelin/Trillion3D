@@ -10,9 +10,9 @@ import {
   type ClusterManifest,
   type Primitive,
 } from '../../../sdk-core/src/index.ts'
-import { openPagedManifest, type ManifestPages } from '../../../sdk-core/src/manifest/paged.ts'
+import { openPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
+import { pageReader, type SessionPages } from './manifestPages.ts'
 import { absolutePrimitive } from './absolutePrimitive.ts'
-import { fetchVerified } from '../cluster/pages.ts'
 import { checked } from '../cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
 
@@ -97,7 +97,7 @@ export interface LoadedManifest {
   declared: ReadonlyMap<string, number>
   timing: ManifestTiming
   /** Of a manifest opened by its head (`lazy`), its mesh pages, which the view holds. */
-  pages?: ManifestPages
+  pages?: SessionPages
   /** The load is over: the pages read from now on carry neither its signal nor its meter. */
   settle(): void
 }
@@ -149,15 +149,8 @@ export async function loadClusterManifest(
   const scope = declared ?? (value.scope as AssetScope)
   located(() => assertCacheRoot(value, scope), metadataResource.details)
   const binaryStart = performance.now()
-  let binaryBytes = 0
-  // What reads the pages the view holds later: the load's signal and meter until it settles.
-  let reading: { signal?: AbortSignal; meter: ByteMeter } = { signal, meter }
-  const read = async (page: { url: string; bytes: number; sha256: string }) => {
-    const url = new URL(page.url, metadataUrl).href
-    const bytes = await fetchVerified(url, page, reading.signal, reading.meter)
-    binaryBytes += bytes.byteLength
-    return new Uint8Array(bytes)
-  }
+  const reader = pageReader(metadataUrl, signal, meter),
+    { read } = reader
   const base = new URL('.', metadataUrl).href
   // A page the view holds later is held to the head's identity, as the whole manifest is.
   const head: { manifest?: ClusterManifest } = {}
@@ -176,12 +169,12 @@ export async function loadClusterManifest(
     metadata,
     metadataUrl,
     base,
-    pages,
-    settle: () => void (reading = { meter: unmetered }),
+    pages: pages && Object.assign(pages, { bind: reader.bind }),
+    settle: reader.settle,
     declared: declaredFiles(metadata as unknown as Record<string, unknown>, metadataUrl),
     timing: {
       jsonBytes: metadataResource.bytes,
-      binaryBytes,
+      binaryBytes: reader.bytes(),
       pointerMs,
       jsonMs,
       binaryMs: performance.now() - binaryStart,

@@ -49,6 +49,12 @@ export type PageCatalogue = {
   admit(pages: readonly StreamPage[]): void
   forget(urls: readonly string[]): void
 }
+/** What a scene's readers ask of the session's queue (`createPageStreamer`): pages admitted, read
+ *  at a priority with the signal that lets the asker go, let go, and whether one failed. */
+export type PageQueue = PageCatalogue & {
+  readBytes(url: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>
+  failed(url: string): boolean
+}
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
 export interface PageStreamerOptions {
