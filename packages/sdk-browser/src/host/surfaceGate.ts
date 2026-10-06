@@ -42,19 +42,13 @@ export function gatedAttributes(attributes: HostAttributes) {
   return mask;
 }
 
-/**
- * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
- * A physical extension is not one: it is drawn without, by name (`physicalLostMask`).
- * A transmissive physical material is accepted only where `transmissive` says the draw reads
- * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
- */
-export function clusterMaterialReason(
+/** The material's own state the program cannot preserve: blending, raster state, extension maps, a
+ *  shader hook. */
+function materialStateReason(
   material: HostMaterials,
-  attributes: HostAttributes,
-  transmissive = false,
+  host: HostShadedMaterial,
+  transmissive: boolean,
 ) {
-  if (Array.isArray(material)) return 'material arrays are unsupported';
-  const host = material as HostShadedMaterial;
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
   const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
@@ -82,6 +76,11 @@ export function clusterMaterialReason(
   if (host.normalMap && host.normalMapType !== HOST_NORMAL_MAP_TANGENT_SPACE)
     return 'object-space normal mapping is unsupported';
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
+  return undefined;
+}
+
+/** The attributes the material's maps and shading read, then the textures themselves. */
+function attributeReason(host: HostShadedMaterial, attributes: HostAttributes) {
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
   // The same six maps the import reads, in the same order: a basic material declares none of the
   // lit ones, so the list is the host's own properties, not a second rule. An occlusion map its
@@ -110,4 +109,20 @@ export function clusterMaterialReason(
   }
   // A matcap's image is read at its normal's coordinate, never by a UV attribute.
   return textureReason(host.matcap);
+}
+
+/**
+ * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
+ * A physical extension is not one: it is drawn without, by name (`physicalLostMask`).
+ * A transmissive physical material is accepted only where `transmissive` says the draw reads
+ * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
+ */
+export function clusterMaterialReason(
+  material: HostMaterials,
+  attributes: HostAttributes,
+  transmissive = false,
+) {
+  if (Array.isArray(material)) return 'material arrays are unsupported';
+  const host = material as HostShadedMaterial;
+  return materialStateReason(material, host, transmissive) ?? attributeReason(host, attributes);
 }
