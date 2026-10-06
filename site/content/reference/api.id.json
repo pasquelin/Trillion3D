@@ -2539,10 +2539,19 @@
     }
   },
   "PageHome": {
-    "summary": "Tempat milik sebuah halaman dalam kolam yang menampung seluruh katalog: peringkatnya, byte pertamanya, dan lebarnya."
+    "summary": "Tempat milik sebuah halaman dalam kolam yang menampung seluruh katalog: peringkatnya, byte pertamanya, dan lebarnya.",
+    "members": {
+      "rank": "Peringkatnya dalam urutan katalog.",
+      "offset": "Byte pertamanya dalam kolam.",
+      "bytes": "Lebarnya, dalam byte."
+    }
   },
   "PageHomes": {
-    "summary": "Tempat setiap halaman menurut kuncinya, dan byte yang mereka pakai bersama."
+    "summary": "Tempat setiap halaman menurut kuncinya, dan byte yang mereka pakai bersama.",
+    "members": {
+      "homes": "Tempat setiap halaman, menurut kunci.",
+      "bytes": "Byte yang dipakai semua tempat bersama."
+    }
   },
   "PageIntegrationAnswer": {
     "summary": "Jawaban seorang worker untuk sebuah kedatangan: direncanakan atau gagal."

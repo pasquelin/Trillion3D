@@ -4628,10 +4628,19 @@
     }
   },
   "PageHome": {
-    "summary": "La place propre d'une page dans un réservoir qui tient tout le catalogue : son rang, son premier octet et sa largeur."
+    "summary": "La place propre d'une page dans un réservoir qui tient tout le catalogue : son rang, son premier octet et sa largeur.",
+    "members": {
+      "rank": "Son rang dans l'ordre du catalogue.",
+      "offset": "Son premier octet dans le réservoir.",
+      "bytes": "Sa largeur, en octets."
+    }
   },
   "PageHomes": {
-    "summary": "La place de chaque page par clé, et les octets qu'elles prennent ensemble."
+    "summary": "La place de chaque page par clé, et les octets qu'elles prennent ensemble.",
+    "members": {
+      "homes": "La place de chaque page, par clé.",
+      "bytes": "Les octets que toutes les places prennent ensemble."
+    }
   },
   "pageDecodeWorkerCount": {
     "summary": "Taille du réservoir de décodage : jamais plus que les cœurs qu’annonce la machine, jamais plus que le plafond du paquet, jamais plus que la limite d’admission déjà en vigueur sur les transferts, et au moins un.",

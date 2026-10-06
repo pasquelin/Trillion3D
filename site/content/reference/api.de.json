@@ -4620,10 +4620,19 @@
     }
   },
   "PageHome": {
-    "summary": "Der eigene Platz einer Seite in einem Reservoir, das den ganzen Katalog hält: ihr Rang, ihr erstes Byte und ihre Breite."
+    "summary": "Der eigene Platz einer Seite in einem Reservoir, das den ganzen Katalog hält: ihr Rang, ihr erstes Byte und ihre Breite.",
+    "members": {
+      "rank": "Ihr Rang in der Reihenfolge des Katalogs.",
+      "offset": "Ihr erstes Byte im Reservoir.",
+      "bytes": "Ihre Breite in Bytes."
+    }
   },
   "PageHomes": {
-    "summary": "Das Zuhause jeder Seite nach Schlüssel und die Bytes, die sie zusammen belegen."
+    "summary": "Das Zuhause jeder Seite nach Schlüssel und die Bytes, die sie zusammen belegen.",
+    "members": {
+      "homes": "Das Zuhause jeder Seite nach Schlüssel.",
+      "bytes": "Die Bytes, die alle Zuhause zusammen belegen."
+    }
   },
   "pageDecodeWorkerCount": {
     "summary": "Größe des Dekodierungsreservoirs: nie mehr als die von der Maschine angekündigten Kerne, nie mehr als die Obergrenze des Pakets, nie mehr als die bereits geltende Zulassungsgrenze für Übertragungen, und mindestens eins.",

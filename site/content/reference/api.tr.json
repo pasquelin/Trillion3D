@@ -2874,10 +2874,19 @@
     }
   },
   "PageHome": {
-    "summary": "Tüm kataloğu tutan bir havuzda bir sayfanın kendi yeri: sırası, ilk baytı ve genişliği."
+    "summary": "Tüm kataloğu tutan bir havuzda bir sayfanın kendi yeri: sırası, ilk baytı ve genişliği.",
+    "members": {
+      "rank": "Katalog sırasındaki sırası.",
+      "offset": "Havuzdaki ilk baytı.",
+      "bytes": "Bayt cinsinden genişliği."
+    }
   },
   "PageHomes": {
-    "summary": "Her sayfanın anahtarına göre yeri ve birlikte kapladıkları bayt."
+    "summary": "Her sayfanın anahtarına göre yeri ve birlikte kapladıkları bayt.",
+    "members": {
+      "homes": "Her sayfanın anahtarına göre yeri.",
+      "bytes": "Tüm yerlerin birlikte kapladığı bayt."
+    }
   },
   "PageIntegrationAnswer": {
     "summary": "Bir worker'ın bir varışa yanıtı: planlandı ya da başarısız."

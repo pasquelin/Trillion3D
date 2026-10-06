@@ -2539,10 +2539,19 @@
     }
   },
   "PageHome": {
-    "summary": "Chỗ riêng của một trang trong một bể chứa toàn bộ danh mục: hạng, byte đầu tiên và độ rộng của nó."
+    "summary": "Chỗ riêng của một trang trong một bể chứa toàn bộ danh mục: hạng, byte đầu tiên và độ rộng của nó.",
+    "members": {
+      "rank": "Hạng của nó trong thứ tự danh mục.",
+      "offset": "Byte đầu tiên của nó trong bể chứa.",
+      "bytes": "Độ rộng của nó, tính bằng byte."
+    }
   },
   "PageHomes": {
-    "summary": "Chỗ của mỗi trang theo khóa, và số byte chúng chiếm cùng nhau."
+    "summary": "Chỗ của mỗi trang theo khóa, và số byte chúng chiếm cùng nhau.",
+    "members": {
+      "homes": "Chỗ của mỗi trang, theo khóa.",
+      "bytes": "Số byte mà mọi chỗ chiếm cùng nhau."
+    }
   },
   "PageIntegrationAnswer": {
     "summary": "Câu trả lời của một worker cho một lượt đến: đã lên kế hoạch hoặc thất bại."

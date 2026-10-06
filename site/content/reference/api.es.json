@@ -4620,10 +4620,19 @@
     }
   },
   "PageHome": {
-    "summary": "El lugar propio de una página en un reservorio que contiene todo el catálogo: su rango, su primer byte y su ancho."
+    "summary": "El lugar propio de una página en un reservorio que contiene todo el catálogo: su rango, su primer byte y su ancho.",
+    "members": {
+      "rank": "Su rango en el orden del catálogo.",
+      "offset": "Su primer byte en el reservorio.",
+      "bytes": "Su ancho, en bytes."
+    }
   },
   "PageHomes": {
-    "summary": "El lugar de cada página por clave, y los bytes que ocupan juntas."
+    "summary": "El lugar de cada página por clave, y los bytes que ocupan juntas.",
+    "members": {
+      "homes": "El lugar de cada página, por clave.",
+      "bytes": "Los bytes que ocupan todos los lugares juntos."
+    }
   },
   "pageDecodeWorkerCount": {
     "summary": "Tamaño de la reserva de decodificación: nunca más que los núcleos que anuncia la máquina, nunca más que el límite del paquete, nunca más que el límite de admisión ya vigente en las transferencias, y al menos uno.",

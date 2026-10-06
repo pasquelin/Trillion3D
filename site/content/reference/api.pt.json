@@ -2521,10 +2521,19 @@
     }
   },
   "PageHome": {
-    "summary": "O lugar próprio de uma página num reservatório que guarda todo o catálogo: o seu posto, o seu primeiro byte e a sua largura."
+    "summary": "O lugar próprio de uma página num reservatório que guarda todo o catálogo: o seu posto, o seu primeiro byte e a sua largura.",
+    "members": {
+      "rank": "O seu posto na ordem do catálogo.",
+      "offset": "O seu primeiro byte no reservatório.",
+      "bytes": "A sua largura, em bytes."
+    }
   },
   "PageHomes": {
-    "summary": "O lugar de cada página por chave, e os bytes que ocupam juntas."
+    "summary": "O lugar de cada página por chave, e os bytes que ocupam juntas.",
+    "members": {
+      "homes": "O lugar de cada página, por chave.",
+      "bytes": "Os bytes que todos os lugares ocupam juntos."
+    }
   },
   "PageIntegrationAnswer": {
     "summary": "A resposta de um worker a uma chegada: planejada ou falhou."

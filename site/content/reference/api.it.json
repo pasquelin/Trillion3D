@@ -4620,10 +4620,19 @@
     }
   },
   "PageHome": {
-    "summary": "Il posto proprio di una pagina in un serbatoio che contiene l'intero catalogo: il suo rango, il suo primo byte e la sua larghezza."
+    "summary": "Il posto proprio di una pagina in un serbatoio che contiene l'intero catalogo: il suo rango, il suo primo byte e la sua larghezza.",
+    "members": {
+      "rank": "Il suo rango nell'ordine del catalogo.",
+      "offset": "Il suo primo byte nel serbatoio.",
+      "bytes": "La sua larghezza, in byte."
+    }
   },
   "PageHomes": {
-    "summary": "Il posto di ogni pagina per chiave, e i byte che occupano insieme."
+    "summary": "Il posto di ogni pagina per chiave, e i byte che occupano insieme.",
+    "members": {
+      "homes": "Il posto di ogni pagina, per chiave.",
+      "bytes": "I byte che tutti i posti occupano insieme."
+    }
   },
   "pageDecodeWorkerCount": {
     "summary": "Dimensione della riserva di decodifica: mai più dei core annunciati dalla macchina, mai più del limite del pacchetto, mai più del limite di ammissione già in vigore sui trasferimenti, e almeno uno.",
