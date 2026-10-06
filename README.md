@@ -14,11 +14,9 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)**
 
 </div>
-
-[Create a world](docs/SDK.md#create-a-world): `createWorld(canvasOrId)`, add objects or `scene.load` a compiled model, `onFrame` for per-frame work. It owns the scene, the camera, the renderer and the loop, and pauses once the image is stable.
 
 ---
 
@@ -26,32 +24,30 @@
 
 The best desktop engines changed what a scene can hold: geometry is streamed by clusters, one cut
 through a DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held
-under a fixed memory budget. None of that exists for the browser. **Trillion3D builds it for the
-web's constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame —
-from its own derivations only, and measures itself against the numbers those engines publish.
-The geometry is the foundation; the lighting is what it is for.
+under a fixed memory budget. **Trillion3D builds that for the web's constraints** — no hardware ray
+tracing, bounded and unreadable GPU memory, one browser frame — from its own derivations, and
+measures itself against the numbers those engines publish. The geometry is the foundation; the
+lighting is what it is for.
 
-Parity means four things, and none of them is a pixel count:
-
-|                              |                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| **Fixed budgets**            | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
-| **Residency by the frame**   | what stays on the GPU is what the frame actually read, pages and texture tiles alike  |
-| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them           |
-| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed                             |
+|   |   |
+|---|---|
+| **Fixed budgets** | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
+| **Residency by the frame** | what stays on the GPU is what the frame actually read, pages and texture tiles alike |
+| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them |
+| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed |
 
 ## What it does
 
-| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes and packages, with a dozen image formats, read by its own drivers (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine                      |
-| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                                                                                                                                                             |
-| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                                                                                                                                                        |
-| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                                                                                                                                                                   |
-| **Lighting**           | a metallic-roughness microfacet model (GGX distribution, Schlick Fresnel), no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun and lamps through virtual shadow maps — a page table over a fixed pool, the mip chosen per pixel, only the pages the image reads drawn — under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap |
-| **Memory**             | fixed reservoirs for pages and tiles, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                                                                                                                                                                                    |
-| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; a forced renderer the machine lacks is refused by name, never swapped                                                                                                                                                                                                                                                                   |
-| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                                                                                                                                                             |
+| Area | Scope |
+|---|---|
+| **Native compiler** | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes, a dozen image formats, read by its own drivers; a cluster DAG down to one root, each cluster carrying its screen error; streaming bundles; a bounded worker pool ([docs/COMPILER.md](docs/COMPILER.md)) |
+| **Cache** | SHA-addressed objects, validated before reuse; `formatVersion` separate from the compiler version ([docs/FORMAT.md](docs/FORMAT.md)) |
+| **WebGPU page raster** | the cut in compute, two-phase Hi-Z occlusion, a visibility buffer, deferred material shading, temporal antialiasing ([docs/ENGINE.md](docs/ENGINE.md)) |
+| **Textures** | virtual texturing: a bounded tile pool, residency driven by what the frame sampled |
+| **Lighting** | metallic-roughness microfacet shading, no fixed ambient term; sun and lamps through virtual shadow maps ([docs/SHADOWS.md](docs/SHADOWS.md)); per-tile light rejection |
+| **Memory** | fixed reservoirs for pages and tiles, adjustable in session without losing residency ([docs/RESIDENCY.md](docs/RESIDENCY.md)) |
+| **Fallbacks** | WebGPU pages when the machine grants a device, WebGL2 pages otherwise; a forced renderer the machine lacks is refused by name, never swapped |
+| **Physics** | Jolt in a worker, every body an ordinary mesh ([docs/PHYSICS.md](docs/PHYSICS.md)) |
 
 ## Quick start
 
@@ -61,16 +57,14 @@ Requirements: **Node.js 22.18 or newer**, **pnpm**, and a Rust toolchain with Ca
 pnpm install
 pnpm run build           # TypeScript → dist/ (ESM + declarations)
 pnpm run build:native    # → packages/asset-compiler-rust/target/release/trillion3d-compiler
-pnpm test                # unit and integration tests (node --test)
+pnpm test                # unit and integration tests
 pnpm run test:native     # cargo test
 ```
 
 This builds the repository. The package is not on npm yet; from its first release, an application
 installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models — as
-the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows step by step, with the CDN
-`importmap`, the supported platforms and the server headers. A host supplies its own scenes; the
-bench's are fetched and cooked off git into `.mesure/assets/` by `node bench/runner/assets/assets.ts`
-([Assets](bench/runner/README.md#assets)).
+the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows, with the
+supported platforms and the server headers.
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d';
@@ -89,40 +83,24 @@ world.onFrame(({ delta }) => {
 });
 ```
 
-## Native compiler
-
-All preparation happens in one executable, `trillion3d-compiler`. It reads the source, writes
-the cache to disk and talks to its host through three streams only: JSON events on stderr, a small
-pointer on stdout, cancel requests on stdin.
-
-```sh
-packages/asset-compiler-rust/target/release/trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
-packages/asset-compiler-rust/target/release/trillion3d-compiler --jobs jobs.json   # many models, bounded workers, one process
-```
-
-`trillion3d` (`prepare`, `prepareMany` in Node) is a thin relay over it; any other host
-(Electron, a CI script, another language) can drive it the same way. Full reference:
+The world owns the scene, the camera, the renderer and the loop, and pauses once the image is
+stable: [Create a world](docs/SDK.md#create-a-world). A model is compiled once by the native
+compiler, `trillion3d-compiler`, which a host drives through three streams (JSON events on stderr,
+a pointer on stdout, cancel requests on stdin) or through `prepare` in Node:
 [docs/COMPILER.md](docs/COMPILER.md).
 
 ## Public SDK
 
-Every consumer imports `trillion3d`. Conditional exports give every environment (worker included)
-the versioned contracts, maths, jobs, diagnostics and safety policy; Node adds the native compiler
-process adapter and compilation jobs; a browser bundler adds `createWorld` and its families
-(`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`,
-`capability`, `capture`, `pose`, `batch`, …) — see
-[Installation and environment API](docs/SDK.md#installation-and-environment-api).
+Every consumer imports `trillion3d`; conditional exports give a worker or any environment the
+contracts, maths, jobs and diagnostics, Node the compiler process adapter, and a browser bundler
+`createWorld` and its families ([Entry points](docs/SDK.md#entry-points)).
 
 Without a bundler, a page imports the browser entry built as one module, `trillion3d/module`
 (`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
 CDN serving the package's files (jsDelivr, unpkg) needs one `importmap` line; the workers start
-across origins. Each optional family is a chunk of its own, fetched with the scene that uses it and
-waited for as its other resources, so no frame is drawn without it: physics (its chunk, worker and
-WebAssembly, when a world enables it), particles, WebGPU transmission (glass and water), WebGPU
-deformation, the effect chain, guides, diagnostic views and the measurement's build provenance; a
-plain scene fetches none. Physics threads need a cross-origin isolated page (COOP/COEP); without it
-the single-thread physics runs, silently. `pnpm run check:bundle-size` holds the gzip core to its
-budget.
+across origins. Each optional family — physics, particles, WebGPU transmission and deformation, the
+effect chain, guides, diagnostic views — is a chunk of its own, fetched with the scene that uses it
+before any frame is drawn; a plain scene fetches none.
 
 ```html
 <script type="importmap">
@@ -134,12 +112,6 @@ budget.
   import { createWorld } from 'trillion3d';
 </script>
 ```
-
-An application owns the canvas, its resource URLs and controller disposal; the world owns its own
-loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts
-own source/cache directories and process configuration. React and Electron integrations use these
-boundaries without bringing a framework into the core. Consumers use public exports, never internal
-source paths. See the [SDK guide](docs/SDK.md) and the [architecture notes](packages/README.md).
 
 ## Architecture
 
@@ -161,80 +133,42 @@ Node adapter → Native Rust compiler
 Core: contracts · jobs · cancellation · diagnostics · safety policy
 ```
 
-| Directory                                                      | Responsibility                                                   |
-| -------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI                               |
-| [`packages/page-codec`](packages/page-codec)                   | Reference geometry-page encoder used to test the browser decoder |
-| [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
-| [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
-| [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
-| [`bench/runner`](bench/runner)                                 | The bench: one harness, campaigns and the HTML report            |
-| [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
+What each package owns: [packages/README.md](packages/README.md).
 
 ## Measuring
 
-Nothing is optimised before it is measured, and no claim outlives its measurement.
-
-```sh
-node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
-     --views overview,ground,street --images 60 --pixelError 0,1
-node bench/runner/campaign.ts        # the whole campaign
-node bench/runner/summary/summaryGlobal.ts --id <campaign>   # its report data, for the portal
-```
-
-- One harness, Playwright driving the machine's Chrome, nothing on disk beyond `.mesure/assets/`.
-- **Before/after in one run**, same poses, lights, caches and server — and the engine facing two
-  witnesses: bare Three.js and Three.js with a three-level `THREE.LOD` (the classic method).
-- The measurement rules — identical budgets, `null` for the unmeasured, CPU and GPU never added,
-  differences read on the frame envelope — are in [CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
-
-See [bench/runner/README.md](bench/runner/README.md) and [docs/TESTS.md](docs/TESTS.md).
+Frame time is measured on the GPU bench, which draws a site page in Node on the machine's GPU
+through Dawn; a Chrome harness serves the WebGL2 proofs and pits the engine against two witnesses,
+bare Three.js and Three.js with a three-level `THREE.LOD`. Both, and the published reports:
+[bench/runner/README.md](bench/runner/README.md); the measurement rules:
+[CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
 
 ## Quality bar
 
-Every source file fits 200 lines, no block is duplicated, core packages never see the DOM, and
-`pnpm run validate` — format, lint, Clippy, unused code, builds, declarations, links, every JS/TS/Rust
-test — gates each pull request in CI ([`quality.yml`](.github/workflows/quality.yml)); `pnpm run
-test:gpu` adds the proofs on a real GPU. The gates, one by one: [docs/TESTS.md](docs/TESTS.md#4-quality-gates).
-The rules a contribution follows: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## How the project is run
-
-Trillion3D is built by AI sessions — one per issue, and an acceptance session that times and
-proves each batch — run by one maintainer.
-[docs/COMPANY.md](docs/COMPANY.md) explains every role and how to run it from any clone; the contribution workflow never requires it.
+`pnpm run validate` — format, lint, Clippy, unused code, builds, declarations, links, every
+JS/TS/Rust test — gates each pull request in CI ([`quality.yml`](.github/workflows/quality.yml));
+`pnpm run test:gpu` adds the proofs on a real GPU. The gates:
+[docs/TESTS.md](docs/TESTS.md#4-quality-gates); the rules a contribution follows:
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
 Every document, and what it is for, is listed once in [docs/README.md](docs/README.md). The
-documentation, the code, its identifiers and this page are in English.
-
-## Roadmap
-
-The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
-for is **real-time dynamic global illumination, reflections and shadows**, reached by stages L0–L6,
-each measured before the next; their content and state live in
-[Lighting: the target and the stages](docs/ENGINE.md#lighting-the-target-and-the-stages).
-
-Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3D/issues); an issue is closed once it is done.
+documentation, the code and its identifiers are in English.
 
 ## Current limits
 
 - Not yet a general-purpose engine: `scene.load` reads a versioned source manifest and the source
   it names; non-triangle primitives and non-standard glTF extensions are unsupported. A world built
-  in code — `geometry`/`material`/`object`/`light` — does not go through the compiler at all.
-- Delivered simplification and page compression are those documented in
-  [docs/FORMAT.md](docs/FORMAT.md); the compiler's RAM option is an admission estimate, not an
-  enforced peak-memory limit.
-- Specular environment-map IBL and cross-API fallback are not implemented; a lost device is
-  recovered without reloading the page ([SDK](docs/SDK.md), `gpu-device-recovered`); a missing
-  visbuffer format falls back to the untextured page raster with Hi-Z off.
-- No N-API binding of the compiler, published packages, signed native distributions or
-  cross-platform performance CI yet; WebAssembly serves the page decoder, three math kernels and
-  the physics.
-- Physics ([docs/PHYSICS.md](docs/PHYSICS.md)) steps Jolt on its thread pool when the page is
-  cross-origin isolated, on one worker elsewhere; what 10,000 boxes landing at once cost is
-  measured there.
+  in code (`geometry`, `material`, `object`, `light`) does not go through the compiler.
+- Specular environment-map IBL is not implemented; a lost device is recovered without reloading the
+  page (`gpu-device-recovered`); a missing visibility-buffer format falls back to the untextured
+  page raster with Hi-Z off.
+- Physics threads need a cross-origin isolated page (COOP/COEP); without it the physics runs on one
+  worker, silently.
+- No N-API binding of the compiler, published package or signed native distribution yet; only
+  macOS arm64 is built and run here
+  ([release work](packages/README.md#release-work-still-required)).
 
 ## Licence
 

@@ -66,7 +66,9 @@ impl<W: Write> Write for Hashing<W> {
     }
 }
 
-/// Where the object named `digest` lives: one spelling for every writer and the proof.
+/// Where the object named `digest` lives: one spelling for every writer and the proof. The name is
+/// the SHA-256 of the content with the `.bin` extension, which a static server serves as
+/// `application/octet-stream` with no configuration; the manifest names each object in full.
 pub(super) fn object_path(o: &Options, digest: &str) -> PathBuf {
     o.cache
         .join("native")

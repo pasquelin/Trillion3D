@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import test from 'node:test'
 import { DEFAULT_LANGUAGE, LANGUAGES } from '../site/content/i18n/dictionary.ts'
 import { codeBlocks, installPageHtml, repositoryLinks, walkthrough } from './install-page.ts'
@@ -33,14 +33,10 @@ test('every language gives English its commands and its links', async () => {
   }
 })
 
-test('the page links the message codes, each to its row of their list', () => {
+test('every repository link of the page exists', () => {
   const links = repositoryLinks(english)
   for (const path of links) assert.ok(existsSync(new URL(path, root)), `${path} exists`)
-  assert.ok(links.includes('docs/COMPILER_ERRORS.md'))
   assert.ok(links.includes('LICENSE'))
-  // The list's text is held to the catalogue by `message-catalogue.test.ts`.
-  const list = readFileSync(new URL('docs/COMPILER_ERRORS.md', root), 'utf8')
-  assert.match(list, /<a id="t3d-e079"><\/a>T3D-E079 \| `COMPILER_PLATFORM_UNSUPPORTED`/)
 })
 
 test('a page without a step is refused by name', () => {

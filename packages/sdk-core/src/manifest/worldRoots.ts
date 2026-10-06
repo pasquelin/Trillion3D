@@ -92,8 +92,8 @@ export function cellDependencies(table: WorldRoots, cell: number): number[] {
 
 /**
  * The pages of bundle `bundle`, viewed on `bytes`, its range of the binary: each a vertex count, a
- * triangle count, its vertices as three floats and its triangles as 16-bit local indices padded
- * to four bytes. A bundle whose pages do not fill it exactly, or name a vertex they do not carry,
+ * triangle count, its vertices as three floats in world space and its triangles as 16-bit local
+ * indices padded to four bytes. A bundle whose pages do not fill it exactly, or name a vertex they do not carry,
  * is refused.
  */
 export function worldBundlePages(bytes: Uint8Array, count: number, bundle: number) {

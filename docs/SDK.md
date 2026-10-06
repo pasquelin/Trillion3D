@@ -131,7 +131,7 @@ store's 403. An unreadable `pageCodec.wasm` leaves the pages to the JavaScript d
 
 The optional families ([README](../README.md#public-sdk)), the world stream, the impostors and each
 renderer are chunks imported on first use, a failed import tried once more at once; what still
-fails is `FAMILY_LOAD_FAILED` ([T3D-E090](COMPILER_ERRORS.md#t3d-e090), `details.family`) on
+fails is `FAMILY_LOAD_FAILED` (`T3D-E090`, `details.family`) on
 `world.diagnostic.error` (and `world.physics.error`), asked again at the next use, ten seconds later
 at the soonest. Frames that need a family wait for it, never draw without it; refused impostors
 leave each object its mesh. A page downloads only the renderer it draws with.
@@ -513,8 +513,7 @@ versioned cache ([COMPILER.md](COMPILER.md#using-it-from-any-other-host)).
 cancellation, exit codes and how the executable is found:
 [COMPILER.md](COMPILER.md#using-it-from-node). Not found, it fails with
 `COMPILER_EXECUTABLE_MISSING`, or `COMPILER_PLATFORM_UNSUPPORTED` on a machine the compiler is not
-built for. Every error carries its public code and a link to its page
-([COMPILER_ERRORS.md](COMPILER_ERRORS.md)).
+built for. Every error carries its public code, its cause and its action.
 
 ## Scene hierarchy foundation
 

@@ -5,12 +5,12 @@
 //! material — factor or texture — and on it alone, so that any imported scene
 //! yields the same result. The body is traversed vertex by vertex and not by its bounding box: a sphere's
 //! bounding box overflows by a square root of three factor, and would exclude shadow casters that the envelope
-//! does not contain — exactly what  reproaches to the near plane.
+//! does not contain.
 use super::*;
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_world::transform_point;
 
-/// Radius of the envelope around , if an emissive body is linked to the node's light.
+/// Radius of the envelope around `centre`, if an emissive body is linked to the node's light.
 /// Multiple bodies linked to the same light: the tightest sphere wins, because excluding
 /// beyond the envelope rejects shadow casters that it never contained.
 pub(super) fn radius(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
@@ -32,8 +32,8 @@ fn bound_nodes(e: &Emitter, node: usize) -> Vec<usize> {
         .collect()
 }
 
-/// Largest distance from  to a vertex of the emissive body carried by this node, in world
-/// space.  when the node carries no mesh, none of its materials emit, or
+/// Largest distance from `centre` to a vertex of the emissive body carried by this node, in world
+/// space. `None` when the node carries no mesh, none of its materials emit, or
 /// positions cannot be read: a light without a readable envelope declares none.
 fn reach(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
     let mesh = e.g.pointer("/nodes")?.get(node)?.get("mesh")?.as_u64()?;

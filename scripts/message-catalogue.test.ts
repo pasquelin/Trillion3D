@@ -4,7 +4,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { catalogueMessages, messageOf } from '../packages/sdk-node/src/messages/catalogue.mts'
-import { staleIndex } from './message-pages.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const RUST = join(ROOT, 'packages/asset-compiler-rust/src')
@@ -85,8 +84,8 @@ test("the browser runtime's family refusal carries its catalogue code (#1404)", 
 })
 
 // Behaviour: ids are unique and say their level, every entry has one sentence, a cause and an
-// action, and every code has its documentation page, current with the catalogue.
-test('every catalogue code is well formed and has its documentation page', () => {
+// action.
+test('every catalogue code is well formed', () => {
   const letter = { error: 'E', warn: 'W', info: 'I' } as const
   assert.equal(new Set(catalogueMessages.map((m) => m.id)).size, catalogueMessages.length)
   assert.equal(new Set(catalogueMessages.map((m) => m.code)).size, catalogueMessages.length)
@@ -96,5 +95,4 @@ test('every catalogue code is well formed and has its documentation page', () =>
     assert.doesNotMatch(entry.message, /\. [A-Z]/, `${entry.code}: one sentence`)
     assert.ok(entry.cause && entry.action, entry.code)
   }
-  assert.equal(staleIndex(ROOT), false, 'docs/COMPILER_ERRORS.md follows the catalogue')
 })

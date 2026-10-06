@@ -79,7 +79,8 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
  * The proxy reread and rechecked before a single ray touches it.
  *
  * Layout: eleven little-endian header words, followed by shared/loose geometry, tree columns
- * and versioned ownership. `docs/FORMAT.md` specifies every count and column.
+ * and versioned ownership, read in the order the compiler writes them (`SceneProxy::encode`,
+ * `packages/asset-compiler-rust/src/proxy/encode.rs`).
  * Each section has a length the header imposes; a file of another size is rejected in
  * bulk, because a node that named a missing triangle would make the shader read anything.
  */

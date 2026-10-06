@@ -278,7 +278,11 @@ export function encodeVsmPageCarry(
   run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, groupsFor(res.layout.poolPages))
 }
 
-/** Builds the page allocations of the frame. */
+/**
+ * Builds the page allocations of the frame. A page marked and not held takes an empty physical page
+ * first, then the one wanted least recently among those holding cached data; a page this frame's
+ * marking asked for keeps its physical page and is never taken.
+ */
 export function encodeVsmPageMapping(
   encoder: GPUCommandEncoder,
   res: VsmResources,

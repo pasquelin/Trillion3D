@@ -12,7 +12,9 @@
  * 2D tables are storage buffers of u32, row-major, mips concatenated (see `pageTableWgsl.ts`). The
  * physical pool (R32 texel array, 2 slices) is one buffer per slice, its texels page by page
  * (`vsmPoolTexelIndexWgsl`), split into parts of whole page rows when a slice exceeds
- * `device.limits.maxStorageBufferBindingSize`.
+ * `device.limits.maxStorageBufferBindingSize`. The VSM passes bind every part; a consumer outside
+ * them (`../lighting/direct/shadowWgsl.ts`: blended surfaces, water) binds the first part alone, and
+ * a texel past it reads as no occluder, so a split slice gives those surfaces no shadow there.
  */
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { vsmWriteChangedCopy } from './writeChanged.ts'

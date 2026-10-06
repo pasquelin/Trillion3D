@@ -77,7 +77,7 @@ test('errors and cancellations close the line with a cross and the code', () => 
   })
   assert.match(
     out.text(),
-    /✖ 1\/1 x T3D-E\d{3} EMPTY_SLICE: .*\(nothing fits\) Raise the triangle budget/,
+    /✖ 1\/1 x T3D-E\d{3} EMPTY_SLICE: .*\(nothing fits\) Cause: .+\. Raise the triangle budget/,
   )
 })
 test('the ratio never goes backwards and is clamped to one', () => {
@@ -150,7 +150,7 @@ test('many flagged primitives are summarised in one line per code when the job c
   assert.equal(told.length, 3, told.join('\n'))
   assert.match(
     told[0],
-    /^⚠ village T3D-W\d{3} DAG_FLAT ×40: .* Worst: mesh 7\/0, 98 roots of 98 pages\. .*T3D-W\d{3}\.md$/,
+    /^⚠ village T3D-W\d{3} DAG_FLAT ×40: .* Worst: mesh 7\/0, 98 roots of 98 pages\. Cause: .+\. .+$/,
   )
   assert.match(told[1], /^⚠ village T3D-W\d{3} DAG_ROOTS ×3: /)
   assert.match(told[2], /^⚠ village T3D-W\d{3} texture-missing ×3: /)

@@ -1,4 +1,8 @@
 //! Texture waves share one job's RAM allowance; completed tails stay charged.
+//!
+//! An image whose working set, or the tails retained for the sidecar, exceed that allowance
+//! refuses the job (`RAM_ADMISSION_BUDGET_EXCEEDED`): it is never baked at a lower resolution nor
+//! replaced by white, either of which would publish less image than the source holds.
 use super::*;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;

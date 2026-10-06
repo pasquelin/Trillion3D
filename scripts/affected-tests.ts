@@ -1,5 +1,5 @@
 import { candidates, importFacts, type ImportFacts } from './import-facts.ts'
-import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts'
+import { isUnitTest } from './unit-tests.ts'
 
 // The unit tests a change can affect, as the "affected" selection of Bazel, Nx or Turborepo: the
 // tests of the changed file's own domain folder, and those that reach it by a chain of value
@@ -127,14 +127,11 @@ function affectedTests(graph: Map<string, GraphNode>, changed: Set<string>): str
       queue.push(importer)
     }
   const domains = [...changed].flatMap((file) => (isUnitTest(file) ? [] : (domainOf(file) ?? [])))
-  const inventory = [...changed].some(movesInventory)
   return [...graph.keys()]
     .filter(
       (file) =>
         isUnitTest(file) &&
-        (reached.has(file) ||
-          domains.some((domain) => file.startsWith(domain)) ||
-          (inventory && file === INVENTORY_TEST)),
+        (reached.has(file) || domains.some((domain) => file.startsWith(domain))),
     )
     .sort()
 }

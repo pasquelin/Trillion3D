@@ -1,6 +1,6 @@
 import type { CompilerEvent } from '../compiler/contracts.ts'
 import {
-  docsOf,
+  causeOf,
   messageOf,
   type CatalogueMessage,
   type MessageLevel,
@@ -91,7 +91,7 @@ export function messageTally(verbose = false) {
           : ''
         const head =
           `${MARK[entry.level]} ${label} ${entry.id} ${entry.code} ×${count}: ${entry.message}` +
-          `${worstText} ${entry.action} ${docsOf(entry)}`
+          `${worstText} ${causeOf(entry)} ${entry.action}`
         return verbose ? [head, ...occurrences.map((text) => `    ${text}`)] : [head]
       })
     },
@@ -102,7 +102,6 @@ export function messageTally(verbose = false) {
         job,
         ...entry,
         count,
-        docs: docsOf(entry),
         ...(worst && { worst }),
         ...(verbose && { occurrences }),
       }))

@@ -6,14 +6,6 @@ export function isUnitTest(file: string): boolean {
   return /^(?:packages|bench|tests|scripts|site\/examples\/kit)\/.*\.test\.(?:ts|mts)$/.test(file)
 }
 
-/** The test that holds `docs/TESTS.md` to the tree it counts. */
-export const INVENTORY_TEST = 'scripts/tests-inventory.test.ts'
-
-/** A change the inventory counts: any unit test, or any file of the test and bench trees. */
-export function movesInventory(file: string): boolean {
-  return isUnitTest(file) || file.startsWith('tests/') || file.startsWith('bench/')
-}
-
 /** The `node --test` flags of a run under `env`. A shard, `TRILLION3D_TEST_SHARD` (`2/3`), which
  *  `node` itself checks, runs its share of the one file list at full parallelism, as does any CI
  *  run. A local run keeps every test but starts two processes at once (`TRILLION3D_TEST_CONCURRENCY`

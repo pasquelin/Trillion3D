@@ -73,9 +73,8 @@ pub(super) fn check_acyclic(g: &Value) -> Result<()> {
 }
 
 /// Roots of the rendered scene. glTF 2.0 §3.5: a document renders only one scene
-/// — the one `scene` names, otherwise the first declared. Without `scenes`, the
-/// document names none: the compiler then takes every hierarchy root, and
-/// `docs/COMPILER.md` writes it.
+/// — the one `scene` names, otherwise the first declared. Without `scenes`, or with an
+/// empty one, the document names none: the compiler then takes every hierarchy root.
 pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     let Some(scenes) = g
         .get("scenes")

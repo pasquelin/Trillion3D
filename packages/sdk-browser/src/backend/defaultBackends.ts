@@ -24,7 +24,8 @@ type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, '
  *  granted, the engine's own WebGL2 page path otherwise. The host-library witnesses
  *  (`referenceBackend`, `exactPagesBackend`, `threeLodBackend`) are never chosen on their own
  *  merit: a host that wants one, for a comparison view or the bench, names it in
- *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
+ *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name, and so does a
+ *  forced `renderer` the machine lacks: it is never swapped for the other path. */
 export function chooseBackends(
   options: {
     backends?: BackendFactory[]

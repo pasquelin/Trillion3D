@@ -5,6 +5,11 @@ use crate::{CompilerError, Result};
 use serde_json::Value;
 
 impl Deformation {
+    /// A primitive a node declares a soft body: each drawn vertex carries, in the skin stream at
+    /// weight one, the simulated vertex it follows (positions welded and compacted as the cook's
+    /// `soft_record.rs` does), so the page writes the simulation back into the drawn mesh. A
+    /// primitive that also carries a skin or morph targets is refused (`SOFT_DEFORMATION`) rather
+    /// than giving one stream two meanings.
     pub fn soft_source(&mut self, g: &Value, mesh: usize, positions: &[f32]) -> Result<()> {
         let declared = g["nodes"].as_array().and_then(|nodes| {
             (nodes.iter())

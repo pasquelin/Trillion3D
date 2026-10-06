@@ -2,9 +2,10 @@
 //!
 //! A real light sits in something — glass, a reflector, a lampshade — and this
 //! envelope is geometry like any other: it enters its own light's shadow map
-//! and darkens it.  () declares the radius of the sphere that
-//! this light, and only this light, stops shadowing. Two origins, in this order: the radius that the
-//! source declares on the light, otherwise the radius measured by the emissive body linked to the light.
+//! and darkens it. `emitterRadius`, written on `point` and `spot` lights only, declares the radius
+//! of the sphere that this light, and only this light, stops shadowing. Two origins, in this order:
+//! the radius that the source declares on the light, otherwise the radius measured by the emissive
+//! body linked to the light (`envelope.rs`).
 use super::*;
 use crate::compiler_world::Mat4;
 
@@ -44,7 +45,7 @@ impl<'a> Emitter<'a> {
         })
     }
 
-    /// Writes  on an already converted light, when the scene provides one satisfying
+    /// Writes `emitterRadius` on an already converted light, when the scene provides one satisfying
     /// the contract. A directional light has neither position nor range: the field is refused without count,
     /// since no sphere can sit around a light source having no center.
     pub(super) fn attach(&self, entry: &mut Value, light: &Value, node: usize, counts: &mut Tally) {
@@ -71,9 +72,10 @@ impl<'a> Emitter<'a> {
     }
 }
 
-/// The radius declared by the source on the light itself. It travels in the light's ,
-/// the channel that  already uses: a format whose light carries a radius puts it there, and
-/// no second channel is opened for it. Its value is in meters, like the rest of the scene.
+/// The radius declared by the source on the light itself. It travels in the light's
+/// `extras.emitterRadius`, where the USD and Blender drivers write theirs: a format whose light
+/// carries a radius puts it there, and no second channel is opened for it. Its value is in
+/// meters, like the rest of the scene.
 fn declared(light: &Value) -> Option<f64> {
     light
         .pointer("/extras/emitterRadius")
