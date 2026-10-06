@@ -26,7 +26,7 @@ test('source auto-lighting preserves and rejects a non-physical point-light deca
 test('a contract point light lights, and removing it makes the lit view black', () => {
   const bench = harness();
   bench.store.add({
-    id: 'lampe',
+    id: 'light',
     kind: 'point',
     position: [1, 2, 3],
     range: 10,
@@ -49,7 +49,7 @@ test('a contract point light lights, and removing it makes the lit view black', 
   assert.equal(bench.contract.lit, true);
 
   bench.store.setView('lit');
-  bench.store.remove('lampe');
+  bench.store.remove('light');
   bench.contract.apply();
   // Lit view with no light at all: nothing lights, and nothing claims to light.
   assert.equal(bench.visibleLights().length, 0);
@@ -59,7 +59,7 @@ test('a contract point light lights, and removing it makes the lit view black', 
 test('the `unlit` view yields albedo by an irradiance of π, with no contract light', () => {
   const bench = harness();
   bench.store.add({
-    id: 'lampe',
+    id: 'light',
     kind: 'point',
     position: [0, 0, 0],
     range: 5,
@@ -124,7 +124,7 @@ test('a directional takes its propagation direction, never an invented position'
 test('the contract hides the source-graph lights as soon as it governs, and restores them afterwards', () => {
   const bench = harness([light('directional')]);
   bench.store.add({
-    id: 'lampe',
+    id: 'light',
     kind: 'point',
     position: [0, 0, 0],
     range: 4,
@@ -136,7 +136,7 @@ test('the contract hides the source-graph lights as soon as it governs, and rest
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
   assert.equal(lights[0].kind, 'point');
-  bench.store.remove('lampe');
+  bench.store.remove('light');
   bench.contract.apply();
   const back = bench.visibleLights();
   assert.equal(back.length, 1);
@@ -146,7 +146,7 @@ test('the contract hides the source-graph lights as soon as it governs, and rest
 test('changing a light type replaces its light object, leaving no second one', () => {
   const bench = harness();
   bench.store.add({
-    id: 'lampe',
+    id: 'light',
     kind: 'point',
     position: [0, 1, 0],
     range: 6,
@@ -155,7 +155,7 @@ test('changing a light type replaces its light object, leaving no second one', (
     castsShadow: false,
   });
   bench.contract.apply();
-  bench.store.set('lampe', { kind: 'spot', direction: [0, -1, 0], coneAngle: 0.4 });
+  bench.store.set('light', { kind: 'spot', direction: [0, -1, 0], coneAngle: 0.4 });
   bench.contract.apply();
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);

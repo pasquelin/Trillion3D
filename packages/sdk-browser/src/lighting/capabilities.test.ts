@@ -4,7 +4,7 @@ import { lightingCapabilitiesOf } from './capabilities.ts';
 import type { RenderBackend } from '../backend/types.ts';
 
 /** An engine reduced to the methods the capability reads: nothing else enters the answer. */
-const backendOf = (parts: Partial<RenderBackend>) => ({ id: 'moteur', ...parts }) as RenderBackend;
+const backendOf = (parts: Partial<RenderBackend>) => ({ id: 'engine', ...parts }) as RenderBackend;
 
 test('an engine that does not reread the store declares no lighting capability', () => {
   const capabilities = lightingCapabilitiesOf(backendOf({}));
@@ -19,28 +19,28 @@ test('an engine that does not reread the store declares no lighting capability',
     },
   );
   // The refusal is named: that is what the host reads instead of inferring a fault from a black frame.
-  assert.match(capabilities.reason!, /moteur/);
+  assert.match(capabilities.reason!, /engine/);
 });
 
 test('an engine that rereads the store applies lights and view, and its shadows declare themselves', () => {
-  const sansOmbre = lightingCapabilitiesOf(
+  const withoutShadow = lightingCapabilitiesOf(
     backendOf({ refreshSceneLights: () => {}, lighting: { shadows: false, reason: 'no shadow' } }),
   );
-  assert.deepEqual(sansOmbre, {
+  assert.deepEqual(withoutShadow, {
     sceneLights: true,
     lightingView: true,
     shadows: false,
     transforms: false,
     reason: 'no shadow',
   });
-  const avecOmbre = lightingCapabilitiesOf(
+  const withShadow = lightingCapabilitiesOf(
     backendOf({
       refreshSceneLights: () => {},
       setTransform: () => {},
       lighting: { shadows: true },
     }),
   );
-  assert.deepEqual(avecOmbre, {
+  assert.deepEqual(withShadow, {
     sceneLights: true,
     lightingView: true,
     shadows: true,
