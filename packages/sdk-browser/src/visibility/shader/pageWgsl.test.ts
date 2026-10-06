@@ -82,7 +82,7 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
 // the same rule as WebGPU). Copying it here used to make a third write of the same rule.
 const regle = linearTexels;
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
-const valeur = ([i0, i1, poids]: [number, number, number]) => i0 * (1 - poids) + i1 * poids;
+const valeur = ([i0, i1, weights]: [number, number, number]) => i0 * (1 - weights) + i1 * weights;
 
 test('wrapLinear mixes the two texels of the rule, a period seam included', () => {
   const coordonnees = [];
@@ -93,11 +93,11 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
   for (const taille of [1, 2, 3, 4, 5, 8])
     for (const wrap of [G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT])
       for (const t of coordonnees) {
-        const attendu = regle(t, taille, wrap);
-        if (attendu[1] !== attendu[0] + 1 && wrap === G.HOST_WRAP_REPEAT) couture++;
+        const expected = regle(t, taille, wrap);
+        if (expected[1] !== expected[0] + 1 && wrap === G.HOST_WRAP_REPEAT) couture++;
         assert.ok(
-          Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(attendu)) <= 1e-9,
-          `${taille} texels, t=${t}: rule ${attendu}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,
+          Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(expected)) <= 1e-9,
+          `${taille} texels, t=${t}: rule ${expected}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,
         );
       }
   assert.ok(couture > 100, `the series must exercise the seam, only ${couture} cases`);
@@ -149,7 +149,7 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
       nom,
     );
   }
-  for (const [nom, texte] of Object.entries({
+  for (const [nom, text] of Object.entries({
     SMALL_SHADER,
     SHADE_SHADER,
     VIS_SHADER,
@@ -157,10 +157,10 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
     // An atlas read (`let t=wrapUv(`) or the feedback that names it (`return wrapUv(`): the
     // coordinate the pixel asks for is the one it reads.
     assert.equal(
-      occurrences(texte, 'wrapUv('),
-      occurrences(texte, 'fn wrapUv(') +
-        occurrences(texte, 'let t=wrapUv(') +
-        occurrences(texte, 'return wrapUv('),
+      occurrences(text, 'wrapUv('),
+      occurrences(text, 'fn wrapUv(') +
+        occurrences(text, 'let t=wrapUv(') +
+        occurrences(text, 'return wrapUv('),
       `${nom} only folds a coordinate in an atlas read, never on its own account`,
     );
 });

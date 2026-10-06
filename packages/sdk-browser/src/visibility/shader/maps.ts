@@ -48,7 +48,7 @@ export const lectureDonnee = (
   dejaLues: readonly [variable: string, nom: keyof typeof WRAP_MAP][],
 ) => {
   const reprises = dejaLues
-    .map(([lue, autre]) => `if(page.${CARTE[nom]}==page.${CARTE[autre]}){${variable}=${lue};}else `)
+    .map(([lue, other]) => `if(page.${CARTE[nom]}==page.${CARTE[other]}){${variable}=${lue};}else `)
     .join('');
   return siCarte(nom, `${reprises}{${variable}=${lecture('dataSample', nom)};}`);
 };
