@@ -1,4 +1,5 @@
 import type { Job, StreamContext } from './types.ts';
+import { createJob, joinJob } from './queueJob.ts';
 import { compacteFile, findAdmissible, insereTravail } from './queueOrder.ts';
 
 export function createStreamingQueue(
@@ -114,22 +115,7 @@ export function createStreamingQueue(
     }));
     let job = jobs.get(url);
     if (!job) {
-      let resolve!: (value: Uint8Array) => void, reject!: (reason: unknown) => void;
-      const promise = new Promise<Uint8Array>((yes, no) => {
-        resolve = yes;
-        reject = no;
-      });
-      job = {
-        url,
-        priority,
-        order: state.order++,
-        controller: new AbortController(),
-        state: 'queued',
-        consumers: new Set(),
-        promise,
-        resolve,
-        reject,
-      };
+      job = createJob(url, priority, state.order++);
       jobs.set(url, job);
       sync(url);
       insereTravail(queue, job);
@@ -151,39 +137,21 @@ export function createStreamingQueue(
         loading: jobs.size,
       }));
     }
-    const shared = job,
-      token = Symbol(url);
-    shared.consumers.add(token);
+    const shared = job;
     const combined = requestSignal ? AbortSignal.any([abort.signal, requestSignal]) : abort.signal;
-    const result = new Promise<Uint8Array>((resolve, reject) => {
-      let settled = false;
-      const finish = (ok: boolean, value: Uint8Array | unknown) => {
-        if (settled) return;
-        settled = true;
-        combined.removeEventListener('abort', onAbort);
-        shared.consumers.delete(token);
-        // A transfer that has already started is paid for: letting it land in the cache costs nothing
-        // more and keeps a superseded camera from throwing away bytes it is about to ask for again.
-        // Only a request still waiting in the queue is dropped.
-        if (shared.consumers.size === 0 && jobs.get(url) === shared && shared.state === 'queued') {
-          end(url, shared);
-          shared.controller.abort(abortError());
-          emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
-          // Marked, not removed: `pump` compacts the queue in one pass, and `stats()` subtracts
-          // the marked from its length, so the published pending count does not move.
-          shared.state = 'dropped';
-          state.dropped++;
-        }
-        if (ok) resolve(value as Uint8Array);
-        else reject(value);
-      };
-      const onAbort = () => finish(false, combined.reason ?? abortError());
-      combined.addEventListener('abort', onAbort, { once: true });
-      shared.promise.then(
-        (value) => finish(true, value),
-        (error) => finish(false, error),
-      );
-      if (combined.aborted) onAbort();
+    const result = joinJob(shared, url, combined, abortError, () => {
+      // A transfer that has already started is paid for: letting it land in the cache costs nothing
+      // more and keeps a superseded camera from throwing away bytes it is about to ask for again.
+      // Only a request still waiting in the queue is dropped.
+      if (jobs.get(url) === shared && shared.state === 'queued') {
+        end(url, shared);
+        shared.controller.abort(abortError());
+        emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
+        // Marked, not removed: `pump` compacts the queue in one pass, and `stats()` subtracts
+        // the marked from its length, so the published pending count does not move.
+        shared.state = 'dropped';
+        state.dropped++;
+      }
     });
     pump();
     return result;
