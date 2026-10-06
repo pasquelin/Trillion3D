@@ -134,6 +134,8 @@ export type StreamContext = {
     loaded: number
     evictions: number
     admissionBlocked: number
+    /** CPU bytes the catalogue's tables hold (`manifestTables.ts`), as pages join and leave it. */
+    tableBytes: number
     disposed: boolean
     /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
      *  the cache weighs itself: those tables follow the view. */

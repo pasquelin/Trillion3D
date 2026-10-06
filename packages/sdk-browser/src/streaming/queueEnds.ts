@@ -1,5 +1,6 @@
 import type { Job, StreamContext } from './types.ts'
 import { refusalOf } from './failures.ts'
+import { manifestTableBytes } from './manifestTables.ts'
 
 /** How a streamer's jobs end and its pages leave the catalogue: a page `forget` asks to drop
  *  while a job holds it leaves when that job ends (`end`), unless `keep` takes it back first. */
@@ -11,7 +12,9 @@ export function createQueueEnds(context: StreamContext, sync: (url: string) => v
    *  asked again meanwhile, it is still refused. */
   const drop = (url: string) => {
     if (!refusalOf(context, url)) failures.delete(url)
-    if (catalog.delete(url)) store.drop(url)
+    if (!catalog.delete(url)) return
+    store.drop(url)
+    state.tableBytes -= manifestTableBytes([{ url }])
   }
   return {
     forget(url: string) {

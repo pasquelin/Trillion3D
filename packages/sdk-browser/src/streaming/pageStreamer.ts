@@ -41,8 +41,8 @@ export function createPageStreamerWith(
   const limit = Number.isSafeInteger(workerCount) ? Math.max(1, workerCount) : 1
   if (!Number.isSafeInteger(maxTransferBytes) || maxTransferBytes < 1)
     throw new Error('INVALID_PAGE_TRANSFER_BUDGET')
-  const tableBytes = manifestTableBytes(pages)
   const state = {
+    tableBytes: manifestTableBytes(pages),
     order: 0,
     active: 0,
     activeBytes: 0,
@@ -64,7 +64,7 @@ export function createPageStreamerWith(
     onStalled: options.onStalled,
   }
   const { loadOne, roundTrip, keptBytes, readFrom } = createStreamingFetcher(context, store.touch)
-  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
+  const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
   // A kept page held under a page's name as another file leaves before its first read.
@@ -94,6 +94,7 @@ export function createPageStreamerWith(
       store.dropForeign(more)
       for (const page of more) {
         keep(page.url)
+        if (!catalog.has(page.url)) state.tableBytes += manifestTableBytes([page])
         catalog.set(page.url, page)
       }
     },
@@ -156,7 +157,8 @@ export function createPageStreamerWith(
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
         /** CPU bytes held (manifest tables, transfers, pages, kept file, levels) of the total. */
-        cpuBytes: tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
+        cpuBytes:
+          state.tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         /** Reads refused now (`failures.ts`): one whose wait is over is asked again. */

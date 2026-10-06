@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createPageCache } from './pageCache.ts'
 import { createPageStreamer, createPageStreamerWith } from './pageStreamer.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { manifestTableBytes } from './manifestTables.ts'
 
 test('a mounted page joins the catalogue, is read and cached, then leaves it with its bytes', async () => {
   const { pages, fetched } = await servedPages(['open.bin', 'mounted.bin'])
@@ -16,6 +17,21 @@ test('a mounted page joins the catalogue, is read and cached, then leaves it wit
     assert.ok(!streamer.has('mounted.bin'), 'its bytes leave with it')
     await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/)
     assert.deepEqual(fetched, ['http://site.test/mounted.bin'])
+  } finally {
+    streamer.dispose()
+  }
+})
+
+test('the tables of pages admitted after the open are counted in the CPU bytes, and leave with them', async () => {
+  const { pages } = await servedPages(['open.bin', 'index-page.json'])
+  const streamer = createPageStreamer([pages[0]], 'http://site.test/')
+  try {
+    const before = streamer.stats().cpuBytes
+    streamer.admit([pages[1]])
+    streamer.admit([pages[1]]) // admitted again: counted once
+    assert.equal(streamer.stats().cpuBytes - before, manifestTableBytes([pages[1]]))
+    streamer.forget(['index-page.json'])
+    assert.equal(streamer.stats().cpuBytes, before)
   } finally {
     streamer.dispose()
   }
