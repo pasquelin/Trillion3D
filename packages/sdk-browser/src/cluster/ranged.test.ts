@@ -54,3 +54,19 @@ test('the whole download stops once no range waits on it any more', async (t) =>
   for (const each of reads) await assert.rejects(each, { name: 'AbortError' })
   assert.equal(signals[0].aborted, true)
 })
+
+test('ranges asked at once before the server answered one send one request: never two whole files', async (t) => {
+  const { signals, land } = wholeServer(t, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
+  const read = rangedReader('http://cache/world.bin')
+  const gone = new AbortController()
+  const stopped = read(0, 4, { signal: gone.signal })
+  await new Promise(setImmediate)
+  gone.abort() // the whole download stops: the next ranges ask again
+  await assert.rejects(stopped, { name: 'AbortError' })
+  const again = [read(0, 4), read(4, 4)]
+  await new Promise(setImmediate)
+  land()
+  const [low, high] = await Promise.all(again)
+  assert.deepEqual([...new Uint8Array(low), ...new Uint8Array(high)], [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.deepEqual([signals.length, read.held()], [2, 8], 'one request after the stopped one')
+})
