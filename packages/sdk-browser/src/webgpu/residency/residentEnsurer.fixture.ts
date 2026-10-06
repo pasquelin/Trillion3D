@@ -4,7 +4,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { structureIndex } from '../../page/selection/structure.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
-import { createPageParents } from '../../residency/pageParents.ts';
+import { createPageParents } from '../../page/selection/pageParents.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */

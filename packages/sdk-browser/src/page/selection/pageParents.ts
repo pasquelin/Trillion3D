@@ -1,6 +1,6 @@
-import type { PageRec } from '../page/selection/selection.ts';
-import type { ClusterRoot } from '../page/selection/types.ts';
-import type { PlacementIndex } from '../page/selection/placements.ts';
+import type { PageRec } from './selection.ts';
+import type { ClusterRoot } from './types.ts';
+import type { PlacementIndex } from './placements.ts';
 
 const NONE: readonly PageRec[] = [];
 

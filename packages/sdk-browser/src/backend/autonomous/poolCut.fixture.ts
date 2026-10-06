@@ -15,7 +15,7 @@ import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
 import { createEngineCamera } from '../../camera/world.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { createPageParents } from '../../residency/pageParents.ts';
+import { createPageParents } from '../../page/selection/pageParents.ts';
 import { postPackedBases } from '../../page/selection/placements.ts';
 import { rootChildren } from '../../residency/minimumCapacity.ts';
 import type { HostCamera } from '../../camera/world.ts';

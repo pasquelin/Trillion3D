@@ -9,7 +9,7 @@ import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
-import { createPageParents } from '../../residency/pageParents.ts';
+import { createPageParents } from '../../page/selection/pageParents.ts';
 import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';

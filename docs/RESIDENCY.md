@@ -138,7 +138,7 @@ beforehand (`backend/autonomous/pool.ts`); the rest is not asked for.
 
 What stays resident is the engine's one residency, fed as WebGPU feeds it (`residency/lastUse.ts`):
 what the image asks for and draws is held, each holding the pages it depends on
-(`residency/pageParents.ts`), so the ancestor a surface falls back to never leaves under it. Just
+(`page/selection/pageParents.ts`), so the ancestor a surface falls back to never leaves under it. Just
 before a cut, what the last image drew but no longer asks for lets go, one DAG level per image,
 finest first; a page let go is released at the next cut, or at once when the pool is short by that
 many slots, as WebGPU's window gives way under pressure (`backend/autonomous/poolOrder.ts`).
