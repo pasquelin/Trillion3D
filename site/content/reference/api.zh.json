@@ -4911,7 +4911,7 @@
   },
   "decodeSceneProxy": {
     "summary": "在任何一条光线接触它之前,会被重新读取并重新校验的代理体。",
-    "description": "11 个小端标头字之后是共享和独立几何、树列及带版本的所有者数据。`docs/FORMAT.md` 定义每项数量和列。长度不符的文件在任何射线读取之前被拒绝。"
+    "description": "11 个小端标头字之后是共享和独立几何、树列及带版本的所有者数据。编译器按此顺序写入（`SceneProxy::encode`）。长度不符的文件在任何射线读取之前被拒绝。"
   },
   "decomposeMatrix4": {
     "summary": "把 `m = T · R · S` 分解为 `position`、`quaternion`、`scale`。"

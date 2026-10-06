@@ -5980,7 +5980,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "On bir little-endian başlık sözcüğünü paylaşılan ve bağımsız geometri, ağaç sütunları ve sürümlü sahiplik izler. `docs/FORMAT.md` tüm sayıları ve sütunları tanımlar. Yanlış uzunluklar ışın erişiminden önce reddedilir."
+    "description": "On bir little-endian başlık sözcüğünü paylaşılan ve bağımsız geometri, ağaç sütunları ve sürümlü sahiplik izler. Derleyici bunları bu sırayla yazar (`SceneProxy::encode`). Yanlış uzunluklar ışın erişiminden önce reddedilir."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."

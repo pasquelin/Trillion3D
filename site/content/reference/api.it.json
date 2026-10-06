@@ -1358,7 +1358,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
-    "description": "Undici parole little-endian di intestazione precedono geometria condivisa o indipendente, colonne dell’albero e proprietà versionata. `docs/FORMAT.md` definisce conteggi e colonne. Lunghezze errate vengono rifiutate prima di qualsiasi raggio."
+    "description": "Undici parole little-endian di intestazione precedono geometria condivisa o indipendente, colonne dell’albero e proprietà versionata. Il compilatore li scrive in quest’ordine (`SceneProxy::encode`). Lunghezze errate vengono rifiutate prima di qualsiasi raggio."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` scomposta in `position`, `quaternion`, `scale`."

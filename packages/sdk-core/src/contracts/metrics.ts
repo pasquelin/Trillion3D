@@ -216,9 +216,7 @@ export interface BackendCapabilities {
   /** Its name. */ renderer: string
   /** Which materials it draws. */ materials: string
   /** Whether it reads the hierarchy. */ hierarchy: boolean
-  /** Whether the GPU selects the opaque pages and issues their draws: that path only, not every
-   *  pass of the image. */
-  gpuDriven: boolean
+  /** Whether the GPU picks what to draw. */ gpuDriven: boolean
   /** Whether it simplifies. */ simplification: boolean
   /** Whether it evicts pages. */ eviction: boolean
   /** What it cannot do. */ unsupported: string[]

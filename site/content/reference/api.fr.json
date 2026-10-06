@@ -1358,7 +1358,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Onze mots d’en-tête little-endian précèdent la géométrie partagée ou indépendante, les colonnes de l’arbre et la propriété versionnée. `docs/FORMAT.md` définit les comptes et colonnes. Toute longueur incorrecte est refusée avant lecture par un rayon."
+    "description": "Onze mots d’en-tête little-endian précèdent la géométrie partagée ou indépendante, les colonnes de l’arbre et la propriété versionnée. Le compilateur les écrit dans cet ordre (`SceneProxy::encode`). Toute longueur incorrecte est refusée avant lecture par un rayon."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."

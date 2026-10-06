@@ -4911,7 +4911,7 @@
   },
   "decodeSceneProxy": {
     "summary": "광선 하나라도 그것에 닿기 전에, 다시 읽히고 다시 검증되는 프록시.",
-    "description": "11개의 리틀 엔디언 헤더 워드 다음에 공유 및 개별 지오메트리, 트리 열, 버전이 있는 소유자 데이터가 옵니다. `docs/FORMAT.md`는 각 개수와 열을 정의합니다. 잘못된 길이는 광선 접근 전에 거부됩니다."
+    "description": "11개의 리틀 엔디언 헤더 워드 다음에 공유 및 개별 지오메트리, 트리 열, 버전이 있는 소유자 데이터가 옵니다. 컴파일러가 이 순서로 씁니다(`SceneProxy::encode`). 잘못된 길이는 광선 접근 전에 거부됩니다."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`를 `position`, `quaternion`, `scale`로 분해한다."

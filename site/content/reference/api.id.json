@@ -4879,7 +4879,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy dibaca dan diperiksa ulang sebelum satu sinar pun menyentuhnya.",
-    "description": "Sebelas kata header little-endian mendahului geometri bersama dan terpisah, kolom pohon, serta kepemilikan berversi. `docs/FORMAT.md` menentukan semua jumlah dan kolom. Panjang yang salah ditolak sebelum sinar mengaksesnya."
+    "description": "Sebelas kata header little-endian mendahului geometri bersama dan terpisah, kolom pohon, serta kepemilikan berversi. Kompilator menulisnya dalam urutan ini (`SceneProxy::encode`). Panjang yang salah ditolak sebelum sinar mengaksesnya."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` diuraikan menjadi `position`, `quaternion`, `scale`."

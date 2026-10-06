@@ -1358,7 +1358,7 @@
   },
   "decodeSceneProxy": {
     "summary": "El proxy releído y reverificado antes de que un solo rayo lo toque.",
-    "description": "Once palabras de cabecera little-endian preceden la geometría compartida o independiente, las columnas del árbol y los propietarios versionados. `docs/FORMAT.md` define las cantidades y columnas. Se rechaza cualquier longitud incorrecta antes de consultar un rayo."
+    "description": "Once palabras de cabecera little-endian preceden la geometría compartida o independiente, las columnas del árbol y los propietarios versionados. El compilador los escribe en este orden (`SceneProxy::encode`). Se rechaza cualquier longitud incorrecta antes de consultar un rayo."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` descompuesta en `position`, `quaternion`, `scale`."
