@@ -56,7 +56,7 @@ export function page(sommets: number, tousLesAttributs: boolean) {
  * the grid of `exponent`; the colour `colorWidth` wide, three for a source without alpha.
  * Returns the encoded page with the source indices and attributes it came from.
  */
-export function anneau(triangles: number, exponent: number, colorWidth = 4) {
+export function ringMesh(triangles: number, exponent: number, colorWidth = 4) {
   const count = triangles + 2,
     position = new Float32Array(count * 3),
     normal = new Float32Array(count * 3),

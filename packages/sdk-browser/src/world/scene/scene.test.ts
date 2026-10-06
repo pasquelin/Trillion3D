@@ -41,12 +41,12 @@ function manifestePartage(): ClusterManifest {
 
 test('indexManifestPages deduplicates pages, geometries and bundles exactly like the reference flatMaps', () => {
   const metadata = manifestePartage();
-  const obtenu = indexManifestPages(metadata);
-  const attendu = referenceIndexManifestPages(metadata);
-  assert.deepEqual(obtenu.pages, attendu.pages);
-  assert.deepEqual(obtenu.geometryPages, attendu.geometryPages);
-  assert.deepEqual([...obtenu.geometryUrls], [...attendu.geometryUrls]);
-  assert.deepEqual([...obtenu.pageIdByUrl], [...attendu.pageIdByUrl]);
+  const actual = indexManifestPages(metadata);
+  const expected = referenceIndexManifestPages(metadata);
+  assert.deepEqual(actual.pages, expected.pages);
+  assert.deepEqual(actual.geometryPages, expected.geometryPages);
+  assert.deepEqual([...actual.geometryUrls], [...expected.geometryUrls]);
+  assert.deepEqual([...actual.pageIdByUrl], [...expected.pageIdByUrl]);
 });
 
 test('indexManifestBundles deduplicates streaming bundles in their order of appearance', () => {
@@ -55,9 +55,11 @@ test('indexManifestBundles deduplicates streaming bundles in their order of appe
 });
 
 test('a manifest with no page and no bundle yields empty indexes on both sides', () => {
-  const vide = { primitives: [{ mesh: 0, primitive: 0, pages: [] }] } as unknown as ClusterManifest;
-  assert.deepEqual(indexManifestPages(vide), referenceIndexManifestPages(vide));
-  assert.deepEqual(indexManifestBundles(vide), referenceIndexManifestBundles(vide));
+  const empty = {
+    primitives: [{ mesh: 0, primitive: 0, pages: [] }],
+  } as unknown as ClusterManifest;
+  assert.deepEqual(indexManifestPages(empty), referenceIndexManifestPages(empty));
+  assert.deepEqual(indexManifestBundles(empty), referenceIndexManifestBundles(empty));
 });
 
 test('pagesBounds boxes the exact page at the mesh position, a « coarse » page excluded, a mesh without association reported', () => {
@@ -80,10 +82,10 @@ test('pagesBounds boxes the exact page at the mesh position, a « coarse » page
     [meshFound, { meshes: 0, primitives: 0 }],
   ]);
   const manques: G.HostMesh[] = [];
-  const obtenu = pagesBounds(source, associations, metadata, (m) =>
+  const actual = pagesBounds(source, associations, metadata, (m) =>
     manques.push(asHostLibrary<G.HostMesh>(m)),
   );
-  assert.deepEqual(Array.from(obtenu), [2, 0, 0, 3, 1, 1]);
+  assert.deepEqual(Array.from(actual), [2, 0, 0, 3, 1, 1]);
   assert.deepEqual(manques, [meshMissing]);
 });
 
@@ -92,21 +94,21 @@ test('pagesBounds boxes the exact page at the mesh position, a « coarse » page
 // `y' = y + 3`, `z' = 0` (the sheared child), then the root's `x -> -3 x`.
 function hostileScene(nanShift: boolean) {
   const geometry = new G.Geometry();
-  const racine = new G.Group();
-  racine.scale.set(-3, 1, 1);
-  const enfant = new G.Group();
-  enfant.matrixAutoUpdate = false;
-  enfant.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1);
-  racine.add(enfant);
+  const root = new G.Group();
+  root.scale.set(-3, 1, 1);
+  const child = new G.Group();
+  child.matrixAutoUpdate = false;
+  child.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1);
+  root.add(child);
   const singulier = G.mesh(geometry, G.basicSurface());
-  enfant.add(singulier);
-  const petitEnfant = new G.Group();
-  petitEnfant.position.set(nanShift ? NaN : 0, 5, -0);
-  enfant.add(petitEnfant);
+  child.add(singulier);
+  const grandchild = new G.Group();
+  grandchild.position.set(nanShift ? NaN : 0, 5, -0);
+  child.add(grandchild);
   const profond = G.mesh(geometry, G.basicSurface());
-  petitEnfant.add(profond);
+  grandchild.add(profond);
   const source = new G.Group();
-  source.add(racine);
+  source.add(root);
   const page = pageDe(0, 'p/0');
   page.min = [-1, -2, -3];
   page.max = [4, 5, 6];
@@ -160,8 +162,8 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const into = emptyWorldBox();
-  const rendu = pagesBounds(source, associations, metadata, () => {}, into);
-  assert.equal(rendu, into, 'the same buffer instance comes back, whatever the number of pages');
+  const rendered = pagesBounds(source, associations, metadata, () => {}, into);
+  assert.equal(rendered, into, 'the same buffer instance comes back, whatever the number of pages');
 });
 
 // #751: a mesh placed by rows is bounded by the box its rows place it in, before the view reads its

@@ -12,7 +12,7 @@ import { engineCamera } from '../../camera/camera.fixture.ts';
 /** A fixture whose nearest page carries a cone that looks opposite the camera: honoured, it
  *  rejects it; ignored, it stays. The material is single-sided, without which cone reject has
  *  nothing to say. */
-function fixtureAvecCone() {
+function fixtureWithCone() {
   const fixture = blendFixture(G.basicSurface({ side: G.FRONT_SIDE }));
   const collected = collectClusterPages(
     fixture.source,
@@ -44,7 +44,7 @@ test('collection declares a root without a cone, which is true of all its pages'
 });
 
 test('a root that declares it carries cones rejects by its cone, as before this batch', () => {
-  const { fixture, roots } = fixtureAvecCone();
+  const { fixture, roots } = fixtureWithCone();
   // `true` and silence say the same thing: test each page. The second is what every root
   // returned before this batch, and it is the previous answer that must come back.
   roots[0].cones = true;
@@ -57,7 +57,7 @@ test('a root that declares it carries cones rejects by its cone, as before this 
 });
 
 test('a root that declares it has no cone no longer reads `cone`: the cluster is kept', () => {
-  const { fixture, roots } = fixtureAvecCone();
+  const { fixture, roots } = fixtureWithCone();
   roots[0].cones = false;
   assert.ok(urls(roots).includes('near'));
   fixture.geometry.dispose();

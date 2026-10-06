@@ -47,8 +47,8 @@ test('a runner that dies after a successful start answers PAGE_DECODE_WORKER to 
     assert.equal((reponse as { code: string }).code, 'PAGE_DECODE_WORKER');
     assert.equal(pool.alive, false, 'the pool must be broken after the worker dies');
     // A dead pool answers at once, without ever trying a new runner.
-    const apres = await pool.submit('decode', new ArrayBuffer(8), 1 << 20).answer;
-    assert.equal((apres as { code: string }).code, 'PAGE_DECODE_WORKER');
+    const after = await pool.submit('decode', new ArrayBuffer(8), 1 << 20).answer;
+    assert.equal((after as { code: string }).code, 'PAGE_DECODE_WORKER');
   }));
 
 test('cancelling an unknown or already-settled id does nothing and does not break the pool', () =>

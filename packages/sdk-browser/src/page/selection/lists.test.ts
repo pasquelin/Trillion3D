@@ -29,24 +29,24 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );
-  const pleine = large.shown.length;
-  assert.ok(pleine > 0);
-  assert.equal(large.wanted.length, pleine);
+  const full = large.shown.length;
+  assert.ok(full > 0);
+  assert.equal(large.wanted.length, full);
 
-  const vide = selectVisiblePages(
+  const empty = selectVisiblePages(
     roots,
     engineCamera(ailleurs()),
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );
-  assert.equal(vide.shown.length, 0);
-  assert.equal(vide.wanted.length, 0);
+  assert.equal(empty.shown.length, 0);
+  assert.equal(empty.wanted.length, 0);
   assert.equal(shown.length, 0);
   assert.equal(wanted.length, 0);
   // Neither hole nor leftover: what the host walks is exactly this frame's cut.
   assert.deepEqual([...shown], []);
-  assert.equal(vide.selectedTriangles, 0);
-  assert.equal(vide.displayedTriangles, 0);
+  assert.equal(empty.selectedTriangles, 0);
+  assert.equal(empty.displayedTriangles, 0);
 
   // And the list returns to its full length without keeping a trace of the empty pass.
   const encore = selectVisiblePages(
@@ -55,7 +55,7 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
     { ...HELD_EXACT_ASK, wanted },
     shown,
   );
-  assert.equal(encore.shown.length, pleine);
+  assert.equal(encore.shown.length, full);
   assert.deepEqual(
     encore.shown.map((page) => page.url),
     large.shown.map((page) => page.url),

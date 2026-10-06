@@ -47,26 +47,26 @@ test('identical pose: two consecutive cuts return the same cut, page for page', 
   const { tour } = coupe();
   const premiere = tour();
   const ids = identifiants(premiere.shown);
-  const rejets = premiere.frustumRejected;
+  const rejections = premiere.frustumRejected;
   for (let i = 0; i < 3; i++) {
     const suivante = tour();
     assert.equal(identifiants(suivante.shown), ids, 'the cut changed while nothing moved');
-    assert.equal(suivante.frustumRejected, rejets, 'the walk counter changed');
+    assert.equal(suivante.frustumRejected, rejections, 'the walk counter changed');
   }
 });
 
 test("a missing page changes the cut drawn, not the walk's count", () => {
   const { pages, tour } = coupe();
-  const sansRepli = tour();
-  const rejets = sansRepli.frustumRejected;
+  const withoutFallback = tour();
+  const rejections = withoutFallback.frustumRejected;
   // The list is reused from one cut to the next: its contents are read before the next cut.
-  const ids = identifiants(sansRepli.shown);
-  assert.ok(rejets > 0, 'the view must reject clusters for the count to mean anything');
+  const ids = identifiants(withoutFallback.shown);
+  assert.ok(rejections > 0, 'the view must reject clusters for the count to mean anything');
   // A missing page: its ancestor is drawn, the number of clusters outside the frustum stays.
   pages.find((page) => page.url === 'leaf0')!.array = undefined;
-  const avecRepli = tour();
-  assert.notEqual(identifiants(avecRepli.shown), ids, 'the ancestor was not drawn');
-  assert.equal(avecRepli.frustumRejected, rejets, 'the walk was counted differently');
+  const withFallback = tour();
+  assert.notEqual(identifiants(withFallback.shown), ids, 'the ancestor was not drawn');
+  assert.equal(withFallback.frustumRejected, rejections, 'the walk was counted differently');
 });
 
 test('the held-frame gate rests on the cut, not on the walk counter', () => {

@@ -4,7 +4,7 @@ import {
   boxTransformBatch,
   multiplyMatrix4Batch,
 } from '../../../sdk-core/src/index.ts';
-import { f64, joue, taille, tampon, vuesF64, type MathLot } from './batchLot.ts';
+import { f64, joue, taille, tampon, f64Views, type MathLot } from './batchLot.ts';
 
 /**
  * Initial two batches: box transformation and 4×4 matrix product, both operations
@@ -43,9 +43,9 @@ export interface MultiplyLot extends MathLot {
 /** A batch of `n` boxes transformed by `n` matrices. */
 export async function createBoxTransformLot(n: number): Promise<BoxTransformLot> {
   const { wasm, blocs, release } = await tampon([
-    { type: 'f64', longueur: n * BOX_VALUES },
-    { type: 'f64', longueur: n * MATRIX_VALUES, pas: MATRIX_VALUES },
-    { type: 'f64', longueur: n * BOX_VALUES },
+    { type: 'f64', length: n * BOX_VALUES },
+    { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES },
+    { type: 'f64', length: n * BOX_VALUES },
   ]);
   const [inputOffset, matrices, outputOffset] = blocs().map((bloc) => bloc.offset);
   const wasmRun = wasm
@@ -67,7 +67,7 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
     run: () => {
       const b = blocs();
       return joue(BOX_TRANSFORM_BATCH, n, wasmRun, () =>
-        boxTransformBatch(f64(b[2]), f64(b[0]), vuesF64(b[1]), n),
+        boxTransformBatch(f64(b[2]), f64(b[0]), f64Views(b[1]), n),
       );
     },
     release,
@@ -76,11 +76,11 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
 
 /** A batch of `n` products `out[i] = a[i] · b[i]`. */
 export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
-  const demande = { type: 'f64', longueur: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const;
-  const { wasm, blocs, release } = await tampon([demande, demande, demande]);
-  const [gauche, droite, outputOffset] = blocs().map((bloc) => bloc.offset);
+  const request = { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const;
+  const { wasm, blocs, release } = await tampon([request, request, request]);
+  const [gauche, right, outputOffset] = blocs().map((bloc) => bloc.offset);
   const wasmRun = wasm
-    ? () => wasm.math_multiply_matrix4_batch(outputOffset, gauche, droite, n)
+    ? () => wasm.math_multiply_matrix4_batch(outputOffset, gauche, right, n)
     : null;
   return {
     n,
@@ -98,7 +98,7 @@ export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
     run: () => {
       const b = blocs();
       return joue(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
-        multiplyMatrix4Batch(vuesF64(b[2]), vuesF64(b[0]), vuesF64(b[1]), n),
+        multiplyMatrix4Batch(f64Views(b[2]), f64Views(b[0]), f64Views(b[1]), n),
       );
     },
     release,

@@ -26,11 +26,11 @@ test('the cut follows its residency rule: without an index array, the page is re
   assert.equal(tenu.shown.length, 0);
   assert.equal(tenu.complete, false);
   // Held with a host answer: that is what decides, not the index array.
-  const demande = selectVisiblePages(roots, engineCamera(cam), {
+  const request = selectVisiblePages(roots, engineCamera(cam), {
     held: createHeldResidency({ isResident: () => true }),
   });
-  assert.ok(demande.shown.length > 0);
-  assert.equal(demande.complete, true);
+  assert.ok(request.shown.length > 0);
+  assert.equal(request.complete, true);
   fixture.geometry.dispose();
   fixture.material.dispose();
 });

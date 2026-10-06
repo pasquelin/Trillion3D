@@ -20,10 +20,10 @@ export async function clusterCones(
   let arena;
   try {
     arena = reserveArena(wasm, [
-      { type: 'f32', longueur: positions.length },
-      { type: 'u32', longueur: indices.length },
-      { type: 'u32', longueur: ranges.length * 2 },
-      { type: 'f64', longueur: ranges.length * 4 },
+      { type: 'f32', length: positions.length },
+      { type: 'u32', length: indices.length },
+      { type: 'u32', length: ranges.length * 2 },
+      { type: 'f64', length: ranges.length * 4 },
     ]);
   } catch {
     // Memory that cannot grow traps in the allocator: the same refusal as a null reservation.
@@ -32,11 +32,11 @@ export async function clusterCones(
   if (!arena) return null;
   try {
     const [p, i, r, out] = arena.blocs();
-    p.vue.set(positions);
-    i.vue.set(indices);
+    p.view.set(positions);
+    i.view.set(indices);
     ranges.forEach(([start, end], k) => {
-      r.vue[k * 2] = start;
-      r.vue[k * 2 + 1] = end;
+      r.view[k * 2] = start;
+      r.view[k * 2 + 1] = end;
     });
     const status = wasm.cone_clusters(
       p.offset,
@@ -49,7 +49,7 @@ export async function clusterCones(
     );
     if (status !== 0) return null;
     // The builder allocates: its memory may have grown and detached the views taken above.
-    const cones = arena.blocs()[3].vue;
+    const cones = arena.blocs()[3].view;
     return ranges.map((_, k) => ({
       axis: [cones[k * 4], cones[k * 4 + 1], cones[k * 4 + 2]],
       angle: cones[k * 4 + 3],
@@ -59,6 +59,6 @@ export async function clusterCones(
     // no: the cut keeps its pages without a cone rather than fail and lose the mesh.
     return null;
   } finally {
-    arena.libere();
+    arena.freed();
   }
 }

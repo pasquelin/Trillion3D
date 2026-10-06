@@ -8,9 +8,9 @@ import assert from 'node:assert/strict';
 test('without loaded module, capabilities announce JavaScript path and why', async () => {
   const { prepareMathBatch, mathBatchMetrics } = await import('./batchState.ts');
   await prepareMathBatch('auto');
-  const etat = mathBatchMetrics();
-  assert.equal(etat.wasmAvailable, false);
-  assert.equal(etat.wasmSimd, null);
-  assert.notEqual(etat.unavailableReason, null, 'reason must never be silent');
-  assert.equal(typeof etat.unavailableReason, 'string');
+  const state = mathBatchMetrics();
+  assert.equal(state.wasmAvailable, false);
+  assert.equal(state.wasmSimd, null);
+  assert.notEqual(state.unavailableReason, null, 'reason must never be silent');
+  assert.equal(typeof state.unavailableReason, 'string');
 });

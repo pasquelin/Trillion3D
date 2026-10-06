@@ -24,7 +24,7 @@ function requete(overrides: Partial<PageDecodeRequest>): PageDecodeRequest {
 }
 
 /** A page with three attributes, a `-0` value slipped into the position. */
-async function pageAvecMoinsZero() {
+async function pageWithMinusZero() {
   const position = new Float32Array([-0, 0, 0, 1, 1, 1, 2, 2, 2]);
   const normal = new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]);
   const uv = new Float32Array([0, 0, 0.5, 0.5, 1, 1]);
@@ -53,10 +53,10 @@ test('verify returns the fingerprint, the origin buffer byte for byte, and wasm 
 });
 
 test('decode returns the same buffers as in-place decode, attributes included', async () => {
-  const donnees = await pageAvecMoinsZero();
-  const surPlace = decodeGeometryPage(donnees.slice(), 16 * 1024 * 1024);
+  const data = await pageWithMinusZero();
+  const surPlace = decodeGeometryPage(data.slice(), 16 * 1024 * 1024);
   const { answer, transfer } = await runPageDecodeTask(
-    requete({ op: 'decode', source: donnees.slice().buffer as ArrayBuffer }),
+    requete({ op: 'decode', source: data.slice().buffer as ArrayBuffer }),
   );
   assert.equal(answer.ok, true, (answer as PageDecodeFailed).message);
   const bon = answer as PageDecodeDone;
@@ -86,8 +86,8 @@ test('a page truncated before its header refuses GEOMETRY_PAGE_HEADER, origin me
 });
 
 test('an altered magic or version refuses GEOMETRY_PAGE_VERSION', async () => {
-  const donnees = await pageAvecMoinsZero();
-  const alteree = donnees.slice();
+  const data = await pageWithMinusZero();
+  const alteree = data.slice();
   alteree[0] ^= 0xff; // First byte of the `WGP3` magic.
   const { answer } = await runPageDecodeTask(requete({ source: alteree.buffer as ArrayBuffer }));
   assert.equal(answer.ok, false);
@@ -99,8 +99,8 @@ test('an arbitrary request identifier comes back unchanged in every form of answ
     requete({ op: 'verify', source: new ArrayBuffer(4), id: 777 }),
   );
   assert.equal(ok.id, 777);
-  const { answer: refus } = await runPageDecodeTask(
+  const { answer: refusals } = await runPageDecodeTask(
     requete({ op: 'decode', source: new ArrayBuffer(2), id: 778 }),
   );
-  assert.equal(refus.id, 778);
+  assert.equal(refusals.id, 778);
 });

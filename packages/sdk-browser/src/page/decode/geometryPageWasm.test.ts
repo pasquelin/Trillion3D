@@ -11,13 +11,13 @@ import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 
 type WasmModule = typeof import('./geometryPageWasm.ts');
-let compteur = 0;
-/** A fresh loader instance: its remembered `attente` has not decided anything yet. */
+let counter = 0;
+/** A fresh loader instance: its remembered `pending` has not decided anything yet. */
 function frais(): Promise<WasmModule> {
-  return import(`./geometryPageWasm.ts?fraicheur=${compteur++}`) as Promise<WasmModule>;
+  return import(`./geometryPageWasm.ts?fraicheur=${counter++}`) as Promise<WasmModule>;
 }
 
-async function pageAvecMoinsZero() {
+async function pageWithMinusZero() {
   const position = new Float32Array([-0, 0, 0, 1, 1, 1, 2, 2, 2]);
   const uv = new Float32Array([0, 0, 0.5, 0.5, 1, 1]);
   const { data } = encodeGeometryPage([0, 1, 2], {
@@ -30,9 +30,9 @@ async function pageAvecMoinsZero() {
 test('valid bytes instantiate the module and decode like the in-place path', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   assert.ok(await prepareSdkWasm(MODULE), 'the real module must instantiate');
-  const donnees = await pageAvecMoinsZero();
-  const parWasm = await decodeGeometryPageWasm(donnees.slice(), 1 << 20);
-  const enPlace = decodeGeometryPage(donnees.slice(), 1 << 20);
+  const data = await pageWithMinusZero();
+  const parWasm = await decodeGeometryPageWasm(data.slice(), 1 << 20);
+  const enPlace = decodeGeometryPage(data.slice(), 1 << 20);
   assert.deepEqual(Array.from(parWasm.indices), Array.from(enPlace.indices));
   for (const nom of Object.keys(enPlace.attributes)) {
     const a = parWasm.attributes[nom],
@@ -44,10 +44,10 @@ test('valid bytes instantiate the module and decode like the in-place path', asy
 test('bytes that are not a valid WebAssembly module fail instantiation without throwing', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   assert.equal(await prepareSdkWasm(new Uint8Array([1, 2, 3, 4])), null);
-  const donnees = await pageAvecMoinsZero();
-  const parRepli = await decodeGeometryPageWasm(donnees.slice(), 1 << 20);
-  const enPlace = decodeGeometryPage(donnees.slice(), 1 << 20);
-  assert.deepEqual(Array.from(parRepli.indices), Array.from(enPlace.indices));
+  const data = await pageWithMinusZero();
+  const byFallback = await decodeGeometryPageWasm(data.slice(), 1 << 20);
+  const enPlace = decodeGeometryPage(data.slice(), 1 << 20);
+  assert.deepEqual(Array.from(byFallback.indices), Array.from(enPlace.indices));
 });
 
 test('a simulated engine without SIMD — instantiation that throws — falls back to the JavaScript decoder', async () => {
@@ -62,9 +62,9 @@ test('a simulated engine without SIMD — instantiation that throws — falls ba
   } finally {
     WebAssembly.instantiate = original;
   }
-  const donnees = await pageAvecMoinsZero();
-  const parRepli = await decodeGeometryPageWasm(donnees.slice(), 1 << 20);
-  assert.equal(parRepli.vertexCount, 3);
+  const data = await pageWithMinusZero();
+  const byFallback = await decodeGeometryPageWasm(data.slice(), 1 << 20);
+  assert.equal(byFallback.vertexCount, 3);
 });
 
 test('with no WebAssembly at all, instantiation returns null immediately', async () => {

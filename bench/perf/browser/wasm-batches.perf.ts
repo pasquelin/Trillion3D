@@ -15,7 +15,7 @@ import {
   createMultiplyLot,
 } from '../../../packages/sdk-browser/src/math/batchRuntime.ts';
 import type { MathLot } from '../../../packages/sdk-browser/src/math/batchLot.ts';
-import { TAILLES, remplitBoites, remplitMatrices } from './support/wasmBatchCases.ts';
+import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts';
 
 await prepareSdkWasm(
   readFileSync(
@@ -60,7 +60,7 @@ async function benchLot<T extends MathLot & { readonly out: Float64Array }>(
 }
 
 const resultats = [
-  await benchLot('boxTransformBatch', createBoxTransformLot, remplitBoites),
+  await benchLot('boxTransformBatch', createBoxTransformLot, fillsBoxes),
   await benchLot('multiplyMatrix4Batch', createMultiplyLot, remplitMatrices),
 ];
 

@@ -59,18 +59,18 @@ test('non-uniform scale at small scale (1e-8, 1e-6, 1e-6), trigger case: both tr
 test('a degenerate 3×3 (null scale on one axis, hence a null column) is not conformal: the cluster stays', () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
   const cam = camera();
-  for (const echelle of [
+  for (const scale of [
     [0, 1, 1],
     [1, 0, 1],
     [1, 1, 0],
   ] as const) {
-    const world = new G.Matrix4().makeScale(echelle[0], echelle[1], echelle[2]);
+    const world = new G.Matrix4().makeScale(scale[0], scale[1], scale[2]);
     const ctx = coneContextFor(createConeContext(), world, engineCamera(cam).eye);
-    assert.equal(ctx.conformal, false, `scale ${echelle}`);
+    assert.equal(ctx.conformal, false, `scale ${scale}`);
     assert.equal(
       coneCullsPageWith(ctx, cone, world, [-1, -1, 0], [1, 1, 0]),
       false,
-      `box kept for scale ${echelle}`,
+      `box kept for scale ${scale}`,
     );
   }
 });
@@ -97,33 +97,29 @@ test('a 3×3 with a NaN or infinite term is not conformal: the cluster stays', (
 
 test('uniform scale from 1e-8 to 1e3, with rotation: a face with its back to the camera stays rejected', () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
-  for (const echelle of [1e-8, 1e-4, 1, 1e3]) {
+  for (const scale of [1e-8, 1e-4, 1, 1e3]) {
     for (const euler of [
       [0, 0, 0],
       [0.3, -0.5, 0.2],
     ] as const) {
       const q = new G.Quaternion().setFromEuler(new G.Euler(...euler));
-      const world = new G.Matrix4().compose(
-        new G.Vector3(),
-        q,
-        new G.Vector3(echelle, echelle, echelle),
-      );
+      const world = new G.Matrix4().compose(new G.Vector3(), q, new G.Vector3(scale, scale, scale));
       const conforme = coneContextFor(createConeContext(), world, engineCamera(camera()).eye);
-      assert.equal(conforme.conformal, true, `scale ${echelle} rotation ${euler}`);
+      assert.equal(conforme.conformal, true, `scale ${scale} rotation ${euler}`);
       // The context's normal matrix is flat: the test puts it back in an object to apply it.
-      const normale = new G.Matrix3();
-      normale.elements.set(conforme.normal);
-      const axeMonde = new G.Vector3(...cone.axis).applyMatrix3(normale).normalize();
-      const distance = Math.max(5, echelle * 2000);
+      const normal = new G.Matrix3();
+      normal.elements.set(conforme.normal);
+      const worldAxis = new G.Vector3(...cone.axis).applyMatrix3(normal).normalize();
+      const distance = Math.max(5, scale * 2000);
       const cam = G.perspectiveCamera(55, 1, 0.1, distance * 100);
-      cam.position.copy(axeMonde).multiplyScalar(-distance);
+      cam.position.copy(worldAxis).multiplyScalar(-distance);
       cam.lookAt(0, 0, 0);
       cam.updateMatrixWorld(true);
       const ctxArriere = coneContextFor(createConeContext(), world, engineCamera(cam).eye);
       assert.equal(
         coneCullsPageWith(ctxArriere, cone, world, [-1, -1, -1], [1, 1, 1]),
         true,
-        `scale ${echelle} rotation ${euler}: back-facing face not rejected`,
+        `scale ${scale} rotation ${euler}: back-facing face not rejected`,
       );
     }
   }

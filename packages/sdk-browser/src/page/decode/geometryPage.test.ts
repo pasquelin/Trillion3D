@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
 import { octDecode, octEncode } from '../../../../page-codec/src/pageGrids.ts';
-import { anneau } from '../../../../../bench/perf/browser/support/pagesWasm.ts';
+import { ringMesh } from '../../../../../bench/perf/browser/support/pagesWasm.ts';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
-  const { encoded, indices, attributes } = anneau(40, -10, 3);
+  const { encoded, indices, attributes } = ringMesh(40, -10, 3);
   assert.ok(
     attributes.POSITION && attributes.NORMAL && attributes.TEXCOORD_0 && attributes.COLOR_0,
   );
@@ -71,7 +71,7 @@ test('the reference encoder refuses a page too wide for its grid instead of re-g
 });
 
 test('a short header, a wrong version, a field beyond the format, a truncation and a forged block record are refused in that order', () => {
-  const { encoded } = anneau(4, -10);
+  const { encoded } = ringMesh(4, -10);
   assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, 16)), /GEOMETRY_PAGE_HEADER/);
   const version = Uint8Array.from(encoded.data);
   version[4] = 2;
@@ -90,7 +90,7 @@ test('a short header, a wrong version, a field beyond the format, a truncation a
 });
 
 test('a page view off the word boundary decodes bit for bit like the aligned one', () => {
-  const { encoded } = anneau(40, -10, 3);
+  const { encoded } = ringMesh(40, -10, 3);
   const padded = new Uint8Array(encoded.data.length + 1);
   padded.set(encoded.data, 1);
   const aligned = decodeGeometryPage(encoded.data);

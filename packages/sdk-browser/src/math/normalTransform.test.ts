@@ -38,8 +38,8 @@ import {
 } from '../../../../tests/gpu/math/normalTransformCases.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
-const verdict = (cas: { truth: number[] }, rendue: number[]) =>
-  normalVerdict(rendue, cas.truth, DROPOUT_DEG);
+const verdict = (cas: { truth: number[] }, rendered: number[]) =>
+  normalVerdict(rendered, cas.truth, DROPOUT_DEG);
 
 test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => {
   assert.ok(CASES.length >= 300, `sample too small : ${CASES.length}`);
@@ -73,12 +73,12 @@ test('absolute threshold before batch dropped out, and exactly below s³ = 1e-20
 
 test('outside threshold band, batch did not move rendered normal', () => {
   for (const cas of CASES.filter((c) => c.s >= 1e-6)) {
-    const ecart =
+    const gap =
       angleBetween(
         xformNormalModel(cas.world, cas.normal),
         xformNormalBefore(cas.world, cas.normal),
       ) * DEG;
-    assert.ok(ecart < 1e-4, `${cas.name} : normal moved by ${ecart}° outside band`);
+    assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`);
   }
 });
 
@@ -90,8 +90,8 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
   for (const cas of FLATTENED) {
     const v = verdict(cas, xformNormalModel(cas.world, cas.normal));
     assert.ok(v.ok, `${cas.name} : ${v.reason}`);
-    const ecart = angleBetween(cas.truth, unit(cas.normal)) * DEG;
-    assert.ok(ecart > 10, `${cas.name} : local and true normals differ by only ${ecart}°`);
+    const gap = angleBetween(cas.truth, unit(cas.normal)) * DEG;
+    assert.ok(gap > 10, `${cas.name} : local and true normals differ by only ${gap}°`);
   }
   for (const cas of COLLAPSED)
     assert.deepEqual(
@@ -105,7 +105,7 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
 });
 
 // --- Single writing and compilation --------------------------------------------------------------
-const occurrences = (texte: string, motif: RegExp) => texte.match(motif)?.length ?? 0;
+const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?? 0;
 
 test('selection kernel and lighting read exact same text, character for character', () => {
   for (const [nom, shader] of [

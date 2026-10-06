@@ -20,8 +20,8 @@ import {
 import { TINY_REGULAR } from '../../../../tests/gpu/math/normalTransformCases.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
-const verdict = (cas: { truth: number[] }, rendue: number[]) =>
-  normalVerdict(rendue, cas.truth, DROPOUT_DEG);
+const verdict = (cas: { truth: number[] }, rendered: number[]) =>
+  normalVerdict(rendered, cas.truth, DROPOUT_DEG);
 
 test('angleBetween/normalVerdict: ORIENTED direction, N and −N no longer confused (correctness)', () => {
   const N = [0, 0, 1];
@@ -44,16 +44,16 @@ test('angleBetween/normalVerdict: zero or non-finite vector yields NaN, never 0 
     [0, -Infinity, 0],
   ])
     assert.ok(Number.isNaN(angleBetween(v, [0, 0, 1])), `angleBetween([${v}], N) must be NaN`);
-  const rendueNulle = verdict({ truth: [0, 0, 1] }, [0, 0, 0]);
-  assert.ok(!rendueNulle.ok, 'a null vector is refused, never accepted at 0°');
-  assert.ok(Number.isNaN(rendueNulle.gapDeg), 'NaN gap, never 0° like atan2(0, 0)');
-  assert.match(rendueNulle.reason ?? '', /no direction/, `reason: ${rendueNulle.reason}`);
+  const zeroRendered = verdict({ truth: [0, 0, 1] }, [0, 0, 0]);
+  assert.ok(!zeroRendered.ok, 'a null vector is refused, never accepted at 0°');
+  assert.ok(Number.isNaN(zeroRendered.gapDeg), 'NaN gap, never 0° like atan2(0, 0)');
+  assert.match(zeroRendered.reason ?? '', /no direction/, `reason: ${zeroRendered.reason}`);
 });
 
 test('normalVerdict: non-unit norm is rejected even in right direction (correctness)', () => {
-  const tropCourte = verdict({ truth: [0, 0, 1] }, [0, 0, 0.9]);
-  assert.ok(!tropCourte.ok, 'a non-unit normal must be refused, even if perfectly aligned');
-  assert.match(tropCourte.reason ?? '', /not unit/, `unexpected reason: ${tropCourte.reason}`);
+  const tooShort = verdict({ truth: [0, 0, 1] }, [0, 0, 0.9]);
+  assert.ok(!tooShort.ok, 'a non-unit normal must be refused, even if perfectly aligned');
+  assert.match(tooShort.reason ?? '', /not unit/, `unexpected reason: ${tooShort.reason}`);
   const dansLaTolerance = verdict({ truth: [0, 0, 1] }, [0, 0, 1 + 1e-7]);
   assert.ok(dansLaTolerance.ok, `1e-7 under ${NORM_TOLERANCE}: must not be refused`);
 });
@@ -67,19 +67,19 @@ test(
     // Plain double arithmetic, without `Math.fround` or `adjugateTimes`: this calculation reuses nothing
     // from tested kernel, serving as independent witness.
     const brut = [0.6 * 1e8, -0.8 * -1e8, 0];
-    const norme = Math.hypot(brut[0], brut[1], brut[2]);
-    const main = [brut[0] / norme, brut[1] / norme, brut[2] / norme];
+    const norm = Math.hypot(brut[0], brut[1], brut[2]);
+    const main = [brut[0] / norm, brut[1] / norm, brut[2] / norm];
     assert.deepEqual(
       main,
       [0.6, 0.8, 0],
       'the hand computation does not land on the expected value',
     );
     assert.deepEqual(TINY_REGULAR.truth, main, 'the witness departs from the hand value');
-    const rendue = xformNormalModel(TINY_REGULAR.world, TINY_REGULAR.normal);
-    const v = normalVerdict(rendue, main, DROPOUT_DEG);
+    const rendered = xformNormalModel(TINY_REGULAR.world, TINY_REGULAR.normal);
+    const v = normalVerdict(rendered, main, DROPOUT_DEG);
     assert.ok(
       v.ok,
-      `${TINY_REGULAR.name}: the kernel returns [${rendue}], instead of [${main}] — ${v.reason}`,
+      `${TINY_REGULAR.name}: the kernel returns [${rendered}], instead of [${main}] — ${v.reason}`,
     );
   },
 );

@@ -40,7 +40,7 @@ const state = {
 } as unknown as SelectionState<PageRecord>;
 
 const ABSENTE = [0, 0, 0, -1];
-const PROCHE = [0, 0, 20, 2],
+const NEAR = [0, 0, 20, 2],
   LOIN = [-40, 5, 90, 30];
 
 /** A finite strictly positive bound requires its sphere: that is what preparation guarantees. */
@@ -53,8 +53,8 @@ test('at threshold zero, the node decision without projection matches the genera
   for (const floor of [0, 1e-6, 3, Infinity])
     for (const ceil of [0, 1e-6, 3, Infinity])
       for (const parentFloor of [0, 1e-6, 3, Infinity])
-        for (const own of [PROCHE, LOIN, ABSENTE])
-          for (const band of [PROCHE, LOIN, ABSENTE]) {
+        for (const own of [NEAR, LOIN, ABSENTE])
+          for (const band of [NEAR, LOIN, ABSENTE]) {
             // The ceiling bounds the floor by construction: a node whose floor exceeds its
             // ceiling never leaves `cullingBounds`.
             if (floor > ceil) continue;
@@ -92,7 +92,7 @@ function pages(): PageRecord[] {
   const out: PageRecord[] = [];
   for (const lodError of [0, 1e-6, 2, undefined])
     for (const parentError of [null, 0, 3, Infinity])
-      for (const sphere of [PROCHE, LOIN])
+      for (const sphere of [NEAR, LOIN])
         out.push({
           triangles: 1,
           min: [-1, -1, -1],

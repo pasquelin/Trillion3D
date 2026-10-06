@@ -125,9 +125,9 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
         if (backgroundFetchController === controller) backgroundFetchController = undefined;
         streamingPromise = null;
         if (queuedFetch.size && !state.measuring) {
-          const attente = [...queuedFetch];
+          const pending = [...queuedFetch];
           queuedFetch.clear();
-          const next = attente.filter(
+          const next = pending.filter(
             (url) =>
               (geometryUrls.has(url) || !streamer.has(url)) &&
               !streamer.loading(url) &&

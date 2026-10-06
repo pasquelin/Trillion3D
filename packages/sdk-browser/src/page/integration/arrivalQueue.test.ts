@@ -84,9 +84,9 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     for (let d = 0; d < 3; d++) livrs += queue.drain();
     return { delivered, livrs };
   }
-  const optimisee = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)));
+  const optimized = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)));
   const reference = arrivals(referenceArrivalQueue(1 << 20, 4096));
-  assert.deepEqual(optimisee, reference);
+  assert.deepEqual(optimized, reference);
 });
 
 test('the frame budget yields at its boundary and resumes in arrival order', (t) => {

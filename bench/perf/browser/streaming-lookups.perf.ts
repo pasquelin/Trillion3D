@@ -1,10 +1,10 @@
 // the two linear searches of the streaming path.
 import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
-import { empileEnAttente } from '../../../packages/sdk-browser/src/world/render/draw.ts';
+import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts';
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
-  referenceEmpileEnAttente,
+  referencePushPending,
   referenceRetireDeLaFile,
 } from '../../oracles/browser/streaming-lookups.ts';
 
@@ -78,12 +78,12 @@ const resG6 = await mesure({
   cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
   calcul: (urls: readonly string[]) => {
     const set = new Set<string>();
-    empileEnAttente(set, urls);
+    pushPending(set, urls);
     return [...set];
   },
   attendu: (urls: readonly string[]) => {
     const arr: string[] = [];
-    referenceEmpileEnAttente(arr, urls);
+    referencePushPending(arr, urls);
     return arr;
   },
   options: { tours: 100, budgetMs: 1500 },

@@ -13,12 +13,12 @@ import type {
   PageAttribute,
   PageAttributes,
 } from '../../../packages/page-codec/src/pageAttributes.ts';
-import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
+import { ringMesh } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts';
 
 /** A ring page of `triangles` at `exponent`, flat-shaded or not, with the JavaScript decode. */
 function page(triangles: number, exponent: number, flat = false) {
-  const ring = anneau(triangles, exponent);
+  const ring = ringMesh(triangles, exponent);
   const { encoded, indices } = flat ? flatShaded(ring, exponent) : ring;
   const decoded = decodeGeometryPage(encoded.data);
   return {

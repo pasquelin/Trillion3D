@@ -101,7 +101,7 @@ export type SdkWasm = {
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
-let attente: Promise<SdkWasm | null> | null = null;
+let pending: Promise<SdkWasm | null> | null = null;
 
 /** Resource shipped next to the module: the browser takes it by URL, not from disk. */
 async function ressource(): Promise<BufferSource> {
@@ -125,8 +125,8 @@ async function instancie(source: SourceWasm): Promise<SdkWasm | null> {
  * the bytes — that is what Node does, which cannot follow a file URL with `fetch`.
  */
 export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm | null> {
-  attente ??= instancie(source);
-  return attente;
+  pending ??= instancie(source);
+  return pending;
 }
 
 /** The decoded page, copied out of linear memory whole before it moves, and read as the

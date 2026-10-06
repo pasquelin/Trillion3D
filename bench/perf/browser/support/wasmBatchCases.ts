@@ -96,7 +96,7 @@ function matriceOrdinaire(alea: () => number) {
 }
 
 /** Fills `boxes` (6 · n) and `mats` (16 · n) of the box-transform batch. */
-export function remplitBoites(lot: { mats: Float64Array; boxes: Float64Array }, n: number) {
+export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: number) {
   const alea = graine(0x4d35);
   for (let i = 0; i < n; i++) {
     const m = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
