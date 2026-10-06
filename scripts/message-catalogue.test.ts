@@ -3,11 +3,16 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { catalogueMessages, messageOf } from '../packages/sdk-node/src/messages/catalogue.mts'
+import { messageOf, type CatalogueMessage } from '../packages/sdk-node/src/messages/catalogue.mts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const RUST = join(ROOT, 'packages/asset-compiler-rust/src')
 const NODE = join(ROOT, 'packages/sdk-node/src')
+const catalogueMessages = (
+  JSON.parse(readFileSync(join(NODE, 'messages/messages.json'), 'utf8')) as {
+    messages: CatalogueMessage[]
+  }
+).messages
 /** Code-shaped literals of the compiler that name something else: attributes, variables, tags. */
 const NOT_MESSAGES = new Set([
   'CARGO_PKG_VERSION',

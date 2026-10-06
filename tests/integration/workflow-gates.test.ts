@@ -70,6 +70,30 @@ test('pre-push: develop and main refuse a push, other branches accept it', () =>
   assert.match(git(work, 'push', '-q', 'origin', '12-thing:main').stderr, /no push to 'main'/)
 })
 
+test('the gates of the checkout hold a commit and a push: format-staged, then check:changed', () => {
+  const work = makeRepo()
+  ok(work, 'switch', '-q', '-c', '12-thing')
+  const gate = (name: string, body: string) => {
+    execFileSync('mkdir', ['-p', join(work, 'scripts')])
+    writeFileSync(join(work, 'scripts', name), body)
+  }
+  gate('format-staged.ts', 'process.exit(2)\n')
+  assert.match(commit(work, 'unformatted').stderr, /scripts\/format-staged\.ts failed/)
+  gate('format-staged.ts', '')
+  assert.equal(commit(work, 'formatted').status, 0)
+  // The push is checked against origin/develop, the base the CI's pull request merges into.
+  gate(
+    'check-changed.ts',
+    "import { writeFileSync } from 'node:fs'\n" +
+      "writeFileSync('base.log', process.env.TRILLION3D_BASE_REF ?? '')\n" +
+      'process.exit(1)\n',
+  )
+  assert.match(git(work, 'push', '-q', 'origin', '12-thing').stderr, /check-changed\.ts failed/)
+  assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop')
+  gate('check-changed.ts', '')
+  assert.equal(git(work, 'push', '-q', 'origin', '12-thing').status, 0)
+})
+
 test('the tool-installed hook of the same name still runs behind core.hooksPath', () => {
   const work = makeRepo()
   ok(work, 'switch', '-q', '-c', '12-thing')

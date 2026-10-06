@@ -22,9 +22,6 @@ const CATALOGUE = JSON.parse(readFileSync(new URL('./messages.json', import.meta
 }
 const BY_CODE = new Map(CATALOGUE.messages.map((entry) => [entry.code, entry]))
 
-/** Every catalogue entry, in id order within each level. */
-export const catalogueMessages: readonly CatalogueMessage[] = CATALOGUE.messages
-
 /** The entry of a symbolic code; a code with a detail after `:` is its name's entry. */
 export const messageOf = (code: string) => BY_CODE.get(code.split(':')[0])
 
