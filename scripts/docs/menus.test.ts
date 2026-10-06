@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
-import { entriesIn, loadEntries } from '../site/app/portal/data.ts';
-import { apiIndex, apiMenu, learnMenu } from '../site/app/layout/menus.ts';
-import type { SidebarMenu as SidebarMenuComponent } from '../site/app/layout/SidebarMenu.tsx';
+import { loadReactComponents } from './render-react.ts';
+import { entriesIn, loadEntries } from '../../site/app/portal/data.ts';
+import { apiIndex, apiMenu, learnMenu } from '../../site/app/layout/menus.ts';
+import type { SidebarMenu as SidebarMenuComponent } from '../../site/app/layout/SidebarMenu.tsx';
 
 test('the API index documents each symbol with its own sentence, and lists no guide', async () => {
   // Loaded, not only listed: until its translation is read, a language shows the English words.

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { keepsScroll, PORTAL, stepFrame } from '../site/app/hooks/frameFocus.ts';
-import type { FrameEvent, FrameFocus } from '../site/app/hooks/frameFocus.ts';
+import { keepsScroll, PORTAL, stepFrame } from '../../site/app/hooks/frameFocus.ts';
+import type { FrameEvent, FrameFocus } from '../../site/app/hooks/frameFocus.ts';
 
 /** Runs `events` from the portal, and names each state reached and each act taken. */
 const walk = (events: FrameEvent[]) => {

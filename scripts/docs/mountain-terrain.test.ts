@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { assertSourceReproduced, publishedManifest } from './docs/gallery-scene.ts';
-import { mountainTerrain, terrainHeight } from './docs/mountain-terrain/model.ts';
-import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
-const root = resolve(import.meta.dirname, '..'),
+import { assertSourceReproduced, publishedManifest } from './gallery-scene.ts';
+import { mountainTerrain, terrainHeight } from './mountain-terrain/model.ts';
+import { writeMountainTerrain } from './mountain-terrain/write.ts';
+const root = resolve(import.meta.dirname, '../..'),
   published = resolve(root, 'tests/fixtures/scenes/mountain-terrain');
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {

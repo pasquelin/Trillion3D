@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { MEASUREMENT_TAG, withMeasurement } from './docs/measurement.ts';
+import { MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 
-const root = resolve(import.meta.dirname, '..');
+const root = resolve(import.meta.dirname, '../..');
 
 test('the tag is added before the head closes, indented inside it', () => {
   const page = '<!doctype html>\n<html>\n  <head>\n    <title>x</title>\n  </head>\n</html>\n';

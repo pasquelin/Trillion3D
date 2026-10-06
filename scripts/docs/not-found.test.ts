@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createElement } from 'react';
 import type { ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
-import type { Locale } from '../site/content/locale.ts';
+import { loadReactComponents } from './render-react.ts';
+import type { Locale } from '../../site/content/locale.ts';
 
 const { NotFound } = (await loadReactComponents('site/app/portal/NotFound.tsx')) as {
   NotFound: ComponentType<{ locale: Locale }>;

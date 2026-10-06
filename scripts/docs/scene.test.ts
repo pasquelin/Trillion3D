@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { readCacheManifest } from '../bench/runner/cacheManifest.ts';
-import { writeGarden } from './docs/garden-source.ts';
-const root = resolve(import.meta.dirname, '..');
+import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
+import { writeGarden } from './garden-source.ts';
+const root = resolve(import.meta.dirname, '../..');
 
 interface GardenGltf {
   nodes: unknown[];

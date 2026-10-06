@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { parseRoute, routeHref, resolvePage } from '../site/app/portal/routes.ts';
-import { runName, viewName } from '../site/reports/names.ts';
-import { flattenFields } from '../site/reports/availability.ts';
-import { pairedImages } from '../site/reports/presentation.ts';
-import { readingGroups } from '../site/reports/sources.ts';
-import { metricValue } from '../site/reports/metrics.ts';
-import { baseRecord, baseRun, baseReport } from './docs/report-fixtures.ts';
+import { parseRoute, routeHref, resolvePage } from '../../site/app/portal/routes.ts';
+import { runName, viewName } from '../../site/reports/names.ts';
+import { flattenFields } from '../../site/reports/availability.ts';
+import { pairedImages } from '../../site/reports/presentation.ts';
+import { readingGroups } from '../../site/reports/sources.ts';
+import { metricValue } from '../../site/reports/metrics.ts';
+import { baseRecord, baseRun, baseReport } from './report-fixtures.ts';
 import {
   Comparison,
   Evidence,
@@ -16,7 +16,7 @@ import {
   BarChart,
   Findings,
   SceneNotice,
-} from './docs/report-components.ts';
+} from './report-components.ts';
 
 test('report routes resolve in each language; names are its words, an unknown id kept', () => {
   for (const locale of ['en', 'fr'] as const) {

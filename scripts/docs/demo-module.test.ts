@@ -1,10 +1,10 @@
-import { showVector, vector } from '../site/demos/kit.ts';
+import { showVector, vector } from '../../site/demos/kit.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 // The demos import this module. Here, behaviour: what the portal's demos call must really be the
 // engine, and answer as it.
-const kernels = await import('../site/demos/engine.ts');
+const kernels = await import('../../site/demos/engine.ts');
 
 test('the module carries the public maths the demos call', () => {
   // A record derived from the namespace's own entries, so a dynamic name lookup stays typed

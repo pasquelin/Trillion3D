@@ -13,7 +13,7 @@ import { contentType, listen } from './static-server.ts';
 const ROOT = resolve(import.meta.dirname, '..');
 
 /** The event stream an open page listens on. Only this server adds it, to the pages it serves:
- *  the built tree never holds it (checked by `docs-dev.test.ts`). */
+ *  the built tree never holds it (checked by `scripts/docs/measurement.test.ts`). */
 export const RELOAD_EVENTS = '/__docs-dev/reload';
 /** A framed example reloads with the page that frames it, never alone. */
 const RELOAD_SCRIPT = `<script>if (self === top) new EventSource('${RELOAD_EVENTS}').onmessage = () => location.reload();</script>`;

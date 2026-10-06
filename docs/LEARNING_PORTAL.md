@@ -257,7 +257,7 @@ text in every other language to `site/content/reference/api.<language>.json` (ke
 rows by name), which only translators write. Git tracks neither `api.json` nor
 `site/data/api-inventory.json`: `pnpm install` writes both, and `pnpm run generate:api`, the site
 build, the test runners and `validate` rewrite them when a source is newer.
-`scripts/docs-api-reference.test.ts` fails on an export, family member or row without an entry or
+`scripts/docs/api-reference.test.ts` fails on an export, family member or row without an entry or
 summary, two entries sharing a summary, or a thrown error code left unexplained; `check:i18n` on a
 translation missing a text or naming one English does not show. The written notes of
 `site/content/entries/*.ts` (matrices, vectors, bounds…) only add a longer text, an example or a
@@ -293,7 +293,7 @@ code, the gallery's observatory and the mountain terrain. Every generator runs t
 `scripts/native-compiler.ts`, following the SDK's rule: `TRILLION3D_COMPILER_BIN` may select a
 compatible binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
-`node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.
+`node --test scripts/docs/scene.test.ts` before publishing a regenerated cache.
 
 ## Reading live performance counters
 

@@ -16,8 +16,8 @@ Object.assign(globalThis, {
 });
 const browser = { languages: ['en-US'] };
 Object.defineProperty(globalThis, 'navigator', { value: browser, configurable: true });
-const { detectedLanguage, i18n, loadLanguage } = await import('../site/app/i18n.ts');
-const { parseRoute } = await import('../site/app/portal/routes.ts');
+const { detectedLanguage, i18n, loadLanguage } = await import('../../site/app/i18n.ts');
+const { parseRoute } = await import('../../site/app/portal/routes.ts');
 
 /** The language a visit to `hash` settles on, with this remembered choice and browser. */
 const languageOf = async (hash: string, remembered: string | null, languages: string[]) => {

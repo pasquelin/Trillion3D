@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createElement } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
+import { loadReactComponents } from './render-react.ts';
 
 const { Canvas } = (await loadReactComponents('site/app/ui/Canvas.tsx')) as {
   Canvas: ComponentType<{

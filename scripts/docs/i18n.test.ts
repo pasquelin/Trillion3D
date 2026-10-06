@@ -3,14 +3,14 @@ import { readdirSync } from 'node:fs';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
-import { compareKeys, describeMismatches, keyMismatches } from './i18n-keys.ts';
-import { entrySummary } from '../site/content/model.ts';
-import { DEFAULT_LANGUAGE, dictionaryOf, LANGUAGES } from '../site/content/i18n/dictionary.ts';
-import { localizeDemoText } from '../site/content/i18n/canvas.ts';
-import { NOTES } from '../site/content/entries/reference.ts';
-import { entriesIn, loadEntries } from '../site/app/portal/data.ts';
-import type { Header as HeaderComponent } from '../site/app/layout/Header.tsx';
+import { loadReactComponents } from './render-react.ts';
+import { compareKeys, describeMismatches, keyMismatches } from '../i18n-keys.ts';
+import { entrySummary } from '../../site/content/model.ts';
+import { DEFAULT_LANGUAGE, dictionaryOf, LANGUAGES } from '../../site/content/i18n/dictionary.ts';
+import { localizeDemoText } from '../../site/content/i18n/canvas.ts';
+import { NOTES } from '../../site/content/entries/reference.ts';
+import { entriesIn, loadEntries } from '../../site/app/portal/data.ts';
+import type { Header as HeaderComponent } from '../../site/app/layout/Header.tsx';
 
 const CODES = LANGUAGES.map(({ code }) => code);
 // Every language's words and reference translation, as a page in it reads them first.
@@ -32,7 +32,7 @@ test('a key given on one side only is named, missing or extra', () => {
 });
 
 test('the languages are the files of site/i18n, English first', () => {
-  const files = readdirSync(new URL('../site/i18n/', import.meta.url))
+  const files = readdirSync(new URL('../../site/i18n/', import.meta.url))
     .filter((file) => file.endsWith('.json'))
     .map((file) => file.slice(0, -'.json'.length));
   assert.deepEqual([...CODES].sort(), files.sort());

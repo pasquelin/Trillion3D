@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createElement } from 'react';
 import type { ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
-import type { Tree as TreeComponent } from '../site/app/ui/Tree.tsx';
+import { loadReactComponents } from './render-react.ts';
+import type { Tree as TreeComponent } from '../../site/app/ui/Tree.tsx';
 
 const { Dropdown } = (await loadReactComponents('site/app/ui/Dropdown.tsx')) as {
   Dropdown: ComponentType<Record<string, unknown>>;

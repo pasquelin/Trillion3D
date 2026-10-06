@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createHistory } from '../site/app/editor/history.ts';
-import { poseOf, removeCommand, reparentCommand, samePose } from '../site/app/editor/commands.ts';
-import { object } from '../packages/sdk-core/src/world/object/index.ts';
+import { createHistory } from '../../site/app/editor/history.ts';
+import { poseOf, removeCommand, reparentCommand, samePose } from '../../site/app/editor/commands.ts';
+import { object } from '../../packages/sdk-core/src/world/object/index.ts';
 
 test('the editor history undoes and redoes in order, and forgets past its capacity', () => {
   const log: string[] = [];
