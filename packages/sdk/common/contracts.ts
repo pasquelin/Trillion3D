@@ -34,11 +34,20 @@ export type {
   ImpostorSwitchDepth,
 } from '../../sdk-core/src/contracts/impostor.ts';
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts';
+export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts';
+export type {
+  CapabilityTier,
+  MeasuredCosts,
+  SafetyConfig,
+  SafetyDecision,
+} from '../../sdk-core/src/runtime/safety/safety.ts';
 export {
   clusterErrorAtDepth,
   clusterErrorPixels,
   screenErrorBound,
 } from '../../sdk-core/src/lod/screenErrorBound.ts';
+export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts';
+export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts';
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts';
 export type {
   DagReport,
@@ -89,6 +98,7 @@ export type {
 } from '../../sdk-core/src/scene/core/fog.ts';
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts';
 export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts';
+export type { SoftBodyType } from '../../sdk-core/src/physics/soft.ts';
 export {
   TABLE_FLAGS,
   TABLE_NUMBERS,

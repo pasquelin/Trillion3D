@@ -126,6 +126,7 @@ export type {
   SixDofAxis,
 } from '../../sdk-core/src/physics/jointOptions.ts';
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts';
+export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts';
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
@@ -142,7 +143,6 @@ export {
 export type {
   SoftBodyCommon,
   SoftBodyOptions,
-  SoftBodyType,
   SoftSettings,
   SoftVolumeOptions,
 } from '../../sdk-core/src/physics/soft.ts';

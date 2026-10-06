@@ -18,6 +18,7 @@ export type {
   SavedCamera,
 } from '../saved/format.ts';
 export type { WorldFrameMetrics } from './worldFrames.ts';
+export type { QualityResolution, WorldQualityOptions } from './worldQuality.ts';
 export { Scene } from './scene.ts';
 export type { Fog } from './sceneFog.ts';
 export { LoadedModel } from './loadedModel.ts';

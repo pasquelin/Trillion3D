@@ -140,6 +140,7 @@ export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
 export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
 export { createGpuPageCache, httpPageSource, type ResidentPage } from './gpu/page/pages.ts';
+export type { PageHome, PageHomes } from './gpu/page/homes.ts';
 export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts';

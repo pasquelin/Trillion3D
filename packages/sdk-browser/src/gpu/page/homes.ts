@@ -1,5 +1,5 @@
 /** A page's own place in a pool that holds the whole catalogue: its rank, first byte and width. */
-type PageHome = { rank: number; offset: number; bytes: number };
+export type PageHome = { rank: number; offset: number; bytes: number };
 /** Every page's home by key, and the bytes they take together. */
 export type PageHomes = { homes: ReadonlyMap<string, PageHome>; bytes: number };
 

@@ -108,6 +108,10 @@ export { pose } from '../../sdk-browser/src/world/api/poseFamily.ts';
 export type { PosedWorld } from '../../sdk-browser/src/world/api/poseFamily.ts';
 export { probeWorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts';
 export type { WorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts';
+export type {
+  QualityResolution,
+  WorldQualityOptions,
+} from '../../sdk-browser/src/world/core/worldQuality.ts';
 export { Quaternion } from '../../sdk-core/src/world/math/quaternion.ts';
 export type {
   SavedCamera,
