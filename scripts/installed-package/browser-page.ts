@@ -4,9 +4,9 @@ import type {
   EvaluatedInstalledPage,
   LooseSdk,
   LooseWorld,
-} from './installed-package-browser-page-types.ts';
+} from './browser-page-types.ts';
 
-export type { EvaluatedInstalledPage } from './installed-package-browser-page-types.ts';
+export type { EvaluatedInstalledPage } from './browser-page-types.ts';
 
 export async function evaluateInstalledPage({
   moduleName,

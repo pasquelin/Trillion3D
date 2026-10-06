@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateInstalledPage } from './installed-package-browser-page.ts';
+import { evaluateInstalledPage } from './browser-page.ts';
 
 test('the installed page names a session that failed to open before drawing (#568)', () => {
   // `page.evaluate` ships the function's source alone: the check is read there.

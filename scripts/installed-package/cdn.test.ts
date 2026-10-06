@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { familyFiles, physicsFiles } from './installed-package-cdn.ts';
+import { familyFiles, physicsFiles } from './cdn.ts';
 
 test('the physics of the CDN bundle is its worker, its modules and the chunk that starts them', () => {
   const chunks = [

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Metafile } from 'esbuild';
-import type { Bundle, Run, Write } from './installed-package-contracts.ts';
+import type { Bundle, Run, Write } from './contracts.ts';
 
 /** One child-process invocation the installed-package proof made, kept for the failure report. */
 interface LogEntry {

@@ -4,9 +4,9 @@ import {
   COMPILER_PLATFORMS,
   compilerFileName,
   compilerPackage,
-} from '../packages/sdk-node/src/compiler/platform.mts';
-import type { Run } from './installed-package-contracts.ts';
-import { packArchive } from './installed-package-fixture.ts';
+} from '../../packages/sdk-node/src/compiler/platform.mts';
+import type { Run } from './contracts.ts';
+import { packArchive } from './fixture.ts';
 
 /** This machine's platform package, the one an install of `trillion3d` here takes. */
 const localPlatform = `${process.platform}-${process.arch}`;

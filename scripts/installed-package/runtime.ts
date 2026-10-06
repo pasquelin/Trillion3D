@@ -1,5 +1,5 @@
 import type { Metafile } from 'esbuild';
-import type { Bundle, Run, Write } from './installed-package-contracts.ts';
+import type { Bundle, Run, Write } from './contracts.ts';
 
 const json = (value: string): string => JSON.stringify(value);
 

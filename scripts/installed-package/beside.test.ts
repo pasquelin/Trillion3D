@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { missingBeside } from './installed-package-beside.ts';
+import { missingBeside } from './beside.ts';
 
 // The decoder's chunk also holds the animation sampler, which starts its worker beside itself.
 const decoder = {

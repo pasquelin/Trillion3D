@@ -6,7 +6,7 @@ import {
   PAGE_INTEGRATION_PROTOCOL,
   type PageDecodeRequest,
   type PageIntegrationRequest,
-} from '../packages/sdk-core/src/index.ts';
+} from '../../packages/sdk-core/src/index.ts';
 
 /** The messages the installed workers receive, minus the buffers the page makes and transfers. */
 export interface InstalledWorkerRequests {

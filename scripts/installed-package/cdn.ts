@@ -1,11 +1,11 @@
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runInstalledBrowser } from './installed-package-browser.ts';
-import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
-import { missingBeside, PHYSICS_RULE, type EmittedChunk } from './installed-package-beside.ts';
-import { BUNDLE_ENTRY } from './build-bundle.ts';
-import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts';
-import type { Run } from './installed-package-contracts.ts';
+import { runInstalledBrowser } from './browser.ts';
+import type { InstalledBrowserProof } from './browser-result.ts';
+import { missingBeside, PHYSICS_RULE, type EmittedChunk } from './beside.ts';
+import { BUNDLE_ENTRY } from '../build-bundle.ts';
+import { FAMILY_MODULES, familyChunks, type Family } from '../bundle-fold.ts';
+import type { Run } from './contracts.ts';
 
 /** Where the fixture server serves the unpacked archive, as a CDN serves a package's files. */
 const CDN_PATH = '/cdn/package/dist';
@@ -22,7 +22,7 @@ function bundleFiles(dist: string) {
 const STARTS_PHYSICS = /["']physicsWorker["']/;
 
 /** The bundle's physics among its `files`: the worker and modules found beside the chunk that
- *  starts them (`installed-package-beside.ts`), and every such chunk of `chunks`. A page that
+ *  starts them (`beside.ts`), and every such chunk of `chunks`. A page that
  *  enables no physics requests none of them. */
 export function physicsFiles(files: string[], chunks: EmittedChunk[]): string[] {
   const beside = PHYSICS_RULE.beside;

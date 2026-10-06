@@ -1,6 +1,6 @@
 import type { Server } from 'node:http';
 import { relative } from 'node:path';
-import { contentType, reply, staticServer } from './static-server.ts';
+import { contentType, reply, staticServer } from '../static-server.ts';
 
 /** One HTTP request the fixture server served, kept as evidence of what the browser proof reached. */
 export interface RequestRecord {

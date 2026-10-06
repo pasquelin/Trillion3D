@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Run } from './installed-package-contracts.ts';
+import type { Run } from './contracts.ts';
 
 const COLUMNS = 96,
   ROWS = 48;

@@ -2,8 +2,8 @@
 // drew with the scene's own full-detail count, which no engine counter copies.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawsItsWholeCut } from './installed-package-browser-result.ts';
-import { INSTALLED_SCENE_TRIANGLES as FULL } from './installed-package-scene.ts';
+import { drawsItsWholeCut } from './browser-result.ts';
+import { INSTALLED_SCENE_TRIANGLES as FULL } from './scene.ts';
 
 test('a frame that draws the scene at full detail passes', () => {
   assert.equal(drawsItsWholeCut({ selectedTriangles: FULL, drawnTriangles: FULL }), true);

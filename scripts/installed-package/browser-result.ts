@@ -1,7 +1,7 @@
-import type { EvaluatedInstalledPage } from './installed-package-browser-page.ts';
-import type { DecodeWorkerResult, IntegrationWorkerResult } from './installed-package-workers.ts';
-import type { RequestRecord } from './installed-package-server.ts';
-import { INSTALLED_SCENE_TRIANGLES } from './installed-package-scene.ts';
+import type { EvaluatedInstalledPage } from './browser-page.ts';
+import type { DecodeWorkerResult, IntegrationWorkerResult } from './workers.ts';
+import type { RequestRecord } from './server.ts';
+import { INSTALLED_SCENE_TRIANGLES } from './scene.ts';
 
 interface CommonWorkerMessage {
   translation: number[];

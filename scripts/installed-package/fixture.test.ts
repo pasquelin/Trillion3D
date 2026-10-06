@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { windowsShim } from './installed-package-fixture.ts';
+import { windowsShim } from './fixture.ts';
 
 // Behaviour: on Windows the proof runs a package's binary through its `.cmd` shim, which Node
 // starts only through the shell; elsewhere, and for any other program, the command is unchanged

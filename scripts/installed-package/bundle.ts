@@ -4,11 +4,11 @@ import type { Metafile } from 'esbuild';
 import {
   proveBundledInstalledBrowser as runBundledBrowser,
   proveInstalledBrowser,
-} from './installed-package-browser-modes.ts';
-import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
-import type { Run } from './installed-package-contracts.ts';
-import { missingBeside } from './installed-package-beside.ts';
-import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './installed-package-cdn.ts';
+} from './browser-modes.ts';
+import type { InstalledBrowserProof } from './browser-result.ts';
+import type { Run } from './contracts.ts';
+import { missingBeside } from './beside.ts';
+import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './cdn.ts';
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay'];
 

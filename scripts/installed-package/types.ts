@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Run, Write } from './installed-package-contracts.ts';
+import type { Run, Write } from './contracts.ts';
 
 export function proveInstalledTypes({
   fixture,

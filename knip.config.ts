@@ -28,7 +28,7 @@ const config: KnipConfig = {
         'packages/**/*.test.ts',
         // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
         // by `node --test`, are entries by rule. Any other script is dead.
-        'scripts/*.test.ts',
+        'scripts/**/*.test.ts',
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).

@@ -1,17 +1,17 @@
 import type { Browser } from 'playwright';
-import { launchChrome } from '../bench/runner/chrome.ts';
-import { evaluateInstalledPage } from './installed-package-browser-page.ts';
+import { launchChrome } from '../../bench/runner/chrome.ts';
+import { evaluateInstalledPage } from './browser-page.ts';
 import {
   installedBrowserResult,
   type InstalledBrowserProof,
-} from './installed-package-browser-result.ts';
+} from './browser-result.ts';
 import {
   evidenceRequests,
   installedServer,
   type RequestRecord,
-} from './installed-package-server.ts';
-import { installedWorkerRequests, runInstalledWorkers } from './installed-package-workers.ts';
-import { listen } from './static-server.ts';
+} from './server.ts';
+import { installedWorkerRequests, runInstalledWorkers } from './workers.ts';
+import { listen } from '../static-server.ts';
 
 export async function runInstalledBrowser({
   root,

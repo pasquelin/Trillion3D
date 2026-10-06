@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_DECODE_PROTOCOL, PAGE_INTEGRATION_PROTOCOL } from '../packages/sdk-core/src/index.ts';
-import { installedWorkerRequests, runInstalledWorkers } from './installed-package-workers.ts';
+import { PAGE_DECODE_PROTOCOL, PAGE_INTEGRATION_PROTOCOL } from '../../packages/sdk-core/src/index.ts';
+import { installedWorkerRequests, runInstalledWorkers } from './workers.ts';
 
 test('the installed-package proof speaks the workers’ current protocols', () => {
   const { decode, integration } = installedWorkerRequests();

@@ -1,5 +1,5 @@
-import { runInstalledBrowser } from './installed-package-browser.ts';
-import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
+import { runInstalledBrowser } from './browser.ts';
+import type { InstalledBrowserProof } from './browser-result.ts';
 
 const canvases = '<canvas id="primer"></canvas><canvas id="replay"></canvas>';
 
