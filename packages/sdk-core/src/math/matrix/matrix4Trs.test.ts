@@ -8,7 +8,7 @@ import {
 } from './matrix4Trs.ts';
 import { determinantMatrix4 } from './matrix4.ts';
 
-const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
+const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
 test('composeMatrix4: identity and translation only, last row (0,0,0,1) exact', () => {
   const out = composeMatrix4(new Float64Array(16), [1, 2, 3], [0, 0, 0, 1], [1, 1, 1]);
@@ -18,33 +18,33 @@ test('composeMatrix4: identity and translation only, last row (0,0,0,1) exact', 
 test('composeMatrix4: 90° rotation around z, x and y columns swapped and signed', () => {
   const s = Math.SQRT1_2; // quaternion (0, 0, sin45, cos45)
   const out = composeMatrix4(new Float64Array(16), [0, 0, 0], [0, 0, s, s], [1, 1, 1]);
-  assert.ok(proche(out[0], 0) && proche(out[1], 1), 'column x becomes +y');
-  assert.ok(proche(out[4], -1) && proche(out[5], 0), 'column y becomes -x');
-  assert.ok(proche(out[10], 1));
+  assert.ok(near(out[0], 0) && near(out[1], 1), 'column x becomes +y');
+  assert.ok(near(out[4], -1) && near(out[5], 0), 'column y becomes -x');
+  assert.ok(near(out[10], 1));
 });
 
 test('decomposeMatrix4: round-trip on a rigid pose (non-uniform scale, arbitrary rotation)', () => {
   const position = [4, -2, 7],
     quaternion = [0.1826, 0.3651, 0.5477, 0.7303], // deliberately unnormalised, near unit
-    echelle = [2, 0.5, 3];
+    scale = [2, 0.5, 3];
   const n = Math.hypot(...quaternion);
   const q = quaternion.map((c) => c / n) as [number, number, number, number];
-  const m = composeMatrix4(new Float64Array(16), position, q, echelle);
+  const m = composeMatrix4(new Float64Array(16), position, q, scale);
   const p2 = new Float64Array(3),
     q2 = new Float64Array(4),
     s2 = new Float64Array(3);
   decomposeMatrix4(m, p2, q2, s2);
   assert.ok(
-    [...p2].every((v, i) => proche(v, position[i])),
+    [...p2].every((v, i) => near(v, position[i])),
     'position',
   );
   assert.ok(
-    [...s2].every((v, i) => proche(v, echelle[i])),
+    [...s2].every((v, i) => near(v, scale[i])),
     'scale',
   );
   const recompose = composeMatrix4(new Float64Array(16), p2, q2, s2);
   assert.ok(
-    [...recompose].every((v, i) => proche(v, m[i], 1e-6)),
+    [...recompose].every((v, i) => near(v, m[i], 1e-6)),
     'recomposition without shear',
   );
 });

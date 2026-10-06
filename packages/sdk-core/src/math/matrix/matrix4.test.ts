@@ -29,13 +29,13 @@ test('multiplyMatrix4: two translations compose into one, position column summed
 test('multiplyMatrix4: the output may alias either input, sixteen reads before write', () => {
   const a = translation(2, 3, 4),
     b = translation(5, 6, 7);
-  const attendu = multiplyMatrix4(new Float64Array(16), a, b);
+  const expected = multiplyMatrix4(new Float64Array(16), a, b);
   const surA = Float64Array.from(a);
   multiplyMatrix4(surA, surA, b);
-  assert.deepEqual([...surA], [...attendu], 'out === a');
+  assert.deepEqual([...surA], [...expected], 'out === a');
   const surB = Float64Array.from(b);
   multiplyMatrix4(surB, a, surB);
-  assert.deepEqual([...surB], [...attendu], 'out === b');
+  assert.deepEqual([...surB], [...expected], 'out === b');
 });
 
 test('multiplyMatrix4: no sum started at zero, a term negative zero may survive', () => {
@@ -49,12 +49,12 @@ test('multiplyMatrix4: no sum started at zero, a term negative zero may survive'
   const out = multiplyMatrix4(new Float64Array(16), a, b);
   assert.ok(Object.is(out[0], -0), `expected -0, got ${out[0]}`);
 
-  const sommeDepuisZero = (row: number, col: number) => {
-    let somme = 0;
-    for (let k = 0; k < 4; k++) somme += a[k * 4 + row] * b[col * 4 + k];
-    return somme;
+  const sumFromZero = (row: number, col: number) => {
+    let sum = 0;
+    for (let k = 0; k < 4; k++) sum += a[k * 4 + row] * b[col * 4 + k];
+    return sum;
   };
-  assert.ok(Object.is(sommeDepuisZero(0, 0), 0), 'the rejected form would yield +0, not -0');
+  assert.ok(Object.is(sumFromZero(0, 0), 0), 'the rejected form would yield +0, not -0');
 });
 
 test('determinantMatrix4: affine diagonal matrix, product of the three factors', () => {
@@ -71,9 +71,9 @@ test('linearPartDeterminant: same sign and same value to the ulp as determinantM
   // Linear block with no off-diagonal zero: a formula that dropped a term would show here.
   const m = Float64Array.from([2, 4, 7, 0, 1, 5, 8, 0, 3, 6, 10, 0, 5, -7, 11, 1]);
   const complet = determinantMatrix4(m),
-    lineaire = linearPartDeterminant(m);
-  assert.equal(Math.sign(complet), Math.sign(lineaire));
-  assert.ok(Math.abs(complet - lineaire) <= 1e-9 * Math.abs(complet), `${complet} vs ${lineaire}`);
+    linear = linearPartDeterminant(m);
+  assert.equal(Math.sign(complet), Math.sign(linear));
+  assert.ok(Math.abs(complet - linear) <= 1e-9 * Math.abs(complet), `${complet} vs ${linear}`);
 });
 
 test('copyMatrix4: the sixteen numbers land at their offsets, and the buffer given comes back', () => {

@@ -8,7 +8,7 @@ import { LIGHT_FIELD, createSceneLightStore } from './store.ts';
 import { SCENE_LIGHT_HEADER_FLOATS, type SceneLight } from './contracts.ts';
 import { baseOf } from './fields.ts';
 
-const LAMPE: SceneLight = {
+const LIGHT: SceneLight = {
   id: 'l0',
   kind: 'point',
   position: [1, 2, 3],
@@ -20,7 +20,7 @@ const LAMPE: SceneLight = {
 
 test('a light reset identically raises neither its revision nor the epoch', () => {
   const store = createSceneLightStore();
-  const slot = store.add({ ...LAMPE });
+  const slot = store.add({ ...LIGHT });
   const epoch = store.epoch,
     revision = store.revision[slot];
   // The arrays are new instances: value equality must decide.
@@ -32,7 +32,7 @@ test('a light reset identically raises neither its revision nor the epoch', () =
 
 test('a single number that changes does publish the change', () => {
   const store = createSceneLightStore();
-  const slot = store.add({ ...LAMPE });
+  const slot = store.add({ ...LIGHT });
   const epoch = store.epoch,
     revision = store.revision[slot];
   store.set('l0', { intensity: 4.5 });
@@ -47,7 +47,7 @@ test('a single number that changes does publish the change', () => {
 
 test('turning off via the shadow flag remains a change', () => {
   const store = createSceneLightStore();
-  store.add({ ...LAMPE });
+  store.add({ ...LIGHT });
   const epoch = store.epoch;
   store.set('l0', { castsShadow: false });
   assert.equal(store.epoch, epoch + 1);
@@ -57,7 +57,7 @@ test('turning off via the shadow flag remains a change', () => {
 
 test('a shadow slice moved is pushed to the GPU, never a change of light transport', () => {
   const store = createSceneLightStore();
-  const slot = store.add({ ...LAMPE });
+  const slot = store.add({ ...LIGHT });
   const epoch = store.epoch,
     transport = store.transportEpoch;
   // A lamp leaving the view gives up its maps, the next one's are renumbered: addresses only.
@@ -95,7 +95,7 @@ test('300 lights: every one is published, in the grown table the GPU reads (#822
   const store = createSceneLightStore();
   const first = store.packed;
   for (let i = 0; i < 300; i++)
-    store.add({ ...LAMPE, id: `l${i}`, position: [i, 0, 0], castsShadow: false });
+    store.add({ ...LIGHT, id: `l${i}`, position: [i, 0, 0], castsShadow: false });
   const header = new Uint32Array(store.packed.buffer, 0, SCENE_LIGHT_HEADER_FLOATS);
   assert.equal(store.count, 300);
   assert.ok(store.capacity >= 300);

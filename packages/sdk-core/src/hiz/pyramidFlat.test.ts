@@ -11,19 +11,19 @@ import { hizBuildFlat, hizFlatLayout, type HizFlat } from './pyramidFlat.ts';
 
 /** Expected nested levels, compared value by value with the flat buffer. */
 function assertSamePyramid(flat: HizFlat, nested: number[][][], message: string) {
-  assert.equal(flat.count, nested.length, `${message} : nombre de niveaux`);
+  assert.equal(flat.count, nested.length, `${message} : level count`);
   for (let level = 0; level < flat.count; level++) {
     const rows = nested[level];
     const height = rows.length,
       width = height ? rows[0].length : 0;
-    assert.equal(flat.widths[level], width, `${message} niveau ${level} largeur`);
-    assert.equal(flat.heights[level], height, `${message} niveau ${level} hauteur`);
+    assert.equal(flat.widths[level], width, `${message} level ${level} width`);
+    assert.equal(flat.heights[level], height, `${message} level ${level} height`);
     const base = flat.offsets[level];
     for (let y = 0; y < height; y++)
       for (let x = 0; x < width; x++)
         assert.ok(
           Object.is(flat.data[base + y * width + x], rows[y][x]),
-          `${message} niveau ${level} [${y},${x}] : ${flat.data[base + y * width + x]} ≠ ${rows[y][x]}`,
+          `${message} level ${level} [${y},${x}] : ${flat.data[base + y * width + x]} ≠ ${rows[y][x]}`,
         );
   }
 }
@@ -98,11 +98,11 @@ test('hizFootprintFarFlat yields same verdict as hizFootprintFar, including out 
     [0, 0, 1, 1, 99],
   ];
   for (const [x0, y0, x1, y1, level] of cas) {
-    const attendu = hizFootprintFar(nested, x0, y0, x1, y1, level);
-    const obtenu = hizFootprintFarFlat(flat, x0, y0, x1, y1, level);
+    const expected = hizFootprintFar(nested, x0, y0, x1, y1, level);
+    const actual = hizFootprintFarFlat(flat, x0, y0, x1, y1, level);
     assert.ok(
-      Object.is(attendu, obtenu),
-      `[${x0},${y0},${x1},${y1}]@${level}: ${attendu} ≠ ${obtenu}`,
+      Object.is(expected, actual),
+      `[${x0},${y0},${x1},${y1}]@${level}: ${expected} ≠ ${actual}`,
     );
   }
 });

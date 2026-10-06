@@ -29,8 +29,8 @@ test('invertMatrix4: an exactly zero determinant yields the zero matrix, as docu
 
 test('invertMatrix4: the output may alias the input, sixteen reads before write', () => {
   const m = translation(1, 2, 3);
-  const attendu = invertMatrix4(new Float64Array(16), m);
+  const expected = invertMatrix4(new Float64Array(16), m);
   const alias = Float64Array.from(m);
   invertMatrix4(alias, alias);
-  assert.deepEqual([...alias], [...attendu]);
+  assert.deepEqual([...alias], [...expected]);
 });
