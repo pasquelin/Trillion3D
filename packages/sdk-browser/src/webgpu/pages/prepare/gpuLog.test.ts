@@ -110,7 +110,10 @@ test('the mean CPU and the mean and max interval of the images since the last li
     console.log = log;
     (globalThis as { location?: unknown }).location = before;
   }
-  assert.match(lines[1], /^\[T3D-GPU\] frame 1 gpu 15\.25 ms cpu 2\.50 ms raf 12\.35\/16\.70 ms pairs/);
+  assert.match(
+    lines[1],
+    /^\[T3D-GPU\] frame 1 gpu 15\.25 ms cpu 2\.50 ms raf 12\.35\/16\.70 ms pairs/,
+  );
   assert.match(lines[2], / gpu 15\.25 ms cpu 1\.00 ms raf 9\.00\/9\.00 ms pairs/);
   assert.doesNotMatch(lines[3], / cpu | raf /);
 });

@@ -109,7 +109,11 @@ test('a blended surface traces its mirror ray once: the full walk in the mirror 
     const rough = floor + ((end - floor) * k) / 8;
     const weight = mirrorWeight(rough);
     assert.ok(weight > 0 && weight < 1, `${rough} lies in the transition`);
-    assert.deepEqual(read(true, rough), { value: RAY, walks: 1, marches: 0 }, `${rough}: the walk's hit`);
+    assert.deepEqual(
+      read(true, rough),
+      { value: RAY, walks: 1, marches: 0 },
+      `${rough}: the walk's hit`,
+    );
     const missed = read(false, rough);
     assert.deepEqual([missed.walks, missed.marches], [1, 0], `${rough}: one walk`);
     // Where the two tracers disagree the walk alone answers.

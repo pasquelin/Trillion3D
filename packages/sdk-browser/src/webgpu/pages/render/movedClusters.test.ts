@@ -92,7 +92,10 @@ function flipRow() {
 test('a ring hidden or shown where it lies declares its clusters, static, never its hollow', () => {
   for (const motions of flipRow()) {
     assert.equal(motions.length, CLUSTERS, 'a box per cluster');
-    assert.ok(motions.every(({ movingOnly }) => !movingOnly), 'the static slice held it');
+    assert.ok(
+      motions.every(({ movingOnly }) => !movingOnly),
+      'the static slice held it',
+    );
     const declared = (x: number, z: number) =>
       motions.some(
         ({ min, max }) => min[0] <= x && x <= max[0] && min[2] <= z && z <= max[2] && min[1] <= 0,

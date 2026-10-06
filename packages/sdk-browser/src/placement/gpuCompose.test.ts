@@ -140,7 +140,11 @@ test("the linked roots' motion waits for the temporal pass's decision, written b
       .map((write) => (write.data as Uint32Array)[0]);
   assert.deepEqual(modes(), [MOTION_SKIP], 'encoded with no motion until the decision');
   decideComposedMotion(rt, device, [1, 2, 3], MOTION_SCAN);
-  assert.deepEqual(modes(), [MOTION_SKIP, MOTION_SCAN], 'the decision overwrites it, in queue order');
+  assert.deepEqual(
+    modes(),
+    [MOTION_SKIP, MOTION_SCAN],
+    'the decision overwrites it, in queue order',
+  );
   // A motion buffer the pass did not bind is never decided for.
   (rt.gpu as { temporal: { motion: { buffer: unknown } } }).temporal.motion.buffer = {};
   decideComposedMotion(rt, device, [1, 2, 3], MOTION_SCAN);
@@ -153,7 +157,10 @@ test('a whole link set sent again keeps the motion pose of the roots it already 
     links = [0, 1].map((index) => ({ rows, index, local: turn(0.4) }));
   const seeded = () =>
     writes
-      .filter((write) => (write.buffer as { label?: string }).label === 'Trillion3D composed previous worlds')
+      .filter(
+        (write) =>
+          (write.buffer as { label?: string }).label === 'Trillion3D composed previous worlds',
+      )
       .map((write) => write.offset / 64);
   composeWebgpuPlacements(rt, parent, turn(0), links, true);
   frame();
@@ -183,4 +190,3 @@ test('the temporal pyramid is dropped by a parent moved on the GPU, not by a lin
   composeWebgpuPlacements(rt, parent, turn(0.1), [], false);
   assert.equal(hiz.pyramid, undefined, 'turned on the GPU alone');
 });
-

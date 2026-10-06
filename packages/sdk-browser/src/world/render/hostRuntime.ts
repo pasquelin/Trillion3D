@@ -18,17 +18,8 @@ type Inputs = {
 export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, scope, signal, diagnose } = session;
   const { prepared, resources, backends } = inputs;
-  const {
-    source,
-    pageSources,
-    directGpu,
-    viewport,
-    context,
-    camera,
-    center,
-    bounds,
-    radius,
-  } = prepared;
+  const { source, pageSources, directGpu, viewport, context, camera, center, bounds, radius } =
+    prepared;
   const { geometryUrls, streamer } = pageSources;
   const { gpuDevice, webglSurface } = resources;
   const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal);
