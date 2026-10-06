@@ -1,5 +1,5 @@
 import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts';
-import { createGpuTiming } from './timing.ts';
+import { createGpuTiming, type GpuTimingSample } from './timing.ts';
 
 /** A millisecond, in the nanoseconds the device's timestamps count. */
 export const MS = 1_000_000n;
@@ -8,7 +8,7 @@ export const MS = 1_000_000n;
  *  device timed at `passes` (ms pairs) and submits it, its readback not yet landed. */
 export function timer(sampleEveryFrames = 1) {
   const f = fixture(),
-    samples: any[] = [];
+    samples: GpuTimingSample[] = [];
   const timing = createGpuTiming(f.device, {
     sampleEveryFrames,
     onSample: (sample) => void samples.push(sample),
