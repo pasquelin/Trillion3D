@@ -156,7 +156,7 @@ test('the first admissible job is found in the queue order without moving any jo
   queued.forEach((each) => heap.push(each))
   const slots = queued.map((each) => each.slot)
   // p0, p3, p6, p9 come first (priority 0); only p3 fits beside a transfer already holding bytes.
-  const found = heap.first((each) => 1024 + each.bytes <= BUDGET)
+  const found = heap.first(BUDGET - 1024)
   assert.equal(found?.url, 'p3')
   assert.deepEqual(
     queued.map((each) => each.slot),
@@ -164,4 +164,17 @@ test('the first admissible job is found in the queue order without moving any jo
     'every job stays where it was',
   )
   assert.equal(takeAdmissible(heap, 1, 1024, BUDGET)?.url, 'p3')
+})
+
+test('a budget no queued job fits is known at once, by the smallest bytes the queue holds', () => {
+  const heap = createJobHeap<Job>()
+  const queued = [job('a', 0, 0), job('b', 1, 0), job('c', 2, 0)]
+  queued.forEach((each, at) => ((each.bytes = 100 * (at + 1)), heap.push(each)))
+  assert.equal(heap.least(), 100)
+  assert.equal(takeAdmissible(heap, 1, BUDGET - 99, BUDGET), undefined, 'none fits')
+  heap.remove(queued[0])
+  assert.equal(heap.least(), 200, 'the smallest left, the next found')
+  assert.equal(takeAdmissible(heap, 1, BUDGET - 200, BUDGET)?.url, 'b')
+  heap.clear()
+  assert.equal(heap.least(), Infinity)
 })

@@ -34,12 +34,12 @@ function down<T extends Queued>(heap: T[], at: number) {
   place(heap, job, at)
 }
 
-/** The first job of `heap`, in its order, that `admits` lets go, or `undefined`: those before it
- *  are read in order — a heap of the places still to visit, each child after its parent —, and
- *  none is moved. */
-function first<T extends Queued>(heap: readonly T[], admits: (job: T) => boolean) {
-  if (!heap.length || admits(heap[0])) return heap[0]
-  const open: number[] = []
+/** The first job of `heap`, in its order, whose bytes fit in `room`, or `undefined`: those before
+ *  it are read in order — `open`, a heap of the places still to visit, each child after its
+ *  parent, emptied first —, and none is moved. */
+function first<T extends Queued>(heap: readonly T[], open: number[], room: number) {
+  if (!heap.length || heap[0].bytes <= room) return heap[0]
+  open.length = 0
   const visit = (at: number) => {
     if (at >= heap.length) return
     let slot = open.push(at) - 1
@@ -54,7 +54,7 @@ function first<T extends Queued>(heap: readonly T[], admits: (job: T) => boolean
     visit(2 * at + 2)
     if (!open.length) return undefined
     at = takeFirst(heap, open)
-    if (admits(heap[at])) return heap[at]
+    if (heap[at].bytes <= room) return heap[at]
   }
 }
 
@@ -78,20 +78,35 @@ function takeFirst<T extends Queued>(heap: readonly T[], open: number[]) {
  * The queue of a streamer's jobs: a binary heap on (priority, arrival), each job's place in it kept
  * in `slot`, −1 once out of it. A job is queued, leaves first or is taken out wherever it stands in
  * O(log n), and one whose priority rose climbs to its place: a camera asking thousands of reads
- * never pays a sweep of the queue.
+ * never pays a sweep of the queue. The smallest bytes a queued job holds are kept (`least`), so a
+ * budget none fits is known at once; the places a search visits reuse one list.
  */
 export function createJobHeap<T extends Queued>() {
-  const heap: T[] = []
+  const heap: T[] = [],
+    open: number[] = []
+  /** The smallest bytes a queued job holds, and how many jobs hold them. */
+  let least = Infinity,
+    holding = 0
+  const counted = (bytes: number) => {
+    if (bytes < least) [least, holding] = [bytes, 1]
+    else if (bytes === least) holding++
+  }
   /** Takes `job` out wherever it stands; false when it is not queued. */
   const remove = (job: T) => {
     const at = job.slot
     if (heap[at] !== job) return false
     job.slot = -1
     const last = heap.pop()!
-    if (last === job) return true
-    place(heap, last, at)
-    up(heap, at)
-    down(heap, last.slot)
+    if (last !== job) {
+      place(heap, last, at)
+      up(heap, at)
+      down(heap, last.slot)
+    }
+    // The last of the smallest left: the next smallest is found once.
+    if (job.bytes === least && --holding === 0) {
+      least = Infinity
+      for (const each of heap) counted(each.bytes)
+    }
     return true
   }
   return {
@@ -101,6 +116,7 @@ export function createJobHeap<T extends Queued>() {
     push(job: T) {
       place(heap, job, heap.length)
       up(heap, job.slot)
+      counted(job.bytes)
     },
     /** The first job, taken out; `undefined` for an empty queue. */
     pop() {
@@ -109,8 +125,10 @@ export function createJobHeap<T extends Queued>() {
       return first as T | undefined
     },
     remove,
-    /** The first job, in the queue's order, `admits` lets go, left in place (`first`). */
-    first: (admits: (job: T) => boolean) => first(heap, admits),
+    /** The first job, in the queue's order, whose bytes fit in `room`, left in place (`first`). */
+    first: (room: number) => first(heap, open, room),
+    /** The smallest bytes a queued job holds, `Infinity` for an empty queue. */
+    least: () => least,
     /** `job`'s priority rose: it climbs to its place, if queued. */
     raise(job: T) {
       if (heap[job.slot] === job) up(heap, job.slot)
@@ -118,6 +136,7 @@ export function createJobHeap<T extends Queued>() {
     clear() {
       for (const job of heap) job.slot = -1
       heap.length = 0
+      ;[least, holding] = [Infinity, 0]
     },
   }
 }
@@ -135,7 +154,10 @@ export function takeAdmissible<T extends Queued>(
   activeBytes: number,
   maxTransferBytes: number,
 ) {
-  const job = heap.first((job) => active === 0 || activeBytes + job.bytes <= maxTransferBytes)
+  const room = active === 0 ? Infinity : maxTransferBytes - activeBytes
+  // The smallest queued job does not fit: none does, known at once.
+  if (heap.least() > room) return undefined
+  const job = heap.first(room)
   if (job) heap.remove(job)
   return job
 }
