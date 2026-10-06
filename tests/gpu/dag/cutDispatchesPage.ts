@@ -11,7 +11,7 @@ import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { encodeAvant, ressourcesAvant } from '../../../bench/oracles/browser/cut-dispatches.ts';
-import { DAG_SELECTION_SHADER_AVANT } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
+import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
 import { median } from '../../../scripts/median.ts';
 import { openGpuDevice } from '../kit/webgpuDevice.ts';
 import { countCommands, sceneView } from './cutScene.ts';
@@ -36,7 +36,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
   const { packed, uniforms } = sceneView(sweep.leaves, sweep.levels);
   const shipped = await createDagResources(device, packed, true);
   if (!shipped) throw new Error('the shipped cut does not mount');
-  const { module, compilation } = await gpu.compile(DAG_SELECTION_SHADER_AVANT);
+  const { module, compilation } = await gpu.compile(DAG_SELECTION_SHADER_BEFORE);
   if (compilation.length) throw new Error(`the frozen cut does not compile: ${compilation}`);
   // The oracle reads the fields `packed` carries under its own, private, shape.
   const before = ressourcesAvant(

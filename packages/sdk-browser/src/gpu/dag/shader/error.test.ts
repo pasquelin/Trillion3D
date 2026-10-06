@@ -34,8 +34,8 @@ test('the reference variant returns only the constant, and carries the same form
     [7, 1.5, 0.05, 512, 0.1],
   ] as const) {
     const delta = error * stretch;
-    const noyau = !(depth > near) ? Infinity : (delta * focal) / depth;
-    assert.equal(noyau, referenceScreenError(error, stretch, depth, focal, near));
+    const kernel = !(depth > near) ? Infinity : (delta * focal) / depth;
+    assert.equal(kernel, referenceScreenError(error, stretch, depth, focal, near));
   }
 });
 

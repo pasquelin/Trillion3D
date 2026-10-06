@@ -88,11 +88,11 @@ export function evaluateDagSelectionKernel(
     requestWords.push(packRequest(i, quantizeAheadPriority(replaced(aheadView, i), due)));
   };
   // Totals the GPU holds, replayed where `dagMask` notes them (`../shader/totalsWgsl.ts`).
-  const totaux = { drawn: 0, transparent: 0 };
+  const totals = { drawn: 0, transparent: 0 };
   const note = (i: number) => {
     const tri = trianglesOf(records, i);
-    totaux.drawn += tri;
-    if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totaux.transparent += tri;
+    totals.drawn += tri;
+    if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totals.transparent += tri;
   };
   let frustumRejected = 0,
     lodLevel = 0;
@@ -135,9 +135,9 @@ export function evaluateDagSelectionKernel(
     frustumRejected,
     lodLevel,
     drawablePageIds,
-    selectedTriangles: totaux.drawn,
-    transparentTriangles: totaux.transparent,
-    drawnTriangles: totaux.drawn,
+    selectedTriangles: totals.drawn,
+    transparentTriangles: totals.transparent,
+    drawnTriangles: totals.drawn,
   } as DagOracleResult;
 }
 

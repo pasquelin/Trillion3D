@@ -22,7 +22,7 @@ import { REQUEST_PRIORITY_MAX } from '../request.ts';
  * camera's whole, then as many ahead as the cap leaves (`OUT_AHEAD_PLACED`, `../layout.ts`). The
  * host reads them in that order and ranks nothing.
  */
-export const DAG_RELEVE_WGSL = `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
+export const DAG_READING_WGSL = `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
  *  is truncated. */
 fn emitOne(page:u32,pixels:f32){
  let slot=atomicAdd(&out.count,1u);

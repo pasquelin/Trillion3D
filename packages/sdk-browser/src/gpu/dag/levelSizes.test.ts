@@ -15,11 +15,11 @@ function etages(dag: ReturnType<typeof packed>['dag']) {
   const etage = new Int32Array(Math.max(1, dag.nodeCount)).fill(-1);
   let frontier: number[] = [];
   for (const root of dag.rootNodes) if (root !== 0xffffffff) frontier.push(root);
-  for (let niveau = 0; frontier.length; niveau++) {
+  for (let level = 0; frontier.length; level++) {
     const suivante: number[] = [];
     for (const node of frontier) {
       assert.equal(etage[node], -1, 'a node belongs to only one stage');
-      etage[node] = niveau;
+      etage[node] = level;
       const base = node * DAG_NODE_FLOATS;
       for (let c = 0; c < ints[base + 15]; c++) suivante.push(ints[base + 3] + c);
     }
@@ -31,14 +31,14 @@ function etages(dag: ReturnType<typeof packed>['dag']) {
 test("a stage's count bounds its pass's queue, and the sum covers every node", () => {
   const { dag } = packed(dagFixture());
   const etage = etages(dag);
-  const compte = new Int32Array(dag.levelSizes.length);
+  const count = new Int32Array(dag.levelSizes.length);
   let atteints = 0;
-  for (const niveau of etage)
-    if (niveau >= 0) {
-      compte[niveau]++;
+  for (const level of etage)
+    if (level >= 0) {
+      count[level]++;
       atteints++;
     }
-  assert.deepEqual(Array.from(dag.levelSizes), Array.from(compte));
+  assert.deepEqual(Array.from(dag.levelSizes), Array.from(count));
   // A node no root reaches is never read: the sum of stages is therefore what the descent can
   // see, and nothing more.
   assert.equal(
@@ -54,10 +54,10 @@ test('packed-hierarchy stages are counted with the root included', () => {
   const { nodes, stride } = flatHierarchy(pages);
   assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 2]);
   // One leaf: the root IS the leaf, a single stage.
-  const petite = flatHierarchy(pages.slice(0, 4));
-  assert.deepEqual(hierarchyLevelSizes(petite.nodes, petite.stride), [1]);
+  const small = flatHierarchy(pages.slice(0, 4));
+  assert.deepEqual(hierarchyLevelSizes(small.nodes, small.stride), [1]);
   // No page: an empty leaf root, always one stage, never zero passes.
-  const vide = flatHierarchy([]);
-  assert.deepEqual(hierarchyLevelSizes(vide.nodes, vide.stride), [1]);
+  const empty = flatHierarchy([]);
+  assert.deepEqual(hierarchyLevelSizes(empty.nodes, empty.stride), [1]);
   assert.deepEqual(hierarchyLevelSizes(new Float64Array(0), stride), []);
 });

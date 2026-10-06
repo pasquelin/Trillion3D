@@ -31,11 +31,11 @@ const pages = scenePages(16384, 8);
  * and the one the compiler produces (`build_culling_bvh`, one node per detail level
  * under the root). The second is PURE PER LEVEL, the first is not.
  */
-function montage(parNiveaux: boolean) {
+function montage(byLevels: boolean) {
   const roots = sceneRoots(
     pages,
     Array.from({ length: 12 }, () => new G.Matrix4()),
-    parNiveaux,
+    byLevels,
   );
   // Packing derives page bounds and stores the floor in the node
   // (`packNodes.ts`): counted descent reads it where the GPU reads it, not beside it.
@@ -52,13 +52,13 @@ function image(
   m: (typeof MONTAGES)[number][1],
   x: number,
   z: number,
-  deplacement: number,
+  displacement: number,
   plancher: boolean,
 ) {
   const { roots, packed } = m;
   for (let w = 0; w < roots.length; w++)
     asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
-      (w % 4) * 6.5 - 9.75 + deplacement,
+      (w % 4) * 6.5 - 9.75 + displacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,
     );
@@ -88,25 +88,25 @@ test('the descent frontier is what no exact persistence can save', () => {
       let visites = 0,
         internes = 0,
         feuilles = 0,
-        rejetees = 0,
+        rejected = 0,
         candidats = 0,
         plancherCoupe = 0,
-        candidatsAvecPlancher = 0,
-        tropGrossieres = 0;
+        candidatesWithFloor = 0,
+        tooCoarse = 0;
       for (let i = 0; i < 8; i++) {
-        const compte = poser(m, i, false);
-        visites += compte.visites;
-        internes += compte.internes;
-        feuilles += compte.frontiereFeuilles;
-        rejetees += compte.frontiereRejetees;
-        candidats += compte.candidats;
-        tropGrossieres += compte.tropGrossieres;
+        const count = poser(m, i, false);
+        visites += count.visites;
+        internes += count.internes;
+        feuilles += count.frontiereFeuilles;
+        rejected += count.rejectedFrontier;
+        candidats += count.candidats;
+        tooCoarse += count.tooCoarse;
         // Same frame, same camera, with top-down reject: that is the ONLY difference.
-        const avec = poser(m, i, true);
-        plancherCoupe += avec.plancherCoupe;
-        candidatsAvecPlancher += avec.candidats;
+        const withFloor = poser(m, i, true);
+        plancherCoupe += withFloor.plancherCoupe;
+        candidatesWithFloor += withFloor.candidats;
       }
-      const frontiere = feuilles + rejetees;
+      const frontiere = feuilles + rejected;
       assert.equal(visites, internes + frontiere, 'a visited node is internal or on the frontier');
       assert.ok(candidats > 0, `${nom} must see geometry`);
       return {
@@ -120,18 +120,18 @@ test('the descent frontier is what no exact persistence can save', () => {
         // one per sibling group of eight. Relative to everything the frame rereads, nodes
         // and candidate clusters.
         plafondPourCent: Number(
-          ((100 * (internes + rejetees / 8)) / (visites + candidats)).toFixed(2),
+          ((100 * (internes + rejected / 8)) / (visites + candidats)).toFixed(2),
         ),
         // TOP-DOWN reject, the one the CPU cut already applies: nodes whose subtree
         // has no cluster fine enough, and the candidates they carry.
-        plancherNoeudsParImage: plancherCoupe / 8,
-        candidatesRetireesParImage: (candidats - candidatsAvecPlancher) / 8,
-        candidatesTropGrossieresParImage: tropGrossieres / 8,
+        nodeFloorPerImage: plancherCoupe / 8,
+        candidatesRetireesParImage: (candidats - candidatesWithFloor) / 8,
+        tooCoarseCandidatesPerImage: tooCoarse / 8,
         partDuVisePourCent: Number(
-          ((100 * (candidats - candidatsAvecPlancher)) / Math.max(1, tropGrossieres)).toFixed(1),
+          ((100 * (candidats - candidatesWithFloor)) / Math.max(1, tooCoarse)).toFixed(1),
         ),
         candidatesRestantesPourCent: Number(
-          (100 * (candidatsAvecPlancher / Math.max(1, candidats))).toFixed(1),
+          (100 * (candidatesWithFloor / Math.max(1, candidats))).toFixed(1),
         ),
       };
     }),
@@ -140,7 +140,7 @@ test('the descent frontier is what no exact persistence can save', () => {
     JSON.stringify(
       {
         pages: MONTAGES[0][1].packed.pageCount,
-        noeuds: MONTAGES.map(([nom, m]) => `${nom} : ${m.packed.nodeCount}`),
+        nodes: MONTAGES.map(([nom, m]) => `${nom} : ${m.packed.nodeCount}`),
         lignes,
       },
       null,
@@ -158,8 +158,8 @@ test('the descent frontier is what no exact persistence can save', () => {
     assert.ok(ligne.plafondPourCent < 5, `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`);
     // Top-down reject is SAFE: it never drops anything but a candidate that is actually too coarse.
     assert.ok(
-      ligne.candidatesRetireesParImage <= ligne.candidatesTropGrossieresParImage,
-      `${ligne.regime}: ${ligne.candidatesRetireesParImage} dropped for ${ligne.candidatesTropGrossieresParImage} too coarse`,
+      ligne.candidatesRetireesParImage <= ligne.tooCoarseCandidatesPerImage,
+      `${ligne.regime}: ${ligne.candidatesRetireesParImage} dropped for ${ligne.tooCoarseCandidatesPerImage} too coarse`,
     );
     // And it HOLDS, on every pose. The threshold is there so a reject that would stop
     // happening fails loudly: that is how a bound indexed on the wrong pose slipped in

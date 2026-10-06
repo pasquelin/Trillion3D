@@ -11,14 +11,14 @@ import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
  * one band, and order would be checked on nothing. Far away, the copies resolve to different
  * stages and the cut carries several bands at once — what a real scene does all the time.
  */
-export function requestScene(seuil: number, feuilles = 4096, niveaux = 8) {
-  const pages = scenePages(feuilles, niveaux);
+export function requestScene(threshold: number, feuilles = 4096, levels = 8) {
+  const pages = scenePages(feuilles, levels);
   const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z));
   const roots = sceneRoots(pages, poses, true);
   const packed = packDagSelection(roots);
   // Posed by the scene builder that owns camera poses, read through the contract.
   const cam = engineCamera(frontCamera(16, 200));
-  const uni = cameraSelectionUniforms(cam, seuil, [1280, 720]);
+  const uni = cameraSelectionUniforms(cam, threshold, [1280, 720]);
   // WebGL2 ranking reads the SAME pose: the relative view of the render frame and the poses
   // brought into it. Giving them in absolute world under a relative view would compare two frames.
   packedWorldsToRenderOrigin(packed, roots, uni.cameraWorld);

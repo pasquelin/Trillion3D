@@ -1,5 +1,5 @@
 // The descent kernel from BEFORE the "persistent selection" batch, and the shipped cut shader
-// with it in place (`DAG_SELECTION_SHADER_AVANT`), split out of `cut-dispatches.ts` to keep it
+// with it in place (`DAG_SELECTION_SHADER_BEFORE`), split out of `cut-dispatches.ts` to keep it
 // under the file line budget. See that file for the oracle's buffers and encoding.
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts';
@@ -80,7 +80,7 @@ fn descend(src:u32,node:CullNode){
 export const DESCENT_AVANT = DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].');
 
 /** The shipped cut shader with this descent in place of its own: the module the oracle compiles. */
-export const DAG_SELECTION_SHADER_AVANT = DAG_SELECTION_SHADER.replace(
+export const DAG_SELECTION_SHADER_BEFORE = DAG_SELECTION_SHADER.replace(
   DAG_LEVEL_WGSL,
   DESCENT_AVANT + AVANT_SHIMS,
 );

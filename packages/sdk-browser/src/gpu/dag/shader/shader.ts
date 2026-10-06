@@ -4,7 +4,7 @@ import { DAG_ERROR_WGSL } from './error.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
-import { DAG_RELEVE_WGSL } from './snapshotWgsl.ts';
+import { DAG_READING_WGSL } from './snapshotWgsl.ts';
 import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts';
 import { DAG_REQUEST_WGSL } from '../requestWgsl.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
@@ -144,7 +144,7 @@ ${DAG_WORLD_POSE_WGSL}
 ${DAG_ERROR_WGSL}
 ${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_WANTED_WGSL}
+${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
