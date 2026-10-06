@@ -148,3 +148,20 @@ test('a job whose priority rose climbs before those it now precedes', () => {
   heap.raise(queued[6])
   assert.deepEqual(drained(heap), ['p6', 'p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p7'])
 })
+
+test('the first admissible job is found in the queue order without moving any job', () => {
+  const heap = createJobHeap<Job>()
+  const queued = Array.from({ length: 12 }, (_, i) => job(`p${i}`, i, (i * 5) % 3))
+  queued.forEach((each) => (each.bytes = each.url === 'p3' ? 1024 : BUDGET))
+  queued.forEach((each) => heap.push(each))
+  const slots = queued.map((each) => each.slot)
+  // p0, p3, p6, p9 come first (priority 0); only p3 fits beside a transfer already holding bytes.
+  const found = heap.first((each) => 1024 + each.bytes <= BUDGET)
+  assert.equal(found?.url, 'p3')
+  assert.deepEqual(
+    queued.map((each) => each.slot),
+    slots,
+    'every job stays where it was',
+  )
+  assert.equal(takeAdmissible(heap, 1, 1024, BUDGET)?.url, 'p3')
+})
