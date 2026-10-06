@@ -28,7 +28,7 @@ type Result = Awaited<ReturnType<typeof runPage>> & {
   viewport: [number, number];
   lights: number;
   sans: Run;
-  avec: Run;
+  with: Run;
   witness: Run;
 };
 
@@ -41,7 +41,7 @@ test('a still image shades every light, a moving one a drawn subset that history
   const result = (await runPage(page, 'sampledLighting', 'run')) as Result;
   assertHealthy(result);
   const [width] = result.viewport;
-  const { sans: plain, avec: accumulated, witness } = result;
+  const { sans: plain, with: accumulated, witness } = result;
   /** The largest channel difference of each interior pixel: its mean, and its maximum. */
   const interiorGap = (a: number[], b: number[]) => {
     let sum = 0,

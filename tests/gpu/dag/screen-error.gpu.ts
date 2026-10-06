@@ -37,7 +37,7 @@ interface Cluster {
 }
 
 function sample() {
-  const { hasard: chance, entre: between, log } = lois(xorshift32(0x2545f491));
+  const { hasard: chance, between: between, log } = lois(xorshift32(0x2545f491));
   const camera = G.perspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000);
   camera.position.set(3, -2, 7);
   camera.lookAt(-4, 1, -20);

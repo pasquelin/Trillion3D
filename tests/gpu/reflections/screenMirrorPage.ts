@@ -4,7 +4,7 @@
 // sources and their analytic reflections land.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
 import { runOnDevice as withDevice } from '../kit/deviceProof.ts';
-import { couleurEn as sampleColor } from '../kit/sceneImageProof.ts';
+import { colorAt as sampleColor } from '../kit/sceneImageProof.ts';
 import { versApi } from '../kit/sharedSceneProof.ts';
 import { mirrorScene, type MirrorOptions } from './screenMirrorScene.ts';
 import { mirrorRenderer, MIRROR_SIZE } from './screenMirrorRender.ts';

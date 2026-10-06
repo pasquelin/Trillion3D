@@ -9,7 +9,7 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import { hostBlending } from '../../../packages/sdk-browser/src/scene/materialBlending.ts';
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts';
 import { batisseur, cameraFace, square, engine, release } from '../kit/sharedSceneProof.ts';
-import { couleurEn, image } from '../kit/sceneImageProof.ts';
+import { colorAt, image } from '../kit/sceneImageProof.ts';
 import { runOnDevice } from '../kit/deviceProof.ts';
 
 export const MODES: readonly Blending[] = ['normal', 'additive', 'subtractive', 'multiply'];
@@ -95,7 +95,7 @@ async function side(device: GPUDevice, events: unknown[], name: string) {
   );
   const over = (pixels: Uint8Array, y: number) =>
     Object.fromEntries(
-      Object.entries(SIDES).map(([half, x]) => [half, couleurEn(pixels, camera, x, y, 0, VIEW)]),
+      Object.entries(SIDES).map(([half, x]) => [half, colorAt(pixels, camera, x, y, 0, VIEW)]),
     );
   try {
     await backend.prepare();

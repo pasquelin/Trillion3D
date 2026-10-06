@@ -157,7 +157,7 @@ export function engine(
 }
 
 /** Public counters of a profile stage, or `null` when the host did not ask for it. */
-export function comptesEtape(
+export function countsStep(
   backend: RenderBackend,
   stage: string,
 ): Readonly<Record<string, number>> | null {

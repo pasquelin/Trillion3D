@@ -6,7 +6,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts';
 import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts';
-import { jusquaTenue, PLAFOND } from '../kit/sceneImageProof.ts';
+import { untilHeld, PLAFOND } from '../kit/sceneImageProof.ts';
 import { SIZE, type Fixture } from './materialFixtureShape.ts';
 import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
@@ -119,8 +119,8 @@ export async function engineImage(
   );
   try {
     await backend.prepare();
-    const { tenue, rendue } = await jusquaTenue(backend, camera);
-    return { pixels: tenue ?? rendue, held: tenue !== null };
+    const { held, rendered } = await untilHeld(backend, camera);
+    return { pixels: held ?? rendered, held: held !== null };
   } finally {
     release(backend, canvas, scene);
   }
@@ -128,7 +128,7 @@ export async function engineImage(
 
 /** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
  *  encoded from the scene's geometry, composed on its own canvas the way a world composes it.
- *  Rendered until the engine holds its frame, as `jusquaTenue` waits on WebGPU; releases the
+ *  Rendered until the engine holds its frame, as `untilHeld` waits on WebGPU; releases the
  *  scene. */
 export async function webgl2Image(
   autonomousPagesBackend: BackendFactory,

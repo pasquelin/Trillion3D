@@ -25,15 +25,15 @@ const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witness
  * contract to hand a host material out under that name, no longer declares one at all
  * (`blendCopyContract.ts`).
  */
-const sansCommentaires = (texte: string) =>
-  texte
+const sansCommentaires = (text: string) =>
+  text
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/[^\n]*/g, ' ')
     .replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, ' ');
-const LIT_LA_DECLARATION = /\bdeclaration\b/;
-const LIT_LA_CLE = /\[\s*(['"`])declaration\1\s*\]/;
-const litLaDeclaration = (texte: string) =>
-  LIT_LA_DECLARATION.test(sansCommentaires(texte)) || LIT_LA_CLE.test(texte);
+const READS_DECLARATION = /\bdeclaration\b/;
+const READS_KEY = /\[\s*(['"`])declaration\1\s*\]/;
+const readsDeclaration = (text: string) =>
+  READS_DECLARATION.test(sansCommentaires(text)) || READS_KEY.test(text);
 
 /** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
 const TRAVERSE = /\basHostLibrary\s*[<(]/;
@@ -47,12 +47,12 @@ const sources = async () =>
   );
 
 /** Every source under `base`, keyed by its path from `base` behind `prefix`. */
-async function sousArbre(base: URL, prefix = ''): Promise<string[]> {
+async function walkTree(base: URL, prefix = ''): Promise<string[]> {
   const entries = await readdir(new URL(prefix, base), { withFileTypes: true });
   const found: string[] = [];
   for (const entry of entries) {
     const name = `${prefix}${entry.name}`;
-    if (entry.isDirectory()) found.push(...(await sousArbre(base, `${name}/`)));
+    if (entry.isDirectory()) found.push(...(await walkTree(base, `${name}/`)));
     else if (name.endsWith('.ts') && !name.endsWith('.test.ts')) found.push(name);
   }
   return found;
@@ -60,18 +60,18 @@ async function sousArbre(base: URL, prefix = ''): Promise<string[]> {
 
 /** Those sources AND the benches of the package: the declaration rule holds for the benches too,
  *  since a bench builds the page records the engine path then reads. */
-async function toutesSources(): Promise<Array<[string, URL]>> {
-  const found: Array<[string, URL]> = (await sousArbre(browser)).map((f) => [
+async function allSources(): Promise<Array<[string, URL]>> {
+  const found: Array<[string, URL]> = (await walkTree(browser)).map((f) => [
     f,
     new URL(f, browser),
   ]);
   for (const bench of BENCHES)
-    for (const f of await sousArbre(root, bench)) found.push([f, new URL(f, root)]);
+    for (const f of await walkTree(root, bench)) found.push([f, new URL(f, root)]);
   return found;
 }
 
 /** Files outside the closed list where a pattern appears; `exclu` is the file that declares it. */
-async function horsListe(motif: RegExp, exclu = ''): Promise<string[]> {
+async function outsideList(motif: RegExp, exclu = ''): Promise<string[]> {
   const fuites: string[] = [];
   for (const file of await sources()) {
     if (file === exclu) continue;
@@ -89,22 +89,22 @@ test('the host-library pattern catches every import form', () => {
     're-export': "export { Mesh } from 'three';",
     addons: "import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';",
   };
-  for (const [forme, texte] of Object.entries(formes))
-    assert.ok(NAMES_THREE.test(texte), `${forme} must be caught`);
-  for (const texte of ["import { x } from 'threejs';", "import { x } from './three';"])
-    assert.ok(!NAMES_THREE.test(texte), `${texte} is not the host library`);
+  for (const [forme, text] of Object.entries(formes))
+    assert.ok(NAMES_THREE.test(text), `${forme} must be caught`);
+  for (const text of ["import { x } from 'threejs';", "import { x } from './three';"])
+    assert.ok(!NAMES_THREE.test(text), `${text} is not the host library`);
 });
 
 test('only declared files import the host library', async () => {
   assert.ok((await sources()).length > 100, 'the browser package must be found');
-  const fuites = await horsListe(NAMES_THREE);
+  const fuites = await outsideList(NAMES_THREE);
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
 });
 
 // `packages/sdk-browser/src/host/resources.ts` declares the crossing; the same closed list says who may call it, so the
 // doc of `asHostLibrary` stays a rule and not a hope.
 test('only the declared boundary files cross back through `asHostLibrary`', async () => {
-  const fuites = await horsListe(TRAVERSE, 'host/resources.ts');
+  const fuites = await outsideList(TRAVERSE, 'host/resources.ts');
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
@@ -123,13 +123,13 @@ test('no source of any other package imports the host library', async () => {
 test('only the declared files read the host declaration a page was collected from', async () => {
   const fuites: string[] = [],
     morts: string[] = [];
-  const fichiers = await toutesSources();
+  const fichiers = await allSources();
   assert.ok(
     fichiers.some(([name]) => name.startsWith('bench/')),
     'the benches are read too',
   );
   for (const [file, url] of fichiers)
-    if (litLaDeclaration(await readFile(url, 'utf8'))) {
+    if (readsDeclaration(await readFile(url, 'utf8'))) {
       if (!DECLARATION[file.slice(0, -3)] && !BENCH_READS_DECLARATION.test(file)) fuites.push(file);
     } else if (DECLARATION[file.slice(0, -3)]) morts.push(file);
   assert.deepEqual(
@@ -159,9 +159,9 @@ const COMPOSE_LA_CAMERA = [
   /\bupdateCameraFrame\b/,
 ];
 test('`camera/world.ts` remains the only translation from host camera to engine camera', async () => {
-  const texte = await readFile(new URL('camera/world.ts', browser), 'utf8');
-  assert.match(texte, /export type HostCamera = \{/);
-  assert.match(texte, /export function readCameraWorld\(/);
+  const text = await readFile(new URL('camera/world.ts', browser), 'utf8');
+  assert.match(text, /export type HostCamera = \{/);
+  assert.match(text, /export function readCameraWorld\(/);
   const secondes: string[] = [];
   for (const file of await sources()) {
     if (file === 'camera/world.ts') continue;
@@ -174,7 +174,7 @@ test('`camera/world.ts` remains the only translation from host camera to engine 
     [],
     'a host camera becomes an engine camera in `camera/world.ts` alone',
   );
-  const moteur = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8');
+  const engine = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
-    assert.match(moteur, new RegExp(`\\b${champ}\\b`), champ);
+    assert.match(engine, new RegExp(`\\b${champ}\\b`), champ);
 });

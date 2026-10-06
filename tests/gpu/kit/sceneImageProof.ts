@@ -39,19 +39,19 @@ export async function image(
 export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1));
 
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
-export async function jusquaTenue(
+export async function untilHeld(
   backend: RenderBackend,
   camera: G.Camera,
-): Promise<{ rendue: number[] | undefined; tenue: number[] | null; rendues: number }> {
-  let rendue: number[] | undefined,
+): Promise<{ rendered: number[] | undefined; held: number[] | null; rendues: number }> {
+  let rendered: number[] | undefined,
     rendues = 0;
   for (let i = 0; i < PLAFOND; i++) {
     const { pixels, metrics } = await image(backend, camera);
-    if (metrics.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
-    rendue = Array.from(pixels);
+    if (metrics.frameHeld) return { rendered, held: Array.from(pixels), rendues };
+    rendered = Array.from(pixels);
     rendues++;
   }
-  return { rendue, tenue: null, rendues };
+  return { rendered, held: null, rendues };
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */
@@ -91,7 +91,7 @@ const point = new G.Vector3();
 
 /** RGB read where world point `(x, y, z)` projects in an image of `viewport`, clamped to it.
  *  Bottom-left origin, like `capture`. */
-export function couleurEn(
+export function colorAt(
   pixels: Uint8Array,
   camera: G.Camera,
   x: number,

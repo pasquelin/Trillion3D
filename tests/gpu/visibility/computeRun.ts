@@ -11,7 +11,7 @@ async function run({ code, bytes, workgroups }: Run) {
   if (!opened.module)
     return {
       values: [],
-      errors: 'compilation' in opened ? opened.compilation : [opened.indisponible],
+      errors: 'compilation' in opened ? opened.compilation : [opened.unavailable],
     };
   const { gpu, module } = opened;
   const pipeline = await gpu.device.createComputePipelineAsync({

@@ -16,7 +16,7 @@ import {
   release as release,
   engine,
 } from '../kit/sharedSceneProof.ts';
-import { image, jusquaTenue as untilHeld } from '../kit/sceneImageProof.ts';
+import { image, untilHeld } from '../kit/sceneImageProof.ts';
 import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
@@ -65,7 +65,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
   });
   try {
     await backend.prepare();
-    const { tenue: held, rendues: rendered } = await untilHeld(backend, facingCamera());
+    const { held, rendues: rendered } = await untilHeld(backend, facingCamera());
     // The shake: a hair to the left, then to the right, a hundredth of a pixel at this distance.
     // Every image moves, none is held, and the pose never leaves the still one.
     let first: number[] = [],

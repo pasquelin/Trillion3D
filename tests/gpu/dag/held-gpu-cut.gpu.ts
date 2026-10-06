@@ -43,7 +43,7 @@ test('the GPU cut keeps choosing over missing pages, and covers each leaf once',
   // The engine raises the pool to its floor — the root cover and the pages the root groups replace
   // (#1237) —: residency is still the bottleneck while it stays at that floor, below the strip's
   // pages.
-  const events = reading.evenements ?? [];
+  const events = reading.events ?? [];
   const floor = events.find((e) => e.phase === 'minimum-capacity')?.context as
     { floorPages?: number } | undefined;
   const capacity = Math.max(2, floor?.floorPages ?? 0);

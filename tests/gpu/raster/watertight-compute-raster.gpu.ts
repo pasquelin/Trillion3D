@@ -18,7 +18,7 @@ test('the compute raster is watertight under both variants', async () => {
     'computeRaster',
     'compareRasters',
   );
-  const { adaptateur: adapter, covered, clusters, variants } = result as Reading;
+  const { adapter: adapter, covered, clusters, variants } = result as Reading;
   console.log(JSON.stringify({ adapter, covered, clusters, variants }));
   assertSoundProof(result);
   assert.ok((covered ?? 0) > 1000, `the scene covers only ${covered} pixels`);

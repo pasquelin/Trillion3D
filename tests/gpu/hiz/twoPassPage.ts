@@ -9,7 +9,7 @@ import type {
   BackendDiagnostic,
   RenderBackend,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { cameraFace, comptesEtape } from '../kit/sharedSceneProof.ts';
+import { cameraFace, countsStep } from '../kit/sharedSceneProof.ts';
 import { difference, image, PLAFOND } from '../kit/sceneImageProof.ts';
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts';
 
@@ -26,7 +26,7 @@ async function untilHeld(backend: RenderBackend, camera: Camera) {
     last: Awaited<ReturnType<typeof image>> | undefined;
   for (let i = 0; i < PLAFOND; i++) {
     last = await image(backend, camera);
-    withdrawn = Math.max(withdrawn, comptesEtape(backend, 'partition')?.pyramidWithdrawn ?? 0);
+    withdrawn = Math.max(withdrawn, countsStep(backend, 'partition')?.pyramidWithdrawn ?? 0);
     rejected = Math.max(rejected, last.metrics.hizRejectedClusters ?? 0);
     if (last.metrics.frameHeld) return { pixels: last.pixels, images: i + 1, withdrawn, rejected };
   }
@@ -74,7 +74,7 @@ export function runTwoPass() {
         rejected: held.rejected,
         slab: slabPixels(held.pixels),
         gap: difference(held.pixels, witness),
-        rows: comptesEtape(backend, 'partition')?.rows ?? null,
+        rows: countsStep(backend, 'partition')?.rows ?? null,
       });
     }
   });

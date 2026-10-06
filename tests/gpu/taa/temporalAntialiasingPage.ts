@@ -14,7 +14,7 @@ import {
   engine,
   versApi as toApiMatrix,
 } from '../kit/sharedSceneProof.ts';
-import { image, jusquaTenue as untilHeld } from '../kit/sceneImageProof.ts';
+import { image, untilHeld } from '../kit/sceneImageProof.ts';
 import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
 
 /** The tile's rotation, a third of a radian: its edges are oblique. */
@@ -38,8 +38,8 @@ function scene() {
 
 /** A held image and what preceded it: the last rendered image and the count rendered. */
 const held = async (...args: Parameters<typeof untilHeld>) => {
-  const { rendue, tenue, rendues } = await untilHeld(...args);
-  return { rendered: rendue, held: tenue, count: rendues };
+  const { rendered, held, rendues } = await untilHeld(...args);
+  return { rendered: rendered, held, count: rendues };
 };
 
 /** One run: still, panned, then the tile moved. `temporal` picks the option. */

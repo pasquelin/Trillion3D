@@ -29,15 +29,15 @@ test('the fallback pass draws every blending mode once the visibility buffer is 
     'fallbackBlend',
     'run',
   )) as Result;
-  assert.equal(result.indisponible ?? null, null, String(result.indisponible));
-  assert.equal(result.erreur ?? null, null, String(result.erreur));
-  assert.deepEqual(result.erreurs, []);
+  assert.equal(result.unavailable ?? null, null, String(result.unavailable));
+  assert.equal(result.error ?? null, null, String(result.error));
+  assert.deepEqual(result.errors, []);
   const { main, fallback } = result;
   assert.ok(main && fallback, 'both images read');
   assert.equal(main.fellBack, false, 'the main side kept its visibility buffer');
   assert.equal(fallback.fellBack, true, 'the refusing side fell back');
   // The one failure the fallback side is built to cause; any other says the engine went wrong.
-  const failures = (result.evenements ?? []).filter((e) => /failed/.test(e.phase));
+  const failures = (result.events ?? []).filter((e) => /failed/.test(e.phase));
   assert.ok(
     failures.every((e) => e.phase === 'material-pipeline-failed'),
     JSON.stringify(failures),

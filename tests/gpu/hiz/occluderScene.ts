@@ -62,9 +62,9 @@ export async function onOccluderScene<Step>(
   ) => Promise<void>,
 ) {
   const gpu = await openGpuDevice();
-  if (!gpu) return { indisponible: 'no WebGPU adapter', steps: [] as Step[] };
-  const evenements: BackendDiagnostic[] = [];
-  const onDiagnostic = (e: BackendDiagnostic) => void evenements.push(e);
+  if (!gpu) return { unavailable: 'no WebGPU adapter', steps: [] as Step[] };
+  const events: BackendDiagnostic[] = [];
+  const onDiagnostic = (e: BackendDiagnostic) => void events.push(e);
   const { backend, release } = occluderEngine(gpu.device, onDiagnostic, options);
   const steps: Step[] = [];
   try {
@@ -72,10 +72,10 @@ export async function onOccluderScene<Step>(
     await body(backend, gpu.device, onDiagnostic, steps);
   } catch (error) {
     const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { erreur: String(error) + trace, steps, evenements, erreurs: gpu.errors };
+    return { error: String(error) + trace, steps, events, errors: gpu.errors };
   } finally {
     release();
   }
   const { court: adapter } = await gpu.fermer();
-  return { adapter, steps, evenements, erreurs: gpu.errors };
+  return { adapter, steps, events, errors: gpu.errors };
 }

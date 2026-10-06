@@ -41,9 +41,9 @@ test('the GPU partition is conservative on every row of every pose', async () =>
     pageErrors,
   );
   console.log(JSON.stringify({ ...reading, frames: reading.frames?.slice(-3) }, null, 2));
-  assert.equal(reading.erreur ?? null, null, String(reading.erreur));
+  assert.equal(reading.error ?? null, null, String(reading.error));
   assert.deepEqual(pageErrors, []);
-  assert.deepEqual(reading.evenements, [], 'the engine reported a fallback or an error');
+  assert.deepEqual(reading.events, [], 'the engine reported a fallback or an error');
   const { total, frames, occlusion, occlusionViolations } = reading;
   assert.ok(total && frames && occlusion && occlusionViolations);
   assert.equal(frames.length, POSES, 'every pose is audited');

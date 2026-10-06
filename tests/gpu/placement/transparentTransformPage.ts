@@ -4,7 +4,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { release, versApi } from '../kit/sharedSceneProof.ts';
-import { couleurEn, estRouge, image } from '../kit/sceneImageProof.ts';
+import { colorAt, estRouge, image } from '../kit/sceneImageProof.ts';
 import { runPasses } from '../kit/deviceProof.ts';
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts';
 
@@ -30,7 +30,7 @@ function reading(
 ) {
   return {
     name,
-    red: PROBES.map(([x, y]) => estRouge(couleurEn(pixels, camera, x, y), 0)),
+    red: PROBES.map(([x, y]) => estRouge(colorAt(pixels, camera, x, y), 0)),
     draws: metrics.transparentDrawCalls,
     rejected: metrics.transparentFrustumRejected,
     held: metrics.frameHeld,

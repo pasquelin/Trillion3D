@@ -27,7 +27,7 @@ type Run = {
 type Result = Awaited<ReturnType<typeof runPage>> & {
   viewport: [number, number];
   sans: Run;
-  avec: Run;
+  with: Run;
   witness: Run;
 };
 
@@ -47,7 +47,7 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
   const result = (await runPage(page, 'temporalAntialiasing', 'run')) as Result;
   assertHealthy(result);
   const [width, height] = result.viewport;
-  const { sans: plain, avec: accumulated, witness } = result;
+  const { sans: plain, with: accumulated, witness } = result;
   assert.equal(plain.capabilities?.temporalAntialiasing, false, 'without the option, no pass');
   assert.equal(accumulated.capabilities?.temporalAntialiasing, true, 'with it, the pass is wired');
   assert.equal(accumulated.capabilities?.motionVectors, 'derived');

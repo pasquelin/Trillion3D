@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { runOnDawn, loadPage } from './onDawn.ts';
 
-/** One entry of the `evenements` array a page result reports diagnostics through. */
+/** One entry of the `events` array a page result reports diagnostics through. */
 interface PageProofEvent {
   phase: string;
   context?: { reason?: string };
@@ -13,10 +13,10 @@ interface PageProofEvent {
 /** The page-result shape every proof of this kind asserts on (`assertSoundProof`), whatever else the
  *  page adds beside it. */
 export interface PageProofResult {
-  indisponible?: string | null;
-  erreur?: string | null;
-  erreurs?: string[];
-  evenements?: PageProofEvent[];
+  unavailable?: string | null;
+  error?: string | null;
+  errors?: string[];
+  events?: PageProofEvent[];
 }
 
 /** Target of the call `runOnDawn` runs: the page module installed under `name`, with the method
@@ -29,7 +29,7 @@ type PageScope = typeof globalThis & Record<string, PageModule>;
  * Runs `method()` of the page module `page` on Dawn — `run` by default, the name the engine
  * pages carry — installed as `globalThis[name]`. `page` is an absolute path — a proof passes
  * `resolve(import.meta.dirname, '<page>.ts')`, its page lying beside it — or a path relative to
- * this kit folder. Returns the page result, its `erreurs` array completed by the errors nothing
+ * this kit folder. Returns the page result, its `errors` array completed by the errors nothing
  * caught while it ran.
  */
 export async function runPageProof(
@@ -44,35 +44,35 @@ export async function runPageProof(
     { name, method },
     pageErrors,
   )) as PageProofResult;
-  return { ...result, erreurs: [...(result.erreurs ?? []), ...pageErrors] };
+  return { ...result, errors: [...(result.errors ?? []), ...pageErrors] };
 }
 
 /** Checks every proof of this kind must pass before examining its own reading. */
 export function assertSoundProof(result: PageProofResult): void {
-  assert.equal(result.indisponible ?? null, null, String(result.indisponible));
-  assert.equal(result.erreur ?? null, null, String(result.erreur));
-  assert.deepEqual(result.erreurs, []);
+  assert.equal(result.unavailable ?? null, null, String(result.unavailable));
+  assert.equal(result.error ?? null, null, String(result.error));
+  assert.deepEqual(result.errors, []);
   // An uncaptured GPU error is announced as a loss with that reason: a proof that provokes a
   // loss of its own still fails on one the engine's work caused.
   assert.ok(
-    !(result.evenements ?? []).some(
+    !(result.events ?? []).some(
       (event) => /failed/.test(event.phase) || event.context?.reason === 'uncaptured-error',
     ),
-    JSON.stringify(result.evenements),
+    JSON.stringify(result.events),
   );
 }
 
 /** Prints the adapter, the passes and the errors of a result that reports per-pass readings, then
  *  runs the checks every proof of this kind passes (`assertSoundProof`). */
 export function publishAndVerify(
-  result: PageProofResult & { adaptateur?: unknown; passes: unknown },
+  result: PageProofResult & { adapter?: unknown; passes: unknown },
 ): void {
   console.log(
     JSON.stringify(
       {
-        adaptateur: result.adaptateur ?? null,
+        adapter: result.adapter ?? null,
         passes: result.passes,
-        erreurs: result.erreurs,
+        errors: result.errors,
       },
       null,
       2,

@@ -31,7 +31,7 @@ import {
   stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 
-/** What `ressourcesAvant` reads of the bench's packed scene: the same fields the shipped
+/** What `resourcesBefore` reads of the bench's packed scene: the same fields the shipped
  *  `createDagResources` reads, before the batch renamed and reshaped a few of them. */
 interface PackedBefore {
   pageCount: number;
@@ -62,7 +62,7 @@ const KERNELS_BEFORE = [
 const wholeRange = (worldCount: number) => new Uint32Array([0, worldCount, 0, 0]);
 
 /** Buffers, steps and offsets of the previous cut, mounted on the bench's `packed`. */
-export function ressourcesAvant(
+export function resourcesBefore(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
@@ -142,9 +142,9 @@ export function ressourcesAvant(
 }
 
 /** Encoding of a frame as `packages/sdk-browser/src/gpu/dag/encode.ts` wrote it at `develop`, resident cut. */
-export function encodeAvant(
+export function encodeBefore(
   encoder: GPUCommandEncoder,
-  r: ReturnType<typeof ressourcesAvant>,
+  r: ReturnType<typeof resourcesBefore>,
   depth = r.levelCount,
 ) {
   const { bindGroup, dispatchArgs, work, zeros, kernels, levels } = r;
