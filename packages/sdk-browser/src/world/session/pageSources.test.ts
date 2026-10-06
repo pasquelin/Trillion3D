@@ -1,9 +1,9 @@
 // The scene a session draws is read through the queue the session opened first: what it streams is
-// catalogued and bound there, and a scene that fails to load leaves no queue behind.
+// catalogued and bound there, and a preparation that fails at any step leaves no queue behind.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageQueue, StreamPage } from '../../streaming/types.ts'
-import { sceneThrough } from './pageSources.ts'
+import { ownedUntilReady, sceneThrough } from './pageSources.ts'
 
 /** A queue that records what it is told. */
 function queue() {
@@ -18,12 +18,14 @@ function queue() {
   return { port, told }
 }
 
-test('a scene that fails to load closes the queue it was to be read through', async () => {
+test('a preparation that fails at any step after the queue opened closes it; a ready one keeps it', async () => {
   const { port, told } = queue()
-  const refused = sceneThrough(port, undefined, async () => {
-    throw new Error('tables refused')
+  const failing = ownedUntilReady(port, async () => {
+    await sceneThrough(port, undefined, async () => ({ partitions: [], readers: [] }))
+    throw new Error('engines refused') // a step after the scene loaded
   })
-  await assert.rejects(refused, /tables refused/)
+  await assert.rejects(failing, /engines refused/)
+  assert.equal(await ownedUntilReady(port, async () => 'ready'), 'ready')
   assert.equal(told.disposed, 1)
 })
 

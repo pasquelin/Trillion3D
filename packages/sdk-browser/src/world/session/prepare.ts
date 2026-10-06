@@ -10,7 +10,7 @@ import { directWebgpu } from './interactiveOptions.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerBackends } from './backends.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
-import { createExplorerPageSources, sceneThrough } from './pageSources.ts'
+import { createExplorerPageSources, ownedUntilReady, sceneThrough } from './pageSources.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts'
@@ -98,102 +98,102 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
   )
-  const loadedScene = await sceneThrough(pageSources.streamer, inputs.scene, () =>
-    loadPreparedScene(
-      { ...options, textureSource },
-      metadata,
+  // The queue is this preparation's until the session takes it: any step that fails closes it.
+  return ownedUntilReady(pageSources.streamer, async () => {
+    const loadedScene = await sceneThrough(pageSources.streamer, inputs.scene, () =>
+      loadPreparedScene(
+        { ...options, textureSource },
+        metadata,
+        sceneFile,
+        base,
+        scope,
+        autonomous,
+        signal,
+        diagnose,
+        (source) => {
+          resources.source = source
+        },
+      ),
+    )
+    const source = (resources.source = loadedScene.source)
+    // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
+    for (const { pinned, bytes } of loadedScene.worldRoots)
+      diagnose('world-top', 'World top pinned', {
+        ...{ kind: 'preparation', scope, pinnedBundles: pinned.bundles, pinnedBytes: pinned.bytes },
+        heldBytes: bytes() - pinned.bytes,
+      })
+    if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source))
+    const directGpu = directWebgpu(options, choice.factories, gpuDevice)
+    await configureExplorer(session, {
+      choice,
+      directGpu,
+      manifestUrl,
+      metadataUrl,
       sceneFile,
       base,
-      scope,
+      source,
+      pageSources,
+      resources,
+    })
+    // Framing replays the buffer reserved at load, then returns it: it is its last reader.
+    const cameraState = createExplorerCamera(
+      source,
       autonomous,
-      signal,
-      diagnose,
-      (source) => {
-        resources.source = source
-      },
-    ),
-  )
-  const source = (resources.source = loadedScene.source)
-  // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
-  for (const { pinned, bytes } of loadedScene.worldRoots)
-    diagnose('world-top', 'World top pinned', {
-      kind: 'preparation',
-      scope,
-      pinnedBundles: pinned.bundles,
-      pinnedBytes: pinned.bytes,
-      heldBytes: bytes() - pinned.bytes,
-    })
-  if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source))
-  const directGpu = directWebgpu(options, choice.factories, gpuDevice)
-  await configureExplorer(session, {
-    choice,
-    directGpu,
-    manifestUrl,
-    metadataUrl,
-    sceneFile,
-    base,
-    source,
-    pageSources,
-    resources,
-  })
-  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(
-    source,
-    autonomous,
-    loadedScene.associations,
-    metadata,
-    canvas,
-    options,
-    loadedScene.framingLot,
-  )
-  loadedScene.framingLot?.release()
-  inputs.placeCamera?.(cameraState.camera)
-  // The pages and cells the first camera reaches are placed before the engines read their rows:
-  // the first frame draws them (`partitionFrame.ts`). That camera is the page's when it hands
-  // one in (a world), else the framing one, which sees the whole scene.
-  if (loadedScene.partitions.length) {
-    const bytes = await primePartitions(
-      loadedScene.partitions,
-      cameraState.camera,
-      pageSources.streamer,
-      !!options.onPartitionOutgrown,
-      signal,
+      loadedScene.associations,
+      metadata,
+      canvas,
+      options,
+      loadedScene.framingLot,
     )
-    diagnose('partition', 'Pages and cells read before the first frame', {
-      kind: 'preparation',
-      scope,
-      bytes,
-      cells: loadedScene.partitions.map((cells) => cells.stats()),
+    loadedScene.framingLot?.release()
+    inputs.placeCamera?.(cameraState.camera)
+    // The pages and cells the first camera reaches are placed before the engines read their rows:
+    // the first frame draws them (`partitionFrame.ts`). That camera is the page's when it hands
+    // one in (a world), else the framing one, which sees the whole scene.
+    if (loadedScene.partitions.length) {
+      const bytes = await primePartitions(
+        loadedScene.partitions,
+        cameraState.camera,
+        pageSources.streamer,
+        !!options.onPartitionOutgrown,
+        signal,
+      )
+      diagnose('partition', 'Pages and cells read before the first frame', {
+        kind: 'preparation',
+        scope,
+        bytes,
+        cells: loadedScene.partitions.map((cells) => cells.stats()),
+      })
+    }
+    // The frame's one integration budget: cells, arrivals, then the engine's row records.
+    const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
+    await renderers // the engines are built once their renderer has arrived
+    const { viewport, context } = await prepareExplorerBackends(session, {
+      source,
+      sceneLightingSource: loadedScene.sceneLightingSource,
+      associations: loadedScene.associations,
+      textureIndices: loadedScene.textureIndices,
+      pageSources,
+      gpuDevice,
+      webglContext: resources.webglSurface?.context,
+      directGpu,
+      factories: choice.factories,
+      backends,
+      base,
+      frameBudget,
+      worldRoots: loadedScene.worldRoots,
     })
-  }
-  // The frame's one integration budget: cells, arrivals, then the engine's row records.
-  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
-  await renderers // the engines are built once their renderer has arrived
-  const { viewport, context } = await prepareExplorerBackends(session, {
-    source,
-    sceneLightingSource: loadedScene.sceneLightingSource,
-    associations: loadedScene.associations,
-    textureIndices: loadedScene.textureIndices,
-    pageSources,
-    gpuDevice,
-    webglContext: resources.webglSurface?.context,
-    directGpu,
-    factories: choice.factories,
-    backends,
-    base,
-    frameBudget,
-    worldRoots: loadedScene.worldRoots,
+    await families
+    return {
+      source,
+      partitions: loadedScene.partitions,
+      pageSources,
+      capabilities,
+      directGpu,
+      viewport,
+      context,
+      frameBudget,
+      ...cameraState,
+    }
   })
-  await families
-  return {
-    source,
-    partitions: loadedScene.partitions,
-    pageSources,
-    capabilities,
-    directGpu,
-    viewport,
-    context,
-    frameBudget,
-    ...cameraState,
-  }
 }

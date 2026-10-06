@@ -57,22 +57,6 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)))
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
-  const turns = failedReads(diagnosticChannel)
-  const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
-    cache: options.pageCache,
-    signal,
-    workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-    maxPages: cacheCap,
-    onEvict: (url) => {
-      for (const b of backends) b.dropPage?.(url)
-    },
-    maxTransferBytes: options.maxPageTransferBytes,
-    onDiagnostic:
-      diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
-        ? diagnosticChannel.emit
-        : undefined,
-    ...{ onTurn: turns.onTurn, onStalled: turns.onStalled },
-  })
   let loaded = 0,
     pageBytesRead = 0
   const indices = new Map<string, Uint32Array>()
@@ -89,6 +73,23 @@ export async function createExplorerPageSources(
     loaded = all.loaded
     pageBytesRead = all.pageBytesRead
   } else progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
+  const turns = failedReads(diagnosticChannel)
+  // The queue comes last: no wait after it leaves it unowned till the preparation takes it.
+  const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
+    cache: options.pageCache,
+    signal,
+    workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
+    maxPages: cacheCap,
+    onEvict: (url) => {
+      for (const b of backends) b.dropPage?.(url)
+    },
+    maxTransferBytes: options.maxPageTransferBytes,
+    onDiagnostic:
+      diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
+        ? diagnosticChannel.emit
+        : undefined,
+    ...{ onTurn: turns.onTurn, onStalled: turns.onStalled },
+  })
   return {
     pages,
     geometryPages,
@@ -105,21 +106,26 @@ export async function createExplorerPageSources(
   }
 }
 
+/** `prepare`, run while it owns `streamer`, the session's queue: a preparation that fails at any
+ *  step, or is aborted, closes it; one that succeeds hands it to the session. */
+export async function ownedUntilReady<T>(streamer: { dispose(): void }, prepare: () => Promise<T>) {
+  try {
+    return await prepare()
+  } catch (error) {
+    streamer.dispose()
+    throw error
+  }
+}
+
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
  *  its partitions' index pages catalogued, and its readers — world roots, a lazy manifest's mesh
- *  pages — bound to the queue. A load that fails closes the queue: none of it outlives the
- *  session. */
+ *  pages — bound to the queue. */
 export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'readers'>>(
-  streamer: PageQueue & { dispose(): void },
+  streamer: PageQueue,
   given: T | undefined,
   load: () => Promise<T>,
 ) {
-  const scene =
-    given ??
-    (await load().catch((error: unknown) => {
-      streamer.dispose()
-      throw error
-    }))
+  const scene = given ?? (await load())
   streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
   for (const reader of scene.readers) reader.bind(streamer)
   return scene
