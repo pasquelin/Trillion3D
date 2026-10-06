@@ -489,8 +489,8 @@ selects the common declarations, which lack `createWorld`.
 ```
 
 A browser host installs `trillion3d` and, for its types, `@webgpu/types`; nothing else: the
-package ships no rendering library (`tests/integration/installed-package.test.ts`), and `three` is a
-development dependency of this repository alone, for the bench's witnesses (`bench/witnesses/`).
+package ships no rendering library (`tests/integration/installed-package.test.ts`); the bench's
+witness library is a development dependency of this repository alone (`bench/witnesses/`).
 
 A Node TypeScript host uses `"module": "NodeNext"`, `"moduleResolution": "NodeNext"` and
 `"types": ["node"]`; NodeNext then selects the Node declarations from the same specifier.
