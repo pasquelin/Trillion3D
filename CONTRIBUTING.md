@@ -13,6 +13,15 @@
   measurement or comparison table.
 - **Parity**: fixed memory and millisecond budgets, residency driven by what the frame reads,
   compression at cook time, no work in a still scene.
+- **The engine is the product.** Examples demonstrate it and are never a target: a change is judged
+  on generated scenes and on any machine, never on an example passing.
+- **Work follows what is seen.** Every per-frame cost (CPU, GPU, memory, streaming) is bounded by
+  the view: 200 m seen cost the same on a 1 km or a 50 km map. Detail follows pixels: a model of
+  17 000 triangles covering one pixel draws a few. Per-frame work runs on the GPU; the CPU reacts
+  to changes.
+- **Design before code.** An engine change states its cost as a formula (what grows with the
+  world, the visible objects and the pixels, against the hardware's minimum) and an absolute
+  target, and proves it by a law on generated scenes, never by one example or one machine.
 
 ## Measure before optimising
 
@@ -50,7 +59,7 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
 4. **One mechanism per concern**; what a change replaces is deleted in the same pull request.
 5. **Fixed budgets, never read from the machine**; out of memory is one level coarser, never a
    crash; a lost device is rebuilt without a reload.
-6. **Bounded by the view**, not by the world's size.
+6. **Bounded by the view**, not by the world's size ("Work follows what is seen").
 7. **Main thread bounded**: decoding, parsing and IO in workers.
 8. **WebGL2 is degraded, never broken**.
 9. **Proven by a test of the invariant**, on two scenes, one an open world.

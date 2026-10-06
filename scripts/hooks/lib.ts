@@ -24,7 +24,12 @@ export const git = (...args: string[]): string =>
  */
 export function gate(command: string, args: string[], env: Record<string, string> = {}): void {
   if (!existsSync(args[0])) return
-  const run = spawnSync(command, args, { stdio: 'inherit', env: { ...process.env, ...env } })
+  // Git hands its hooks `GIT_DIR`, `GIT_INDEX_FILE` and the like: a test that makes a repository of
+  // its own must not inherit them, or its git commands act on this one.
+  const own = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
+  )
+  const run = spawnSync(command, args, { stdio: 'inherit', env: { ...own, ...env } })
   if (run.status !== 0) refuse(`${args[0]} failed: fix it before this command goes through.`)
 }
 

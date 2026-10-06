@@ -11,6 +11,10 @@ labels: ''
 
 -
 
+## Cost and target
+
+<!-- Engine or performance work: the cost as a formula (what grows with the world, the visible objects and the pixels, against the hardware's minimum) and an absolute target number. Docs and tooling: none. -->
+
 ## Code context
 
 - `path/to/file.ts:line` — what exists and is reused

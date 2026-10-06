@@ -1,5 +1,11 @@
 # Trillion3D — agent rules
 
+**The goal:** an open-world engine on the web: geometry whose detail follows the pixels, a world
+streamed and computed only where it is seen, dynamic light and shadows, the work on the GPU, a
+perfect image at high frame rates on any machine and scene, faster and finer than the witness
+library the bench compares with. The engine is the product; an example only shows it, and an
+example working is never the goal (CONTRIBUTING.md "The mission").
+
 [CONTRIBUTING.md](CONTRIBUTING.md) wins over this file; read only the sections your change touches.
 One session carries one issue alone (CONTRIBUTING.md "Contribution workflow"); a session started
 with a skill follows it. Speak to the boss in short, simple French; the repository is English.

@@ -9,7 +9,8 @@ Write the issue for: **$ARGUMENTS**.
 1. Search first (`gh issue list --state all --search …`): an open issue that covers it gets a To-do
    item instead.
 2. One subject, on `.github/ISSUE_TEMPLATE/task.md`: **Why**, **To do**
-   (what, never how), **Code context** (`path:line` to reuse), **Proof** (one item per line, each
+   (what, never how), **Cost and target** (engine work: the cost formula and an absolute number),
+   **Code context** (`path:line` to reuse), **Proof** (one item per line, each
    with a distinct start: the pull request quotes it and the CI checks it), **Links**.
 3. Title: the outcome ("Shadows stay stable while the camera moves"). One domain label, one priority
    label.
