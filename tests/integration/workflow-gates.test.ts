@@ -81,15 +81,16 @@ test('the gates of the checkout hold a commit and a push: format-staged, then ch
   assert.match(commit(work, 'unformatted').stderr, /scripts\/format-staged\.ts failed/)
   gate('format-staged.ts', '')
   assert.equal(commit(work, 'formatted').status, 0)
-  // The push is checked against origin/develop, the base the CI's pull request merges into.
+  // The push is checked against origin/develop, the base the CI's pull request merges into, by
+  // every gate but the tests, which stay the CI's.
   gate(
     'check-changed.ts',
     "import { writeFileSync } from 'node:fs'\n" +
-      "writeFileSync('base.log', process.env.TRILLION3D_BASE_REF ?? '')\n" +
+      "writeFileSync('base.log', [process.env.TRILLION3D_BASE_REF, ...process.argv.slice(2)].join(' '))\n" +
       'process.exit(1)\n',
   )
   assert.match(git(work, 'push', '-q', 'origin', '12-thing').stderr, /check-changed\.ts failed/)
-  assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop')
+  assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop --no-tests')
   gate('check-changed.ts', '')
   assert.equal(git(work, 'push', '-q', 'origin', '12-thing').status, 0)
 })

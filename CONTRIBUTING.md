@@ -70,6 +70,7 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
 
 - Code first, one final test pass, one test per changed behaviour. No dead code (a file or export
   only tests use is dead), no compatibility with abandoned formats, no claim of an unbuilt feature.
+- The pre-commit hook formats the staged files; the pre-push hook runs `check:changed --no-tests`.
 - `pnpm run check:changed` is the one local gate (changed-file format, lint, types, lines,
   duplicates, and the unit tests the change can affect); the CI runs all of `validate`.
 - Everything in English. Tests, scripts, site, bench and Rust: 200 lines a file at most; runtime

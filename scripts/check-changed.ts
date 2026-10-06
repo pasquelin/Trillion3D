@@ -21,7 +21,8 @@ import { runUnitTests } from './unit-tests.ts'
 
 // `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
 // the unit tests the change can affect (`scripts/affected-tests.ts`), capped and run one heavy step
-// at a time on the machine. The whole `validate` is the CI's.
+// at a time on the machine. The whole `validate` is the CI's. `--no-tests` runs the gates alone,
+// without the scene caches and the tests: the pre-push hook's check.
 
 export function existingChangedFiles(changed: Iterable<string>, root = process.cwd()): string[] {
   const maintained = new Set(repositoryFiles(root))
@@ -44,12 +45,15 @@ async function main(): Promise<void> {
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   )
   // A documentation change also runs the tests that read documentation (`scripts/docs/tests.ts`).
-  const testFiles = [
-    ...new Set([
-      ...relatedTests(files, changed),
-      ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
-    ]),
-  ]
+  const withTests = !process.argv.includes('--no-tests')
+  const testFiles = !withTests
+    ? []
+    : [
+        ...new Set([
+          ...relatedTests(files, changed),
+          ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
+        ]),
+      ]
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`)
   const linted = existing.filter((file) => sourcePattern.test(file))
   for (const step of changedSteps([...changed], existing, testFiles.length))
@@ -59,7 +63,7 @@ async function main(): Promise<void> {
         await generateApiFiles()
         break
       case 'compile:caches':
-        compileSiteCaches(false, TEST_SCENES)
+        if (withTests) compileSiteCaches(false, TEST_SCENES)
         break
       case 'check:lines':
         run('node', ['scripts/check-file-lines.ts', '--changed'])

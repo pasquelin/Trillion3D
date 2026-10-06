@@ -94,12 +94,12 @@ test('the frame opens the marking pass: the dirty flags cleared before it, the a
   )
   const at = (text: string) => encode.indexOf(text)
   const order = [
-    'encoder.clearBuffer(res.rasterMarks);',
-    'const marking = encoder.beginComputePass(MARKING_PASS);',
-    'encodeVsmPageCarry(marking, res, pmFrame);',
-    'vsm.marking.encode(marking, markingFrame);',
-    'marking.end();',
-    'encodeVsmPageMapping(encoder, res, pmFrame);',
+    'encoder.clearBuffer(res.rasterMarks)',
+    'const marking = encoder.beginComputePass(MARKING_PASS)',
+    'encodeVsmPageCarry(marking, res, pmFrame)',
+    'vsm.marking.encode(marking, markingFrame)',
+    'marking.end()',
+    'encodeVsmPageMapping(encoder, res, pmFrame)',
   ].map(at)
   assert.ok(
     order.every((k, i) => k > 0 && (i === 0 || k > order[i - 1])),

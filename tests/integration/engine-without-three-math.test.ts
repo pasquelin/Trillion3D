@@ -80,17 +80,17 @@ const CALCULS = [
 /** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE: Record<string, Record<string, string>> = {
   'host/world/matrices.ts': {
-    'node.updateMatrixWorld(true);':
+    'node.updateMatrixWorld(true)':
       'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
   },
   'world/camera/camera.ts': {
-    'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
+    'camera.updateMatrixWorld()': 'the host SETS its camera; the written pose is resolved once',
   },
   'world/render/hostState.ts': {
-    'camera.updateMatrixWorld();': 'the host restores a recorded pose into its camera',
+    'camera.updateMatrixWorld()': 'the host restores a recorded pose into its camera',
   },
   'world/api/viewportApi.ts': {
-    'view.updateMatrixWorld();': 'the capture view is a host camera, set then resolved',
+    'view.updateMatrixWorld()': 'the capture view is a host camera, set then resolved',
   },
 }
 
