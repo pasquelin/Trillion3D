@@ -67,7 +67,9 @@ const worldOf = (chain: Level[]) => {
   for (const level of chain.slice(1)) {
     const local = new Float64Array(16);
     composeMatrix4(local, level.position, level.rotation, level.scale);
-    world = multiplyMatrix4(new Float64Array(16), world, local);
+    const product = new Float64Array(16);
+    multiplyMatrix4(product, world, local);
+    world = product;
   }
   return world;
 };
