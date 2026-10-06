@@ -29,18 +29,16 @@ import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 export const BLUR_TAP_WGSL = `  blur+=y.x*vec3f(f32((2-abs(dx))*(2-abs(dy))),f32(dx*(2-abs(dy))),f32(dy*(2-abs(dx))));
 `
 
-/** How a resolve reads a render texel `at`: the colour, the as-is weight (a blended share's value,
- *  or whether the flags say as-is) and the identifier. */
+/** How a resolve reads a render texel `at`: the colour and the as-is weight (a blended share's
+ *  value, or whether the flags say as-is). */
 export interface TexelReads {
   color: (at: string) => string
   flag: (at: string) => string
-  id: (at: string) => string
 }
 export const texelReads = (blended: boolean): TexelReads => ({
   color: (at) => `textureLoad(current,${at},0)`,
   flag: (at) =>
     blended ? `textureLoad(flags,${at},0).r` : `f32(textureLoad(flags,${at},0).r==${AS_IS_FLAG}u)`,
-  id: (at) => `textureLoad(ids,${at},0).r`,
 })
 
 /**
@@ -117,8 +115,8 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerWgsl(f
   lo=min(lo,y);hi=max(hi,y);
 ${BLUR_TAP_WGSL}${taaShareTap(asIs, read)}${layer.layerWgsl(filtered, 'tap')} }}
  let centre=coord;let reach=1.0;
- let closest=closestSurface(coord,last);let near=vec2i(closest.xy);let nearDepth=closest.z;let depthSlack=closest.w;
- let id=${read.id('near')};let page=pageOf(id);let geometry=vec2u(page.identity,bitcast<u32>(nearDepth));
+ let closest=closestSurface(coord,last);let nearDepth=closest.depth;let depthSlack=closest.slope;
+ let id=closest.id;let page=pageOf(id);let geometry=vec2u(page.identity,bitcast<u32>(nearDepth));
 ${MEASURES_WGSL}
  if(view.params.y==0.0){return ${layer.taaOut(asIs, filtered)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,id);let previous=previousProjected(before);
