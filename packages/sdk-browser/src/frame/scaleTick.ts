@@ -36,9 +36,12 @@ export interface DrawnImage {
 }
 
 /** An interval after a held frame, nothing drawn in it, is no work's: `SUPPORT` of them in a row
- *  that agree are a group the clock reads the display's period from. */
-function readHeldInterval(w: ScaleWindow, gap: number) {
-  const free = w.holding && !w.fresh,
+ *  that agree are a group the clock reads the display's period from. The interval is read from
+ *  the clock, never passed: a fractional number an optimised call passes is a new object each
+ *  frame. */
+function readHeldInterval(w: ScaleWindow, refresh: ScaleParts['refresh']) {
+  const gap = refresh.gap,
+    free = w.holding && !w.fresh,
     agrees = Math.abs(gap - w.heldGap) <= GRID_TOLERANCE * w.heldGap
   w.agreeing = !free ? 0 : agrees ? w.agreeing + 1 : 1
   w.heldGap = free ? gap : Number.NaN
@@ -48,8 +51,9 @@ function readHeldInterval(w: ScaleWindow, gap: number) {
 
 /** The window's verdict, `PERIOD` frames after the last move: two misses lower `hi`, a second with
  *  one at most raises `lo`, either chooses the next trial; else the scale follows the scene's cost. */
-function settleWindow(w: ScaleWindow, period: number, still: boolean) {
-  const cost = fittedCost(w)
+function settleWindow(w: ScaleWindow, refresh: ScaleParts['refresh'], still: boolean) {
+  const period = refresh.display,
+    cost = fittedCost(w)
   if (w.misses > 1) {
     if (w.count < 2) return
     if (cost > w.lo) w.hi = Math.min(w.hi, cost)
@@ -66,8 +70,9 @@ function settleWindow(w: ScaleWindow, period: number, still: boolean) {
 
 /** A display frame of the auto controller began, `gap` ms after the last: the image drawn before it
  *  (`fresh`) is measured, and the window judged once `PERIOD` frames passed. */
-function judgeFrame(p: ScaleParts, image: DrawnImage, fresh: boolean, gap: number) {
+function judgeFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
   const { w, refresh } = p,
+    gap = refresh.gap,
     period = refresh.display
   if (refresh.settled && !(Math.abs(period - w.at) <= GRID_TOLERANCE * w.at)) {
     w.at = period
@@ -83,7 +88,7 @@ function judgeFrame(p: ScaleParts, image: DrawnImage, fresh: boolean, gap: numbe
     if (Math.round(gap / period) > 1 && w.misses++ === 0) clearCosts(w)
   }
   if (++w.frames <= PERIOD || w.count === 0) return
-  settleWindow(w, period, image.still)
+  settleWindow(w, refresh, image.still)
 }
 
 /**
@@ -103,7 +108,7 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
   }
   refresh.tick(now)
   const gap = refresh.gap
-  if (gap > 0) readHeldInterval(w, gap)
+  if (gap > 0) readHeldInterval(w, refresh)
   if (moved) {
     w.timed = gpu
     forgetThreshold(w, refresh.display)
@@ -116,5 +121,5 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
   const fresh = w.fresh
   w.fresh = false
   // A display frame began: another call in the same frame (gap 0) counts none.
-  if (w.bounds.auto) judgeFrame(p, image, fresh, gap)
+  if (w.bounds.auto) judgeFrame(p, image, fresh)
 }
