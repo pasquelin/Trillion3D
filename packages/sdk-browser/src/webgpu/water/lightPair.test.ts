@@ -13,7 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
+import { shadedLightScope } from '../blend/shadedLightScope.fixture.ts';
 import { waterCompositeShader } from './compositeWgsl.ts';
 
 type Sum = (...args: unknown[]) => number[];
@@ -43,24 +43,9 @@ test('one walk of the lights gives the two sums of two walks, bit for bit', () =
         shape: [0, 0, 0, 0],
       };
     });
-    const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
-      ln = Math.hypot(...n) || 1;
-    const N = n.map((v) => v / ln),
-      V = [0.6, 0.8, 0];
-    const shades = items.map(() => (r() < 0.25 ? 0 : u(0, 1)));
-    const scope = {
-      ...K,
-      directLights: { count, items },
-      tileLights: [7, 7, ...[...Array(count).keys()].filter(() => r() < 0.7)],
-      thinSubsurface: r() < 0.5 ? [0, 0, 0] : [u(0, 1), u(0, 1), u(0, 1)],
-      surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
-      shadowReceiverOffset: [0, 0, 0],
-      shadowReceiverPlane: [0, 0, 0],
-      shadowBiasNormal: (normal: number[]) => normal,
-      shadowTransmission: [0.9, 0.7, 0.5],
-      // The read is the light's: the same value however many walks ask it.
-      shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
-    };
+    const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round);
+    const V = [0.6, 0.8, 0];
+    const scope = { ...shared, shadowTransmission: [0.9, 0.7, 0.5] };
     const { sliceLightingPair } = shaderRun<{ sliceLightingPair: Pair }>(
       WATER,
       ['sliceLightingPair', 'declaredLightPair', ...SHARED, ...SHADING],
