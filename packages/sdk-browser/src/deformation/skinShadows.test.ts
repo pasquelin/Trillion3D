@@ -5,11 +5,10 @@ import { deformedOf } from './source.ts';
 import { recordLayout } from './layout.ts';
 import { updateWebgpuDeformation } from './webgpuFrame.ts';
 import { counted } from './skinPalettes.fixture.ts';
-import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts';
+import { deformationRuntime } from './deformationRuntime.fixture.ts';
 import { PALETTE_FLOATS, Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 
@@ -30,36 +29,18 @@ test('a still rig turned static, its palette held, stales its shadows the frame 
     count = counted(mesh.skeleton);
   const rec = { min: [-1, -1, -1], max: [1, 2, 1] } as unknown as PageRec;
   const box = () => new Float64Array([-1, -1, -1, 1, 2, 1]);
-  const lights = createWebgpuLightState();
-  lights.mobility.ensure(1, 2, () => world.elements);
-  const staled: number[][] = [];
-  Object.assign(lights.changes, {
-    worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>) =>
-      staled.push([...Array.from(min), ...Array.from(max)]),
-  });
-  const rt = {
-    vis: {
-      deformation: { any: true, frame, base: 0, update: () => frame.update(() => false) },
-      concatPos: {},
+  const { rt, changed: staled } = deformationRuntime(
+    world,
+    frame,
+    [{ world, pages: [rec], reach: 0, packedBase: 0, localBox: box(), worldBox: box() }],
+    {
+      pageTableFloats: new Float32Array(64),
+      packedCount: 1,
+      rowOfPage: [0],
+      packedPageIndex: [0],
+      markRowWords() {},
     },
-    gpu: { device: { queue: { writeBuffer() {} } } },
-    lights,
-    layout: {
-      selectionRoots: [
-        { world, pages: [rec], reach: 0, packedBase: 0, localBox: box(), worldBox: box() },
-      ],
-      rows: {
-        pageTableFloats: new Float32Array(64),
-        packedCount: 1,
-        rowOfPage: [0],
-        packedPageIndex: [0],
-        markRowWords() {},
-      },
-    },
-    run: { gate: { pixelError: 0 }, temporalHizState: {} },
-    setup: {},
-    blendState: { blendGpu: [] },
-  } as unknown as WebgpuPagesRuntime;
+  );
   const camera = { projection: world.elements } as EngineCamera;
   const at = recordLayout(placed.shape).palette + PALETTE_FLOATS;
   updateWebgpuDeformation(rt, camera);

@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeformationFrame } from './frame.ts';
+import { deformationRuntime } from './deformationRuntime.fixture.ts';
 import { deformedOf } from './source.ts';
 import { updateWebgpuDeformation } from './webgpuFrame.ts';
 import { growClusterBox } from '../webgpu/shadow/bounds.ts';
 import { packClusterSpheres } from '../webgpu/shadow/spheres.ts';
-import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 
@@ -31,37 +30,14 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
     localBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
     worldBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
   };
-  const lights = createWebgpuLightState();
-  lights.mobility.ensure(1, 2, () => world.elements);
-  const dirty: number[] = [],
-    changed: number[][] = [];
-  Object.assign(lights.changes, {
-    worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>) => {
-      changed.push([...Array.from(min), ...Array.from(max)]);
-    },
+  const dirty: number[] = [];
+  const { rt, changed } = deformationRuntime(world, frame, [root], {
+    pageTableFloats: new Float32Array(64),
+    packedCount: 2,
+    rowOfPage: [0],
+    packedPageIndex: [0, 1],
+    markRowWords: (row: number) => dirty.push(row),
   });
-  const rt = {
-    // A zero pixel error skips no placement (`screen.ts`).
-    vis: {
-      deformation: { any: true, frame, base: 0, update: () => frame.update(() => false) },
-      concatPos: {},
-    },
-    gpu: { device: { queue: { writeBuffer() {} } } },
-    lights,
-    layout: {
-      selectionRoots: [root],
-      rows: {
-        pageTableFloats: new Float32Array(64),
-        packedCount: 2,
-        rowOfPage: [0],
-        packedPageIndex: [0, 1],
-        markRowWords: (row: number) => dirty.push(row),
-      },
-    },
-    run: { gate: { pixelError: 0 }, temporalHizState: {} },
-    setup: {},
-    blendState: { blendGpu: [] },
-  } as unknown as WebgpuPagesRuntime;
   const camera = { projection: world.elements } as EngineCamera;
   updateWebgpuDeformation(rt, camera);
   assert.equal(frame.moving[0], 0, 'first upload does not invent TAA velocity');
