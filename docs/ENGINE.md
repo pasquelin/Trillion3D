@@ -646,7 +646,7 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   sends the view, posts the frame's commands in one message, then the steps the frame owes. The
   frame's time is set at its start, before the controller (`worldFrames.ts`), one step behind what
   the frame before asked, and everything the physics draws is drawn at it by one mechanism
-  (`twoSteps.ts`): a body's pose (`trajectory/poses.ts`), a vehicle's wheels, a soft body's vertices, the
+  (`twoSteps.ts`): a body's pose (`bench/runner/trajectory/poses.ts`), a vehicle's wheels, a soft body's vertices, the
   character's feet, each between its states of the two steps that bracket that time, at the one
   fraction of a step the session reads (`stepClock.ts` `along`) — places on the line between
   them, turns on the arc —, the same frames drawing the same image whenever the ticks came. A
