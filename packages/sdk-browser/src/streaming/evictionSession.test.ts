@@ -1,4 +1,4 @@
-// A session's evictions through the cache's eviction order (`cache.ts`, `evictionOrder.ts`): the
+// A session's evictions through the cache's eviction order (`cache.ts`, `cacheEvictionOrder.ts`): the
 // pages develop's walk (`evictOldest` over the cache's `Map`, past the session's pins) evicted.
 import test from 'node:test';
 import assert from 'node:assert/strict';

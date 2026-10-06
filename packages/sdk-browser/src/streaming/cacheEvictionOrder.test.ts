@@ -1,8 +1,8 @@
-// The page cache's eviction order (`evictionOrder.ts`): the victims `evictOldest` takes, without
+// The page cache's eviction order (`cacheEvictionOrder.ts`): the victims `evictOldest` takes, without
 // ever looking at a held page, and the held bytes as a running total.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEvictionOrder } from './evictionOrder.ts';
+import { createEvictionOrder } from './cacheEvictionOrder.ts';
 import { evictOldest } from './evictOldest.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 

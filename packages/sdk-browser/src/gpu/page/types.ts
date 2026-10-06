@@ -1,5 +1,5 @@
 import type { createGpuPageReader } from './reader.ts';
-import { type EvictionOrder } from './evictionOrder.ts';
+import { type EvictionOrder } from './slotEvictionOrder.ts';
 import type { PageHomes } from './homes.ts';
 
 /** One page held in the GPU page pool. */
