@@ -15,7 +15,7 @@ export type Pose = [Vec3, Quat, Vec3];
  * `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`. `add` (parent, position, quaternion,
  * scale, camera or none), `pose` (position, quaternion, scale, each or `null`), `local` (posed
  * local matrix), `auto` (`matrixAutoUpdate`), `rattache` (new parent, `-1` to detach), `retire`
- * (the node and its descendants, listed), `maj` (`updateMatrixWorld(force)`), `majMonde`
+ * (the node and its descendants, listed), `maj` (`updateMatrixWorld(force)`), `updateWorld`
  * (`updateWorldMatrix(parents, children)`), `vise` (`lookAt` with an up), `objectif` (new camera
  * settings), `lis` (world reads of a node), `image` (view, view-projection and planes of a
  * camera), `instantane` (world matrices of all live nodes).
@@ -28,7 +28,7 @@ export type HierarchyOp =
   | ['rattache', number, number]
   | ['retire', number, number[]]
   | ['maj', number, boolean]
-  | ['majMonde', number, boolean, boolean]
+  | ['updateWorld', number, boolean, boolean]
   | ['vise', number, Vec3, Vec3]
   | ['objectif', number, CameraSpec]
   | ['lis', number]

@@ -1,7 +1,7 @@
 // Statistics, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os';
 import { summarize } from '../../../packages/sdk-core/src/index.ts';
-import { cheminsCalcul } from './summaryCompute.ts';
+import { computePaths } from './summaryCompute.ts';
 import { p50p95, passes, type Distribution } from './summaryPasses.ts';
 import { textures } from './summaryTextures.ts';
 import { memoire } from './summaryMemory.ts';
@@ -82,12 +82,12 @@ const compteurs = (counts: Readonly<Record<string, number>> | undefined) =>
     .join(', ');
 
 /** Per-stage breakdown of a series: one line per stage, CPU and GPU separated. */
-function etapes(report: Report) {
+function steps(report: Report) {
   const lines: string[] = [];
   for (const series of report.series)
-    for (const [side, resultat] of Object.entries(series.sides)) {
+    for (const [side, result] of Object.entries(series.sides)) {
       const titre = `### ${series.view} · e${series.pixelError} · ${side}`;
-      const profile = resultat.stageProfile;
+      const profile = result.stageProfile;
       if (!profile || !profile.enabled) {
         lines.push(`${titre} : per-stage profile absent`, '');
         continue;
@@ -112,8 +112,8 @@ function etapes(report: Report) {
             `| ${compteurs(stage.counts)} |`,
         ),
         '',
-        ...passes(resultat.passesGpu),
-        ...textures(resultat.metrics, resultat),
+        ...passes(result.passesGpu),
+        ...textures(result.metrics, result),
       );
     }
   return lines;
@@ -142,13 +142,13 @@ export function resume(report: Report) {
     'The two columns are never added: the CPU and the GPU work',
     'at the same time. "unmeasured" is not zero.',
     '',
-    ...etapes(report),
+    ...steps(report),
     '## Batch compute path',
     '',
     'The published path is the one the governor chose by measurement, operation by operation:',
     'no threshold is written in the code, and "unmeasured" is not zero.',
     '',
-    ...cheminsCalcul(report),
+    ...computePaths(report),
     '',
     '## GPU memory',
     '',

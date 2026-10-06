@@ -37,7 +37,7 @@ test('the budget follows what the pose holds, whatever the scene', () => {
 });
 
 test('the summary says what the live texture pool asked, held, evicted and cost', () => {
-  const reglage = {
+  const setting = {
     texturePool: {
       budgetBytes: 29_612_096,
       allocatedBytes: 50_331_648,
@@ -50,16 +50,16 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
     texturePoolAskedBytes: 29_612_096,
     residentTextureBytes: 59_224_192,
   } as unknown as NonNullable<Parameters<typeof textures>[1]>['liveTuning'];
-  const liveLine = (report?: typeof reglage) =>
+  const liveLine = (report?: typeof setting) =>
     textures({}, { liveTuning: report }).find((l) => l.includes('set live'));
-  const line = liveLine(reglage);
+  const line = liveLine(setting);
   assert.equal(
     line,
     '- Texture pool set live: 29.6 MB (28.24 MiB) asked (from 59.2 MB resident), 50.3 MB held (minimum); ' +
       '212 tiles evicted in 3.46 ms, pose held again after 9 frames',
   );
   assert.equal(liveLine(), undefined, 'nothing set, nothing said');
-  const geometryOnly = { ...reglage, texturePoolAskedBytes: undefined } as typeof reglage;
+  const geometryOnly = { ...setting, texturePoolAskedBytes: undefined } as typeof setting;
   assert.equal(
     liveLine(geometryOnly),
     undefined,

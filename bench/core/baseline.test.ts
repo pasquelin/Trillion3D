@@ -25,9 +25,9 @@ test('a discrepancy falls into a single level, and boundaries belong to the lowe
   assert.equal(gapLevel(0), 'ok');
   // Thresholds are STRICT bounds: exactly 10% stays ok, a hair above does not.
   assert.equal(gapLevel(WARNING_THRESHOLD), 'ok');
-  assert.equal(gapLevel(WARNING_THRESHOLD + 1e-9), 'avertissement');
-  assert.equal(gapLevel(FAILURE_THRESHOLD), 'avertissement');
-  assert.equal(gapLevel(FAILURE_THRESHOLD + 1e-9), 'echec');
+  assert.equal(gapLevel(WARNING_THRESHOLD + 1e-9), 'warning');
+  assert.equal(gapLevel(FAILURE_THRESHOLD), 'warning');
+  assert.equal(gapLevel(FAILURE_THRESHOLD + 1e-9), 'failure');
 });
 
 test('the verdict of a batch is that of its worst case, and it counts each case only once', () => {
@@ -38,7 +38,7 @@ test('the verdict of a batch is that of its worst case, and it counts each case 
     cas('very slow', 0.4),
     cas('no baseline', null),
   ]);
-  assert.equal(tally.verdict, 'echec');
+  assert.equal(tally.verdict, 'failure');
   assert.equal(tally.compares, 4, 'case without baseline is not compared');
   assert.deepEqual(
     tally.regressions.map((r) => r.name),
@@ -70,7 +70,7 @@ test('published thresholds are those applied by verdict, and caller can tighten 
     warningThreshold: 0.05,
     failureThreshold: 0.1,
   });
-  assert.equal(serre.verdict, 'echec');
+  assert.equal(serre.verdict, 'failure');
   assert.equal(serre.failureThreshold, 0.1);
 });
 

@@ -23,14 +23,14 @@ function module(reading: MathBatch) {
  * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
  * that ran no batch says so too.
  */
-export function cheminsCalcul(report: Report) {
+export function computePaths(report: Report) {
   const lines = [
     '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
     '|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const series of report.series)
-    for (const [side, resultat] of Object.entries(series.sides)) {
-      const reading = resultat.mathBatch;
+    for (const [side, result] of Object.entries(series.sides)) {
+      const reading = result.mathBatch;
       const tete = `| ${series.view} | ${series.pixelError} | ${side} `;
       if (!reading) {
         lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);

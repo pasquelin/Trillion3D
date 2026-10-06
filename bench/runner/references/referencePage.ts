@@ -46,7 +46,7 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
     explorer.render(options.pose);
     await explorer.flush();
   }
-  const settleFrames = await measure.poseCalme(explorer, options.pose, REFERENCE_HOLD_LIMIT);
+  const settleFrames = await measure.calmPose(explorer, options.pose, REFERENCE_HOLD_LIMIT);
   if (settleFrames === null)
     return { error: `the pose did not hold in ${REFERENCE_HOLD_LIMIT} frames: ${lost.join('; ')}` };
   const { factor, approximations, tiles } = reference;

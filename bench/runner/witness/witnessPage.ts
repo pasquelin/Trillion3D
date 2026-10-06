@@ -60,7 +60,7 @@ export function creer(graph: WitnessGraph, light: SceneLight): Light {
  * propagation.
  */
 /** A light as `appliquer` writes it: the graph's, or the bare witness's (`witness/threeBareScene.ts`). */
-export type Lampe = {
+export type Lamp = {
   readonly color: { setRGB(r: number, g: number, b: number): unknown };
   intensity: number;
   castShadow: boolean;
@@ -75,7 +75,7 @@ export type Lampe = {
   penumbra?: number;
 };
 
-export function appliquer(object: Lampe, light: SceneLight, douceur: number) {
+export function appliquer(object: Lamp, light: SceneLight, douceur: number) {
   object.color.setRGB(light.color[0], light.color[1], light.color[2]);
   object.intensity = light.intensity;
   object.castShadow = false;
@@ -121,12 +121,12 @@ const resume = (lights: SceneLight[]) => ({
  * Three adapter already copies each frame. A dist older than the contract has no `lights()`:
  * tracking then returns `null`, never an invented count.
  */
-export function creerEclairageTemoin(graph: WitnessGraph) {
-  const groupe = new graph.Group();
+export function createWitnessLighting(graph: WitnessGraph) {
+  const group = new graph.Group();
   const poses = new Map<string, Light>();
   let signature: string | null = null;
   return {
-    groupe,
+    group,
     suivre(explorer: MeasuredWorld) {
       if (typeof explorer.lights !== 'function') return null;
       const lights = explorer.lights();
@@ -134,12 +134,12 @@ export function creerEclairageTemoin(graph: WitnessGraph) {
       const clef = lights.map((light) => `${light.id}:${light.kind}`).join('|');
       const change = clef !== signature;
       if (change) {
-        for (const object of poses.values()) groupe.remove(object);
+        for (const object of poses.values()) group.remove(object);
         poses.clear();
         for (const light of lights) {
           const object = creer(graph, light);
           poses.set(light.id, object);
-          groupe.add(object);
+          group.add(object);
         }
         signature = clef;
       }

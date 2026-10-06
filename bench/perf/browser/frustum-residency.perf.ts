@@ -49,7 +49,7 @@ const clipper = (plat: Float64Array) => {
   return verdicts;
 };
 
-// ── Mesure frustumClipBox ────────────────────────────────────────────
+// ── Measure frustumClipBox ────────────────────────────────────────────
 const clipResult = await measure({
   name: 'frustumClipBox',
   fichier: 'packages/sdk-core/src/math/frustum/box.ts',

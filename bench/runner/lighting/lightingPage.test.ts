@@ -12,7 +12,7 @@ import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 const FAKE_SDK_URL =
   'data:text/javascript,' +
   encodeURIComponent(
-    `export const creerMoteur = () => {};
+    `export const createEngine = () => {};
      export async function openMeasuredWorld(_canvas, options) {
        return Object.assign(globalThis.__wgTestExplorer, { openedWith: options }); }`,
   );
@@ -82,7 +82,7 @@ async function mesurer(
     sdkUrl: FAKE_SDK_URL,
     manifestUrl: 'manifest.json',
     modulesUrl: '../',
-    backend: 'creerMoteur',
+    backend: 'createEngine',
     engineId: 'engine-test',
     autonomous: false,
     witness: false,

@@ -11,7 +11,7 @@ import type { Group } from '../../../packages/sdk-core/src/world/object/object3d
 
 /** The witness light group, of the engine's graph, and its store-tracking function. */
 export interface WitnessLighting {
-  groupe: Group;
+  group: Group;
   suivre: (explorer: MeasuredWorld) => unknown;
 }
 
@@ -44,7 +44,7 @@ export function explorerOptions(
     preload: 'visible',
     ...(options.autonomous ? { autonomousGeometry: true } : { backends: [factory] }),
     // The witness light group: empty at creation, filled from the store right after.
-    ...(lighting ? { sceneLighting: lighting.groupe } : {}),
+    ...(lighting ? { sceneLighting: lighting.group } : {}),
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
     // An engine DIAGNOSTIC variant, when the bench asks for one: it produces a different

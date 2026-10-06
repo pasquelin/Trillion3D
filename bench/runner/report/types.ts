@@ -100,7 +100,7 @@ export type ImageDiff =
   | { error: string }
   | { pixels: number; maxChannel: number; meanChannel: number; p999Channel: number; total: number };
 
-/** One row of the series table: one side, one view, one threshold (`series/series.ts::runSerie`). */
+/** One row of the series table: one side, one view, one threshold (`series/series.ts::runSeries`). */
 export interface Row {
   cpuFrameMs: Distribution;
   cpuSelectMs: Distribution;

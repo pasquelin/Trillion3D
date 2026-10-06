@@ -18,7 +18,7 @@ import { imageDiff } from './references/imageDiff.ts';
 import { benchLights } from './lighting/lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs } from './report/evidence.ts';
-import { runSerie } from './series/series.ts';
+import { runSeries } from './series/series.ts';
 import { runGazeSeries } from './gaze/gazeNetworkRun.ts';
 import { publish } from './harness/benchPublish.ts';
 import { readsCache } from './assets/scene.ts';
@@ -154,14 +154,14 @@ async function main() {
         const files: Record<string, string> = {};
         for (const side of sides) {
           const { row, captureFile } = await onPage((page) =>
-            runSerie(CTX, page, side, view, pixelError, pose, captures),
+            runSeries(CTX, page, side, view, pixelError, pose, captures),
           );
           series.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
         const witness = await onPage((page) =>
-          runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
+          runSeries(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
         series.sides[`${sides[0].name}-aa`] = witness.row;
         series.witnessAA = imageDiff(

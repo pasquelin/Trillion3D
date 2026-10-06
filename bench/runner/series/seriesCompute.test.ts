@@ -1,17 +1,17 @@
 // Batch computation path, from command line to metrics: `--math-path` arrives as
-// is at page explorer, `auto` enforces nothing, and `runSerie` publishes governor metrics
+// is at page explorer, `auto` enforces nothing, and `runSeries` publishes governor metrics
 // without ever assuming a path that the measured dist did not publish.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
 import { readOptions } from '../harness/options.ts';
-import { runSerie } from './series.ts';
+import { runSeries } from './series.ts';
 import { contexte, pose } from './seriesTestFixtures.ts';
 import type { Page } from 'playwright';
 import type { RunContext } from '../report/types.ts';
 
 /** What the page returns when it has nothing more to say than requested metrics. */
-const releveDePage = (mathBatch: unknown) => ({
+const pageReading = (mathBatch: unknown) => ({
   cpuFrameMs: [],
   cpuSelectMs: [],
   gpuFrameMs: [],
@@ -30,12 +30,12 @@ async function series(mathPath: string, mathBatch: unknown) {
   const page = {
     evaluate: async (_fn: unknown, payload: { mathPath: unknown }) => {
       recus.push(payload.mathPath);
-      return releveDePage(mathBatch);
+      return pageReading(mathBatch);
     },
   } as unknown as Page;
   const { ctx, side } = await contexte({ mathPath } as Partial<RunContext['settings']>);
   try {
-    const { row } = await runSerie(ctx, page, side, 'salon', 1, pose, new Map());
+    const { row } = await runSeries(ctx, page, side, 'salon', 1, pose, new Map());
     return { row, recus };
   } finally {
     await rm(ctx.OUT, { recursive: true, force: true });
@@ -43,11 +43,11 @@ async function series(mathPath: string, mathBatch: unknown) {
 }
 
 test('--math-path: validated, `auto` by default, and unknown value rejected', () => {
-  assert.equal(readOptions([], '/tmp/racine').settings.mathPath, 'auto');
-  assert.equal(readOptions(['--math-path', 'wasm'], '/tmp/racine').settings.mathPath, 'wasm');
-  assert.equal(readOptions(['--math-path', 'js'], '/tmp/racine').settings.mathPath, 'js');
+  assert.equal(readOptions([], '/tmp/root').settings.mathPath, 'auto');
+  assert.equal(readOptions(['--math-path', 'wasm'], '/tmp/root').settings.mathPath, 'wasm');
+  assert.equal(readOptions(['--math-path', 'js'], '/tmp/root').settings.mathPath, 'js');
   assert.throws(
-    () => readOptions(['--math-path', 'rust'], '/tmp/racine'),
+    () => readOptions(['--math-path', 'rust'], '/tmp/root'),
     /--math-path must be auto, js or wasm/,
   );
 });

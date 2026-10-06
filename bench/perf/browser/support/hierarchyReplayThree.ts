@@ -6,7 +6,7 @@
 // Operations: `add` (parent, position, quaternion, scale, camera or none), `pose` (position,
 // quaternion, scale, each or `null`), `local` (posed local matrix), `auto` (`matrixAutoUpdate`),
 // `rattache` (new parent, `-1` to detach), `retire` (the node and its descendants, listed),
-// `maj` (`updateMatrixWorld(force)`), `majMonde` (`updateWorldMatrix(parents, children)`), `vise`
+// `maj` (`updateMatrixWorld(force)`), `updateWorld` (`updateWorldMatrix(parents, children)`), `vise`
 // (`lookAt` with an up), `objectif` (new camera settings), `lis` (world reads of a node),
 // `image` (view, view-projection and planes of a camera), `instantane` (world matrices of all live nodes).
 import * as THREE from 'three';
@@ -106,7 +106,7 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
       case 'maj':
         o.updateMatrixWorld(op[2]);
         break;
-      case 'majMonde':
+      case 'updateWorld':
         o.updateWorldMatrix(op[2], op[3]);
         break;
       case 'vise':

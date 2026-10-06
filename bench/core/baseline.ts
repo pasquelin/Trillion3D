@@ -108,14 +108,14 @@ export interface Seuils {
   failureThreshold?: number;
 }
 
-/** The level of a discrepancy: `absent` if no baseline, then `ok`, `avertissement`, and `echec`. */
-export type GapLevel = 'absent' | 'ok' | 'avertissement' | 'echec';
+/** The level of a discrepancy: `absent` if no baseline, then `ok`, `warning`, and `failure`. */
+export type GapLevel = 'absent' | 'ok' | 'warning' | 'failure';
 
 export function gapLevel(gap: number | null | undefined, options: Seuils = {}): GapLevel {
   const { warningThreshold = WARNING_THRESHOLD, failureThreshold = FAILURE_THRESHOLD } = options;
   if (gap === null || gap === undefined || Number.isNaN(gap)) return 'absent';
-  if (gap > failureThreshold) return 'echec';
-  if (gap > warningThreshold) return 'avertissement';
+  if (gap > failureThreshold) return 'failure';
+  if (gap > warningThreshold) return 'warning';
   return 'ok';
 }
 
@@ -155,15 +155,15 @@ export function compareBaseline(results: RowWithBaselineGap[], options: Seuils =
     if (level === 'absent') continue;
     compares++;
     const cas = { name: r.name, gap: r.ecartBaseline };
-    if (level === 'echec') regressions.push(cas);
-    else if (level === 'avertissement') warnings.push(cas);
+    if (level === 'failure') regressions.push(cas);
+    else if (level === 'warning') warnings.push(cas);
   }
   const verdict: GapLevel = !compares
     ? 'absent'
     : regressions.length
-      ? 'echec'
+      ? 'failure'
       : warnings.length
-        ? 'avertissement'
+        ? 'warning'
         : 'ok';
   return { verdict, compares, regressions, warnings, ...seuils };
 }

@@ -29,12 +29,12 @@ function gapText(v: number | null | undefined, pastilles: boolean) {
   if (level === 'absent' || v === null || v === undefined) return '—';
   const pct = `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)} %`;
   if (!pastilles) return pct;
-  if (level === 'echec') return `🔴 ${pct}`;
-  if (level === 'avertissement') return `⚠️ ${pct}`;
+  if (level === 'failure') return `🔴 ${pct}`;
+  if (level === 'warning') return `⚠️ ${pct}`;
   return pct;
 }
 
-/** Table row. `avant` holds left columns (domain, measurement) of the aggregate. */
+/** Table row. `before` holds left columns (domain, measurement) of the aggregate. */
 export function ligneMd(
   r: ResultRow,
   { before = [], pastilles = false }: { before?: string[]; pastilles?: boolean } = {},

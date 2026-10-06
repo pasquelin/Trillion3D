@@ -55,7 +55,7 @@ function commeTypedArrays(a: unknown, b: unknown): [TypedArray, TypedArray] | nu
 
 /** First bitwise discrepancy between two values, or `null` if strictly identical. */
 export function gap(a: unknown, b: unknown, path = '', depth = 0): string | null {
-  if (depth > 8) throw new Error('ECART_PROFONDEUR_MAX');
+  if (depth > 8) throw new Error('GAP_MAX_DEPTH');
   if (Object.is(a, b)) return null;
   if (typeof a === 'number' || typeof b === 'number') return `${path}: ${String(a)} ≠ ${String(b)}`;
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object')

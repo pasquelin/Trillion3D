@@ -1,9 +1,9 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
 import type * as PageCoupe from '../series/cutPage.ts';
-import type * as PageTemoin from '../witness/witnessPage.ts';
+import type * as WitnessPage from '../witness/witnessPage.ts';
 import type * as PageExplorateur from '../harness/explorerPage.ts';
-import type * as PageMesure from '../harness/measurePage.ts';
+import type * as PageMeasure from '../harness/measurePage.ts';
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import type { MovingNode } from '../report/types.ts';
 
@@ -22,8 +22,8 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const lighting =
     options.witness && sdk.Group
       ? (
-          (await import(`${options.modulesUrl}witness/witnessPage.ts`)) as typeof PageTemoin
-        ).creerEclairageTemoin(sdk)
+          (await import(`${options.modulesUrl}witness/witnessPage.ts`)) as typeof WitnessPage
+        ).createWitnessLighting(sdk)
       : null;
   const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { error: `engine missing from dist: ${options.backend}` };
@@ -39,7 +39,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   )) as typeof PageExplorateur;
   const measure = (await import(
     `${options.modulesUrl}harness/measurePage.ts`
-  )) as typeof PageMesure;
+  )) as typeof PageMeasure;
   // Preparation, timed from the call to the return, and what it transferred on the network:
   // resources the page already loaded are not counted, only those after.
   const preparationStart = performance.now();
@@ -68,7 +68,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // A moving light: a small circle, applied before each measured frame.
   const moveLight = (frame: number) => {
     if (!moving) return;
-    explorer.setLight(moving.id, { position: measure.positionLampeMobile(moving, frame) });
+    explorer.setLight(moving.id, { position: measure.movableLampPosition(moving, frame) });
     lighting?.suivre(explorer);
   };
   const pose = options.pose;
@@ -149,7 +149,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
   // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
-  const settleFrames = await measure.poseCalme(explorer, capturePose);
+  const settleFrames = await measure.calmPose(explorer, capturePose);
   const response = await measure.posterCapture(
     options.captureFile,
     explorer.capture(),
@@ -157,10 +157,10 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     canvas.height,
   );
   const selection = coupe.lireCoupe(explorer, options.engineId);
-  const metrics = measure.filtrerMetriques(last);
+  const metrics = measure.filterMetrics(last);
   // Bytes transferred on the network since preparation, by file kind: what loading and the
   // series actually cost the server, images and texture levels included.
-  const network = measure.reseauDepuis(resourcesBefore);
+  const network = measure.networkFrom(resourcesBefore);
   const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();

@@ -78,7 +78,7 @@ export function liveScenario(size: number, images: number, rareteHostile: number
           cameras.delete(n);
         }
       } else if (r < 0.62) add(liveNode(false));
-      else if (r < 0.72) ops.push(['majMonde', liveNode(false), alea() < 0.5, alea() < 0.5]);
+      else if (r < 0.72) ops.push(['updateWorld', liveNode(false), alea() < 0.5, alea() < 0.5]);
       else if (r < 0.8)
         ops.push(['vise', liveNode(false), [dans(60), dans(60), dans(60)], tire(HAUTS)]);
       else if (r < 0.88) ops.push(['lis', liveNode(false)]);
@@ -114,22 +114,22 @@ export function marquages(): HierarchyOp[] {
     root(1, 0),
     root(2, 1),
     ['maj', 0, true],
-    ['majMonde', 2, false, false],
+    ['updateWorld', 2, false, false],
     ['auto', 2, false],
     ['maj', 0, false],
     ['auto', 1, false],
     ['local', 1, M1],
-    ['majMonde', 1, false, false],
+    ['updateWorld', 1, false, false],
     ['maj', 2, false],
     ['instantane', 0],
     root(3),
     root(4, 3),
     ['maj', 3, true],
-    ['majMonde', 4, false, false],
+    ['updateWorld', 4, false, false],
     ['auto', 4, false],
     ['auto', 3, false],
     ['local', 3, M2],
-    ['majMonde', 3, false, false],
+    ['updateWorld', 3, false, false],
     ['maj', 4, false],
     ['instantane', 0],
     ['local', 4, M1],
@@ -152,7 +152,7 @@ export function marquages(): HierarchyOp[] {
     ['pose', 6, null, [0, 0, 0.6, 0.8], [1, -3, 1]],
     ['maj', 6, false],
     root(7, 5),
-    ['majMonde', 7, true, false],
+    ['updateWorld', 7, true, false],
     ['lis', 7],
     ['retire', 6, [6, 5, 7]],
     root(8, 0),

@@ -14,7 +14,7 @@ import type { MovingLightPlan } from '../lighting/lamps.ts';
 import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from '../report/types.ts';
 import type { LivePools } from './benchSettings.ts';
 
-/** What `runSerie` sends into the page: everything `measureView` needs, nothing it infers. */
+/** What `runSeries` sends into the page: everything `measureView` needs, nothing it infers. */
 export interface MeasureViewOptions {
   sdkUrl: string;
   manifestUrl: string;

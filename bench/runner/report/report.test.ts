@@ -9,7 +9,7 @@ import { comparison } from '../../../site/app/reports/model/compare.ts';
 import { metricValue } from '../../../site/app/reports/model/metrics.ts';
 import { canResume } from './provenance.ts';
 import type { ReportRecord } from '../../../site/app/reports/model/types.ts';
-import type { Report as MesureReport } from './types.ts';
+import type { Report as MeasureReport } from './types.ts';
 const reading = (): ReportRecord => ({
   id: 'a',
   runId: 'run-a',
@@ -119,10 +119,10 @@ test('comparison admits only its declared variable and separates GPU and synchro
 });
 
 test('resume requires identical campaign identity and completed error-free measurements', () => {
-  const raw: Partial<MesureReport> = {
+  const raw: Partial<MeasureReport> = {
     campaignIdentity: 'a',
     finishedAt: 'date',
-    series: [{} as MesureReport['series'][number]],
+    series: [{} as MeasureReport['series'][number]],
     errors: [],
   };
   assert.equal(canResume(raw, 'a'), true);

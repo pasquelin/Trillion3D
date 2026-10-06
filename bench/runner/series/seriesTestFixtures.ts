@@ -59,7 +59,7 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
     dist: 'dist-test',
     from: 'test',
     engine: {
-      backend: 'creerMoteur',
+      backend: 'createEngine',
       id: 'engine-test',
       flags: [],
       page: 'lighting/lightingPage.ts',

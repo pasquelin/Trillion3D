@@ -13,7 +13,7 @@ import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import type { Row, RunContext } from '../report/types.ts';
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
-export async function runSerie(
+export async function runSeries(
   ctx: RunContext,
   page: Page,
   side: Side,

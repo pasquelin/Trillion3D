@@ -17,7 +17,7 @@ interface MovingLight {
 }
 
 /** Position of the moving light at frame `frame`: a small circle walked in `period` frames. */
-export function positionLampeMobile(moving: MovingLight, frame: number): [number, number, number] {
+export function movableLampPosition(moving: MovingLight, frame: number): [number, number, number] {
   const angle = (frame / moving.period) * Math.PI * 2;
   return [
     moving.origin[0] + Math.cos(angle) * moving.radius,
@@ -33,7 +33,7 @@ export function posterCapture(file: string, rgba: Uint8Array, w: number, h: numb
 }
 
 /** Bytes transferred on the network since entry `depuis`, by file kind. */
-export function reseauDepuis(depuis: number): NetworkBytes {
+export function networkFrom(depuis: number): NetworkBytes {
   const network: NetworkBytes = {};
   const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
   for (const entry of entries.slice(depuis)) {
@@ -54,7 +54,7 @@ export const HOLD_FRAME_LIMIT = 64;
  * another; a held pose's capture depends only on the pose. Returns how many frames it took,
  * or `null` if the engine holds no image (the Three witness, for example).
  */
-export async function poseCalme(
+export async function calmPose(
   explorer: MeasuredWorld,
   pose: CameraPose,
   limit = HOLD_FRAME_LIMIT,
@@ -80,13 +80,13 @@ export async function reglerReservoirs(
   budgets: LivePools | null,
 ): Promise<LiveTuning | null> {
   if (!budgets) return null;
-  const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
+  const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, calmPose);
   const requested: MemoryBudgets = {
     geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
     texturePoolBytes: resident?.budget ?? budgets.texturePoolBytes ?? undefined,
   };
   const rapport = await explorer.setMemoryBudgets(requested);
-  const recoveryFrames = await poseCalme(explorer, pose);
+  const recoveryFrames = await calmPose(explorer, pose);
   return {
     ...rapport,
     recoveryFrames,
@@ -122,7 +122,7 @@ export function collecteDiagnostics(lost: string[]) {
  * indistinguishable from an absent one, which a reader would replace with zero — which the
  * contract forbids. A bytes-per-label reading is a table of numbers: it passes too.
  */
-export function filtrerMetriques(
+export function filterMetrics(
   last: Partial<FrameMetrics> | null,
 ): Partial<FrameMetrics> & Record<string, unknown> {
   const scalaire = (v: unknown) => v === null || ['number', 'boolean', 'string'].includes(typeof v);

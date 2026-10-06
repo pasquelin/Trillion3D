@@ -1,17 +1,17 @@
-// "honest measurement harness counters" batch: `runSerie` reads the six Hi-Z counters under
+// "honest measurement harness counters" batch: `runSeries` reads the six Hi-Z counters under
 // their contract names (`hizTestedClusters`…, never the old `hiZTested`… which never existed),
 // and publishes `null` without inferring zero when the engine does not count them.
 // Split from `series/series.test.ts` to keep both files under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
-import { runSerie } from './series.ts';
+import { runSeries } from './series.ts';
 import { contexte, page, pose } from './seriesTestFixtures.ts';
 
-test('runSerie reads the six Hi-Z counters under contract names, with frame described', async () => {
+test('runSeries reads the six Hi-Z counters under contract names, with frame described', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
-    const { row } = await runSerie(
+    const { row } = await runSeries(
       ctx,
       page({
         hizTestedClusters: 300,
@@ -47,10 +47,10 @@ test('runSerie reads the six Hi-Z counters under contract names, with frame desc
   }
 });
 
-test('runSerie no longer reads old Hi-Z names: without contract names, everything remains null', async () => {
+test('runSeries no longer reads old Hi-Z names: without contract names, everything remains null', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
-    const { row } = await runSerie(
+    const { row } = await runSeries(
       ctx,
       page({ hiZTested: 5, hiZRejected: 5, hiZBeyond16Texels: 5 }),
       side,

@@ -96,7 +96,7 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
       case 'maj':
         updateNodeMatrixWorld(tree, n, op[2]);
         break;
-      case 'majMonde':
+      case 'updateWorld':
         updateNodeWorldMatrix(tree, n, op[2], op[3]);
         break;
       case 'vise':

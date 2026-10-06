@@ -13,8 +13,8 @@
 // not expose it in Chrome, and the reading says so with `null`.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { lampe, octets } from './threeBareScene.ts';
-import { positionLampeMobile, posterCapture, reseauDepuis } from '../harness/measurePage.ts';
+import { lamp, octets } from './threeBareScene.ts';
+import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
 
@@ -92,10 +92,10 @@ export async function mesurerThree(
     if (mesh.material) (mesh.material as THREE.Material).shadowSide = THREE.BackSide;
   });
   const box = new THREE.Box3().setFromObject(gltf.scene);
-  const lampes = new Map<string, THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight>();
+  const lamps = new Map<string, THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight>();
   for (const light of options.lights ?? []) {
-    const objects = lampe(light, box, shadows);
-    lampes.set(light.id, objects[0]);
+    const objects = lamp(light, box, shadows);
+    lamps.set(light.id, objects[0]);
     scene.add(...objects);
   }
   const camera = new THREE.PerspectiveCamera();
@@ -107,7 +107,7 @@ export async function mesurerThree(
   const gl = renderer.getContext();
   const moving = options.moving;
   const moveLight = (frame: number) => {
-    if (moving) lampes.get(moving.id)?.position.fromArray(positionLampeMobile(moving, frame));
+    if (moving) lamps.get(moving.id)?.position.fromArray(movableLampPosition(moving, frame));
   };
   let current = options.pose;
   const poseAt = (frame: number) =>
@@ -140,7 +140,7 @@ export async function mesurerThree(
   const rgba = new Uint8Array(w * h * 4);
   gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
   const response = await posterCapture(options.captureFile, rgba, w, h);
-  const network = reseauDepuis(resourcesBefore);
+  const network = networkFrom(resourcesBefore);
   const metrics = {
     drawCalls: info.render.calls,
     drawnTriangles: info.render.triangles,
@@ -151,7 +151,7 @@ export async function mesurerThree(
     texturePoolBytes: null,
     geometries: memoire.geometries,
     programs: info.programs?.length ?? null,
-    lightsActive: lampes.size,
+    lightsActive: lamps.size,
     frameHeld: false,
     // Triangles of the scene as Three read it, each geometry counted once: the
     // witness's bytes per triangle are measured on that.
@@ -168,7 +168,7 @@ export async function mesurerThree(
     syncFrameMs: [],
     rafIntervalMs,
     importedLights: null,
-    witnessLights: { count: lampes.size, shadows, ids: [...lampes.keys()], bare: true },
+    witnessLights: { count: lamps.size, shadows, ids: [...lamps.keys()], bare: true },
     movingNode: null,
     stageProfile: null,
     gpuPassSamples: [],

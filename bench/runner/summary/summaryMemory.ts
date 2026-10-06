@@ -21,8 +21,8 @@ export function memoire(report: Report) {
   ];
   const details: string[] = [];
   for (const series of report.series)
-    for (const [side, resultat] of Object.entries(series.sides)) {
-      const m = resultat.metrics ?? {};
+    for (const [side, result] of Object.entries(series.sides)) {
+      const m = result.metrics ?? {};
       const total = num(m.gpuAllocatedBytes);
       const atlas = num(m.texturePoolBytes),
         geometry = num(m.geometryAllocationBytes),

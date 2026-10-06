@@ -18,7 +18,7 @@ const creer = (light: SceneLight): ThreeLight =>
 
 /** The contract's Three light — conversion from the witness (`witness/witnessPage.ts`) — plus what is
  *  specific to the bare path: the shadow. The sun sits outside the model box, its shadow camera covers it. */
-export function lampe(
+export function lamp(
   light: SceneLight,
   box: THREE.Box3,
   shadows: boolean,

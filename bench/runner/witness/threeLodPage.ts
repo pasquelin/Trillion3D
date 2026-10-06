@@ -10,7 +10,7 @@
 // the pose field of view. A level that does not drop at least a quarter of the previous
 // level's triangles is abandoned: simplification gave nothing on that mesh, and saying so
 // is better than one more level that costs the same. Declared cost: the simplified silhouette
-// diverges from the original (`ERREUR` relative to the mesh size), which the capture shows.
+// diverges from the original (`ERROR` relative to the mesh size), which the capture shows.
 import * as THREE from 'three';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import { mesurerThree } from './threeMeasurePage.ts';
@@ -51,7 +51,7 @@ function simplifier(geometry: THREE.BufferGeometry, part: number, error: number)
 }
 
 /** Levels of a geometry: the original, then each level simplified from the previous. */
-function construireNiveaux(geometry: THREE.BufferGeometry) {
+function buildLevels(geometry: THREE.BufferGeometry) {
   const levels = [geometry];
   for (const { part, error } of LEVELS) {
     const g = simplifier(levels.at(-1) as THREE.BufferGeometry, part, error);
@@ -69,14 +69,14 @@ const distancePour = (rayon: number, pixels: number, height: number, fov: number
  * Replaces each indexed mesh of `root` with a `THREE.LOD` at its levels, same material,
  * same transform. Returns what the reading publishes: levels built and triangles per level.
  */
-export async function niveauxDeDetail(root: THREE.Object3D, options: MeasureViewOptions) {
+export async function detailLevels(root: THREE.Object3D, options: MeasureViewOptions) {
   await MeshoptSimplifier.ready;
   const cache = new Map<THREE.BufferGeometry, THREE.BufferGeometry[]>();
   const height = options.height,
     fov = options.pose.fov;
   const triangles = new Array(LEVELS.length + 1).fill(0);
   let objects = 0,
-    sansNiveau = 0;
+    withoutLevel = 0;
   const maillages: THREE.Mesh[] = [];
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
@@ -87,12 +87,12 @@ export async function niveauxDeDetail(root: THREE.Object3D, options: MeasureView
     // A geometry shared by instances is simplified, and counted, only once.
     let levels = cache.get(mesh.geometry);
     if (!levels) {
-      levels = construireNiveaux(mesh.geometry);
+      levels = buildLevels(mesh.geometry);
       cache.set(mesh.geometry, levels);
       levels.forEach((g, i) => (triangles[i] += (g.index?.count ?? 0) / 3));
     }
     if (levels.length === 1) {
-      sansNiveau++;
+      withoutLevel++;
       continue;
     }
     // The sphere the glTF loader placed from the accessor bounds, otherwise compute it;
@@ -114,8 +114,8 @@ export async function niveauxDeDetail(root: THREE.Object3D, options: MeasureView
     mesh.parent!.remove(mesh);
     objects++;
   }
-  return { lodObjets: objects, lodSansNiveau: sansNiveau, lodTrianglesParNiveau: triangles };
+  return { lodObjets: objects, lodSansNiveau: withoutLevel, lodTrianglesParNiveau: triangles };
 }
 
 /** One view, one threshold (ignored: Three has no threshold), the capture. Same contract as `measureView`. */
-export const measureView = (options: MeasureViewOptions) => mesurerThree(options, niveauxDeDetail);
+export const measureView = (options: MeasureViewOptions) => mesurerThree(options, detailLevels);

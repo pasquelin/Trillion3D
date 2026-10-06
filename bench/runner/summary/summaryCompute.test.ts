@@ -2,12 +2,12 @@
 // operation by operation, and never replaces an unmeasured median with a zero.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cheminsCalcul } from './summaryCompute.ts';
+import { computePaths } from './summaryCompute.ts';
 import type { MathBatch, MathOperation } from './summaryCompute.ts';
 import type { Report, Row } from '../report/types.ts';
 import { rapport as rapportDe } from './summaryTestFixtures.ts';
 
-/** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */
+/** A report reduced to what `computePaths` reads: one series, one side, its metrics. */
 const rapport = (mathBatch: MathBatch | null): Report => rapportDe({ mathBatch } as Partial<Row>);
 
 /** Governor metrics, completed by what the case wants to show. */
@@ -37,7 +37,7 @@ const operation = (fields: Partial<MathOperation>): MathOperation => ({
 });
 
 test('the chosen path and both medians are published, operation by operation', () => {
-  const lignes = cheminsCalcul(
+  const lignes = computePaths(
     rapport(
       reading({
         operations: {
@@ -59,7 +59,7 @@ test('the chosen path and both medians are published, operation by operation', (
 });
 
 test('an unmeasured median is stated as "unmeasured", never zero, and the fallback cause is published', () => {
-  const lignes = cheminsCalcul(
+  const lignes = computePaths(
     rapport(
       reading({
         mode: 'js',
@@ -80,7 +80,7 @@ test('an unmeasured median is stated as "unmeasured", never zero, and the fallba
 });
 
 test('a coarse clock is published with the module, its timing pooled', () => {
-  const lignes = cheminsCalcul(rapport(reading({ clockCoarse: true }))).join('\n');
+  const lignes = computePaths(rapport(reading({ clockCoarse: true }))).join('\n');
   assert.match(
     lignes,
     /\| auto \| loaded, simd128, coarse clock, pooled timing \| no batch run \|/,
@@ -88,5 +88,5 @@ test('a coarse clock is published with the module, its timing pooled', () => {
 });
 
 test('a side without metrics says so, instead of implying the JavaScript path', () => {
-  assert.match(cheminsCalcul(rapport(null)).join('\n'), /\| reading missing from this dist \|/);
+  assert.match(computePaths(rapport(null)).join('\n'), /\| reading missing from this dist \|/);
 });

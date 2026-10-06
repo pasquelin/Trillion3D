@@ -14,7 +14,7 @@ const identityWith = (changements: [number, number][]) => {
   return m;
 };
 
-/** Matrices hostiles, colonne-major. */
+/** Hostile matrices, column-major. */
 const MATRICES = [
   identite(),
   identityWith([
