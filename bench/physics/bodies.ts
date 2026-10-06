@@ -4,7 +4,7 @@
 // (single-threaded, and threaded on workers) and, when built, by the same C API compiled natively
 // (`packages/physics-jolt-wasm/bench/native.cpp`, same Jolt, same command words). Prints, per run,
 // the median, mean and worst step of the fall-and-landing window and the step at which all sleep.
-//   node scripts/bench-physics.ts [--bodies 1000,5000,10000] [--threads 1,4] [--native <joltBench>]
+//   node bench/physics/bodies.ts [--bodies 1000,5000,10000] [--threads 1,4] [--native <joltBench>]
 //     [--wasm <module>]
 // A per-phase profile needs the profiled builds (`-DPROFILE=ON`, `bench/profile.cpp`): the native
 // tool from `cmake -S packages/physics-jolt-wasm -B <dir> -DCMAKE_BUILD_TYPE=Distribution
@@ -23,17 +23,18 @@ import {
   MOTION,
   PHYSICS_MATERIALS,
   SHAPE,
-} from '../packages/sdk-core/src/physics/index.ts';
-import { Quaternion } from '../packages/sdk-core/src/world/math/quaternion.ts';
-import { openJolt, startJolt } from '../packages/sdk-browser/src/physics/joltModule.ts';
-import { seeded } from '../site/examples/kit/random.ts';
+} from '../../packages/sdk-core/src/physics/index.ts';
+import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts';
+import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts';
+import { seeded } from '../../site/examples/kit/random.ts';
 import {
   runJoltThread,
   type JoltThreadStart,
-} from '../packages/sdk-browser/src/physics/joltThreads.ts';
+} from '../../packages/sdk-browser/src/physics/joltThreads.ts';
 
 const PHYSICS = join(
   dirname(fileURLToPath(import.meta.url)),
+  '..',
   '..',
   'packages',
   'sdk-browser',

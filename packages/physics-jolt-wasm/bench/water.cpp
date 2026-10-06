@@ -1,4 +1,4 @@
-// Native counterpart of the buoyancy timed by `scripts/bench-fluids.ts`, for comparison only (never
+// Native counterpart of the buoyancy timed by `bench/physics/fluids.ts`, for comparison only (never
 // shipped): the same scene words, and per step the module's own share of buoyancy — the pieces
 // query and the BUOYANCY command — timed apart from the collision step. The planes are flat at
 // the rest height (the waves' planes, `jolt_water_planes`, are timed by the TS bench).

@@ -5,7 +5,7 @@
 // their planes from the waves) and its C++ share (the BUOYANCY command); (2) the C++ share natively.
 // The C++ share in the module is the step with the command run twice, the second copy at density
 // 0 (every volume computed, no impulse), less the step with it once, on alternate steps.
-//   node scripts/bench-fluids.ts [--threads 1,8] [--steps 600] [--native <joltWaterBench>]
+//   node bench/physics/fluids.ts [--threads 1,8] [--steps 600] [--native <joltWaterBench>]
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -17,22 +17,23 @@ import {
   createWater,
   sliceLength,
   type WaterSpec,
-} from '../packages/sdk-core/src/fluids/index.ts';
-import { OCEAN } from '../packages/sdk-core/src/fluids/waves.fixture.ts';
+} from '../../packages/sdk-core/src/fluids/index.ts';
+import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
 import {
   PHYSICS_STEP,
   DEFAULT_PHYSICS_BUDGET,
   WATER_PIECE_WORDS,
-} from '../packages/sdk-core/src/physics/index.ts';
-import { openJolt, startJolt } from '../packages/sdk-browser/src/physics/joltModule.ts';
+} from '../../packages/sdk-core/src/physics/index.ts';
+import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts';
 import {
   runJoltThread,
   type JoltThreadStart,
-} from '../packages/sdk-browser/src/physics/joltThreads.ts';
-import { floatingScene } from '../packages/sdk-browser/src/physics/water.fixture.ts';
+} from '../../packages/sdk-browser/src/physics/joltThreads.ts';
+import { floatingScene } from '../../packages/sdk-browser/src/physics/water.fixture.ts';
 
 const PHYSICS = join(
   dirname(fileURLToPath(import.meta.url)),
+  '..',
   '..',
   'packages',
   'sdk-browser',

@@ -75,7 +75,7 @@ function fail(error: unknown) {
 const live = () => active > 0 || leaves || queued.length > 0 || character.moving();
 
 /** Runs the queued commands and one step from the page's step `at`; `stepMs` counts the step and
- *  its buoyancy, the clock the bench reads in Node (`scripts/bench-physics.ts`), not the copy of
+ *  its buoyancy, the clock the bench reads in Node (`bench/physics/bodies.ts`), not the copy of
  *  its results; `stepMaxMs` keeps the tick's slowest fixed step; each fixed step's time steers the
  *  threads the next ones split over (`createThreadTuner`). */
 function run(dt: number) {

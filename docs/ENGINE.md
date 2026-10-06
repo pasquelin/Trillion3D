@@ -670,7 +670,7 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   and events size the module's own buffers.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is
   the page's share; the worker's per-step time, the module's step alone, is
-  `world.physics.stats.stepMs`, the clock `scripts/bench-physics.ts` reads in Node. Its GPU column
+  `world.physics.stats.stepMs`, the clock `bench/physics/bodies.ts` reads in Node. Its GPU column
   is the particle step ([Particles](#particles)).
 - **Threads.** A cross-origin isolated page loads `joltPhysicsThreads.wasm` (atomics, bulk memory,
   shared memory), stepped by Jolt's own thread pool: each thread starts in C through
@@ -679,7 +679,7 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   entry point. `budget.physics.threads` fixes the count, capped at the logical cores minus the
   page's own; elsewhere the single-threaded module runs. `docs:serve` answers with COOP
   `same-origin` and COEP `credentialless`; the production server's headers are set outside this
-  repository. `scripts/bench-physics.ts` steps the example's scene in Node on both modules and on
+  repository. `bench/physics/bodies.ts` steps the example's scene in Node on both modules and on
   the same C API compiled natively (`packages/physics-jolt-wasm/bench/`), with a per-phase profile
   from Jolt's own scopes in a profiled build.
 

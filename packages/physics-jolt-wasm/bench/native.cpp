@@ -1,4 +1,4 @@
-// Native counterpart of `scripts/bench-physics.ts`, for comparison only (never shipped): the same
+// Native counterpart of `bench/physics/bodies.ts`, for comparison only (never shipped): the same
 // flat C API compiled natively against the same Jolt, fed the same command words (a file the TS
 // bench writes), stepped the same way, timed by the same rule.
 //   native <commands.bin> <maxBodies> <bodyPairs> <contactConstraints> <threads> <steps>
@@ -34,7 +34,7 @@ double jolt_profile_ms(uint32_t) { return 0; }
 void jolt_profile_reset() {}
 #endif
 
-/// The landing window the profile covers (`scripts/bench-physics.ts`, PROFILE_FROM / PROFILE_TO).
+/// The landing window the profile covers (`bench/physics/bodies.ts`, PROFILE_FROM / PROFILE_TO).
 constexpr uint32_t PROFILE_FROM = 50, PROFILE_TO = 180;
 
 int main(int argc, char **argv) {

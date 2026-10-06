@@ -64,7 +64,7 @@ if (NOT EMSCRIPTEN)
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
   target_compile_options(joltBench PRIVATE -O3)
-  # Its buoyancy share (`bench/water.cpp`, `scripts/bench-fluids.ts`).
+  # Its buoyancy share (`bench/water.cpp`, `bench/physics/fluids.ts`).
   add_executable(joltWaterBench bench/water.cpp src/world.cpp src/contacts.cpp src/commands.cpp src/shapes.cpp
     src/report.cpp src/restore.cpp src/character.cpp src/buoyancy.cpp src/joints.cpp src/advancedJoints.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp)
   target_link_libraries(joltWaterBench PRIVATE Jolt)
