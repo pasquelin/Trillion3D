@@ -4,14 +4,14 @@
 // lock, and the p50 GPU time of its images printed side by side. The page is
 // `tests/gpu/texture/anisotropyCostPage.ts`; nothing outside this repository is read.
 //
-//   node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240]
+//   node bench/runner/counts/anisotropyCost.ts [--anisotropy 1,16] [--images 240]
 //        [--width 1920] [--height 1080]
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { parseArgs } from './options.ts';
-import { takeBenchLock } from '../dawn/lock.ts';
-import { loadPage, runOnDawn } from '../../tests/gpu/kit/onDawn.ts';
-import type { run } from '../../tests/gpu/texture/anisotropyCostPage.ts';
+import { parseArgs } from '../options.ts';
+import { takeBenchLock } from '../../dawn/lock.ts';
+import { loadPage, runOnDawn } from '../../../tests/gpu/kit/onDawn.ts';
+import type { run } from '../../../tests/gpu/texture/anisotropyCostPage.ts';
 
 declare global {
   var anisotropyCost: { run: typeof run };
@@ -41,7 +41,7 @@ async function main() {
   const options = anisotropyOptions(process.argv.slice(2));
   takeBenchLock('anisotropy cost');
   await loadPage(
-    resolve(import.meta.dirname, '../../tests/gpu/texture/anisotropyCostPage.ts'),
+    resolve(import.meta.dirname, '../../../tests/gpu/texture/anisotropyCostPage.ts'),
     'anisotropyCost',
   );
   const result = await runOnDawn((input) => globalThis.anisotropyCost.run(input), options);

@@ -3,8 +3,8 @@
 // pages, the vertices per triangle once shared corners are merged, and the grid the compiler
 // chose with the largest displacement it caused. Read on `explorer.metadata` too, since it is
 // the same manifest (guide "Quantized cluster pages").
-//   node --experimental-strip-types bench/runner/bytesPerTriangle.ts <cache>/native/full
-import { readCacheManifest } from './assets/cacheManifest.ts';
+//   node --experimental-strip-types bench/runner/counts/bytesPerTriangle.ts <cache>/native/full
+import { readCacheManifest } from '../assets/cacheManifest.ts';
 
 interface TrianglePage {
   count: number;

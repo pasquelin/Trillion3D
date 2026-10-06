@@ -323,7 +323,7 @@ the ceiling an in-session growth may reach.
 
 ## What a Cache's Pages Cost in Precision
 
-    node bench/runner/pageQuantization.ts <cache>/native/full
+    node bench/runner/counts/pageQuantization.ts <cache>/native/full
 
 The autonomous WebGL2 path draws decoded pages — positions on the primitive's quantization grid,
 normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FORMAT.md)) — where the others read
@@ -355,7 +355,7 @@ compiler-side measure of quantization alone:
 
 ## What Anisotropy Costs
 
-    node bench/runner/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
+    node bench/runner/counts/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
 
 A floor with detail at every texel at a grazing angle, drawn by the WebGPU engine's sources on Dawn,
 under the bench lock, per anisotropy; prints p50 GPU time per image (`gpuFrameMs`) and the sum of

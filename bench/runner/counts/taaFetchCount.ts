@@ -5,11 +5,11 @@
 // showed, and one uncovered (its geometry history holds another placement). The fragment resolve
 // that ships, which fetches its render texels per pixel. COUNTED, never timed.
 //
-//   node bench/runner/taaFetchCount.ts
+//   node bench/runner/counts/taaFetchCount.ts
 import {
   upscaleRun,
   type UpscaleFrame,
-} from '../../packages/sdk-browser/src/taa/upscaleRun.fixture.ts';
+} from '../../../packages/sdk-browser/src/taa/upscaleRun.fixture.ts';
 
 const DISPLAY = 16;
 

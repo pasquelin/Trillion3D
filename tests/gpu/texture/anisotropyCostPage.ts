@@ -1,4 +1,4 @@
-// Page of the anisotropy cost measure (#360, #361, `bench/runner/anisotropyCost.ts`): one textured
+// Page of the anisotropy cost measure (#360, #361, `bench/runner/counts/anisotropyCost.ts`): one textured
 // floor seen at a grazing angle, drawn by the WebGPU engine at each anisotropy asked, the GPU time
 // of each image read from the engine's own timer. The camera slides by a hair at every image, so
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU

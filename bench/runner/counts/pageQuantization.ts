@@ -7,7 +7,7 @@
  * lights: this file measures the one input that is not the same, corner by corner, so that an
  * image difference between the two can be attributed instead of guessed.
  *
- *     node bench/runner/pageQuantization.ts <cache>/native/full
+ *     node bench/runner/counts/pageQuantization.ts <cache>/native/full
  *
  * Prints JSON: pages read, corners compared, largest and mean position gap in scene units, and
  * largest and mean angle between the decoded normal and the source one.
@@ -15,8 +15,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { readCacheManifest } from './assets/cacheManifest.ts';
-import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts';
+import { readCacheManifest } from '../assets/cacheManifest.ts';
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | typeof Uint32Array> = {

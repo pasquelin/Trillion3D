@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCacheManifest } from '../assets/cacheManifest.ts';
-import { accessorReader } from '../pageQuantization.ts';
+import { accessorReader } from '../counts/pageQuantization.ts';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 
 interface GltfNode {

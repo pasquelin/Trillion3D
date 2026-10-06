@@ -75,10 +75,10 @@ const config: KnipConfig = {
         // Full campaign and its report, launched manually.
         'bench/runner/campaign.ts',
         'bench/runner/summary/summaryGlobal.ts',
-        'bench/runner/pageQuantization.ts',
+        'bench/runner/counts/pageQuantization.ts',
         'bench/runner/references/oracle.ts',
         'bench/runner/lighting/lampFixture.ts',
-        'bench/runner/anisotropyCost.ts',
+        'bench/runner/counts/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',
         'bench/runner/screenError/screenError.ts',

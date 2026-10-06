@@ -6,19 +6,19 @@
 // a measured number (`FRAME_RATES`): a MODEL, never a timing; the recette's timing after the merge
 // is the proof. What no count here reaches is named in `UNCOUNTED`, never priced at zero in silence.
 //
-//   node bench/runner/frameBudget.ts [--pose 1]
+//   node bench/runner/counts/frameBudget.ts [--pose 1]
 import { parseArgs } from 'node:util';
-import { MAX_SHADOW_SLICES } from '../../packages/sdk-core/src/scene/light/contracts.ts';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import { ATRIUM_POSES, atriumDepth } from './lighting/lightTileAtrium.ts';
+import { MAX_SHADOW_SLICES } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { ATRIUM_POSES, atriumDepth } from '../lighting/lightTileAtrium.ts';
 import {
   RESOLVE_GBUFFER,
   countGrid,
   gbufferAccesses,
   lightingModel,
-} from './lighting/lightGridCount.ts';
-import { countResolveWork } from './lighting/resolveWorkCount.ts';
-import { countClassFragments } from './lighting/materialTileCount.ts';
+} from '../lighting/lightGridCount.ts';
+import { countResolveWork } from '../lighting/resolveWorkCount.ts';
+import { countClassFragments } from '../lighting/materialTileCount.ts';
 import { countTaaFetches } from './taaFetchCount.ts';
 import {
   CLASSES,

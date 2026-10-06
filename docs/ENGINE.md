@@ -204,7 +204,7 @@ tile-based GPUs; its cost is read as an envelope difference with `temporalAntial
 Its work is bounded per display pixel: a moving image's resolve issues 23 fetches at the display's
 size and about 27 (26.97) reconstructing a frame drawn at half of it — an uncovered pixel, which
 reads no history to clamp, 16 and 20 —, 32 natively for the as-is resolve, each identifier it
-needs once (`bench/runner/taaFetchCount.ts`, #1369).
+needs once (`bench/runner/counts/taaFetchCount.ts`, #1369).
 
 **Render scale.** The options of `createWorld(canvas, { renderScale })` — a number, `'auto'` (the
 default) or `{ min, max }` within [0.5, 1], read back by `world.renderScale` — are
