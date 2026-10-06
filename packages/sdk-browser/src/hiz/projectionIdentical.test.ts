@@ -53,7 +53,7 @@ function reference(
 }
 
 /** A fixed-seed generator: the same boxes on every run. */
-function graine(seed: number) {
+function seededDraw(seed: number) {
   let state = seed >>> 0;
   return () => {
     state = (state * 1664525 + 1013904223) >>> 0;
@@ -61,8 +61,8 @@ function graine(seed: number) {
   };
 }
 
-function boites(count: number) {
-  const next = graine(20260916);
+function randomBoxes(count: number) {
+  const next = seededDraw(20260916);
   const out: Float64Array[] = [];
   for (let b = 0; b < count; b++) {
     const cx = (next() - 0.5) * 400,
@@ -104,7 +104,7 @@ function compare(
 }
 
 test('the projection returns, bit for bit, what the full per-corner dot product returned', () => {
-  const boxes = boites(400);
+  const boxes = randomBoxes(400);
   const perspective = G.perspectiveCamera(50, 1280 / 720, 0.1, 5000);
   perspective.position.set(3, 40, 160);
   perspective.rotation.set(-0.2, 0.4, 0.1);
