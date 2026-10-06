@@ -25,6 +25,8 @@ camera, the renderer and the loop.
 | [Format fixtures](../tests/fixtures/formats/README.md) | The compiler's test inputs, one section per format: content, provenance, licence |
 | [Measurement harness](../bench/runner/README.md) | The bench, its options, the witnesses, the published reports |
 | [Contributing](../CONTRIBUTING.md) | Engineering rules, measurement rules, the contribution workflow |
+| [Asset licence audit](ASSET_LICENSE_AUDIT.md) | `pnpm audit:assets`: the offline check of a corpus's licence manifest, and the licence table of every asset |
+| [The company](COMPANY.md) | The AI roles that develop the repository, and how to run them from any clone |
 
 Anything not described here is not part of the release. Open tasks are the
 [GitHub issues](https://github.com/pasquelin/Trillion3D/issues).
