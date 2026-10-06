@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { launchChrome } from './chrome.ts';
 import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from './options.ts';
-import { assetsManifest, sceneDerived } from './scene.ts';
+import { assetsManifest, sceneDerived } from './assets/scene.ts';
 import { summarizeFeedbackRun } from './feedbackTargetReport.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
@@ -30,7 +30,7 @@ async function main() {
   await mkdir(output, { recursive: true });
   for (const scene of scenes) {
     const args = [
-      'bench/runner/assets.ts',
+      'bench/runner/assets/assets.ts',
       '--only',
       scene,
       ...(rebuild.includes(scene) ? ['--rebuild'] : []),

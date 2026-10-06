@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path';
 import { onFreshPage } from './chrome.ts';
 import { readBounds } from './page.ts';
 import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from './options.ts';
-import { sceneDerived } from './scene.ts';
+import { sceneDerived } from './assets/scene.ts';
 import {
   auditPoses,
   benchPoses,

@@ -42,7 +42,7 @@
   total, only.
 - **Two scales of proof.** A pull request proves its change in seconds to a minute on the public
   scene that exercises it under `.mesure/assets/` (Khronos samples, the generated facade;
-  `bench/runner/assets.ts` fetches and compiles them). The full campaign (every view and scene,
+  `bench/runner/assets/assets.ts` fetches and compiles them). The full campaign (every view and scene,
   spread, envelope) runs once, on the release pull request `develop` → `main`, and is what is
   published; the site keeps the latest report, each image stored once.
 - **After the merge** (AGENTS.md rule 2) issues carry `to audit`, and `to measure` when the diff can

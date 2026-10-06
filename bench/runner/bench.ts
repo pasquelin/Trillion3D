@@ -21,7 +21,7 @@ import { recordInputs } from './report/evidence.ts';
 import { runSerie } from './series.ts';
 import { runGazeSeries } from './gazeNetworkRun.ts';
 import { publish } from './benchPublish.ts';
-import { readsCache } from './scene.ts';
+import { readsCache } from './assets/scene.ts';
 import { runFluids } from './fluids.ts';
 import { readLimits } from './limits.ts';
 import { againstReference, sceneReference } from './referenceProof.ts';

@@ -13,8 +13,8 @@ import {
   scenesOf,
 } from './scene.ts';
 import { catalogueScenes } from './assetsCatalogue.ts';
-import { CAMPAIGN } from './campaign.ts';
-import { parseArgs } from './options.ts';
+import { CAMPAIGN } from '../campaign.ts';
+import { parseArgs } from '../options.ts';
 
 test('the reference scenes are the public ones, the cut first and the mirror next', () => {
   assert.deepEqual(REFERENCE_SCENES, ['sponza', 'normal-tangent-mirror-test']);

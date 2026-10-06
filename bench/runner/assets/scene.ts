@@ -24,7 +24,7 @@ export const REFERENCE_SCENES = ['sponza', 'normal-tangent-mirror-test'];
 /** What the report must say of a scene, and that a reading does not carry. */
 const SCENE_NOTES: Record<string, string> = {
   sponza:
-    'Khronos glTF-Sample-Assets, public: an interior of 262 k triangles and 69 images, the big cut and the lighting of the bench (`bench/runner/assets.ts`).',
+    'Khronos glTF-Sample-Assets, public: an interior of 262 k triangles and 69 images, the big cut and the lighting of the bench (`bench/runner/assets/assets.ts`).',
   'normal-tangent-mirror-test':
     'Khronos glTF-Sample-Assets, public: a plane whose texture coordinates are mirrored halves — a fold the weld must not split, and that must cost the simplification nothing. Small on purpose: it proves a rule, it measures no frame.',
   [FLUIDS_SCENE]:

@@ -10,7 +10,7 @@ import { assetIdentity } from './report/provenance.ts';
 import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
 import { isDist } from './dists.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
-import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './scene.ts';
+import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './assets/scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts';
 import { readStreet } from './street.ts';
 import { benchLights } from './lamps.ts';

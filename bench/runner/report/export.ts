@@ -9,7 +9,7 @@ import {
   realpathSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
-import { sceneNote } from '../scene.ts';
+import { sceneNote } from '../assets/scene.ts';
 import { assertReport, REPORT_VERSION } from '../../../site/reports/contract.ts';
 import type { Report as CampaignReport } from '../../../site/reports/types.ts';
 import type { Report as BenchReport } from './types.ts';

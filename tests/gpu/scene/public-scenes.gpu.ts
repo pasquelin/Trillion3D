@@ -1,7 +1,7 @@
 // What the bench's public scenes guarantee, read off their compiled caches — no GPU, no browser,
 // a tenth of a second.
 //
-// The bench and the proofs run on models anybody can fetch (`bench/runner/assets.ts`), so the
+// The bench and the proofs run on models anybody can fetch (`bench/runner/assets/assets.ts`), so the
 // claims made about them have to be checkable by anybody too. This check opens the caches and
 // asserts what each scene is kept for:
 //
@@ -11,7 +11,7 @@
 //     the fold is continuous in (position, uv), so the welded halves stay manifold, no vertex is
 //     locked and the DAG still reaches a root.
 //
-// It reads the caches `node bench/runner/assets.ts` writes and never compiles anything itself:
+// It reads the caches `node bench/runner/assets/assets.ts` writes and never compiles anything itself:
 // a missing cache fails here by name, with the command that produces it. It needs no GPU, and is
 // no unit test: the caches live off git, in `.mesure/assets/`.
 //
@@ -20,8 +20,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { readCacheManifest } from '../../../bench/runner/cacheManifest.ts';
-import { ASSETS, sceneDerived } from '../../../bench/runner/scene.ts';
+import { readCacheManifest } from '../../../bench/runner/assets/cacheManifest.ts';
+import { ASSETS, sceneDerived } from '../../../bench/runner/assets/scene.ts';
 
 /**
  * The compile report a primitive carries beside the runtime contract: the engine consumes its
@@ -49,7 +49,7 @@ async function openScene(scene: string) {
   const full = join(sceneDerived(scene), 'native/full');
   assert.ok(
     existsSync(join(full, 'manifest.json')),
-    `no cache for ${scene}: run \`node bench/runner/assets.ts --only ${scene}\`` +
+    `no cache for ${scene}: run \`node bench/runner/assets/assets.ts --only ${scene}\`` +
       ' (a facade is written first by `node bench/runner/scenes/facade.ts --seed <n>`)',
   );
   return (await readCacheManifest(full)).manifest;
@@ -64,7 +64,7 @@ function provenScenes() {
   assert.ok(
     facades.length > 0,
     'no facade scene on disk: run `node bench/runner/scenes/facade.ts --seed 7`' +
-      ' then `node bench/runner/assets.ts --only facade-7`',
+      ' then `node bench/runner/assets/assets.ts --only facade-7`',
   );
   return { cut: ['sponza', facades[facades.length - 1]], mirror: MIRROR };
 }

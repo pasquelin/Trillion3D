@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
+import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts';
 import { coneHolds } from '../kit/reference/cone.ts';
 import { preparedGeometries } from '../../packages/sdk-browser/src/host/prepared/geometry.ts';
 import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts';

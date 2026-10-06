@@ -3,7 +3,7 @@
 // The bench's assets, in one command: fetch the public sample models, then compile the cache each
 // scene is measured through.
 //
-//   node bench/runner/assets.ts [--only sponza,duck] [--list]
+//   node bench/runner/assets/assets.ts [--only sponza,duck] [--list]
 //
 // Both steps are idempotent. A scene folder already under `.mesure/assets/` is kept as it is — the
 // sources are never written to — and a `<scene>-derived/` cache whose `native/full/manifest.json`
@@ -17,13 +17,13 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { availableParallelism, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
-import { parseArgs } from './options.ts';
+import { parseArgs } from '../options.ts';
 import { ASSETS, sceneDerived } from './scene.ts';
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts';
 import { fetchModels } from './assetsFetch.ts';
-import { TRIANGLE_BUDGET, requireNativeCompiler } from '../../scripts/native-compiler.ts';
+import { TRIANGLE_BUDGET, requireNativeCompiler } from '../../../scripts/native-compiler.ts';
 
-const ROOT = resolve(import.meta.dirname, '../..');
+const ROOT = resolve(import.meta.dirname, '../../..');
 const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs');
 
 /**

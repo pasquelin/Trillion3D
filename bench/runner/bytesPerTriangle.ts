@@ -4,7 +4,7 @@
 // chose with the largest displacement it caused. Read on `explorer.metadata` too, since it is
 // the same manifest (guide "Quantized cluster pages").
 //   node --experimental-strip-types bench/runner/bytesPerTriangle.ts <cache>/native/full
-import { readCacheManifest } from './cacheManifest.ts';
+import { readCacheManifest } from './assets/cacheManifest.ts';
 
 interface TrianglePage {
   count: number;

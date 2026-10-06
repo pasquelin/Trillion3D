@@ -5,7 +5,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { readCacheManifest } from '../bench/runner/cacheManifest.ts';
+import { readCacheManifest } from '../bench/runner/assets/cacheManifest.ts';
 import {
   PREVIEW_LOSSLESS_FORMAT,
   previewIsWhole,

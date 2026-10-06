@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { OCEAN } from '../../packages/sdk-core/src/fluids/waves.fixture.ts';
 import { fluidsScene } from './fluids.ts';
 import { limitsLines, limitsOf } from './limits.ts';
-import { FLUIDS_SCENE, applySceneFlag, sceneNote, sceneOf } from './scene.ts';
+import { FLUIDS_SCENE, applySceneFlag, sceneNote, sceneOf } from './assets/scene.ts';
 
 test('the fluids scene holds one ocean, 100 bodies, 20 fires and 5 smoke volumes', () => {
   const scene = fluidsScene();

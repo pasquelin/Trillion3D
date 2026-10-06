@@ -16,8 +16,8 @@
 // =====================================================================================
 import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { ASSETS } from '../scene.ts';
-import { sceneGltfFile } from '../assetsCatalogue.ts';
+import { ASSETS } from '../assets/scene.ts';
+import { sceneGltfFile } from '../assets/assetsCatalogue.ts';
 
 /** The public scene all four are derived from. */
 const TANGENT_SOURCE = 'normal-tangent-mirror-test';
@@ -97,7 +97,7 @@ export function tangentSceneGltf(source: Gltf, blended: boolean, unpaged: boolea
 function writeTangentScenes() {
   const from = join(ASSETS, TANGENT_SOURCE);
   const file = sceneGltfFile(from);
-  if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets.ts first`);
+  if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets/assets.ts first`);
   const source = JSON.parse(readFileSync(join(from, file), 'utf8')) as Gltf;
   for (const { surface, path, scene } of TANGENT_SCENES) {
     const to = join(ASSETS, scene);
@@ -107,7 +107,7 @@ function writeTangentScenes() {
     writeFileSync(join(to, `${scene}.gltf`), `${JSON.stringify(gltf, null, 1)}\n`);
   }
   const names = TANGENT_SCENES.map(({ scene }) => scene);
-  process.stdout.write(`node bench/runner/assets.ts --only ${names.join(',')}\n`);
+  process.stdout.write(`node bench/runner/assets/assets.ts --only ${names.join(',')}\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename))

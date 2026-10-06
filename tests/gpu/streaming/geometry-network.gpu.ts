@@ -5,7 +5,7 @@
 // (#999). How a server encodes the objects it serves is the server's, not the engine's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
+import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts';
 import { PREFETCH_HORIZON_MS } from '../../../packages/sdk-browser/src/backend/common.ts';
 import { runOnDawn } from '../kit/onDawn.ts';
 import { readOverNetwork, sentAlongside, servedAssets } from './networkReading.ts';

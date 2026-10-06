@@ -55,7 +55,7 @@ fn a_kilometre_terrain_on_one_grid_is_measured_pixels_away() {
     assert!(exact > 2.0 + super::MARGIN, "{exact}");
 }
 
-/// Sponza as the bench fetches it (`bench/runner/assets.ts --only sponza`), outside the
+/// Sponza as the bench fetches it (`bench/runner/assets/assets.ts --only sponza`), outside the
 /// repository.
 fn sponza() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.mesure/assets/sponza/Sponza.gltf")
@@ -64,7 +64,7 @@ fn sponza() -> std::path::PathBuf {
 // Behaviour: every page of Sponza, each primitive under the scale its node places it at, is drawn
 // within a tenth of a pixel of the threshold.
 #[test]
-#[ignore = "needs Sponza under .mesure/assets: node bench/runner/assets.ts --only sponza"]
+#[ignore = "needs Sponza under .mesure/assets: node bench/runner/assets/assets.ts --only sponza"]
 fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
     let path = sponza();
     let g: Value = serde_json::from_slice(&std::fs::read(&path).expect("Sponza.gltf")).unwrap();

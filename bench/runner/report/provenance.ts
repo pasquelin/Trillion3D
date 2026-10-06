@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { cpus, totalmem, platform, arch, release, hostname } from 'node:os';
 import { join } from 'node:path';
 import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts';
-import { sceneDerived } from '../scene.ts';
+import { sceneDerived } from '../assets/scene.ts';
 import type { Report } from './types.ts';
 const digest = (data: string) => createHash('sha256').update(data).digest('hex');
 export function measurementProvenance() {

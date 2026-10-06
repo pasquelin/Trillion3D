@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { readPagedManifest } from '../../packages/sdk-core/src/manifest/paged.ts';
+import { readPagedManifest } from '../../../packages/sdk-core/src/manifest/paged.ts';
 
 /** The pointer `manifest.json`, naming the root `clusters.json` to read next to it. */
 interface ManifestPointer {

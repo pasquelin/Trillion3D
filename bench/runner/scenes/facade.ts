@@ -13,12 +13,12 @@
 //
 // It writes `.mesure/assets/facade-<seed>/` (`facade-<seed>-bricks/` under `--islands brick`:
 // glTF, binary and PNG), which
-// `node bench/runner/assets.ts --only facade-<seed>` then compiles like any other scene.
+// `node bench/runner/assets/assets.ts --only facade-<seed>` then compiles like any other scene.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from '../options.ts';
-import { ASSETS } from '../scene.ts';
+import { ASSETS } from '../assets/scene.ts';
 import { mulberry32 } from '../../../site/examples/kit/random.ts';
 import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts';
 import { facadeTexture } from './facadeTexture.ts';
