@@ -3,6 +3,8 @@ import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
 import type { JobHeap } from './queueOrder.ts'
 import type { ReadFailure } from './failures.ts'
+import type { RangePart } from './rangeParts.ts'
+import type { rangedReader } from '../cluster/ranged.ts'
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -47,7 +49,7 @@ export interface StreamPage {
   /** A page that is a range of the file at `file`, from `offset`: read by an HTTP Range, its
    *  bytes checked part by part, end to end, against each part's size and fingerprint, and never
    *  kept in the page cache — whoever asks it keeps what it decodes. */
-  range?: { file: string; offset: number; parts: readonly { bytes: number; sha256: string }[] }
+  range?: { file: string; offset: number; parts: readonly RangePart[] }
 }
 /** The pages a resource mounted in the open session brings: `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */
@@ -56,11 +58,14 @@ export type PageCatalogue = {
   forget(urls: readonly string[]): void
 }
 /** What a scene's readers ask of the session's queue (`createPageStreamer`): pages admitted, read
- *  at a priority with the signal that lets the asker go, let go, and whether one failed. */
+ *  at a priority with the signal that lets the asker go, let go, and the reader of a file. */
 export type PageQueue = PageCatalogue & {
   readBytes(url: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>
-  failed(url: string): boolean
+  /** The ranges of `file` are read through `read`, which its owner counts: one reader a file. */
+  readFrom(file: string, read: RangeReader): void
 }
+/** A reader of a file's ranges (`rangedReader`). */
+export type RangeReader = ReturnType<typeof rangedReader>
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
 export interface PageStreamerOptions {

@@ -2,7 +2,7 @@ import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
 import { createJobHeap } from './queueOrder.ts'
-import type { ReadFailure } from './failures.ts'
+import { refusalOf, type ReadFailure } from './failures.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
 import { createPageCache, type PageCache } from './pageCache.ts'
@@ -60,27 +60,11 @@ export function createPageStreamerWith(
   const emit = lazyDiagnostic(onDiagnostic)
   const abortError = () => new DOMException('Page request cancelled', 'AbortError')
   const context: StreamContext = {
-    base,
-    catalog,
-    store,
-    cache,
-    jobs,
-    queue,
-    pinned,
-    failures,
-    abort,
-    limit,
-    maxPages,
-    maxTransferBytes,
-    onEvict,
-    onDiagnostic,
-    onTurn: options.onTurn,
-    onStalled: options.onStalled,
-    state,
-    emit,
-    abortError,
+    ...{ base, catalog, store, cache, jobs, queue, pinned, failures, abort, limit, maxPages },
+    ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
+    ...{ onTurn: options.onTurn, onStalled: options.onStalled },
   }
-  const { loadOne, roundTrip, keptBytes } = createStreamingFetcher(context, store.touch)
+  const { loadOne, roundTrip, keptBytes, readFrom } = createStreamingFetcher(context, store.touch)
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
@@ -126,7 +110,9 @@ export function createPageStreamerWith(
     },
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
-    failed: (url: string) => failures.has(url),
+    /** Whether a read of `url` is refused now: its failure's wait is not over, or it never passes. */
+    failed: (url: string) => refusalOf(context, url) !== undefined,
+    readFrom,
     /** How many failed reads' waits are over (`failures.ts`). */ turns: () => state.turns,
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,

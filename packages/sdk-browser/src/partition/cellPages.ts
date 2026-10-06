@@ -35,18 +35,18 @@ export function withHoldings<T extends object>(holding: CellHoldings, cells: T):
 export const cellHoldings = (cells: object) => holdings.get(cells)!
 
 /** The holder of the mesh pages of `pages`, each cell's read through `meshPagesOf` when it is
- *  held and kept until it is released: its index page may close first. Counted per hold landed: a
- *  cell that left and came back while its first hold read lands twice, and each release lets one
- *  go. */
+ *  held and kept until it is released: its index page may close first. Counted per hold, landed or
+ *  not: a cell that left and came back while its first hold read holds twice, and each release
+ *  lets one go. */
 function meshPagesHolder(pages: ManifestPages, meshPagesOf: (cell: number) => readonly string[]) {
   const slotsOf = new Map<number, { slots: readonly string[]; holds: number }>()
   return {
-    async hold(cell: number, asked?: PageAsk) {
-      const slots = meshPagesOf(cell)
-      await pages.hold(slots, asked)
-      const own = slotsOf.get(cell)
+    hold(cell: number, asked?: PageAsk) {
+      const slots = meshPagesOf(cell),
+        own = slotsOf.get(cell)
       if (own) own.holds++
       else slotsOf.set(cell, { slots, holds: 1 })
+      return pages.hold(slots, asked)
     },
     release(cell: number) {
       const own = slotsOf.get(cell)!
@@ -79,25 +79,9 @@ function createLandings() {
   }
 }
 
-/** A cell's hold, held or read, left while it reads, and what lets its reads go. */
+/** A cell's hold, held or read, left while it reads, and what lets its reads go. Each hold is
+ *  released once on every holder, landed or not (`WorldRootsHold.hold`). */
 type Hold = { landed: boolean; left: boolean; stop: AbortController }
-
-/** `own`, a hold of `cell` on `holders`, settled as `held`: all landed, it holds — released at once
- *  if its cell left —; else what landed is let go. True when it failed. One left while it reads
- *  releases once it lands: a failed hold counts nothing, and releasing it too would drop a page
- *  another cell holds. */
-function settled(
-  holders: readonly Holder[],
-  cell: number,
-  own: Hold,
-  held: PromiseSettledResult<void>[],
-) {
-  const landed = holders.filter((_, at) => held[at].status === 'fulfilled')
-  const failed = landed.length < holders.length
-  own.landed = !failed
-  if (failed || own.left) for (const holder of landed) holder.release(cell)
-  return failed
-}
 
 /** The holds of the cells placed on `pages` and `world`. */
 export function createCellPages(
@@ -107,20 +91,21 @@ export function createCellPages(
 ) {
   const holders: Holder[] = world ? [world] : []
   if (pages) holders.push(meshPagesHolder(pages, meshPagesOf))
-  /** Each cell's hold, and the cells whose hold failed while placed: held again whole when the
-   *  plan asks. */
+  /** Each cell's hold; the cells whose hold failed, their pages counted till the plan asks again. */
   const holding = new Map<number, Hold>(),
     failed = new Set<number>(),
     landings = createLandings()
+  const releaseAll = (cell: number) => holders.forEach((holder) => holder.release(cell))
   const settle = (cell: number, own: Hold, held: PromiseSettledResult<void>[]) => {
     landings.settled()
-    if (!settled(holders, cell, own, held) || holding.get(cell) !== own) return
+    own.landed = held.every(({ status }) => status === 'fulfilled')
+    if (own.left) return releaseAll(cell) // left while it read
+    if (own.landed) return
     holding.delete(cell)
     failed.add(cell)
   }
   const hold = (cell: number, priority = PRIORITY_VISIBLE) => {
     if (!holders.length || holding.has(cell)) return
-    failed.delete(cell)
     const own: Hold = { landed: false, left: false, stop: new AbortController() }
     holding.set(cell, own)
     landings.started()
@@ -136,18 +121,22 @@ export function createCellPages(
     hold,
     /** `cell` left: its pages are released, its reads still queued let go. */
     release(cell: number) {
-      failed.delete(cell)
+      if (failed.delete(cell)) return releaseAll(cell)
       const own = holding.get(cell)
       if (!own) return
       holding.delete(cell)
       own.left = !own.landed
-      if (own.landed) for (const holder of holders) holder.release(cell)
+      if (own.landed) releaseAll(cell)
       else own.stop.abort()
     },
-    /** The cells whose hold failed are held again, each at the priority `priorityOf` gives it:
-     *  what the plan asks once a failed read's wait is over. */
+    /** The failed holds are held again at the priority `priorityOf` gives each — what the plan
+     *  asks once a failed read's wait is over —, and let go once the new hold counts. */
     retry(priorityOf: (cell: number) => number) {
-      if (failed.size) for (const cell of [...failed]) hold(cell, priorityOf(cell))
+      for (const cell of [...failed]) {
+        failed.delete(cell)
+        hold(cell, priorityOf(cell))
+        releaseAll(cell)
+      }
     },
     /** What a frame waits on: the next hold to land or fail, while one reads. */
     reads: landings.asked,

@@ -48,3 +48,28 @@ test("a cell's mesh pages wait in the session's queue, at the priority its hold 
     streamer.dispose()
   }
 })
+
+test('a mesh page no hold wants any more leaves the session catalogue, read or failed', async (t) => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  const [read, failed] = root.pages as string[]
+  const refused = `manifest-page-${failed.slice(0, 64)}.json`
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    const name = url.split('/').at(-1)!
+    return name === refused
+      ? new Response('', { status: 404 })
+      : new Response(files.get(name)!.slice())
+  })
+  const reader = pageReader('http://cache/clusters.json', undefined, unmetered)
+  const { pages } = await openPagedManifest(root, reader.read, undefined, reader.letGo)
+  const streamer = createPageStreamer([], 'http://cache/')
+  t.after(() => streamer.dispose())
+  reader.bind(streamer)
+  await pages.hold([read])
+  await assert.rejects(pages.hold([failed]), /PAGE_STREAM_FAILED/)
+  const url = (slot: string) => `http://cache/manifest-page-${slot.slice(0, 64)}.json`
+  assert.deepEqual([streamer.failed(url(failed)), streamer.has(url(read))], [true, true])
+  pages.release([read, failed])
+  for (const slot of [read, failed])
+    await assert.rejects(streamer.readBytes(url(slot)), /Unknown page/)
+  assert.equal(streamer.stats().failed, 0, 'its failure left with it')
+})

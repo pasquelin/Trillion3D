@@ -58,20 +58,21 @@ export function jobFor(
   return job
 }
 
-/** `job`'s last consumer left: still queued, it is taken out of the queue. A transfer already
- *  started is paid for: letting it land in the cache costs nothing more and keeps a superseded
- *  camera from throwing away bytes it is about to ask for again. */
+/** `job`'s last consumer left: still queued, it is taken out of the queue. A page under way is
+ *  paid for: landing in the cache, it is there for a superseded camera that asks it again. A
+ *  range of a file never enters the cache: its read stops, and a later ask reads it anew. */
 export function dropQueued(
   context: StreamContext,
   url: string,
   job: Job,
   end: (url: string, job: Job) => void,
 ) {
-  const { jobs, queue, emit, abortError } = context
-  if (jobs.get(url) !== job || job.state !== 'queued') return
+  const { jobs, queue, catalog, emit, abortError } = context
+  const kept = job.state === 'active' && !catalog.get(url)?.range
+  if (jobs.get(url) !== job || job.state === 'dropped' || kept) return
   end(url, job)
   job.controller.abort(abortError())
   emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
+  if (job.state === 'queued') queue.remove(job)
   job.state = 'dropped'
-  queue.remove(job)
 }

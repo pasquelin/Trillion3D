@@ -29,7 +29,7 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   assert.deepEqual([roots.held(), roots.bytes()], [[], top], 'the pinned top alone is left')
 })
 
-test('a bundle whose bytes are not those its table names is refused, and nothing held', async (t) => {
+test('a bundle whose bytes are not those its table names is refused, its bundles wanted till released', async (t) => {
   const { bin } = worldRootsFixture()
   bin[bin.byteLength - 12] ^= 1 // the last bundle, a cell's
   const { manifest } = served(t, { bin })
@@ -38,10 +38,12 @@ test('a bundle whose bytes are not those its table names is refused, and nothing
     const cause = error.cause as EngineError
     return cause instanceof EngineError && cause.code === 'INVALID_CACHE'
   })
-  assert.deepEqual(roots.held(), [], 'a hold that failed holds nothing')
+  assert.deepEqual(roots.held(), [1, 3], 'a failed hold keeps its bundles wanted')
+  roots.release(0)
+  assert.deepEqual(roots.held(), [], 'released, it holds nothing')
 })
 
-test('a server that ignores the Range is read whole once by the load, once by the queue, every byte counted', async (t) => {
+test('a server that ignores the Range is read whole once for the session, every byte counted once', async (t) => {
   const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const metered: string[] = []
   const meter = {
@@ -52,8 +54,8 @@ test('a server that ignores the Range is read whole once by the load, once by th
   const { roots, queue } = await opened(t, manifest, { meter })
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
   assert.deepEqual(roots.held(), [1, 2, 3])
-  assert.equal(ranges.length, 2, `the whole ${bin.byteLength}-byte binary, asked by each`)
-  assert.ok(queue.stats().cpuBytes >= bin.byteLength, 'the queue counts the copy it keeps')
+  assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
+  assert.ok(queue.stats().cpuBytes < bin.byteLength, 'the queue reads the one the open kept')
   assert.deepEqual(
     metered,
     ['http://world/world-roots.table', 'http://world/world-roots.bin'],

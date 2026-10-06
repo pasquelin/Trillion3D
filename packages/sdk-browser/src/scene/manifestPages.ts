@@ -35,6 +35,8 @@ export function pageReader(metadataUrl: string, signal: AbortSignal | undefined,
   }
   return {
     read,
+    /** A page none holds any longer leaves the session's catalogue, with its failure if it failed. */
+    letGo: (page: TablePage) => queue?.forget([new URL(page.url, metadataUrl).href]),
     bytes: () => bytes,
     settle: () => void (reading = { meter: unmetered }),
     bind: (session: PageQueue) => void (queue = session),

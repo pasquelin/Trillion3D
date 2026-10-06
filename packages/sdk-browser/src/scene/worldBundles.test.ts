@@ -33,6 +33,7 @@ test('a cell let go while its run waits in the queue is never fetched; a shared 
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2)], 'one transfer, the rest wait')
   leaving.abort()
   await assert.rejects(left, { name: 'AbortError' })
+  roots.release(1)
   land()
   await placed
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)])
@@ -48,5 +49,22 @@ test('a run the server refuses for good (404) is never asked again', async (t) =
   await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED.*after one attempt/)
   await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED/)
   assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'asked once')
-  assert.deepEqual([roots.held(), queue.stats().failed], [[], 1])
+  assert.equal(queue.failed(`http://world/world-roots.bin#2-4`), true)
+  roots.release(1)
+  roots.release(1)
+  assert.deepEqual([roots.held(), queue.stats().failed], [[], 0], 'let go, it leaves')
+})
+
+test('a run no hold wants any more leaves the catalogue, failed or not', async (t) => {
+  const world = served(t, {
+    answer: async (from, _to, respond) =>
+      from === world.table.bundles[1].offset ? new Response('', { status: 503 }) : respond(),
+  })
+  const { roots, queue } = await opened(t, world.manifest)
+  const run = 'http://world/world-roots.bin#1-2'
+  await assert.rejects(roots.hold(0), /PAGE_STREAM_FAILED/)
+  assert.equal(queue.failed(run), true, 'its failure waits its turn while the cell wants it')
+  roots.release(0)
+  await assert.rejects(queue.readBytes(run), /Unknown page/)
+  assert.deepEqual([roots.held(), queue.stats().failed], [[], 0])
 })

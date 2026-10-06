@@ -89,12 +89,12 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
       for (const own of owns) if (own.run) waits.add(own.run)
       await Promise.all([...waits].map((own) => land(own, asked.signal, asked.priority)))
     },
-    /** No held bundle waits on `own` any more: its page leaves the catalogue, unless its failure
-     *  waits its turn there. */
+    /** No held bundle waits on `own` any more: its page leaves the catalogue, with its failure if
+     *  it failed. */
     forsake(own: Run) {
       for (let bundle = own.first; bundle < own.end; bundle++)
         if (held.get(bundle)?.run === own) return
-      if (!queue?.failed(own.url)) queue?.forget([own.url])
+      queue?.forget([own.url])
     },
     bind(session: PageQueue) {
       queue = session
@@ -139,17 +139,14 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
   }
   return {
     /** `cell` is placed: the bundles its objects' roots need past the top are held, those neither
-     *  read nor on their way read. A hold that fails, or whose `signal` aborts, holds nothing. */
+     *  read nor on their way read. Each hold is released once (`release`), landed or not: a hold
+     *  that failed keeps its bundles wanted, so their failed reads wait their turn and are asked
+     *  again by the same pages, and one whose `signal` aborted lets the queue drop its reads. */
     async hold(cell: number, asked: WorldHold = {}) {
-      asked.signal?.throwIfAborted()
       const bundles = cellDependencies(table, cell),
         owns = bundles.map(take)
-      try {
-        await runs.read(bundles, owns, asked)
-      } catch (error) {
-        bundles.forEach(letGo)
-        throw error
-      }
+      asked.signal?.throwIfAborted()
+      await runs.read(bundles, owns, asked)
     },
     /** `cell` left: a bundle no placed cell needs any more is let go. */
     release: (cell: number) => cellDependencies(table, cell).forEach(letGo),

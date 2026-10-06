@@ -10,7 +10,7 @@ export function createStreamingFetcher(
   touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
   const { catalog, abort, emit } = context
-  const { attempt, roundTrip, keptBytes } = createPageAttempt(context, touch)
+  const { attempt, roundTrip, readFrom, keptBytes } = createPageAttempt(context, touch)
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url)
     if (!page) throw new Error('Unknown page ' + url)
@@ -48,5 +48,5 @@ export function createStreamingFetcher(
     }))
     throw error
   }
-  return { loadOne, roundTrip, keptBytes }
+  return { loadOne, roundTrip, readFrom, keptBytes }
 }

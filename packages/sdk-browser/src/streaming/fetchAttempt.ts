@@ -7,8 +7,9 @@ import { corruptObject } from '../cluster/pages.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import { rangedReader } from '../cluster/ranged.ts'
 import { verifyPageBytes } from '../page/decode/host.ts'
-import type { StreamContext, StreamPage } from './types.ts'
+import type { RangeReader, StreamContext, StreamPage } from './types.ts'
 import { createRoundTrip } from './roundTrip.ts'
+import { mismatchedPart } from './rangeParts.ts'
 
 /** The attempts a page's read makes before it fails and waits its turn (`failures.ts`). */
 export const ATTEMPTS = 3
@@ -23,15 +24,10 @@ async function verified(page: StreamPage, buffer: ArrayBuffer) {
     const { sha256, source } = await verifyPageBytes(buffer)
     return sha256 === page.sha256 ? { buffer: source } : { found: sha256 }
   }
-  let at = 0
-  for (const part of page.range.parts) {
-    const { sha256 } = await verifyPageBytes(buffer.slice(at, (at += part.bytes)))
-    if (sha256 !== part.sha256) return { found: sha256 }
-  }
-  return { buffer }
+  const wrong = await mismatchedPart(buffer, page.range.offset, page.range.parts)
+  return wrong ? { found: wrong.found } : { buffer }
 }
 
-/** The attempts of `context`'s reads, a whole page's bytes kept through `touch`. */
 /** `buffer`, `page`'s bytes read at attempt `n` of `url`, checked against what it announced, the
  *  check told: the bytes to keep, or refused by `corruptObject`. */
 async function checkedBytes(
@@ -65,24 +61,29 @@ async function checkedBytes(
 }
 
 /** The requests of pages under `base`: a page's file, or its range of another, read through one
- *  reader a file — a server that ignores the Range answers it whole, kept and read no more
+ *  reader a file for the session — the one a reader of the file handed in (`readFrom`), else its
+ *  own, which a server that ignores the Range answers whole, kept and read no more
  *  (`rangedReader`). */
 function createPageRequests(base: string) {
-  const files = new Map<string, ReturnType<typeof rangedReader>>()
+  const files = new Map<string, { read: RangeReader; own: boolean }>()
   return {
     /** One request of `page`'s bytes. */
     async request(page: StreamPage, url: string, signal: AbortSignal) {
       if (!page.range)
         return (await checked(new URL(url, base).href, signal, ONE_REQUEST)).arrayBuffer()
       const file = new URL(page.range.file, base).href
-      let read = files.get(file)
-      if (!read) files.set(file, (read = rangedReader(file)))
-      return read(page.range.offset, page.bytes, { attempts: ONE_REQUEST, signal })
+      let reader = files.get(file)
+      if (!reader) files.set(file, (reader = { read: rangedReader(file), own: true }))
+      return reader.read(page.range.offset, page.bytes, { attempts: ONE_REQUEST, signal })
     },
-    /** The bytes of the files kept whole for servers that ignore the Range. */
+    /** The ranges of `file` are read through `read`, which its owner counts. */
+    readFrom(file: string, read: RangeReader) {
+      files.set(new URL(file, base).href, { read, own: false })
+    },
+    /** The bytes of the files its own readers kept whole for servers that ignore the Range. */
     keptBytes() {
       let kept = 0
-      for (const read of files.values()) kept += read.held()
+      for (const { read, own } of files.values()) if (own) kept += read.held()
       return kept
     },
   }
@@ -96,7 +97,7 @@ export function createPageAttempt(
   const { base, onDiagnostic, emit, state } = context
   /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
   const roundTrip = createRoundTrip()
-  const { request, keptBytes } = createPageRequests(base)
+  const { request, readFrom, keptBytes } = createPageRequests(base)
   /** One attempt at `page`: its bytes read, checked and counted, a whole page kept in the cache. */
   const attempt = async (page: StreamPage, url: string, signal: AbortSignal, n: number) => {
     const started = onDiagnostic ? performance.now() : 0,
@@ -133,5 +134,5 @@ export function createPageAttempt(
     }))
     return array
   }
-  return { attempt, roundTrip, keptBytes }
+  return { attempt, roundTrip, readFrom, keptBytes }
 }

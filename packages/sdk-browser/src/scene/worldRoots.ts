@@ -37,6 +37,7 @@ import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
 import { readSpan } from './worldRuns.ts'
+import type { PageQueue } from '../streaming/types.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): nothing draws from them yet,
@@ -137,7 +138,12 @@ export async function openWorldRoots(
     hold: bundles.hold,
     release: bundles.release,
     held: bundles.held,
-    bind: bundles.bind,
+    /** The session's queue the bundles are read through, by the reader of the binary the open
+     *  read the top with: one reader a file. */
+    bind(queue: PageQueue) {
+      queue.readFrom(url, read)
+      bundles.bind(queue)
+    },
     /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
      *  server that ignores the Range answered (`rangedReader`). */
     bytes: () =>

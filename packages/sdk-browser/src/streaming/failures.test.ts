@@ -26,7 +26,7 @@ function refusing(t: TestContext, status: number) {
     for (; clock.now <= end; clock.now += 250, t.mock.timers.tick(250))
       await streamer.request(['a.bin']).catch(() => {})
   }
-  return { streamer, sent, turns, said, frames }
+  return { streamer, sent, turns, said, frames, clock }
 }
 
 test('a read that may pass waits 0.5 s · 2^k up to 8 s, refused at once meanwhile, its turn told', async (t) => {
@@ -49,6 +49,21 @@ test('a read another request would meet again (404) is refused for good, its tur
     await frames(10_000)
     assert.deepEqual([sent, turns], [[0], []])
     assert.equal(streamer.failed('a.bin'), true)
+  } finally {
+    streamer.dispose()
+  }
+})
+
+test('a page is `failed` only while its refusal is in force: once its wait is over it is asked again', async (t) => {
+  const { streamer, sent, frames, clock } = refusing(t, 503)
+  try {
+    await frames(0) // read and refused at 0, its wait running till 500
+    assert.equal(streamer.failed('a.bin'), true, 'refused at once during its wait')
+    clock.now = 500
+    t.mock.timers.tick(250)
+    assert.equal(streamer.failed('a.bin'), false, 'its wait over, the view may ask it')
+    await streamer.request(['a.bin']).catch(() => {})
+    assert.deepEqual([...new Set(sent)], [0, 500], 'asked again')
   } finally {
     streamer.dispose()
   }

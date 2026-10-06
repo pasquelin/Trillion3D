@@ -29,14 +29,16 @@ test('a root that names no head page is refused', async () => {
   await assert.rejects(refused, (error: EngineError) => error.code === 'INVALID_CACHE')
 })
 
-test('an opened manifest holds the mesh pages it is asked for, as each hold asks, placed once and dropped with its last holder', async () => {
+test('an opened manifest holds the mesh pages it is asked for, each read once and dropped with its last holder', async () => {
   const { root, files } = pagedManifest(manifest(), false, true)
-  const reads: (number | undefined)[] = []
+  const reads: (number | undefined)[] = [],
+    gone: string[] = []
   const read = async ({ url }: { url: string }, asked?: PageAsk) => (
     reads.push(asked?.priority),
     files.get(url)!
   )
-  const { metadata, pages } = await openPagedManifest(root, read)
+  const letGo = ({ url }: { url: string }) => void gone.push(url)
+  const { metadata, pages } = await openPagedManifest(root, read, undefined, letGo)
   const { primitives: all, ...head } = whole()
   assert.deepEqual({ ...metadata, primitives: [] }, { ...head, primitives: [] }, 'the head alone')
   assert.equal(metadata.primitives, pages.primitives)
@@ -46,15 +48,37 @@ test('an opened manifest holds the mesh pages it is asked for, as each hold asks
     pages.hold([first], { priority: 1 }),
     pages.hold([first, second], { priority: 3 }),
   ])
-  // Each hold reads at its own priority, with its own signal: the reader shares the bytes.
-  assert.deepEqual(reads.slice(opened).sort(), [1, 1, 3, 3, 3, 3])
-  assert.deepEqual(metadata.primitives, all.slice(0, 2), 'each page placed once')
+  // One read a page on its way, at the priority of the hold that asked it first.
+  assert.deepEqual(reads.slice(opened), [1, 3, 1, 3])
+  assert.deepEqual(metadata.primitives, all.slice(0, 2))
   pages.release([first, second])
   assert.deepEqual(metadata.primitives, all.slice(0, 1), 'the first is still held')
+  assert.equal(gone.length, 2, "the second's page and sidecar let go with their last holder")
   pages.release([first])
   assert.deepEqual([metadata.primitives, pages.changes], [[], 4])
   const landing = pages.hold([second])
   pages.release([second])
   await landing
   assert.deepEqual(metadata.primitives, [], 'released before it landed, never listed')
+})
+
+test('holds of one unread page share its read, cancelled once the last of them lets go', async () => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  const signals: AbortSignal[] = []
+  const read = (page: { url: string }, asked?: PageAsk) =>
+    new Promise<Uint8Array>((resolve, reject) => {
+      if (!asked?.signal) return resolve(files.get(page.url)!)
+      signals.push(asked.signal)
+      asked.signal.addEventListener('abort', () => reject(asked.signal!.reason))
+    })
+  const { pages } = await openPagedManifest(root, read)
+  const [first] = root.pages as string[]
+  const [a, b] = [new AbortController(), new AbortController()]
+  const holds = [a, b].map(({ signal }) => pages.hold([first], { signal, priority: 1 }))
+  assert.equal(signals.length, 1, 'one read for both')
+  a.abort()
+  assert.equal(signals[0].aborted, false, 'one asker still waits on it')
+  b.abort()
+  assert.equal(signals[0].aborted, true, 'the last let go: cancelled')
+  for (const hold of holds) await assert.rejects(hold, { name: 'AbortError' })
 })

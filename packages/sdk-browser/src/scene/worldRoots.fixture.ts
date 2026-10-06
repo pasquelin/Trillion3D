@@ -4,7 +4,6 @@ import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
-import { bundleSpan } from './worldRuns.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
@@ -49,9 +48,9 @@ export function served(t: TestContext, serving: Serving = {}) {
 }
 
 /** The Range header that reads bundles `[first, end)` of `table`. */
-export function rangeOf(table: Parameters<typeof bundleSpan>[0], first: number, end: number) {
-  const { offset, bytes } = bundleSpan(table, first, end)
-  return `bytes=${offset}-${offset + bytes - 1}`
+export function rangeOf(table: WorldRoots, first: number, end: number) {
+  const last = table.bundles[end - 1]
+  return `bytes=${table.bundles[first].offset}-${last.offset + last.bytes - 1}`
 }
 
 /** The world `manifest` declares, opened at `http://world/` as a load opens it — `meter` counting,

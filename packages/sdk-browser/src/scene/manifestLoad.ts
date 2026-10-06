@@ -159,7 +159,7 @@ export async function loadClusterManifest(
     return primitives.map((primitive) => absolutePrimitive(primitive, base))
   }
   const { metadata, pages } = lazy
-    ? await openPagedManifest(value, read, accept)
+    ? await openPagedManifest(value, read, accept, reader.letGo)
     : { metadata: await readPagedManifest(value, read), pages: undefined }
   head.manifest = metadata
   located(() => assertCacheReady(metadata, scope), metadataResource.details)
