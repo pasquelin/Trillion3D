@@ -1,6 +1,5 @@
-// The rules of the occlusion split and test: the occluder split is a partition that keeps the
-// nearest half of the boxes in front of the eye, and the test never culls a box that could be
-// seen, counts every box once, and keeps what it cannot prove hidden.
+// The rules of the occlusion test: it never culls a box that could be seen, counts every box once,
+// and keeps what it cannot prove hidden. (The occluder split is in `splitOccluders.test.ts`.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
@@ -8,111 +7,11 @@ import { createHizCounts, type HizCounts } from './counts.ts';
 import type { HizPage } from './types.ts';
 import { buildHizPyramid } from './depth.ts';
 import { countUnoccluded, filterUnoccluded } from './unoccluded.ts';
-import { splitOccludersInto } from './split.ts';
-import {
-  cameraAt,
-  occluderPyramid,
-  projectBoxToScreen,
-  quad,
-  seededRandom,
-} from '../../../../tests/fixtures/hiz.ts';
+import { cameraAt, occluderPyramid, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
-
-type Tagged = HizPage & { tag: number; array?: ArrayLike<number> };
-
-const box = (min: number[], max: number[], tag: number, triangles = 0): Tagged => ({
-  min,
-  max,
-  tag,
-  array: new Uint32Array(triangles * 3),
-});
-
-/** A box of the generated cut: somewhere in the view, from far behind the origin to near the eye. */
-function randomBox(rand: () => number, tag: number) {
-  const x = (rand() - 0.5) * 6,
-    y = (rand() - 0.5) * 6,
-    z = -8 + rand() * 12;
-  const sx = 0.05 + rand() * 1.5,
-    sy = 0.05 + rand() * 1.5,
-    sz = rand() * 1.5;
-  return box([x - sx, y - sy, z - sz], [x + sx, y + sy, z + sz], tag, 1 + Math.floor(rand() * 40));
-}
-
-function split(
-  pages: Tagged[],
-  cam = cameraMoteur(cameraAt()),
-  viewport: [number, number] = [64, 64],
-) {
-  const occluders: Tagged[] = [],
-    rest: Tagged[] = [];
-  const count = splitOccludersInto(pages, identityRoots(), cam, viewport, occluders, rest);
-  return { occluders, rest, count };
-}
-
-const bounds = (page: Tagged, cam = cameraAt(), viewport: [number, number] = [64, 64]) =>
-  projectBoxToScreen(page.min, page.max, new G.Matrix4(), cam, viewport);
-
-test('no page splits into nothing, a single page in front is its own occluder', () => {
-  assert.deepEqual(split([]), { occluders: [], rest: [], count: 0 });
-  const only = box([-1, -1, -1], [1, 1, 1], 0);
-  const got = split([only]);
-  assert.deepEqual(got.occluders, [only]);
-  assert.deepEqual(got.rest, []);
-});
-
-test('a box crossing the near plane never becomes an occluder, NaN and Infinity bounds included', () => {
-  const cam = cameraMoteur(cameraAt(0.5, 0.1));
-  const pages = [
-    box([-5, -5, -5], [5, 5, 5], 0), // Straddles the camera: clips the near plane.
-    box([-0.1, -0.1, -2], [0.1, 0.1, -2], 1),
-    box([NaN, -0.1, -3], [0.1, 0.1, -3], 2),
-    box([Infinity, -Infinity, -4], [Infinity, Infinity, -4], 3),
-  ];
-  const { occluders, rest } = split(pages, cam, [32, 32]);
-  assert.equal(
-    occluders.some((p) => p.tag === 0 || p.tag === 2 || p.tag === 3),
-    false,
-  );
-  assert.equal(occluders.length + rest.length, pages.length);
-  assert.ok(rest.some((p) => p.tag === 0));
-});
-
-test('the split is a partition: the nearest half of the boxes in front, the near clippers last', () => {
-  const rand = seededRandom(7);
-  for (let round = 0; round < 60; round++) {
-    const pages = Array.from({ length: 1 + Math.floor(rand() * 40) }, (_, i) => randomBox(rand, i));
-    const { occluders, rest, count } = split(pages);
-    // Every page lands in exactly one of the two lists.
-    assert.deepEqual(
-      [...occluders, ...rest].map((p) => p.tag).sort((a, b) => a - b),
-      pages.map((p) => p.tag),
-    );
-    const info = new Map(pages.map((p) => [p.tag, bounds(p)]));
-    const inFront = pages.filter((p) => !info.get(p.tag)!.clipsNear);
-    assert.equal(count, occluders.length);
-    assert.equal(
-      occluders.length,
-      inFront.length ? Math.max(1, Math.floor(inFront.length / 2)) : 0,
-    );
-    // Occluders are in front of the eye and at least as near as every page left in front.
-    for (const o of occluders) assert.equal(info.get(o.tag)!.clipsNear, false);
-    const restInFront = rest.filter((p) => !info.get(p.tag)!.clipsNear);
-    for (const o of occluders)
-      for (const r of restInFront)
-        assert.ok(info.get(o.tag)!.nearestDepth >= info.get(r.tag)!.nearestDepth);
-    // Occluders come nearest first (ties by candidate order).
-    for (let i = 1; i < occluders.length; i++)
-      assert.ok(
-        info.get(occluders[i - 1].tag)!.nearestDepth >= info.get(occluders[i].tag)!.nearestDepth,
-      );
-    // The near clippers follow every page in front.
-    const firstClipper = rest.findIndex((p) => info.get(p.tag)!.clipsNear);
-    if (firstClipper >= 0)
-      for (const p of rest.slice(firstClipper)) assert.equal(info.get(p.tag)!.clipsNear, true);
-  }
-});
+import { bounds, box, randomBox, type Tagged } from './occlusionCuts.fixture.ts';
 
 /** A full-screen occluder at the origin plane, seen from z = 5: everything behind it is hidden. */
 function wall(size: [number, number]) {
