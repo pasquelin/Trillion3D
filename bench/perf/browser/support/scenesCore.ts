@@ -7,7 +7,11 @@ import { graine } from '../../../core/index.ts';
 const alea = graine(0x50c1e);
 /** Values a float can take that a formula must traverse without smoothing them. */
 export const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308, 0.5, -0.5];
-const bord = () => BORDS[Math.floor(alea() * BORDS.length)];
+/** The draw of one `BORDS` value from a seeded sequence. */
+export const bordDe = (alea: () => number) => () => BORDS[Math.floor(alea() * BORDS.length)];
+const bord = bordDe(alea);
+/** The draw of a number in `[-etendue, etendue)` from a seeded sequence. */
+export const dansDe = (alea: () => number) => (etendue: number) => (alea() * 2 - 1) * etendue;
 const nombre = () => (alea() < 0.15 ? bord() : (alea() * 2 - 1) * 10 ** Math.floor(alea() * 8 - 4));
 
 /** A rigid pose, then a scale drawn from: uniform, non-uniform, negative, zero. */

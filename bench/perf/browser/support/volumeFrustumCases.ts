@@ -24,12 +24,9 @@ import {
   referencePlanesToLocal,
   reordonne,
 } from '../../../oracles/browser/volumes.ts';
-import { casVolume, type CasVolume } from './volumeCase.ts';
+import { casVolume, un, type CasVolume } from './volumeCase.ts';
 import { plans } from './volumeFrustumPlaneCases.ts';
 
-const un = <Entree>(name: string, input: Entree[]): MesureCas<Entree[]>[] => [
-  { name, input, size: input.length },
-];
 const deux = <Entree>(
   name: string,
   input: Entree[],

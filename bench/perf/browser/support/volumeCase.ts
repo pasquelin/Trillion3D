@@ -13,6 +13,11 @@ interface ReglagesVolume {
   budgetMs?: number;
 }
 
+/** One case of a single input list. */
+export const un = <Entree>(name: string, input: Entree[]): MesureCas<Entree[]>[] => [
+  { name, input, size: input.length },
+];
+
 export interface CasVolume {
   run: (options: ReglagesVolume) => Promise<Measurement>;
 }

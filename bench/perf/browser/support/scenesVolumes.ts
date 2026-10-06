@@ -5,6 +5,7 @@
 // the eye, hence clip the near plane.
 import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
 
 const alea = graine(52021);
 /** Values a float can take that a volume must traverse without smoothing them. */
@@ -13,7 +14,7 @@ const nombre = (): number => {
   if (alea() < 0.15) return BORDS[Math.floor(alea() * BORDS.length)];
   return (alea() * 2 - 1) * 10 ** Math.floor(alea() * 10 - 4);
 };
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const dans = dansDe(alea);
 
 /** Six bounds: ordinary, then the degenerate shapes the engine may receive from a manifest. */
 export const boites: number[][] = [

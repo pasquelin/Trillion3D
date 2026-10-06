@@ -15,11 +15,8 @@ import type { MesureCas } from '../../../core/index.ts';
 import { boitesHierarchiques } from './scenesHierarchies.ts';
 import { boites, matrices } from './scenesVolumes.ts';
 import { aPlat, boite3 } from '../../../oracles/core/volumes.ts';
-import { casVolume, type CasVolume } from './volumeCase.ts';
+import { casVolume, un, type CasVolume } from './volumeCase.ts';
 
-const un = <Entree>(name: string, input: Entree[]): MesureCas<Entree[]>[] => [
-  { name, input, size: input.length },
-];
 /** Hostile cases, then the world matrices of real Three.js hierarchies. */
 const etHierarchies = (
   name: string,

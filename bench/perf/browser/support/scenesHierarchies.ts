@@ -6,10 +6,11 @@
 // orthographic camera posed itself in the hierarchy, in both depth conventions.
 import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
 import { boites } from './scenesVolumes.ts';
 
 const alea = graine(60617);
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const dans = dansDe(alea);
 
 /** Scales of a node: ordinary, negative on one or three axes, non-uniform, zero, extremes. */
 const ECHELLES: (() => [number, number, number])[] = [

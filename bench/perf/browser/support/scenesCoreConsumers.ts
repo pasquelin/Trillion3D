@@ -1,12 +1,12 @@
 // Inputs of consumers attached to the foundation: cluster records, colours. Drawn from a seed.
 import * as THREE from 'three';
 import { graine } from '../../../core/index.ts';
-import { BORDS, affines, matrices } from './scenesCore.ts';
+import { affines, bordDe, matrices } from './scenesCore.ts';
 import { pageRecFixture } from './pageRecFixture.ts';
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const alea = graine(0xc0de5);
-const bord = () => BORDS[Math.floor(alea() * BORDS.length)];
+const bord = bordDe(alea);
 
 /** Cluster records: hostile poses and matrices, spheres and boxes. */
 const erreurs: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];

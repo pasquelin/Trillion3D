@@ -2,6 +2,7 @@
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
 import { graine } from '../../../core/index.ts';
+import { dansDe } from './scenesCore.ts';
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts';
 
 export type Vec3 = [number, number, number];
@@ -36,7 +37,7 @@ export type HierarchyOp =
 
 const alea = graine(0x3a3a);
 const tire = <T>(liste: T[]): T => liste[Math.floor(alea() * liste.length)];
-const dans = (etendue: number) => (alea() * 2 - 1) * etendue;
+const dans = dansDe(alea);
 const tourne = (): Quat => {
   const q: Quat = [alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5];
   const l = Math.hypot(...q);
