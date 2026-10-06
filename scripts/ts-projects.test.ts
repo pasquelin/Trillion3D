@@ -47,8 +47,8 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
     /pair\.gpu\.ts: no tsconfig project type-checks it/,
   );
   const tools = project('tsconfig.tools.json');
-  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts')));
-  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicNode.mts')));
+  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicTypesOnly.ts')));
+  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicNode.mts')));
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')));
   const build = project('tsconfig.json');
   assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');

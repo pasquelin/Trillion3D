@@ -92,7 +92,7 @@ const config: KnipConfig = {
         'tests/gpu/**/*.gpu.ts',
         'tests/gpu/**/*.chrome.ts',
         'tests/gpu/**/*Page.ts',
-        'tests/fixtures/public*.{ts,mts}',
+        'tests/fixtures/public/*.{ts,mts}',
       ],
       project: [
         'site/**/*.{ts,tsx}',

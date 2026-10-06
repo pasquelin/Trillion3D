@@ -31,5 +31,5 @@
     "eslint.config.ts",
     "site/app/migration/sources.d.ts"
   ],
-  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/public*"]
+  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/public"]
 }
