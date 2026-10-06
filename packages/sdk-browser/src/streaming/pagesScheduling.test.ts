@@ -111,3 +111,39 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
     globalThis.fetch = previous
   }
 })
+
+test('a range the catalogue does not list waits for the transfers the pages hold, by priority', async () => {
+  const bytes = new Uint32Array([0, 1, 2])
+  const sha = await sha256Hex(bytes.buffer)
+  const previous = globalThis.fetch,
+    started: string[] = []
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  globalThis.fetch = async () => {
+    started.push('a.bin')
+    await gate
+    return new Response(bytes)
+  }
+  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 12, sha256: sha }], 'http://cache/', {
+    workerCount: 1,
+  })
+  const range = (key: string) => async () => (started.push(key), new Uint8Array([7]))
+  const letGo = new AbortController()
+  try {
+    const page = streamer.read('a.bin')
+    const far = streamer.ranged('far', 1, range('far'), undefined, 3)
+    const near = streamer.ranged('near', 1, range('near'), undefined, 1)
+    const gone = streamer.ranged('gone', 1, range('gone'), letGo.signal, 1)
+    assert.deepEqual([started, streamer.stats().queued], [['a.bin'], 3], 'one transfer, held')
+    letGo.abort()
+    release()
+    await assert.rejects(gone, { name: 'AbortError' })
+    assert.deepEqual([...(await near), ...(await far)], [7, 7])
+    await page
+    assert.deepEqual(started, ['a.bin', 'near', 'far'], 'nearer first; the one let go is unread')
+  } finally {
+    release()
+    streamer.dispose()
+    globalThis.fetch = previous
+  }
+})

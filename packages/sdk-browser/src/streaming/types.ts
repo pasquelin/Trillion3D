@@ -72,6 +72,10 @@ export type Job = {
   url: string
   priority: number
   order: number
+  /** The bytes its transfer holds in flight. */
+  bytes: number
+  /** Its read, for a range the catalogue does not list (`RangedRead`); a page's is the fetcher's. */
+  load?: (signal: AbortSignal) => Promise<Uint8Array>
   controller: AbortController
   /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
   state: 'queued' | 'active' | 'dropped'
@@ -80,6 +84,17 @@ export type Job = {
   resolve: (value: Uint8Array) => void
   reject: (reason: unknown) => void
 }
+
+/** Reads `bytes` past the catalogue — a range of a file — by `load`, in one of the queue's
+ *  transfers at `priority`: one read per `key` while it is asked, shared by whoever asks it, and
+ *  dropped unread once every asker's `signal` aborted while it waits. */
+export type RangedRead = (
+  key: string,
+  bytes: number,
+  load: (signal: AbortSignal) => Promise<Uint8Array>,
+  signal?: AbortSignal,
+  priority?: number,
+) => Promise<Uint8Array>
 
 export type StreamContext = {
   base: string

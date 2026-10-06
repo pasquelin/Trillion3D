@@ -29,18 +29,20 @@ export function answerFromCache(
   return undefined
 }
 
-/** The job reading `url`: a new one, queued, or the one already reading it, raised to the
- *  urgency of this request. */
+/** The job reading `url` — the catalogue's page, or the range `ranged` reads —: a new one, queued,
+ *  or the one already reading it, raised to the urgency of this request. */
 export function jobFor(
   context: StreamContext,
   sync: (url: string) => void,
   url: string,
   priority: number,
+  ranged?: Pick<Job, 'bytes' | 'load'>,
 ): Job {
-  const { state, queue, jobs, emit } = context
+  const { state, queue, jobs, emit, catalog } = context
   let job = jobs.get(url)
   if (!job) {
-    job = createJob(url, priority, state.order++)
+    const bytes = ranged?.bytes ?? catalog.get(url)!.bytes
+    job = createJob(url, priority, state.order++, bytes, ranged?.load)
     jobs.set(url, job)
     sync(url)
     insereTravail(queue, job)
@@ -63,4 +65,24 @@ export function jobFor(
     loading: jobs.size,
   }))
   return job
+}
+
+/** `job`'s last consumer left: still queued, it is dropped — marked, `pump` compacts the queue in
+ *  one pass and `stats()` subtracts the marked from its length, so the published pending count
+ *  does not move. A transfer already started is paid for: letting it land in the cache costs
+ *  nothing more and keeps a superseded camera from throwing away bytes it is about to ask for
+ *  again. */
+export function dropQueued(
+  context: StreamContext,
+  url: string,
+  job: Job,
+  end: (url: string, job: Job) => void,
+) {
+  const { jobs, state, emit, abortError } = context
+  if (jobs.get(url) !== job || job.state !== 'queued') return
+  end(url, job)
+  job.controller.abort(abortError())
+  emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
+  job.state = 'dropped'
+  state.dropped++
 }

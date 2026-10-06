@@ -123,6 +123,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
       url,
       priority: 0,
       order: 0,
+      bytes: 0,
       controller: new AbortController(),
       state: 'queued',
       consumers: new Set(),

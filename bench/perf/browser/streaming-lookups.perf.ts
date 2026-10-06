@@ -26,6 +26,7 @@ const file = ({ urls }: { urls: string[] }): Job[] =>
     url,
     priority: 0,
     order: 0,
+    bytes: 0,
     controller: DUMMY_CONTROLLER,
     state: 'queued',
     consumers: new Set<symbol>(),

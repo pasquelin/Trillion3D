@@ -95,7 +95,8 @@ export function createPageStreamerWith(
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }))
   const { loadOne, roundTrip } = createStreamingFetcher(context, touch)
-  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict, sync)
+  const queued = createStreamingQueue(context, loadOne, touch, evict, sync)
+  const { subscribe, forget, keep } = queued
   const { read, watch } = createReadWatch(subscribe)
   const asIndices = createIndexViews()
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
@@ -127,6 +128,8 @@ export function createPageStreamerWith(
     roundTripMs: roundTrip.ms,
     read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
+    /** A range of a file the catalogue does not list, read in the same queue (`RangedRead`). */
+    ranged: queued.ranged,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,
