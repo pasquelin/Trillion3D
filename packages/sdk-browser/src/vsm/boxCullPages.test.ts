@@ -8,6 +8,7 @@ import { builtins } from '../texture/shaderRunBuiltins.fixture.ts';
 import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts';
 import { INVALIDATION_PAGES, RENDER_PAGES } from './boxCullPagesBefore.fixture.ts';
 import {
+  type Draw,
   INVALIDATION,
   RENDER,
   handle,
@@ -28,22 +29,30 @@ const at = (k: number) => {
   return { d, t: use(tables(k, d)) };
 };
 
-test("the flag mask test and the overlap of a page rect are the invalidation's, bit for bit", () => {
-  const names = ['vsmTouchesMappedPage', 'vsmMarksMatch', 'vsmLevelHoldingRect'];
-  const was = run(INVALIDATION_BEFORE, names),
-    is = run(INVALIDATION, [...names, 'vsmRectMarks']);
+type Run = Record<string, (...args: unknown[]) => unknown>;
+/** Every case from `first` on: `is` answers what `was` answered to the arguments `argsOf` draws,
+ *  and about one case in two touches a page (a test that never hits proves nothing). */
+function sameTouches(was: Run, is: Run, first: number, argsOf: (d: Draw) => unknown[]) {
   let overlaps = 0;
   for (let k = 0; k < CASES; k++) {
-    const { d } = at(k);
-    const flags = d.int(0, 1) ? d.int(0, 2 ** 32 - 1) : d.pick([0, 1, 7, 8, 9, 15]);
-    const mask = d.pick([1, 2, 4, 6, 7, 9, 15, d.int(0, 255)]);
-    assert.equal(is.vsmMarksMatch(flags, mask), was.vsmMarksMatch(flags, mask));
-    const args = [handle(d), d.int(0, 7), pageRect(d, 128), mask, d.bool()];
+    const args = argsOf(at(first + k).d);
     const result = is.vsmTouchesMappedPage(...args);
     assert.equal(result, was.vsmTouchesMappedPage(...args), `case ${k}`);
     overlaps += Number(result);
   }
   assert.ok(overlaps > CASES / 10 && overlaps < CASES * 0.9, `${overlaps}`);
+}
+
+test("the flag mask test and the overlap of a page rect are the invalidation's, bit for bit", () => {
+  const names = ['vsmTouchesMappedPage', 'vsmMarksMatch', 'vsmLevelHoldingRect'];
+  const was = run(INVALIDATION_BEFORE, names),
+    is = run(INVALIDATION, [...names, 'vsmRectMarks']);
+  sameTouches(was, is, 0, (d) => {
+    const flags = d.int(0, 1) ? d.int(0, 2 ** 32 - 1) : d.pick([0, 1, 7, 8, 9, 15]);
+    const mask = d.pick([1, 2, 4, 6, 7, 9, 15, d.int(0, 255)]);
+    assert.equal(is.vsmMarksMatch(flags, mask), was.vsmMarksMatch(flags, mask));
+    return [handle(d), d.int(0, 7), pageRect(d, 128), mask, d.bool()];
+  });
 });
 
 test("the overlap of a pixel rect with valid pages is the render cull's, receiver cover and all", () => {
@@ -51,15 +60,14 @@ test("the overlap of a pixel rect with valid pages is the render cull's, receive
   const shared = ['vsmMarksMatch', 'vsmLevelHoldingRect'];
   const was = run(RENDER_BEFORE, [...names, ...shared]),
     is = run(RENDER, [...names, ...shared, 'vsmRectMarks']);
-  let overlaps = 0;
-  for (let k = 0; k < CASES; k++) {
-    const { d } = at(10 ** 5 + k);
-    const args = [handle(d), d.int(0, 7), pageRect(d, 16383), d.int(0, 15), d.bool(), d.bool()];
-    const result = is.vsmTouchesMappedPage(...args);
-    assert.equal(result, was.vsmTouchesMappedPage(...args), `case ${k}`);
-    overlaps += Number(result);
-  }
-  assert.ok(overlaps > CASES / 10 && overlaps < CASES * 0.9, `${overlaps}`);
+  sameTouches(was, is, 10 ** 5, (d) => [
+    handle(d),
+    d.int(0, 7),
+    pageRect(d, 16383),
+    d.int(0, 15),
+    d.bool(),
+    d.bool(),
+  ]);
 });
 
 test("the allocated rect, the radius and the detail geometry are each module's own, bit for bit", () => {
