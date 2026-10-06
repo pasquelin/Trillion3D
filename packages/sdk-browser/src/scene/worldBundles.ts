@@ -102,6 +102,17 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
   }
 }
 
+/** `bundle`'s pages read through `runs` for one request alone, at the view's priority: its page
+ *  leaves the catalogue once read, landed or failed (the GPU page pool keeps what it uploads). */
+async function readAlone(runs: ReturnType<typeof createRuns>, table: WorldRoots, bundle: number) {
+  const own = runs.run(bundle, bundle + 1)
+  try {
+    return bundleIn(await runs.land(own), table, bundle, bundle)
+  } finally {
+    runs.forsake(own)
+  }
+}
+
 /** A read of bundles `[first, end)` at open: their pages, bundle by bundle. */
 type SpanRead = (span: [number, number]) => Promise<WorldRootsPage[][]>
 
@@ -157,20 +168,14 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       await readAtOpen(bundles, bundles.map(take), read)
     },
     /** A bundle's pages: the pinned top's or a held one's, joining the run on its way, else read
-     *  for the one request at the view's priority, its page left once read, landed or failed (the
-     *  GPU page pool keeps what it uploads). */
+     *  for the one request alone (`readAlone`). */
     async pages(bundle: number) {
       if (bundle < table.pinned) return top[bundle]
       const own = held.get(bundle),
         run = own?.run
       if (own?.pages) return own.pages
-      if (run) return bundleIn(await runs.land(run), table, run.first, bundle)
-      const alone = runs.run(bundle, bundle + 1)
-      try {
-        return bundleIn(await runs.land(alone), table, bundle, bundle)
-      } finally {
-        runs.forsake(alone)
-      }
+      if (!run) return readAlone(runs, table, bundle)
+      return bundleIn(await runs.land(run), table, run.first, bundle)
     },
     /** The bundles held now, ascending. */
     held: () => [...held.keys()].sort((a, b) => a - b),

@@ -39,11 +39,7 @@ export function createFarCells(world: World | undefined, placed: Placed) {
     },
   }
   /** `cell`'s far hold is let go, once placed or past the keep sphere; whether it had one. */
-  const release = (cell: number) => {
-    if (!far.delete(cell)) return false
-    holds.release(cell)
-    return true
-  }
+  const release = (cell: number) => far.delete(cell) && (holds.release(cell), true)
   /** The plan's reading of the super-roots from `eye` through the cut's `lens`, or none: no cut
    *  packs the world DAG, or its bound is not read yet (asked here, once; a refusal asks again). */
   const superRoots = (eye: ArrayLike<number>, lens?: SuperRootLens): SuperRootPlan | undefined => {

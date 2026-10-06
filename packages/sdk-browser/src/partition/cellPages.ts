@@ -80,6 +80,29 @@ function createLandings() {
   }
 }
 
+/** The cells whose hold failed, each with the failed reads' waits over when it was held, and the
+ *  waits over the plan last told (`turned`): one is due again once a wait ended since it was held,
+ *  whenever its hold settled. */
+function createFailedHolds() {
+  const failed = new Map<number, number>()
+  let turns = 0
+  return {
+    now: () => turns,
+    add: (cell: number, held: number) => void failed.set(cell, held),
+    delete: (cell: number) => failed.delete(cell),
+    /** The plan tells the failed reads' waits over now, `now`: whether a failed hold is due. */
+    turned(now: number) {
+      turns = now
+      for (const held of failed.values()) if (held < now) return true
+      return false
+    },
+    /** The failed holds due again, each taken out as it is given. */
+    *due() {
+      for (const [cell, held] of failed) if (held < turns && failed.delete(cell)) yield cell
+    },
+  }
+}
+
 /** A cell's hold, held or read, left while it reads, what lets its reads go, and the failed reads'
  *  waits over when it was held. Each hold is released once on every holder, landed or not
  *  (`WorldRootsHold.hold`). */
@@ -93,30 +116,28 @@ export function createCellPages(
 ) {
   const holders: Holder[] = world ? [world] : []
   if (pages) holders.push(meshPagesHolder(pages, meshPagesOf))
-  /** Each cell's hold; the cells whose hold failed, their pages counted till the plan asks again,
-   *  with the waits over when it was held; the waits over the plan last told. */
+  /** Each cell's hold; the cells whose hold failed, their pages counted till the plan asks again. */
   const holding = new Map<number, Hold>(),
-    failed = new Map<number, number>(),
+    failed = createFailedHolds(),
     landings = createLandings()
-  let turns = 0
   const releaseAll = (cell: number) => holders.forEach((holder) => holder.release(cell))
-  const settle = (cell: number, own: Hold, held: PromiseSettledResult<void>[]) => {
+  /** `cell`'s hold `own` settled, each holder's as `held`. */
+  const settled = (cell: number, own: Hold) => (held: PromiseSettledResult<void>[]) => {
     landings.settled()
     own.landed = held.every(({ status }) => status === 'fulfilled')
     if (own.left) return releaseAll(cell) // left while it read
     if (own.landed) return
     holding.delete(cell)
-    failed.set(cell, own.turns)
+    failed.add(cell, own.turns)
   }
   const hold = (cell: number, priority = PRIORITY_VISIBLE) => {
     if (!holders.length || holding.has(cell)) return
-    const own: Hold = { landed: false, left: false, stop: new AbortController(), turns }
+    const turns = failed.now(),
+      own: Hold = { landed: false, left: false, stop: new AbortController(), turns }
     holding.set(cell, own)
     landings.started()
     const asked = { signal: own.stop.signal, priority }
-    void Promise.allSettled(holders.map((h) => h.hold(cell, asked))).then((held) =>
-      settle(cell, own, held),
-    )
+    void Promise.allSettled(holders.map((h) => h.hold(cell, asked))).then(settled(cell, own))
   }
   return {
     /** The manifest's pages, `undefined` when it was read whole. */
@@ -133,19 +154,11 @@ export function createCellPages(
       if (own.landed) releaseAll(cell)
       else own.stop.abort()
     },
-    /** The plan tells the failed reads' waits over now, `now`: whether a failed hold is due again,
-     *  one held before a wait ended. */
-    turned(now: number) {
-      turns = now
-      for (const held of failed.values()) if (held < now) return true
-      return false
-    },
+    turned: failed.turned,
     /** The failed holds due again are held at the priority `priorityOf` gives each, and let go once
      *  the new hold counts; those whose read's wait is not over yet wait for it. */
     retry(priorityOf: (cell: number) => number) {
-      for (const [cell, held] of failed) {
-        if (held >= turns) continue
-        failed.delete(cell)
+      for (const cell of failed.due()) {
         hold(cell, priorityOf(cell))
         releaseAll(cell)
       }
