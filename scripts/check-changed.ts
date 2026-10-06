@@ -21,8 +21,9 @@ import { runUnitTests } from './unit-tests.ts'
 
 // `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
 // the unit tests the change can affect (`scripts/affected-tests.ts`), capped and run one heavy step
-// at a time on the machine. The whole `validate` is the CI's. `--no-tests` runs the gates alone,
-// without the scene caches and the tests: the pre-push hook's check.
+// at a time on the machine. The whole `validate` is the CI's. `--push` runs only the gates that
+// answer in seconds — no scene caches, tests or Clippy, which wait for other worktrees' heavy steps
+// — since git holds the remote's connection open while its pre-push hook runs.
 
 export function existingChangedFiles(changed: Iterable<string>, root = process.cwd()): string[] {
   const maintained = new Set(repositoryFiles(root))
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   )
   // A documentation change also runs the tests that read documentation (`scripts/docs/tests.ts`).
-  const withTests = !process.argv.includes('--no-tests')
+  const withTests = !process.argv.includes('--push')
   const testFiles = !withTests
     ? []
     : [
@@ -104,7 +105,7 @@ async function main(): Promise<void> {
         ])
         break
       case 'rust':
-        heavyStep('clippy', runRust)
+        if (withTests) heavyStep('clippy', runRust)
         break
       case 'tests':
         runUnitTests(testFiles)

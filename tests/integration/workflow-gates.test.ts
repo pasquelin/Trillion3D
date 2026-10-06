@@ -90,7 +90,7 @@ test('the gates of the checkout hold a commit and a push: format-staged, then ch
       'process.exit(1)\n',
   )
   assert.match(git(work, 'push', '-q', 'origin', '12-thing').stderr, /check-changed\.ts failed/)
-  assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop --no-tests')
+  assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop --push')
   gate('check-changed.ts', '')
   assert.equal(git(work, 'push', '-q', 'origin', '12-thing').status, 0)
 })
