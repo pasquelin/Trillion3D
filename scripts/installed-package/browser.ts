@@ -1,15 +1,8 @@
 import type { Browser } from 'playwright';
 import { launchChrome } from '../../bench/runner/chrome.ts';
 import { evaluateInstalledPage } from './browser-page.ts';
-import {
-  installedBrowserResult,
-  type InstalledBrowserProof,
-} from './browser-result.ts';
-import {
-  evidenceRequests,
-  installedServer,
-  type RequestRecord,
-} from './server.ts';
+import { installedBrowserResult, type InstalledBrowserProof } from './browser-result.ts';
+import { evidenceRequests, installedServer, type RequestRecord } from './server.ts';
 import { installedWorkerRequests, runInstalledWorkers } from './workers.ts';
 import { listen } from '../static-server.ts';
 

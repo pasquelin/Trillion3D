@@ -1,10 +1,6 @@
 // Runs inside the browser page (`page.evaluate`): DOM globals (`location`, `devicePixelRatio`,
 // `crypto.subtle`, `Worker`) are ambient.
-import type {
-  EvaluatedInstalledPage,
-  LooseSdk,
-  LooseWorld,
-} from './browser-page-types.ts';
+import type { EvaluatedInstalledPage, LooseSdk, LooseWorld } from './browser-page-types.ts';
 
 export type { EvaluatedInstalledPage } from './browser-page-types.ts';
 
