@@ -1,5 +1,5 @@
 // A lazy manifest's mesh pages, once a session binds its queue, wait in it with every other read,
-// at the priority each hold asks.
+// at the priority each hold asks, and are held once, by the primitives that view them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
@@ -67,9 +67,26 @@ test('a mesh page no hold wants any more leaves the session catalogue, read or f
   await pages.hold([read])
   await assert.rejects(pages.hold([failed]), /PAGE_STREAM_FAILED/)
   const url = (slot: string) => `http://cache/manifest-page-${slot.slice(0, 64)}.json`
-  assert.deepEqual([streamer.failed(url(failed)), streamer.has(url(read))], [true, true])
+  assert.equal(streamer.failed(url(failed)), true)
   pages.release([read, failed])
   for (const slot of [read, failed])
     await assert.rejects(streamer.readBytes(url(slot)), /Unknown page/)
   assert.equal(streamer.stats().failed, 0, 'its failure left with it')
+})
+
+test('a mesh page read through the queue is held by its primitives alone: the page cache never keeps it', async (t) => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    return new Response(files.get(url.split('/').at(-1)!)!.slice())
+  })
+  const reader = pageReader('http://cache/clusters.json', undefined, unmetered)
+  const { metadata, pages } = await openPagedManifest(root, reader.read)
+  const streamer = createPageStreamer([], 'http://cache/')
+  t.after(() => streamer.dispose())
+  reader.bind(streamer)
+  const [slot] = root.pages as string[]
+  await pages.hold([slot])
+  assert.equal(metadata.primitives.length, 1)
+  const url = `http://cache/manifest-page-${slot.slice(0, 64)}.json`
+  assert.deepEqual([streamer.has(url), streamer.stats().residentBytes], [false, 0])
 })

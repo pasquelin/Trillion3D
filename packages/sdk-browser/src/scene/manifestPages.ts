@@ -3,7 +3,7 @@
  * `fetchVerified` with the load's signal and meter; a lazy manifest's mesh pages, which the view
  * holds, are read once bound (`SessionPages.bind`) through the queue of the session drawing them,
  * as each hold asks — at its priority, with the signal that lets it go —, so they wait their turn
- * with every other read of the view.
+ * with every other read of the view, and held once, by the primitives that view them.
  */
 import type { ManifestPages, PageAsk } from '../../../sdk-core/src/manifest/paged.ts'
 import type { TablePage } from '../../../sdk-core/src/scene/core/tablePages.ts'
@@ -25,9 +25,9 @@ export function pageReader(metadataUrl: string, signal: AbortSignal | undefined,
   const read = async (page: TablePage, asked?: PageAsk) => {
     const url = new URL(page.url, metadataUrl).href
     if (queue) {
-      queue.admit([{ url, bytes: page.bytes, sha256: page.sha256 }])
-      // A copy: the primitives view their sidecar's bytes, which the page cache may let go.
-      return (await queue.readBytes(url, asked?.signal, asked?.priority)).slice()
+      // Its primitives keep what they view of it: the page cache does not.
+      queue.admit([{ url, bytes: page.bytes, sha256: page.sha256, kept: false }])
+      return queue.readBytes(url, asked?.signal, asked?.priority)
     }
     const got = await fetchVerified(url, page, reading.signal, reading.meter)
     bytes += got.byteLength
