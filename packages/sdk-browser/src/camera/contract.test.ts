@@ -33,25 +33,25 @@ function sousRig(pose: Pose) {
   return {
     rig,
     camera: poseRig(rig, pose, false),
-    aplatie: flattenedCamera(pose),
+    flattened: flattenedCamera(pose),
   };
 }
 
 test('contract: the pose resolved under a moved and rotated parent is the world pose', () => {
-  const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
+  const { camera, flattened } = sousRig(DEPLACE_ET_TOURNE);
   resolveCameraWorld(camera);
   assert.deepEqual(
     [...camera.matrixWorld.elements],
-    [...aplatie.matrixWorld.elements],
+    [...flattened.matrixWorld.elements],
     'the resolved world matrix must be that of the flattened camera, bit for bit',
   );
   assert.deepEqual(
     [...engineCamera(camera).eye],
-    [...engineCamera(aplatie).eye],
+    [...engineCamera(flattened).eye],
     'the position read by the contract must be that of the eye in the world',
   );
   // The test discriminates: the local pose, for its part, names a point that does not exist in the world.
-  assert.notDeepEqual(G.xyz(camera.position), [...engineCamera(aplatie).eye]);
+  assert.notDeepEqual(G.xyz(camera.position), [...engineCamera(flattened).eye]);
 });
 
 /** Root, parent, node, child of the engine's own graph; the parent and the node moved, unwalked. */
@@ -78,8 +78,8 @@ test("contract: a scene node resolved by the contract holds its own update's bit
 });
 
 test('contract: the published pose is the world pose, never the local pose', () => {
-  const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
-  assert.deepEqual(enginePose(engineCamera(camera)), enginePose(engineCamera(aplatie)));
+  const { camera, flattened } = sousRig(DEPLACE_ET_TOURNE);
+  assert.deepEqual(enginePose(engineCamera(camera)), enginePose(engineCamera(flattened)));
   assert.notDeepEqual(enginePose(engineCamera(camera)).position, G.xyz(camera.position));
 });
 
@@ -93,9 +93,9 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
     resolveCameraWorld(rig.camera);
     gate.viewChanged(engineCamera(rig.camera), viewport, 1);
     gate.readScene(source, []);
-    const tenue = gate.held();
+    const held = gate.held();
     gate.keep(0, 0, [], 0, false);
-    return tenue;
+    return held;
   };
   poseRig(rig, POSES_PARENT[0] as Pose, false);
   assert.equal(image(), false, 'the first frame has nothing to hold');
@@ -109,9 +109,9 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
 });
 
 test('boundary: the view history freezes the world pose, not the local pose', () => {
-  const { rig, camera, aplatie } = sousRig(POSES_PARENT[1] as Pose);
+  const { rig, camera, flattened } = sousRig(POSES_PARENT[1] as Pose);
   const gelee = holdCameraWorld(createEngineCamera(), engineCamera(resolveCameraWorld(camera)));
-  assert.deepEqual([...gelee.world], [...aplatie.matrixWorld.elements]);
+  assert.deepEqual([...gelee.world], [...flattened.matrixWorld.elements]);
   assert.equal(
     sameHizView(engineCamera(gelee), engineCamera(camera)),
     true,
@@ -133,10 +133,10 @@ const uniformes = (camera: G.Camera) => {
 
 test('boundary: a function called alone resolves its own pose', () => {
   for (const pose of POSES_PARENT as Pose[]) {
-    const { camera, aplatie } = sousRig(pose);
+    const { camera, flattened } = sousRig(pose);
     assert.deepEqual(
       uniformes(camera),
-      uniformes(aplatie),
+      uniformes(flattened),
       'selection uniforms must describe the same camera as the flattened pose',
     );
   }
@@ -146,14 +146,14 @@ test('boundary: the adaptive threshold called alone measures the eye velocity in
   const contexte = { pixelError: 1, lodAdaptive: true };
   const rig = creeRig(),
     sousRigMotion: CameraMotion = {},
-    aplatieMotion: CameraMotion = {};
+    flattenedMotion: CameraMotion = {};
   for (const pose of POSES_PARENT as Pose[]) {
     // No frame entry here: the rig camera has never been walked by anyone.
     resolvePixelError(contexte, engineCamera(poseRig(rig, pose, false) as G.Camera), sousRigMotion);
-    resolvePixelError(contexte, engineCamera(flattenedCamera(pose) as G.Camera), aplatieMotion);
+    resolvePixelError(contexte, engineCamera(flattenedCamera(pose) as G.Camera), flattenedMotion);
     assert.deepEqual(
       [...(sousRigMotion.last ?? [])],
-      [...(aplatieMotion.last ?? [])],
+      [...(flattenedMotion.last ?? [])],
       'the position kept for velocity must be that of the eye in the world',
     );
   }

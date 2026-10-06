@@ -111,7 +111,7 @@ export async function runCameraPath(
       const frames: FrameMetrics[] = [];
       let previous: number | null = null;
       for (let i = 0; i < path.length; i++) {
-        notify('measure', i, path.length, `Mesure : ${id}`);
+        notify('measure', i, path.length, `Measure : ${id}`);
         const raf = await nextFrame(campaignSignal);
         const frame = { ...explorer.render(path[i]) };
         frame.rafIntervalMs = previous === null ? null : raf - previous;
