@@ -35,7 +35,7 @@ const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 
 const GATED = ['position', 'uv', 'uv1', 'normal', 'color'] as const
 
 /** One bit per gated attribute that owns its buffer: two meshes of one surface whose attributes
- *  answer the same mask get the same reason (#840: sponza read the gate for 1 465 pages a frame). */
+ *  answer the same mask get the same reason, so the gate is read once per mask, not once per page. */
 export function gatedAttributes(attributes: HostAttributes) {
   let mask = 0
   for (let i = 0; i < GATED.length; i++) if (ownBuffer(attributes[GATED[i]])) mask |= 1 << i

@@ -1,4 +1,4 @@
-//! How far a deformed primitive can move (#357): the rest-pose ball of the vertices each joint
+//! How far a deformed primitive can move: the rest-pose ball of the vertices each joint
 //! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
 //! so that culling never drops a visible deformed cluster.
 use super::Deformation;
@@ -21,7 +21,7 @@ impl Deformation {
         reach
     }
 
-    /// What the runtime inflates a deformed cluster's bounds by (#357): for each joint the ball
+    /// What the runtime inflates a deformed cluster's bounds by: for each joint the ball
     /// of the rest-pose vertices it moves, `[x, y, z, radius]`, and each target's largest
     /// displacement; `null` on a primitive that does not deform.
     pub fn reach(&self, positions: &[f32]) -> serde_json::Value {

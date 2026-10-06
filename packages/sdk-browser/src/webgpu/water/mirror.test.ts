@@ -1,4 +1,4 @@
-// #1279: the water composite's mirror ray is bounded — the Hi-Z walk, a miss on the filtered
+// The water composite's mirror ray is bounded — the Hi-Z walk, a miss on the filtered
 // probes (`BOUNDED_SCREEN_REFLECTION_WGSL`) —, the fluids' own quality tier; a reference session
 // (`reflectionTrace`, `frame/referenceMode.ts`) compiles the whole walk on its first image.
 import test from 'node:test'

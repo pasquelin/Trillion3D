@@ -1,4 +1,4 @@
-// #984: the scene draw keeps its lists between images, and each image draws the graph as it
+// The scene draw keeps its lists between images, and each image draws the graph as it
 // stands — a mesh hidden, shown, added, removed or turned see-through between two frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,7 +15,7 @@ import { GraphSurface } from '../../host/graph/surface.ts'
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 }
 
 /** A mesh of `corners` indices — its count names it in the recorded draws. Polished, under the
- *  screen-reflection cutoff: the view runs its source pass too (#1341). */
+ * screen-reflection cutoff: the view runs its source pass too. */
 function mesh(corners: number, surface = new GraphSurface('standard', { roughness: 0.2 })) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1))
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))

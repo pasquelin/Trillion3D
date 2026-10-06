@@ -1,4 +1,4 @@
-// #584: with no visibility buffer, a paged transparent surface is drawn by the fallback pass in
+// With no visibility buffer, a paged transparent surface is drawn by the fallback pass in
 // its own mode and with its own alpha — it once went through the blend pass's indirect arguments,
 // which the fallback shader reads no instance of, and drew nothing.
 import test from 'node:test'

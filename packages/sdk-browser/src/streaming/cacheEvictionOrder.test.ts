@@ -86,7 +86,7 @@ test('random touches, drops, holds and evictions: the victims of evictOldest, on
         order.releaseAll()
         held.clear()
       } else {
-        // Both sides evict the same count from copies of the same state: the develop walk over
+        // Both sides evict the same count from copies of the same state: the walk over
         // the Map's order, and the heap.
         const want = Math.floor(draw() * 6)
         const walked = new Map(pages),

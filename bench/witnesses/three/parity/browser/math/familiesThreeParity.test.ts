@@ -1,4 +1,4 @@
-// Math families that replaced the host-scene arithmetic on per-frame path (batch M3b), compared with
+// Math families that replaced the host-scene arithmetic on per-frame path, compared with
 // that arithmetic down to exact bit (`Object.is`) on hostile cases: NaN, ±0, infinities, negative scale.
 //
 //  - `transformAffinePoint` (`packages/sdk-core/src/math/primitives/vector.ts`) replaces `Vector3.applyMatrix4` at sites

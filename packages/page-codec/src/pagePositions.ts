@@ -1,5 +1,5 @@
 /**
- * Positions stored once (CMP-10, #960, `docs/FORMAT.md`): a flat-shaded page repeats a corner's
+ * Positions stored once (CMP-10, `docs/FORMAT.md`): a flat-shaded page repeats a corner's
  * position under every face normal meeting there, so it may store its distinct positions and a
  * link per vertex instead — whichever takes fewer words. The decoded vertices are the same.
  */

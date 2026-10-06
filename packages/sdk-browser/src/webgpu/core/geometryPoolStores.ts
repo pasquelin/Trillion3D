@@ -2,7 +2,7 @@ import { BUFFERS, growthCopies, type BufferKey, type Stores } from './geometryPo
 import { createFloatAtlas } from './floatAtlas.ts'
 
 /** What the float vertex pool keeps on the device (`geometryPool.ts`): its position and UV
- *  storage buffers and its normal atlas (`floatAtlas.ts`, #1410). */
+ *  storage buffers and its normal atlas (`floatAtlas.ts`). */
 export type PoolStores = Record<BufferKey, GPUBuffer> & {
   concatNrm: ReturnType<typeof createFloatAtlas>
 }

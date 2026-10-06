@@ -1,6 +1,6 @@
-// G1: `geometry.ts` detaches by the pages attached (`attachees`), not by a scan of the whole DAG.
-// Oracle: the version before batch G, in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
-// #1234: the per-instance draw state lives in a `PageDraws` table, never on the record.
+// `geometry.ts` detaches by the pages attached (`attachees`), not by a scan of the whole DAG.
+// Oracle: the scanning version, in `../../../../../bench/oracles/browser/autonomous-backend.ts`.
+// The per-instance draw state lives in a `PageDraws` table, never on the record.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -46,7 +46,7 @@ function environnement(
 function scenario(count: number) {
   const geometry = new G.Geometry()
   const recsA = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1))
-  // The oracle reads the pose on the record, as records carried it before #1226: its root's.
+  // The oracle reads the pose on the record, its root's.
   const world = recRoots()[0].world
   const recsB = Array.from({ length: count }, (_, i) => ({
     ...makeRec(i, (i % 7) + 1),
@@ -139,7 +139,7 @@ test('a large DAG with random churn matches the oracle exactly, cut after cut', 
   s.driver([])
 })
 
-// #297: `attach` mounts the host declaration the page was collected from, never the engine's own
+// `attach` mounts the host declaration the page was collected from, never the engine's own
 // surface record. A record carries no `visible`, and the host library drops every mesh whose
 // material lacks one: 430 meshes attached, 430 draw calls, zero triangle on screen.
 test('an attached page wears the host declaration, not the engine surface record', () => {

@@ -1,4 +1,4 @@
-//! World super-roots (#23): the root cover at the scale of the world, not of the object.
+//! World super-roots: the root cover at the scale of the world, not of the object.
 //!
 //! Every primitive ends at its own roots, so an open world that pins every object's roots pins
 //! memory that grows with the world. At cook, the roots of the objects placed in each cell of the
@@ -10,7 +10,7 @@
 //! super-roots above them up to the top. The cook publishes the pinned top's bytes and refuses a
 //! world whose top exceeds [`WORLD_TOP_BUDGET_BYTES`], naming the cell that pins the most.
 //!
-//! Nothing reads the products yet: the runtime keeps pinning the object roots (#751).
+//! Nothing reads the products yet: the runtime keeps pinning the object roots.
 use super::*;
 use crate::compiler_world::{world_matrices, Mat4};
 use crate::dag::DagStrategy;
@@ -26,8 +26,8 @@ mod table_tests;
 mod tests;
 pub(crate) use cover::RootCover;
 
-/// Version of the world-roots products: 2 since their records (#1232), 3 since an object root
-/// names its object by its table rank (#1332).
+/// Version of the world-roots products: 2 since their records, 3 since an object root
+/// names its object by its table rank.
 pub(crate) const WORLD_ROOTS_VERSION: u32 = 3;
 /// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";

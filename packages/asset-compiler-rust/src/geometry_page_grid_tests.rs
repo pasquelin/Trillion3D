@@ -39,7 +39,7 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_err
         primitive_exponent(&[0.0; 3], [].into_iter(), false, TILE),
         -16
     );
-    // #875: blended, whatever its errors, the finest grid a page holds: 2^23 steps across it;
+    // Blended, whatever its errors, the finest grid a page holds: 2^23 steps across it;
     // its texture coordinates, two units wide, take 2^-22, an opaque one's the format's 2^-14.
     assert_eq!(
         primitive_exponent(&positions, [0.5f64].into_iter(), true, TILE),

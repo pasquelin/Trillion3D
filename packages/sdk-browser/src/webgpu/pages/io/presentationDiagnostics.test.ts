@@ -46,7 +46,7 @@ test('the presentation diagnostic identifies a pixel read from the visible WebGL
 
 test('WebGPU forwards its internal color diagnostics to the host report sink, never to the console', async (t) => {
   installGpuGlobals()
-  // In a page (#945): the colour received is the report's, not a line of the page's console.
+  // In a page: the colour received is the report's, not a line of the page's console.
   const page = globalThis as { window?: unknown }
   const had = 'window' in page
   page.window ??= globalThis

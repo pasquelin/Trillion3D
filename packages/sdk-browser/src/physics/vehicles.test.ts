@@ -108,7 +108,7 @@ test('tracked: steered at a standstill, it turns on the spot', async () => {
   rig.hold({ steer: 1 }, 2)
   assert.ok(rig.yaw(rig.body) < -0.5, `pivoted ${rig.yaw(rig.body)}`)
   assert.ok(Math.hypot(rig.at(rig.body)[0], rig.at(rig.body)[2]) < 0.5, 'in place')
-  // Parked as it pivots, it drives all the same: its engine is never held at idle (#831).
+  // Parked as it pivots, it drives all the same: its engine is never held at idle.
   const idle = VEHICLE_SPECS.tracked.idleRPM
   assert.ok(rig.vehicle.rpm > 1.1 * idle, `pivoting at ${rig.vehicle.rpm} rpm, idle ${idle}`)
 })
@@ -135,7 +135,7 @@ test('a vehicle taken out gives its wheels back their pose, its body left withou
   assert.ok(rig.at(rig.body)[1] < 0.3, 'the body fell onto the ground')
 })
 
-// #740: a wheel's quaternion is written only when it changes, so a parked car re-stales nothing.
+// A wheel's quaternion is written only when it changes, so a parked car re-stales nothing.
 test('a parked car notifies no wheel; a driven one notifies its turning wheels', async () => {
   const rig = await vehicleRig('car')
   // Parked until it sleeps: its wheels' turn, crept by the solver, stops changing.

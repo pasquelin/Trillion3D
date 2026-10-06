@@ -83,8 +83,8 @@ pub(crate) fn vector_into(
         )));
     }
     for (i, item) in items.iter().enumerate() {
-        // Faulty entry name constructed only when there is one: former path
-        // formatted a string per valid number, sphere after sphere, page after page.
+        // Faulty entry name constructed only when there is one: building it always would
+        // format a string per valid number, sphere after sphere, page after page.
         let Some(value) = item.as_f64() else {
             return Err(bad(format!("{what}[{i}] is not a number")));
         };
@@ -93,8 +93,8 @@ pub(crate) fn vector_into(
     Ok(())
 }
 /// All numbers of an array, written straight into the column. Like `vector_into`, name of
-/// faulty entry is constructed only when there is one: former path formatted a string
-/// per valid number, culling node after culling node, primitive after primitive.
+/// faulty entry is constructed only when there is one: building it always would format a
+/// string per valid number, culling node after culling node, primitive after primitive.
 pub(crate) fn numbers_into(items: &[Value], what: &str, column: &mut Column) -> Result<()> {
     for (i, item) in items.iter().enumerate() {
         let Some(value) = item.as_f64() else {

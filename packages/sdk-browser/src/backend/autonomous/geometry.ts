@@ -13,7 +13,7 @@ import type { DeformedDraw } from '../../webgl/cluster/deformation.ts'
 
 type GeometryEnvironment = {
   scene: Scene
-  /** The engine's roots: a page's pose and row are its root's, found by packed rank (#1235). */
+  /** The engine's roots: a page's pose and row are its root's, found by packed rank. */
   roots: readonly ClusterRoot<PageRec>[]
   allPages: PageRec[]
   bootstrap: PageRec[]
@@ -28,7 +28,7 @@ type GeometryEnvironment = {
   draws: PageDraws
   colorMaterials: Map<HostMaterial, HostMaterial>
   modifiedPages: Set<string>
-  /** The deformation record a page mesh of `rec` names (#357), zero for none. */
+  /** The deformation record a page mesh of `rec` names, zero for none. */
   deformWord?: (rec: PageRec, rank: number) => number
 }
 
@@ -48,7 +48,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   // Displayed instances, reused from frame to frame; the draw state is the per-packed object.
   const affichees = new Set<PageDraw>()
   // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches only a
-  // delta bounded by the cut: it no longer has to scan the whole DAG to find it.
+  // delta bounded by the cut: it does not scan the whole DAG to find it.
   const attachees = new Set<PageDraw>()
   const detach = (draw: PageDraw) => {
     if (draw.attached && draw.mesh) {
@@ -111,7 +111,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   /** Detaches a record, frees its geometry once unless `keep` (an instance's rowed record). */
   const release = (rec: PageRec, keep = false) => {
     const geometry = draws.drawing(rec).geometry
-    // Every instance's mesh leaves the scene: one record serves all its placements (#1235).
+    // Every instance's mesh leaves the scene: one record serves all its placements.
     draws.forEachDraw(rec, (draw) => {
       detach(draw)
       draw.geometry = draw.mesh = undefined
@@ -123,7 +123,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     }
     setArray(rec, undefined)
   }
-  // An instance's or a mount's records (#572): a rowed geometry is freed with its last reader.
+  // An instance's or a mount's records: a rowed geometry is freed with its last reader.
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records)
     for (const rec of records) {

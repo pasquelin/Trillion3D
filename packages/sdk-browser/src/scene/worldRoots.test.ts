@@ -1,4 +1,4 @@
-// #1237: the runtime reads the world roots and pins their top alone; a placed cell holds the
+// The runtime reads the world roots and pins their top alone; a placed cell holds the
 // bundles past it that its objects' roots depend on, and lets them go when it leaves.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
@@ -100,11 +100,11 @@ test('a server that ignores the Range is read once, whole, and every byte counte
   )
 })
 
-test('the world DAG names its pages through the one source, from what is held (#1238)', async (t) => {
+test('the world DAG names its pages through the one source, from what is held', async (t) => {
   const { clusters, groups } = worldRootsDag()
   const { manifest, ranges, whole } = served(t, undefined, false, { clusters, groups })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
-  assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG (#1232)')
+  assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG')
   const stream = await roots.stream()
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once its stream opens')
   assert.equal(stream, await roots.stream(), 'opened once')
@@ -130,14 +130,14 @@ test('the world DAG names its pages through the one source, from what is held (#
   assert.equal(roots.bytes(), before, 'both views served, it is let go')
 })
 
-test('a cache without its DAG file opens a stream with no DAG (#1232)', async (t) => {
+test('a cache without its DAG file opens a stream with no DAG', async (t) => {
   const { manifest } = served(t)
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
   const stream = await roots.stream()
   assert.deepEqual([stream.dag, stream.superRoots], [undefined, undefined])
 })
 
-test("the stream bounds each cell's super-roots, an object root in its object's cell (#1332)", async (t) => {
+test("the stream bounds each cell's super-roots, an object root in its object's cell", async (t) => {
   // The table lists one object in cell 0, two in cell 1, one in cell 2: an object root's `origin`
   // is its object's rank there, as the cook writes it.
   const { clusters, groups } = worldRootsDag()

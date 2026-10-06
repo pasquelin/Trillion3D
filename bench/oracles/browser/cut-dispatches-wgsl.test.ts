@@ -1,6 +1,7 @@
 // The frozen descent runs inside the shipped shader: a shipped stage calling a function the frozen
-// text owns reads the FROZEN layout, silently. #477: `stampUse` wrote at the frozen `queueBase(3u)`,
-// zero, over the draw flags, and "same drawn pages" failed in the browser only. Pinned here, in Node.
+// text owns reads the FROZEN layout, silently: `stampUse` writing at the frozen `queueBase(3u)`,
+// zero, would land over the draw flags, and "same drawn pages" would fail in the browser only.
+// Pinned here, in Node.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DESCENT_BEFORE } from './cut-dispatches-wgsl.ts'

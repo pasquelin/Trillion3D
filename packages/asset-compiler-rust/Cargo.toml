@@ -23,10 +23,10 @@ serde_json = "1"
 sha2 = "0.10"
 rayon = "1.10"
 memmap2 = "0.9"
-# Process peak resident memory (`getrusage`), published beside each progress event (#50).
+# Process peak resident memory (`getrusage`), published beside each progress event.
 libc = "0.2"
 meshopt = "0.6"
-# A portable arc cosine for `dag/quality.rs` (#415), pure Rust from musl (MIT); already in the
+# A portable arc cosine for `dag/quality.rs`, pure Rust from musl (MIT); already in the
 # tree through `num-traits`.
 libm = "0.2.16"
 ufbx = "0.11.3"
@@ -78,12 +78,8 @@ mimalloc = { version = "0.1", default-features = false }
 sha2 = "0.10"
 
 # The dev profile, which `cargo test` inherits, keeps file and line tables only and no incremental
-# cache, so the build folder stays small (#737). Measured on 2026-09-29 (#940), debug
-# `cargo test --lib` from a clean folder, without / with the incremental cache:
-# cold build 52 s / 52 s; target 1.07 / 1.38 GiB, then 1.11 / 1.70 GiB after one edited file
-# (rebuild 26 s / 7 s); both test binaries run side by side under one load, 2,010 s / 2,012 s.
-# The test run is unchanged; only the incremental cache grows the folder. Every script builds
-# with `--release`.
+# cache, so the build folder stays small: the incremental cache leaves the test run's time unchanged
+# and only grows the folder. Every script builds with `--release`.
 [profile.dev]
 debug = "line-tables-only"
 incremental = false
@@ -92,7 +88,7 @@ incremental = false
 lto = "thin"
 codegen-units = 1
 
-# The distributed build, tuned for speed (#1352): the release build, then the whole program
+# The distributed build, tuned for speed: the release build, then the whole program
 # optimised as one unit (fat LTO), a panic ends the process at once — a scoped worker's panic
 # already ended it, now without the unwinding tables —, and the symbols stripped. None of them
 # changes an arithmetic operation: the cooked bytes stay the same. Its own profile, so that the

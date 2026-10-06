@@ -1,4 +1,4 @@
-// #1369: the material classes rasterise the tiles their pixels are in, not one full screen each;
+// The material classes rasterise the tiles their pixels are in, not one full screen each;
 // the pixels they shade — one evaluation per covered pixel — are the same. Counted over a small
 // atrium, whose 32-pixel tiles are coarse: at 3456 × 2234 the same six draw 1.1 a pixel.
 import test from 'node:test'

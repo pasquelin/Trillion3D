@@ -1,4 +1,4 @@
-// Batch M4a, bounds.ts: world bounds of a host subtree, checked bit-for-bit
+// bounds.ts: world bounds of a host subtree, checked bit-for-bit
 // (Object.is) against the host library's own subtree box, empty boxes and
 // geometry without a mesh included.
 import test from 'node:test'

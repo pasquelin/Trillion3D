@@ -9,8 +9,8 @@ import { createDrawLists } from '../webgl/cluster/drawLists.ts'
 import { Scene } from '../world/core/scene.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
-// #822: a scene declares as many lamps as it holds. The store takes every one of them and a
-// file's lamps all arrive; WebGL2 takes them all too (#835).
+// A scene declares as many lamps as it holds. The store takes every one of them and a
+// file's lamps all arrive; WebGL2 takes them all too.
 
 const lamps = (count: number): SceneLight[] =>
   Array.from({ length: count }, (_, i) => ({

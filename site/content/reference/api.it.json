@@ -137,7 +137,7 @@
   },
   "assertCacheIdentity": {
     "summary": "Rifiuta ogni cache che questo motore non sa disegnare.",
-    "description": "Il motore legge un solo modello di geometria: un DAG di cluster in cui ogni cluster porta la propria banda di errore sullo schermo, oppure una mesh intera che il compilatore ha tenuto fuori dal DAG (`shared-blend`), che non porta alcun cluster. Una cache i cui cluster non portano banda — il vecchio albero di pagine — viene rifiutata qui per nome, invece di essere letta a metà più tardi."
+    "description": "Il motore legge un solo modello di geometria: un DAG di cluster in cui ogni cluster porta la propria banda di errore sullo schermo, oppure una mesh intera che il compilatore ha tenuto fuori dal DAG (`shared-blend`), che non porta alcun cluster. Una cache i cui cluster non portano banda viene rifiutata qui per nome, invece di essere letta a metà più tardi."
   },
   "assertCachePointer": {
     "summary": "Ciò che un host può verificare su un puntatore di preparazione prima di sapere qualsiasi cosa sui cluster: la preparazione è terminata, ha l'ambito richiesto, e il suo formato è uno di quelli letti da questo SDK.",
@@ -860,7 +860,7 @@
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
-      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori."
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh; assenti da una cache precedente agli impostori."
     }
   },
   "clusterSphereValid": {
@@ -1297,7 +1297,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identità della cache per gli errori DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo, mai inferiore alla distanza di Hausdorff campionata tra i figli di un gruppo e le sue uscite (#929); le cache v1 e v2 vengono rifiutate."
+    "summary": "Identità della cache per gli errori DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo, mai inferiore alla distanza di Hausdorff campionata tra i figli di un gruppo e le sue uscite; le cache v1 e v2 vengono rifiutate."
   },
   "DagReport": {
     "summary": "Report del DAG di una primitiva; solo i suoi avvisi vengono usati dal motore.",
@@ -1610,7 +1610,7 @@
   },
   "EngineProfiler": {
     "summary": "Osserva fotogramma dopo fotogramma e dice con quale fluidità gira il motore, e cosa lo rallenta.",
-    "description": "Come una build di produzione toglie i suoi strumenti di statistica (#1353), il nucleo contiene solo questa facciata: il suo codice è il blocco della misura (`FrameProfile`, `../host/families.ts`), scaricato appena la modalità di debug si attiva o al primo uso del profiler. Finché non è arrivato, un fotogramma non è contato e il rapporto dice che attende (`docs/SDK.md`).",
+    "description": "Come una build di produzione toglie i suoi strumenti di statistica, il nucleo contiene solo questa facciata: il suo codice è il blocco della misura (`FrameProfile`, `../host/families.ts`), scaricato appena la modalità di debug si attiva o al primo uso del profiler. Finché non è arrivato, un fotogramma non è contato e il rapporto dice che attende (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Intervalli mantenuti, dal più vecchio al più recente: ciò che riceve `frameStatistics`.",
       "setMetadata": "Le dice quale modello è caricato.",
@@ -1745,7 +1745,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Formato di cache letto da questo motore.",
-    "description": "Il formato 5 ha aggiunto `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; il formato 7 porta `selectedNodes` come conteggio, non come lista (#404). I formati precedenti vengono rifiutati in base al loro numero piuttosto che letti a metà."
+    "description": "Il formato 5 ha aggiunto `scene-tables.json`, le tabelle di nodi e materiali contro cui viene verificata la scena preparata; il formato 7 porta `selectedNodes` come conteggio, non come lista. I formati precedenti vengono rifiutati in base al loro numero piuttosto che letti a metà."
   },
   "FrameInfo": {
     "summary": "Ciò che riceve un hook di fotogramma: i secondi dall'ultimo fotogramma e dall'inizio del mondo.",
@@ -1808,10 +1808,10 @@
       "mathBatch": "Stato del regolatore delle vie di calcolo (`../math/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
       "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
-      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma, entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
       "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto.",
       "displayRefreshMs": "L’intervallo di aggiornamento del display, in ms, come il motore lo ha misurato sui timestamp rAF dei suoi frame (l’orologio del budget della scala di render); null finché non ne trova uno.",
-      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query` (#1451).",
+      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query`.",
       "renderHeight": "Altezza in pixel con cui l’immagine è stata disegnata, accanto a `renderWidth`.",
       "renderWidth": "Larghezza in pixel con cui l’immagine è stata disegnata, prima che l’antialiasing temporale o il ricampionamento la ricostruissero sul display: quella del display con una scala di render di 1. Null prima di un’immagine."
     }
@@ -2076,8 +2076,8 @@
       "released": "Chiamati quando la geometria viene restituita: ciò che ascolta la copia propria di un renderer.",
       "getIndex": "La lista di triangoli, o `null`.",
       "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé.",
-      "usage": "`'dynamic'`: caricata sul posto, mai più ritagliata (#573); così anche una geometria cambiata a ogni fotogramma.",
-      "maxBounds": "Il riquadro che una geometria dinamica non lascia mai, se dichiarato: quello con cui viene scartata (#573)."
+      "usage": "`'dynamic'`: caricata sul posto, mai più ritagliata; così anche una geometria cambiata a ogni fotogramma.",
+      "maxBounds": "Il riquadro che una geometria dinamica non lascia mai, se dichiarato: quello con cui viene scartata."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2496,7 +2496,7 @@
   },
   "HostRetentionDelta": {
     "summary": "Ciò che un fotogramma dice alla cache di pagine su ciò che mantiene: una differenza di RANGO DI RICHIESTA, non un elenco di indirizzi.",
-    "description": "Il rango è fissato una volta per tutte dal catalogo, `urls` lo traduce, e solo le entrate e le uscite vengono percorse — un taglio di quindicimila pagine che ne cambia solo dieci non costa più diecimila hash di testo per fotogramma. `held` porta l'appartenenza completa: serve a riprendere il controllo quando un altro motore ha scritto i fissaggi.",
+    "description": "Il rango è fissato una volta per tutte dal catalogo, `urls` lo traduce, e solo le entrate e le uscite vengono percorse — un taglio di quindicimila pagine che ne cambia solo dieci non costa diecimila hash di testo per fotogramma. `held` porta l'appartenenza completa: serve a riprendere il controllo quando un altro motore ha scritto i fissaggi.",
     "members": {
       "urls": "Rango di richiesta → indirizzo. La stessa tabella per tutta la vita della scena: la sua identità nomina il mittente.",
       "entered": "Pagine entrate.",
@@ -4055,7 +4055,7 @@
     "summary": "Gli strati vivono su quattro bit della cache, quindi la pila più profonda che il compilatore può descrivere vale 15."
   },
   "MAX_SHADOW_SLICES": {
-    "summary": "Fette d’ombra che l’atlante indirizza, secondo le regole proprie della tabella delle pagine (#818) — mai un limite sulle luci: una luce con ombra oltre di esse illumina senza ombra, e il fotogramma la conta (`shadowCastersUnsliced`)."
+    "summary": "Fette d’ombra che l’atlante indirizza, secondo le regole proprie della tabella delle pagine — mai un limite sulle luci: una luce con ombra oltre di esse illumina senza ombra, e il fotogramma la conta (`shadowCastersUnsliced`)."
   },
   "maxStretch": {
     "summary": "Il fattore più grande per cui un'applicazione lineare 3×3 può allungare una distanza: il suo valore singolare più grande, ottenuto direttamente dalla matrice simmetrica A^T A.",
@@ -4099,7 +4099,7 @@
       "residentTiles": "Tessere di texture mantenute, prima e dopo.",
       "durationMs": "Il tempo impiegato.",
       "tables": "Le tabelle per pagina disegnabile ingrandite per una riserva più grande di loro (WebGPU), o `null` quando nessuna lo è stata.",
-      "transientBytes": "Byte tenuti insieme durante la copia della riserva di geometria: la vecchia riserva e la nuova accanto, concesse insieme dal dispositivo prima che si spostasse alcuna pagina; 0 quando nessuna riserva si è spostata."
+      "transientBytes": "Byte tenuti insieme durante la copia della riserva di geometria: la riserva precedente e la nuova accanto, concesse insieme dal dispositivo prima che si spostasse alcuna pagina; 0 quando nessuna riserva si è spostata."
     }
   },
   "TableGrowthReport": {
@@ -4120,7 +4120,7 @@
       "morphTargetInfluences": "Il peso di ogni target di morph, quando la geometria ne dichiara.",
       "morphTargetDictionary": "Il rango di ogni target di morph per nome.",
       "skeleton": "Ossa indicate da `skinIndex` e `skinWeight`, valutate sulla GPU a ogni frame.",
-      "waves": "La superficie d'acqua le cui onde la portano (`world.physics.waterSurface`): ogni vertice, un punto a riposo del piano al livello della superficie, viene spostato sulla GPU dove le onde portano quel punto — i numeri che il galleggiamento legge (#357, #422). Se non impostata, una mesh che giace piatta sull'acqua del mondo al suo livello ne è portata, e viene impostata su di essa; `null`, mai.",
+      "waves": "La superficie d'acqua le cui onde la portano (`world.physics.waterSurface`): ogni vertice, un punto a riposo del piano al livello della superficie, viene spostato sulla GPU dove le onde portano quel punto — i numeri che il galleggiamento legge. Se non impostata, una mesh che giace piatta sull'acqua del mondo al suo livello ne è portata, e viene impostata su di essa; `null`, mai.",
       "primitive": "Come vengono letti i vertici della geometria: triangoli, punti o linee.",
       "updateMorphTargets": "Un peso zero per target di morph del primo attributo deformato, nominato per rango.",
       "geometry": "La forma della mesh; fornisci un'altra geometria per cambiarla.",
@@ -4217,7 +4217,7 @@
   },
   "normalizeQuaternion": {
     "summary": "Riporta un quaternione alla lunghezza uno, affinché una successione di piccole rotazioni non derivi.",
-    "description": "La lunghezza è la radice quadrata dei quattro quadrati sommati come li somma `hypot4` (Kahan), senza il suo ridimensionamento per la magnitudine maggiore: entro `SQUARED_MIN`..`SQUARED_MAX` quel ridimensionamento aggiunge solo arrotondamenti — quattro divisioni in ingresso e un prodotto in uscita. Rispetto al `q / |q|` esatto, non peggiore della lunghezza ridimensionata su qualsiasi famiglia di input misurata e migliore sulla maggior parte (massimo 2,7 → 2,3 ULP, media 0,73 → 0,64 su quaternioni quasi unitari), e più economica di quattro divisioni. Fuori da quell’intervallo — zero, un NaN, un infinito, magnitudini vicine ai limiti — la lunghezza è quella di `hypot4`, come prima."
+    "description": "La lunghezza è la radice quadrata dei quattro quadrati sommati come li somma `hypot4` (Kahan), senza il suo ridimensionamento per la magnitudine maggiore: entro `SQUARED_MIN`..`SQUARED_MAX` quel ridimensionamento aggiunge solo arrotondamenti — quattro divisioni in ingresso e un prodotto in uscita. Rispetto al `q / |q|` esatto, non peggiore della lunghezza ridimensionata su qualsiasi famiglia di input misurata e migliore sulla maggior parte (massimo 2,7 → 2,3 ULP, media 0,73 → 0,64 su quaternioni quasi unitari), e più economica di quattro divisioni. Fuori da quell’intervallo — zero, un NaN, un infinito, magnitudini vicine ai limiti — la lunghezza è quella di `hypot4`."
   },
   "normalizeVector3": {
     "summary": "Normalizza sul posto il vettore in `at`: ogni componente è moltiplicata per `1 / (length || 1)`, così un vettore nullo resta nullo."
@@ -4495,10 +4495,10 @@
   },
   "PAGE_DECODE_FAILURES": {
     "summary": "Significato dei fallimenti, elenco chiuso.",
-    "description": "I primi sei sono i rifiuti della decodifica di pagina, ripresi parola per parola da `geometryPage.ts`: un chiamante li distingue come prima. `PAGE_DECODE_FAILED` porta qualsiasi altro rifiuto della libreria di decompressione. `PAGE_DECODE_CANCELLED` risponde a un annullamento, `PAGE_DECODE_WORKER` a un esecutore scomparso — solo quest'ultimo permette il ripiego."
+    "description": "I primi sei sono i rifiuti della decodifica di pagina, ripresi parola per parola da `geometryPage.ts`: un chiamante li distingue. `PAGE_DECODE_FAILED` porta qualsiasi altro rifiuto della libreria di decompressione. `PAGE_DECODE_CANCELLED` risponde a un annullamento, `PAGE_DECODE_WORKER` a un esecutore scomparso — solo quest'ultimo permette il ripiego."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 7: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno; dalla versione 7, `cells` legge il file di cella di una partizione nelle righe che colloca, e `cellPage` una pagina del suo indice di celle (#575).",
+    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 7: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno; dalla versione 7, `cells` legge il file di cella di una partizione nelle righe che colloca, e `cellPage` una pagina del suo indice di celle.",
     "description": "Il thread chiamante invia una `PageDecodeRequest`, l'esecutore restituisce una `PageDecodeAnswer` che porta lo stesso `id`. Nulla qui tocca la piattaforma: nessun `Worker`, nessun recupero, nessun orologio — l'adattatore del browser porta tutto questo, questo file porta solo la forma del messaggio, l'elenco chiuso dei fallimenti e il limite della riserva. Proprietà dei buffer: `source` viene **trasferito** con la richiesta, quindi il mittente non ne è più il proprietario. Una risposta `verify` lo restituisce, a sua volta trasferito; una risposta `decode` restituisce invece i buffer decodificati, anch'essi trasferiti. Un esecutore che non trasferisce nulla (il ripiego sincrono) restituisce esattamente gli stessi valori: il contratto non dice come viaggia il lavoro, solo cosa restituisce."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4934,7 +4934,7 @@
     "description": "La stessa texture può avere una voce per ciascuno."
   },
   "PREVIEW_ATLAS_COVERAGE": {
-    "summary": "Una catena dell'atlante dei colori, per una texture il cui alfa ogni lettore prende come copertura (solo il colore di base dei materiali MASK o BLEND): l'unica catena i cui colori sono pesati per l'alfa, nominata a parte da quella semplice (`reduce.rs`, `AtlasKind::Coverage`, #42)."
+    "summary": "Una catena dell'atlante dei colori, per una texture il cui alfa ogni lettore prende come copertura (solo il colore di base dei materiali MASK o BLEND): l'unica catena i cui colori sono pesati per l'alfa, nominata a parte da quella semplice (`reduce.rs`, `AtlasKind::Coverage`)."
   },
   "PREVIEW_ATLAS_DATA": {
     "summary": "L'atlante dei dati: immagini di metallo-ruvidità, normali e occlusione."
@@ -4990,7 +4990,7 @@
       "streams": "I suoi pacchetti di flusso.",
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
       "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
-      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto.",
+      "dynamic": "La geometria dinamica di un mondo: solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto.",
       "deformation": "Sfere di riposo delle articolazioni `[x,y,z,radius]` e portata massima del morphing; assente o null per geometria statica."
     }
   },
@@ -5488,7 +5488,7 @@
       "lightsActive": "Luci del contratto `SceneLight` che l'immagine ha illuminato. Nullo per un motore che le ignora.",
       "lightsSampled": "Vero quando l'illuminazione di questo fotogramma è girata in modalità campionata — un fotogramma in movimento accumulato su una cronologia, dove un pixel con più luci di `samplesPerPixel` ne illumina una parte estratta a sorte —, falso quando ogni pixel ha illuminato ogni luce, come fa un fotogramma fermo. Nullo per un motore che ignora le luci.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
-      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
+      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti.",
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
       "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
       "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
@@ -5567,7 +5567,7 @@
   },
   "SINGULAR_DETERMINANT": {
     "summary": "La soglia, sul determinante NORMALIZZATO.",
-    "description": "Sotto 1e-12, il cubo di una scala diventa denormale in precisione singola: solo la normalizzazione supera questa soglia minima, quindi questa soglia giudica ormai solo la forma della matrice, mai la sua dimensione."
+    "description": "Sotto 1e-12, il cubo di una scala diventa denormale in precisione singola: solo la normalizzazione supera questa soglia minima, quindi questa soglia giudica solo la forma della matrice, mai la sua dimensione."
   },
   "SINGULAR_DETERMINANT_WGSL": {
     "summary": "La soglia così come la scrive WGSL, prodotta a partire dalla costante: un numero, due linguaggi."
@@ -5576,7 +5576,7 @@
     "summary": "Prima parola del record nel pacchetto."
   },
   "SLICE_PAGE_INDEX": {
-    "summary": "Rango di pagina, copiato dal foglio: il thread principale non lo cerca più."
+    "summary": "Rango di pagina, copiato dal foglio: il thread principale non lo cerca."
   },
   "SLICE_WORDS": {
     "summary": "Parole di indice del record."
@@ -5602,7 +5602,7 @@
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
-      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori.",
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh; assenti da una cache precedente agli impostori.",
       "binary": "Il file binario.",
       "primitives": "Le sue primitive.",
       "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa."
@@ -5626,7 +5626,7 @@
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
       "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
       "binary": "Dove trovare le sue liste.",
-      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto.",
+      "dynamic": "La geometria dinamica di un mondo: solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto.",
       "deformation": "Sfere di riposo delle articolazioni `[x,y,z,radius]` e portata massima del morphing; assente o null per geometria statica."
     }
   },
@@ -5890,7 +5890,7 @@
     }
   },
   "TableSlot": {
-    "summary": "Una pagina di un indice che uno slot nomina, il suo box nelle pose dichiarate e i ranghi del nucleo elencati accanto: per l’indice delle celle, i genitori sotto cui le sue celle appendono nodi (#575).",
+    "summary": "Una pagina di un indice che uno slot nomina, il suo box nelle pose dichiarate e i ranghi del nucleo elencati accanto: per l’indice delle celle, i genitori sotto cui le sue celle appendono nodi.",
     "members": {
       "page": "La pagina che lo slot nomina.",
       "bounds": "Il suo box nelle pose dichiarate: l’angolo minimo, poi il massimo.",
@@ -6076,7 +6076,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Livelli di texture progressivi, riflessi da `packages/asset-compiler-rust/src/texture_preview.rs`: la fine della catena di mip di una sorgente nel file separato, in RGBA8 nella codifica propria dell'atlante, dal livello più fine il cui nessun lato supera `PREVIEW_BASE` fino a 1×1 — e, sopra, un PNG senza perdita per livello nella cache, `bakedLevels` di essi a partire dal livello 0.",
-    "description": "Ogni livello segue la regola dei mip applicata dalla scheda grafica quando rifaceva la catena essa stessa (`packages/sdk-browser/src/texture/mips.ts`): media lineare dei colori, alfa mediano, livello `k` a partire dal livello quantizzato `k - 1`. Le loro dimensioni non vengono scritte: derivano dalle dimensioni della sorgente, che `previewLevels.ts` ricalcola. La versione 4 cuoce ogni livello sopra la fine, e la fine stessa, nelle famiglie di blocchi richieste dalla cottura accanto ai file senza perdita — la famiglia BC per le schede desktop, ASTC 4×4 per i mobili, un byte per texel — per le catene mantenute da un controllo di qualità; una catena sotto la soglia resta senza perdita in quella famiglia, e la parola di disposizione della sua voce lo dice. La versione 6 dispone un file di livello a blocchi in record di tile, una richiesta HTTP Range ciascuno (#962, `sdk-browser/src/texture/tileRecords.ts`)."
+    "description": "Ogni livello segue la regola dei mip applicata dalla scheda grafica quando rifaceva la catena essa stessa (`packages/sdk-browser/src/texture/mips.ts`): media lineare dei colori, alfa mediano, livello `k` a partire dal livello quantizzato `k - 1`. Le loro dimensioni non vengono scritte: derivano dalle dimensioni della sorgente, che `previewLevels.ts` ricalcola. La versione 4 cuoce ogni livello sopra la fine, e la fine stessa, nelle famiglie di blocchi richieste dalla cottura accanto ai file senza perdita — la famiglia BC per le schede desktop, ASTC 4×4 per i mobili, un byte per texel — per le catene mantenute da un controllo di qualità; una catena sotto la soglia resta senza perdita in quella famiglia, e la parola di disposizione della sua voce lo dice. La versione 6 dispone un file di livello a blocchi in record di tile, una richiesta HTTP Range ciascuno (`sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Una famiglia di blocchi in cui una texture può essere cotta."
@@ -6140,7 +6140,7 @@
       "atlas": "Quale atlante.",
       "level": "Quale livello.",
       "format": "Quale formato.",
-      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`, #1239). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
       "range": "I byte di un livello a blocchi da leggere da soli — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range; un server che la ignora risponde con il file intero."
     }
   },
@@ -6730,7 +6730,7 @@
       "lightsActive": "Luci del contratto `SceneLight` che l'immagine ha illuminato. Nullo per un motore che le ignora.",
       "lightsSampled": "Vero quando l'illuminazione di questo fotogramma è girata in modalità campionata — un fotogramma in movimento accumulato su una cronologia, dove un pixel con più luci di `samplesPerPixel` ne illumina una parte estratta a sorte —, falso quando ogni pixel ha illuminato ogni luce, come fa un fotogramma fermo. Nullo per un motore che ignora le luci.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
-      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
+      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti.",
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
       "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
       "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
@@ -6779,10 +6779,10 @@
       "hizCulled": "Cluster che il test di occlusione ha trovato nascosti in questo fotogramma; `null` dove il percorso non li conta.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
       "shadowResolutionBias": "Di quanto le ombre sono disegnate più grossolane di quanto chiedono a causa del loro pool di pagine: i dimezzamenti che il budget GPU ha tolto al pool pieno, più i livelli di cui il suo riempimento ha alzato il bias di risoluzione di ogni mappa (`shadowVsmLodBias`). 0 normalmente; sopra 0, la modalità di riferimento rifiuta la sua cattura (`REFERENCE_SHADOWS_REDUCED`). Null finché nessuna mappa d’ombra gira.",
-      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma, entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
       "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto.",
       "displayRefreshMs": "L’intervallo di aggiornamento del display, in ms, come il motore lo ha misurato sui timestamp rAF dei suoi frame (l’orologio del budget della scala di render); null finché non ne trova uno.",
-      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query` (#1451).",
+      "gpuIdleMs": "Inattività del dispositivo prima dell’ultima immagine campionata, in ms: dall’ultimo timestamp dell’immagine che la precede al suo primo, il vuoto che `gpuHostGapMs` non può contenere (un’immagine che invia una sola volta non ne porta alcuno). Null quando l’immagine precedente, o questa, non è stata cronometrata per intero (un pass non misurato, o i cui timestamp non si sono potuti leggere; un pass saltato dal driver non conta), dopo una pausa e senza `timestamp-query`.",
       "renderHeight": "Altezza in pixel con cui l’immagine è stata disegnata, accanto a `renderWidth`.",
       "renderWidth": "Larghezza in pixel con cui l’immagine è stata disegnata, prima che l’antialiasing temporale o il ricampionamento la ricostruissero sul display: quella del display con una scala di render di 1. Null prima di un’immagine.",
       "shadowVsmFreePages": "Pagine fisiche libere nell’ultimo messaggio di stato del pool.",
@@ -7329,7 +7329,7 @@
       "height": "Altezza della superficie sopra il punto del mondo `(x, z)`, in metri.",
       "point": "Il punto del mondo `[x, y, z]` a cui è portato il punto a riposo `(x, level, z)`, in `out`: una griglia mossa punto per punto è la superficie, creste nitide quanto le onde.",
       "wavesNow": "Le onde dichiarate, ogni fase portata a questo istante: reimpostate in `world.physics.water` (le cui onde ripartono da 0 s), la superficie prosegue da dove si trova invece di saltare.",
-      "waveModel": "Le onde stesse, all'ora di `time`: ciò che lo stadio di deformazione della GPU legge per disegnare una mesh che la superficie porta (`mesh.waves`, #357), gli stessi numeri che legge il galleggiamento.",
+      "waveModel": "Le onde stesse, all'ora di `time`: ciò che lo stadio di deformazione della GPU legge per disegnare una mesh che la superficie porta (`mesh.waves`), gli stessi numeri che legge il galleggiamento.",
       "normal": "Normale unitaria `[x, y, z]` della superficie nel punto a riposo `(x, z)`, in `out`."
     }
   },
@@ -7749,7 +7749,7 @@
       "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
       "bundles": "I pacchetti, nell’ordine del binario.",
       "pages": "Le pagine: quante, e di una il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore, letti nel suo record.",
-      "cells": "Le celle del mondo: quante, le primitive piazzate che una contiene, lette nei loro record, e la cella che contiene l’oggetto `object`, l’`origin` di una radice d’oggetto (#1332)."
+      "cells": "Le celle del mondo: quante, le primitive piazzate che una contiene, lette nei loro record, e la cella che contiene l’oggetto `object`, l’`origin` di una radice d’oggetto."
     }
   },
   "WorldRootsBundle": {
@@ -7866,7 +7866,7 @@
     "summary": "π, un solo letterale, perché ogni lettore del passaggio arrotondi lo stesso numero."
   },
   "IMPOSTOR_VERSION": {
-    "summary": "Formato della sezione `impostors` che un runtime legge (#817 parte 1, cotta dal compilatore)."
+    "summary": "Formato della sezione `impostors` che un runtime legge, cotta dal compilatore."
   },
   "ImpostorCard": {
     "summary": "Una scheda rivolta verso la camera che il runtime disegna al posto dei cluster di una radice commutata.",
@@ -7958,7 +7958,7 @@
     }
   },
   "ImpostorSwitchDepth": {
-    "summary": "Le due distanze di riferimento cotte, in metri ai `focalPixels` del manifesto (#817).",
+    "summary": "Le due distanze di riferimento cotte, in metri ai `focalPixels` del manifesto.",
     "members": {
       "texel": "`z_tex`: da qui il fotogramma è al massimo un texel per pixel.",
       "triangles": "`z_tri`: da qui la radice supera in numero i pixel che copre."
@@ -8008,7 +8008,7 @@
   },
   "validateImpostorSection": {
     "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",
-    "description": "Una sezione assente non è un errore: una cache precedente disegna ogni mesh per intero, come prima. Una presente è rifiutata in blocco quando la sua versione è ignota o una voce `baked` manca dei numeri che servono alla sua commutazione e alla sua scheda."
+    "description": "Una sezione assente non è un errore: una cache precedente disegna ogni mesh per intero. Una presente è rifiutata in blocco quando la sua versione è ignota o una voce `baked` manca dei numeri che servono alla sua commutazione e alla sua scheda."
   },
   "world.quality": {
     "members": {

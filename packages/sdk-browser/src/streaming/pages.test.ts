@@ -157,7 +157,7 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   assert.deepEqual(evicted, ['b.bin'], 'the pinned page survived, the other did not')
   assert.equal(streamer.has('a.bin'), true)
   assert.equal(streamer.has('c.bin'), true)
-  // The list changes: pins follow, and the formerly pinned page becomes reclaimable.
+  // The list changes: pins follow, and the page no longer in the list becomes reclaimable.
   scratch[0] = 'c.bin'
   streamer.retain(scratch)
   await streamer.request(['b.bin'])

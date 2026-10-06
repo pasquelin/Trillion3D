@@ -1,4 +1,4 @@
-// #78 lot 3: the autonomous WebGL2 path holds its scene, meshes, geometries and surfaces through
+// The autonomous WebGL2 path holds its scene, meshes, geometries and surfaces through
 // the shapes of `resources.ts`, and this boundary is what builds them. The host brands the
 // objects its renderer accepts — `Object3D.add` drops any node without `isObject3D`, silently,
 // and a mesh dropped there is a page that leaves the image without an error — so the test hangs

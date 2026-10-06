@@ -1,5 +1,5 @@
 use super::*;
-/// The deformation a primitive declares (#357): all paired joints and weights per vertex,
+/// The deformation a primitive declares: all paired joints and weights per vertex,
 /// from every `JOINTS_n`/`WEIGHTS_n` pair, and the position and
 /// normal displacement of each of its morph targets, a silent one displacing nothing.
 pub(crate) fn page_deformation(

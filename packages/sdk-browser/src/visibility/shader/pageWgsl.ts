@@ -56,7 +56,7 @@ export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
  *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
- *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. */
+ *  `normals` (`../../webgpu/core/floatAtlas.ts`), no storage buffer. */
 const VERT_NORMAL_WGSL = `${floatAtlasWgsl('normals', 'normalAt')}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}`
@@ -98,12 +98,12 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  *
  * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
  * that reads none: the diffuse alpha is multiplied by it before the alpha test, and by
- * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
+ * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does.
  * Shadows pass one: a depth pass reads no vertex colour.
  *
  * The host shader declares `uvs`, the colour pool and its page table, then inserts
  * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
- * `maskAlphaWgsl(...)` before this block.
+ * `maskAlphaWgsl(...)` come before this block.
  */
 export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}

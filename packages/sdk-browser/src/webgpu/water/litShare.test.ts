@@ -1,5 +1,5 @@
 // At full transmission the water's lit colour carries no share of the composite, `(1-t)·alpha·lit`
-// an exact zero: the composite no longer lights it (the bounce walk, the environment, the emission).
+// an exact zero: the composite does not light it (the bounce walk, the environment, the emission).
 // The shipped `waterColor` runs as JavaScript (`shaderRun`) on random water pixels, every read
 // beside it a pure function of the pixel — random finite lighting, reflection, backdrop and fog —:
 // at t = 1 the composed colour does not depend on the lit terms (bounce, environment, emission),

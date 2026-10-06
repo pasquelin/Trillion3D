@@ -37,7 +37,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
       blendCopy: createBlendCopy,
-      pendingPlaced: true, // mounted in place once the view reads them (#751)
+      pendingPlaced: true, // mounted in place once the view reads them
     })
   const [baseRoots, basePages] = [roots.slice(), allPages.slice()]
   const bootstrap = autonomousBootstrap(roots),
@@ -56,7 +56,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     modifiedPages = new Set<string>()
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    deformation = createWebglDeformation(roots, blendCopies), // the roots' records (#357)
+    deformation = createWebglDeformation(roots, blendCopies), // the roots' records
     impostors = webglImpostorTier(context, roots, gate, () => hostDraw.textureRoom()),
     // The cards' atlases are paid from the one texture pool, beside the maps (`textureQueue.ts`).
     cards = impostors?.cards,
@@ -166,7 +166,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
     syncResident: () => (gate.resourcesChanged(), sync()),
-    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573);
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them;
     // its roots' cuts grow by how far they moved.
     updateVertices: (attributes, _ranges, _box, reach) => (
       dynamicReach.note(attributes, reach),
@@ -174,7 +174,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
       true
     ),
     refreshMaterials(values = true, alpha) {
-      // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
+      // Values reach the twins, clones; a picture alone, shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin))
       if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed()
       if (alpha) classes.follow(alpha, allPages)

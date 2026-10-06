@@ -8,7 +8,7 @@ import { sessionHandle, sessionTag, tagsIn } from './sessionHandle.ts'
  * the closed session creates, writes and submits nothing, so it raises no new error.
  *
  * What it submitted before still runs, and `uncapturederror` carries no owner; the label does: an
- * implementation uses it "to identify the underlying internal object" in its messages (Dawn writes
+ * implementation uses it "to identify the underlying internal object" in its messages (it writes
  * `[Buffer "label"]`), and the handle joins the session's tag to every label. One listener per
  * device reads the tags an error names:
  * - an error that names a live claim's object goes to that claim;

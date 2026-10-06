@@ -3,7 +3,7 @@ import { createScaleControl } from '../../frame/scaleControl.ts'
 import type { BackendContext } from '../types.ts'
 
 /**
- * WebGL2's render scale (#834): the same setting and controller as WebGPU's
+ * WebGL2's render scale: the same setting and controller as WebGPU's
  * (`../../frame/scaleControl.ts`), the image drawn at it and resampled spatially by
  * the composer (`../../world/render/renderScale.ts`). WebGL2 keeps no history to reconstruct from,
  * so a resampled image is a loss: its default minimum is 1 — `'auto'` holds the display's size —

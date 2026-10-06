@@ -76,7 +76,7 @@ test(
   () => {
     const { parent, explorer, worlds, world } = banc()
     // The host writes the fields directly, never calling updateMatrixWorld — exactly the gesture
-    // resolution must cover: parent.matrixWorld stays the one from before this move.
+    // resolution must cover: parent.matrixWorld stays the one from before the move.
     parent.position.set(10, 4, -3)
     parent.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.5, -0.3, 0.2)))
     parent.scale.set(2, 3, 0.5)
@@ -104,8 +104,8 @@ test(
     explorer.setTransform('target', requestedHere)
     assert.equal(rt.run.gate.revisions.scene, stable, 'no parent motion, nothing to redo')
     // The parent moves again, without updateMatrixWorld: the frame in which the same world pose
-    // is brought back has changed, so the local matrix that is set must change even if the requested
-    // world is identical. The old code compared the local matrix already in memory and declared
+    // is brought back has changed, so the local matrix that is set must change even if the
+    // requested world is identical. Comparing the local matrix already in memory would declare
     // « no-op » — here the revision must advance and the world stay the requested one.
     parent.position.set(20, -8, 6)
     explorer.setTransform('target', requestedHere)

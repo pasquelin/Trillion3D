@@ -153,7 +153,7 @@ test('a model rescaled has its cooked cloth released and refused by name, once; 
   await landed()
   const again = writer.take()
   assert.equal(again[0], OP.soft, 'back at its scale, made again')
-  // #740: its slot taken again, the id of the body that left there names nothing.
+  // Its slot taken again, the id of the body that left there names nothing.
   assert.deepEqual([again[1] & BODY_INDEX, again[1] === id], [index, false])
   assert.deepEqual([tiles.modelOf(id), tiles.modelOf(again[1])], [null, model])
   assert.equal(bodies.count.softVertices, 9)

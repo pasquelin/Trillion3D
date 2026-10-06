@@ -18,7 +18,7 @@ export const sceneTablesUrl = (base: string) => new URL(SCENE_TABLES_FILE, base)
 
 /** The tables of a prepared cache, verified, with the bytes read: this read is on the load critical
  *  path of every session, so what it costs is published, not supposed. Of a partition only its root
- *  is read: its pages are read as the view reaches them (#575). Absent or of an unknown version,
+ *  is read: its pages are read as the view reaches them. Absent or of an unknown version,
  *  the tables are a refusal: the cache format that carries them is the only one this runtime
  *  reads. `meter` counts its bytes as they arrive. */
 export async function loadPreparedSceneTables(

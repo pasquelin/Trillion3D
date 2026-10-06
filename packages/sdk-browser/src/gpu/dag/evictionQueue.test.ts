@@ -1,4 +1,4 @@
-// The EVICTION QUEUE a resident GPU cut publishes (#872): run on the Node device, which replays
+// The EVICTION QUEUE a resident GPU cut publishes: run on the Node device, which replays
 // the stamps and `dagListEvictions` through their CPU mirrors (`tests/kit/gpu/mockEvict.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -78,8 +78,8 @@ test('null, infinite or NaN 3×3: adjoint zeroed, hence null vector, never the l
 // (1e-8, 0, 0), (0,0,0) and (0, 0, −1e-8): the arrival plane is XZ, and the adjoint of
 // the normalised 3×3 is mat3(0, (0, −0.25, 0), 0). Applied to local axis (0,0,1) it
 // returns the NULL vector — the local axis is in the kernel —, applied to (0, 1, 0) it
-// returns (0, −0.25, 0), i.e. −Y once unit. The old fallback returned the unrotated
-// LOCAL axis in both cases.
+// returns (0, −0.25, 0), i.e. −Y once unit. A fallback to the unrotated
+// LOCAL axis would return it in both cases.
 test('a null column: the adjoint carries the plane normal, not the local axis', () => {
   const zeroColumn = tourneeDe180(1e-8)
   zeroColumn[1] = [0, 0, 0]
@@ -128,7 +128,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
 // The pre-defect-6 form lives against the shipped kernel (`../../math/inverseTransposeWgsl.ts`), so
 // the reproduction bench substitutes it instead of rebuilding it with a `String.replace`
 // on a verbatim copy — a copy that stopped matching as soon as the kernel changed,
-// unseen. A reproduction that no longer reproduces reassures wrongly: this test holds
+// unseen. A reproduction that does not reproduce reassures wrongly: this test holds
 // what makes its value, the absolute threshold on the raw 3×3, present on one side and
 // absent on the other. The substitution itself is established, not assumed, by
 // `tests/gpu/math/substitutionBefore.ts`. The real GPU is measured by

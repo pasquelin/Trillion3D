@@ -1,5 +1,5 @@
-// Oracles of batch M1 "math foundation": the code from before the attachment to the
-// foundation, copied as-is from `develop` at commit d016f88. These copies are wanted
+// Oracles of the math foundation: the code that is not attached to the
+// foundation, copied as-is. These copies are wanted
 // duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
 import * as THREE from 'three'
 import type { NumberSink } from '../../../packages/sdk-core/src/index.ts'

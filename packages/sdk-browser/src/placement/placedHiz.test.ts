@@ -1,4 +1,4 @@
-// CPU-14 on the rows path: a placement row that moves stales the temporal pyramid where its root
+// On the rows path, a placement row that moves stales the temporal pyramid where its root
 // stood and stands, as a named move does (`../webgpu/pages/render/movedRegion.test.ts`), and a row
 // written again at the same pose stales nothing.
 import test from 'node:test'

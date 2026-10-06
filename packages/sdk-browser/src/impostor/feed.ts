@@ -1,5 +1,5 @@
 /**
- * THE PER-MESH ATLAS FEED, one for both GPU paths (#1335, #1336): each baked mesh's three maps,
+ * THE PER-MESH ATLAS FEED, one for both GPU paths: each baked mesh's three maps,
  * read through the one held-level read the tiles use (`atlas.ts`), handed once decoded to the
  * path's `make`, which copies them into its textures and binds them. Its bytes are texture memory
  * held within the one texture budget: `room` is what that budget leaves them. An atlas past the

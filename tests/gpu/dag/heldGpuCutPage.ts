@@ -1,6 +1,6 @@
 // The real WebGPU engine on a real cluster DAG, with a residency budget too small for its leaves:
 // the kernel wants missing pages, and the cut climbs to the resident ancestor — the very path where
-// GPU selection used to be thrown away. Nothing is read from the inside: the public counters
+// GPU selection must not be thrown away. Nothing is read from the inside: the public counters
 // `cpuSelectMs` (null while the GPU cut chooses) and `gpuSelectionFallback`, and the drawn cut the
 // engine publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
 import type {

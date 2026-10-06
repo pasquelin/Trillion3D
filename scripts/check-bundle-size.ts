@@ -18,7 +18,7 @@ import { coreSources } from './core-sources.ts'
 
 /** The budget of the gzip core, in bytes: the 255 319 bytes CI's Node measured once each renderer,
  *  its shadow passes and the debug tools — the frame report and the pass table among them — left
- *  the core (#1353, 693 537 bytes before), and about 3.7 kB of margin. A declared value, not a
+ *  the core (693 537 bytes before), and about 3.7 kB of margin. A declared value, not a
  *  derived one; a pull request that crosses it says why, and raises it. */
 const CORE_BUDGET_BYTES = 259_000
 

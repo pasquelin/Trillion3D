@@ -142,7 +142,7 @@ pub(crate) fn axis_angle(axis: [f64; 3], radians: f64) -> Mat4 {
 mod tests {
     use super::*;
 
-    // Audit of #940: the summed product keeps a column of negative zeros negative, as the Alembic
+    // The summed product keeps a column of negative zeros negative, as the Alembic
     // and Blender drivers always wrote it; `multiply` writes a positive zero there.
     #[test]
     fn the_summed_product_keeps_the_sign_of_a_zero_multiply_drops() {
@@ -156,7 +156,7 @@ mod tests {
         assert!(crate::compiler_world::multiply(&left, &right)[0].is_sign_positive());
     }
 
-    // Audit of #940: a turn from sine and cosine (Blender, USD) rounds apart from the same turn by
+    // A turn from sine and cosine (Blender, USD) rounds apart from the same turn by
     // its quaternion (Maya): the two stay, each driver keeping its own bits.
     #[test]
     fn a_turn_by_sine_and_cosine_rounds_apart_from_one_by_quaternion() {

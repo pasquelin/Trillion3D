@@ -120,7 +120,7 @@ test('a transmissive physical material is a scene copy of the transmission pass,
   const plain = G.physicalSurface()
   assert.equal(clusterMaterialReason(plain, { position, normal }), undefined)
   assert.equal(clusterMaterialReason(plain, { position, normal }, true), undefined)
-  // A physical extension is drawn without, by name (#772): never a refusal.
+  // A physical extension is drawn without, by name: never a refusal.
   plain.ior = 1.3
   assert.equal(clusterMaterialReason(plain, { position, normal }), undefined)
   assert.deepEqual(featuresOf(physicalLostMask(plain)), ['ior'])
@@ -139,7 +139,7 @@ test('a transmissive copy mutated into another physical extension is drawn witho
   const frame = validation()
   frame.validate([], [], copies)
   glass.sheen = 1
-  frame.validate([], [], copies) // never a refusal (#772)
+  frame.validate([], [], copies) // never a refusal
   assert.deepEqual(frame.heard, [])
   glass.sheen = 0
   // A blended copy the owner submits is validated like a page: it never transmits.
@@ -148,7 +148,7 @@ test('a transmissive copy mutated into another physical extension is drawn witho
   assert.match(frame.heard.join(), /drawn as a scene copy/)
 })
 
-// The gate no longer compares against the host library's own class to find a shader hook: it
+// The gate does not compare against the host library's own class to find a shader hook: it
 // asks whether the material reaches a compile hook other than the one it inherits.
 test('a compile hook the host installed is refused, the empty one it inherits is not', () => {
   const normal = new G.BufferAttribute(new Float32Array(9), 3)
@@ -158,7 +158,7 @@ test('a compile hook the host installed is refused, the empty one it inherits is
   assert.match(clusterMaterialReason(material, { position, normal })!, /carries a shader hook/)
 })
 
-// #346: every named mode reaches the draw; a mode no path draws is refused by name.
+// Every named mode reaches the draw; a mode no path draws is refused by name.
 test('a named blending is admitted, an unnamed one and a transmissive non-normal one are refused', () => {
   const normal = new G.BufferAttribute(new Float32Array(9), 3)
   for (const mode of ['none', 'normal', 'additive', 'subtractive', 'multiply'] as const)

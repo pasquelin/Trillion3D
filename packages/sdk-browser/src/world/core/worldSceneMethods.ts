@@ -5,7 +5,7 @@ import { poseNamed } from '../../host/world/moveByName.ts'
 import { createWorldRaycast } from './worldRaycast.ts'
 
 /**
- * A world's moves by name (#972), and the methods it exposes over the nodes of its scene.
+ * A world's moves by name, and the methods it exposes over the nodes of its scene.
  *
  * `namedMove` is the one move path a world built in code takes: the node the scene's own name
  * index finds, posed from its host chain exactly as WebGPU's and WebGL2's moves by name pose

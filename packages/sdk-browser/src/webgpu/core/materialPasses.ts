@@ -22,7 +22,7 @@ export const createPresentClasses = (): PresentClasses => ({
  * tiles list the screen tiles each class holds (`materialTiles.ts`), then each class draws its
  * tiles. Either way a class's fragment stage rejects, before any write, a pixel of the background,
  * past the page table or of another class (`classAdmits`): what a material depth tested `equal`
- * at the class's depth used to keep, without its target or its pass. The surfaces and feedback
+ * at the class's depth keeps, without its target or its pass. The surfaces and feedback
  * target are cleared once and then kept.
  */
 export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {

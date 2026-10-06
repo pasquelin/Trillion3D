@@ -1,5 +1,5 @@
-// Lot 4c: the zero-threshold paths decide without projecting, and the shared distance does not
-// change a bit. Oracle: the general path from before the lot, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
+// The zero-threshold paths decide without projecting, and the shared distance does not
+// change a bit. Oracle: the general path, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

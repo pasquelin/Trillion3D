@@ -2,7 +2,7 @@
 //! and what they **declare**: colour-mode data, image resources, layers and masks.
 //!
 //! They are not recomposed — the driver only returns the flattened composite the file already
-//! carries —, but they are no longer skipped blindly either. The specification Adobe
+//! carries —, but they are not skipped blindly either. The specification Adobe
 //! publishes for third-party readers places at the start of the layers section a **layer
 //! count** over two signed bytes, and says of its sign: negative, its absolute value is the
 //! number of layers and the composite's first alpha channel carries the document's

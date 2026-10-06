@@ -20,7 +20,7 @@ export function addCpuSteps(
  * An ordered declaration of an engine's CPU bounds: for each, the public name and the
  * profile stage it deposits to — `null` for a sum, which is not deposited, or it would
  * count a second time what its parts already deposited. Names, stages and write indices
- * all come from the same table: they can no longer silently misalign.
+ * all come from the same table: they cannot silently misalign.
  */
 export function cpuStepTable<Table extends ReadonlyArray<readonly [string, string | null]>>(
   table: Table,

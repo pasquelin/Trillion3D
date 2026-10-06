@@ -39,7 +39,7 @@ type Inputs = {
   /** Counts the bytes of each file read as they arrive; unset, nothing counts them. */
   meter?: ByteMeter
   /** Settles once `metadata.primitives` lists every primitive the scene draws: its mesh pages
-   *  held (#751); unset, the manifest was read whole. */
+   *  held; unset, the manifest was read whole. */
   listed?: Promise<unknown>
 }
 
@@ -95,7 +95,7 @@ export async function buildPreparedScene(inputs: Inputs) {
 
 /** The source document the autonomous one's pages were cut from: its meshes, and its geometries,
  *  each view of whose binary is read alone, by an HTTP Range, on the first need of a vertex — a
- *  class change cutting pages again (#846): the session never reads the whole `source.bin`. */
+ *  class change cutting pages again: the session never reads the whole `source.bin`. */
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {}
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base)

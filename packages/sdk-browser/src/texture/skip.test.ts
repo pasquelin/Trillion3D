@@ -22,7 +22,7 @@ const manifest = (previews: TexturePreview[]): ClusterManifest =>
   ({ textures: { url: 'x' }, texturePreviews: previews }) as unknown as ClusterManifest
 
 // Behaviour: an image is skipped only if every entry that reads it is whole; with no entry it is
-// read as before. Where it lives — an address, `data:` or a view of the binary — is not asked.
+// read. Where it lives — an address, `data:` or a view of the binary — is not asked.
 test('an image is skipped only if all of its entries are whole', () => {
   const ranks = bakedImages(manifest([entry(0, 2, 2), entry(0, 2, 0), entry(1, 2, 2)]), 3)
   assert.deepEqual([...ranks], [1])

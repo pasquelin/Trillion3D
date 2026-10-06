@@ -1,4 +1,4 @@
-// The pending set follows the cut, never the catalogue (#486): it names only the closures of cut
+// The pending set follows the cut, never the catalogue: it names only the closures of cut
 // records, rereads only the cut's dependents when one leaves, and rebuilds the awaited list only
 // when the cut, an arrival or the pool's acceptance moved — a still frame over budget costs
 // nothing to read.
@@ -16,7 +16,7 @@ function world() {
   return packed as unknown as PageRec[]
 }
 
-/** The first packed rank of a record (#1235): each of these records is its own single instance,
+/** The first packed rank of a record: each of these records is its own single instance,
  *  at the rank its URL names. */
 const rankOf = (rec: PageRec) => Number(rec.url.slice(1))
 

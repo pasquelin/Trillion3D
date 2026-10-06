@@ -1,4 +1,4 @@
-// #961: one coalescer for the residency flush and the page tables' flush. Each gives develop's
+// One coalescer for the residency flush and the page tables' flush. Each gives develop's
 // ranges, frozen below, on random sorted indices and the edges: none, one, every step joined,
 // exactly the cap, one past it, ties at the cut, the largest index.
 import test from 'node:test'

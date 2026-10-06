@@ -1,4 +1,4 @@
-// A cut's tables past one binding split in parts bound at once (#974): every section of `flags`
+// A cut's tables past one binding split in parts bound at once: every section of `flags`
 // stays whole in one part, so the draw mask keeps one buffer and one offset, and
 // a host write lands in the part that holds each of its bytes.
 import test from 'node:test'

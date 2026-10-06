@@ -2,7 +2,7 @@
 // that posed only keys, indirect arguments rewritten per item and per frame, and the
 // encode loop that posed one `drawIndirect` per plan entry while retesting the frustum
 // entry by entry. The two files that carried them — the blend arguments and the
-// blend selection — no longer exist: these copies are all that remains of them,
+// blend selection — are gone from the engine: these copies are all that remains of them,
 // and that is their reason to be.
 //
 // This is the oracle: these copies are wanted duplicates, and the bench compares their
@@ -27,7 +27,7 @@ const PIPELINE_NONE = 0,
   PIPELINE_BACK = 2
 
 /** `packages/sdk-browser/src/webgpu/blend/plan.ts` from before: the two entries of a double-sided item, back then front.
- *  The item carries the engine's surface record where it carried a host material (#288); the three
+ *  The item carries the engine's surface record where it carried a host material; the three
  *  host face constants this copy tested are that record's two booleans, one for one —
  *  `DoubleSide` is `doubleSided`, `BackSide` is `backSide`, `FrontSide` is neither. Nothing else
  *  of the copy moved: a double-sided item drawn in ONE pass falls through all three tests and

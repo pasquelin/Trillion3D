@@ -32,7 +32,7 @@ export function evictResident(
 
 /** The order's next resident, unpinned page, each entry passed once: one pinned when passed waits
  *  in `held` for its unpin; one a lower tier touched since the last order (`touch`) goes in `late`,
- *  taken after every other (#483 rules 1 and 7). */
+ *  taken after every other. */
 function orderedVictim({ eviction, resident, pins }: GpuPageContext) {
   const { order, epoch, lower, held, late } = eviction
   const free = (key: string) => (pins.has(key) ? undefined : resident.get(key))
@@ -106,7 +106,7 @@ export function commitGpuPage(
   // reads the slot's tail: a page-table row names its offset and triangle count, and the
   // visibility pass does not leave that range. Only the page's bytes go, padded to the multiple
   // of four that `writeBuffer` requires. The page's whole words go straight from its own bytes —
-  // `writeBuffer` copies them itself, a staging copy first would only double the copy (#982) —
+  // `writeBuffer` copies them itself, a staging copy first would only double the copy —
   // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,
     body = size & ~3,

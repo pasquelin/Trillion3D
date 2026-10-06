@@ -36,7 +36,7 @@ test('WebGL reflection captures leave with the last screen-traced receiver: a ma
   material.roughness = 1
   material.needsUpdate = true
   draw()
-  // A matte-only view allocates no reflection target and runs no reflection pass (#1341).
+  // A matte-only view allocates no reflection target and runs no reflection pass.
   assert.equal(renderer.backdropPasses, 0, 'a rough receiver captures nothing')
   assert.equal(renderer.resolvePasses, 0, 'a rough receiver resolves nothing')
   assert.equal(renderer.backdropBytes, 0)
@@ -66,7 +66,7 @@ test('a mirror missing half-float support is refused before drawing with a refle
     clusterWebglCompatibility(context.gl, [], [copy], { lights: [] })!,
     /reflections needs a half-float/,
   )
-  // A matte receiver reads the environment: no capture, so no half-float needed (#1341).
+  // A matte receiver reads the environment: no capture, so no half-float needed.
   material.roughness = 1
   material.needsUpdate = true
   assert.equal(clusterWebglCompatibility(context.gl, [], [copy], { lights: [] }), undefined)

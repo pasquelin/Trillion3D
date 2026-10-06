@@ -40,7 +40,7 @@ export function streamCutResidency(
   if (rows.candidateOverflow) return false
   // The rank journal names pages that just entered or left: comparing the DAG's two thousand three
   // hundred pages no longer happens, and only their ranges are rewritten. A row whose readiness
-  // moved has its mobility word written again: whether a finer form now stands for it (#831).
+  // moved has its mobility word written again: whether a finer form now stands for it.
   marked = rows
   if (selection.updateResidency(rows.residentFlags, rows.residencyChanges, markRow))
     run.gpuMetricsReady = false

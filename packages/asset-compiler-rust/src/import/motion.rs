@@ -1,4 +1,4 @@
-//! FBX skin (all bones), inverse binds, blend-shape keys and source-key clips (#357).
+//! FBX skin (all bones), inverse binds, blend-shape keys and source-key clips.
 //! The intermediate graph is flat; nodes and animation keys therefore use world poses.
 use super::*;
 /// First skin and full-weight blend shapes, indexed by source vertex.

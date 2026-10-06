@@ -1,4 +1,4 @@
-// A view still streaming is drawn to its last page (#836): the frames after which a page landed
+// A view still streaming is drawn to its last page: the frames after which a page landed
 // spend none of the settle limit, which only pauses a loop where nothing arrives any more.
 import test from 'node:test'
 import assert from 'node:assert/strict'

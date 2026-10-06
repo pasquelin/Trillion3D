@@ -1,4 +1,4 @@
-// The session the table growth tests of #216 open: the deep quad on a pool at its floor.
+// The session the table growth tests open: the deep quad on a pool at its floor.
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'

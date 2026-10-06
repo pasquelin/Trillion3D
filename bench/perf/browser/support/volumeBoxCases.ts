@@ -1,4 +1,4 @@
-// Equivalence cases of batch M2, boxes and spheres: each `sdk-core` function against the
+// Equivalence cases, boxes and spheres: each `sdk-core` function against the
 // Three.js method it replaces, on the hostile inputs of `scenesVolumes.ts`. No gain sought:
 // only the "identical" column decides, bit-exact (`Object.is` separates −0 from +0 and sees NaN).
 import * as THREE from 'three'

@@ -1,5 +1,5 @@
 //! Correctness of `scene-tables.json`, the material and texture tables: every field the engine
-//! reads of a surface, and the sampler state behind it (#287).
+//! reads of a surface, and the sampler state behind it.
 //!
 //! Provenance of every case: the glTF the compilation itself publishes as `source.gltf`, built
 //! here from the repository's own triangle fixture (`tests/base.rs`) — no asset is read from

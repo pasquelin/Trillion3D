@@ -1,4 +1,4 @@
-// #456: every mesh casts a shadow unless it says `castShadow = false`, as a light casts none unless
+// Every mesh casts a shadow unless it says `castShadow = false`, as a light casts none unless
 // it says `true`. A write reaches the world (`SceneLink.shadow`), and the mesh's row carries it to the
 // engine (`PlacementRows.shadowless`), where its root leaves every light cut (`update.test.ts`).
 // A saved scene keeps it; one of version 1, saved before a mesh's flag was read, is refused.

@@ -23,7 +23,7 @@ pub(super) static PNG: Png = Png;
 pub(super) struct Png;
 
 /// A 16-bit-per-channel PNG. This is not an exotic profile: it is precision that
-/// `DecodedImage` cannot yet carry, its only variant being RGBA8. Clipping it in silence
+/// `DecodedImage` cannot carry, its only variant being RGBA8. Clipping it in silence
 /// would add a loss the source did not have, which the import policy forbids. Accepting it
 /// would need an `Rgba16` variant on the image contract and its explicit handling at every
 /// consumer — `texture_preview` today, the preview pyramid next.
@@ -84,7 +84,7 @@ impl ImageDecoder for Png {
         head.starts_with(b"\x89PNG\r\n\x1a\n")
     }
     /// Depth first, pixels next. A file too short to carry its IHDR is not judged here: it
-    /// goes to the decoder, which refuses it as before.
+    /// goes to the decoder, which refuses it.
     fn decode(
         &self,
         bytes: &[u8],

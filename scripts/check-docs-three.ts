@@ -1,7 +1,7 @@
 // The documentation describes the engine's own path. Three.js may be named in two places only:
 // where it is measured against (a witness, a benchmark, a measurement) and where a host migrates
 // away from it. A line of a tracked Markdown file that names the library passes when one of its
-// enclosing headings says so; any other mention fails `validate` (#277).
+// enclosing headings says so; any other mention fails `validate`.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { repositoryFiles } from './repository-files.ts'

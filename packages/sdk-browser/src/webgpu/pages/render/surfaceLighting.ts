@@ -54,7 +54,7 @@ export function encodeSurfaceLighting(
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   )
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
-  // The jitter the raster drew this image with: the shadow level reads it (#1363).
+  // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
   gpu.deferred.setJitter(taa?.active ? taa.jitter : null, stochasticPhase(taa))
   gpu.deferred.update(

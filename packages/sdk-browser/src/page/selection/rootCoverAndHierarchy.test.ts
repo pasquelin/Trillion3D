@@ -91,7 +91,7 @@ test('a culling hierarchy that does not match its pages is rejected', () => {
   fixture.geometry.dispose()
 })
 
-// An opaque page records it too: its material may turn blended in the session (#846), and then
+// An opaque page records it too: its material may turn blended in the session, and then
 // draws in the order a blended compile records.
 for (const transparent of [true, false])
   test(`${transparent ? 'transparent' : 'opaque'} flat pages keep a draw order taken from their source rank`, () => {

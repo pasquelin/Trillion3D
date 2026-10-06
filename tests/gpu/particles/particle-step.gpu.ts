@@ -1,7 +1,7 @@
-// The engine's particle step (#420) on a real GPU: the committed WGSL compiles, and one step of a
+// The engine's particle step on a real GPU: the committed WGSL compiles, and one step of a
 // pool ten kilometres from the world origin moves a newborn particle by its 0.4 mm drift, leaves
 // one born dead and a slot nobody emitted into as they are; a 60 s life dies after 60 s of 144 Hz
-// steps and ages no more (#759). The words are the engine's: the pool stages the records,
+// steps and ages no more. The words are the engine's: the pool stages the records,
 // `createStepWords` writes the uniform; only this proof reads the state back.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -1,7 +1,7 @@
-// Batch F, F12: `deplaceInstance` (instancePose.ts) places each root from its base root, and the
-// meshes of its pages follow it (#1226: a page carries no pose; #1234: its draw state is a packed
-// table), instead of rebuilding a page → base-page hash table on every move. The oracle is the
-// reconstruction from before batch F, copied as-is into `bench/oracles/browser/view-frame.ts`.
+// `deplaceInstance` (instancePose.ts) places each root from its base root, and the meshes of its
+// pages follow it (a page carries no pose; its draw state is a packed table), instead of
+// rebuilding a page → base-page hash table on every move. The oracle is the reconstruction that
+// rebuilds it, copied as-is into `bench/oracles/browser/view-frame.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -164,7 +164,7 @@ test('repainting a primitive frees the pair the previous paint owned', () => {
   assert.equal(colorMaterials.size, 0, 'disposal frees the last paint and its twin')
 })
 
-// A primitive repainted, then given a created material (#847): the paint no record wears any more
+// A primitive repainted, then given a created material: the paint no record wears any more
 // is freed at once, with its twin, not held until the session closes.
 test('a created material assigned over a paint frees the pair the paint owned', () => {
   const { plain, coloured, colorMaterials, instances } = primitivePeinte()

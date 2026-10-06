@@ -1,5 +1,5 @@
 /**
- * Oracle of the light grid's cells (#1369), a line-by-line port of
+ * Oracle of the light grid's cells, a line-by-line port of
  * packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts, every operation rounded to f32: a column's
  * corners, planes and slices; the run of its slices a light meets is `gpuLightGridRunOracle.ts`. The inverse matrix
  * is column-major and maps to the frame of `origin` (`tileViewInverse`), where points are given

@@ -144,8 +144,8 @@ export type MemoryBudgetsReport = {
   durationMs: number
   /** The drawable-page tables grown for a pool above them (WebGPU), or `null` when none was. */
   tables?: TableGrowthReport | null
-  /** Bytes held at once while the geometry pool was copied: the old pool and the new one beside
-   *  it, granted together by the device before any page moved; 0 when no pool moved. */
+  /** Bytes held at once while the geometry pool was copied: the previous pool and the new one
+   *  beside it, granted together by the device before any page moved; 0 when no pool moved. */
   transientBytes?: number
 }
 

@@ -50,7 +50,7 @@ export function selectVisiblePages<T extends PageRecord>(
   const wanted = options.wanted ?? ([] as T[])
   // The packed lists are the result's own, parallel to the records, written by the same `keep`
   // (rank by rank), which widens them as the cut emits (`./take.ts`): they follow what the view
-  // selects, never the instances the roots could name (#1232). Their end is the two record
+  // selects, never the instances the roots could name. Their end is the two record
   // counts, so a reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>()
@@ -84,7 +84,7 @@ export function selectVisiblePages<T extends PageRecord>(
     // takes no root its impostor card draws.
     if (root.parked || drawsCard(root.mark)) continue
     const box = root.worldBox,
-      // A deformation's reach, in the world: its units stretched by the root's placement (#357).
+      // A deformation's reach, in the world: its units stretched by the root's placement.
       g = root.reach ? root.reach * worldStretch(root) : 0
     if (
       box &&
@@ -114,7 +114,7 @@ export function selectVisiblePages<T extends PageRecord>(
   wanted.length = state.wantedCount
   result.shownPacked = state.shownPacked
   result.wantedPacked = state.wantedPacked
-  // Both sums are held as a running total: no more sweep of the records after the cut.
+  // Both sums are held as a running total: no sweep of the records after the cut.
   const displayedTriangles = state.shownTriangles
   let selectedTriangles = state.wantedTriangles
   if (!wanted.length) selectedTriangles = displayedTriangles

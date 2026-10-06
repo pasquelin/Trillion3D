@@ -55,7 +55,7 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
     assert.equal(backend.presentedSurface, undefined, 'a lost device publishes no canvas')
     assert.equal(unconfigured, true, 'the drawing buffer is blanked')
     assert.equal(backend.metrics().frameHeld, false)
-    // #1364: the frame metrics name the loss with its cause, never silent.
+    // The frame metrics name the loss with its cause, never silent.
     assert.equal(backend.metrics().gpuDeviceLost, 'destroyed: destroyed')
     const lost = events.find((e) => e.phase === 'gpu-device-lost')
     assert.equal(lost?.context.code, 'WEBGPU_LOST')
@@ -82,7 +82,7 @@ test("an error of the session closed on the device is never the next one's loss"
   first.backend.render(camera())
   const old = lastOwn()
   await first.backend.dispose()
-  // Its errors, while the next session opens and after it: none is the next session's (#334).
+  // Its errors, while the next session opens and after it: none is the next session's.
   const said: Array<Record<string, unknown>> = []
   const second = quadBackend(device, {
     onDiagnostic: (e) => e.phase === 'gpu-closed-session-error' && said.push(e.context),

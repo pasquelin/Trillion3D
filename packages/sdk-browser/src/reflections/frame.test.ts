@@ -33,7 +33,7 @@ test('a shadow page landing changes the reflected source epoch without a host mu
   rt.lights.vsm!.settle.renderedTotal += 2
   assert.deepEqual(rt.run.gate.revisions, revisions)
   assert.notDeepEqual(epochOf(rt), previous)
-  // #1342: a shadow page follows a placement or the camera; only lights and materials relight.
+  // A shadow page follows a placement or the camera; only lights and materials relight.
   assert.deepEqual(lightingOf(rt), lighting, 'a shadow page keeps the lighting')
   const landed = epochOf(rt)
   assert.deepEqual(epochOf(rt), landed, 'unchanged shadow contents permit convergence')
@@ -46,7 +46,7 @@ test('a shadow page landing changes the reflected source epoch without a host mu
   assert.deepEqual(epochOf(rt), current, 'an unchanged pose permits convergence')
 })
 
-test('#1346: a still image wakes neither the reflection nor the TAA until a shadow page is drawn', () => {
+test('a still image wakes neither the reflection nor the TAA until a shadow page is drawn', () => {
   const gpu = fakeDevice()
   const rt = reflectingRt()
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 })

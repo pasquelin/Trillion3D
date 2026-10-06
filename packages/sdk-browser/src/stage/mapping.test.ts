@@ -160,7 +160,7 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
   assert.deepEqual(deposits, [['transparents', 6]])
 })
 
-// The broad Shadows stage spans the shadow passes of `PASSES` and no other pass (#1207).
+// The broad Shadows stage spans the shadow passes of `PASSES` and no other pass.
 test('the Shadows stage sums only the shadow passes of the pass table', () => {
   assert.ok(SHADOW_STAGE_PASSES.includes('Trillion3D shadow cull'), 'shadow work, named')
   const others = [LIGHT_TILES_PASS, DEFERRED_LIGHTING_PASS, 'Trillion3D visibility primary']

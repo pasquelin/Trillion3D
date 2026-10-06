@@ -1,4 +1,4 @@
-// Behaviour this batch changed: a root declares its cones once and for all, and the cut trusts
+// A root declares its cones once and for all, and the cut trusts
 // that declaration instead of reading `cone` on each kept cluster. The declaration is therefore
 // a contract, and these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test'
@@ -45,8 +45,8 @@ test('collection declares a root without a cone, which is true of all its pages'
 
 test('a root that declares it carries cones rejects by its cone, as before this batch', () => {
   const { fixture, roots } = fixtureWithCone()
-  // `true` and silence say the same thing: test each page. The second is what every root
-  // returned before this batch, and it is the previous answer that must come back.
+  // `true` and silence say the same thing: test each page. The second is what a root
+  // without the flag answers, and it is the same answer that must come back.
   roots[0].cones = true
   const declare = urls(roots)
   roots[0].cones = undefined

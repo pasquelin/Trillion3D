@@ -1,4 +1,4 @@
-// `world.effects` (#349): an ordered chain whose every change — a pass added, moved out, or one
+// `world.effects`: an ordered chain whose every change — a pass added, moved out, or one
 // of its settings written — counts one revision and asks for a frame, and whose passes an engine
 // reads per stage, in chain order.
 import test from 'node:test'

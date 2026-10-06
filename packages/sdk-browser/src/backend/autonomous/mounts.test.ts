@@ -102,7 +102,7 @@ test('a page the host replaced keeps its geometry when a mount comes to share it
   }
 })
 
-test('a geometry replaced forty times keeps the GPU memory of one (#411)', async () => {
+test('a geometry replaced forty times keeps the GPU memory of one', async () => {
   const fixture = triangleBackend({ placements: liveRows(1) })
   const { backend, camera } = fixture
   try {
@@ -126,7 +126,7 @@ test('a geometry replaced forty times keeps the GPU memory of one (#411)', async
   }
 })
 
-test('an instance whose copied rows were unmounted is removed without a throw (#1226)', async () => {
+test('an instance whose copied rows were unmounted is removed without a throw', async () => {
   const placements = liveRows(1)
   const { backend, camera, geometry, material } = triangleBackend({ placements })
   try {

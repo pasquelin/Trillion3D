@@ -25,7 +25,7 @@ function createCardProgram(gl: WebGL2RenderingContext, linear: boolean) {
 const view = new Float32Array(16)
 
 /**
- * THE CARD DRAW ON WEBGL2 (#1336): the image's cards (`impostor/cards.ts`) drawn by the card
+ * THE CARD DRAW ON WEBGL2: the image's cards (`impostor/cards.ts`) drawn by the card
  * program (`cardGlsl.ts`) into the pass the cluster program draws, one instanced draw per mesh
  * atlas, as on WebGPU. Its two programs, the display's and the linear one, are made with it: one
  * that does not compile or link throws here, never in a draw. The records go up once an image and

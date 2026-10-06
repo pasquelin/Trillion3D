@@ -1,8 +1,8 @@
-//! The manifest as a page tree (#762): `clusters.json` is a root of fixed size — the fields that
+//! The manifest as a page tree: `clusters.json` is a root of fixed size — the fields that
 //! name the product, the slot of its head page and `FAN_OUT` slots of mesh pages, in the layout of
 //! the cell index and read by its pager (`partition/pages.rs`). The head page holds every other field and
-//! the previews' sidecar; a mesh page, slim primitives and their sidecar, cut under `PAGE_BYTES`
-//! (#792). Files are named by content.
+//! the previews' sidecar; a mesh page, slim primitives and their sidecar, cut under `PAGE_BYTES`.
+//! Files are named by content.
 use super::*;
 use crate::compiler_tables::partition::pages::*;
 use crate::manifest_binary::{columns, Templates, MANIFEST_BINARY_VERSION};

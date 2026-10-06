@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { preparedAccessors } from './accessors.ts'
 
-// #457: a sparse accessor over an interleaved base copied the whole interleaved array and read it
+// A sparse accessor over an interleaved base copied the whole interleaved array and read it
 // as if packed: the colour between two positions became a position.
 test('a sparse accessor over an interleaved base substitutes into its own elements alone', async () => {
   // View 0: two vertices of six floats, a position then a colour; view 1: rank 1; view 2: (7, 8, 9).
@@ -42,7 +42,7 @@ test('a sparse accessor over an interleaved base substitutes into its own elemen
   assert.deepEqual(Array.from(position.array), [1, 2, 3, 7, 8, 9])
 })
 
-// #846: the source document a class change cuts pages from is read view by view, never whole.
+// The source document a class change cuts pages from is read view by view, never whole.
 test('a ranged binary reads each view alone, and refuses one it answers short', async () => {
   const bytes = new Uint8Array(new Float32Array([9, 9, 9, 1, 2, 3]).buffer)
   const document = {

@@ -13,8 +13,8 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 /**
  * The VIEW AHEAD of a moving camera, in its render frame (`./selection.ts`): what the cut also
- * evaluates to request the pages the camera will need before they are on screen (#488,
- * `../dag/shader/aheadWgsl.ts`).
+ * evaluates to request the pages the camera will need before they are on screen
+ * (`../dag/shader/aheadWgsl.ts`).
  *
  * - `view` is the camera moved by its velocity and turned by its turn over the horizon
  *   (`CameraMotion.horizonMs`, else the published `PREFETCH_HORIZON_MS`): the view whose screen

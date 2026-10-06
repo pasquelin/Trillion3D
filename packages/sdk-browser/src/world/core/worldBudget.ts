@@ -65,7 +65,7 @@ export function sessionPools(pools: Pools) {
         )
         pools.activeGpu = { ...active }
         // A ceiling over the pool asked, never grown past it: prepare's tables are its (768 KiB on
-        // memory-on-a-budget), and growing it refused the frame targets (#831). The grant held is
+        // memory-on-a-budget), and growing it refused the frame targets. The grant held is
         // a ceiling too, never under the floor the split keeps.
         const under = (
           asked: number | undefined,

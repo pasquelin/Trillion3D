@@ -15,7 +15,7 @@ mod wide_tests;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
-/// one shows through a transparent surface (#875). `tile_log2` is its tile (`tile::tile_log2`).
+/// one shows through a transparent surface. `tile_log2` is its tile (`tile::tile_log2`).
 pub fn primitive_exponent(
     pos: &[f32],
     errors: impl Iterator<Item = f64>,
@@ -34,7 +34,7 @@ pub fn primitive_exponent(
 pub use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 
 /// The texture grid of a primitive: the format's, or for a `blended` one the finest grid the
-/// widest span of its texture coordinates fits, never coarser than the format's (#875).
+/// widest span of its texture coordinates fits, never coarser than the format's.
 pub fn primitive_uv_exponent(carried: &[&crate::geometry_page::Attribute], blended: bool) -> i32 {
     if !blended {
         return UV_EXPONENT;

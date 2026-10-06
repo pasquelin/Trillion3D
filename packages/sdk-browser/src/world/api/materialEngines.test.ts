@@ -1,4 +1,4 @@
-// A material change reaches every engine of the session, even once one has not taken it (#847).
+// A material change reaches every engine of the session, even once one has not taken it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { RenderBackend } from '../../backend/types.ts'

@@ -11,7 +11,7 @@ type Identity = Placements & PageLocations
 /**
  * One root at the identity, and the location of every page: what a test page of the identity root
  * is placed by. It is both a `Placements` — an array of one root — and a `PageLocations` whose
- * `roots` names itself and whose every packed rank maps to that root (#1235), so a test can hand
+ * `roots` names itself and whose every packed rank maps to that root, so a test can hand
  * it to either reader.
  */
 export const identityRoots = (): Identity => {
@@ -24,7 +24,7 @@ export const identityRoots = (): Identity => {
   return roots
 }
 
-/** The placement tables of a list whose `i`-th page is placed by root `i` (#1235). */
+/** The placement tables of a list whose `i`-th page is placed by root `i`. */
 function perPagePlacement(roots: Placements): PlacementIndex {
   const n = roots.length
   return {

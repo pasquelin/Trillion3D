@@ -1,6 +1,6 @@
 /**
  * The materials this engine builds from a contract for a primitive, and therefore frees itself
- * (#840, #846, #847): one paint per repainted primitive, replaced — never stacked — by the next,
+ *: one paint per repainted primitive, replaced — never stacked — by the next,
  * worn by the per-instance draw state (`pageDraws.ts`). Repainting n times keeps one.
  */
 import type { HostMaterial } from '../../host/resources.ts'
@@ -25,7 +25,7 @@ export function createPaints(colorMaterials: Map<HostMaterial, HostMaterial>, dr
     // with, taken from the shared cache the decoded pages read (`painted` if it reads colours).
     for (const rec of records) {
       wearDeclaration(rec, rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted)
-      // Every instance wears it: one record serves all its primitive's placements (#1235).
+      // Every instance wears it: one record serves all its primitive's placements.
       draws.forEachDraw(rec, (draw) => {
         draw.material = painted
         if (draw.mesh) setHostSurface(draw.mesh, rec.declaration)

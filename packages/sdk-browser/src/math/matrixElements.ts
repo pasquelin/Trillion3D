@@ -25,7 +25,7 @@ export const FLOAT32_STEP = 2 ** -23
  * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at
  * `heldAt`) put it: no corner of it moves by one float32 step at the box's own reach in world. A
  * change below that is one the float32 world the GPU draws with cannot show — a resting body's
- * pose rounded again in float64 — and is no move (#831). The bound follows the box, never a scene.
+ * pose rounded again in float64 — and is no move. The bound follows the box, never a scene.
  */
 export function poseHoldsBox(
   held: ArrayLike<number>,

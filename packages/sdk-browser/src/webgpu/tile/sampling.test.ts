@@ -39,7 +39,7 @@ test('the default sampling is the zero word: the read the pools had before', () 
   assert.equal(filterOf({}, true), 0)
 })
 
-// #360, #361: the addressing rides above the filter bits, outside the zero test: a repeating
+// The addressing rides above the filter bits, outside the zero test: a repeating
 // texture at the default filters keeps the default read.
 test('the addressing nibble sits above the filter bits', () => {
   const word = filterOf({ wrapS: 'repeat', wrapT: 'mirror' })
@@ -62,7 +62,7 @@ test('each filter name sets its base filter and mip rule, on a texture created i
   assert.equal(filterOf({ minFilter: 'linear-mip-nearest' }), SAMPLE_MIP_NEAREST)
 })
 
-// #360, #361: GL's switch between magnification and minification (OpenGL ES 3.0 § 3.8.11): at
+// GL's switch between magnification and minification: at
 // level 0.5 for a linear magnification over a `nearest-mip-*` minification, at 0 otherwise. Under
 // the switch, level 0 with the magnification filter.
 test('minification starts at level 0.5 for a linear magnification over a nearest mip', () => {
@@ -81,7 +81,7 @@ test('minification starts at level 0.5 for a linear magnification over a nearest
   assert.match(SAMPLING_WGSL, /select\(2u,1u,mag\)/)
 })
 
-// #360, #361: a filter without `mip` on a texture of the compiled cache picks the read inside a
+// A filter without `mip` on a texture of the compiled cache picks the read inside a
 // level, never the level — the engine owns that chain, and its selection and tile requests stay
 // those of the default read. On a texture created in the page, WebGL2's rule: level 0.
 test('a filter without mip pins level 0 on a page texture, never on a compiled one', () => {
@@ -95,7 +95,7 @@ test('a filter without mip pins level 0 on a page texture, never on a compiled o
   )
 })
 
-// #360, #361: the rule both GPU paths share (`grantedAnisotropy`): a linear magnification over a
+// The rule both GPU paths share (`grantedAnisotropy`): a linear magnification over a
 // chain mixed across levels, or nothing.
 test('anisotropy is clamped to the ceiling, and granted only to a linear read mixed across levels', () => {
   const granted = (word: number) => ((word >> SAMPLE_ANISOTROPY_SHIFT) & 15) + 1
@@ -108,7 +108,7 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
   assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear' })), 1)
 })
 
-// #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
+// The shadow cutout reads one tap at the isotropic level; the camera cutout reads the
 // alpha of the colour's own read, the taps its footprint's elongation asks.
 test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
   const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
@@ -144,7 +144,7 @@ const readOf = (lx: number, ly: number, granted: number) => {
   )(lx, ly, granted) as [number, number]
 }
 
-// #443: the hardware rule (EXT_texture_filter_anisotropic): N taps, the ratio rounded up within the
+// The hardware rule (EXT_texture_filter_anisotropic): N taps, the ratio rounded up within the
 // grant, at the level log2(Pmax / N) — 2.5 texels read with 3 taps log2(3) lower, not log2(2.5).
 // A ratio within 0.01 of whole (`ANISOTROPY_SLACK`) reads as whole: face-on, one isotropic read.
 test('an anisotropic read takes its ratio in taps, up to the grant, its level shared among them', () => {
@@ -170,7 +170,7 @@ test('the affine part of the transform is carried, and flagged when it is not th
   assert.deepEqual([...new Float32Array(words.buffer, 4, 6)], [0, -2, 4, 0, 0.25, 0.5])
 })
 
-// #360, #361: a tap line that stays in one period, off its seams, is folded once and read one
+// A tap line that stays in one period, off its seams, is folded once and read one
 // level at a time — a table entry once per tile —, the two levels mixed once; a line that meets
 // a seam or leaves its period folds each tap alone, as a one-tap read does.
 test('an anisotropic line is folded once when it stays in its period', () => {

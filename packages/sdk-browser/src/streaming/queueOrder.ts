@@ -28,7 +28,7 @@ export function insereTravail(queue: Job[], job: Job) {
 
 /**
  * Remove from the queue, in one pass and without disturbing order, the jobs a cancellation
- * marked. A burst of cancellations — what a fast camera produces every frame — used to
+ * marked. A burst of cancellations — what a fast camera produces every frame — would
  * pay a sweep of the queue per abandoned request to find its place.
  */
 export function compacteFile(queue: Job[]) {

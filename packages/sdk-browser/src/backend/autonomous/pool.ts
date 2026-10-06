@@ -106,7 +106,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
       used = union.used
       return admitted
     }
-    // One view: the admission as it was before views, kept apart from the union's walk.
+    // One view: the plain admission, kept apart from the union's walk.
     let admitted = requested.length
     for (let i = 0; i < requested.length; i++) {
       used += shares.get(requested[i].url) ?? 0

@@ -41,7 +41,7 @@ function liesOnWater(mesh: Mesh, level: number) {
 }
 
 /**
- * THE MESHES THE WORLD'S WATER CARRIES (#357). A mesh that lies on the water's rest plane
+ * THE MESHES THE WORLD'S WATER CARRIES. A mesh that lies on the water's rest plane
  * (`liesOnWater`) is that water's drawn surface: its `waves` is set to the world's surface, and the
  * GPU deformation stage moves each of its vertices where the waves carry that rest point — the
  * waves buoyancy reads, on the physics' clock —, with no vertex written on the page. A mesh whose

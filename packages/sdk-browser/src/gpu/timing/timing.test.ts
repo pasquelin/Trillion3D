@@ -50,7 +50,7 @@ test('an image spanning two encoders yields one sample whose passes carry their 
     { part: 1, passes: 1, spanMs: 3 },
   ])
   assert.equal(samples[0].hostGapMs, 1)
-  // No image before it was sampled: no idle to measure (#1451, `idleBetween.test.ts`).
+  // No image before it was sampled: no idle to measure (`idleBetween.test.ts`).
   assert.equal(samples[0].idleBetweenMs, null)
   timer.dispose()
   assert.equal(
@@ -161,7 +161,7 @@ test('the sampling cadence bounds how many images are measured, each with its ne
     await timer.flush()
   }
   const stats = timer.stats()
-  // Images 0, 3 and 6 at the cadence, and 1, 4 and 7 after them for the idle between (#1451).
+  // Images 0, 3 and 6 at the cadence, and 1, 4 and 7 after them for the idle between.
   assert.deepEqual(
     samples.map((sample) => sample.frame),
     [0, 1, 3, 4, 6, 7],
@@ -172,7 +172,7 @@ test('the sampling cadence bounds how many images are measured, each with its ne
   assert.equal(stats.pending, 0)
   timer.dispose()
 })
-// #685: the name a pass without label falls back to; `passLabels.test.ts` keeps it out of a frame.
+// The name a pass without label falls back to; `passLabels.test.ts` keeps it out of a frame.
 test('a timed pass without label is named after the method that began it', async () => {
   const f = fixture(),
     samples: any[] = []

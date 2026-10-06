@@ -5,8 +5,8 @@
  *
  * Every pass is awaited, even one that returns at once: the loop therefore always outlives the
  * call that started it, and `running` is cleared by the loop itself, never before the caller has
- * stored it. A pass that settled without awaiting used to end the loop inside `request`, whose
- * `??=` then stored a finished loop that no later request could restart (#336).
+ * stored it. A pass that settled without awaiting would end the loop inside `request`, whose
+ * `??=` would then store a finished loop that no later request could restart.
  */
 export function createRequestLoop(pass: () => Promise<void> | void) {
   let wanted = false,

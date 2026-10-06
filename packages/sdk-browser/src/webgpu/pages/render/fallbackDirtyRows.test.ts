@@ -1,4 +1,4 @@
-// #198: the fallback draw uploads the rows the table changed and clears their dirty marks. The draw
+// The fallback draw uploads the rows the table changed and clears their dirty marks. The draw
 // records and projection corners the visibility pass keeps per row are refreshed from those same
 // marks: a row whose occupant changed under the fallback must still reach the compaction and the
 // partition once the pass comes back on the same targets.
@@ -52,7 +52,7 @@ async function changeRowUnderFallback(watch: (rt: Runtime) => void, check: (rt: 
   }
 }
 
-test('#198: a row changed under the fallback draw reaches the compaction', async () => {
+test('a row changed under the fallback draw reaches the compaction', async () => {
   // What the compaction holds: the words each upload sends, row by row.
   let held = new Uint32Array(0)
   await changeRowUnderFallback(
@@ -79,7 +79,7 @@ test('#198: a row changed under the fallback draw reaches the compaction', async
   )
 })
 
-test('#198: a row changed under the fallback draw reaches the partition corners', async () => {
+test('a row changed under the fallback draw reaches the partition corners', async () => {
   // What the partition holds: the corners each upload sends, row by row.
   let held = new Float32Array(0)
   await changeRowUnderFallback(

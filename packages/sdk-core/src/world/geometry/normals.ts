@@ -2,7 +2,7 @@
  * Per-vertex normals from the faces around each vertex: the cross product of two edges is the
  * face normal scaled by twice its area, so summing them weights each face by its area before the
  * final normalisation. A vertex no face reaches keeps a zero normal. Written into `normals` when
- * given — a list rewritten every frame allocates nothing (#573).
+ * given — a list rewritten every frame allocates nothing.
  */
 export function computeNormals<T extends Float32Array | Float64Array = Float32Array>(
   positions: ArrayLike<number>,

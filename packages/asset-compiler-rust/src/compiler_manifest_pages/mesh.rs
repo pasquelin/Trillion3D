@@ -1,17 +1,17 @@
-//! The mesh pages (#792): the primitives cut under `PAGE_BYTES` through the pager of the cell
+//! The mesh pages: the primitives cut under `PAGE_BYTES` through the pager of the cell
 //! index, written before the scene tables whose region pages name them.
 use super::*;
 use crate::compiler_tables::partition::split::halving;
 use std::{cell::RefCell, ops::Range};
 
 /// What a run reports of each primitive — how many of its pages it found already built — rather
-/// than what it built: no page keeps it, so a cold and a warm compile write the same bytes (#1370);
+/// than what it built: no page keeps it, so a cold and a warm compile write the same bytes;
 /// the run's result and its pointer carry it.
 pub(crate) const RUN_REPORT: &str = "reusedPages";
 
 /// The metrics a run's settings decide — its threads, its RAM budget, the working set it admitted
 /// and the waves it cut from them — which change how fast and in how much memory it compiles,
-/// never what it writes (#1405).
+/// never what it writes.
 const RUN_SETTINGS: [&str; 4] = [
     "threads",
     "ramBudgetMb",
@@ -19,8 +19,8 @@ const RUN_SETTINGS: [&str; 4] = [
     "compileWaves",
 ];
 
-/// Whether the metric `name` is what a run measured of itself — a time, its memory peak (#1370),
-/// its settings (#1405) — rather than what it built: the head leaves it to the run's result and
+/// Whether the metric `name` is what a run measured of itself — a time, its memory peak,
+/// its settings — rather than what it built: the head leaves it to the run's result and
 /// pointer.
 pub(super) fn is_run_measure(name: &str) -> bool {
     name.ends_with("Ms") || name == "peakRssBytes" || RUN_SETTINGS.contains(&name)
@@ -38,7 +38,7 @@ pub(super) fn without_run_report(mut page: Value) -> Value {
     page
 }
 
-/// The mesh pages of a compile, written before the tables whose region pages name them (#792).
+/// The mesh pages of a compile, written before the tables whose region pages name them.
 pub(crate) struct MeshPages {
     /// The root's slots, the empty ones last.
     pub slots: Vec<String>,

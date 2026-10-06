@@ -16,7 +16,7 @@ const UNIFORM_FLOATS = 32
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
 
 /**
- * The light grid's pass (`./shader.ts`, #1369). The grid buffer — the cell records, then the pool
+ * The light grid's pass (`./shader.ts`). The grid buffer — the cell records, then the pool
  * of their lists (`./pool.ts`) — is allocated for the current target and reallocated only when it
  * changes size or the pool grows; the group follows the light buffer, which grows with the scene;
  * encoding allocates nothing. The pass reads no depth: its cells are the view's own.
@@ -70,7 +70,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
     get tilesY() {
       return tilesY
     },
-    /** The pool's frame metrics (#849): the last sample, and its growths. */
+    /** The pool's frame metrics: the last sample, and its growths. */
     poolMetrics() {
       const sample = pool.sample()
       return {

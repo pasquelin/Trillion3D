@@ -1,5 +1,5 @@
-// Batch F oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
-// `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before batch F, copied as-is.
+// Oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
+// `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is.
 import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts'
 import * as THREE from 'three'
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
@@ -30,7 +30,7 @@ import type { Object3D } from '../../../packages/sdk-core/src/world/object/objec
 
 type Primitive = ClusterManifest['primitives'][number]
 
-/** A cluster root before batch F: the world and local box are `THREE.Box3` instances, where the
+/** A cluster root: the world and local box are `THREE.Box3` instances, where the
  *  attached version now keeps them flat (`Float64Array`) — the difference `boxToArray`
  *  reads in the bench. Everything else matches `ClusterRoot<PageRec>`. */
 type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
@@ -38,7 +38,7 @@ type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
   localBox: THREE.Box3
 }
 
-/** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
+/** `collectClusterPages`: `find` per mesh, `flatMap` of a spread, three
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
   source: Object3D,
@@ -81,7 +81,7 @@ export function referenceCollectClusterPages(
       (Array.isArray(mesh.material)
         ? mesh.material.some((material) => material.transparent)
         : mesh.material.transparent)
-    // The source rank is recorded for every class since 457b2df3ae (#846): a page may turn
+    // The source rank is recorded for every class: a page may turn
     // blended in the session, and then draws in that order.
     const sourceOrder = primitive.pages.map((page, index) => page.start ?? index)
     const exactPages = primitive.pages.filter((page) => (page.role ?? 'exact') !== 'coarse')

@@ -70,7 +70,7 @@ test('the edge values alone keep their order: NaN last, -0 before +0', () => {
   sameMedian(sliding, values, 'signed zeros')
 })
 
-test('an observation takes no view of a window and sorts none, full or not (#983)', () => {
+test('an observation takes no view of a window and sorts none, full or not', () => {
   let t = 0
   const governor = createPathGovernor(() => (t += 0.001))
   governor.setWasm(true, true, null)

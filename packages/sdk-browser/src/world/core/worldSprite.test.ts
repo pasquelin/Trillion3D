@@ -1,4 +1,4 @@
-// #364: what a world hands the engine for a sprite — its surface, its bounds, its row — so that
+// What a world hands the engine for a sprite — its surface, its bounds, its row — so that
 // every raster turns it to the camera and every culling test keeps it whichever way it turns.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -103,8 +103,8 @@ test("a sprite's host mesh wears the sprite surface and is bounded by its radius
   assert.deepEqual([...boundingSphere!.center.toArray(), boundingSphere!.radius], [0, 0, 0, r])
 })
 
-// #364 (measure ko): a transparent sprite drawn back then front took two entries of the
-// transparent plan, whose per-frame ranking grows with the square of their count.
+// A transparent sprite drawn back then front would take two entries of the transparent plan,
+// whose per-frame ranking grows with the square of their count.
 test('a transparent sprite is drawn in one pass: one plan entry, with no cull, and one WebGL2 pass', () => {
   const mesh = spriteMesh()
   const blendState = blendSceneOf(

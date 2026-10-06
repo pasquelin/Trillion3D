@@ -68,9 +68,9 @@ const SERVING = Array.from({ length: 16 }, (_, set) => serving(set))
 
 /**
  * The lit programs of one pass, each compiled the first time a frame asks for it: with or without
- * bounce, wide or narrow (#849), with or without shadow code (#1249), with the shadow read of a
+ * bounce, wide or narrow, with or without shadow code, with the shadow read of a
  * sun, of a local light, or of both (`ShadowKinds`), with or without rectangle
- * code (#1369). A narrow program reads at most `TILE_LIGHTS` lights, so it stands in for no wide
+ * code. A narrow program reads at most `TILE_LIGHTS` lights, so it stands in for no wide
  * one; an unshadowed one reads no shadow, so it stands in for no scene that holds one; a rectless
  * one shades no rectangle, so it stands in for no scene that holds one; a wide program with shadow
  * and rectangle code serves any scene. While the asked one compiles, the frame is lit by the best
@@ -166,7 +166,7 @@ function createLitVariants<P>(
     },
     /** Starts the program a first frame asks for and its wide twin with every code path, before
      *  any frame does, settled once both landed or failed: prepare compiles the lit program beside
-     *  the others, and no first frame starts a compile (#1362). */
+     *  the others, and no first frame starts a compile. */
     precompile(bounce: boolean, key: ContractKey) {
       const set = cutsOf(key)
       compile(bounce, key.narrow, set)
@@ -195,13 +195,13 @@ function createLitVariants<P>(
 }
 
 /** What the opaque resolve's programs are told: a failed compile (`onFailure`), and a reference
- *  session's rough reflection trace, unbounded (`reflectionTrace`, #33). */
+ *  session's rough reflection trace, unbounded (`reflectionTrace`). */
 type ContractVariantOptions = {
   onFailure?: (error: unknown) => void
   unboundedReflections?: boolean
 }
 /** The lit programs: when `precompile`, the one a first frame asks for (`key`) compiles from the
- *  start beside the unlit one (#1362), without bounce always, with it too when `bounce`;
+ *  start beside the unlit one, without bounce always, with it too when `bounce`;
  *  `onFailure` hears any contract compile that fails, precompiled or asked later. */
 export type LitPrograms = ContractVariantOptions & {
   precompile: boolean

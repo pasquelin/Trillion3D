@@ -346,7 +346,7 @@ bool written(const Soft &soft, const Body &body, size_t start, Gauge *gauge) {
   state.resize(start + 2 + vertices.size() * 3);
   state[start] = soft.engine;
   state[start + 1] = uint32_t(vertices.size());
-  // World to geometry, composed once per body (PHY-06, #975): scale⁻¹ · rotation⁻¹ ·
+  // World to geometry, composed once per body (PHY-06): scale⁻¹ · rotation⁻¹ ·
   // translation(−origin) · centre of mass. The vertices are those the per-vertex chain gave but
   // for float rounding, a few ulps of the world coordinate (`softWriteback.test.ts`), far below
   // a tenth of a pixel; the simulation never reads them back.
@@ -423,7 +423,7 @@ bool addSoft(const uint32_t *w) {
 
 void teleportSoft(const Slot &slot, Vec3 position, Quat rotation) {
   World &world = trillion::world();
-  // Found by its slot, not by a scan (PHY-22, #975): `addSoft` and `writeSoft` keep it in step.
+  // Found by its slot, not by a scan (PHY-22): `addSoft` and `writeSoft` keep it in step.
   Soft &soft = softs[slot.softAt];
   // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn
   // from the old place to the new one carries the body, and its vertices with it.

@@ -1,7 +1,6 @@
-// #1335: the card atlas streams through the engine's one held-level read, the tiles' own
+// The card atlas streams through the engine's one held-level read, the tiles' own
 // (`readHeldLevel`): each level is read at its own url, once even while it is in flight, held by
-// the reader's store within its room, and a failed read is reported. Fails on develop: `atlas.ts`
-// is not there.
+// the reader's store within its room, and a failed read is reported.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'

@@ -27,7 +27,7 @@ export function capture(
 
 export const target = (gl: WebGL2RenderingContext) =>
   new WebglClusterBackdrop(gl, [LTC_UNIT + 1, LTC_UNIT + 2], new WebglReflectionPyramid(gl))
-/** A screen-traced receiver: a matte-only view allocates no capture and runs no pass (#1341). */
+/** A screen-traced receiver: a matte-only view allocates no capture and runs no pass. */
 const reflecting = (mesh: { material: HostMaterials }) =>
   coatedScreenReflects(surfaceOf(mesh.material))
 /** A mirror-range mesh: what the reduced resolve pass redraws, the rough-only ones staying out. */

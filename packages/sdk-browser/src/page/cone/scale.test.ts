@@ -1,8 +1,8 @@
-// Defect 1 (cone reject at small scale): `isConformal` must judge on purely relative length and
+// Cone reject at small scale: `isConformal` must judge on purely relative length and
 // orthogonality ratios, never on an additive tolerance which, at small scale, hides a real
 // anisotropic deformation. The first test retakes the trigger case of
 // `tests/gpu/dag/cone-non-uniform-scale.gpu.ts`; the following cover degenerate 3×3s, then
-// confirm that reject remains possible for any uniform scale and rotation, as before this batch.
+// confirm that reject remains possible for any uniform scale and rotation.
 import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

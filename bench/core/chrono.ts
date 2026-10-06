@@ -103,7 +103,7 @@ const depuisMs = (debut: bigint) => Number(process.hrtime.bigint() - debut) / 1e
  * call, with their paired gap (`pairedGap`). Warm-up: at least `max(warmup, WARMUP_MIN)` samples and `WARMUP_MIN_MS`; the repeat count
  * is calibrated before and after it. Timed rounds: one sample of each side, the order alternating,
  * until `tours`, or the budget once `TOURS_MIN` rounds are in (the budget doubles with a witness:
- * each side keeps its own, as before).
+ * each side keeps its own).
  */
 export async function chronometre(
   calculation: (input: unknown) => unknown,

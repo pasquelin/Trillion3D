@@ -5,7 +5,7 @@ import { cardPassWgsl } from './cardWgsl.ts'
 export const IMPOSTOR_PASS = 'Trillion3D impostor cards'
 
 /**
- * The card pipelines (#1335) and their two group layouts: the image's (view uniform, card records)
+ * The card pipelines and their two group layouts: the image's (view uniform, card records)
  * and a mesh's atlas, which the feed fills (`feed.ts`). The visibility stages (`visPipeline`, with
  * and without the pyramid's level 0) write identifier 0 and the depth, with the clusters' targets
  * and depth (`visTargets`, `VIS_DEPTH`); the surface stage (`pipeline`) writes the four opaque
@@ -55,7 +55,7 @@ async function makeCardPipelines(device: GPUDevice) {
       core.visTargets(hiz),
       core.VIS_DEPTH,
     )
-  // Compiled together, off the thread (#1362).
+  // Compiled together, off the thread.
   const [pipeline, ids, hiz] = await Promise.all([
     make(
       IMPOSTOR_PASS,
@@ -85,7 +85,7 @@ const checked = new WeakMap<GPUDevice, Awaited<ReturnType<typeof makeCardPipelin
 export const cardPipelines = (device: GPUDevice) => checked.get(device)!
 
 /**
- * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE (#1336): compiled under the device's validation
+ * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE: compiled under the device's validation
  * scope where the session prepares. Refused — a card shader that does not compile, a pipeline that
  * does not link —, the failure is told once (`onFailure`) and the answer is false: the session then
  * keeps no impostor code, as a refused import, so it plans no card and every root keeps its

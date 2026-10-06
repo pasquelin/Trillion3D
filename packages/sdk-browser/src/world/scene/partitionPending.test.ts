@@ -50,7 +50,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   frame()
   read()
   assert.equal(await frame.pending(), false, 'nothing is left to place')
-  // A cell handed to the decode pool asks for the frame that places it once it lands (#575).
+  // A cell handed to the decode pool asks for the frame that places it once it lands.
   frame()
   read()
   decodes = [Promise.resolve()]

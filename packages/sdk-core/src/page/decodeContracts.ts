@@ -6,7 +6,7 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * with its quantization error; `cut` turns drawn triangles into pages, which come back as bytes
  * with their descriptors and, since version 6, their normal cone, the packed triangles carrying
  * whether their pages keep one; since version 7, `cells` reads a partition's cell file into the
- * rows it places, and `cellPage` a page of its cell index (#575).
+ * rows it places, and `cellPage` a page of its cell index.
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -116,7 +116,7 @@ export interface PageDecodeGeometryPayload {
 
 /**
  * Failure semantics, closed list. The first six are the page-decode rejections, taken word
- * for word from `geometryPage.ts`: a caller distinguishes them as before. `PAGE_DECODE_FAILED` carries
+ * for word from `geometryPage.ts`: a caller distinguishes them. `PAGE_DECODE_FAILED` carries
  * any other rejection from the decompression library. `PAGE_DECODE_CANCELLED` answers a
  * cancellation, `PAGE_DECODE_WORKER` an executor that vanished — only that one allows the fallback.
  */

@@ -19,7 +19,7 @@ export type PartitionFrame = {
   /**
    * Point the GPU projection reports corners relative to, in double precision: the camera pose.
    * Matrices sent to the kernel are composed with this translation, so a corner near the camera
-   * no longer enters through its world coordinates — that is what keeps the error bound tight on
+   * does not enter through its world coordinates — that is what keeps the error bound tight on
    * a model whose coordinates are tens of thousands.
    */
   anchor: readonly [number, number, number]

@@ -53,13 +53,13 @@ test('with live motion a camera move and a moved source keep the history, reproj
   assert.equal(clipped(), 0, 'still: nothing clipped')
   step(() => (frame.camera = [...IDENTITY_MATRIX4.slice(0, 12), 0.5, 0, 0, 1]))
   assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a camera move keeps it whole')
-  assert.equal(clipped(), 1, 'clipped to the neighbourhood (#831)')
+  assert.equal(clipped(), 1, 'clipped to the neighbourhood')
   step(() => frame.epoch[0]++)
   assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a moved source keeps it whole')
   assert.equal(clipped(), 1)
   assert.equal(history.reuse, false)
   // A relit source keeps it whole, clipped, while it changes; once it stops, the change cap flushes
-  // the old lighting (#1342).
+  // the previous lighting.
   step(() => frame.lighting[0]++)
   assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'a relight keeps it whole')
   assert.equal(clipped(), 1, 'clipped to the neighbourhood while it changes')
@@ -71,7 +71,7 @@ test('with live motion a camera move and a moved source keep the history, reproj
   assert.deepEqual(
     params(),
     [1, REFLECTION_CHANGE_KEPT, 0],
-    'without motion to follow, a moved source keeps it at the change cap (#33)',
+    'without motion to follow, a moved source keeps it at the change cap',
   )
   history.dispose()
   current.destroy()

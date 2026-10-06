@@ -44,7 +44,7 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(5) var<uniform> view:View;`
 /**
  * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
- * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
+ * in the lit image. This is not a light, it is a diagnostic view — the one geometry benches
  * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
  * no light is declared, because a scene with no source has nothing to light.
  */
@@ -82,20 +82,19 @@ ${contractSurface(
   `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`
-/** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
+/** The direct program's surface: what a specular lobe reflects of the environment. */
 const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
 ${contractSurface(MIRROR_TERM_WGSL)}`
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added. An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
- * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
- * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
+ * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects,
+ * added to the direct; without, a specular lobe reflects the environment alone. It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
- * (`directLightingWgsl`, #849), the one without `shadowed`, of a scene no light of which holds
- * a shadow slot (#1249), and the one without `rects`, of a scene that holds no rectangle light
- * (#1369).
+ * (`directLightingWgsl`), the one without `shadowed`, of a scene no light of which holds
+ * a shadow slot, and the one without `rects`, of a scene that holds no rectangle light.
  */
 export const contractLightingShader = (
   bounce: boolean,
@@ -126,7 +125,7 @@ const AS_IS_READ = {
   },
   accumulated: { texture: 'texture_2d<f32>', share: 'textureLoad(asIs,coord,0).r' },
 } as const
-/** The share read, or none in a frame with no as-is pixel (OMB-11): `asIsMix` at a share of 0. */
+/** The share read, or none in a frame with no as-is pixel: `asIsMix` at a share of 0. */
 export type ComposeInput = keyof typeof AS_IS_READ | 'flagless'
 
 /** The curved chain and the pixel as-is, weighed by its share: written out rather than `mix`, so a
@@ -177,7 +176,7 @@ const composeSources = (curve: string, chain: string, bloom = false) => ({
   accumulated: composeSource(curve, chain, 'accumulated', bloom),
   flagless: composeSource(curve, chain, 'flagless', bloom),
 })
-/** A program's compositions: plain, and blending in the chain's last bloom (#963). */
+/** A program's compositions: plain, and blending in the chain's last bloom. */
 const compositionsOf = (curve: string, chain: string) => ({
   plain: composeSources(curve, chain),
   bloom: composeSources(curve, chain, true),

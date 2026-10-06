@@ -25,7 +25,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
  * through its resident ancestor. A full pool is not caught here: the load throws, and the caller stops.
  * `priority` goes with every read the admission makes, its parents' included: a lower tier's stays
- * a prefetch, so the view's loading `total` never counts it (#408).
+ * a prefetch, so the view's loading `total` never counts it.
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined

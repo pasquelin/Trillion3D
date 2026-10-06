@@ -1,4 +1,4 @@
-// Batch F fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
+// Fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'

@@ -6,7 +6,7 @@ import {
 import { TILE_BORDER, TILE_SIZE } from './tiles.ts'
 
 /**
- * Where a tile's blocks lie in a block level file (STR-12, #962; the compiler's `tile_records`):
+ * Where a tile's blocks lie in a block level file (the compiler's `tile_records`):
  * its TILE RECORDS, tile rows then tiles, each the tile's region as its pool cell receives it
  * (`tileRegion`, `../webgpu/tile/write.ts`) in whole blocks, block rows top to bottom. No index is
  * stored: every offset follows from the level's dimensions; one HTTP Range reads one tile.

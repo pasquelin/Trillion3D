@@ -10,7 +10,7 @@ export type ClusterCut = {
   source?: number | null
 }
 /** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`;
- *  `sound` as in `projectedErrorAt`; the sphere grown by `reach`, a deformation's (#357). */
+ *  `sound` as in `projectedErrorAt`; the sphere grown by `reach`, a deformation's. */
 export function projectedClusterError(
   error: number | null | undefined,
   sphere: ArrayLike<number> | null | undefined,

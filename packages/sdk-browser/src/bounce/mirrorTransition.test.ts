@@ -29,7 +29,7 @@ const evaluate = new Function(`
   const sampleBounce=()=>enabled?Math.PI/4:0;
   // Constant probe radiance isolates the transition from the separately tested SH filter.
   const filteredProbeReflection=()=>enabled?0.25:0;
-  // With no probe yet, the environment answers (#1341).
+  // With no probe yet, the environment answers.
   const environmentReflection=()=>0.5;
   function proxyReflectionRay(P,N,R){${scalarBody('proxyReflectionRay')}}
   function reflectedRadiance(P,N,R,rough){${scalarBody('reflectedRadiance')}}

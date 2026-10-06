@@ -24,7 +24,7 @@ export function sessionOf(world: object): MeasuredWorld {
 
 /** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's frames:
  *  the world's own loop draws on while the pool moves, a world its page leads at each `render()`.
- *  The measurement entry's way in (#420) until particles have a public face (#423). Returns the
+ * The measurement entry's way in until particles have a public face. Returns the
  *  remover. A pool is attached once, to a made world. */
 export function attachParticles(world: World, pool: ParticlePool) {
   const pools = worlds.get(world)?.particles
@@ -51,11 +51,11 @@ export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null
  * `world.awaitPages`: resolves once the pages the current view reads are resident. It takes no
  * picture (`image: false`): a world whose loop redraws every frame — a large world streaming, an
  * animated scene — never holds an image still long enough to read one back, and a wait that asked
- * for it never settled (#408). A capture reads its own image (`capture.buffer`). `onProgress`
+ * for it never settled. A capture reads its own image (`capture.buffer`). `onProgress`
  * hears `session` while the session that draws the view settles, then `pages`: those the view
  * reads, resident as each one lands (`lifecycle.ts`). A session that closes for another — a lost
  * device, a reopen — ends its wait, never with a rejection: the wait carries on with the next
- * session, until one has its pages resident (#837).
+ * session, until one has its pages resident.
  */
 export async function awaitViewPages(
   runtime: { settled(): Promise<void>; ended(session: MeasuredWorld): Promise<void> },

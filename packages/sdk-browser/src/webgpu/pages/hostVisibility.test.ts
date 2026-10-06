@@ -12,7 +12,7 @@ import type { EngineCamera } from '../../camera/world.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 
-// A node of a compiled model hidden once, then shown again, by the host (#407). Every frame
+// A node of a compiled model hidden once, then shown again, by the host. Every frame
 // renders and settles, the GPU cut drops the node's pages while it is hidden — its root parked
 // as a parked row's is — and takes them back once it is shown.
 test('the WebGPU path hides a compiled node the host hid, and draws it again once shown', async () => {
@@ -48,7 +48,7 @@ test('the WebGPU path hides a compiled node the host hid, and draws it again onc
   }
 })
 
-// The same node's see-through parts and shadow: a hidden node vanishes entirely (#407).
+// The same node's see-through parts and shadow: a hidden node vanishes entirely.
 test('a host hide parks the root, hides its blend items and stales the shadow pages it covered', () => {
   const { blendState } = prepared()
   const group = new G.Group(),
@@ -114,7 +114,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.equal(blendState.keepPacked[0] & 1, 1)
   selectWebgpuBlend(blendState)
   assert.ok(blendState.visibleBlend.includes(item))
-  // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
+  // A node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
   node.castShadow = false
   uploadWorlds(rt, cam)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])

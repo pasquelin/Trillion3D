@@ -24,7 +24,7 @@ export const PICK_SHIFT = Math.log2(FEEDBACK_EVERY) + 1
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer
   readonly entries: number
-  /** Counts `entries` ranks from now on, in new buffers: a page table grew (#847). What came
+  /** Counts `entries` ranks from now on, in new buffers: a page table grew. What came
    *  back, or is coming, counted the ranks before: dropped, never read. */
   grow(entries: number): void
   /** Word the uniform carries: the phase, or "every pixel" during a convergence, and the pick turn. */

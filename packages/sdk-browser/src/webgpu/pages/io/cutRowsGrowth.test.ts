@@ -1,4 +1,4 @@
-// #1232: the rows a view holds bound the table, and the CPU cut grows them by what it selects. A
+// The rows a view holds bound the table, and the CPU cut grows them by what it selects. A
 // larger pool alone grows the table no further than the view's rows; the cut that then selects
 // past four fifths of them raises them, and the table grows in place to hold what it drew.
 import test from 'node:test'

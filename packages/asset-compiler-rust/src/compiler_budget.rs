@@ -3,7 +3,7 @@
 //! An admission budget is not an RSS limit. It refuses before starting what
 //! plainly would not fit, from the source size and what will be decoded; it does
 //! not bound the process, and occupied memory is not measured. It still has to
-//! count what it commits: two workers each given the floor share used to commit
+//! count what it commits: two workers each given the floor share must not commit
 //! twice that share, whatever total the batch announced.
 use crate::Options;
 pub mod waves;

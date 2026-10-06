@@ -9,7 +9,7 @@ import type { Track } from '../../../sdk-core/src/world/animation/clip.ts'
  * the clip's tracks and the time alone, so a sample the buffer holds for exactly the time asked is
  * the one the main thread would compute, bit for bit; any other time — a delta that changed, a
  * play, stop, seek or speed changed in between — or a buffer not back yet is sampled on the main
- * thread as before (`batchAnimation.ts`), in that same frame: never a stale pose, never a frame late.
+ * thread (`batchAnimation.ts`), in that same frame: never a stale pose, never a frame late.
  *
  * Two buffers go back and forth, transferred, never copied: one read by the frame the main thread
  * is computing, one filled by the worker for the next. A buffer holds `[seq, end]`, then per

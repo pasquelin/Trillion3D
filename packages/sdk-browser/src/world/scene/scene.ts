@@ -20,7 +20,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 
 /** A mesh of the prepared scene with no geometry pages, and no rows whose box bounds it before
- *  its pages are read (#751): the autonomous scene is incomplete. */
+ * its pages are read: the autonomous scene is incomplete. */
 function missingPages(): never {
   throw new EngineError(
     'AUTONOMOUS_ASSOCIATION_MISSING',
@@ -29,7 +29,7 @@ function missingPages(): never {
 }
 
 /** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
- *  mesh pages of a manifest the view holds (#751). */
+ * mesh pages of a manifest the view holds. */
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
@@ -39,7 +39,7 @@ type Metered = {
 /** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
  *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
  *  `onPreparation` hears the tables read, then each resource. With `pages`, the mesh pages the
- *  node table needs are held for good, and each cell holds its own while placed (#751). */
+ * node table needs are held for good, and each cell holds its own while placed. */
 export async function loadPreparedScene(
   options: MeasuredWorldOptions & Metered,
   metadata: ClusterManifest,
@@ -159,14 +159,14 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous)
-  // The world roots each model holds, which the session counts in its CPU budget (#1237): only
+  // The world roots each model holds, which the session counts in its CPU budget: only
   // that count leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
   const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
     ? [worldRoots]
     : []
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
-    /** The clips the file plays (#357). */
+    /** The clips the file plays. */
     clips: built.clips,
     worldRoots: counted,
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.

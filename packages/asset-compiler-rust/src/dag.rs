@@ -21,7 +21,7 @@ pub const DAG_CLUSTER_TRIANGLES: usize = 128;
 /// Vertex limit of a cluster; a 128 triangle cluster never needs more.
 pub const DAG_CLUSTER_VERTICES: usize = 255;
 /// Fewest clusters a group holds, short of its level's only group; the DAG warnings and the stall report read it. Grouping keeps it
-/// with no merge pass (audit CMP-17, #977): it splits only above `DAG_GROUP_MAX`, each half keeping
+/// with no merge pass: it splits only above `DAG_GROUP_MAX`, each half keeping
 /// 3/8 of 33 clusters or more (`refine_bisection`), so a smaller group is its level's only one.
 pub const DAG_GROUP_MIN: usize = 8;
 pub const DAG_GROUP_MAX: usize = 32;

@@ -1,4 +1,4 @@
-// #1345: a ring turning about its own axis — an astrolabe's — declares the boxes its clusters
+// A ring turning about its own axis — an astrolabe's — declares the boxes its clusters
 // cover, where they were and where they land, and none of its hollow, which its box holds whole: a
 // shadow page there keeps its depth. Moved as a named node (`setWebgpuTransform`) or as the world
 // moves its meshes, by their placement rows (`updateWebgpuPlacements`).
@@ -74,7 +74,7 @@ function turnRow() {
   return motions
 }
 
-/** The ring hidden, then shown again, where it lies, by its placement row (#831): what each
+/** The ring hidden, then shown again, where it lies, by its placement row: what each
  *  declares — a mesh the world shows or hides at a fixed pose, a frame of wax in a lava lamp. */
 function flipRow() {
   const { rows, rt, motions } = ringOnRow()

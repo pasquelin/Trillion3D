@@ -1,5 +1,5 @@
 // `normalMatrix3` (`packages/sdk-core/src/math/matrix/matrix3.ts`) replaces a host-library normal-matrix call: `coneContextFor`
-// (`cone.ts`) used to hold the matrix twice, once by the host library, now once by the base. Two
+// (`cone.ts`) holds the matrix once, by the base. Two
 // levels: the function alone, on hostile 3×3s (shear, non-conformal, NaN, ±0) where the host library stays
 // the oracle even if `coneContextFor` rejects them; then the real site, under a negative
 // scale — the only conformal case `isConformal` keeps without being a simple rotation — to check
@@ -41,7 +41,7 @@ test("normalMatrix3: on a non-finite 3×3, the engine convention replaces the ho
   // Parity with the host library holds on REGULAR matrices, and it stops there: the engine has its own
   // convention for singular matrices (the adjugate, `packages/sdk-core/src/math/matrix/matrix3.ts`) and for non-finite scales
   // (nine zeros, the rule of `packages/sdk-core/src/math/matrix/singular.ts`, that of the WGSL kernel). The host library, on this NaN
-  // mixed with ±0, used to propagate NaNs into the nine terms — therefore into the cone axis,
+  // mixed with ±0, propagates NaNs into the nine terms — therefore into the cone axis,
   // then into lighting. This test holds the gap, rather than let parity one day take it back.
   const m = new THREE.Matrix4().set(NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
   const ref = a9(new THREE.Matrix3().getNormalMatrix(m))

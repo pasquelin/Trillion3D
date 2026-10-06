@@ -38,7 +38,7 @@ test('the source answers from a kept image on, through the last matrix and live 
   assert.equal(gpu.destroyed.length, 4, 'three targets and the uniform')
 })
 
-// #1342: the source reprojected the HDR target, which holds camera fog, the mirror term,
+// The source reprojected the HDR target, which holds camera fog, the mirror term,
 // transparents, water and particles; it reads the lighting's second target alone.
 test('the source reads the unfogged image the lighting writes, and the depth it keeps', () => {
   const gpu = fakeDevice()
@@ -57,7 +57,7 @@ test('the source reads the unfogged image the lighting writes, and the depth it 
   source.dispose()
 })
 
-// #1342: without the temporal pass a mover reprojects to its old pixels; its triangle is checked.
+// Without the temporal pass a mover reprojects to its old pixels; its triangle is checked.
 test('a placement moved without live motion asks the triangle check; live motion never does', () => {
   const gpu = fakeDevice()
   const source = createReflectionSource(gpu.device, 8, 8, {} as GPUTextureView)

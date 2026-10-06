@@ -1,4 +1,4 @@
-// A cluster DAG for batch C: coarser and coarser levels, each replacing two clusters of the
+// A cluster DAG: coarser and coarser levels, each replacing two clusters of the
 // level below. Each cluster carries its own error and that of its replacement, so the cut
 // picks exactly one per region, and a threshold twice as large picks twice as few. Everything
 // comes from the shared bench's seeded generator.

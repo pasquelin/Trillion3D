@@ -1,4 +1,4 @@
-// #297: the autonomous WebGL2 path lights from the cache's light table, radiometric as
+// The autonomous WebGL2 path lights from the cache's light table, radiometric as
 // `lights.json` records it, and not from the photometric intensities the source graph carries.
 // Lit by the source graph alone — 2400 lux for this sun — the image comes out flat white.
 import test from 'node:test'
@@ -62,7 +62,7 @@ test('the autonomous path lights from the contract table, not from the source gr
   }
 })
 
-// #558 (D): the WebGL2 path draws no shadow map. A light that asks to cast — the sun, a point
+// The WebGL2 path draws no shadow map. A light that asks to cast — the sun, a point
 // lamp or a spot — is drawn unshadowed and named on the world's channel as `shadows-refused`,
 // once until it changes; a light that casts none is never named.
 

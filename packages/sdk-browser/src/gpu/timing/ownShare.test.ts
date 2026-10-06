@@ -1,4 +1,4 @@
-// #1279: a device that overlaps passes reports each one's whole span; the own share counts an
+// A device that overlaps passes reports each one's whole span; the own share counts an
 // overlap once, on the pass the queue ran first, so the shares add up to the image.
 import test from 'node:test'
 import assert from 'node:assert/strict'

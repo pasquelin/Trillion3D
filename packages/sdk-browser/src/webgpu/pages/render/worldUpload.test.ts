@@ -1,5 +1,5 @@
-// A pose the host wrote rewrites the table whichever cut draws the image (#428): without the GPU
-// cut — the CPU fallback — the rows used to keep their old world.
+// A pose the host wrote rewrites the table whichever cut draws the image: without the GPU
+// cut — the CPU fallback — the rows take the new world.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
@@ -43,7 +43,7 @@ test('a host pose rewrites every row on the CPU cut as on the GPU cut, and only 
   assert.equal(engine.layout.rows.tableEpoch, 1, 'a move the engine made rewrote its own rows')
 })
 
-// #831: a light dimmed during a camera flight is a host write, and the worlds brought back to the
+// A light dimmed during a camera flight is a host write, and the worlds brought back to the
 // moving eye all differ from the last ones sent: the cut finds them changed though no pose moved.
 // Every row rewritten each image of the flight cost the page table and its row buffers whole.
 for (const cut of ['GPU', 'CPU'] as const)

@@ -1,5 +1,5 @@
 /**
- * The trace rig of the moving-proxy proof (#27): the shipped traversal (`BOUNCE_TRACE_WGSL`) over
+ * The trace rig of the moving-proxy proof: the shipped traversal (`BOUNCE_TRACE_WGSL`) over
  * the engine's resident proxy, on a real device. Each ray reports whether it hit, at what
  * distance, which owner (-1 on a posed leaf, which reads no owner word), whether the shadow query
  * agrees, and the centre and red albedo of the owner it hit — what the radiance of a hit reads. A variant replaces the step bound the proxy

@@ -61,7 +61,7 @@ export class RequestStamps {
   /**
    * Append to `into` the request address of each record whose rank has not yet been seen
    * since `begin()`. Dedup and write fit in one loop, on the stamp array read as a field and
-   * on `into` ranks written directly: a cut of a hundred thousand records no longer pays a
+   * on `into` ranks written directly: a cut of a hundred thousand records pays no
    * call or a stack frame per record. `missing` keeps only pages without bytes — the list of
    * addresses still awaited.
    */

@@ -1,4 +1,4 @@
-// The card passes' render passes, recorded: each one's label, pipeline, groups and draws (#1335).
+// The card passes' render passes, recorded: each one's label, pipeline, groups and draws.
 
 /** An encoder that records the render passes and what each one draws. */
 export function recordingEncoder() {

@@ -144,7 +144,7 @@ fn encode_previews_rejects_a_decreasing_texture_index() {
     assert!(encode(&[preview(2, 4, 4, 1), preview(2, 4, 4, 1)]).is_err());
 }
 
-// #42: a coverage chain is its texture's colour-atlas entry — before the data one, and never
+// A coverage chain is its texture's colour-atlas entry — before the data one, and never
 // beside a plain colour one, which the engine could not tell apart from it.
 #[test]
 fn encode_previews_keeps_one_colour_entry_per_texture() {

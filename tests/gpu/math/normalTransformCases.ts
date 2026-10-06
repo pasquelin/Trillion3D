@@ -6,7 +6,7 @@
 // inputs, or their agreement would mean nothing.
 import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts'
 
-/** s³ = 1e-20: the uniform scale under which the old absolute threshold fired. */
+/** s³ = 1e-20: the uniform scale under which an absolute threshold fires. */
 export const THRESHOLD_SCALE = Math.cbrt(1e-20)
 
 const AXES = [
@@ -72,8 +72,9 @@ const singular = (name: string, columns: number[][], normal: number[], truth: nu
  *    to x; composed with diag(1, 1, 0) its columns are (0,0,−1), (0,1,0), (0,0,0). The local
  *    triangle (0,0,0), (1,0,0), (0,1,0) becomes (0,0,0), (0,0,−1), (0,1,0): world edges (0,0,−1)
  *    and (0,1,0), cross product (1, 0, 0), area 0.5 — a face fully visible and oriented. Its LOCAL
- *    normal is (0,0,1); the world one is +X. The old fallback returned +Z, the unrotated local
- *    normal — about 0.09 of light per channel instead of 0.8; the CPU path returned zero.
+ *    normal is (0,0,1); the world one is +X. A fallback to +Z, the unrotated local
+ *    normal, would give about 0.09 of light per channel instead of 0.8; a CPU path returning zero
+ *    would give none.
  *  — `zero column` crushes the y axis: columns (1e-8,0,0), (0,0,0), (0,0,−1e-8), onto the XZ plane
  *    of normal ±Y. The local normal (0.6, −0.8, 0) is that of edges (0.8; 0.6; 0) and (0,0,1);
  *    transformed, (8e-9, 0, 0) and (0, 0, −1e-8), whose cross product is (0, 8e-17, 0): +Y. The
@@ -98,7 +99,7 @@ export const FLATTENED = [
 /**
  * POSES THAT COLLAPSE THE FACE: no world area left, hence no normal, hence no light. The
  * expectation is the ZERO vector — finite, never a NaN that screen derivatives would spread to the
- * neighbouring pixels, never the local normal of a surface that no longer exists.
+ * neighbouring pixels, never the local normal of a surface that does not exist.
  *
  *  — `zero 3×3` and `rank 1` collapse the primitive onto a point or a line: the adjugate is zero by
  *    itself, every cross product of parallel columns being zero.

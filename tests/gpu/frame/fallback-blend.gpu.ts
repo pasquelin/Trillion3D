@@ -1,4 +1,4 @@
-// The WebGPU fallback pass, put on screen (#584). The fallback pass draws only when the device
+// The WebGPU fallback pass, put on screen. The fallback pass draws only when the device
 // cannot build the visibility buffer, and no public option reaches that state. The page
 // (`fallbackBlendPage.ts`) mounts the real engine twice on one scene: on the device as it is, then
 // while the same device refuses the visibility target's pipelines. It fails when the second side

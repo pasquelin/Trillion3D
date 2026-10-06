@@ -1,5 +1,5 @@
-// A material the page created, assigned to a drawable (#847): WebGL2 draws its pages in it, in
-// the variant the drawable's geometry asks for and the family its alpha mode gives them (#846);
+// A material the page created, assigned to a drawable: WebGL2 draws its pages in it, in
+// the variant the drawable's geometry asks for and the family its alpha mode gives them;
 // a drawable the open laid out as a forward copy is refused by name.
 import test from 'node:test'
 import assert from 'node:assert/strict'

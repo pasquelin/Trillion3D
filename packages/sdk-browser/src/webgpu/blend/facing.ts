@@ -1,7 +1,7 @@
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 
 /**
- * The cull an entry's pipeline no longer does (plan.ts, VERTEX CULL): mode 1 drops the front
+ * The cull an entry's pipeline does not do (plan.ts, VERTEX CULL): mode 1 drops the front
  * faces, mode 2 the back ones, as the pipelines' cullMode would with frontFace ccw.
  *
  * The facing is the sign of the clip-space determinant of the triangle's three corners (x, y, w),

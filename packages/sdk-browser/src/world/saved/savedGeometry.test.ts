@@ -21,7 +21,7 @@ async function readBack(scene: Scene) {
   return scene.children.map((m) => (m as ReturnType<typeof object.mesh>).geometry)
 }
 
-// #457: a saved view of an interleaved buffer held the whole pack under its own width.
+// A saved view of an interleaved buffer held the whole pack under its own width.
 test('a view of an interleaved buffer is saved as its own numbers, not the whole pack', async () => {
   const scene = sceneOfShapes()
   // Per vertex: x, y, z, u, v.
@@ -42,7 +42,7 @@ test('a view of an interleaved buffer is saved as its own numbers, not the whole
   )
 })
 
-// #457: a host geometry is read at its value, a world one as stored; a saved one keeps its owner.
+// A host geometry is read at its value, a world one as stored; a saved one keeps its owner.
 test('a shape keeps who built it, the world or the host, once saved and read back', async () => {
   const scene = sceneOfShapes()
   for (const owner of ['world', 'host'] as const) {

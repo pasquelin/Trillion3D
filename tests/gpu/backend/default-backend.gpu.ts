@@ -1,7 +1,7 @@
-// With no `backends` option the engine reads the machine and chooses (#274): where a WebGPU device
+// With no `backends` option the engine reads the machine and chooses: where a WebGPU device
 // exists, the WebGPU page raster, alone, sampling the cache's own textures — and it draws. Proved on
 // the repository's kinetic garden, and on a bench cache that carries a `clustered-blend` primitive
-// and so no prepared autonomous scene (#297, the public `alpha-blend-mode-test`), which the same
+// and so no prepared autonomous scene (the public `alpha-blend-mode-test`), which the same
 // default opens and draws. The machine without WebGPU draws on WebGL2, which the proofs do not run.
 import test from 'node:test'
 import assert from 'node:assert/strict'

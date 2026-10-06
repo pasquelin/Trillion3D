@@ -110,7 +110,7 @@ const NO_CLUSTER_ERROR = {
  * does not exist: at zero pixels, raising that floor would leave the cut with nothing to draw.
  * Every band the cut can still choose against grows: a produced cluster's own band, the band of
  * the group that replaces it, and the group bands themselves, so a replacement swaps at exactly
- * the same threshold as before and the cut stays a partition.
+ * the same threshold and the cut stays a partition.
  */
 export function clusterErrorFields(
   page: Page,
@@ -169,5 +169,5 @@ export function streamPlacement(
 }
 
 /** Meshes of a resolved host graph. One traversal in the package, that of
- *  `../../scene/meshes.ts`: selection used to read the same one, word for word. */
+ *  `../../scene/meshes.ts`: selection reads the same one, word for word. */
 export { meshes as objects } from '../../scene/meshes.ts'

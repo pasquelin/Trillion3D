@@ -118,8 +118,8 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
     if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera)
   }
   // A frame held on a device answer (`holdWebgpuFrame`) drew nothing, no cut to adopt below: the
-  // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. The lit program is one
-  // (#1362): a drained pose is a lit pose. A redraw may ask again (a view resized meanwhile); a
+  // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. The lit program is one:
+  // a drained pose is a lit pose. A redraw may ask again (a view resized meanwhile); a
   // refused grant stays settled, a failed compile is no longer awaited, so the loop ends.
   for (let answer = deviceAnswer(rt); answer; answer = deviceAnswer(rt)) {
     await answer

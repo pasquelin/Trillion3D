@@ -1,4 +1,4 @@
-// #1235: an instance stores nothing per page. The layout's packed pages, the row state's ranks by
+// An instance stores nothing per page. The layout's packed pages, the row state's ranks by
 // address, the pool's copies and the DAG's page urls are counted per primitive page, whatever the
 // number of placements: one more placement adds a base, never one entry per page.
 import test from 'node:test'

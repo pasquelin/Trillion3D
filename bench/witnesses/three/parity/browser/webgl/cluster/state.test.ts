@@ -55,7 +55,7 @@ const WITNESS = {
   none: THREE.NoBlending,
 } as const
 
-// #558: each mode computes, colour and alpha, what three@0.174 computes for the same material —
+// Each mode computes, colour and alpha, what three@0.174 computes for the same material —
 // the WebGL2 path through these calls, the WebGPU path through the one table they are read from.
 test('a transparent surface blends by its mode as the witness does', () => {
   for (const mode of Object.keys(WITNESS) as (keyof typeof WITNESS)[]) {

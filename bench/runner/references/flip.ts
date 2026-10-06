@@ -1,9 +1,9 @@
-// LDR-FLIP (Andersson et al., "FLIP: A Difference Evaluator for Alternating Images", NVIDIA, HPG
-// 2020): the perceptual metric a rendering technique is held to against its reference image (#1280).
-// Chosen over SSIM or CIEDE2000 because it models what a viewer flipping between the two images
-// sees (contrast sensitivity per opponent channel, then edges and points), is the metric real-time
-// rendering papers report, and needs no dependency: a few separable Gaussian filters, below.
-// Checked against NVIDIA's `flip-evaluator` 1.7 on the fixtures of `references/imageDiff.test.ts` and on random
+// LDR-FLIP, a perceptual difference evaluator for alternating images: the metric a rendering
+// technique is held to against its reference image. Chosen over SSIM or CIEDE2000 because it
+// models what a viewer flipping between the two images sees (contrast sensitivity per opponent
+// channel, then edges and points), is the metric real-time rendering reports, and needs no
+// dependency: a few separable Gaussian filters, below. Checked against the metric's reference
+// implementation (version 1.7) on the fixtures of `references/imageDiff.test.ts` and on random
 // and structured images: same mean, each pixel within 3e-5.
 import { srgbToLinear } from '../../../packages/sdk-core/src/index.ts'
 

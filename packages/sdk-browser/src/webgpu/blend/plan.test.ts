@@ -31,7 +31,7 @@ test('an item that declares no material plans the host default side: one front e
   assert.deepEqual(plan([]), front, 'an empty material array declares nothing: front')
 })
 
-// #346: an entry picks the pipelines of its item's mode — three culls per mode, normal first.
+// An entry picks the pipelines of its item's mode — three culls per mode, normal first.
 test('an item plans on the pipelines of its blend mode; a mode no path draws is refused', () => {
   const pipelineOf = (blending: number, transmissive = false) =>
     plan(G.basicSurface({ transparent: true, blending }), { transmissive }).map(planPipeline)

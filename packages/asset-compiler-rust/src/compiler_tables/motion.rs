@@ -1,4 +1,4 @@
-//! What moves in the prepared scene (#357): the skins its meshes bend by — the joints, in node
+//! What moves in the prepared scene: the skins its meshes bend by — the joints, in node
 //! ranks, and each joint's inverse bind matrix — and the animation clips it plays, each channel's
 //! key times and values written out as numbers. The runtime builds its skeletons and clips from
 //! these without reading the scene's binary, which stays on the server until a vertex is needed.

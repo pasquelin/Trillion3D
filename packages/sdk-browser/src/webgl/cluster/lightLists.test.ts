@@ -18,7 +18,7 @@ import { CELL_MARGIN } from './lightGrid.ts'
 import { evaluated, lightFrames, pointLamp, sent, triangle } from './lightGrid.fixture.ts'
 import { keptClusterScene } from '../../../../../bench/witnesses/exact/keptClusterScene.ts'
 
-// #835: WebGL2 draws every lamp of a scene, from a light texture grown with the count, and each
+// WebGL2 draws every lamp of a scene, from a light texture grown with the count, and each
 // fragment evaluates only the lamps whose range reaches its cell of the light grid — the lamps
 // the CPU oracle of the tiles' light test (`sphereTouchesBox`) keeps for the cell's box.
 
@@ -54,7 +54,7 @@ test('300 lamps draw on WebGL2, each fragment walks the lamps the oracle says re
   assert.equal(
     context.of('drawElements').length,
     meshes.length,
-    'every mesh in the final pass: matte meshes capture nothing (#1341)',
+    'every mesh in the final pass: matte meshes capture nothing',
   )
   const records = sent(context, 'RGBA').at(-1)![8] as Float32Array
   for (let i = 0; i < LAMPS; i++)

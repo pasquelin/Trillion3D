@@ -5,9 +5,10 @@ import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } 
 import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
 
-// The pyramid used to be a copy of the level-0 texture then one dispatch per mip, each reading
-// the level above from the buffer. `buildHiz` reads the texture once, copies it on the way and
-// reduces four mips per dispatch through workgroup memory. Below, both transcribed line by line,
+// The reference pyramid build is a copy of the level-0 texture then one dispatch per mip, each
+// reading the level above from the buffer. `buildHiz` reads the texture once, copies it on the
+// way and reduces four mips per dispatch through workgroup memory. Below, both transcribed line by
+// line,
 // driven by the uniform words the host really writes, must leave the pyramid buffer identical
 // bit for bit — every texel written, no other — on random sizes, capped mip counts, several
 // pyramids per dispatch, and NaN, ±0, ±Inf depths.

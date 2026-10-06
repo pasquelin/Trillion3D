@@ -66,7 +66,7 @@ test('a page whose parent is outside the cut brings its bundle, then both load i
     if (page !== r) page.array = undefined
   })
   linkBundleDependencies(primitive as never, pages)
-  // Each record's first packed rank: its place in the catalogue (#1235).
+  // Each record's first packed rank: its place in the catalogue.
   const rankOf = (rec: PageRec) => pages.indexOf(rec)
   const delta = createCutDelta(pages, []),
     pending = createCutPending(pages, delta, undefined, undefined, rankOf)

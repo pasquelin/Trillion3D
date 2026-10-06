@@ -1,5 +1,5 @@
 // Image deltas between the harness's captures, for `bench.ts`. A black capture compares equal to
-// any other black capture: it is refused by name, never counted as 0 px (#1016).
+// any other black capture: it is refused by name, never counted as 0 px.
 import { compareImages } from '../../../packages/sdk-core/src/index.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { flipMap } from './flip.ts'
@@ -25,7 +25,7 @@ export function refuseBlackCaptures(
 }
 
 /** The mean and the 99.9th percentile of the colour channels' errors, in 1/255 steps: what a
- *  resampled image is held to against the native one (#816), where a pixel count says nothing. */
+ *  resampled image is held to against the native one, where a pixel count says nothing. */
 function channelErrors(a: Uint8Array, b: Uint8Array) {
   const counts = new Uint32Array(256)
   let sum = 0

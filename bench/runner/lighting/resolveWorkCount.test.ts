@@ -1,4 +1,4 @@
-// #1369: a moving image's resolve against develop's, counted over a small atrium: the shadow setup
+// A moving image's resolve against develop's, counted over a small atrium: the shadow setup
 // only where a list holds a shadowed light — nowhere with no shadow slot —, two weight walks for
 // three, the same lights and shadows shaded.
 import test from 'node:test'

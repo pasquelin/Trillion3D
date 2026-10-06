@@ -1,6 +1,6 @@
-// #1410: the shadow receiver offset is no longer stored by the resolve beside the G-buffer; its
+// The shadow receiver offset is not stored by the resolve beside the G-buffer; its
 // readers recompute it from the visibility buffer. This runs the shipped `shadowReceiver` against
-// what the resolve stored before (`shadeWgsl.ts` up to #1410, its statements kept below but the
+// the statements a resolve would store it with (kept below but the
 // line widening, whose result it never stored), on the same pages, pixels and shared routines: the
 // same operations in the same order give the same bits, here in double precision.
 import test from 'node:test'
@@ -11,7 +11,7 @@ import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 
-/** The resolve's statements that wrote the offset before #1410, in their order; a discarded or
+/** The statements that would write the offset in the resolve, in their order; a discarded or
  *  empty pixel stored nothing, which the readers never read. */
 const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
  let id=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;

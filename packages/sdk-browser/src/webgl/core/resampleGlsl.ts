@@ -6,7 +6,8 @@ import { LANCZOS2_GLSL } from '../../taa/lanczos2Wgsl.ts'
  * display pixel's place in the render grid is `r = uv · render − 0.5`, texel centres at integers;
  * the 3×3 render texels around it weigh by Lanczos-2 of their distance to `r`, no jitter, and the
  * sum is clamped to the 2×2 nearest texels, where the kernel's negative lobes ring. The depth is
- * the nearest texel's, so what is drawn over the image after (`world.guides`) is hidden as before.
+ * the nearest texel's, so what is drawn over the image after (`world.guides`) is hidden as it is
+ * on the display path.
  * `untoned`: the effect chain's second attachment (`CLUSTER_LINEAR_FRAGMENT`) resampled alike.
  */
 export const resampleFragment = (untoned: boolean) => {

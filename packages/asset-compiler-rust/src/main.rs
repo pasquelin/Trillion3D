@@ -44,7 +44,7 @@ fn error_value(error: &CompilerError) -> Value {
 }
 
 /// What a host needs after a job: where the pointer lives and the run's own report — its metrics,
-/// times and memory peak, which the manifest on disk never carries (#1370), and `reusedPages`, the
+/// times and memory peak, which the manifest on disk never carries, and `reusedPages`, the
 /// pages it found already built (`null` on a kept folder). `reused` says the folder was proven and
 /// kept rather than written (`null` otherwise): the manifest on disk describes the product, not
 /// this run. `textureSkipped` and `textureNotes` count the texture stage's reasons by catalogue
@@ -139,7 +139,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
 }
 
 /// Returns its code rather than calling `process::exit`, which on Windows skips the exit handlers
-/// that write the profile of a build trained for profile guidance (#1352).
+/// that write the profile of a build trained for profile guidance.
 fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cancellation = Arc::new(Cancellation {

@@ -40,7 +40,7 @@ export type ScreenRadiance = ScreenLobe & {
   maxRoughness?: string
 }
 
-/** Screen reflections resolved per pixel in either graphics API (#1341): a roughness fade,
+/** Screen reflections resolved per pixel in either graphics API: a roughness fade,
  *  the whole trace up to half the maximum roughness and none from it on; a missed ray, the lobe
  *  share a cone left and every faded pixel read the program's fallback once, never black. */
 export function screenRadianceShader(

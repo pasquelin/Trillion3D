@@ -1,4 +1,4 @@
-// #348: the CPU software raster — the temporal Hi-Z depth and the oracles `rasterRgba` and
+// The CPU software raster — the temporal Hi-Z depth and the oracles `rasterRgba` and
 // `visibilityIds` — draws a line quad as every GPU raster does, with the one formula
 // (`lineClip`, `visibility/shader/lineWgsl.ts`), `linewidth` in CSS pixels times the pixel ratio.
 import test from 'node:test'
@@ -57,7 +57,7 @@ test('the CPU raster covers a line with its width, where it drew nothing before'
   assert.equal(ids.filter(Boolean).length, 0, 'a triangle surface of this quad has no area')
 })
 
-// #359: the CPU raster cuts a dashed line's gaps with the shared dash (`lineDash`), at the distance
+// The CPU raster cuts a dashed line's gaps with the shared dash (`lineDash`), at the distance
 // along the line its quads carry: drawn on each dash, empty on each gap; a solid line stays whole.
 test('the CPU raster draws a dashed line on its dashes and leaves its gaps empty', () => {
   const row = (page: VisPage) => {

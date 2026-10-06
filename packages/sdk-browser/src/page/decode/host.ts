@@ -142,7 +142,7 @@ export async function decodePageOffThread(
 }
 
 /**
- * A task that is never urgent — a `cut`, a partition's `cells` or `cellPage` (#575) — in a worker when the pool
+ * A task that is never urgent — a `cut`, a partition's `cells` or `cellPage` — in a worker when the pool
  * lives, else by the same task on the main thread: it waits for the pool's startup check rather
  * than take the main thread. The worker receives a copy of `source`, so a vanished worker leaves
  * it whole for the main thread. Not a decode: it is not counted among the decoded pages.

@@ -1,4 +1,4 @@
-// #1281: `bench.ts --reference` holds each capture to the engine's reference image of its scene and
+// `bench.ts --reference` holds each capture to the engine's reference image of its scene and
 // view, and refuses by name a run that cannot be compared with it.
 import test from 'node:test'
 import assert from 'node:assert/strict'

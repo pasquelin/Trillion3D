@@ -4,7 +4,7 @@ import { sphereTouchesBox } from '../../../../../bench/oracles/browser/gpuLightG
 import { CELLS_PER_LAMP, MOST_CELLS_ON_AXIS, MOST_ENTRIES } from './lightGrid.ts'
 import { cellBox, lightFrames, listedGrid, pointLamp, triangle } from './lightGrid.fixture.ts'
 
-// #835: a limit of the WebGL2 light grid — cells per lamp, cells along an axis, (cell, lamp)
+// A limit of the WebGL2 light grid — cells per lamp, cells along an axis, (cell, lamp)
 // entries — never drops a lamp from a pixel it reaches: past a limit the grid's cells widen, and
 // every lamp stays listed in every cell its range touches (the tiles' oracle, `sphereTouchesBox`),
 // its whole reach inside the grid.

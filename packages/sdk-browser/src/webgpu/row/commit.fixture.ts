@@ -1,6 +1,6 @@
 // Setup of the two row tests: the catalogue, the row writer, an image and the full state compared.
-// Posted separately because two tests use it — the differential comparison against the oracle from
-// before lot F (`commit.test.ts`) and the direct proof of row recycling
+// Posted separately because two tests use it — the differential comparison against the oracle
+// (`commit.test.ts`) and the direct proof of row recycling
 // (`recycle.test.ts`), which nothing differential can prove since the oracle carries the
 // same guard word for word.
 import { createWebgpuRowState } from './state.ts'
@@ -52,7 +52,7 @@ export function mount(
   for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer
   const commit = fabriqueCommit(rows, ecrivain)
   /** CPU cut of the image: it is the one, and the only one, that reaches `commitRows`. The packed
-   *  rank of each drawn record travels beside it (#1235): one record may serve several placements. */
+   *  rank of each drawn record travels beside it: one record may serve several placements. */
   const coupe: PageRec[] = [],
     coupePacked: number[] = []
   const sync = createWebgpuRowSync(

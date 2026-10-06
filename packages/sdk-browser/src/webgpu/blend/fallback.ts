@@ -19,7 +19,7 @@ export const DRAW_WORDS = 3
  * The fallback pass's draws of the image into `blendState.fallbackDraws`, `DRAW_WORDS` each. An
  * unpaged item draws its own indices once. The fallback shader reads no instance, so a paged item
  * draws each cluster the CPU cut kept, in table order, from the span its page holds in the cache —
- * drawn whole through the compaction's arguments, it drew nothing (#584). A cluster not resident
+ * drawn whole through the compaction's arguments, it drew nothing. A cluster not resident
  * has an empty span and draws nothing, as in the blend pass. A GPU cut leaves no CPU instance
  * list to read: that frame is refused by name, never drawn without its paged transparents.
  */

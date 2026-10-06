@@ -10,7 +10,7 @@ import type { MeasuredWorldOptions } from '../world/session/options.ts'
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 
 /**
- * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
+ * THE ENGINE'S REFERENCE MODE: the image a rendering technique is held to (CONTRIBUTING.md,
  * "Image and fidelity", class 2), drawn by this very renderer with every approximation it names
  * switched off — never a second renderer:
  * - `renderScale`: the frame drawn at the display, 1, never reconstructed from fewer pixels;

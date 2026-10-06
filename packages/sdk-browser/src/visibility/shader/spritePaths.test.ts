@@ -1,4 +1,4 @@
-// #364: every path that draws a sprite turns its quad with the one text (`spriteWgsl.ts`), reads
+// Every path that draws a sprite turns its quad with the one text (`spriteWgsl.ts`), reads
 // the sprite's words where its row, item or uniform carries them. The shadow passes draw no
 // sprite, since a sprite casts no shadow, because no light cut selects one
 // (`spriteShadowCut.test.ts`): their vertex stage reads no sprite word. A surface that is no sprite carries zeros and draws as

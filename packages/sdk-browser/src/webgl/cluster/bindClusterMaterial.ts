@@ -75,7 +75,7 @@ export function bindClusterMaterial(
     mat.baseColor[0],
     mat.baseColor[1],
     mat.baseColor[2],
-    // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769).
+    // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep`.
     material.transparent || mat.alphaTest > 0 ? surfaceOpacity(source) : 1,
   )
   uniforms.f4(

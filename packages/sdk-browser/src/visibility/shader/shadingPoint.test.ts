@@ -80,7 +80,7 @@ test('degenerate normals and world translations preserve a finite receiver displ
   )
 })
 
-test('the receiver never falls behind its triangle: a concave patch keeps its point (#1344)', () => {
+test('the receiver never falls behind its triangle: a concave patch keeps its point', () => {
   const vertices = [
     [0, 0, 0],
     [2, 0, 0],

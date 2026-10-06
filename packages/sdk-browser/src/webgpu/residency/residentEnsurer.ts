@@ -65,7 +65,7 @@ export function createWebgpuResidentEnsurer({
    * into slots nobody holds — free, or taken by a page no tier wants. They are never pinned: a
    * camera page evicts them, they never evict a camera page, and an object on screen is never
    * coarsened for a view to come. A tier keeps every page its list still names, so a wanted page is
-   * never evicted and reloaded each frame (#1016).
+   * never evicted and reloaded each frame.
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -84,7 +84,7 @@ export function createWebgpuResidentEnsurer({
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH)
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
-    // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
+    // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted.
     for (let i = 0; i < lower.length && spare > 0; i++) {
       if (!budget.admits()) {
         await nextShare()

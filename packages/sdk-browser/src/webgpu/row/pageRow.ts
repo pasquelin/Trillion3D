@@ -77,7 +77,7 @@ export const rowIndexCount = (rec: PageRec) =>
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>
   /** Set once an opaque row shows a surface as-is (`shownAsIs`): from then on the image has flags
-   *  temporal antialiasing and the composition must read (OMB-11). Never unset: a row it no longer
+   *  temporal antialiasing and the composition must read. Never unset: a row it no longer
    *  draws only keeps the reading variant, which is right for every image. */
   asIsShown: boolean
   /** Set once an opaque row's surface can emit or occlude (`surfaceEmitsOrOccludes`): the image's
@@ -91,7 +91,7 @@ type PageRowResources = MaterialLayers & {
 export function createPageRowWriter(
   resources: PageRowResources,
   markRowDirty: (row: number) => void,
-  /** The placement roots, and the root rank of each packed rank (#1235): the row's world, its
+  /** The placement roots, and the root rank of each packed rank: the row's world, its
    *  placement word and its deformation record are its instance's root's. */
   roots: Placements,
   rootRank: (packed: number) => number,

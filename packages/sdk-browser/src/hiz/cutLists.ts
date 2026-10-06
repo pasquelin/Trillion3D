@@ -23,7 +23,7 @@ export type CutLists<T = HizPage> = {
   kept: T[]
   /** The shown cut: the occluders, then the pages the pass-1 pyramid kept. */
   shown: T[]
-  /** The packed rank of each page of the three lists above, rank by rank (#1235). */
+  /** The packed rank of each page of the three lists above, rank by rank. */
   occludersPacked: number[]
   restPacked: number[]
   shownPacked: number[]

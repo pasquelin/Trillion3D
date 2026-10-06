@@ -1,4 +1,4 @@
-// The depth material's ramp (#365): planes at the near plane, mid-way and the far plane read 1,
+// The depth material's ramp: planes at the near plane, mid-way and the far plane read 1,
 // 0.5 and 0 on both GPU paths, whatever the depth buffer holds. The WebGPU resolve applies the
 // weights to a pixel's clip coordinates (`../visibility/shader/shadeWgsl.ts`); the WebGL2
 // fragment to its view distance (`../webgl/cluster/shaders.ts`). Both expressions are read out

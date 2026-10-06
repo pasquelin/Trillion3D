@@ -5,7 +5,7 @@ import { pipelinesByMode } from '../../blend/stagePipelines.ts'
 import { buildRenderPipeline } from '../../../lighting/deferred/fullscreen.ts'
 import type { Blending } from '../../../../../sdk-core/src/world/constants/index.ts'
 
-/** The fallback pass's pipelines, its three opaque culls compiled together off the thread (#1362). */
+/** The fallback pass's pipelines, its three opaque culls compiled together off the thread. */
 export async function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [

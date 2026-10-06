@@ -1,4 +1,4 @@
-// A page record carries no placement value of its own (#1226, #1235): its world, its instance-buffer
+// A page record carries no placement value of its own: its world, its instance-buffer
 // row and its winding are those of its root. One record serves every placement of its primitive, so
 // an instance — a (placement, page) pair — is named by its packed rank, never by the record alone.
 import type { MatrixElements } from '../../math/matrixElements.ts'
@@ -33,9 +33,9 @@ export function locationOf(locations: PageLocations, i: number) {
 }
 
 /** The packed rank of each root's first page, by root rank, and the root rank of each packed rank.
- *  One table per layout (#483 rule 4): the packed order is the instances, group by group. An engine
+ *  One table per layout: the packed order is the instances, group by group. An engine
  *  holds ONE such object and rewrites its two tables in place at each layout, growth or mount, so a
- *  reader built once reads the current tables, never those of its creation (#1235). */
+ *  reader built once reads the current tables, never those of its creation. */
 export type PlacementIndex = {
   baseOfRoot: Int32Array
   rootOfPacked: Int32Array

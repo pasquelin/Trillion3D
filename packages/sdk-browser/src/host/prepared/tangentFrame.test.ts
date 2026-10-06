@@ -1,4 +1,4 @@
-// A normal map is shaded in the frame its pass builds (#846). A page stores no tangent, so every
+// A normal map is shaded in the frame its pass builds. A page stores no tangent, so every
 // engine pass rebuilds a page's frame from its triangle, and a surface the material table wrote for
 // vertex tangents gives that frame the factor of its other variant: the one the prepared scene's
 // own surface, written for a rebuilt frame, carries. Before, `source.gltf` and the prepared scene

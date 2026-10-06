@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createResidentOrder } from './poolOrder.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
-// #839: a coarser page the image let go of is held over one `keep`, never for as long as a finer
+// A coarser page the image let go of is held over one `keep`, never for as long as a finer
 // page leaves each image — a moving view would otherwise hold every coarse page it passed.
 test('a view that lets go of a finer page every image still releases the coarse ones it passed', () => {
   const recs = new Map<string, PageRec>()
@@ -31,7 +31,7 @@ test('a view that lets go of a finer page every image still releases the coarse 
   assert.ok(most <= 10, `${most} keys for a view of 7 pages`)
 })
 
-// #839: a released parent a newly kept child holds again leaves the order, so it never goes first.
+// A released parent a newly kept child holds again leaves the order, so it never goes first.
 test('a parent held again through a kept child is not evicted under it', () => {
   const parent = { url: 'p', level: 1 } as PageRec,
     child = { url: 'c', level: 0 } as PageRec

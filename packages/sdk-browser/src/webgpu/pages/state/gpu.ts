@@ -118,7 +118,7 @@ export interface WebgpuGpuState {
   guideRevision: number
   /** The particle step, made by the first image with a pool (`../../particles/`). */
   particles: WebgpuParticles | undefined
-  /** The impostor cards and their atlases, made by the first image of a baked cache (#1335). */
+  /** The impostor cards and their atlases, made by the first image of a baked cache. */
   impostors: WebgpuImpostors | undefined
   /** The impostor draw's code, awaited by the prepare of a baked cache (`../../../impostor/code.ts`). */
   impostorCode: typeof ImpostorCode | undefined

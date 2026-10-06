@@ -14,6 +14,6 @@ function halfAtLeast(x: number) {
   return bits
 }
 
-/** `mark` with `reach` in its high sixteen bits, as the GPU cut reads it (`reachOf`, #357). */
+/** `mark` with `reach` in its high sixteen bits, as the GPU cut reads it (`reachOf`). */
 export const markReach = (mark: number, reach: number) =>
   ((mark & 0xffff) | (halfAtLeast(reach) << 16)) >>> 0

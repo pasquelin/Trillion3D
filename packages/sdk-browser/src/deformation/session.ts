@@ -9,7 +9,7 @@ import type { EngineCamera } from '../camera/world.ts'
 import { createDeformationSkip } from './screen.ts'
 
 /**
- * A session's GPU deformation (#357): one record per deformed root of its cut (`frame.ts`), the
+ * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`), the
  * block of records placed in the float pool the page passes bind (`place`), and the word a row
  * carries to name its root's record (`PageInfo.deform`). A root joining the session later has
  * none: the session that draws a deformed root is opened with it.

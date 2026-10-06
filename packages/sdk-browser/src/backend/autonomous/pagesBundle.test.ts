@@ -1,4 +1,4 @@
-// #297: the autonomous WebGL2 path files its records under the page's own URL, never under the
+// The autonomous WebGL2 path files its records under the page's own URL, never under the
 // streaming request. A cache that packs a primitive's cluster indices into one bundle gives every
 // page of that primitive the same request address: indexed by it, the decoded geometry of one
 // page would be filed for the whole primitive and `sync()` would refuse the cut it cannot cover.
@@ -94,7 +94,7 @@ test('two pages packed in one bundle each receive their own decoded geometry', a
   camera.lookAt(0, 0, 0)
   try {
     // Filed under the bundle, the second record would never receive its geometry and `prepare()`
-    // would stop on `AUTONOMOUS_COVERAGE_MISSING`, the failure #297 names.
+    // would stop on `AUTONOMOUS_COVERAGE_MISSING`, the failure it names.
     await backend.prepare()
     backend.render(camera)
     assert.equal(backend.metrics().submittedTriangles, 2)

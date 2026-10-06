@@ -1,4 +1,4 @@
-// #847: a live session's colour atlas takes a texture after open by the open's own path: a slot
+// A live session's colour atlas takes a texture after open by the open's own path: a slot
 // in its catalogue, its page table regrown by copy, the feedback counting its ranks, its
 // tail pinned, every group naming the atlas rebuilt once, and its counters published. The first
 // map of a scene that had none opens its lane's pool, its first layer allocated then.
@@ -66,7 +66,7 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     backend.render(camera())
     assert.equal(groups.length, 0, 'once')
     const after = backend.metrics()
-    // A scene with no map opens with no layer (#1345): the map opens its lane, the fill with it.
+    // A scene with no map opens with no layer: the map opens its lane, the fill with it.
     assert.deepEqual([before.textureTilesResident, before.texturePoolBytes], [0, 0])
     assert.equal(after.textureTilesResident, 2, 'its tail pinned, and the white fill beside it')
     assert.equal(after.texturePoolBytes, pool.bytes, 'the lane opened: its first layer')

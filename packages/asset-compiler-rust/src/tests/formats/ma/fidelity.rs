@@ -29,7 +29,7 @@ fn four_triangles(name: &str, parent: &str) -> String {
     )
 }
 
-// Finding 10: two transforms named `M` under two different parents are two nodes.
+// Two transforms named `M` under two different parents are two nodes.
 // Maya distinguishes them by their full path — `|A|M` and `|B|M` — and confusing
 // them made the second overwrite the first: a `setAttr` aimed at one landed on the other.
 #[test]
@@ -58,7 +58,7 @@ fn two_transforms_of_the_same_name_under_two_parents_stay_two_nodes() {
     );
 }
 
-// Finding 11: a `shadingEngine` that claims only part of the faces does not make
+// A `shadingEngine` that claims only part of the faces does not make
 // the others vanish. Those no engine names come out in a primitive without a
 // material, counted.
 #[test]
@@ -100,7 +100,7 @@ fn the_faces_no_shading_group_claims_still_reach_the_scene() {
     );
 }
 
-// Finding 12: an intermediate shape is a work state Maya never draws, and an
+// An intermediate shape is a work state Maya never draws, and an
 // invisible shape is hidden by the file. Neither enters the scene.
 #[test]
 fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
@@ -131,7 +131,7 @@ fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
     assert_eq!(manifest["source"]["counts"]["invisible"], 1);
 }
 
-// Finding 23: a face that cites the edge `i64::MIN` is refused under its name.
+// A face that cites the edge `i64::MIN` is refused under its name.
 // Maya writes `-(i + 1)` for an edge walked backwards, and the lowest value has
 // no opposite: negating it overflowed, which stopped compilation with a panic
 // instead of a counted refusal.

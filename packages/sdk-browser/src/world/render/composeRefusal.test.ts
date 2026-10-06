@@ -1,4 +1,4 @@
-// #349, audit of #651: on WebGL2 the effect chain's linear target cannot hold a transparent surface
+// On WebGL2 the effect chain's linear target cannot hold a transparent surface
 // that blends in multiply or subtractive. Whichever comes first — the pass, the surface, the
 // switch of its mode, or a WebGL2 session opened on a world that holds both — the frame keeps
 // drawing every surface, without the chain, and the world says so once; the chain comes back

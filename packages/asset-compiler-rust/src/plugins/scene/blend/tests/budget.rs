@@ -9,7 +9,7 @@ use std::io::{Seek, SeekFrom, Write};
 /// A budget far below the file below: the smallest share a job is given.
 const SMALL: usize = 64 << 20;
 
-// Behaviour: a bare file past the old fixed 1 GiB ceiling reads under a budget sixteen times
+// Behaviour: a bare file past a fixed 1 GiB ceiling reads under a budget sixteen times
 // smaller. The file is sparse — a padding block the walk steps over —, so it costs no disk.
 #[test]
 fn a_bare_file_past_a_gigabyte_is_read_in_place_under_a_small_budget() {

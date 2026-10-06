@@ -1,4 +1,4 @@
-// A deformed root's mark word carries its reach in its high sixteen bits (`markReach`, #357): the
+// A deformed root's mark word carries its reach in its high sixteen bits (`markReach`): the
 // cut holds the whole word, so the same word written again each image — the deformation writes it
 // every frame (`deformation/webgpuFrame.ts`) — voids no cut and the image can be held, and the
 // primitive's frame words, made again whole from the held words, keep the reach the kernel grows

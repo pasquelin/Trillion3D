@@ -46,7 +46,7 @@ test('uniforms describe one level each, at the device alignment', () => {
   assert.equal(buffers[before].size, mipLevelCountFor(4, 4) * stride)
 })
 
-// #42: the weighted rule is a pipeline of its own, built with the `weighted` constant; the plain one
+// The weighted rule is a pipeline of its own, built with the `weighted` constant; the plain one
 // keeps it off. The compiler proves the rule's bytes (`texture_preview/tests/weighted_colour.rs`);
 // which texture takes which rule is `scratch.test.ts` and `sources.test.ts`.
 test('one reduction pipeline per rule, the weighted one built with its constant and reused', () => {
@@ -58,7 +58,7 @@ test('one reduction pipeline per rule, the weighted one built with its constant 
   )
 })
 
-// #748: a chain with a cutoff counts each level — level 0 first — and picks its `t` before reducing
+// A chain with a cutoff counts each level — level 0 first — and picks its `t` before reducing
 // it, every level's block carrying the cutoff; one without counts nothing. The shaders' arithmetic
 // is `coverageRule.test.ts`.
 test('a chain with a cutoff counts each level before reducing it, a plain one nothing', () => {
@@ -84,7 +84,7 @@ test('a chain with a cutoff counts each level before reducing it, a plain one no
   )
 })
 
-// OMB-29, #961: a batch is one uniform write and one submit; each chain encodes the passes it had
+// A batch is one uniform write and one submit; each chain encodes the passes it had
 // alone, its uniform blocks after the previous chain's, a 1×1 chain nothing.
 test('a batch writes its chains’ blocks once, in order, and submits them together', () => {
   const { device, texture, computes, writes, submits } = scratch()
@@ -113,7 +113,7 @@ test('a batch writes its chains’ blocks once, in order, and submits them toget
   assert.deepEqual(block(6), [2, 2, 0, 0, 8, 8, 3])
 })
 
-// #685: a chain's passes carry their labels, so no pass the engine begins is unnamed.
+// A chain's passes carry their labels, so no pass the engine begins is unnamed.
 test('a chain’s coverage counts and reductions carry their labels', () => {
   const { device, texture, passes } = scratch()
   const counts: Array<string | undefined> = [],

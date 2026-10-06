@@ -6,7 +6,7 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { fakePhysicsWorld, idleTick, poseRecord } from '../../physics/worker.fixture.ts'
 import { createWorldFrames } from './worldFrames.ts'
 
-// #740: a world whose host leads (`interactive: false`) runs the physics in `world.render()`
+// A world whose host leads (`interactive: false`) runs the physics in `world.render()`
 // through the loop's own step, with no controller: it no longer simulates nothing. No Node fixture
 // opens a world's session, so the frames and the physics are driven as `render()` drives them.
 test('a host-led frame runs the physics as the loop does: its falling body moves', async (t) => {

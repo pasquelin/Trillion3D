@@ -1,5 +1,5 @@
-// A material moved into or out of blended in the session (#846): the compiler cuts a blended
-// primitive on finer grids (#875), so WebGL2 cuts the primitive's pages again from its source
+// A material moved into or out of blended in the session: the compiler cuts a blended
+// primitive on finer grids, so WebGL2 cuts the primitive's pages again from its source
 // vertices on the grids of its new class, and draws its own pages again once back.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -71,7 +71,7 @@ test('WebGL2 draws a primitive turned blended on the blended grid, and its own p
   }
 })
 
-// A seam-locked solve (#877) writes coarse vertices past the source's, held by its pages alone.
+// A seam-locked solve writes coarse vertices past the source's, held by its pages alone.
 test('WebGL2 re-cuts a solved primitive with the vertices only its pages hold', async () => {
   const triangle = triangleBackend({ corners: [0, 1, 3] })
   const { backend, geometry, material, paged } = triangle
@@ -112,7 +112,7 @@ test('WebGL2 refuses by name a move whose pages carry a second texture coordinat
   }
 })
 
-test('WebGL2 keeps the page the host replaced through a class change and back (#837)', async () => {
+test('WebGL2 keeps the page the host replaced through a class change and back', async () => {
   const triangle = await opened()
   const { backend, geometry, material, encoded } = triangle
   try {

@@ -12,7 +12,7 @@ use super::*;
 const DAG_ROOT_SHARE: usize = 8;
 
 /// One published row per DAG level: clusters, triangles, roots and the triangles they draw — what
-/// the level adds to the root cover, a budget's floor (#484) — errors.
+/// the level adds to the root cover, a budget's floor — errors.
 pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<Value> {
     let mut stats = Vec::new();
     for level in 0..=depth {

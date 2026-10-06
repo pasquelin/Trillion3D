@@ -29,7 +29,7 @@ function wantsRoughReflectionHistory(rt: WebgpuPagesRuntime) {
  * Inspect only resident view rows and forward receivers, never the world's catalogue. Each
  * surface is reread once, however many rows wear it, and the rows are walked only when one was
  * written: a world of instances holds hundreds of thousands of rows over a handful of surfaces,
- * and a reread per row cost its image tens of milliseconds, twice (#410).
+ * and a reread per row cost its image tens of milliseconds, twice.
  */
 export function wantsReflections(rt: WebgpuPagesRuntime) {
   if (rt.run.diagnostic !== 'beauty') return false
@@ -47,7 +47,7 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
 }
 
 /** Whether a pass may walk a mirror ray (`screenReflection`, `traceShader.ts`): a receiver in the
- *  mirror range, opaque or blended, or a water surface (#1279), wherever they stand; `inView`,
+ *  mirror range, opaque or blended, or a water surface, wherever they stand; `inView`,
  *  whether one does this image, read after the frustum's verdict on the transparents
  *  (`prepareBlend`) and before the bounds are built: a water surface the frustum kept, which the
  *  composite needs to be encoded at all (`drawsWater`, `../webgpu/water/pass.ts`, whose lighting

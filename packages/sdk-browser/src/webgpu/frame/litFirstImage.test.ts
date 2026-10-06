@@ -1,4 +1,4 @@
-// #1362: the first image arrives lit. The lit program compiles during prepare, before any frame; a
+// The first image arrives lit. The lit program compiles during prepare, before any frame; a
 // scene with no transparent object compiles no blend program; prepare's pipelines compile together,
 // off the thread; the unlit view keeps what a surface emits.
 import test from 'node:test'

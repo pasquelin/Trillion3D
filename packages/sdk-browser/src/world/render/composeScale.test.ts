@@ -1,4 +1,4 @@
-// #834: WebGL2 honours the render scale. A fixed scale draws the engine's image in the top-left of
+// WebGL2 honours the render scale. A fixed scale draws the engine's image in the top-left of
 // a target below the display and one Lanczos-2 resample brings it to the display, depth included;
 // a still image is drawn at the bounds' maximum; the default setting draws at the display's size,
 // call for call as an engine without a render scale does.

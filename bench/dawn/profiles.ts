@@ -35,7 +35,7 @@ const BASELINE_LIMITS: Record<string, number> = {
   maxComputeWorkgroupsPerDimension: 65535,
 }
 
-/** `desktop`: the boss's screen and all this GPU grants. `mobile`: a phone held sideways and the
+/** `desktop`: a desktop screen and all this GPU grants. `mobile`: a phone held sideways and the
  *  specification's limits. */
 export const PROFILES: Record<
   string,

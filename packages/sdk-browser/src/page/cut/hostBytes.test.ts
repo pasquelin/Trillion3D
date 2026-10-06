@@ -1,4 +1,4 @@
-// The main thread is bounded by the view (#483 rule 7, #486): the budget reads the cut's host
+// The main thread is bounded by the view: the budget reads the cut's host
 // tables on each eviction and each page arrival, so that read costs the same for a world and for
 // the same world sixteen times larger, and the running totals it reads never drift from the
 // placements they count. The work is counted, never timed: every typed array's `byteLength` read.

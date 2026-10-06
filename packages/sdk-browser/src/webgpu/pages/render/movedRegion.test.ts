@@ -1,4 +1,4 @@
-// CPU-14 at the move: a root whose box follows it stales the temporal pyramid where it stood and
+// At the move: a root whose box follows it stales the temporal pyramid where it stood and
 // stands — the union of the two boxes the shadow scheduler hears — and keeps the rest; a root
 // whose box cannot follow it drops the whole pyramid, as develop did for every move.
 import test from 'node:test'
@@ -19,7 +19,7 @@ test('a moved root stales its motion box alone and keeps the pyramid', () => {
   const [stale] = run.temporalHizState.stale!
   assert.equal(run.temporalHizState.stale!.length, 1)
   assert.deepEqual([...stale.min, ...stale.max], [-1, -3, -1, 5, 1, 2], 'where it was and is')
-  // The shadow scheduler hears the two boxes apart (#1345): the pages between them keep.
+  // The shadow scheduler hears the two boxes apart: the pages between them keep.
   assert.deepEqual(
     motions.map(({ min, max }) => [...min, ...max]),
     [

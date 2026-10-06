@@ -25,14 +25,14 @@ export const CONTRACT_SHADOW_BINDINGS = {
  *  pass (`../../vsm/markingWgsl.ts`). */
 export const TILE_SLICE_WGSL = `
 /** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
- *  many (#1369). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+ *  many. \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
 fn cellSlice(base:u32)->vec2u{
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }`
 /**
  * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the virtual shadow maps'
- * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view (#1369). Without
+ * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view. Without
  * `shadowed`, the program with no shadow code: no cell reads a shadow.
  */
 export const pixelCellWgsl = (shadowed = true) => `
@@ -103,13 +103,13 @@ ${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed, pair)}`
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
  * over every light of the cell, character for character; so is it on a sampled image whose cell
- * lists no shadowed light (#1249), a flag the grid pass writes once in the cell's count.
+ * lists no shadowed light, a flag the grid pass writes once in the cell's count.
  *
- * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
+ * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights: its light array is
  * that long. Without `shadowed`, the resolve of a scene no light of which holds a shadow slot: the
- * same sums with no shadow code compiled in (`declaredLightWgsl`, #1249) and the range reject in
+ * same sums with no shadow code compiled in (`declaredLightWgsl`) and the range reject in
  * its loop (`sliceLightingWgsl`). Without `rects`, the resolve of a scene that holds no rectangle
- * light: the same sums with no rectangle code in the light loop (`declaredLightWgsl`, #1369).
+ * light: the same sums with no rectangle code in the light loop (`declaredLightWgsl`).
  */
 export const directLightingWgsl = (
   narrow = false,
@@ -133,7 +133,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 
 /**
  * Declared lights that light a blend surface, taken from the list of the cell its own depth `z`
- * falls in (#1369): a blend surface drawn in front of its pixel's opaque, or against the sky,
+ * falls in: a blend surface drawn in front of its pixel's opaque, or against the sky,
  * finds the lights of the cell it stands in, never those of the opaque behind it.
  *
  * The loop stays **exact**, and its sum is that of the loop over every light, bit for bit:
@@ -150,7 +150,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  *
  * Without `shadowed`, the loop of a scene no light of which holds a shadow slot; without `rects`,
  * of a scene that holds no rectangle light: the opaque resolve's same two programs
- * (`declaredLightWgsl`, #1249, #1369), picked on the same key (`createLitVariants`).
+ * (`declaredLightWgsl`), picked on the same key (`createLitVariants`).
  */
 export const declaredLightingWgsl = (
   proxyBinding: number,

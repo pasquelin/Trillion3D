@@ -1,5 +1,5 @@
 // The blend and water programs of a scene with no shadowed light, or no rectangle light, are
-// compiled without that code, as the opaque resolve's (`createForwardVariants`, #1249, #1369). The
+// compiled without that code, as the opaque resolve's (`createForwardVariants`). The
 // shipped light loops of the blend pass (`sliceLighting`) and of the water composite
 // (`sliceLightingPair`) run in f32 (`shaderRun`, `F32_SCOPE`), each variant against the program with
 // every code path, on random lamp sets the variant's key admits — points, spots and suns, in range

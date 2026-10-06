@@ -39,7 +39,7 @@ export function filterUnoccluded<T extends HizPage>(
  * it eliminated and the clusters too wide for the level-0 kernel, each with the triangles those
  * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
  * `keptIndices`, when given, receives the rank in `pages` of every kept page: one record may stand
- * for several placements (#1235), so a caller tells the instances apart by rank, never by record.
+ * for several placements, so a caller tells the instances apart by rank, never by record.
  * `kept`, when given, receives the kept pages themselves instead of a list of its own: what a
  * caller that walks the cut image after image passes (`./cutLists.ts`).
  */

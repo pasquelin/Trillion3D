@@ -1,4 +1,4 @@
-// Per-kind dispatch (#349): each renderer runs a pass through the one table entry of its kind,
+// Per-kind dispatch: each renderer runs a pass through the one table entry of its kind,
 // which receives the pass itself and its rank among the passes of that kind — the place where the
 // other built-ins and the custom pass plug in.
 import test from 'node:test'

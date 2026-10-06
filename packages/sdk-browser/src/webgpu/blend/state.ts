@@ -33,7 +33,7 @@ export type BlendGpuItem = {
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer
   uv?: GPUBuffer
-  /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`, #1410). */
+  /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`). */
   normal?: FloatAtlas
   surface: PageSurface
   count: number
@@ -90,7 +90,7 @@ export function createWebgpuBlendState() {
     /** World corners of each table entry, and the age of the table they come from. */
     occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
     occlusionEpoch: -1,
-    /** The entries whose pages a rewrite bounded elsewhere since the corners left (#573), sent
+    /** The entries whose pages a rewrite bounded elsewhere since the corners left, sent
      *  again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
     occlusionMoved: { from: Infinity, to: -1 },
     /** Instances a CPU cut wrote, and the placements it selected. */

@@ -42,7 +42,7 @@ export type ShadeBindResources = AtlasResources & {
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
   directLights: GPUBuffer
-  /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
+  /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the shadow
    *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
   shadowData: GPUBuffer
   shadowAtlas: GPUBuffer
@@ -106,7 +106,7 @@ const atlasEntries = (
 ]
 
 /** The unique entry list of `visBindGroupLayout`. Both of its constructors — the direct group and
- *  that of an indirect slot — go through here, so a binding added to the layout can no longer be
+ *  that of an indirect slot — go through here, so a binding added to the layout cannot be
  *  missing from either. */
 export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
   const b = VIS_BINDINGS

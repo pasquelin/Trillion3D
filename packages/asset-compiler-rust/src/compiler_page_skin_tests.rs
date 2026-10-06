@@ -5,7 +5,7 @@ fn every_gltf_skin_set_reaches_the_codec_without_pruning() {
     let mut bin = Vec::new();
     let (mut views, mut accessors) = (Vec::new(), Vec::new());
     let mut attributes = json!({});
-    // Three sets exercises retention beyond the formerly supported JOINTS_0/1 pair.
+    // Three sets exercises retention beyond the JOINTS_0/1 pair.
     for set in 0..3 {
         for kind in ["JOINTS", "WEIGHTS"] {
             let start = bin.len();

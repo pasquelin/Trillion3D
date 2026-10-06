@@ -68,7 +68,7 @@ test('the shader applies the rule of jitterDepthSlack: slack on the test, gentle
   assert.match(GUIDE_WGSL, /abs\(view\.viewport\.w\) \* slopeAlong\(p, vec2i\(0, 1\), centre\)/)
 })
 
-// #264 audit: the guides draw with the engine's line corner (`lineClip`), not a second program,
+// The guides draw with the engine's line corner (`lineClip`), not a second program,
 // and count their width as every line does — CSS pixels times the host's pixel ratio.
 type Language = 'wgsl' | 'glsl'
 const RUN = {

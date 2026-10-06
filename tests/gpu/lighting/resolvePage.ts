@@ -1,5 +1,5 @@
 /**
- * The deferred resolve's lists on the GPU (#849, #1249, #1369): each scene's lights go through the
+ * The deferred resolve's lists on the GPU: each scene's lights go through the
  * engine's light store and buffer, its view through the deferred view uniform, its shadows through
  * the deferred pass's own stand-ins (`createDeferredPlaceholders`); each cell record is bound as the
  * resolve's tile lists, and the sums the shipped resolve writes (`resolveHarness.ts`) are read back
@@ -54,9 +54,9 @@ type ResolveRecord = {
   narrow: boolean
   words: number[]
   drawn?: boolean
-  /** Through the program with no shadow code (#1249). */
+  /** Through the program with no shadow code. */
   unshadowed?: boolean
-  /** Through the program with no rectangle code (#1369). */
+  /** Through the program with no rectangle code. */
   rectless?: boolean
 }
 /** A scene; `rank` the view's sampled rank (0, a still image, by default), `slots` the shadow slot

@@ -4,7 +4,7 @@ import type { TileKey } from './pageTable.ts'
 /**
  * Entries finer than a tile, under it, in a page table whose entries of this texture start at word
  * `at`: `visit` edits one and says whether the entries under it may still need an edit. A subtree
- * it refuses is pruned (STR-20, #961): an entry is never served coarser than its parent entry, so
+ * it refuses is pruned: an entry is never served coarser than its parent entry, so
  * under an entry served at the tile's level or finer nothing changes. A level's last column or row
  * may have no parent — 769 texels make 7 tiles, their half 3 —: such an orphan is reached from the
  * range the tile covers, as the full descent did.

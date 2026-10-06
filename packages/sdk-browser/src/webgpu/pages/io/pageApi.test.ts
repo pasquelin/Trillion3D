@@ -22,7 +22,7 @@ function runtime(instances = [7]) {
     layout: {
       rows: {
         touchPage: (page: number) => touched.push(page),
-        // Every packed instance of the page's address: one record serves them all (#1235).
+        // Every packed instance of the page's address: one record serves them all.
         instances: {
           each(key: string, visit: (packed: number) => void) {
             if (key === 'p') instances.forEach((packed) => visit(packed))
@@ -65,7 +65,7 @@ test('an arrival the image reads, or one with no verdict, invalidates the held f
 })
 
 test("a page arriving or leaving names every placement's instance to the rank journal", () => {
-  // One record serves every placement of its primitive (#1235): each placement's row and cut
+  // One record serves every placement of its primitive: each placement's row and cut
   // readiness follow their own packed rank, not the first placement's.
   const t = runtime([7, 9])
   acceptPage(t.rt, 'p', new Uint32Array([0, 1, 2]))

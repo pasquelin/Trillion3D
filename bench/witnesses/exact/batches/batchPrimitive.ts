@@ -55,7 +55,7 @@ export class PrimitiveIndex {
     this.updateRanges.length = 0
   }
   /** Recreates the buffer larger: safety net if a page exceeds the size announced by the manifest.
-   *  The next draw uploads it whole, so the ranges pending on the old bytes are dropped. */
+   *  The next draw uploads it whole, so the ranges pending on the replaced bytes are dropped. */
   private growTo(capacity: number) {
     const array = new Uint32Array(capacity)
     array.set(this.array)
@@ -97,7 +97,7 @@ export class PrimitiveIndex {
   }
 }
 
-/** One group = one primitive instance, i.e. one `renderOrder`, exactly as before. */
+/** One group = one primitive instance, i.e. one `renderOrder`. */
 export class BatchGroup {
   primitive: PrimitiveIndex
   ranges = new DrawRanges()
@@ -107,7 +107,7 @@ export class BatchGroup {
   triangles = 0
   transparent = false
   /** Depth offset of a coplanar layer above 0, in hardware units, on the sub-batches of that
-   *  layer. Undefined on the layer-0 batch, which draws exactly as before. */
+   *  layer. Undefined on the layer-0 batch, which draws the plain way. */
   polygonOffsetUnits: number | undefined
   /** Coplanar layer of this batch. 0 = the ordinary batch. */
   layer = 0

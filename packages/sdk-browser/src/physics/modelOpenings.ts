@@ -4,7 +4,7 @@ import type { Model } from './tilePlace.ts'
 /**
  * Each open model's opening of the bodies it declares, one per model, `made` holding the bodies
  * made from it (`cookedBodies.ts`, `cookedSoft.ts`): a model opened again, or forgotten, gives
- * its last opening's slots back, and a read that lands after that is no longer wanted.
+ * its last opening's slots back, and a read that lands after that is not wanted.
  */
 export function createOpenings<O extends { made: { id: number }[] }>(
   release: (index: number) => void,
@@ -27,7 +27,7 @@ export function createOpenings<O extends { made: { id: number }[] }>(
     /** Whether `opening` is still `model`'s: forgotten or opened again meanwhile, it is not. */
     current: (model: Model, opening: O) => held.get(model) === opening,
     /** `made` out of `model`'s opening, its slot given back: the opening, or `undefined` when
-     *  `made` was no longer in it — its slot then already given back, perhaps taken again. */
+     *  `made` was not in it — its slot then already given back, perhaps taken again. */
     drop(model: Model, made: O['made'][number]) {
       const opening = held.get(model)
       const at = opening?.made.indexOf(made) ?? -1

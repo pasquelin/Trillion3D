@@ -1,5 +1,5 @@
-// #840: every drawn page is posed at every frame, and a written matrix recomposes its node: sponza
-// recomposed 1 465 pages a frame for poses that never moved.
+// Every drawn page is posed at every frame, and a written matrix recomposes its node: a scene of
+// a thousand pages never recomposes them for poses that never moved.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { forgetHostPose, setHostPose } from './pagePose.ts'

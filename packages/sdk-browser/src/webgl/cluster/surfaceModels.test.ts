@@ -1,4 +1,4 @@
-// #772: execute the shared surface model in shipped WebGL2 and WebGPU shader text.
+// Execute the shared surface model in shipped WebGL2 and WebGPU shader text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

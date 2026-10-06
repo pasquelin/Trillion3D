@@ -19,7 +19,7 @@ import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geome
 
 const FLOATS = { getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null) }
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 }
-const POLISHED = { roughness: 0.2 } // under the reflection cutoff: a source pass too (#1341)
+const POLISHED = { roughness: 0.2 } // under the reflection cutoff: a source pass too
 
 function mesh(corners: number, order: number, surface = new GraphSurface('standard', POLISHED)) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1))
@@ -171,7 +171,7 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   draw.dispose()
 })
 
-// #348/#359: line width follows CSS pixels; dash and gap reach the fragment stage.
+// Line width follows CSS pixels; dash and gap reach the fragment stage.
 test('a line surface draws with its CSS width, the host pixel ratio and its dash', () => {
   const context = createTestContext({ answers: FLOATS }),
     scene = new Scene(),

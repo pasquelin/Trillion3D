@@ -70,7 +70,7 @@ function writeRecords(
     }
     // The owner node is only read by the oracle, which replays descent: it stays cold.
     coldInts[base + COLD_OWNER] = owner[i] === NONE ? NONE : owner[i] - nodeBase
-    // Cluster triangles, as an integer word: the GPU now holds the totals.
+    // Cluster triangles, as an integer word: the GPU holds the totals.
     coldInts[base + COLD_TRIANGLES] = Math.max(0, Math.trunc(rec.triangles ?? 0))
   }
 }

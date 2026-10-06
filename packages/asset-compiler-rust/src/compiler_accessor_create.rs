@@ -4,7 +4,7 @@ use super::*;
 /// deduplicated set from `plan_buffers`. `validate` is a pure function with no
 /// side effect of the same `g`, `bin` and `id`: a second validation could only
 /// find the same verdict, and the error, if any, has already been raised. `None`
-/// requests validation, as before.
+/// requests validation.
 pub(super) fn accessor<'a>(
     g: &'a Value,
     bin: &'a [u8],

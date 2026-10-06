@@ -58,7 +58,7 @@ test('first image, disocclusion, other identities and changed lobes reject stale
   assert.deepEqual(f.resolve(), [0, 0, 0, 0])
 })
 
-test('#1346: the texels around a pixel are filtered by a tent of distance, on its receiver, lobe and plane', () => {
+test('the texels around a pixel are filtered by a tent of distance, on its receiver, lobe and plane', () => {
   const f = fixture()
   f.samples.historyColor = [0, 0, 0, 0]
   // Owners (2, 2), (4, 2), (2, 4) and (6, 6) around (4, 4); the radius at roughness 0.5 is 3.
@@ -100,7 +100,7 @@ test('a moved receiver keeps its history through the placement motion, held shor
   assert.equal(moving[3], REFLECTION_MOVING_KEPT + 1, 'the kept weight is the moving cap')
 })
 
-test('#831: moving, an unchanged reflection keeps its whole window; a changed one is clipped at once', () => {
+test('moving, an unchanged reflection keeps its whole window; a changed one is clipped at once', () => {
   // A glossy floor, every texel round the pixel traced on its receiver, lobe and plane: a noisy
   // reflection of 1, half the texels at 0.5 and half at 1.5 — a mean of 1, a deviation of 0.5.
   const floor = (constants: Record<string, number> = {}) => {
@@ -128,7 +128,7 @@ test('#831: moving, an unchanged reflection keeps its whole window; a changed on
   assert.ok(changed[0] <= 2, `clipped to the neighbourhood: ${changed[0]}`)
   // The filter held at its still reach: the clip shortens no window, no frame of noise added.
   assert.equal(floor({ REFLECTION_FILTER_WIDEST: 1 })(5, 1)[3], moving[3], 'its weight kept')
-  // Widened by the clip (#831), this image's filter adds its own weight to the whole window.
+  // Widened by the clip, this image's filter adds its own weight to the whole window.
   assert.ok(changed[3] > moving[3], `the widened filter adds weight: ${changed[3]} > ${moving[3]}`)
   assert.ok(frame(5, 0)[0] > 4, 'still, nothing is clipped: the image converged before stays')
 })
@@ -146,7 +146,7 @@ test('a changed source keeps its history at the change cap, never restarts from 
   ])
 })
 
-test('#1346: a source moved without motion leaves under 1/255 of its old reflection, glossy or rough', () => {
+test('a source moved without motion leaves under 1/255 of its old reflection, glossy or rough', () => {
   for (const roughness of [0.06, 0.2, 0.3, 0.6]) {
     const f = fixture()
     // A flat floor: every texel around the pixel traced, on its receiver, lobe and plane.

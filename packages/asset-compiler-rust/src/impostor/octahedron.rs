@@ -1,8 +1,8 @@
-//! The octahedral mapping of the impostor atlas (#817): a direction is projected onto the
+//! The octahedral mapping of the impostor atlas: a direction is projected onto the
 //! octahedron `|x| + |y| + |z| = 1`, the lower half folded over the upper one so the sphere fills a
 //! square; this module maps direction to grid and back, gives the plane of each
 //! captured frame, and picks the three frames a view blends. Object space, +Y up, pivot at the
-//! bounding-sphere centre. The runtime card (#483) reads the atlas through the same formulas.
+//! bounding-sphere centre. The runtime card reads the atlas through the same formulas.
 use crate::proxy::tracer::normalise as unit;
 use crate::shared_math::cross;
 
@@ -75,7 +75,7 @@ pub(crate) fn basis(n: [f64; 3]) -> ([f64; 3], [f64; 3]) {
 
 /// The three frames a view at grid position `g ∈ [0, n − 1]²` blends, and their weights: the
 /// triangle of its grid cell that holds it, split along the diagonal, and its barycentric
-/// coordinates there. The runtime card blends by this rule (#483); the bake proves it here.
+/// coordinates there. The runtime card blends by this rule; the bake proves it here.
 #[cfg(test)]
 pub(crate) fn cell_weights(g: [f64; 2], n: usize) -> [((usize, usize), f64); 3] {
     let last = (n - 1) as f64;

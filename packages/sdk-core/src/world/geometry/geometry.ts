@@ -45,9 +45,9 @@ export class Geometry {
   recipe: { type: string; args: unknown[] } | null = null
   /** Bumped by every change of shape: what the world compares to cut the pages again. */
   version = 0
-  /** `'dynamic'`: uploaded in place, never cut again (#573); so is one changed every frame. */
+  /** `'dynamic'`: uploaded in place, never cut again; so is one changed every frame. */
   usage: 'static' | 'dynamic' = 'static'
-  /** The box a dynamic geometry never leaves, when declared: what culls it (#573). */
+  /** The box a dynamic geometry never leaves, when declared: what culls it. */
   maxBounds: Box3 | null = null
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>()

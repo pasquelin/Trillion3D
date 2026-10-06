@@ -25,7 +25,7 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
 }
 
 /**
- * THE CUT CLAIMS ITS ROWS (#1232). The CPU cut selected `asked` rows — its clusters and the light
+ * THE CUT CLAIMS ITS ROWS. The CPU cut selected `asked` rows — its clusters and the light
  * cuts' casters behind them —, or the blended casters found none left: past four fifths of the
  * rows the view holds, they rise a quarter above them and the table grows after them, in place, as a
  * larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
@@ -43,7 +43,7 @@ export function followCutRows(rt: WebgpuPagesRuntime, asked: number) {
 }
 
 /**
- * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE (#216), when a pool of `slots` slots — a larger
+ * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE, when a pool of `slots` slots — a larger
  * geometry pool (`../io/memory.ts`), placements grown in place
  * (`../../../placement/webgpuGrowth.ts`) — asks more rows than they hold. Nothing is prepared
  * again: no shader, no pipeline, no pool, no texture tile. Every GPU buffer sized by row

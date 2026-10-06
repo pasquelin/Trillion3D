@@ -6,7 +6,7 @@ import type { BackendContext } from '../types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
- * THE WEBGL2 PATH'S DYNAMIC PAGES (#573). A world's dynamic geometry is paged by its index alone
+ * THE WEBGL2 PATH'S DYNAMIC PAGES. A world's dynamic geometry is paged by its index alone
  * (`world/page/runtimePrimitive.ts`): its vertices stay in the host geometry the world rewrites in
  * place. Such a page is read as its corners (`readSourcedPage`) and drawn as a geometry of those
  * corners over that host geometry's very lists (`sourcedPageGeometry`), which every page of it

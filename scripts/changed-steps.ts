@@ -2,7 +2,7 @@ import { TREE_GATES } from './validate-steps.ts'
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
 // documentation, site images or translations runs the gates and the unit tests that read those
-// files (`scripts/docs/tests.ts`), and no API generation, scene cache or type check (#1348).
+// files (`scripts/docs/tests.ts`), and no API generation, scene cache or type check.
 
 export const sourcePattern = /\.(?:[cm]?ts|tsx)$/
 export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/

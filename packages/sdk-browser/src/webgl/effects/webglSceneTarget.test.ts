@@ -1,4 +1,4 @@
-// #840: a scene target whose storage the context refused says so, and its owners (`webglEffects.ts`,
+// A scene target whose storage the context refused says so, and its owners (`webglEffects.ts`,
 // `../../world/render/renderScale.ts`) make it again at their next draw instead of drawing into it.
 import test from 'node:test'
 import assert from 'node:assert/strict'

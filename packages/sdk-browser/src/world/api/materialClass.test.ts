@@ -1,4 +1,4 @@
-// A material moved between opaque, masked and blended inside the session (#846): its surfaces
+// A material moved between opaque, masked and blended inside the session: its surfaces
 // are drawn as the open draws that class, each engine is told to move its drawables, and an engine
 // that lays the class out at open refuses by name before any write.
 import test from 'node:test'
@@ -63,7 +63,7 @@ test('WebGPU moves a material between opaque and masked, and refuses blended by 
   )
 })
 
-// A cutout's cutoff moved (#846): no class did, but what its shadow cuts did, and the engines hear
+// A cutout's cutoff moved: no class did, but what its shadow cuts did, and the engines hear
 // it as they hear a class change; another value leaves the surface's alpha as the file drew it.
 test('a cutoff moved on a masked material reaches the engines as an alpha change', async () => {
   const { api, refreshes } = await scene()

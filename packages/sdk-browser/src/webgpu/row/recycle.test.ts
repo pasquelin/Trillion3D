@@ -7,7 +7,7 @@
 // returned then taken again — offset and epoch both match, and without the guard the row is "reused
 // as it stands": it keeps describing the other cluster while the table gives it as P.
 //
-// No differential comparison can say it: the oracle from before lot F carries the same function
+// No differential comparison can say it: the oracle carries the same function
 // word for word (`../../../../../bench/oracles/browser/drawable-rows.ts`), so both sides would be wrong together.
 import test from 'node:test'
 import assert from 'node:assert/strict'

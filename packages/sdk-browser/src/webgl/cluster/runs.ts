@@ -11,7 +11,7 @@ import { deformRecordOf } from './deformation.ts'
 type Leaves = (mesh: ClusterDraw) => boolean
 
 /**
- * THE RUNS OF A DRAWN LIST (#840): sponza drew 1 465 pages a pass, twice a frame with its
+ * THE RUNS OF A DRAWN LIST: a scene of 1 465 pages drawn a pass, twice a frame with its
  * reflection capture, one submission each — three commands and a walk of each page, enough to
  * hold the main thread over 4 ms. A list is read once a frame into runs, which every pass that
  * draws it replays. Pages placed in one arena (`pageArenas.ts`) that follow one another in the

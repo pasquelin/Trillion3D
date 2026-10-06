@@ -1,18 +1,17 @@
 /**
- * The fingerprint of the reference scenes' caches (#1352): every file a compiler writes for them,
- * by the SHA-256 of its bytes, so that two compilers that cook the same bytes have the same one —
- * the five platforms of one commit, and a branch against `develop`. What a cook writes beside its
- * bytes is not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages` and
- * the run's settings `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves`, as
- * `compiler_manifest_pages` names them, #1405, and `found`, whether an older head's run found a
- * cutout sheet, #1370) and the folder it was written to. A name made of a
- * SHA-256 — the cache key, which hashes the compiler's own sources, and each content-addressed
- * file — reads `<sha>`: such files are still compared by content, the hashes of the files one
- * pattern names listed together. The Jolt collider shapes a scene's `physics.json` names are
- * listed apart, `(Jolt collider)`: against a base whose Jolt cook still fuses multiply-adds
- * (`--colliders-may-differ`, which the `Compiler` workflow passes only while the base's `build.rs`
- * lacks Jolt's cross-platform mode), every other file is compared, the colliders changing once to
- * the unfused bytes (#1352).
+ * The fingerprint of the reference scenes' caches: every file a compiler writes for them, by the
+ * SHA-256 of its bytes, so that two compilers that cook the same bytes have the same one — the five
+ * platforms of one commit, and a branch against `develop`. What a cook writes beside its bytes is
+ * not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages` and the run's
+ * settings `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves`, as
+ * `compiler_manifest_pages` names them, and `found`, whether a run found a cutout sheet) and the
+ * folder it was written to. A name made of a SHA-256 — the cache key, which hashes the compiler's
+ * own sources, and each content-addressed file — reads `<sha>`: such files are still compared by
+ * content, the hashes of the files one pattern names listed together. The Jolt collider shapes a
+ * scene's `physics.json` names are listed apart, `(Jolt collider)`: against a base whose Jolt cook
+ * still fuses multiply-adds (`--colliders-may-differ`, which the `Compiler` workflow passes only
+ * while the base's `build.rs` lacks Jolt's cross-platform mode), every other file is compared, the
+ * colliders changing once to the unfused bytes.
  *
  *   node scripts/compiler-hashes.ts <compiler> <record.json> [<name>]
  *   node scripts/compiler-hashes.ts --compare [--colliders-may-differ] <reference> <record>...
@@ -42,7 +41,7 @@ const SHA = /[0-9a-f]{64}/g
 const OBJECT = /objects[\\/]([0-9a-f]{64})\.bin$/
 const COLLIDER = ' (Jolt collider)'
 /** What a run reports rather than builds: its times, its memory peak, the pages it found built,
- *  its settings (in `develop`'s heads until #1405), whether it found a cutout sheet (until #1370). */
+ *  its settings, whether it found a cutout sheet. */
 const MEASURE =
   /Ms$|^(peakRssBytes|reusedPages|threads|ramBudgetMb|admissionEstimatedBytes|compileWaves|found)$/
 

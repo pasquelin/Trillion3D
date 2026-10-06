@@ -1,5 +1,5 @@
 /**
- * Inputs of the CMP-10 equivalence harness (`positions.test.ts`, #960): seeded flat-shaded and
+ * Inputs of the equivalence harness (`positions.test.ts`): seeded flat-shaded and
  * smooth height fields, the signed zeros, NaN and infinities, the empty page and the largest one,
  * each reduced to the digest of its decoded block and its page bytes.
  */

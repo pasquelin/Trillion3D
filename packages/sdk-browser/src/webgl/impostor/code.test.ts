@@ -1,4 +1,4 @@
-// #1336: the WebGL2 impostor tier loads its code from the impostor family both renderers share, so
+// The WebGL2 impostor tier loads its code from the impostor family both renderers share, so
 // the CDN core stays within its budget. A cache without baked impostors makes no tier; one with
 // them makes it where the backend prepares, so its first plan already asks the atlas.
 import test from 'node:test'

@@ -22,10 +22,10 @@ fn declared(case: &str, file: &[u8]) -> (registry::Transfer, Vec<u8>) {
     (transfer, super::super::rgba8(decoded).into_raw())
 }
 
-// Reproduction of finding 56, DDS half: the same payload declared `_UNORM` then `_SRGB`. The
+// DDS half: the same payload declared `_UNORM` then `_SRGB`. The
 // pixels are the same — the codec does not change — and the transfer function the driver yields
-// changes with the declaration. The driver previously assigned sRGB in both cases, so a linear
-// texture was reread as if it carried the sRGB curve.
+// changes with the declaration; a driver assigning sRGB in both cases would reread a linear
+// texture as if it carried the sRGB curve.
 #[test]
 fn the_same_block_declared_unorm_then_srgb_yields_two_transfers() {
     let block = vec![0x1f, 0x00, 0x00, 0xf8, 0x1b, 0x1b, 0x1b, 0x1b];

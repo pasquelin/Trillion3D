@@ -5,8 +5,8 @@ import { isCancelled } from '../../../backend/common.ts'
 /**
  * The backend's diagnostic channel. What the session says once its `signal` is aborted — the
  * session disposed, its pending compiles, layers and uploads cut short by the released device — is
- * that cancellation, not a failure nor a warning: it is said nowhere (#990). A real device loss aborts nothing,
- * and its failures are said by name.
+ * that cancellation, not a failure nor a warning: it is said nowhere. A real device loss aborts
+ * nothing, and its failures are said by name.
  */
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,

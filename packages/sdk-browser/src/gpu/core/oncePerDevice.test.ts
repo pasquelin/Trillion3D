@@ -1,4 +1,4 @@
-// #989: a build made once a device is shared; a failed one — rejected or made nothing — is not.
+// A build made once a device is shared; a failed one — rejected or made nothing — is not.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { oncePerDevice } from './oncePerDevice.ts'

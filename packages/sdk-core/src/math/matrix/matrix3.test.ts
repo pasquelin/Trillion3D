@@ -28,7 +28,7 @@ test('normalMatrix3: rank-2 singular block yields the adjugate, the arrival-plan
 })
 
 test('normalMatrix3: rank 2, several distinct vertex normals all land on the face normal', () => {
-  // THE audit counter-example: local triangle (0,0,0), (1,0,0), (0,1,0), scale (1,1,0) then
+  // The counter-example: local triangle (0,0,0), (1,0,0), (0,1,0), scale (1,1,0) then
   // 90° around Y. Ry(90°) sends x onto −z and z onto x; composed with diag(1,1,0), its columns
   // are (0,0,−1), (0,1,0), (0,0,0) — the primitive is flattened onto the world XY plane, transformed
   // edges (0,0,−1) and (0,1,0), cross product (1,0,0): the FACE normal is +X.
@@ -69,7 +69,7 @@ test('normalMatrix3: block collapsed onto a line yields the zero matrix, for lac
 
 test('normalMatrix3: a non-zero raw determinant of degenerate shape yields the adjugate, like the WGSL kernel', () => {
   // The engine's single rule (`singular.ts`) judges the NORMALISED determinant. Here the raw
-  // determinant is 5e-324 — non-zero, so the old `det === 0` test let it through — but its inverse
+  // determinant is 5e-324 — non-zero, so a `det === 0` test lets it through — but its inverse
   // is infinity: every term came out infinite or NaN. Normalised, it falls under the threshold, so
   // the adjugate goes as-is and the arrival-plane normal survives. The GPU already decided
   // this way; the CPU decides like it.

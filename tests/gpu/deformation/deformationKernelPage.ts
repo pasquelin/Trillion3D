@@ -57,7 +57,7 @@ export async function run({
     uvs: buffer([0], STORAGE),
     image: buffer([0, 0, 0, 0], UNIFORM),
   }
-  // The normals ride in the float pool's r32float atlas (`floatAtlas.ts`, #1410): one row.
+  // The normals ride in the float pool's r32float atlas (`floatAtlas.ts`): one row.
   const normals = device.createTexture({
     size: [8192, 1, 1],
     format: 'r32float',

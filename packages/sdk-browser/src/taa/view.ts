@@ -42,7 +42,7 @@ export function writeReprojection(
  * display grid the history has, the current share and history flags, the native filter weights
  * of this jitter rank, the `render` grid the frame was drawn in, its jitter, whether it moves and
  * its rank among eight (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
- * last image's; `deformed`, a GPU deformation moved (#357); `exposure`, the scene's, which the
+ * last image's; `deformed`, a GPU deformation moved; `exposure`, the scene's, which the
  * history's luma and the blend weights are measured in (`shadingHistoryWgsl.ts`); the camera's
  * parallax since the last image, the flicker rates, counted in images, and a render pixel's
  * width in the world (`shadingStill`).

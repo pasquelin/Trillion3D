@@ -1,4 +1,4 @@
-// Oracle for G4 checkpoint: `packages/sdk-browser/src/webgpu/pages/io/metrics.ts` before batch G. The report re-summed, at each call,
+// Oracle: `packages/sdk-browser/src/webgpu/pages/io/metrics.ts`. The report re-summed, at each call,
 // the size of all resident position buffers and all transparent meshes.
 import type { WebgpuGpuState } from '../../../packages/sdk-browser/src/webgpu/pages/state/gpu.ts'
 import type { BlendGpuItem } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts'
@@ -8,7 +8,7 @@ export function referenceVertexBytes(
   vis: {
     concatPos?: { size: number }
     concatUv?: { size: number }
-    /** The float pool, whose normals ride in an atlas (#1410). */
+    /** The float pool, whose normals ride in an atlas. */
     vertexPool?: { normalBytes: number }
   },
   blendState: { blendGpu: BlendGpuItem[] },

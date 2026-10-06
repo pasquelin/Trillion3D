@@ -40,7 +40,7 @@ async function frameWords(fallback: boolean, transparent = false, dashed = false
   }
 }
 
-// #348: a line's width counts CSS pixels: every WebGPU pass that widens a line reads the host's
+// A line's width counts CSS pixels: every WebGPU pass that widens a line reads the host's
 // pixel ratio, and the shared `lineClip` draws width × ratio.
 test('the rasters, the resolve and the blend pass read the host pixel ratio', async () => {
   const words = await frameWords(false)
@@ -56,7 +56,7 @@ test('the fallback pipeline widens a line page with its width, the pixel ratio a
   assert.deepEqual([...words('Trillion3D fallback uniforms').subarray(40, 44)], [2.5, 2, 32, 32])
 })
 
-// #359: a dashed line's dash and gap reach every WebGPU path that draws it — the page row both
+// A dashed line's dash and gap reach every WebGPU path that draws it — the page row both
 // rasters cut it by (a masked row, of threshold zero), the blend record and the fallback uniform —;
 // a solid line's words stay zero, and its row is not masked.
 test('a dashed line writes its dash and gap where every WebGPU path reads them', async () => {

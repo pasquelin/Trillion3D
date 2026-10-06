@@ -1,6 +1,6 @@
 // An explicitly requested `lit` view lights, even with no light: the contract runs and outputs
-// black, emissives kept. Previously `store.count > 0` fell back to raw albedo, and a room just
-// switched off displayed bright — the blackout showed on no pixel.
+// black, emissives kept. A fallback on `store.count > 0` to raw albedo would display a room just
+// switched off bright — the blackout would show on no pixel.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts'
@@ -58,7 +58,7 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
   assert.equal(wantsContractLighting(b.rt), false)
 })
 
-// OMB-11: the flagless variants are chosen only when nothing in the image can write the as-is flag.
+// The flagless variants are chosen only when nothing in the image can write the as-is flag.
 test('the image reads its as-is flags once a row shows one, or under a diagnostic view', () => {
   const at = (asIsShown: boolean, diagnostic: string) =>
     readsAsIs({ vis: { asIsShown }, run: { diagnostic } } as unknown as WebgpuPagesRuntime)
@@ -67,9 +67,9 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
   assert.equal(at(false, 'wireframe'), true, 'a diagnostic view writes the flag')
 })
 
-test('the resolve with no shadow code is asked by the declared lights, never a slot (#1249, #1362)', () => {
+test('the resolve with no shadow code is asked by the declared lights, never a slot', () => {
   const b = harness()
-  // No visibility buffer yet: no receiver offset to recompute (#1410).
+  // No visibility buffer yet: no receiver offset to recompute.
   const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })
   b.store.add({ ...LAMP, id: 'l1' })
@@ -85,7 +85,7 @@ test('the resolve with no shadow code is asked by the declared lights, never a s
   }
 })
 
-test('a frame with no rectangle light asks for the resolve with no rectangle code (#1369)', () => {
+test('a frame with no rectangle light asks for the resolve with no rectangle code', () => {
   const b = harness()
   const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })

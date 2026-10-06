@@ -1,8 +1,8 @@
-// #1336: on WebGL2, a root the impostor plan switches draws its card — the shared plan and card of
+// On WebGL2, a root the impostor plan switches draws its card — the shared plan and card of
 // WebGPU (`impostor/cards.ts`), read through the engine's one held-level read — through the card
 // program, in the cluster program's own pass, and its card bit leaves it to the card in the CPU
 // cut while the light cuts keep its shadow: plan and draw agree. Until its atlas is made the root
-// keeps its clusters. Fails on develop: the WebGL2 card draw is new.
+// keeps its clusters.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import '../../impostor/lent.fixture.ts'

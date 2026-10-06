@@ -1,4 +1,4 @@
-//! The attribute tables a reduction reads (#484): seams, identical copies, a corner's own normal.
+//! The attribute tables a reduction reads: seams, identical copies, a corner's own normal.
 use super::*;
 use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 

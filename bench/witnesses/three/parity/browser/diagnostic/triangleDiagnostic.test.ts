@@ -52,7 +52,7 @@ test('a mesh diagnostic swaps in the triangle colouring and hands the source bac
   assert.equal(mesh.geometry, geometry)
   assert.equal(mesh.material, material)
   assert.equal(overlays.length, 2, 'the overlays stay for their owner to dispose')
-  // Issue #275: the per-triangle copy leaves with the view — never held for the page's life —
+  // The per-triangle copy leaves with the view — never held for the page's life —
   // and the next view makes its own.
   let freed = false
   ;(copy as unknown as { released: Set<() => void> }).released.add(() => (freed = true))

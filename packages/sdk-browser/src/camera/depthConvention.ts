@@ -2,10 +2,10 @@
  * THE ENGINE DEPTH CONVENTION: ONE ONLY, REVERSED, INFINITE FAR PLANE.
  *
  * THE FACT. The engine's normalized depth goes from 1 at the near plane to 0 at infinity, and
- * it no longer depends on the host camera: `readCameraWorld` no longer copies the host
+ * it does not depend on the host camera: `readCameraWorld` does not copy the host
  * projection matrix, it composes one with `perspectiveProjection` (sdk-core/mathCamera.ts),
- * whose depth row contains no far plane — `ndc = near / distance`. There are therefore no
- * longer two conventions to reconcile: there is one, and this file is its home.
+ * whose depth row contains no far plane — `ndc = near / distance`. There are therefore not
+ * two conventions to reconcile: there is one, and this file is its home.
  *
  * WHY. A single-precision depth carries its bits near zero and the perspective divide
  * carries them near the near plane; putting them head to tail spreads them. Two points a

@@ -1,5 +1,5 @@
-// The world corners are derived on every read instead of kept per page (#18): the doubles must be
-// those the former per-page table held, bit for bit, before and after a model moves.
+// The world corners are derived on every read instead of kept per page: the doubles must be
+// those a per-page table holds, bit for bit, before and after a model moves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
@@ -8,7 +8,8 @@ import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from './hiz.ts'
 /** A page and the world its root places it by. */
 type Placed = HizPage & { matrix: { elements: Float64Array } }
 
-/** The former table, as `createBoxCorners` held it: filled on an epoch change, read otherwise. */
+/** The per-page table, as `createBoxCorners` holds it: filled on an epoch change, read
+ *  otherwise. */
 function keptTable(pages: Placed[]) {
   const corners = new Float64Array(pages.length * BOX_CORNER_VALUES),
     epoch = new Int32Array(pages.length)
@@ -57,7 +58,7 @@ test('derived world corners are the former kept doubles, bit for bit, across a m
   }
   same('first image')
   same('an image that read the table')
-  // A moved model: its world changes and the former table forgot its corners.
+  // A moved model: its world changes and the per-page table forgets its corners.
   for (let i = 0; i < 8; i++) {
     pages[i].matrix.elements[12] += 123.456
     kept.epoch[i] = -1
@@ -65,7 +66,7 @@ test('derived world corners are the former kept doubles, bit for bit, across a m
   same('after a move')
 })
 
-// #573: a dynamic geometry's vertices move up to its root's reach from where its pages are
+// A dynamic geometry's vertices move up to its root's reach from where its pages are
 // bounded. The corners an occlusion test reads hold that reach on every side — a page whose rest
 // box hides behind an occluder while its moved triangles show past it is never rejected — and a
 // root that never moved reads the rest box's doubles, bit for bit.

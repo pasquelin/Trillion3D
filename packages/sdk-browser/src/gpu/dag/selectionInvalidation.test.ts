@@ -84,7 +84,7 @@ test('updating an instance world matrix leaves the old GPU cut one pose late', a
 })
 
 test('a root mark written once per change reaches the frame word the cut reads', async () => {
-  // #456: the mark a root changes reaches the kernel's `markOf` once, at the next cut.
+  // The mark a root changes reaches the kernel's `markOf` once, at the next cut.
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)

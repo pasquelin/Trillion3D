@@ -6,7 +6,7 @@ export const MAX_LINES = 200
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
 
 /**
- * The bound the runtime source no longer answers to, and what answers in its place.
+ * The bound the runtime source does not answer to, and what answers in its place.
  *
  * A line count on a file stopped describing the code: 42 modules sat at exactly `MAX_LINES` and 14
  * commits in a week existed only to get back under it, `19ca7891a` splitting one 5-line import in
@@ -57,7 +57,7 @@ export function lineCount(source: string): number {
 }
 
 /** Every selected file that keeps the bound must fit it. A runtime module that does not is read by
- *  `check:cohesion` instead, and reporting it here would only restate a bound it no longer answers
+ *  `check:cohesion` instead, and reporting it here would only restate a bound it does not answer
  *  to. */
 export function lineLimitViolations(
   lines: Map<string, number>,

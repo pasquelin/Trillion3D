@@ -1,7 +1,7 @@
-// Defect 4: one bit per axis, never both modes of the same axis, no bit in clamp.
-// Defect 8: each material map addresses its texture in its own wrap. Each texture's header
+// One bit per axis, never both modes of the same axis, no bit in clamp.
+// Each material map addresses its texture in its own wrap. Each texture's header
 // therefore carries its own nibble, and each shader read folds by the nibble of the texture it
-// samples — not the material flags, which carried only one for all of them.
+// samples — not the material flags, which carry only one for all of them.
 // Proof on a real GPU is `tests/gpu/texture/texture-addressing.gpu.ts`.
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { importWrapMode } from '../host/wrapImport.ts'

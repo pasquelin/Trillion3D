@@ -17,7 +17,7 @@ import {
 } from './nodeLayout.ts'
 
 /**
- * The cut node as the GPU reads it, and the subtree error FLOOR it now carries.
+ * The cut node as the GPU reads it, and the subtree error FLOOR it carries.
  *
  * The manifest only gives the node the replacement error CEILING: descent can
  * therefore only drop a too-fine subtree, and walks down to pages a too-coarse

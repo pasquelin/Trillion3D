@@ -56,7 +56,7 @@ export function renderGpuCut(
     return true
   }
   run.gpuFrameActive = true
-  // No CPU cut draws this image: the placements' readiness it held lets go (#483 rule 6).
+  // No CPU cut draws this image: the placements' readiness it held lets go.
   services.heldResidency.endImage()
   run.cpuSelectMs = null
   marks.cpuStart = cpuStart
@@ -74,7 +74,7 @@ export function renderGpuCut(
   // The sample did not fit even the list the device holds (`../../../gpu/dag/listCap.ts`): only the
   // CPU cut still knows how to pick a representable subset — as for visibility-identifier overflow.
   if (gpu.cutTruncated) return withoutGpuSelection(rt, 'truncated cut sample past the device list')
-  // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
+  // One cut covers both passes: the image sweeps no DAG of its own for the transparents.
   marks.transparentSelectEnd = marks.adoptEnd
   if (run.gpuMetricsReady) run.visible = run.desired.length
   admitGpuCut(rt)

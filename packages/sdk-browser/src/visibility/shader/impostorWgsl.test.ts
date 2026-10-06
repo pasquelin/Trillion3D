@@ -1,7 +1,7 @@
-// #1335, #1336: the card both GPU paths draw reads the octahedral atlas with ONE arithmetic, on the
+// The card both GPU paths draw reads the octahedral atlas with ONE arithmetic, on the
 // CPU (`sdk-core/src/impostor/octahedron.fixture.ts`, the compiler's `octahedron.rs` oracle), in the shipped
 // WGSL (`impostorWgsl.ts`) and in its GLSL twin (`impostorGlsl.ts`). The tests run each shader text
-// itself through the software shader harness. Fails on develop: neither text is there.
+// itself through the software shader harness.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts'
@@ -27,7 +27,7 @@ function runnersOf(text: string) {
 const LANGUAGES = { wgsl: runnersOf(IMPOSTOR_CARD_WGSL), glsl: runnersOf(IMPOSTOR_VIEW_CARD_GLSL) }
 
 for (const [language, run] of Object.entries(LANGUAGES)) {
-  // The three-frame weights sum to one on both triangles of a cell, as #817's compiler test proves.
+  // The three-frame weights sum to one on both triangles of a cell, as the compiler's test proves.
   test(`the ${language} card weights sum to one and are the barycentric coordinates of the cell`, () => {
     for (const [fx, fy] of [
       [0.1, 0.2],
@@ -45,7 +45,7 @@ for (const [language, run] of Object.entries(LANGUAGES)) {
   })
 
   // Direction → uv → direction matches the oracle at every step, for both mappings, on the
-  // lattices #817 captures.
+  // lattices the compiler captures.
   test(`the octahedral mapping in ${language} matches the oracle on both grids`, () => {
     for (const hemi of [0, 1])
       for (const n of [5, 12])

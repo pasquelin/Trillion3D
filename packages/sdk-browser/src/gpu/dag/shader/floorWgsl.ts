@@ -18,7 +18,7 @@
  * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the camera's
  * per-view words (`viewsWgsl.ts`) and the frame count. Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
- * kernel by hand reread it, so a word added to the kernel can no longer leave a caller
+ * kernel by hand reread it, so a word added to the kernel cannot leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
  * top-down pruning would then drop everything.
  *
@@ -84,7 +84,7 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)-
  // Depth only: the full product would throw three quarters away. Same form as
  // \`viewDepthOf\` (../../../page/selection/projection.ts), four multiplications instead of sixteen.
  let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
- // A deformation's reach grows a sphere that is there (#357); an absent one (negative) stays so.
+ // A deformation's reach grows a sphere that is there; an absent one (negative) stays so.
  let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
  return errorFloor(error,depth,radius,stretch,focal)>views[vi].pixelError;
 }

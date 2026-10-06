@@ -19,7 +19,7 @@ function watchedReads() {
   return { ...createReadWatch(subscribe), settle }
 }
 
-test('a watch hears the reads the view waits on: each page once, a dropped one taken back (#408)', async () => {
+test('a watch hears the reads the view waits on: each page once, a dropped one taken back', async () => {
   const { read, watch, settle } = watchedReads()
   const heard: { landed: number; asked: number }[] = []
   const { stop, hold, reads } = watch(() => heard.push(reads()))

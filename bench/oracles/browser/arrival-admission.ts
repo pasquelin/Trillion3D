@@ -11,7 +11,7 @@ interface AdmissionJob {
   consumers: number
 }
 
-/** `packages/sdk-browser/src/streaming/queue.ts:22-59` before batch A: a full sort on every `while` lap, then findIndex. */
+/** `packages/sdk-browser/src/streaming/queue.ts:22-59`: a full sort on every `while` lap, then findIndex. */
 export function referenceAdmission(
   queue: AdmissionJob[],
   bytesOf: (url: string) => number | undefined,
@@ -34,8 +34,8 @@ export function referenceAdmission(
   return admitted
 }
 
-/** A delivery target as the arrival queue read it before batch A: `syncResident` was still
- *  called from the drain, later moved to the caller. */
+/** A delivery target as the arrival queue reads it: `syncResident` is called from the drain,
+ *  not by the caller. */
 interface ReferenceTarget {
   acceptPage?(url: string, array: Uint32Array): void
   syncResident?(): void
@@ -46,7 +46,7 @@ interface ReferenceArrival {
   array: Uint32Array
 }
 
-/** `arrivalQueue.ts:15-65` before batch A: `touched.includes` on every delivered page. */
+/** `arrivalQueue.ts:15-65`: `touched.includes` on every delivered page. */
 export function referenceArrivalQueue(byteBudget: number, countBudget: number) {
   const items: ReferenceArrival[] = [],
     waiting = new Map<ReferenceTarget, Set<string>>(),

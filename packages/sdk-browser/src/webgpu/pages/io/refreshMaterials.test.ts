@@ -1,5 +1,5 @@
 // A blended item copies its colour and opacity at prepare. A surface the host rewrites in place
-// (`setMaterial`, #267) must reach its item record at the values refresh, not only at a move.
+// (`setMaterial`) must reach its item record at the values refresh, not only at a move.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -46,7 +46,7 @@ test('a blended surface rewritten in place reaches its item record at the values
   }
 })
 
-// A material moved between opaque and masked inside the session (#846): the visibility passes
+// A material moved between opaque and masked inside the session: the visibility passes
 // draw both, told apart by the row's cutout flag.
 test('an opaque surface turned masked cuts every row of its material', async () => {
   installGpuGlobals()
@@ -85,9 +85,9 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   }
 })
 
-// #838: a cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
-// session opened on it (#572): its redrawn shadow pages land in other pool slots, and a shadow read
-// depended on the slot. Read texel-exact wherever a page lies (#1010), they draw that session's
+// A cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
+// session opened on it: its redrawn shadow pages land in other pool slots, and a shadow read
+// depended on the slot. Read texel-exact wherever a page lies, they draw that session's
 // image: the move is taken in place, the shadow over its rows drawn again.
 test('an alpha move is taken in place under a casting light, the shadow over its rows drawn again', () => {
   const { material } = quadScene()

@@ -38,7 +38,7 @@ type RestCompactSources = {
  * Compaction of the tested half. It exists only if the draw compact and the pyramid exist:
  * without them there is neither an instance list nor a verdict to read. A platform without
  * compute returns `undefined`, and the frame keeps the previous path — the second pass then
- * draws the rejected rows, each vertex discarded one by one, exactly as before.
+ * draws the rejected rows, each vertex discarded one by one.
  */
 export async function createGpuRestCompact(
   device: GPUDevice,

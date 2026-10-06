@@ -1,4 +1,4 @@
-// #1455: the Hi-Z pyramid is built from the raster's depth and from nothing else — it copies the
+// The Hi-Z pyramid is built from the raster's depth and from nothing else — it copies the
 // depth into its own buffer and rejects the pages from their rectangle. So the depth-only entry
 // point must give the same values, bit for bit, on a cut of several pages, a widened line page and a
 // masked page, whether the buffer it writes is fresh or the one the previous image left behind.

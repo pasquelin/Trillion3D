@@ -60,7 +60,7 @@ export async function loadImportedLights(
 /**
  * Declares the imported lights in the session store, at open and without the host having to do
  * anything: an imported scene arrives with its lights, every one of them — the store grows with
- * the scene (#822). Shadow comes from the flag the file carried — the runtime already caps the
+ * the scene. Shadow comes from the flag the file carried — the runtime already caps the
  * number of maps refreshed per frame.
  */
 export function declareImportedLights(store: SceneLightStore, imported: readonly SceneLight[]) {

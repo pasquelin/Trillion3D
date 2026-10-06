@@ -1,4 +1,4 @@
-// What the resolve proofs share (#849, #1249): a seeded draw, samples of each lit model, a cell's
+// What the resolve proofs share: a seeded draw, samples of each lit model, a cell's
 // record as the grid pass writes it, and the run of `resolvePage.ts` on Dawn.
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -35,7 +35,7 @@ export function resolveSamples(count: number, draw: ReturnType<typeof resolveRan
 /** The distance between two points. */
 export const distance = (a: number[], b: number[]) => Math.hypot(...a.map((x, i) => x - b[i]))
 
-/** A cell's record as the grid pass writes it (#1369), its list after it in the same buffer: its
+/** A cell's record as the grid pass writes it, its list after it in the same buffer: its
  *  count, the high bit set when a listed rank of `shadowed` holds a shadow slot, then where its list
  *  starts — word 2 —, or with no `room` in the pool `TILE_NO_SLICE`: every light of the scene. */
 export const cellRecord = (list: number[], shadowed: number[] = [], room = true) => [

@@ -1,4 +1,4 @@
-// A WebGL2 session of the effect chain's tests (#349): the engine's scene draw and the composer on
+// A WebGL2 session of the effect chain's tests: the engine's scene draw and the composer on
 // a recorded context that renders half floats, the world's refusal and degradation notices, and
 // what they said.
 import * as G from '../../host/graph/graph.fixture.ts'

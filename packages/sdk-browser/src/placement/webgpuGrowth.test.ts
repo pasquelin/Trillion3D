@@ -1,4 +1,4 @@
-// #838: a WebGPU session was opened again whenever an instance buffer grew — a partition's parent
+// A WebGPU session was opened again whenever an instance buffer grew — a partition's parent
 // scaled down, a batch one mesh too full —, its pool, its texture tiles and its held image gone.
 // It now grows the rows in place while its page table holds them (`webgpuGrowth.ts`).
 import test from 'node:test'
@@ -59,7 +59,7 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
 
 test('a growth past the page table grows it in place: ranks, pins and pool kept', async () => {
   // A binding roomy enough for the table to hold every page: the grown scene asks more rows than
-  // the five the session opened with (#216).
+  // the five the session opened with.
   const session = await placedSession(1 << 12)
   const { rt, links, draw, reopened } = session
   try {
@@ -130,7 +130,7 @@ test('a growth past the page table during a prepare is taken in place, the table
 
 test('the placement tables the group closure and page parents hold follow a growth in place', async () => {
   // Built once at open (`services.ts`), they would read the open's tables past a growth, and a page
-  // of a new row would find no root (#1235).
+  // of a new row would find no root.
   const session = await placedSession(5)
   try {
     const { layout } = session.rt,

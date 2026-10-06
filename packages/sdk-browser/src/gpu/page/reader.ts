@@ -86,7 +86,7 @@ export function createGpuPageReader(
         loading: fetches.size,
       }))
       // A more urgent read joining a prefetch asks the source too: its streamer raises the job
-      // it joins, and the view's loading total counts the page it now waits on (#408).
+      // it joins, and the view's loading total counts the page it now waits on.
       const was = asked.get(existing)
       if (was !== undefined && (priority === undefined || priority < was)) {
         if (priority === undefined) asked.delete(existing)

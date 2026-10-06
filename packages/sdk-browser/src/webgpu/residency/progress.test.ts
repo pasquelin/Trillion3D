@@ -1,4 +1,4 @@
-// A residency job's progress (#836): the loop waits for the job's next camera page, not its last,
+// A residency job's progress: the loop waits for the job's next camera page, not its last,
 // so the frames draw while a long job loads instead of showing the coarse cut until it ends.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -4,7 +4,7 @@
 // same numbers as the product of the projection by the view matrix and the six planes taken from it,
 // with or without a singular, NaN or infinite world matrix.
 //
-// The PROJECTION, for its part, is no longer the host's: the engine composes it from the
+// The PROJECTION, for its part, is not the host's: the engine composes it from the
 // declared optics, in reversed depth and infinite far plane (`depthConvention.ts`). The
 // reference therefore receives that projection, and its six planes are the engine's with the
 // last two swapped — in reversed depth, the plane that bounds near is the one forward depth
@@ -44,7 +44,7 @@ function hostileRig(fov = 50, aspect = 16 / 9) {
 /** The oracle camera: ancestors resolved, then a flat camera that carries the same
  *  world matrix bit for bit — its view matrix is then refreshed as the
  *  host would — and the ENGINE projection. Two effects of reversing depth on the frustum: the
- *  last two planes swap, and FAR no longer comes from the projection — infinite — but from
+ *  last two planes swap, and FAR comes not from the projection — infinite — but from
  *  the `far` the host declares, read from the view (a reference `Plane`, normalized like `writePlane`). */
 function threeReference(camera: HostCamera) {
   resolveCameraWorld(camera)
@@ -78,7 +78,7 @@ for (const webgpu of [false, true]) {
     const ref = threeReference(camera)
     const into = readCameraWorld(createEngineCamera(), camera)
     assertBits(into.world, camera.matrixWorld.elements)
-    // The engine projection no longer depends on the host convention: the same sixteen numbers
+    // The engine projection does not depend on the host convention: the same sixteen numbers
     // for both loop passes.
     assertBits(into.projection, ref.projection)
     assertBits(into.view, ref.view.elements)

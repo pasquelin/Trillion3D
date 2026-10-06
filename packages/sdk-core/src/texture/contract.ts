@@ -73,7 +73,7 @@ export function uvTransformed(m: ArrayLike<number>) {
 }
 
 /**
- * Whether `filter` reads a mip chain: the one rule of both GPU paths (#732). A page texture read
+ * Whether `filter` reads a mip chain: the one rule of both GPU paths. A page texture read
  * through a mip filter always has its chain — no other flag withholds it, so it never reads an
  * empty level —; one read without pins level 0 (WebGPU) or builds none (WebGL2). A texture of the
  * compiled cache carries the cache's levels whatever its filter.

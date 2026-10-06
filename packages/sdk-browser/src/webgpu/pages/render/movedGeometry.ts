@@ -59,7 +59,7 @@ function takeBoxes(root: ClusterRoot<PageRec>, boxes: Float64Array) {
   }
 }
 
-/** Root `rank`'s vertices moved (#573): its pages `from` to `to` lie in other boxes, which every
+/** Root `rank`'s vertices moved: its pages `from` to `to` lie in other boxes, which every
  *  bound of their rows reads (`rowBox`), and its vertices lie up to `reach` from where its pages
  *  are bounded, which every cut — the GPU's by its mark — grows those rest bounds by, as a
  *  deformation's. Only the rows whose bounds changed travel again: without boxes (`boxed` false),
@@ -90,7 +90,7 @@ const local = new Float64Array(BOX_VALUES),
 /** A dynamic geometry's rewrite, its moved vertices within `box`, `reach` from where its pages are
  *  bounded and each page's within its box of `boxes` (when given), declared as a node's move: each
  *  root drawing `attributes` moves and holds them, and the world box of `box` stales its shadow
- *  pages (#573). An empty `box` moved nothing: a new session's roots hear the reach and boxes alone. */
+ *  pages. An empty `box` moved nothing: a new session's roots hear the reach and boxes alone. */
 export function noteRewritten(
   rt: WebgpuPagesRuntime,
   attributes: object,
@@ -125,7 +125,7 @@ export function noteRewritten(
 /** Roots `ranks`, the placements of one record set, hold those pages' boxes of `boxes`
  *  (`BOX_VALUES` a page, page `k` its `k`-th, local): the rows of the pages whose box moved travel
  *  again, every placement's, as a rewrite's (`noteRewritten`) — where the waves carry a sea's pages
- *  (`../../../deformation/wavePages.ts`, #357). */
+ *  (`../../../deformation/wavePages.ts`). */
 export function holdPageBoxes(
   rt: WebgpuPagesRuntime,
   ranks: readonly number[],
@@ -147,7 +147,7 @@ export function releasePageBoxes(rt: WebgpuPagesRuntime, ranks: readonly number[
   for (const rank of ranks) markRootRows(rt, roots[rank], 0, pages.length - 1)
 }
 
-/** Root `rank`'s GPU deformation moved (#357): it moves, and its rest world box grown by `reach`
+/** Root `rank`'s GPU deformation moved: it moves, and its rest world box grown by `reach`
  *  world units — the most it reached this frame or the last — stales its shadow pages. */
 export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number) {
   const box = rt.layout.selectionRoots[rank].worldBox

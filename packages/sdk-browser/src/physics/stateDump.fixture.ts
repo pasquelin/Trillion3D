@@ -20,9 +20,9 @@ const softHeads = (words: Uint32Array) =>
   Uint32Array.from([...softBodiesIn(words)].flatMap((b) => [b.engine, b.count]))
 
 /** A step's events as a set: `motion` holds what was sent, not the order it was sent in, so it is
- *  order-independent by design. Sorted for hashing alone — the accepted route (boss's yes,
- *  29 Sept.): these states match `develop`'s poses, soft words and event set, not its event order,
- *  which the module's own callback order decided and no public API exposes (#934). */
+ *  order-independent by design. Sorted for hashing alone — the accepted route: these states match
+ *  the reference's poses, soft words and event set, not its event order,
+ *  which the module's own callback order decided and no public API exposes. */
 function sortedEvents(words: Uint32Array) {
   const rows = Array.from({ length: words.length / EVENT_WORDS }, (_, r) =>
     words.subarray(r * EVENT_WORDS, (r + 1) * EVENT_WORDS),
@@ -41,11 +41,11 @@ function sortedEvents(words: Uint32Array) {
  * Two SHA-256 of every step's words, in order: `motion`, of its poses, its events as a set (so
  * order-independent by design) and the bodies its soft words name with their vertex counts; `full`,
  * of its poses, its events in the order the engine sent them and whole soft words.
- * `motion` proves the poses, the soft words and the event set equal `develop`'s, not its event
- * order: the canonical order of the records the threads merge is the accepted route (boss's yes,
- * 29 Sept.), the module's own callback order being unreachable through the public API (#934). Two modules
- * that simulate the scene alike give the same `motion`; `full` also holds the written-back vertices
- * bit for bit, which a change of their rounding alone moves (#975).
+ * `motion` proves the poses, the soft words and the event set equal the reference's, not its event
+ * order: the canonical order of the records the threads merge is the accepted route, the module's
+ * own callback order being unreachable through the public API. Two modules that simulate the scene
+ * alike give the same `motion`; `full` also holds the written-back vertices bit for bit, which a
+ * change of their rounding alone moves.
  */
 export function stateDump(
   jolt: Pick<JoltModule, 'step' | 'poses' | 'events' | 'soft'>,

@@ -47,7 +47,7 @@ async function prune(folder: string, keep: readonly string[]) {
 }
 
 /** Copies `source` into `target`, files only when missing or older, sources never; what the
- * sources no longer have, the copy loses. A `published` copy gives every page the measurement
+ * sources do not have, the copy loses. A `published` copy gives every page the measurement
  * tag of a framed page: the statics' pages are the examples the portal frames. */
 async function copyTree(source: string, target: string, published: boolean) {
   const entry = await stat(source)

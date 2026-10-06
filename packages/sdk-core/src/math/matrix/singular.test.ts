@@ -55,7 +55,7 @@ test('a raw determinant cancelled by compensation yields the adjugate, even on a
   // matrix, columns divided by their scale, keeps a determinant far from the threshold: the two
   // roundings are not the same. The CPU divides by the RAW determinant — that is what keeps
   // the textbook bits on every ordinary matrix — and a zero divisor yields nothing:
-  // the adjugate alone, as the engine already did before this rule. The GPU, which divides by the
+  // the adjugate alone. The GPU, which divides by the
   // normalised determinant, does not have this case.
   const m = scaleUniform(1)
   assert.ok(Math.abs(normalizedLinearDeterminant(m)) > SINGULAR_DETERMINANT, 'the shape is regular')

@@ -20,7 +20,7 @@ export const DISPATCH_SCENE = { leaves: 12000, levels: 8 } as const
  * The scene, one placement per pose, its camera, and the worlds brought back to that camera's
  * render origin. The hierarchy is the compiler's, one node per detail tier under the root. Every
  * page is resident, through the engine's own upload — both bit sets of the cut rule and each
- * node's open count (#486): ready bits alone would make the drawn cut depend on the descent.
+ * node's open count: ready bits alone would make the drawn cut depend on the descent.
  */
 export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4()]) {
   const roots = sceneRoots(scenePages(leaves, levels), poses, true)

@@ -72,7 +72,7 @@ test('a harness run from a scratch folder reaches Playwright, stubbed: nothing s
   assert.equal(scratchHarness("async () => 'stubbed'", 'launchChrome()'), 'stubbed\n')
 })
 
-// #1364: Playwright's headless shell loses every WebGPU device right after the first frame, so a
+// Playwright's headless shell loses every WebGPU device right after the first frame, so a
 // harness asking for it, or for another browser path, still gets the system Chrome.
 test('a channel or a browser path given to launchChrome never opens another browser', () => {
   const printed = scratchHarness(

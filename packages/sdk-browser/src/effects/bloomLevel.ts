@@ -13,7 +13,7 @@ export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
  * sampler and the uniform slot, `outTexel` the inverse size written, `inTexel` the inverse size
  * read. `tent` reads the level through the upsample filter (`bloomFilter.ts`); `blendLevel` is the
  * bloom's last blend — `keep` of the image, `glow` of the first level's sum —, one text for the
- * bloom's own `composite` pass and for the composition that takes that pass over (#963).
+ * bloom's own `composite` pass and for the composition that takes that pass over.
  *
  * `tent9` is the filter itself, nine bilinear taps spread by `radius`. At the default radius, 1,
  * `tent4` is the same kernel in four taps, exact in real arithmetic: a pixel `f` texels past texel
@@ -43,7 +43,7 @@ fn tent(uv:vec2f)->vec4f{if(bloom.radius!=1.0){return tent9(uv);}return tent4(uv
 fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`
 
 /**
- * The last blend as the composition reads it (#963), group 1 beside the composition's own: the
+ * The last blend as the composition reads it, group 1 beside the composition's own: the
  * value `composite` stored in its `rgba16float` target, rounded as that target rounded it, so the
  * composed image is the one the target gave, with one full-screen pass and target fewer. A value
  * the half range holds is rounded by `quantizeToF16`, fed only finite halves since it is

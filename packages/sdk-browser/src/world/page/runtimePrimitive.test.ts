@@ -17,7 +17,7 @@ async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {
   return primitive.pages.map((page) => page.depthLayer ?? 0)
 }
 
-// #348: line quads lie in the faces they outline; their pages draw one coplanar layer above them,
+// Line quads lie in the faces they outline; their pages draw one coplanar layer above them,
 // on the same bias every path already applies. Faces keep the untouched layer 0.
 test('the pages of line quads draw on the line layer, faces on layer 0', async () => {
   const box = geometry.box(1, 1, 1)
@@ -27,7 +27,7 @@ test('the pages of line quads draw on the line layer, faces on layer 0', async (
   for (const layer of await layers(drawnTriangles(box, 'triangles')!)) assert.equal(layer, 0)
 })
 
-// #359: a dashed line's distance along the line survives the cut: its pages carry it as their
+// A dashed line's distance along the line survives the cut: its pages carry it as their
 // first texture coordinate, which every raster reads; a solid line's pages carry none.
 test('the pages of a dashed line carry its distance along the line', async () => {
   const points = Array.from({ length: 9 }, (_, k) => [k * 0.5, 0, 0]).flat()
@@ -51,7 +51,7 @@ test('the pages of a dashed line carry its distance along the line', async () =>
   for (const page of await read(false)) assert.equal(page.attributes.uv, undefined)
 })
 
-// #359: a line longer than the format's texture grid holds on one page (2^24 steps of 2^-14, 1024
+// A line longer than the format's texture grid holds on one page (2^24 steps of 2^-14, 1024
 // units) still draws, its dashes at their distances: the cut takes the finest grid its widest
 // cluster fits, never dropping the page. Every dash text reads the decoded distance.
 test('a dashed line past 1024 units keeps its dashes at their distances', async () => {
@@ -95,7 +95,7 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
     }
 })
 
-// #364: a sprite's quad turns to the camera about its origin: its pages are bounded by the cube
+// A sprite's quad turns to the camera about its origin: its pages are bounded by the cube
 // and the ball of its radius there, which hold it however it turns.
 test("the pages of a sprite's quad are bounded by the cube of its radius", async () => {
   const drawn = drawnTriangles(geometry.plane(1, 1), 'sprite', { center: [0.5, 0] })!
@@ -115,7 +115,7 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
   }
 })
 
-// #959: without the SDK module, which carries the compiler's tiled grid (`cutGrid.ts`), a cut
+// Without the SDK module, which carries the compiler's tiled grid (`cutGrid.ts`), a cut
 // takes the finest grid a page holds: 2^-13 for a kilometre plane, never coarser than the tiled one.
 test('without the SDK module a kilometre plane takes the finest grid a page holds', async () => {
   const cut = await cutDrawnTriangles(

@@ -59,7 +59,7 @@ test('the baked-level reader follows the cache, not the texture-source option', 
   }
 })
 
-// Behaviour (#745): with no world, the levels count in the session's own CPU total, beside its
+// Behaviour: with no world, the levels count in the session's own CPU total, beside its
 // pages, never in a store of their own outside it.
 test("the baked levels are held in the cache the session's pages are read through", async () => {
   const scope = globalThis as { createImageBitmap?: unknown }
@@ -160,7 +160,7 @@ test('a failed preparation falls back without waiting for the release, still dia
   ])
 })
 
-// #558 (D): a WebGL2 engine never draws a casting light unshadowed silently. A world hands its
+// A WebGL2 engine never draws a casting light unshadowed silently. A world hands its
 // hearer to the session; a session opened alone says `shadows-refused` on its own channel.
 test('a session opened alone says the shadows its engine refuses on its own channel', async () => {
   const said: string[] = []

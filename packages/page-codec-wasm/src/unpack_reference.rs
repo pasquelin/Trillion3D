@@ -1,8 +1,8 @@
-//! Develop's decoder, kept as the reference of the equivalence harness (`unpack_tests.rs`, #238):
-//! every field read at random, the first corner out of range refusing. Version 5 (#960) adds the
-//! read of a vertex's position through its link, the one line that is not develop's: the link
-//! rule itself is proved against develop by the frozen digests of the compiler's harness
-//! (`geometry_page_positions_tests.rs`) and of `positions.test.ts`.
+//! The reference decoder of the equivalence harness (`unpack_tests.rs`): every field read at
+//! random, the first corner out of range refusing. Version 5 reads a vertex's position through its
+//! link, the one line the plain decoder lacks: the link rule itself is proved by the frozen
+//! digests of the compiler's harness (`geometry_page_positions_tests.rs`) and of
+//! `positions.test.ts`.
 
 use super::*;
 use crate::bits::oct_decode;
@@ -20,7 +20,7 @@ fn random_vector<const N: usize>(out: &mut [u32], w: &[u32], at: [usize; N], q: 
     }
 }
 
-/// Develop's decoder, field by field.
+/// The reference decoder, field by field.
 pub fn reference(data: &[u8], max: usize) -> Result<Vec<u32>, PageError> {
     let h = Header::parse(data, max)?;
     let w: Vec<u32> = le_words(&data[h.bytes()..]).collect();

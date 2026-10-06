@@ -39,7 +39,7 @@ function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
 }
 
 /** What a dynamic resource reads each rewrite into: lists of its own, and the index its corners
- *  came from, at its version (#573). */
+ * came from, at its version. */
 export type Reading = { next: DrawnTriangles; index: Geometry['index']; indexVersion: number }
 
 /** The reading of `geometry`, first drawn as `drawn`: a copy of each of its lists. */

@@ -32,7 +32,7 @@ fn a_mesh_takes_the_narrowest_cone_the_mean_one_keeping_the_runtime_bits() {
             0x3ffbff6614ce2016 + ANGLE_MARGIN_ULPS as u64
         ]
     );
-    // The narrowest cone of the same faces (#929): another axis, an angle 0.64 rad narrower.
+    // The narrowest cone of the same faces: another axis, an angle 0.64 rad narrower.
     let cone = triangle_cone(&pos, &indices);
     assert_eq!(cone.map(f64::to_bits), NARROWEST_BITS);
     assert!(cone[3] < mean[3]);
@@ -86,7 +86,7 @@ fn a_range_or_an_index_outside_the_input_writes_nothing() {
     assert_eq!(out, [7.0; 4]);
 }
 
-/// The audit's equivalence (CMP-03, #929) on bumpy sheets to free clouds, signed zeros and
+/// The equivalence (CMP-03) on bumpy sheets to free clouds, signed zeros and
 /// non-finite positions: the cone holds every face and is never looser than the mean one, which
 /// it is bit for bit when not narrower.
 #[test]

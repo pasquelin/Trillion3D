@@ -1,4 +1,4 @@
-//! The physics cook in parallel is the serial cook, byte for byte (#956, audit CMP-13): the
+//! The physics cook in parallel is the serial cook, byte for byte: the
 //! distance a collision search measures, and a whole primitive's collider and pages, computed on
 //! one thread and on many, on random inputs and on the edge cases (empty, one triangle, NaN, ±0,
 //! ±Inf, a mesh of many tiles).
@@ -18,8 +18,8 @@ fn on<T: Send>(parallel: bool, work: impl FnOnce() -> T + Send) -> T {
     pools[usize::from(parallel)].install(work)
 }
 
-/// The distance as measured before #956, one side after the other, and as a search measures it
-/// now, on the pool: both as bits.
+/// The distance measured serially, one side after the other, and as a search measures it
+/// on the pool: both as bits.
 fn serial_distance(pos: &[f32], level0: &[u32], cut: &[u32]) -> u64 {
     let there = one_sided_distance(pos, level0, cut);
     there.max(one_sided_distance(pos, cut, level0)).to_bits()

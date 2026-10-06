@@ -1,4 +1,4 @@
-/** The materials a page creates (#847): what it may name, the surface built from it, and that
+/** The materials a page creates: what it may name, the surface built from it, and that
  *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import { hostPageSurface } from '../../host/pageObjects.ts'

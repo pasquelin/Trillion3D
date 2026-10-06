@@ -5,7 +5,7 @@ type Source = {
   invalidate(): void
 }
 
-/** Recette installs this on deformationCase.world, separately for count=1, 10 and 100.
+/** Installed on deformationCase.world by the witness run, separately for count=1, 10 and 100.
  * Raw measured values are retained; unsupported GPU timestamps stay null, never CPU estimates. */
 export function deformationEnvelope(world: Source, frames = 120, warmup = 30) {
   if (!Number.isInteger(frames) || frames < 1 || !Number.isInteger(warmup) || warmup < 0)

@@ -6,7 +6,7 @@ import type { TemporalHizState } from './temporal.ts'
 import type { PageLocations } from '../page/selection/placements.ts'
 
 /**
- * THE REGIONS OF THE TEMPORAL PYRAMID A MOVE STALED (CPU-14). A moved root leaves the history's
+ * THE REGIONS OF THE TEMPORAL PYRAMID A MOVE STALED. A moved root leaves the history's
  * depth wrong where it stood and where it stands now, and right everywhere else: the view is the
  * same (`sameHizView`) and nothing else moved. So the pyramid is kept, and the world boxes the root
  * covered and covers are listed with it; the next image takes every page whose screen rectangle

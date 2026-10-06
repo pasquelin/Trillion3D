@@ -1,4 +1,4 @@
-// The normal cone the WebGPU prepare built from the host vertices until #272, kept as the reference
+// The normal cone the WebGPU prepare builds from the host vertices, kept as the reference
 // the compiler's cooked cone and the run-time cut's are checked against
 // (`packages/page-codec-wasm/src/normal_cone.rs`, `tests/integration/cooked-cones.test.ts`,
 // `packages/sdk-browser/src/world/page/cutCones.test.ts`) and the input the cone tests and probes
@@ -14,7 +14,7 @@ const word = (value: number) => new BigUint64Array(Float64Array.of(value).buffer
 /** Whether `cone`, built by `normal_cone.rs`, bounds the triangles of `indices` over `positions`:
  *  every non-degenerate face's normal within its angle (by this runtime's `Math.acos`), and that
  *  angle at most `WIDEST` ulps above `triangleCone`'s on the same triangles. The compiler keeps the
- *  narrower of the mean cone and the smallest one (#929), so the axis may differ from this one. */
+ *  narrower of the mean cone and the smallest one, so the axis may differ from this one. */
 export function coneHolds(
   cone: NormalCone,
   positions: ArrayLike<number>,

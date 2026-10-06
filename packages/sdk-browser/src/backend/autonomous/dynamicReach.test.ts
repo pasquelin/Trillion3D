@@ -1,4 +1,4 @@
-// #573 on the WebGL2 path: a dynamic geometry's pages are bounded by their own corners at rest,
+// On the WebGL2 path: a dynamic geometry's pages are bounded by their own corners at rest,
 // and its roots hold the reach each rewrite hands them, the farthest a vertex lies now
 // (`createDynamicReach`): the CPU cut, its bounds grown by that reach, keeps a page its rewrite
 // carried into the view from outside it.

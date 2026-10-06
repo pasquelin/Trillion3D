@@ -14,7 +14,7 @@ export const PLACEHOLDER_IMAGE =
  * whole chain — everything past the tail is baked — and that have at least one. Where the image
  * lives does not matter: an address beside the document, a `data:` address or a view of its
  * binary, the baked chain stands in for it alike. An image with no entry failed compiler decode,
- * and an image whose one entry is not whole still needs its source: those two are read as before.
+ * and an image whose one entry is not whole still needs its source: those two are read.
  * `count` is how many images the document holds; an entry past it names none.
  */
 export function bakedImages(metadata: ClusterManifest, count: number): Set<number> {

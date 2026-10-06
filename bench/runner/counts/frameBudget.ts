@@ -1,9 +1,9 @@
-// The whole frame of the boss's case, counted (#1369): sponza, 200 lamps, a moving camera, WebGPU,
+// The whole frame of the reference case, counted: sponza, 200 lamps, a moving camera, WebGPU,
 // 1728 × 1117 at DPR 2 — 3456 × 2234, the bench's scale 1 —, the sponza-sized atrium standing for
 // sponza's depth (`lighting/lightTileAtrium.ts`), the bench's own lamps (`lighting/lamps.ts`: a grid over the model's
 // footprint two metres up, a range of 0.75 cell, each casting a shadow; the first 64 hold a slot,
 // `MAX_SHADOW_SLICES`). Each stage's work is counted at the display, then priced at a rate taken from
-// a measured number (`FRAME_RATES`): a MODEL, never a timing; the recette's timing after the merge
+// a measured number (`FRAME_RATES`): a MODEL, never a timing; a timing after the merge
 // is the proof. What no count here reaches is named in `UNCOUNTED`, never priced at zero in silence.
 //
 //   node bench/runner/counts/frameBudget.ts [--pose 1]

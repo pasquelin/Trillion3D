@@ -1,4 +1,4 @@
-// Batch M2, cone.ts: rejection of a box by its normal cone, compared against a reference built
+// cone.ts: rejection of a box by its normal cone, compared against a reference built
 // with the host library's primitives (Vector3, Matrix3, Matrix4), under conformal and hostile placement.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import { boxConeRejects, coneRejects } from '../../../../../../../packages/sdk-core/src/index.ts'
 import { boxConeRejectsBefore, coneCases } from '../../../../../../oracles/core/hot-path-math.ts'
 
-/** `packages/sdk-browser/src/page/cone/cone.ts` before batch M2, copied with reference primitives (see `bench/oracles/core/volumes.ts`). */
+/** `packages/sdk-browser/src/page/cone/cone.ts`, copied with reference primitives (see `bench/oracles/core/volumes.ts`). */
 function reference(
   coneAxis: number[],
   angle: number,

@@ -1,4 +1,4 @@
-// The cache is asked for whole groups, closed upward (#486): what the cut rule needs to draw what
+// The cache is asked for whole groups, closed upward: what the cut rule needs to draw what
 // the cut wants, and nothing a cut that leaves still holds.
 import test from 'node:test'
 import assert from 'node:assert/strict'

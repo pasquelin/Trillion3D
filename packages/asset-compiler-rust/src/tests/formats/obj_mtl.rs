@@ -101,7 +101,7 @@ fn a_texture_name_that_needs_escaping_stays_rereadable() {
 
 // Behaviour: two OBJ of identical bytes, placed in two folders each with its own
 // library, do not serve each other the scene. The record of opened files belongs
-// to the folder that resolves them; held by the source content alone, it gave the
+// to the folder that resolves them; held by the source content alone, it would give the
 // second the first's key, and with it its colour.
 #[test]
 fn two_folders_with_the_same_obj_each_keep_their_mtl() {

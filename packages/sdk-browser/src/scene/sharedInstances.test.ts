@@ -45,7 +45,7 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   assert.equal(second.index, first.index)
   assert.equal(second.uv, first.uv)
   assert.equal(second.normal, first.normal)
-  // Indices and UVs in two buffers, the normals in a float atlas (#1410), each written once.
+  // Indices and UVs in two buffers, the normals in a float atlas, each written once.
   assert.deepEqual([created.length, textures.length], [2, 1])
   for (const entry of created)
     assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1)
@@ -123,7 +123,7 @@ test('a primitive’s template is computed once and returned as-is to the next p
 
 // Behaviour: two instances of an object share the shape of its DAG — hierarchy, per-node bounds,
 // group links, cluster identities — and never what places them: world matrix, world box. The
-// local box belongs to the primitive and is shared, read never written (#1235).
+// local box belongs to the primitive and is shared, read never written.
 test('two instances share the DAG shape, never what places them', () => {
   const fixture = dagFixture()
   primitiveWithCulling(fixture.metadata)
@@ -143,7 +143,7 @@ test('two instances share the DAG shape, never what places them', () => {
   assert.equal(roots[0].culling!.nodes, roots[1].culling!.nodes)
   assert.equal(roots[0].culling!.bounds, roots[1].culling!.bounds)
   assert.equal(roots[0].structure, roots[1].structure)
-  // The local box belongs to the primitive, read never written: the instances share it (#1235).
+  // The local box belongs to the primitive, read never written: the instances share it.
   assert.equal(roots[0].localBox, roots[1].localBox)
   assert.deepEqual(Array.from(roots[0].localBox!), Array.from(roots[1].localBox!))
   assert.notEqual(roots[0].world, roots[1].world)

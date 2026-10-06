@@ -17,7 +17,7 @@ Object.assign(globalThis, {
 
 // A device fixture standing in for the real WebGPU one: only the members the measured functions
 // read are implemented, as the rest of this codebase's own GPUDevice fixtures do. The blend's
-// normals ride in a float atlas since 65da4ee298 (#1410), so the device makes textures too.
+// normals ride in a float atlas, so the device makes textures too.
 const device = {
   limits: { maxBufferSize: 2 ** 31, maxStorageBufferBindingSize: 2 ** 31 },
   createBuffer: ({ size }: { size: number }) => ({ size, destroy() {} }),

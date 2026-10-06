@@ -18,7 +18,7 @@ export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
 ${PROJECTED_BOUND_WGSL}
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
- *  deformation reach (\`deformReach\`, #357), moved by at most \`error\`:
+ *  deformation reach (\`deformReach\`), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
  *  the clip weight w = p*depth+(1-p) of the projection (\`views[vi].perspective\`, p):
  *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.

@@ -31,12 +31,12 @@ export type TexturePools = {
   pool: TexturePool
   poolFor(budgetBytes: number): TexturePool
   /** What `poolFor` draws the lanes on — tiles and tails each lane's textures take —, grown in
-   *  place by a texture appended after open (#847), and the colour census's readers. */
+   *  place by a texture appended after open, and the colour census's readers. */
   demand: AtlasLanes
   tails: AtlasLanes
   coverage: CoverageReaders
-  /** Bytes held beside the pool it was drawn without: the live textures' working textures (#362)
-   *  and the resident impostor atlases (#1335) (`textureBytesBeside`). */
+  /** Bytes held beside the pool it was drawn without: the live textures' working textures
+   *  and the resident impostor atlases (`textureBytesBeside`). */
   liveBytes?: number
 }
 
@@ -133,7 +133,7 @@ export type LaneTaking = {
 }
 
 /**
- * The pool a live atlas takes one more texture in, after open (#847): its lane grown only by the
+ * The pool a live atlas takes one more texture in, after open: its lane grown only by the
  * layers the texture's tail needs — a free place beside every tile the lane holds, so nothing drawn
  * is evicted, and the floor `texturePoolFor` keeps, its tails and one tile to stream into —, every
  * other lane as it is; the same pool when the lane has room. A growth that takes the pool past

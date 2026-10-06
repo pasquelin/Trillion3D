@@ -50,7 +50,7 @@ async function waterFailures(device: GPUDevice) {
   return { failures, water: rt.blendState.water }
 }
 
-// #1248: the fallback stays only for a device whose limit is below the water pass's need.
+// The fallback stays only for a device whose limit is below the water pass's need.
 test('a device below the water pass refuses it by name; one at its need builds it', async () => {
   const below = await waterFailures(deviceGranted(32))
   assert.deepEqual(below.failures, ['water-pass-refused'])

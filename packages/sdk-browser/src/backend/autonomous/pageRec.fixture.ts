@@ -1,6 +1,6 @@
 // A resident page record of the geometry store's tests, drawing one triangle, placed by the root
 // `root` of rank 0. Its per-instance draw state is nowhere on the record: the tests carry it in a
-// `PageDraws` table over these roots (`pageDraws.ts`, #1234).
+// `PageDraws` table over these roots (`pageDraws.ts`).
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 import { surfaceOf } from '../../page/surface.ts'

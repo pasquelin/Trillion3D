@@ -1,4 +1,4 @@
-// Fog is a term of the one lighting model (#345): every program that lights a surface — the
+// Fog is a term of the one lighting model: every program that lights a surface — the
 // opaque resolve with and without bounce, the blended surfaces, the water composite and the
 // WebGL2 program — hands its lit colour through `fogged` before the display chain, measured from
 // the eye each pass carries. An unlit material is fogged too; a normal or depth
@@ -53,8 +53,8 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
     /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|vol\.attenuation\.w!=0\.0\)/,
   )
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
-  // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
-  // layers' exposure and curve (#558) follow it, in the struct's 16-byte alignment.
+  // ratio a line's width is scaled by, the texture level offset and the display
+  // layers' exposure and curve follow it, in the struct's 16-byte alignment.
   assert.match(BLEND_VIEW_WGSL, /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/)
   assert.equal(BLEND_VIEW_SIZE, 144)
 })

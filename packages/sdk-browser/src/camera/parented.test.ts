@@ -1,4 +1,4 @@
-// Defect 5: a parented camera must give the same pose to ALL engine sites.
+// A parented camera must give the same pose to ALL engine sites.
 //
 // Each site of `parentedSites.fixture.ts` — selection uniforms, cut, Hi-Z, rasters, diagnostics,
 // and the whole engines on the fake GPU device — is called frame after frame with a camera child

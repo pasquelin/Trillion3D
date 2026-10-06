@@ -1,4 +1,4 @@
-//! Two meshes of one content compile to what one mesh placed twice compiles to (#931, CMP-11):
+//! Two meshes of one content compile to what one mesh placed twice compiles to:
 //! the same single primitive, the same pages, collision, proxy and depth layers, both nodes on it;
 //! one bit apart, they stay two primitives.
 use super::*;

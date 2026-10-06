@@ -17,7 +17,7 @@ import { FLAG_FOG_FREE } from '../types.ts'
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
  * own feature overrides (`materialClass.ts`), kept on that class's pixels only (`classAdmits`).
- * `HAS_UV`, `HAS_MAP` and the other class constants replace what used to be
+ * `HAS_UV`, `HAS_MAP` and the other class constants stand for what would be
  * tested per pixel on `page.flags`; the arithmetic of a kept path is the same, operand for operand.
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
@@ -154,7 +154,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
- // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
+ // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{

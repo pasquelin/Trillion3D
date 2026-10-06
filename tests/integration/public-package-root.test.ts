@@ -31,7 +31,7 @@ test('package metadata exposes one environment-aware root', async () => {
   const conditions = ['browser', 'node', 'types', 'import', 'default']
   assert.deepEqual(Object.keys(packageJson.exports['.']), conditions)
   assert.equal(packageJson.exports['.'].default, './dist/sdk/index.js')
-  // Issue #1353: the CDN bundle, one module, beside the unbundled entries a bundler reads.
+  // The CDN bundle, one module, beside the unbundled entries a bundler reads.
   const bundle = './dist/trillion3d.module.js'
   assert.deepEqual(packageJson.exports['./module'], {
     types: './dist/sdk/browser.d.ts',
@@ -39,7 +39,7 @@ test('package metadata exposes one environment-aware root', async () => {
   })
   for (const cdn of ['unpkg', 'jsdelivr']) assert.equal(packageJson[cdn], bundle)
   assert.equal(packageJson.sideEffects, false)
-  // Issue #275: the host library is a development tool of the bench and its witnesses, never a
+  // The host library is a development tool of the bench and its witnesses, never a
   // requirement of the package — neither declared for the consumer nor shipped to them.
   for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies'])
     assert.equal(packageJson[field]?.three, undefined, `${field} names three`)

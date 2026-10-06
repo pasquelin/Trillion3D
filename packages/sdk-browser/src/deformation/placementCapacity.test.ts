@@ -35,7 +35,7 @@ test('deformation row growth requests a structural reopen while stable owners re
 
 test('WebGL keeps deformation placements separate when their records differ', () => {
   const page = { transparent: false } as unknown as PageRec
-  // One record, two placements (#1235): the deformed one is drawn on its own, the rigid one
+  // One record, two placements: the deformed one is drawn on its own, the rigid one
   // instanced, whatever the order they were posted in.
   const roots = [
     { placement: {}, deformRecord: 1 },

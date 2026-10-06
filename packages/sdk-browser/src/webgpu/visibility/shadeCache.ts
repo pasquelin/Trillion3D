@@ -100,7 +100,7 @@ async function cachePasses(device: GPUDevice) {
  * The resolve's frame cache (`../../visibility/shader/shadeCacheWgsl.ts`): its buffer, laid each
  * image for the page table's rows, and the passes that fill it before the class draws.
  * `constants` are the resolve pipelines' overrides — the passes run, the pixel reads what they
- * store; passes the device refused leave them out, and each pixel computes its own, as before.
+ * store; passes the device refused leave them out, and each pixel computes its own.
  * The buffer exists either way: the resolve's group binds it. The triangles pass's dispatch is the
  * rows pass's (`work`): x and y cleared each image, raised by the rows whose triangles fit.
  *

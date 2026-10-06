@@ -1,4 +1,4 @@
-// System Chrome, launched in a uniform way for the benchmark, the oracles and the recette's proofs.
+// System Chrome, launched in a uniform way for the benchmark, the oracles and the Chrome proofs.
 //
 // Playwright locates it via channel (`channel: 'chrome'`) on Windows, macOS, or Linux:
 // no path is hardcoded here, and a machine without Chrome installed receives Playwright's error,
@@ -16,8 +16,8 @@ export const CHROME_REFUSED = 'Chrome refused'
 /**
  * Throws when Chrome would start from an import instead of a run: with no entry file (`node -e`,
  * the REPL), from a unit test entry, or under `node --test` from anything but a Chrome proof — no
- * test opens a browser, the GPU proofs run on Dawn, and the recette alone runs the Chrome ones
- * (`bench/dawn/proofs.ts --chrome`). Any other explicit script opens Chrome on purpose, wherever it
+ * test opens a browser, the GPU proofs run on Dawn, and only the Chrome proofs
+ * open Chrome (`bench/dawn/proofs.ts --chrome`). Any other explicit script opens Chrome on purpose, wherever it
  * lives: the bench, a script, a measurer's harness in its scratch folder. `testRun` says whether
  * the process runs under `node --test`; the guard's own tests set it.
  */
@@ -34,7 +34,7 @@ export function assertBrowserEntryPoint(entry = process.argv[1], testRun = under
  * Launches system Chrome. `options` are those of `chromium.launch` — `headless`, `args` —,
  * with the channel set here and nowhere else: a channel or a browser path given is overridden.
  * Playwright's own headless shell, which `chromium.launch` opens without a channel, composites a
- * WebGPU canvas it cannot read: the device is lost right after the first frame (#1364), every
+ * WebGPU canvas it cannot read: the device is lost right after the first frame, every
  * example with it. Refused unless a bench, script or Chrome proof run is the entry point
  * (`assertBrowserEntryPoint`).
  */

@@ -42,7 +42,7 @@ export class WebglClusterRenderer {
   resolvePasses = 0
   toneCurve: number = TONE_MAPPING_RANK.aces
   readonly pass: ClusterMaterialPass
-  /** The session's deformation records (#357), sent at each frame; shared with the display's. */
+  /** The session's deformation records, sent at each frame; shared with the display's. */
   readonly deformation: WebglClusterDeformation
   deformationSource: DeformationSource | undefined
   cards: WebglCards | undefined
@@ -141,7 +141,7 @@ export class WebglClusterRenderer {
       this.drawCards(camera, { capture: true })
     })
     // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
-    // units; the frozen source is bound again for the trace they aliased before it (#1292).
+    // units; the frozen source is bound again for the trace they aliased before it.
     if (mirroring.length) {
       pass?.('Trillion3D WebGL2 reflection resolve')
       const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array

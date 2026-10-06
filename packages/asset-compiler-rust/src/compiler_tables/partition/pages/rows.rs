@@ -1,4 +1,4 @@
-//! The rows a view holds (#575): what the runtime sizes its rows by before it reads any page, bound
+//! The rows a view holds: what the runtime sizes its rows by before it reads any page, bound
 //! by the view, not by the world.
 //!
 //! After a frame, every cell the runtime holds has a box within the reach, widened by its keep

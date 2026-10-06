@@ -1,5 +1,5 @@
 /**
- * WHERE A PIXEL'S SHADOW LEVEL COMES FROM (#1363): its centre WITHOUT the TAA jitter — the world
+ * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
  * point it holds there, and its footprint, the world distance to its right neighbour at that
  * depth. The one reading of them the resolve (`surfaceWgsl.ts`) and the per-pixel demand
  * (`../../vsm/markingWgsl.ts`) share, so the level a pixel reads is the level it asked
@@ -16,8 +16,8 @@
  * a jump that the background beyond does not continue —; of two such sides, the straighter. On an
  * axis neither side continues — a wire, a bar or a far part one pixel wide, background on both
  * sides —, the slope is none: the depth held, never a jump across the background. With no jitter
- * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint develop's, to
- * the bit.
+ * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint is the jittered
+ * sample's, to the bit.
  */
 export const PIXEL_FOOTPRINT_WGSL = `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */

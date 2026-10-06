@@ -78,7 +78,7 @@ function instanceCapacity(libres: readonly number[], shift: number, capacity: nu
  * Static tables of the transparent pass: what an instance draws, and where its item is named.
  *
  * A paged instance draws a cluster, an unpaged instance a chunk of at most one index stride. The
- * vertex index no longer carries the item rank but the rank of its run's first instance
+ * vertex index carries not the item rank but the rank of its run's first instance
  * (`runs.ts`): that is what lets a whole run fit in ONE draw, and all paged items share
  * ONE bind group.
  */
@@ -146,7 +146,7 @@ const modeBase = (surface: PageSurface, transmissive: boolean) =>
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
-  // One determinant: the call used to yield the same value twice to pick the two faces.
+  // One determinant picks the two faces.
   const renverse = matrixWindingCw(item.matrix.elements)
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT

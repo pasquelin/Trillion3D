@@ -67,7 +67,7 @@ export function explorerOptions(
     // Lights the source file carried: the engine declares them alone, the bench can silence them.
     importedLights: options.importedLights !== false,
     // Whether the loader opens the source images. Forwarded both ways since the engine's own
-    // default became `'cache'` (#289): a witness side asks for `'host'` and has to be heard, or
+    // default became `'cache'`: a witness side asks for `'host'` and has to be heard, or
     // it would draw the placeholder pixel the loader leaves in a baked image's place.
     textureSource: options.textureSource,
     // The tile pass's millisecond budget: without the option, the engine keeps its own default.
@@ -76,7 +76,7 @@ export function explorerOptions(
       : {}),
     // Block format of the texture pools; the engine takes `auto` without it.
     ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
-    // The frame drawn below the display and reconstructed to it (#816); the display without it.
+    // The frame drawn below the display and reconstructed to it; the display without it.
     ...(options.renderScale ? { renderScale: options.renderScale } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),

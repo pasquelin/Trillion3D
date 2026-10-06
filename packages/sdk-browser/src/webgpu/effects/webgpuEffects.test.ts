@@ -1,4 +1,4 @@
-// The WebGPU effect chain (#349): an empty chain adds no pass, no copy and no target; a chain
+// The WebGPU effect chain: an empty chain adds no pass, no copy and no target; a chain
 // with a bloom makes its targets at the first frame that draws it, keeps them while the size
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test'
@@ -132,7 +132,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
   })
 })
 
-test('a fused chain leaves its last blend to the composition: one pass and one target fewer (#963)', async () => {
+test('a fused chain leaves its last blend to the composition: one pass and one target fewer', async () => {
   const { gpu, effects } = await loaded()
   const { encoder, passes, handed } = recorder()
   const bloom = effect.bloom({ intensity: 0.5 })

@@ -71,7 +71,7 @@ test('the fallback pass refuses by name a blending no path draws', async () => {
   await assert.rejects(drawn([99]), /declares a blending no path draws/)
 })
 
-// #348: the transparent fallback reads float positions and no direction, so it cannot widen a
+// The transparent fallback reads float positions and no direction, so it cannot widen a
 // line quad (`lineClip`): it refuses a line surface by name instead of dropping it.
 function writeLines(lineWidth: number) {
   const { device, writes } = fakeDevice()

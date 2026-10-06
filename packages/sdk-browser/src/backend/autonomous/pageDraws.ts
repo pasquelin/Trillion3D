@@ -1,8 +1,8 @@
 /**
- * The per-instance draw state of the WebGL2 autonomous backend, keyed by packed index (#1234):
+ * The per-instance draw state of the WebGL2 autonomous backend, keyed by packed index:
  * what a placement's copy of a page owns — its geometry, its host mesh, whether it is attached to
  * the scene, the surface it wears and the last material-class change it followed. A `PageRec`
- * carries none of it, so one record per primitive can serve every placement (#1235). The layout
+ * carries none of it, so one record per primitive can serve every placement. The layout
  * posts one draw per (placement, page), carried from one layout to the next by the ROOT it belongs
  * to; the catalogue resolves a packed rank back to its record, and `placement` to its root.
  */
@@ -26,7 +26,7 @@ export type PageDraw = {
 export type PageDraws = ReturnType<typeof createPageDraws>
 
 /** A new instance's state: blank, or wearing what `sibling` — another instance of the same record —
- *  wears, since every instance of a page draws one geometry and one surface (#1235). */
+ * wears, since every instance of a page draws one geometry and one surface. */
 const blank = (page: PageRec, sibling?: PageDraw): PageDraw => ({
   page,
   attached: false,
@@ -49,7 +49,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   /** The packed ranks of each record's instances, in packed order: its first names the page. */
   let ranks = new Map<PageRec, number[]>()
   /** The roots of the last layout, by rank: a root's draws are carried from the packed base that
-   *  layout posted on it (`packedBase`), one pointer per root and no table per instance (#1235). */
+   * layout posted on it (`packedBase`), one pointer per root and no table per instance. */
   let laidOut: readonly ClusterRoot<PageRec>[] = []
 
   /** The rank `root` held in the last layout, or -1: read from the packed base it carries, checked
@@ -92,7 +92,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
       carried.push(row)
     }
     // Pass 2: a root without one reclaims a single-instance record's draw, never one already taken:
-    // a re-layout that recreates the root object — a synthetic layout — carries it this way (#1235).
+    // a re-layout that recreates the root object — a synthetic layout — carries it this way.
     for (let r = 0; r < next.length; r++) {
       const root = next[r]
       for (let p = 0; p < root.pages.length; p++) {
@@ -144,7 +144,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
       const packed = ranks.get(rec)?.[0]
       return packed === undefined ? -1 : (placement.rootOfPacked[packed] ?? -1)
     },
-    /** The per-placement tables (#1235): the same object across layouts, rewritten in place. */
+    /** The per-placement tables: the same object across layouts, rewritten in place. */
     placement,
     layOut,
     at,

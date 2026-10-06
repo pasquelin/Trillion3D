@@ -51,7 +51,7 @@ test('the first move after the lock is granted is dropped: the cursor jump never
   surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 })
   controls.update(0)
   assert.deepEqual(looking(), [1, 0, 0])
-  // Every move after the dropped one counts (#527), so the reverse,
+  // Every move after the dropped one counts, so the reverse,
   // in four steps, lands on the very head the lock started from.
   for (let step = 0; step < 4; step++)
     surface.fire('pointermove', { pointerId: 1, movementX: -50, movementY: 0 })

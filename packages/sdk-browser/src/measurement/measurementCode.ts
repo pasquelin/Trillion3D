@@ -1,4 +1,4 @@
-// The measurement's code, a family on demand (`../host/families.ts`, #1353): the build provenance
+// The measurement's code, a family on demand (`../host/families.ts`): the build provenance
 // table a listened session reports (`buildProvenance.ts`, written by the build), the comparison
 // compositor of the A/B layouts, the frame report (`EngineProfiler`'s code) and the pass table of
 // the public pass mapping (`../diagnostic/gpuPasses.ts`), one module so that the CDN bundle makes

@@ -39,7 +39,7 @@ export function upperLeftDeterminant(world: Mat4): number {
   return c0[0] * crossX + c0[1] * crossY + c0[2] * crossZ
 }
 
-/** Product computed once (`vp`), applied to each vertex — kernel of batch D1/D2. */
+/** Product computed once (`vp`), applied to each vertex. */
 export function hoisted(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]): Vec4[] {
   const vp = mat4Multiply(viewProj, world)
   return vertices.map((v) => mat4MulVec4(vp, v))

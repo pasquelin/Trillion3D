@@ -10,7 +10,7 @@ const box = { left: -1, right: 3, top: 3, bottom: -1 }
 const drawn = (camera: Camera, width: number, height: number) => {
   const session = hostFramingCamera(50, 1, 0.1, 100)
   followPageCamera(() => camera, { width, height } as HTMLCanvasElement)(session)
-  // The box is handed on as declared and fitted where a projection is composed (#1097).
+  // The box is handed on as declared and fitted where a projection is composed.
   const [x, y, w, h] = drawnView(session.orthographic!, session.aspect, 1)
   return { left: x - w, right: x + w, top: y + h, bottom: y - h }
 }

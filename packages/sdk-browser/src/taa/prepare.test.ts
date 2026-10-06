@@ -35,7 +35,7 @@ function runtime(temporalAntialiasing: boolean) {
 
 const served = (rt: WebgpuPagesRuntime) => !rt.capabilities.unsupported.includes(TAA_CAPABILITY)
 
-// #363: the session opened with it off turns it on in place, and off again, without reopening.
+// The session opened with it off turns it on in place, and off again, without reopening.
 test('temporal antialiasing is switched during the session', async () => {
   const { rt, changed } = runtime(false)
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)
@@ -80,7 +80,7 @@ test('switched off, the history leaves its targets; on again, it is made at once
   assert.equal(temporal.frame.hasHistory, false, 'its first image reads no history')
 })
 
-// #832: the renderer's temporal upscaling is the pass's own, served and withdrawn with it.
+// The renderer's temporal upscaling is the pass's own, served and withdrawn with it.
 test('temporal upscaling is served with the pass', async () => {
   const { rt } = runtime(true)
   const upscales = () => !rt.capabilities.unsupported.includes(UPSCALE_CAPABILITY)
@@ -139,7 +139,7 @@ test('a pass rigged during a capture gets its history targets', async () => {
   assert.equal(rt.gpu.targetBytes, bytes, 'counted with the targets')
 })
 
-// #412: switched on while a capture draws in a view of its own, the pass is the main view's.
+// Switched on while a capture draws in a view of its own, the pass is the main view's.
 test('temporal antialiasing rigged during a capture lands on the main view', async () => {
   const { rt } = runtime(false)
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)

@@ -6,7 +6,7 @@ import { followPooledBlocks } from './slotLayout.ts'
 import { refreshBlendScene } from '../webgpu/blend/resources.ts'
 
 /**
- * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`, #1293): its wider buffers and the
+ * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`): its wider buffers and the
  * whole-copy table re-placed after them replace the runtime's; the rows and spans that read the
  * moved deformation block are pointed at it again (`followPooledBlocks`), and so are the
  * transparent records, which name a whole copy's inputs and results and a placement's record
@@ -23,7 +23,7 @@ function followPoolGrowth(rt: WebgpuPagesRuntime, device: GPUDevice, growth: Ver
  * One setup for clustered and material-driven whole-copy deformation, sharing the vertex pool. A
  * session that deforms — a root or a whole copy with a record, a page with deformed results —
  * first awaits the family's code (`deformationCode.ts`), as its scene's other resources, before
- * any frame (#1353); one that does not loads none of it, and its pool holds no whole copy.
+ * any frame; one that does not loads none of it, and its pool holds no whole copy.
  */
 export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, layout, setup, blendState } = rt

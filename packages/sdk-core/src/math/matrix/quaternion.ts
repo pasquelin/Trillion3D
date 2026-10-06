@@ -44,7 +44,7 @@ const SQUARED_MIN = 2 ** -900,
  * four divisions in and one product out. Against the exact `q / |q|`, no worse than the scaled
  * length on any input family measured and better on most (maximum 2.7 → 2.3 ULP, mean 0.73 → 0.64
  * on near-unit quaternions), and four divisions cheaper. Outside that range — zero, a NaN, an
- * infinity, magnitudes near the limits — the length is `hypot4`'s, as before.
+ * infinity, magnitudes near the limits — the length is `hypot4`'s.
  */
 export function normalizeQuaternion(q: Float64Array) {
   return normalizeQuaternionAt(q, 0, q[0], q[1], q[2], q[3])

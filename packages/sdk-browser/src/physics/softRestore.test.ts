@@ -60,7 +60,7 @@ test('a soft body that diverges before it kept a good state is brought back to i
 test('a fine cloth the solver throws apart on a box is brought back to where it was a quarter second before, calmed, and rests on it', async () => {
   // A 1.5 m cloth of 44 × 44 squares dropped 0.7 m onto a static 1 m box: the solver finds each
   // vertex's collision plane once per step, and the cloth folding over the box's edges goes apart
-  // in a few steps (develop: 1e5 m in a second).
+  // in a few steps (1e5 m in a second without the restore).
   const { jolt, record, cloth } = await thrownCloth()
   // Its states from the one it was made in, its rest shape (kept as it was added).
   const sent: Float32Array[] = [Float32Array.from(readPoints(cloth.getAttribute('position')!))]

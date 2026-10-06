@@ -1,8 +1,8 @@
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
 
 /**
- * How far each dynamic geometry's vertices lie from where its pages are bounded (#573,
- * `../../world/page/runtimePrimitive.ts`), held by the WebGL2 path's roots as a deformation's
+ * How far each dynamic geometry's vertices lie from where its pages are bounded
+ * (`../../world/page/runtimePrimitive.ts`), held by the WebGL2 path's roots as a deformation's
  * reach: every cut grows their bounds by it (`../../page/cut/cut.ts`). It is this rewrite's, the
  * farthest a vertex lies now, not the farthest one ever went: the cut that reads it draws the
  * vertices that rewrite wrote. A root mounted in place after its geometry moved hears the reach

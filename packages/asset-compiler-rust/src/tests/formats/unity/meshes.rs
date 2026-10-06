@@ -15,7 +15,7 @@ fn material(name: &str) -> String {
     white_mat(name, "    - _Metallic: 0\n")
 }
 
-// Finding 49: two renderers that point at the same model mesh do not carry the
+// Two renderers that point at the same model mesh do not carry the
 // same materials. The poured mesh is shared; each different binding receives its
 // variant, and the one an instance already placed without a binding is never
 // rewritten under it.
@@ -57,7 +57,7 @@ fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
     );
 }
 
-// Finding 50: a renderer that several levels of a `LODGroup` cite is kept at the
+// A renderer that several levels of a `LODGroup` cite is kept at the
 // most detailed level where it appears. Setting it aside because a coarse level
 // also cites it would drop from LOD0 a surface the scene shows there.
 #[test]

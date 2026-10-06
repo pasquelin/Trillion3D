@@ -59,14 +59,14 @@ type Inputs = {
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session
   const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs
-  // The optional families the first frame draws with load beside the scene (#1353).
+  // The optional families the first frame draws with load beside the scene.
   const families = sessionFamilies(options, diagnosticChannel.enabled)
   // The machine is read before the scene: which engine path renders decides which file the
   // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session)
   resources.gpuDevice = gpuDevice
   const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer)
-  const renderers = loadRenderers(choice.factories) // its own chunk (#1353), beside the scene
+  const renderers = loadRenderers(choice.factories) // its own chunk, beside the scene
   const autonomous = choice.autonomous
   // What the loader opens follows what will draw: a path that samples the host images needs
   // them read, however the host set `textureSource`.
@@ -150,7 +150,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   // The pages and cells the first camera reaches are placed before the engines read their rows:
-  // the first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands
+  // the first frame draws them (`partitionFrame.ts`). That camera is the page's when it hands
   // one in (a world), else the framing one, which sees the whole scene.
   if (loadedScene.partitions.length) {
     const bytes = await primePartitions(

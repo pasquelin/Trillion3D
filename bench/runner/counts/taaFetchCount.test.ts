@@ -1,4 +1,4 @@
-// #1369: a pixel's resolve issues a bounded number of fetches per display pixel, its own identifier
+// A pixel's resolve issues a bounded number of fetches per display pixel, its own identifier
 // read once. The 3×3 depths come in four gathers and the geometry history's 2×2 in two
 // (`geometryHistoryWgsl.ts`); a still upscaled pixel samples its share target once; a frame whose
 // blends wrote no reactive value reads none (`resolve.ts`, `unreactive`). An upscaled pixel reads its

@@ -27,7 +27,7 @@ export type MovedRootTarget = {
  * row: its caster rows move, and the transparent corners are sent again. Returns the rows rewritten.
  *
  * The table's age does not move: it rewrote every row, every corner and every transparent corner,
- * and dropped the whole scene's occlusion history, each image a model moved (#358).
+ * and dropped the whole scene's occlusion history, each image a model moved.
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
   // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
@@ -64,7 +64,7 @@ function reboundCorners(
  * given: their table words, corners, shadow spheres and level-of-detail words travel again for them
  * alone, and a blended root's transparent corners are sent again (`reboundCorners`). Without a
  * `world`, the pages are
- * bounded elsewhere and no pose moved (#573) — a dynamic page's vertices lie in another box
+ * bounded elsewhere and no pose moved — a dynamic page's vertices lie in another box
  * (`PageRec.moved`), or its root holds another reach —: the temporal pyramid and the windings keep.
  * Returns the rows marked.
  */

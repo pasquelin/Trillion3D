@@ -18,7 +18,7 @@ import { surfaceSide } from '../../../page/surface.ts'
 import { windingCw } from '../render/winding.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
 
-/** The layout's selection roots, ranked by `rootOfPacked` (#1235). */
+/** The layout's selection roots, ranked by `rootOfPacked`. */
 type Roots = Parameters<typeof windingCw>[0]
 
 /** Layer 0's pipelines by half and face mode: the three untested ones, then their Hi-Z-tested

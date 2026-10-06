@@ -1,4 +1,4 @@
-//! Meshes of identical content are shared before the cook (#931, CMP-11): the bytes decide, never
+//! Meshes of identical content are shared before the cook: the bytes decide, never
 //! the names, and one differing bit keeps two meshes apart.
 use super::*;
 use crate::compiler_mesh_share::share_identical_meshes;

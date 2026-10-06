@@ -7,7 +7,7 @@ const OTHER = 0.6,
   RUN = 600
 
 // A fit a bound clamps goes exactly to the bound: from 0.504 the step to the floor is under the
-// threshold, and the scale stayed there (#831).
+// threshold, and the scale stayed there.
 test('a page over budget ends exactly at the floor, whatever the cost it started from', () => {
   for (let g = 33; g <= 120; g++) {
     const control = createScaleControl('auto'),

@@ -104,9 +104,9 @@ test('invalidateOccluderHistory still drops both', () => {
   assert.equal(run.noOccluderHistory, true)
 })
 
-// A moved model rewrites its own rows, not the scene's (#358). The table's age used to advance on
-// every move: every row, every corner and every transparent corner written again, and the whole
-// scene's occlusion history dropped, each image a model moved.
+// A moved model rewrites its own rows, not the scene's. The table's age must not advance on
+// every move: that would write every row, every corner and every transparent corner again, and
+// drop the whole scene's occlusion history, each image a model moved.
 const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** A root of `count` clusters, all placed by the same world. */
@@ -125,7 +125,7 @@ function scene(terrain: number, model: number, blendSlots = 0) {
   const ground = root('t', terrain),
     moving = root('m', model),
     glass = root('g', 2, true)
-  // The packed base of each placement (#1235): the rows of the layout name each page's instance.
+  // The packed base of each placement: the rows of the layout name each page's instance.
   ground.packedBase = 0
   moving.packedBase = terrain
   glass.packedBase = terrain + model
@@ -182,7 +182,7 @@ test('a transparent model claims no row: its corners are sent again, no row is',
   assert.equal(rt.blendState.occlusionEpoch, -1)
 })
 
-test('a moved blended model moves its shadow caster rows, and those alone (#35)', () => {
+test('a moved blended model moves its shadow caster rows, and those alone', () => {
   const { rt, rows, glass } = scene(4, 2, 2)
   // The glass casts from the rows behind the visibility rows, in reverse order.
   rows.blendRowOf[6] = 7

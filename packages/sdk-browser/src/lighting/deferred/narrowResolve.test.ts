@@ -1,7 +1,7 @@
-// The narrow resolve (#849): a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
+// The narrow resolve: a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
 // array is that long, and never a wider scene by it; its cells' lists are in the pool as a wide
-// scene's (#1369), walked by the same loop. A scene with no shadow slot by the program with no
-// shadow code (#1249).
+// scene's, walked by the same loop. A scene with no shadow slot by the program with no
+// shadow code.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
@@ -39,7 +39,7 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
   lighting.dispose()
 })
 
-test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is (#1249)', async () => {
+test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is', async () => {
   const unshadowed = contractLightingShader(false, false, false)
   assert.doesNotMatch(unshadowed, /shade=shadowFactor\(|shadowTransmission;/, 'no shadow read')
   assert.match(contractLightingShader(false, false), /let shade=shadowFactor\(/)

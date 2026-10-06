@@ -1,9 +1,9 @@
-// The rules the snapshot must hold between two frames, and that nothing proved.
+// The rules the snapshot must hold between two frames.
 //
 // `selectionInvalidation.test.ts` covers the RESIDENCY half of the in-flight snapshot guard; the
-// WORLD half was not, nor the fact that a copy only leaves when a readback is due. Both become
-// holes as soon as the cut is published as something other than a complete list: a snapshot
-// drained after a world change describes a scene that no longer exists, and a useless copy
+// WORLD half is covered here, with the fact that a copy only leaves when a readback is due. Both
+// would be holes as soon as the cut is published as something other than a complete list: a
+// snapshot drained after a world change describes a scene that no longer exists, and a useless copy
 // takes a readback slot the next frame will no longer have.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -69,7 +69,7 @@ test('a residency republished identically does not drop the held cut', async () 
     selection.updateResidency(resident, undefined, (page) => moved.push(page)),
     true,
   )
-  assert.ok(moved.length > 0, 'the pages whose readiness moved are named (#831)')
+  assert.ok(moved.length > 0, 'the pages whose readiness moved are named')
   selection.dispatch(uniforms)
   assert.ok(await selection.flush())
   assert.ok(selection.peek(), 'the cut is held')
@@ -88,7 +88,7 @@ test('a disposal with both readbacks in flight maps none of the buffers it destr
   selection.dispatch({ ...uniforms, pixelError: uniforms.pixelError + 1 })
   await new Promise(setImmediate)
   // The world reopens its session here: slot 0's mapping is cut short (`AbortError`), and slot 1's
-  // read starts after its buffer is gone. Neither maps a destroyed buffer (#334).
+  // read starts after its buffer is gone. Neither maps a destroyed buffer.
   selection.dispose()
   release()
   await selection.flush()

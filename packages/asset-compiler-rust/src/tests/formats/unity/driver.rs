@@ -98,7 +98,7 @@ fn a_unity_data_file_is_recognised_by_its_head() {
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Finding 28: a prefab override that targets a material slot beyond what a renderer
+// A prefab override that targets a material slot beyond what a renderer
 // carries — `2^64 − 1` — is counted under its name. The index was trusted as-is:
 // stretching the slot list that far overflowed, and stopped compilation with a panic.
 #[test]

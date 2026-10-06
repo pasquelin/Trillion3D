@@ -42,7 +42,7 @@ export function pagedSample(p: V, shift: V = [3, 1]) {
 export const REQUESTED = { id: MAP, isSinglePage: false }
 export const FLAT = [0, 0, 1e9, 1]
 
-/** Develop's filter at `p`: each tap's bilinear compare of four texels, averaged. */
+/** The reference filter at `p`: each tap's bilinear compare of four texels, averaged. */
 export function developCoverage(p: V, lit: (t: V) => boolean) {
   let sum = 0
   for (const [ox, oy] of PCF_TAPS) {

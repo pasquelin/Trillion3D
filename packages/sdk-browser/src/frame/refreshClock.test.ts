@@ -22,14 +22,14 @@ function measured(vsyncMs: number, frameMs: number) {
   return clock.display
 }
 
-// #1343: the budget follows the display, no fixed cap; slow frames never pass for a slow display.
+// The budget follows the display, no fixed cap; slow frames never pass for a slow display.
 test('the refresh budget follows the display, a device that misses its cadence included', () => {
   assert.ok(near(measured(1000 / 120, 1000 / 120), 8.33), '120 Hz: 8.3 ms')
   assert.ok(near(measured(1000 / 60, 1000 / 60), 16.67), '60 Hz: 16.7 ms')
   assert.ok(near(measured(1000 / 120, 1000 / 16), 8.33), '16 fps at 120 Hz: 8.3 ms')
 })
 
-// #1343: the shortest interval was the period, so one late frame set a 2.5 ms budget.
+// The shortest interval was the period, so one late frame set a 2.5 ms budget.
 test('one late frame sets no period', () => {
   const clock = createRefreshClock(1000 / 60)
   let now = 0
@@ -37,7 +37,7 @@ test('one late frame sets no period', () => {
   assert.ok(near(clock.display, 8.33), `${clock.display}`)
 })
 
-// #1343: a period held while each interval stayed on its grid never rose. #831: the cadence of
+// A period held while each interval stayed on its grid never rose. The cadence of
 // frames held two refreshes is no slower display: the refresh holds until its reader says so.
 test('the cadence rises once the display slows, the refresh holds, and a reset forgets both', () => {
   const clock = createRefreshClock(1000 / 60)
@@ -55,7 +55,7 @@ test('the cadence rises once the display slows, the refresh holds, and a reset f
   assert.ok(near(clock.display, 33.33) && clock.settled, 'a reset measures anew at once')
 })
 
-// #831: the refresh is at most the shortest period the display held; intervals are whole numbers
+// The refresh is at most the shortest period the display held; intervals are whole numbers
 // of it, so a 60 Hz display, whatever its frames miss, never shows a 120 Hz grid.
 test('a shorter cadence lowers the refresh at once; a 60 Hz display never reads 120 Hz', () => {
   const clock = createRefreshClock(1000 / 60)
@@ -75,7 +75,7 @@ test('a shorter cadence lowers the refresh at once; a 60 Hz display never reads 
   assert.ok(sixty.settled)
 })
 
-// #1343: a timer rounded to whole milliseconds reads 120 Hz as 8 and 9 ms, which a tenth of the
+// A timer rounded to whole milliseconds reads 120 Hz as 8 and 9 ms, which a tenth of the
 // period (0.83 ms) never held: the clock never settled.
 test('a timer rounded to the millisecond still measures 120 Hz', () => {
   const clock = createRefreshClock(1000 / 60)

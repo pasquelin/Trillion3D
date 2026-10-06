@@ -13,7 +13,7 @@ function referenceSrgbToLinear(c: number) {
 }
 
 /**
- * The texel's components as both GPU paths upload them (0ff85929e9, 5c6c43e0bc): the coordinate
+ * The texel's components as both GPU paths upload them: the coordinate
  * through the map's affine UV transform unless it is the identity, a `flipY` map's rows read from
  * the last, and each colour byte times its alpha byte, rounded, under `premultiplyAlpha`.
  */

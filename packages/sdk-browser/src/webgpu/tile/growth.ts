@@ -6,7 +6,7 @@ import type { TileTexture } from './tileTexture.ts'
 
 /**
  * What changes the streamer's size in session: its lane pools, drawn again for another budget,
- * and its catalogue, which takes a texture after open (#847) by the path the open ran — its slot
+ * and its catalogue, which takes a texture after open by the path the open ran — its slot
  * in the atlas's table, the data table's feedback ranks moved behind a grown colour one, the
  * feedback counting every rank, its tail pinned from its source, the headers written.
  */

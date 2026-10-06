@@ -2,8 +2,8 @@
 // the WebGL2 backend, and the witness library's WebGL renderer a WebGPU image is compared with. A
 // proof's page module is served from the sources, stripped of its types by the bench harness's
 // server (`tests/kit/server/staticServer.ts`), imported by its blank page and called there: what
-// it answers is the proof's reading. These proofs are the recette's (`pnpm run test:chrome`, which
-// runs `bench/dawn/proofs.ts --chrome`), never a merge's, and open Chrome under the machine's bench
+// it answers is the proof's reading. These proofs run with `pnpm run test:chrome` (which
+// runs `bench/dawn/proofs.ts --chrome`), never at a merge, and open Chrome under the machine's bench
 // lock — shared with the run that started them, taken by a proof run on its own.
 import assert from 'node:assert/strict'
 import { relative, resolve, sep } from 'node:path'

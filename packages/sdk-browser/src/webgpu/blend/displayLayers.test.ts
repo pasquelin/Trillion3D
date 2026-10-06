@@ -1,4 +1,4 @@
-// #558: what is drawn in front of (or behind) a multiply surface, where the display mask is set,
+// What is drawn in front of (or behind) a multiply surface, where the display mask is set,
 // ends as the reference display shows it — at least as close as develop, which blended every
 // layer in linear light. One pixel follows each system: the reference display's canvas of display values,
 // develop's lit target through the tone curve, and this branch's lit target, tint and added value

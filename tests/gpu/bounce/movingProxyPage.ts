@@ -1,5 +1,5 @@
 /**
- * Page of the moving-proxy proof (#27), over the engine's resident proxy
+ * Page of the moving-proxy proof, over the engine's resident proxy
  * (`createGpuBounceProxy`) and the shipped traversal (`movingProxyTrace.ts`):
  * - `run`: one retained plane with two coincident owners, traced still, then after its second
  *   owner moved five metres along x;

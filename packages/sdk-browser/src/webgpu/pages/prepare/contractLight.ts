@@ -25,11 +25,11 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
 }
 
 /** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
- *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
+ *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags. */
 export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || run.diagnostic !== 'beauty'
 
-/** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
+/** The lit programs prepare compiles beside the others when the image wants the contract,
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
  *  starts is the one the first frame asks for (`contractKey`), read off the declared lights. */
 export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
@@ -54,11 +54,11 @@ export const blendContext = (rt: WebgpuPagesRuntime) => ({
 })
 
 /**
- * The contract program a frame lights with, keyed on stable state alone, the store walked once
- * (#1362): narrow while the scene's lights fit a tile list (#849); shadow code while a light
- * declares a shadow and `shadowed`, the shadow raster is fitted (#1249), the read of a kind of
+ * The contract program a frame lights with, keyed on stable state alone, the store walked once:
+ * narrow while the scene's lights fit a tile list; shadow code while a light
+ * declares a shadow and `shadowed`, the shadow raster is fitted, the read of a kind of
  * light (a sun's, a local light's) while a light of that kind declares one (`ShadowKinds`);
- * rectangle code while a light is a rectangle (#1369). Never on a slot held this frame: a lamp that
+ * rectangle code while a light is a rectangle. Never on a slot held this frame: a lamp that
  * moves, a page that comes and goes, asks no other program. Written into `key`, which a frame
  * reuses from one image to the next.
  */
@@ -86,7 +86,7 @@ function contractKey(
   return key as ContractKey
 }
 
-/** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
+/** The lit program the frame waits for: while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
   const { deferred } = rt.gpu
@@ -109,8 +109,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt)
   contractResources.lights = lights.buffer
   contractResources.tiles = active ? lights.tiles?.buffer : undefined
-  // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
-  // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
+  // The narrow resolve reads the narrow pass's lists; a scene with no declared shadow, or
+  // no rectangle, resolves without that code: all read off stable state.
   if (active) {
     contractKey(lights.store, !!lights.pageLayout || !!lights.vsm, contractResources)
     contractResources.narrow &&= !!lights.tiles
@@ -131,7 +131,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.bounceGrid = bounce?.uniform
   contractResources.probes = bounce?.probes
   contractResources.surfaceCache = bounce?.surface.view
-  // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
+  // What the shadow receiver offset is recomputed from: the frame's visibility buffer.
   contractResources.receiver = active ? receiverResources(rt) : undefined
   return contractResources
 }

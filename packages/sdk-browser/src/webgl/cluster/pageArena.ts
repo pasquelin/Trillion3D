@@ -16,15 +16,15 @@ const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT
 const INDEX_BYTES = Uint32Array.BYTES_PER_ELEMENT
 
 /**
- * ONE VERTEX LAYOUT'S SHARED BUFFERS (#840): the vertices of every page drawn with that layout, one
+ * ONE VERTEX LAYOUT'S SHARED BUFFERS: the vertices of every page drawn with that layout, one
  * buffer per attribute, and their indices, rebased on the page's first vertex, in one index buffer
  * — so that the pages of a run, one surface at one placement, draw in one submission of their
  * index ranges (`runs.ts`). Ranges come from the engine's range allocator (`IndexRangeAllocator`),
  * a released page's merged back with its neighbours. When no free range fits, the buffers are made
  * again at twice their size at least, every page laid out again from its own arrays, which the
  * arena holds, in one upload a buffer: a copy on the GPU (`copyBufferSubData`) left pages empty on
- * ANGLE's Metal backend once a later write reached a buffer still in use (sponza `rue`, one
- * capture in three). A growth is an allocation of the geometry pool: a refusal, once read
+ * a Metal-backed WebGL2 layer once a later write reached a buffer still in use (one capture in
+ * three). A growth is an allocation of the geometry pool: a refusal, once read
  * (`../core/allocation.ts`), gives the arena up (`lost`) and its pages are placed again in a new
  * one, the pool a level coarser.
  */

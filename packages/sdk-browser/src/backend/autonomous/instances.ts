@@ -62,7 +62,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
   const paints = createPaints(colorMaterials, draws)
   return {
     /** Why a move into or out of blended takes the cover past the host ceiling, before any write
-     *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
+     *: rows are one instanced mesh while opaque, one mesh a row once blended. */
     materialClassRefusal(alpha: AlphaChange) {
       const unpaged = unpagedRefusal(allPages, alpha)
       if (unpaged) return unpaged
@@ -80,7 +80,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       // Without a host ceiling the cover is always drawn: nothing is counted.
       if (hostCeiling < Infinity) {
         // The meshes it adds: one per record drawn on its own, its rows joining the cover's instanced
-        // ones (`attachedPages`); counted now, as a class change moves records between them (#846).
+        // ones (`attachedPages`); counted now, as a class change moves records between them.
         const ownMeshes = baseBootstrap.filter((rec) => !rowed.has(rec) || rec.transparent).length
         if (overCeiling(ownMeshes)) throw new Error('AUTONOMOUS_ROOT_BUDGET')
       }
@@ -162,7 +162,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       paints.wear(records, painted)
       if (previous) paints.release(previous)
     },
-    /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. A
+    /** Each assigned mesh's records wear its surface (`wearSurface`); copies refused. A
      *  paint of this engine's that no record wears any more is freed, as a repaint frees it. */
     wearSurface({ meshes }: SurfaceAssignment) {
       sceneChanged()

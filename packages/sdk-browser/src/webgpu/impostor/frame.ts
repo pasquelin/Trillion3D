@@ -53,7 +53,7 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
 }
 
 /**
- * THE IMAGE'S IMPOSTOR PLAN on WebGPU (#1335): the shared plan (`planImpostorCards`) at the
+ * THE IMAGE'S IMPOSTOR PLAN on WebGPU: the shared plan (`planImpostorCards`) at the
  * engine's focal length for the image's viewport, each card kept once its mesh's atlas group is
  * made (`feed.ts`). The roots whose card bit moved are handed to the GPU cut too: every camera cut,
  * CPU and GPU, leaves a marked root to its card, every light cut keeps its clusters.

@@ -1,10 +1,10 @@
-// The deferred resolve's lists run on a real GPU (#849, #1369): the shipped `directLightingWgsl` —
+// The deferred resolve's lists run on a real GPU: the shipped `directLightingWgsl` —
 // its narrow program (a scene of at most `TILE_LIGHTS` lights) and its wide one — shades the same
 // samples through `contractLighting`, on a cell record of the light grid and its list in the pool
 // (`cellRecord`). The f32 sums are compared as bits: the narrow list, the wide list, a list past
 // `TILE_LIGHTS` and the walk over every light of the scene give the same sum, bit for bit, since a
 // light that misses a point adds an exact zero; and so do the programs a scene with no shadow
-// (#1249) or no rectangle (#1369) is lit by, the full one less code that never runs there.
+// or no rectangle is lit by, the full one less code that never runs there.
 //
 //   node bench/dawn/proofs.ts tests/gpu/lighting/narrow-resolve.gpu.ts
 import test, { before } from 'node:test'
@@ -86,7 +86,7 @@ const SCENES: ResolveScene[] = [
       record('missing', false, missing),
       // The same list through the program with no shadow code, the scene holding no shadow slot.
       { ...record('unshadowed', false, small.reach), unshadowed: true },
-      // The same list through the program with no rectangle code: the scene holds none (#1369).
+      // The same list through the program with no rectangle code: the scene holds none.
       { ...record('rectless', false, small.reach), rectless: true },
     ],
   },
@@ -117,10 +117,10 @@ test('the narrow list, the wide one, a pool slice and every light sum the same, 
   assert.notDeepEqual(dropped, every, 'a missing light changes the sum')
 })
 
-test('the program with no shadow code sums what the full one does, bit for bit (#1249)', () => {
+test('the program with no shadow code sums what the full one does, bit for bit', () => {
   assertSameBits(sums.unshadowed, sums.wide, 'no shadow code')
 })
 
-test('the program with no rectangle code sums what the full one does, bit for bit (#1369)', () => {
+test('the program with no rectangle code sums what the full one does, bit for bit', () => {
   assertSameBits(sums.rectless, sums.wide, 'no rectangle code')
 })

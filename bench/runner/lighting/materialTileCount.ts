@@ -1,4 +1,4 @@
-// Fragments the material classes rasterise per pixel of the atrium (#1369): each class pass drew
+// Fragments the material classes rasterise per pixel of the atrium: each class pass drew
 // a full-screen triangle the material depth test refused off its pixels, and now draws the screen
 // tiles its pixels are in (`materialTilesWgsl.ts`). Each box of the atrium is a material, of
 // `--classes` classes in turn. COUNTED, never timed: the fragments that pass the test, and so the

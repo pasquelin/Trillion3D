@@ -61,7 +61,7 @@ fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
 }
 fn pointBefore(here:vec4f,id:u32)->vec4f{
  var position=here;
- // A deformed surface was elsewhere in the last frame: its point moves back first (#357).
+ // A deformed surface was elsewhere in the last frame: its point moves back first.
 ${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(id,position);}' : ''}
  if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
  return position;
@@ -93,7 +93,7 @@ const TAA_REPROJECT_WGSL = taaReprojectWgsl()
  * which composition keeps off the display curve — is filtered, clamped and mixed with the very
  * same weights, so it follows the colour it describes: an edge between a debug view and a lit
  * surface settles on one blend of the curve and none, never flipping with the jitter. Without an
- * as-is pixel in the frame (`asIs` false, OMB-11) that share is exactly 0 wherever the colour is
+ * as-is pixel in the frame (`asIs` false) that share is exactly 0 wherever the colour is
  * finite — each neighbour 0, and history clamped to [0, 0] —: the flagless resolve writes 0 and
  * reads neither the flags nor the as-is share history, its colour the same text. Every resolve
  * writes, beside the share, the pixel's geometry an uncovered pixel is told by (`historyWgsl.ts`).

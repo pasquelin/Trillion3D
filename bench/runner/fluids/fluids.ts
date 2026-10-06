@@ -1,8 +1,8 @@
-// The fluids bench scene (#418), `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
+// The fluids bench scene, `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
 // floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
 // public API (`fluids/fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
-// `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
-// transmissive ocean (#422 draws the waves), fires and smoke volumes (#423). The engine has one
+// `floatingBodies`); what the engine does not draw is a THROWAWAY STAND-IN: a flat
+// transmissive ocean (no waves), fires and smoke volumes. The engine has one
 // refraction source, a copy of the lit image: the scene has no switch between two.
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'

@@ -21,7 +21,7 @@ export function createDagPipeline(
     const layout = device.createBindGroupLayout({
       entries: dagBindEntries(split && dagPartCounts(split)),
     })
-    // The screen-error variant is frozen at shader compile: it no longer changes from session
+    // The screen-error variant is frozen at shader compile: it does not change from session
     // open to session close, and the default text is rendered character for character
     // (`withScreenErrorVariant`).
     const module = device.createShaderModule({

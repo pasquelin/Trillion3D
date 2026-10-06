@@ -1,4 +1,4 @@
-// The light grid's pass on a real GPU (#1369): the shipped `lighting/tiles` WGSL — each light's run
+// The light grid's pass on a real GPU: the shipped `lighting/tiles` WGSL — each light's run
 // in each column, the two walks, the cache and the lights tested again past it, the pool — builds,
 // cell by cell, lists that hold every lamp reaching a point of the cell, in increasing order, with
 // the count's shadow bit where a listed lamp holds a slot; and those lists are its oracle's

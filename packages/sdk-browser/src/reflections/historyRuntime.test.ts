@@ -65,7 +65,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     encode()
     assert.equal(draws, 3)
     // The change cap holds until the stale share is gone, then a full window closes it: a held
-    // image keeps nothing of the old reflection.
+    // image keeps nothing of the previous reflection.
     for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) {
       frame.frame++
       history.prepare(frame, IDENTITY_MATRIX4)
@@ -114,7 +114,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       encode()
     }
     assert.equal(draws, beforeLight + 3, 'light changes resume in the same frame')
-    // #1342: no motion brings an old lighting to the new one: once it stops, the stale share is
+    // No motion brings a previous lighting to the current one: once it stops, the stale share is
     // flushed at the change weight before the still window closes.
     for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) {
       frame.frame++

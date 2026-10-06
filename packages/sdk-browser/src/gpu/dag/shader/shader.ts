@@ -58,7 +58,7 @@ fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7ffffff
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
 fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
-/** A plane moved out by the primitive's deformation reach along every axis (#357): a box clears it
+/** A plane moved out by the primitive's deformation reach along every axis: a box clears it
  *  only if the box grown by that reach would — the CPU cut's \`growPlanes\`. */
 fn grownPlane(p:vec4f)->vec4f{return vec4f(p.xyz,p.w+deformReach*(abs(p.x)+abs(p.y)+abs(p.z)));}
 /** How far the current primitive's GPU deformation moves a vertex this frame, in its units

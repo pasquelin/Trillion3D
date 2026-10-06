@@ -70,7 +70,7 @@ function gridPeriod(
 }
 
 /**
- * The display's refresh interval, measured on the vsync grid rAF timestamps land on (#1343): the
+ * The display's refresh interval, measured on the vsync grid rAF timestamps land on: the
  * longest period nine in ten of the last second's frame intervals are a whole number of, from a
  * value several of them share. A frame that met the cadence gives it exactly; a device that never
  * meets it still does, from its missed frames — at 16 fps on a 120 Hz display its frames take 7
@@ -78,7 +78,7 @@ function gridPeriod(
  * display. A lone late frame sets nothing. The whole window is searched again at every frame: that
  * period is the cadence, which rises once the shorter intervals are a second old.
  *
- * The refresh is not the cadence (#831): every interval is a whole number of refreshes, so the
+ * The refresh is not the cadence: every interval is a whole number of refreshes, so the
  * refresh is at most the shortest period the display was seen to hold, and a cadence of two
  * refreshes — a page whose frames the GPU holds that long — says nothing of a slower display. The
  * refresh falls at once to a shorter cadence, follows one within the tolerance, and holds above a

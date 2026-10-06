@@ -15,7 +15,7 @@ const pictureOf = (texture: Texture) =>
   textureRgba(texture) || texture.image ? sourceSize(texture) : undefined
 
 /**
- * WHAT A FRAME MAY UPLOAD OF THE MAPS (#840), WebGPU's tile budget on WebGL2: the bytes and the CPU
+ * WHAT A FRAME MAY UPLOAD OF THE MAPS, WebGPU's tile budget on WebGL2: the bytes and the CPU
  * milliseconds the session declares (`maxTextureTransferBytesPerFrame`,
  * `maxTextureUploadMsPerFrame`), 16 MiB and 1 ms by default (`transferBudgets.ts`). A map a draw
  * binds is never refused — WebGL2 holds no coarser level of a map not yet sent, and drawn without
@@ -61,9 +61,9 @@ type Bind = [
 type Ahead = [...Bind, sent: number]
 
 /**
- * THE MAPS UPLOADED AHEAD OF THE DRAWS (#840). A picture sent to WebGL2 is copied through the
- * context's transfer memory; a map uploaded at the first draw that shows it held that frame
- * 100–140 ms on sponza `rue`. The census orders every map of the declared surfaces (`eachMap`, the
+ * THE MAPS UPLOADED AHEAD OF THE DRAWS. A picture sent to WebGL2 is copied through the
+ * context's transfer memory; a map uploaded at the first draw that shows it holds that frame
+ * 100–140 ms. The census orders every map of the declared surfaces (`eachMap`, the
  * draw's own walk: same textures, same keys), attached or not, until the maps it counts reach the
  * texture pool — the bytes the session grants; each frame then uploads the next ones, before its
  * draws, while they fit its budget (`WebglUploadBudget`) and only once the GPU passed the frame
@@ -141,7 +141,7 @@ export class WebglTextureQueue {
   private promote() {
     if (!this.pending.length || this.seen === hostTextureWrites()) return
     this.seen = hostTextureWrites()
-    // The pool only fills: once full, no waiting map can be queued any more.
+    // The pool only fills: once full, no waiting map can be queued.
     if (this.held >= this.poolBytes) {
       this.pending.length = 0
       return
@@ -158,9 +158,8 @@ export class WebglTextureQueue {
   /**
    * Before a frame's commands: moves in the maps whose picture arrived (`promote`), then uploads
    * the next ones while they fit its budget, once the GPU ran every command of the last frame. An
-   * upload sent while the GPU process is behind waits for it: sponza `rue` held frames 90–120 ms
-   * on one map sent after the frame's draws; sent before them, the GPU idle, the same map took a
-   * millisecond.
+   * upload sent while the GPU process is behind waits for it: one map sent after the frame's draws
+   * holds frames 90–120 ms; sent before them, the GPU idle, the same map takes a millisecond.
    */
   drain(gl: WebGL2RenderingContext, textures: Pick<WebglClusterTextures, 'bind'>) {
     this.promote() // no GL call: a picture that arrived is queued even while the GPU is behind
@@ -176,8 +175,8 @@ export class WebglTextureQueue {
   }
   /**
    * Before the session's first frame: the queue drained a budget per task, each task waiting for
-   * the GPU to pass the last, so the frames find their maps sent (sponza `rue` drew one map first
-   * bound mid-trajectory in a frame of 160–220 ms). The main thread is yielded between tasks.
+   * the GPU to pass the last, so the frames find their maps sent (a map first bound
+   * mid-trajectory would cost a frame of 160–220 ms). The main thread is yielded between tasks.
    */
   async prepare(gl: WebGL2RenderingContext, textures: Pick<WebglClusterTextures, 'bind'>) {
     while (this.next < this.queue.length && !gl.isContextLost()) {

@@ -83,11 +83,11 @@ export function createReflectionHistory(
       return complete()
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
-     *  moved source keeps the history, reprojected, clipped to the image's neighbourhood (#831);
+     *  moved source keeps the history, reprojected, clipped to the image's neighbourhood;
      *  without, it keeps `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES`. A relit source
      *  (lights, materials) keeps it clipped while it changes, then `REFLECTION_CHANGE_KEPT` for
      *  `REFLECTION_CHANGE_FRAMES` from the first image after: no motion brings an old lighting to
-     *  the new one, and a held image keeps nothing of it (#1342). Reset each image, a flickering
+     *  the new one, and a held image keeps nothing of it. Reset each image, a flickering
      *  brazier's or a circling lamp's scene drew every rough reflection from one image's samples:
      *  sparks. A new drawn extent resets it. */
     prepare(
@@ -119,7 +119,7 @@ export function createReflectionHistory(
         sinceChange = Infinity
       } else if (written) {
         rank = (rank + 1) >>> 0
-        // A change the motion cannot follow keeps the history at the change weight (#33); a
+        // A change the motion cannot follow keeps the history at the change weight; a
         // relight, from the first image after it.
         if (unfollowed || relit) sinceChange = 0
       }

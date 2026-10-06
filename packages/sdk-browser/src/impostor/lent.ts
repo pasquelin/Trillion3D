@@ -1,5 +1,5 @@
 /**
- * What the core lends the impostor family on either renderer (#1335, #1336): the shared sprite
+ * What the core lends the impostor family on either renderer: the shared sprite
  * basis, card bit, pixel scale, held-level read, eviction and diagnostics. Each renderer lends
  * these with its own pieces (`../webgl/impostor/lent.ts`, `../webgpu/impostor/lent.ts`), so the
  * WebGL2 path never loads WebGPU code; `loadImpostorCode` hands the renderer's lend to the family

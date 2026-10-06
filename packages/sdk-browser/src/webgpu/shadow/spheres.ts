@@ -16,7 +16,7 @@ import { packDoubles } from '../../placement/composedMotion.ts'
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
  * radius of the sphere circumscribed to the transformed box, overestimated term by term. It is an
  * overestimate, never an underestimate — a cluster is dropped only by being certainly outside the
- * volume. A dynamic page's box is where its vertices are this frame (`moved`, #573); another grows
+ * volume. A dynamic page's box is where its vertices are this frame (`moved`); another grows
  * by its root's deformation reach.
  */
 function writeClusterSphere(

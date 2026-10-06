@@ -1,6 +1,6 @@
-// Equivalence cases of batch M2, view frustum and cone: planes, box test, local-space planes
+// Equivalence cases of the view frustum and cone: planes, box test, local-space planes
 // and cone reject of `sdk-core` against Three.js, on the hostile inputs of `scenesVolumes.ts`.
-// The three-state test is also opposed to the old `boxClip` in the previous plane order:
+// The three-state test is also opposed to the host `boxClip` in its own plane order:
 // reordering the planes changes no verdict. Only the "identical" column decides, bit-exact.
 import {
   boxConeRejects,
@@ -48,8 +48,8 @@ const locaux = (views: { vp: number[] }[], worlds: number[][], pas: number): Loc
   )
 
 /** Equivalence lines of the frustum and the cone, without timer options. */
-// The Three oracle of these three computations predates the reversed-depth convention
-// (reversed Z, infinite far plane): it no longer describes the same output. Their
+// The Three oracle of these three computations follows another depth convention than
+// reversed Z with an infinite far plane: it does not describe the same output. Their
 // correctness is held by `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `bench/witnesses/three/parity/core/math/frustum/box.test.ts`, and the bench
 // line publishes it.
 const Z_INVERSE =

@@ -134,7 +134,7 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose()
 })
 
-// #1345: texture-pool layers are allocated on first use: a scene with no map holds none, its white
+// Texture-pool layers are allocated on first use: a scene with no map holds none, its white
 // fill read from the stand-in, and its first map opens its lane's pool, a copy destination one
 // layer deep.
 test('texture pools are allocated at the first map, copy destinations at the size it fills', async () => {

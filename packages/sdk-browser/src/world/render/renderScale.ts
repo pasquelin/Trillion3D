@@ -60,7 +60,7 @@ function createResources(gl: WebGL2RenderingContext) {
 }
 
 /**
- * WebGL2's render scale (#834): the scale the engine's `renderScaleControl` picks — its bounds'
+ * WebGL2's render scale: the scale the engine's `renderScaleControl` picks — its bounds'
  * maximum on a still image (`frameHeld`), which the kept image then is, the controller's while it
  * moves (`wanted`) —, the image drawn at it in the top-left of a target made at that maximum,
  * and resampled to the display with Lanczos-2 (`../../webgl/core/resampleGlsl.ts`). WebGL2 keeps no

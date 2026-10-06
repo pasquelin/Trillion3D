@@ -1,4 +1,4 @@
-// The exact witness asks for whole groups, as the engine does (#486): the cut rule draws a group
+// The exact witness asks for whole groups, as the engine does: the cut rule draws a group
 // only once all of it is resident, so a wanted page brings its group-mates and the groups above.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -1,6 +1,6 @@
-// C7: sRGB to linear in texture sampling moves from a per-component, per-pixel power to a
-// 256-entry table (math.ts). An 8-bit sRGB component has only 256 possible antecedents,
-// so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
+// sRGB to linear in texture sampling is a 256-entry table (math.ts), not a per-component,
+// per-pixel power. An 8-bit sRGB component has only 256 possible antecedents,
+// so the table carries exactly the same floats as the power formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { importHostTexture } from '../host/textureImport.ts'
@@ -13,7 +13,7 @@ import { sampleLinear, sampleMap } from '../../../../bench/oracles/browser/cpu-i
 import { textureRgba } from './types.ts'
 import { referenceTextureRgba } from '../../../../bench/oracles/browser/sampled-texture.ts'
 
-/** `math.ts` before lot C: a power per component, without a table. */
+/** The reference: a power per component, without a table. */
 function referenceSrgbToLinear(c: number) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
 }
@@ -116,9 +116,9 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
   }
 })
 
-// Lot F, F15: `textureRgba` (types.ts) keeps a texture's bytes as long as its source
+// `textureRgba` (types.ts) keeps a texture's bytes as long as its source
 // (buffer, offset, length, width, height) does not change, instead of allocating a view and an
-// object at every sampled texel. The oracle is the unconditional allocation from before lot F,
+// object at every sampled texel. The oracle is the unconditional allocation,
 // copied as-is into `bench/oracles/browser/cpu-image/math.ts`.
 test('a texture without an image or without data yields null on both sides', () => {
   const sansImage = importHostTexture(new G.GraphTexture())
@@ -178,7 +178,7 @@ test('the same width/height but an image resized without changing buffer also in
   assert.deepEqual(second, referenceTextureRgba(imported))
 })
 
-// #360: the CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
+// The CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
 // twice across reads, at u = 0.3, the texel the raw coordinate 0.6 names.
 test('a map is read through its UV transform, the raw coordinate when it is the identity', () => {
   const host = new G.GraphTexture()

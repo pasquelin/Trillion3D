@@ -141,12 +141,12 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null
   /** Its group links. */ structure?: ClusterStructure | null
   /** Its stream bundles. */ streams?: StreamCatalogue | null
-  /** A world's dynamic geometry (#573): index pages alone, their vertices read as floats from the
+  /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean
   /** Null on a primitive without pages, which was quantized on no grid. */
   quantization?: PrimitiveQuantization | null
-  /** How far its deformation can move a vertex from its rest pose (#357): per joint of its skin
+  /** How far its deformation can move a vertex from its rest pose: per joint of its skin
    *  the ball of the vertices that joint moves, `[x, y, z, radius]` flat, and each morph target's
    *  largest displacement; `null` or absent on a primitive that does not deform. */
   deformation?: {
@@ -198,6 +198,6 @@ export interface ClusterManifest {
   /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
    *  Absent from a cache compiled before bounce, which remains readable as is. */
   proxy?: SceneProxyDescriptor
-  /** Per-mesh impostor atlases baked by the compiler (#817); absent from a pre-impostor cache. */
+  /** Per-mesh impostor atlases baked by the compiler; absent from a pre-impostor cache. */
   impostors?: ImpostorSection
 }

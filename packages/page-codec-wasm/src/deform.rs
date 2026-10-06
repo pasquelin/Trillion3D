@@ -1,4 +1,4 @@
-//! What a `WGP3` page carries for the GPU deformation stage (#357): the joints and weights of a
+//! What a `WGP3` page carries for the GPU deformation stage: the joints and weights of a
 //! skinned vertex, and the position and normal displacement of each morph target. Both are
 //! optional streams after the colour, flagged in word 4; word 23 of the header packs the skin
 //! record and the target count (`word`), and each target's record follows the twenty-five header

@@ -99,7 +99,7 @@ export class WebglClusterSubmission {
     }
     return submitted
   }
-  /** The state of one draw of `mesh`: its placements, its matrix and its deformation (#357). */
+  /** The state of one draw of `mesh`: its placements, its matrix and its deformation. */
   private place(mesh: ClusterDraw, instanced: boolean, view: ArrayLike<number>) {
     if (this.instanced !== instanced) this.gl.uniform1i(this.at('instanced'), instanced ? 1 : 0)
     this.instanced = instanced

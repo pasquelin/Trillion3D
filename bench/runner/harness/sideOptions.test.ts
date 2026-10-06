@@ -21,7 +21,7 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
   assert.throws(() => equip('before', { 'error-metric': 'other' }), /must be certifiee, reference/)
 })
 
-// #816: one run pits the native frame against one drawn below the display and reconstructed.
+// One run pits the native frame against one drawn below the display and reconstructed.
 test('a side takes its own render scale, then the campaign one, otherwise the display', () => {
   assert.equal(equip('before', {}).renderScale, null)
   assert.equal(equip('before', { scale: '0.5' }).renderScale, 0.5)

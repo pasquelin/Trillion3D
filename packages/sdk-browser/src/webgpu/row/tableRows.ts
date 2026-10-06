@@ -3,7 +3,7 @@ import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts'
 import { pageTableRows } from './pageTableRows.ts'
 
 /**
- * THE ROWS A VIEW IS GIVEN (#1232): a fixed visible-cluster budget. The page table is sized by
+ * THE ROWS A VIEW IS GIVEN: a fixed visible-cluster budget. The page table is sized by
  * what a view draws, never by the world's placements: a scene asks at most `VIEW_ROWS` rows however
  * many times its pages are placed. A scene whose packed instances exceed them is cut on the CPU
  * (`../pages/prepare/preparePages.ts`), which claims a row for each cluster it selects and nothing
@@ -45,7 +45,7 @@ export function boundTableRows(
 }
 
 /**
- * The rows a table of `held` rows grows to when `asked` (`boundTableRows`) asks more (#216): no
+ * The rows a table of `held` rows grows to when `asked` (`boundTableRows`) asks more: no
  * visibility row gives way, nor a caster row, and a table the device bounds stays within one
  * binding, its casters' rows taking what the binding leaves beside the visibility rows.
  */

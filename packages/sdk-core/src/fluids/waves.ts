@@ -2,8 +2,8 @@ import { hypot2, hypot3 } from '../math/primitives/hypot.ts'
 
 /**
  * The one wave model of the engine: a sum of trochoidal waves. Buoyancy reads it on the CPU (the
- * physics worker); the water surface's shader code will be generated from the same numbers
- * (#422), so nothing about a wave is written twice. A trochoidal wave moves a
+ * physics worker); the water surface's shader code takes the same numbers,
+ * so nothing about a wave is written twice. A trochoidal wave moves a
  * point of the rest plane both up and sideways, towards the crest, so the height above a world
  * position is found by iterating on the rest position (`surface.ts`). The previous
  * frame's surface is the same formula at `t - dt`: nothing is stored.

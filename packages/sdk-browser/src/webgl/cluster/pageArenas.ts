@@ -33,11 +33,11 @@ const giveBack = (slots: readonly ArenaSlot[]) => {
 }
 
 /**
- * THE SHARED BUFFERS OF THE PAGES (#840): every mesh drawn once, of an engine geometry — one that
+ * THE SHARED BUFFERS OF THE PAGES: every mesh drawn once, of an engine geometry — one that
  * announces its release — with 32-bit indices and float attributes, is placed in the arena of its
  * vertex layout (`pageArena.ts`) instead of buffers of its own, and freed from it with its
  * geometry. Any other mesh — instanced, a batch record, a host geometry, packed attributes — keeps
- * its own (`geometry.ts`), and is drawn exactly as before. A geometry rewritten once placed —
+ * its own (`geometry.ts`), and is drawn as such. A geometry rewritten once placed —
  * read once a frame — leaves for buffers of its own, where a rewrite sends only what changed. A
  * freed page's ranges are written again only once the GPU ran the frames that could read them
  * (`beginFrame`): no write reaches a range a frame in flight still draws.
@@ -71,7 +71,7 @@ export class WebglPageArenas {
     if (this.freed.length) {
       const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
       if (fence) retiring.push({ fence, slots: this.freed })
-      else giveBack(this.freed) // a lost context: nothing is read any more
+      else giveBack(this.freed) // a lost context: nothing is read
       this.freed = []
     }
     while (

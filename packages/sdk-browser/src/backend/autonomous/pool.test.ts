@@ -22,7 +22,7 @@ test('over its budget the pool sheds the pages it holds least recently used, nev
   assert.deepEqual(f.dropped, ['p1'])
   assert.ok(f.state.allocationBytes <= 3 * PAGE)
   // Once no longer asked for, p0 is released at the next cut, and its last use was that image: p2,
-  // unused since it arrived, leaves before it (#839: last use, not arrival).
+  // unused since it arrived, leaves before it (last use, not arrival).
   f.keep([])
   f.pool.trim()
   f.arrive('p4')
@@ -38,7 +38,7 @@ test('a page asked for holds its parents: the ancestor drawn in its place never 
   f.pool.trim()
   f.arrive('p2')
   // Just before the next cut, what the image drew is no longer protected as drawn: p0 stays as the
-  // parent of a page asked for, and the page no image holds goes (#839).
+  // parent of a page asked for, and the page no image holds goes.
   f.pool.trim()
   assert.deepEqual(f.dropped, ['p2'])
   assert.deepEqual([...f.resident], ['p0'])
@@ -145,7 +145,7 @@ test('the bytes the pool holds are bounded as its slots are, by the page cap', (
   assert.equal(f.state.allocationBytes, 3 * PAGE)
 })
 
-// #839: work and tables follow the view, never the world.
+// Work and tables follow the view, never the world.
 test('an image costs the residency the same work in a world sixteen times larger', () => {
   const imageWork = (scale: number) => {
     const f = fixture(1000 * scale, { budgetBytes: 40 * PAGE, rootPages: 10 * scale })

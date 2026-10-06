@@ -41,7 +41,7 @@ type Placements = {
   coverChanged: () => void
 }
 
-/** The instance-buffer updates of the WebGL2 path, its mounts in place included (#572). */
+/** The instance-buffer updates of the WebGL2 path, its mounts in place included. */
 export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, draws, blendCopies, scene, gate } = env
   const { context, descriptors, bootstrapUrls, geometryStore, coverChanged } = env,
@@ -64,7 +64,7 @@ export function autonomousPlacements(env: Placements) {
     gate.sceneChanged()
   }
   return {
-    /** WebGL2's move by name (#972): the node the name index finds, posed as WebGPU poses it
+    /** WebGL2's move by name: the node the name index finds, posed as WebGPU poses it
      *  (`poseNode`), from the parent world its host chain composes. The next image walks the
      *  engine index and follows it as it follows a host write, which the move settles. */
     setTransform(nodeName: string, matrix: Float32Array) {
@@ -81,7 +81,7 @@ export function autonomousPlacements(env: Placements) {
     /** The growth contract (`growth.ts`): every table of this path is a list, so the
      *  new rows' roots and pages are appended to them, indexed like the ones collected. */
     growPlacements(from: PlacementRows, to: PlacementRows) {
-      // A new row reads its primitive's own records (#1235): they are already catalogued and by URL.
+      // A new row reads its primitive's own records: they are already catalogued and by URL.
       // Its root joins, and its cover instances; the layout gives each new instance the geometry and
       // surface its page's first instance wears (`pageDraws.ts`).
       for (const { item: root } of growRowRoots(roots, from, to)) {
@@ -124,7 +124,7 @@ export function autonomousPlacements(env: Placements) {
       for (const copy of collected.blendCopies) blendCopies.push(copy)
       for (const copy of collected.blendCopies) scene.add(copy as unknown as Object3D)
       urls.forEach((url, i) => geometryStore.storeGeometryPage(url, pages[i]))
-      // A page the host replaced stays the host's, the cover's as the others (#837).
+      // A page the host replaced stays the host's, the cover's as the others.
       geometryStore.storeReplaced(admitted.filter((url) => !covered.has(url)))
       changed()
     },

@@ -1,5 +1,5 @@
 // A split cut's kernel binds every part its layout declares, reads across them through the same
-// accessors, and a whole cut keeps the shipped text (#974).
+// accessors, and a whole cut keeps the shipped text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dagBindEntries } from './bindings.ts'

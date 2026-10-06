@@ -1,4 +1,4 @@
-// #364: a sprite that keeps its size on screen grows with its view depth, so no fixed world bound
+// A sprite that keeps its size on screen grows with its view depth, so no fixed world bound
 // holds its quad: its root is never culled by a camera cut (`neverCulled`, `SPRITE_UNCULLED`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -46,7 +46,7 @@ for (const hierarchical of [false, true])
     assert.equal(packed(attenuated).roots[0].mark, 1)
     assert.ok(cpuUrls(constant, 0, cam).length > 0, 'the CPU cut selects it')
     assert.ok(kernelUrls(constant, 0, cam).urls.length > 0, 'the GPU cut selects it')
-    // A sprite that shrinks with distance, and every other surface, is culled as before.
+    // A sprite that shrinks with distance, and every other surface, is culled by the plain rule.
     assert.deepEqual(cpuUrls(attenuated, 0, cam), [])
     assert.deepEqual(kernelUrls(attenuated, 0, cam).urls, [])
     constant.geometry.dispose()

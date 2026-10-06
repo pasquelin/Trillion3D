@@ -1,4 +1,4 @@
-// The WebGL2 frame time (#840): with `EXT_disjoint_timer_query_webgl2` granted, the host's draw
+// The WebGL2 frame time: with `EXT_disjoint_timer_query_webgl2` granted, the host's draw
 // times each image and the frame metrics carry its GPU duration, with no per-step profile asked.
 import test from 'node:test'
 import assert from 'node:assert/strict'

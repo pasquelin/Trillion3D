@@ -2,7 +2,7 @@
 // child of a rig the host moves and walks nothing up; the engine's camera-pose contract must
 // resolve the chain. The GPU partition reprojects every resident row's screen rectangle each frame
 // from the matrices the frame sends it, so what is left to prove is the rig resolution: two frames
-// per pose — the one after the move and the one that no longer moves —, each compared byte for
+// per pose — the one after the move and the one that does not move —, each compared byte for
 // byte to a fresh engine placed at once at the same world pose.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type {

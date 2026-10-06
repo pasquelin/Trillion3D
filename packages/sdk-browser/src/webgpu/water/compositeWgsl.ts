@@ -74,7 +74,7 @@ export const WATER_BINDINGS = {
  * crosses an object before its exit does not see it, a known limit shared with the forward pass.
  * And the share transmitted through an empty backdrop keeps that emptiness as coverage, so the
  * display background shows through a surface in front of nothing instead of a black radiance.
- * Its mirror ray is bounded (`BOUNDED_SCREEN_REFLECTION_WGSL`, #1279), but in a reference session:
+ * Its mirror ray is bounded (`BOUNDED_SCREEN_REFLECTION_WGSL`), but in a reference session:
  * `unbounded`, the whole walk and the proxy ray (`reflectionTrace`, `frame/referenceMode.ts`).
  * The surface's lit colour, which only the share the material does not transmit, `(1-t)·alpha`,
  * carries into the composite: at full transmission (`t` = 1) that share is zero, `0·alpha·lit` an
@@ -148,7 +148,7 @@ fn waterColor(pixel:vec4f)->vec4f{
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- // Shadows read at the pixel's own footprint (\`shadowReadWgsl.ts\`, #1412); the normal of the side
+ // Shadows read at the pixel's own footprint (\`shadowReadWgsl.ts\`); the normal of the side
  // we look from, else refraction would go the wrong way and Fresnel yield a black mirror.
  shadowFootprint=waterShadowFootprint(pixel.xy,fragZ,P);
  shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));

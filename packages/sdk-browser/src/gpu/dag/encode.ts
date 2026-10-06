@@ -21,9 +21,9 @@ const DAG_PASS: GPUComputePassDescriptor = { label: 'Trillion3D DAG selection' }
  * kernel that filled the list wrote in `work`. WebGPU refuses, in one dispatch, an argument
  * buffer that a group its pipeline uses binds writable, and `work` is: the arming kernel copies
  * the counts into `dispatchArgs`, which only its own group binds (`shader/armWgsl.ts`), as a
- * dispatch of the same pass. Arming used to copy outside a pass and cut it in three; a pass behind
- * an off-pass copy costs about seventeen times a dispatch in the open pass (the measurement next
- * to `hierarchyLevelSizes`, `hierarchy.ts`).
+ * dispatch of the same pass: arming by a copy outside a pass would cut it in three, and a pass
+ * behind an off-pass copy costs about seventeen times a dispatch in the open pass (the measurement
+ * next to `hierarchyLevelSizes`, `hierarchy.ts`).
  *
  * Not that the three lists have no upper bound: `pageCount` is one for all. It is COARSE,
  * 1,959,792 for 21,955 useful on the twelve-instance bench, when a level's stage hugs its queue:
@@ -128,10 +128,10 @@ function encodeOnce(
   }
   arm(pass, resources)
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
-  // the previous one, it is no longer spoken on those it said nothing about.
+  // the previous one, it is not spoken on those it said nothing about.
   perRangeIndirect(pass, ranges, maskPipeline, dispatchArgs, DAG_ARGS.live)
-  // The drawable-page list is compacted here, in increasing order: the snapshot no longer
-  // reports one flag per page but the count alone and its ranks.
+  // The drawable-page list is compacted here, in increasing order: the snapshot
+  // reports not one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
   // workgroup, in the same pass (`shader/snapshotWgsl.ts`).
   // Last, once every page this cut uses is stamped, the eviction queue (`shader/evictWgsl.ts`).

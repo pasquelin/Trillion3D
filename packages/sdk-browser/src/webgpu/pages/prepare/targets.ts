@@ -43,7 +43,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
  *  The view's temporal history goes with them — a capture draws in a view of its own —, unless
- *  `keepHistory`: the display's size stays, only the render size changes (#1343). Targets made
+ *  `keepHistory`: the display's size stays, only the render size changes. Targets made
  *  aside for this view go too (`targetsAside.ts`): those in place are what they were to replace. */
 export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
   const { gpu, vis, capture } = rt

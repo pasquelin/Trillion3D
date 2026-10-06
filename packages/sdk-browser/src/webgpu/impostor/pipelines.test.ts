@@ -1,4 +1,4 @@
-// #1336: the WebGPU card pipelines are checked where the session prepares. Refused by the device —
+// The WebGPU card pipelines are checked where the session prepares. Refused by the device —
 // in its validation scope, or by a pipeline compiled off the thread —, the failure is told once and
 // the answer is false, so the session keeps no impostor code and every root its clusters, never
 // setting an invalid pipeline that would lose each image's commands. Fails without the check: the

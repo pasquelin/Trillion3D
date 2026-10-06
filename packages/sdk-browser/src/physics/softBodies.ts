@@ -66,7 +66,7 @@ export function writeSoftBody(
 /** The soft body drawn into each geometry; the one drawing now (`drawSoft`), if any. */
 const drawers = new WeakMap<Geometry, Mesh>()
 let drawing: Mesh | null = null
-/** Whether `node`'s change is its soft body drawn where it is: no new shape to simulate (#573). */
+/** Whether `node`'s change is its soft body drawn where it is: no new shape to simulate. */
 export const drawnBySoft = (node: object) => node === drawing
 
 /**
@@ -96,7 +96,7 @@ export function addSoftBody(
   drawers.set(mesh.geometry, mesh)
   const record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass }, step)
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS)
-  // Its vertices move every step: uploaded in place, never cut into pages again (#573).
+  // Its vertices move every step: uploaded in place, never cut into pages again.
   mesh.geometry.usage = 'dynamic'
   const scale = [size.x, size.y, size.z] as const
   writeSoftBody(writer, id, p, physicsMatterOf(mesh.material), { ...pose, scale }, record, flags)
@@ -104,7 +104,7 @@ export function addSoftBody(
   return id & BODY_INDEX
 }
 
-/** Draws `mesh` where its soft body is (#573): its geometry's positions, and its float normals
+/** Draws `mesh` where its soft body is: its geometry's positions, and its float normals
  *  when it carries some, rewritten in place from `vertices`, one simulated place per vertex. */
 function drawSoft(mesh: Mesh, vertices: Float32Array) {
   const { position, normal } = mesh.geometry.attributes

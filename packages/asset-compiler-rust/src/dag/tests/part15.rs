@@ -1,4 +1,4 @@
-//! Tighter projection spheres (`tight.rs`, #929): the audit's equivalence (CMP-02) on its edge
+//! Tighter projection spheres (`tight.rs`): equivalence on its edge
 //! cases, then on whole DAGs of smooth meshes.
 use super::*;
 use crate::shared_math::{length, point, sub};
@@ -22,7 +22,7 @@ fn holds_vertices(sphere: [f64; 4], positions: &[f32], indices: &[u32]) -> bool 
         .all(|&v| holds(sphere, point(positions, v), 0.0, 0.0))
 }
 
-/// A grid wrapped onto a sphere of radius 5: the audit's smooth surface, its largest gains.
+/// A grid wrapped onto a sphere of radius 5: a smooth surface, its largest gains.
 fn ball(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (mut positions, indices) = grid(n);
     for p in positions.as_chunks_mut::<3>().0 {
@@ -131,7 +131,7 @@ fn every_tightened_sphere_holds_its_cluster_and_children_and_is_no_larger_than_t
             let builder = enclosing_sphere(&children);
             group.outputs.iter().for_each(|&id| loose[id] = builder);
             for &id in &group.children {
-                // A group left on the builder's merge keeps its rounding (1.1e-13 m, audit).
+                // A group left on the builder's merge keeps its rounding (1.1e-13 m).
                 let [x, y, z, r] = dag[id].sphere;
                 assert!(holds(group.sphere, [x, y, z], r, 1e-12), "a child leaves");
                 assert_eq!(dag[id].parent_sphere, group.sphere);
@@ -139,7 +139,7 @@ fn every_tightened_sphere_holds_its_cluster_and_children_and_is_no_larger_than_t
             for &id in &group.outputs {
                 assert!(holds_vertices(group.sphere, &positions, &dag[id].indices));
             }
-            // CMP-17: a group under the floor is its level's only one, with no group to join.
+            // A group under the floor is its level's only one, with no group to join.
             let peers = groups.iter().filter(|g| g.level == group.level).count();
             assert!(group.children.len() >= DAG_GROUP_MIN || peers == 1);
             smaller += usize::from(group.sphere[3] < builder[3]);

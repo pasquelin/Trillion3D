@@ -1,4 +1,4 @@
-//! A06 — glTF 2.0 §3.5: the document renders only one scene. Nodes and lights of
+//! GlTF 2.0 §3.5: the document renders only one scene. Nodes and lights of
 //! the others, and those no scene names, do not belong to what is compiled.
 use super::*;
 

@@ -1,10 +1,10 @@
-// Bug 9 (`NORMAL_TRANSFORM_WGSL`, ../lighting/standardLighting.ts): lighting normal transformation
-// carried its own copy of `inverseTranspose3`, with absolute threshold `abs(det)<1e-20`
-// on raw determinant that Bug 6 had already corrected in selection kernel. Uniform scale
-// rotation s has determinant ±s³: as soon as s ≲ 2.15e-7, rendered normal was LOCAL normal,
-// unrotated, and surface was reads as if unrotated.
+// `NORMAL_TRANSFORM_WGSL` (../lighting/standardLighting.ts): the lighting normal transformation
+// shares `inverseTranspose3` with the selection kernel, whose threshold is relative. An absolute
+// threshold `abs(det)<1e-20` on the raw determinant would fail: a uniform scale
+// rotation s has determinant ±s³, so as soon as s ≲ 2.15e-7 the rendered normal would be the LOCAL
+// normal, unrotated, and the surface would read as if unrotated.
 //
-// WHAT THIS FILE HOLDS, AND HOW. It no longer reads shader text with regex patterns: a suite of
+// WHAT THIS FILE HOLDS, AND HOW. It reads no shader text with regex patterns: a suite of
 // `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
 // CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
 // `tests/gpu/math/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
@@ -13,7 +13,7 @@
 // shipped on Dawn on EXACTELY these cases (`tests/gpu/math/normalTransformCases.ts`) and
 // mandates rendering what model renders — which is also where non-compiling shader fails proof.
 // Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
-// would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
+// would not compile, and two arithmetic copies would drift. CRITERION judging
 // a rendered normal is tested separately in `normalTransformCriterion.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'

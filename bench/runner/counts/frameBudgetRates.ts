@@ -1,4 +1,4 @@
-// What the whole-frame budget of the boss's case (`counts/frameBudget.ts`, #1369) prices its counts at,
+// What the whole-frame budget of the reference case (`counts/frameBudget.ts`) prices its counts at,
 // and the per-pixel accesses it counts where no counter walks the shipped shader.
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
 import { hizLevelSizes } from '../../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts'
@@ -15,10 +15,10 @@ export const CLASSES = 6
 /**
  * The rates, each from a measured number:
  * - `texelPs`: the lighting model's texel rate (`LIGHTING_RATES`), MODELLED: every per-pixel access.
- * - `trianglePs`: a triangle drawn into the visibility buffer, UE5's Nanite raster on PS5 — main and
- *   post pass, 1,148 + 183 µs for 25 million triangles —: a reference's rate.
+ * - `trianglePs`: a triangle drawn into the visibility buffer, a software raster on a console
+ *   GPU — main and post pass, 1,148 + 183 µs for 25 million triangles —: a reference rate.
  * - `shadedPs`, `weightPs`: a light shaded, and a light weighed or listed out of range, in the
- *   resolve's program with shadow code, timed on develop's resolve (docs/ENGINE.md, #1326): 42.3
+ *   resolve's program with shadow code, timed on the resolve (docs/ENGINE.md): 42.3
  *   and 28.1 ps a pixel.
  */
 export const FRAME_RATES = {
@@ -42,8 +42,8 @@ export const PCF_GATHERS = LIGHT_SETTINGS.pcfTaps
 export const DEMAND_MARKS = 4
 
 export const UNCOUNTED = [
-  'shadow pages drawn: none in the steady state of a moving camera and still lamps (#1363 made the marks stable); a lamp that moves redraws its pages',
-  'the shadow passes that run per frame whatever is drawn: cull, page pyramids, occlusion (the recette timed the shadow stage at 12.1–13.0 ms before #1363)',
+  'shadow pages drawn: none in the steady state of a moving camera and still lamps (the marks are stable); a lamp that moves redraws its pages',
+  'the shadow passes that run per frame whatever is drawn: cull, page pyramids, occlusion',
   'selection and partition of the clusters: a few thousand clusters a frame',
   'the CPU: the recette timed it at 1.8 ms p50 on this case',
 ]

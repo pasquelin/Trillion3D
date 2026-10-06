@@ -1,4 +1,4 @@
-// #362: the WebGPU working texture of a page texture is uploaded the way the WebGL2 binder uploads
+// The WebGPU working texture of a page texture is uploaded the way the WebGL2 binder uploads
 // it (`UNPACK_FLIP_Y_WEBGL`) and three's Texture reads it: a canvas, a video frame or a turned and
 // tiled picture, `flipY` by default, lands with its last row at v = 0; a picture that says
 // `flipY: false` (a decoded glTF image, raw texels) lands as it is.
@@ -94,7 +94,7 @@ test('raw texels are written as they are, or rows reversed when flipY is asked',
   assert.deepEqual([...upload(flipped, [1, 2]).rows[0]], [0, 0, 255, 255, 255, 0, 0, 255])
 })
 
-// #43: texels the RGBA8 working texture cannot hold as stored — three channels, one, floats, fewer
+// Texels the RGBA8 working texture cannot hold as stored — three channels, one, floats, fewer
 // bytes than the size holds — are refused in the WebGL2 gate's words (`texelsReason`), never
 // written as RGBA8 to draw wrong or fail the device's validation.
 test('texels the RGBA8 working texture cannot hold as stored are refused by name', () => {
@@ -165,7 +165,7 @@ test('a live flipped picture refilled 60 times stages its rows in one array', ()
   scratch.destroy()
 })
 
-// #42: the working texture's mips weigh their colours by alpha only for a texture every reader
+// The working texture's mips weigh their colours by alpha only for a texture every reader
 // takes for coverage, and not when the upload already premultiplied them — weighing twice would
 // darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
 test('a coverage working texture reduces weighted by alpha unless uploaded premultiplied', () => {

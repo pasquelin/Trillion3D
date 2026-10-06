@@ -1,5 +1,5 @@
 // Rendering of a measurement row, written once. Benchmark console and aggregated table
-// compose the exact same cells in the same order: they can no longer display two formats of
+// compose the exact same cells in the same order: they cannot display two formats of
 // the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { gapLevel } from './baseline.ts'
 import type { ResultRow } from '../../site/examples/kit/measureTypes.ts'

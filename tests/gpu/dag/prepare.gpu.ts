@@ -1,4 +1,4 @@
-// What a camera cut's `dagPrepare` derives once per primitive (#979, `primitiveWgsl.ts`) changes no
+// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`) changes no
 // verdict. The kernel runs twice on the same cases: as shipped, and with every prepared read put
 // back to the expression it caches — `view · world`, the normal matrix and the conformity of the
 // world's 3×3, the view ahead's planes —, each written on the engine's own accessors (`worldPose`,

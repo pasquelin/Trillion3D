@@ -1,6 +1,6 @@
-// A moved model forgets and sends its own rows, not the terrain rows between them (#428). The
-// table used to keep one dirty interval: a model whose rows sit at both ends of the table dropped
-// the occlusion history of every row in between and sent them all again, each image it moved.
+// A moved model forgets and sends its own rows, not the terrain rows between them. The
+// table must not keep one dirty interval: a model whose rows sit at both ends of the table would
+// drop the occlusion history of every row in between and send them all again, each image it moved.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts'
@@ -31,7 +31,7 @@ function scatteredScene() {
       }) as unknown as PageRec,
   )
   // One world for every row, the model's root's: its rows are those it moves. The model's pages
-  // are packed 0..5 (#1235) and their rows are the scattered MODEL_ROWS.
+  // are packed 0..5 and their rows are the scattered MODEL_ROWS.
   const model = {
     world,
     pages: MODEL_ROWS.map((row) => pages[row]),
@@ -70,7 +70,7 @@ function scatteredScene() {
       cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
       selectionRoots: [model],
-      // Every packed rank names the one placement (#1235).
+      // Every packed rank names the one placement.
       placement: {
         baseOfRoot: Int32Array.of(0),
         rootOfPacked: Int32Array.from({ length: ROWS }, () => 0),

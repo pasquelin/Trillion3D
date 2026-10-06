@@ -77,7 +77,7 @@ test('invalid provenance groups, source ranks, cycles, source meshes and nonfini
   check((view) => view.setUint32(164, 0, true)) // empty group instead of two owners
   check((view) => view.setUint32(168, 3, true)) // only source nodes zero to two exist
   check((view) => view.setInt32(184, 0, true)) // node zero parents itself
-  check((view) => view.setInt32(196, -2, true)) // a mesh rank is -1 (none) or more (#966)
+  check((view) => view.setInt32(196, -2, true)) // a mesh rank is -1 (none) or more
   check((view, prefix) => view.setFloat64(prefix, NaN, true))
 })
 

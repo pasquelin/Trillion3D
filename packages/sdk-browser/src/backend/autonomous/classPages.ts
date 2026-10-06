@@ -1,10 +1,10 @@
 /**
- * The pages of a primitive whose material moved into or out of blended in the session (#846).
- * The compiler cuts a blended primitive on finer grids than an opaque or masked one (#875), so
+ * The pages of a primitive whose material moved into or out of blended in the session.
+ * The compiler cuts a blended primitive on finer grids than an opaque or masked one, so
  * the pages a session opened for one class are not the ones it writes for the other. Such a
  * primitive is cut again by the runtime cutter (`runtimeCut.ts`), off the main thread, from the
  * source vertices its pages were cut from — and the vertices a seam-locked solve placed, from the
- * pages naming them (`placedVertices.ts`, #877) —, on its own clusters — each page's corners, read
+ * pages naming them (`placedVertices.ts`) —, on its own clusters — each page's corners, read
  * from its index page — and on the grids the compiler gives the new class (`Recut`); its resident
  * records then draw the new pages, and every page it reads later too (`PageRec.recut`). Moved
  * back to the class it was compiled for, it draws the pages it reads again. Until a cut lands,
@@ -30,7 +30,7 @@ import type { PageDraws } from './pageDraws.ts'
 
 type ClassPagesEnvironment = {
   context: BackendContext
-  /** The engine's roots: a page's world is its root's (#1235). */
+  /** The engine's roots: a page's world is its root's. */
   roots: readonly ClusterRoot<PageRec>[]
   /** The per-instance draw state: the last class change an instance followed is `turn` there. */
   draws: PageDraws

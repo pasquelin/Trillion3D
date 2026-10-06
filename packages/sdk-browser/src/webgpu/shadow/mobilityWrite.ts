@@ -65,9 +65,9 @@ function writeDirtyRows(
  * placement, then the rows of every placement `touch`ed since (moving or static, casting or
  * not), and hands each written span to push. A row from `alwaysMoving` on is a blended
  * caster's: moving as its placement is. A row `cutout` says is filed with the casters drawn
- * with the fragment test (#965); a blended caster's never is: the transmittance pass reads the
- * other list alone. `corners` is the count a row draws, what its region's command is sized by
- * (#966). `shadowless` says a placement casts no shadow — `castShadow = false`, hidden or
+ * with the fragment test; a blended caster's never is: the transmittance pass reads the
+ * other list alone. `corners` is the count a row draws, what its region's command is sized by.
+ * `shadowless` says a placement casts no shadow — `castShadow = false`, hidden or
  * parked: its rows carry `MOBILITY_SHADOWLESS`, which every caster pass skips.
  */
 export function writeMobilityRows(

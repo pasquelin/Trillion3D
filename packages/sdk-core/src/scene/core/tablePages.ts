@@ -1,5 +1,5 @@
 /**
- * The pages of a paged index (`partition/pages.rs`, #750): a root or an index page lists slots of
+ * The pages of a paged index (`partition/pages.rs`): a root or an index page lists slots of
  * one width, each naming a page by its fingerprint and size, boxed, with what is listed beside it;
  * a region page lists records. The cell index (`tablePartition.ts`) and the manifest's mesh pages
  * (`manifest/paged.ts`) are read through it.
@@ -16,7 +16,7 @@ export interface PageKind {
   invalid: string
 }
 /** A page of an index a slot names, its box at the declared poses, and the core ranks listed
- *  beside it: for the cell index, the parents its cells hang nodes under (#575). */
+ *  beside it: for the cell index, the parents its cells hang nodes under. */
 export type TableSlot = {
   /** The page the slot names. */
   page: TablePage

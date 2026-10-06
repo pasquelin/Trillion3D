@@ -8,7 +8,7 @@ export type ShrunkPool = { budgetBytes: number; allocatedBytes: number; clamp: P
 export type RefusedPool = 'geometry' | 'texture' | 'shadow' | 'target'
 
 /**
- * THE ONE RULE OF AN OUT-OF-MEMORY REFUSAL (#483 rule 5), on WebGPU (`../webgpu/residency/
+ * THE ONE RULE OF AN OUT-OF-MEMORY REFUSAL, on WebGPU (`../webgpu/residency/
  * poolGrants.ts`) as on WebGL2 (`../backend/autonomous/pool.ts`): the refused pool is drawn again,
  * by its own rule `draw`, at half the bytes it would have held. At its floor — where half draws no
  * smaller pool: the root cover of the geometry, the tails of each texture lane — undefined.

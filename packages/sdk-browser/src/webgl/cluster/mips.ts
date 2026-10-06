@@ -45,12 +45,12 @@ function buildReducer(gl: WebGL2RenderingContext) {
 }
 
 /**
- * WebGL2 coverage mips (#42), drawn over `generateMipmap`'s box: one draw per level from a scratch
- * copy of the level above — #709 sampled the texture it drew into, a loop the browser refused, and
- * left every level empty (alpha 0). A plain chain, or a format no framebuffer holds (asked once),
- * keeps the box chain, byte for byte. A `cutoff` scales each level's median to keep level 0's
- * coverage when the context counts (`WebglCoverageCounts`). sRGB is read decoded, written encoded;
- * the state touched is restored, so it runs mid-pass.
+ * WebGL2 coverage mips, drawn over `generateMipmap`'s box: one draw per level from a scratch
+ * copy of the level above, as sampling the texture being drawn into is a loop the browser refuses
+ * and leaves every level empty (alpha 0). A plain chain, or a format no framebuffer holds (asked
+ * once), keeps the box chain, byte for byte. A `cutoff` scales each level's median to keep level
+ * 0's coverage when the context counts (`WebglCoverageCounts`). sRGB is read decoded, written
+ * encoded; the state touched is restored, so it runs mid-pass.
  */
 export class WebglMipReducer {
   private gl: WebGL2RenderingContext

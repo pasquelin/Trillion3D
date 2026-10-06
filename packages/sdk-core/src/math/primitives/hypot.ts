@@ -5,7 +5,7 @@
  * of `packages/page-codec-wasm/src/math.rs`.
  *
  * Why: the optimising compiler does not inline the builtin, which boxes its arguments into an
- * array and returns a heap number (about 55 ns a call in the #917 bench, whose ~1.5 ns side was a
+ * array and returns a heap number (about 55 ns a call in a bench, whose ~1.5 ns side was a
  * plain `Math.sqrt`, not these helpers: their own cost was not timed). The
  * result is the builtin's to the bit (`hypot.test.ts`); the specification leaves `Math.hypot`
  * approximated, and these return the value Chrome and Node return.

@@ -3,13 +3,13 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { readsAsIs } from './lightResources.ts'
 import { drawsParticles } from '../../particles/webgpuParticleFrame.ts'
 
-/** Whether the transparents write the share: a blended image that can show a debug view (#365),
- *  or whose temporal pass reads their coverage as the reactive value (#833). */
+/** Whether the transparents write the share: a blended image that can show a debug view,
+ *  or whose temporal pass reads their coverage as the reactive value. */
 export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
   rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted)
 
 /** Whether the image has a share target: its transparents or its particles (their coverage as the
- *  reactive value, #833) write it. Any other scene draws and allocates what it did before (#365). */
+ *  reactive value) write it. Any other scene draws and allocates what it did before. */
 export const wantsAsIsShare = (rt: WebgpuPagesRuntime) => blendWritesShare(rt) || drawsParticles(rt)
 
 /** The share target at `width`×`height`, over the opaque flags: made with the targets or later. */
@@ -26,7 +26,7 @@ export function makeAsIsShare(
 export const activeAsIsShare = (rt: WebgpuPagesRuntime) =>
   blendWritesShare(rt) ? rt.gpu.asIsShare : undefined
 
-/** Releases the share target and its cost, when there is one (#1162). */
+/** Releases the share target and its cost, when there is one. */
 function releaseAsIsShare(rt: WebgpuPagesRuntime) {
   const { gpu } = rt
   if (!gpu.asIsShare) return
@@ -40,7 +40,7 @@ function releaseAsIsShare(rt: WebgpuPagesRuntime) {
  * Seeds, from the opaque flags, the share the transparents and particles blend into this image,
  * and returns it: the one made with the targets, or one made at the first image that wants it and
  * kept with them. An image where neither writes it runs no seed pass and returns nothing; one that
- * no longer wants it at all (`wantsAsIsShare`, a debug view turned off) releases it (#1162).
+ * no longer wants it at all (`wantsAsIsShare`, a debug view turned off) releases it.
  */
 export function seedAsIsShare(
   rt: WebgpuPagesRuntime,

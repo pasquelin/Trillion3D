@@ -1,7 +1,7 @@
 // Pure A6 and A7 oracles, no side effects: the perf benches measure them; unit tests
 // import them as reference.
 
-/** `packages/sdk-browser/src/page/selection/math.ts:110-134` before batch A: one branch per plane and per vertex. */
+/** `packages/sdk-browser/src/page/selection/math.ts:110-134`: one branch per plane and per vertex. */
 export function referenceBoxClip(
   planes: Float64Array,
   minX: number,
@@ -28,7 +28,7 @@ export function referenceBoxClip(
   return inside
 }
 
-/** `packages/sdk-browser/src/page/selection/requests.ts:77-96` before batch A: a `Set` allocated per call without stamps. */
+/** `packages/sdk-browser/src/page/selection/requests.ts:77-96`: a `Set` allocated per call without stamps. */
 export function referenceCollectPendingUrls<
   T extends { array?: Uint32Array; url: string; streamUrl?: string },
 >(shown: readonly T[], into: string[]) {
@@ -54,7 +54,7 @@ interface ResidencyOracleEnv {
   retained: string[]
 }
 
-/** `packages/sdk-browser/src/backend/autonomous/residency.ts:24-37` before batch A: `includes` in a loop, `Set` and three spreads. */
+/** `packages/sdk-browser/src/backend/autonomous/residency.ts:24-37`: `includes` in a loop, `Set` and three spreads. */
 export function referenceResidency(env: ResidencyOracleEnv) {
   const { bootstrapUrls, modifiedPages, shown, desired, pending, retained } = env
   return {

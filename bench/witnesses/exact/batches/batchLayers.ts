@@ -13,7 +13,7 @@ import { BatchGroup } from './batchPrimitive.ts'
  */
 
 /** One twin batch per (instance, layer) encountered. A scene without stacked coplanar
- *  surfaces creates none and draws exactly as before. */
+ *  surfaces creates none and draws the plain batch. */
 export function buildLayerGroups(
   pages: readonly BatchPage[],
   groups: Array<BatchGroup | undefined>,

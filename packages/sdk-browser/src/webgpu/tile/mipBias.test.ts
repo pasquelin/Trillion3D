@@ -15,7 +15,7 @@ const body = (source: string, name: string) => {
   return source.slice(start, source.indexOf('\nfn ', start + 1))
 }
 
-// #816: a frame drawn below the display reads its textures at the display's texel density.
+// A frame drawn below the display reads its textures at the display's texel density.
 test('every texture level, read or asked, adds the frame offset: zero at native size', () => {
   const dot = (a: Vec, b: Vec) => a.x * b.x + a.y * b.y
   const lodAt = (bias: number) =>

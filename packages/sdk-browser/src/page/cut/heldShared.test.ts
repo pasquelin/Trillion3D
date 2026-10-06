@@ -1,4 +1,4 @@
-// #1232: residency is the record's, and every placement of a primitive shares its records (#1235):
+// Residency is the record's, and every placement of a primitive shares its records:
 // the CPU cut holds one readiness per primitive, never one per placement in view, and a move named
 // through any placement's rank reaches the one state.
 import test from 'node:test'

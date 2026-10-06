@@ -21,7 +21,7 @@ export function thumbnailDelay(html: string): number {
 }
 
 /**
- * The examples that legitimately draw under the proof's tenth (#527), each with the share it
+ * The examples that legitimately draw under the proof's tenth, each with the share it
  * must still reach, the backends it is sparse on and why: every other example, and every example
  * on a backend it is not declared for, keeps the tenth. The shares sit under the ones measured on
  * 2026-09-24, and for the three skinned scenes at half those measured on 2026-10-04: a blank or a

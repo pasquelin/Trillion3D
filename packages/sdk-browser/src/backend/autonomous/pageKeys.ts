@@ -4,7 +4,7 @@ import type { PageRec } from '../../page/selection/selection.ts'
  * The WebGL2 pages as the shared residency reads them: a small integer per URL, memoised on each
  * record (`PageRec.keyIndex`, checked against the URL it names) so an image hashes no string, and
  * given back once the page is no longer held, so the tables follow what the view holds, never
- * every URL ever asked for (#483 rule 6).
+ * every URL ever asked for.
  */
 export function createPageKeys() {
   const keys = new Map<string, number>(),

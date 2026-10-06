@@ -65,7 +65,7 @@ export function createExplorerMetrics(
     gpuPassMs: null,
     gpuFrameMs: null,
     gpuHostGapMs: null,
-    gpuIdleMs: null, // device idle between two images (#1451)
+    gpuIdleMs: null, // device idle between two images
     gpuDeviceLost: null,
     uncoveredTriangles: null,
     drawnTriangles: null,

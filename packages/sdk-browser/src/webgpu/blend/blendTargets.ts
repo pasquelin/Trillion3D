@@ -20,6 +20,6 @@ export const blendTargets = (
     blend: COVERAGE_EQUATIONS[mode],
   },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-  share ? SHARE_TARGET : null, // every mode covers it at its alpha (#365), green included (#833)
+  share ? SHARE_TARGET : null, // every mode covers it at its alpha, green included
   ...(filtered ? displayTargets(mode) : []),
 ]

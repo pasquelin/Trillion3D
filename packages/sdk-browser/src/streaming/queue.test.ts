@@ -1,6 +1,6 @@
 // A12: the transfer queue is sorted once per `while` pass, and `findAdmissible`
 // replaces the `queue.sort()` + `findIndex` repeated each turn. Oracle: the version that
-// systematically re-sorted, from before batch A, in `../../../../bench/oracles/browser/arrival-admission.ts`.
+// systematically re-sorted, in `../../../../bench/oracles/browser/arrival-admission.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { compacteFile, findAdmissible } from './queueOrder.ts'
@@ -113,7 +113,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
 // G5: a cancelled request is marked `dropped` then the queue is compacted in one pass
 // (`compacteFile`) on the next `pump`, instead of being found by `queue.indexOf` and removed by
 // `splice` on each cancellation. Oracle of the immediate remove: `referenceRetireDeLaFile`, copied
-// as-is from before batch G in `../../../../bench/oracles/browser/streaming-lookups.ts`.
+// as-is in `../../../../bench/oracles/browser/streaming-lookups.ts`.
 {
   const { referenceRetireDeLaFile } =
     await import('../../../../bench/oracles/browser/streaming-lookups.ts')
@@ -140,7 +140,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
     const old = ['a', 'b', 'c', 'd'].map(job)
     const nouvelle = ['a', 'b', 'c', 'd'].map(job)
 
-    // Cancel 'b': the old one removes it at once, the new one only marks it.
+    // Cancel 'b': the sorted one removes it at once, the insertion-ordered one only marks it.
     referenceRetireDeLaFile(
       old,
       old.find((j) => j.url === 'b')!,
@@ -159,7 +159,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
     )
     nouvelle.find((j) => j.url === 'd')!.state = 'dropped'
 
-    // Drain: the new one finally compacts, in one pass.
+    // Drain: the insertion-ordered one finally compacts, in one pass.
     compacteFile(nouvelle)
 
     assert.deepEqual(urls(nouvelle), urls(old))

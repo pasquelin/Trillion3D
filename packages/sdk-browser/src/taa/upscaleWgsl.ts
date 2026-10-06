@@ -43,11 +43,11 @@ const stillTapsWgsl = (
  * - the YCoCg box history is clamped to, as at native size.
  * Reprojection starts from the unjittered display-pixel centre at the dilated depth; the history
  * blend is the native resolve's (`taaHistoryBlend`), its `reach` the Lanczos-2 weight of the
- * nearest sample, its distance in display pixels (#833), and the tag written the dilated texel's.
+ * nearest sample, its distance in display pixels, and the tag written the dilated texel's.
  * The as-is share and the display layers (`layers.ts`) follow the colour's weights. A still image
  * weighs each sample by the Blackman-Harris window of one DISPLAY pixel instead, and averages its
  * images by those weights (`stillAverage`, `historyWgsl.ts`): the phases then rebuild the display size's
- * detail, where a render-pixel kernel would soften it (#1343).
+ * detail, where a render-pixel kernel would soften it.
  */
 export const taaUpscaleShader = (
   asIs: boolean,

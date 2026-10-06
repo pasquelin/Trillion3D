@@ -3,7 +3,7 @@ import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts'
 
 /**
- * THE LIGHT GRID (#1369): cells of `tileSize` pixels across and `gridSlices` slices of
+ * THE LIGHT GRID: cells of `tileSize` pixels across and `gridSlices` slices of
  * depth, a doubling of the view depth every `gridSlicesPerOctave` slices, each listing the lights
  * whose range meets it, and each pixel walking the list of the cell its depth falls in. The lights
  * are culled once per image against the cells' own bounds — never against the depths the image

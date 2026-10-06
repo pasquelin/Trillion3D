@@ -17,7 +17,7 @@ fn a_thousand_instances_store_under_half_the_flat_bytes() {
     );
 }
 
-/// The writer's bytes for 60 copies of one triangle, and develop's flat file of the same proxy:
+/// The writer's bytes for 60 copies of one triangle, and the flat file of the same proxy:
 /// `sdk-core/src/scene/core/proxy.test.ts` reads the first and must find the second.
 /// `cargo run --example proxy_sharing` regenerates both.
 #[test]
@@ -51,8 +51,8 @@ fn no_instance_writes_the_header_and_empty_group_sentinel() {
     );
 }
 
-/// #966: a source node names the compiled mesh it places (`mesh_map`), `-1` for none, right after its parent
-/// rank: the runtime reads a partition's cell node, which no core node carries, by its mesh.
+/// A source node names the compiled mesh it places (`mesh_map`), `-1` for none, right after its
+/// parent rank: the runtime reads a partition's cell node, which no core node carries, by its mesh.
 #[test]
 fn each_source_node_names_the_mesh_it_places() {
     use crate::proxy::{stage_proxy, ProxyInputs};

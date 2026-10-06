@@ -87,12 +87,12 @@ const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
 /**
  * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout,
  * whether it casts no shadow (`castShadow = false`, hidden or parked), the corners its row draws
- * (#966) — pushed on the same
+ * — pushed on the same
  * dirty interval as the spheres and the page table's flags — a row whose cut readiness moved is
  * marked too (`gpuCutStream.ts`) —, and the rows of each placement that turned moving or static,
  * or started or stopped casting (`mobility.touch`): what the
  * page cull splits a page's casters by, static layer or moving casters, and drawn with no fragment
- * stage or with the cutout test (#965).
+ * stage or with the cutout test.
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
@@ -135,7 +135,7 @@ export const changeBoxes = [0, 1].map(() => {
 })
 
 /** True when the placement of rank `rank` already moves: the static layer does not hold its
- *  casters, and a change of its own redraws the moving casters alone (#993). */
+ *  casters, and a change of its own redraws the moving casters alone. */
 export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
   rank >= 0 && mobility.moves(rank)
 
@@ -143,9 +143,9 @@ export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
  * A page entered residency or left it since the last plan: the scene is drawn at another
  * precision where it is, so the shadow maps of lights whose range touches this box
  * no longer describe it exactly and become candidates again. Without that, a settled map would
- * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). A
+ * keep the shadow of a cluster that left, or ignore that of a cluster that arrived. A
  * residency change the cut reads (`atOnce`) stales its pages at the next plan, the camera moving
- * or not (#831): a page kept with a superseded form of a surface shades the form the camera now
+ * or not: a page kept with a superseded form of a surface shades the form the camera now
  * draws in patches. Another change of the representation waits for the camera to rest. The
  * declared box is that of the cluster's world sphere; a moving placement's, or a blended
  * caster's (`moving`), leaves the static layer as it is.

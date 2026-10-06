@@ -78,7 +78,7 @@ pub(super) fn finish(
     let output_bytes = manifest["metrics"]["outputGeometryBytes"].take();
     manifest["metrics"] = json!({"importMs":import_ms,"clusterHierarchyPagesMs":null,"pruneMs":shared_math::elapsed_ms(prune_start),"wallMs":shared_math::elapsed_ms(started),"outputGeometryBytes":output_bytes,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb});
     manifest["reused"] = report;
-    // An older head kept its run's reused pages (#1370): that run's report, not this one's.
+    // An older head kept its run's reused pages: that run's report, not this one's.
     manifest
         .as_object_mut()
         .map(|m| m.remove(compiler_manifest_pages::RUN_REPORT));

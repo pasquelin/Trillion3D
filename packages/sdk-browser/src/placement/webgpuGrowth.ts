@@ -8,7 +8,7 @@
  * A growth whose pages ask more rows than the page table holds grows the table in place after them
  * (`growTables.ts`): until it is granted, a page that finds no row is drawn by its nearest resident
  * ancestor, as on a table the device bounds. The GPU cut, the transparent table and the forward
- * copies lay their own tables out at open (#483): a growth they read is refused, and the owner
+ * copies lay their own tables out at open: a growth they read is refused, and the owner
  * opens the session again.
  */
 import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
@@ -53,7 +53,7 @@ export function growWebgpuPlacements(
     selectionRoots.push(root)
     setup.roots.push(root)
   }
-  // The new rows read their primitive's own shared records (#1235): nothing is stored per page,
+  // The new rows read their primitive's own shared records: nothing is stored per page,
   // the placement tables rewritten in place say which root each new packed rank belongs to, and
   // the pool's copies count each primitive page once by its new placements.
   const added = selectionRoots.slice(grown)
@@ -85,7 +85,7 @@ export function growWebgpuPlacements(
   run.gate.sceneChanged()
 }
 
-/** The root boxes' batch for the longer list: the one held no longer plays (`transformRootBoxes`),
+/** The root boxes' batch for the longer list: the one held does not play (`transformRootBoxes`),
  *  and the moved boxes are reprojected one by one, to the same bits, until the new one is ready. */
 function reserveBoxes(rt: WebgpuPagesRuntime) {
   const { layout, signal } = rt

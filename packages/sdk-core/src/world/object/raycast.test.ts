@@ -13,7 +13,7 @@ import { Geometry } from '../geometry/geometry.ts'
 const down = (x: number, z: number) => new Ray(new Vector3(x, 10, z), new Vector3(0, -1, 0))
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9
 
-/** The walk #368 shipped, frozen as the oracle: ray–triangle intersection over every triangle, in
+/** The brute-force walk, frozen as the oracle: ray–triangle intersection over every triangle, in
  *  order. */
 function bruteForce(p: ArrayLike<number>, index: ArrayLike<number>, o: Vector3, d: Vector3) {
   let best = -1,

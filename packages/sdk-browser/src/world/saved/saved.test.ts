@@ -175,7 +175,7 @@ test('two scenes read at once are read one after the other, never merged', async
   assert.deepEqual(urls, [{ manifestUrl: 'second' }], 'the second scene alone')
 })
 
-// #364: a sprite comes back a sprite, its centre and its material's turn kept.
+// A sprite comes back a sprite, its centre and its material's turn kept.
 test('a saved sprite is read back a sprite, with its centre and its turn', async () => {
   const scene = sceneWithLoads([])
   const marker = object.sprite(material.sprite({ rotation: 0.6, sizeAttenuation: false }))

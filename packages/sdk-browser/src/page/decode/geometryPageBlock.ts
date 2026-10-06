@@ -3,7 +3,7 @@ import { FLAG_MORPH, FLAG_SKIN, OPTIONAL } from '../../cluster/format.ts'
 /**
  * The block a decoded page occupies, whichever decoder produced it: the 32-bit indices, then the
  * floats of each attribute in stream order — position, then the optional attributes the flags
- * name, then a skin's joints and weights and the morph targets' displacements (#357). One
+ * name, then a skin's joints and weights and the morph targets' displacements. One
  * buffer, so a page crosses a thread or the WebAssembly boundary whole.
  */
 /** Float width of each decoded attribute, by its name; `morph` is six per target. */

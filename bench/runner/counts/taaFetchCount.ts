@@ -1,4 +1,4 @@
-// Fetches the temporal resolve issues per display pixel of a moving and of a still image (#1369),
+// Fetches the temporal resolve issues per display pixel of a moving and of a still image,
 // the shipped resolves run in JavaScript (`upscaleRun.fixture.ts`), every load, filtered sample
 // and gather counted one: at the display's size, and reconstructing a frame drawn at half of it per
 // axis, the scale `renderScale: 'auto'` reaches under load. A pixel that still shows what it

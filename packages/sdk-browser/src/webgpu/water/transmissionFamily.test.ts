@@ -8,7 +8,7 @@ import type { BlendGpuItem } from '../blend/state.ts'
 const items = (transmissive: boolean) =>
   [{ transmissive, surface: { blending: 'normal' } }] as unknown as BlendGpuItem[]
 
-test("glass loads transmission's code at prepare, never the particles' (#1353)", async () => {
+test("glass loads transmission's code at prepare, never the particles'", async () => {
   await createWebgpuBlendPipelines(mountDevice().device, items(false))
   await families.transmission.settled()
   assert.equal(families.transmission.arrived, false, 'a scene that transmits nothing loads none')

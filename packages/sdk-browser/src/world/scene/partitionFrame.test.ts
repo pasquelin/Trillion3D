@@ -74,14 +74,14 @@ test('a frame reads the cells within the far plane of its camera, visible first 
   })!()
   assert.deepEqual(seen[0].eye, [3, 4, 5])
   assert.equal(seen[0].reach, cellReach(camera))
-  assert.equal(seen[0].io.lens, undefined, 'no cut packs the world DAG: no far cell (#1332)')
+  assert.equal(seen[0].io.lens, undefined, 'no cut packs the world DAG: no far cell')
   assert.deepEqual(asked, [
     [['near.json'], PRIORITY_VISIBLE],
     [['ahead.json'], PRIORITY_PREFETCH],
   ])
 })
 
-test('a cut that packs the world DAG lends the plan its lens, on the frustum diagonal (#1332)', () => {
+test('a cut that packs the world DAG lends the plan its lens, on the frustum diagonal', () => {
   const { cells, seen } = recording()
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 500)
   const uniforms = createSelectionUniforms(),
@@ -127,7 +127,7 @@ async function asks(
 }
 
 test('a pebble far below any error target is read while the far plane lets it be drawn', async () => {
-  // Nothing coarser stands for an unread cell before #23: a small object within the far plane is
+  // Nothing coarser stands for an unread cell: a small object within the far plane is
   // read whatever it projects to, or it would be missing from the image for good.
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
   assert.deepEqual(await asks('pebble.json', [200, 0, 0, 200.01, 0.01, 0.01], camera), [

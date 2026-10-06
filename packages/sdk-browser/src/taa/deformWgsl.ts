@@ -1,7 +1,7 @@
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 
 /**
- * Per-vertex motion of a deformed surface (#357): where the last frame drew the surface point a
+ * Per-vertex motion of a deformed surface: where the last frame drew the surface point a
  * pixel shows. The pixel's point, relative to the eye, lies on the triangle its identifier names;
  * its barycentric weights on that triangle, as this frame deforms it, carry the same weights of
  * the triangle as the last frame deformed it (`pagePreviousPosition`). The difference, taken into

@@ -1,4 +1,4 @@
-// #1235: the WebGL2 per-instance draw table. Its placement tables are one object rewritten in place,
+// The WebGL2 per-instance draw table. Its placement tables are one object rewritten in place,
 // so a reader built once — the pool's page parents, the held residency — follows every layout; and
 // each root's instance state is carried across layouts from the packed base it was laid out at.
 import test from 'node:test'

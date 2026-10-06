@@ -1,5 +1,5 @@
 // A growth of the float pool places the whole-copy table again after the wider vertices
-// (`prepareWebgpuGeometry`, #1293): the table it replaces is freed, never left on the device.
+// (`prepareWebgpuGeometry`): the table it replaces is freed, never left on the device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

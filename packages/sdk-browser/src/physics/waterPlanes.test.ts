@@ -8,7 +8,7 @@ import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { startModule, type Module } from './module.fixture.ts'
 import { waveRest } from '../../../sdk-core/src/fluids/waveRest.ts'
 
-/** `wavePatch` as the page computed it before the module did: the frozen oracle, never edited. */
+/** `wavePatch` as the page computes it without the module: the frozen oracle, never edited. */
 function patch(
   waves: Waves,
   px: number,
@@ -44,7 +44,7 @@ function patch(
   return y
 }
 
-/** The planes the page's `StepWords` wrote for `pieces` before the module computed them. */
+/** The planes the page's `StepWords` writes for `pieces` without the module computing them. */
 function oracle(water: ReturnType<typeof createWater>, pieces: Float32Array) {
   const count = pieces.length / WATER_PIECE_WORDS,
     out = new Uint32Array(count * PLANE_WORDS),

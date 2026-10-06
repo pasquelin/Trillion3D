@@ -1,4 +1,4 @@
-//! A03 — `simplification = none` promises exact clusters and nothing else. What
+//! `simplification = none` promises exact clusters and nothing else. What
 //! the DAG builds above level zero is not an optimisation: it is geometry the
 //! source does not have.
 use super::*;
@@ -44,10 +44,10 @@ fn simplification_none_builds_no_coarse_level() {
     );
 }
 
-// Behaviour: `qem-endpoints` keeps the DAG it used to build, and never leaves more roots than the
-// 127 of the simplifier's older version. Under 0.25 (`meshopt` 0.6) the count depends on the machine: 125 on
-// aarch64, 127 on x86_64, the simplifier's floating-point results differing between the two. The
-// depth and the exact level-zero cover are the same everywhere.
+// Behaviour: `qem-endpoints` keeps the DAG of the linked simplifier, and never leaves more roots
+// than 127. Under 0.25 (`meshopt` 0.6) the count depends on the machine: 125 on aarch64, 127 on
+// x86_64, the simplifier's floating-point results differing between the two. The depth and the
+// exact level-zero cover are the same everywhere.
 #[test]
 fn simplification_qem_endpoints_keeps_its_dag() {
     let (depth, roots, level_zero) = dag_of("qem-endpoints");

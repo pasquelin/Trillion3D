@@ -59,10 +59,10 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
   assert.equal(metrics.textureLevelReads, null, 'without a level reader: unmeasured, never zero')
 })
 
-// G4: `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
+// `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
 // `ensureWebgpuPositionBuffer` and `prepareWebgpuBlend`) instead of resuming, every sample, every
-// resident position buffer and every transparent mesh. Oracle: the full resummation from before lot
-// G, copied as-is into `../../../../../../bench/oracles/browser/byte-metrics.ts`.
+// resident position buffer and every transparent mesh. Oracle: the full resummation, copied as-is
+// into `../../../../../../bench/oracles/browser/byte-metrics.ts`.
 {
   function buffer(size: number) {
     return { size } as unknown as GPUBuffer
@@ -78,7 +78,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
     const vis = {
       concatPos: concat[0] === undefined ? undefined : buffer(concat[0]),
       concatUv: concat[1] === undefined ? undefined : buffer(concat[1]),
-      // The float pool's normals ride in its atlas (#1410): its bytes.
+      // The float pool's normals ride in its atlas: its bytes.
       vertexPool: concat[2] === undefined ? undefined : { normalBytes: concat[2] },
     } as unknown as Parameters<typeof vertexBytesOf>[1]
     const blendGpu = blend.map(([index, uv, normal]) => ({
@@ -150,7 +150,7 @@ test('`lightsSampled` is true only on a moving accumulated frame whose resolve r
   assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light')
 })
 
-// #349: the effect chain's targets count in the frame target bytes, like the frame's own.
+// The effect chain's targets count in the frame target bytes, like the frame's own.
 test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
   const gpu = { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } }
   assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 1024)

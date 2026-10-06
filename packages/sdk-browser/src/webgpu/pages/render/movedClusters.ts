@@ -5,7 +5,7 @@ import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
- * A MOVED ROOT'S SHADOW CHANGE, CLUSTER BY CLUSTER (#1345). A root's box holds what it draws and
+ * A MOVED ROOT'S SHADOW CHANGE, CLUSTER BY CLUSTER. A root's box holds what it draws and
  * all that lies between: a turning ring's holds its hollow, a gear's the air between its teeth.
  * Declared whole, it stales every page under it each frame it turns — the whole astrolabe's pages.
  * A root declares instead the box of each of its clusters (`PageRec.min`, `max`: what the cut and

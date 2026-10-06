@@ -1,5 +1,5 @@
 /**
- * CPU models of the two particle steps (#759) for the fast tests: each runs its shader's
+ * CPU models of the two particle steps for the fast tests: each runs its shader's
  * arithmetic in 32-bit floats on exactly what its step handed the GPU, and keeps its state as the
  * GPU would. What the GPU itself does is proved on the bench (`tests/gpu/particles/`).
  */

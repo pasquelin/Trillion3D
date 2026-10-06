@@ -30,7 +30,7 @@ export interface WebgpuLightState {
   /** Which placements move: the static or dynamic cache a caster's pages are drawn in. */
   mobility: ShadowMobility
   mobilityRows: GPUBuffer | undefined // a word per row, what the raster splits its casters by
-  rowLods: ShadowRowLods | undefined // each caster row's detail, its level chosen per page (#831)
+  rowLods: ShadowRowLods | undefined // each caster row's detail, its level chosen per page
   spheres: ReturnType<typeof clusterSpheres> | undefined
   /** Whether the caster rows' spheres, mobility words and detail followed every change of the row
    *  table since a light last cast: false while none casts, when they are neither made nor written

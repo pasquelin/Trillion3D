@@ -28,7 +28,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   const pages = root.pages
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch
   // The packed rank of this root's first page: what `take` adds to a page's index to name the
-  // instance, as the world below names its placement (#1235).
+  // instance, as the world below names its placement.
   s.flatBase = root.packedBase ?? -1
   s.flatWorld = root.world
   s.flatElements = viewMatrix
@@ -44,19 +44,19 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     frameParametersSound(s.flatStretch, s.flatFocal, near)
   // The frame's half of the projection guard, once per root rather than twice per cluster. A frame
   // that fails it is not refused here: each projection then checks everything and throws at the
-  // same cluster as before, and a root whose errors are all zero or infinite still never throws.
+  // same cluster, and a root whose errors are all zero or infinite still never throws.
   s.flatSound = frameParametersSound(s.flatStretch, s.flatFocal, near, s.cam.perspective)
   // The cone context belongs to this root: it will be set at the first cluster that has one.
   ;(s.flatCone as ConeContext).ready = false
   // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
-  // means "I declared nothing": the cut then tests each page, as before this batch.
+  // means "I declared nothing": the cut then tests each page.
   s.flatReach = root.reach ?? 0
   s.flatCones = root.cones !== false && !(s.flatReach > 0)
   // A root that declares all its pages carry their box takes that check out of the per-cluster
-  // path. Silence means "I declared nothing": the cut ensures it as before.
+  // path. Silence means "I declared nothing": the cut ensures it.
   s.flatBoxes = root.boxes === true
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix))
-  // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
+  // The engine projection has no far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false)
   if (openMark(root.mark)) planes.set(OPEN_PLANES)
   else if (s.flatReach > 0) growPlanes(planes, s.flatReach)

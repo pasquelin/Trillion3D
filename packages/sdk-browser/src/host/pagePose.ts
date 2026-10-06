@@ -6,8 +6,8 @@ const posed = new WeakMap<HostMesh, Float64Array>()
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it, written in place,
  *  which the graph's link hears as a pose (the draw walks only what moved, `changedSubtrees.ts`).
- *  The same pose again writes nothing: every drawn page is posed at every frame (#840: 1 465 pages
- *  recomposed a frame on sponza, for poses that never moved). */
+ *  The same pose again writes nothing: every drawn page is posed at every frame, and recomposing
+ *  every page each frame for poses that never moved is a cost. */
 export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
   const next = pose.elements
   let last = posed.get(mesh)

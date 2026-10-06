@@ -62,7 +62,7 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
  * the marks. Both encode paths call it: the fallback draw clears the marks too, and a witness it
  * skipped — draw records, spheres, mobility, corners — would keep another occupant's words once
- * the visibility pass comes back on the same targets (#198). Each costs the rows that changed.
+ * the visibility pass comes back on the same targets. Each costs the rows that changed.
  */
 export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw)
@@ -100,7 +100,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   ensurePageTable(rt, device)
   if (!run.gpuFrameActive) {
     run.cameraRows = rt.services.syncRowsFromCut()
-    // The rows this cut selected size the table, the placements never do (#1232).
+    // The rows this cut selected size the table, the placements never do.
     followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked))
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging)

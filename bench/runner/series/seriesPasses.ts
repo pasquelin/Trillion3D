@@ -17,8 +17,7 @@ import type { PassesGpu } from '../summary/summaryPasses.ts'
  */
 export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesGpu | null {
   if (!samples || !samples.length) return null
-  /** Each pass's spans and own shares (`GpuPassTiming.ownMs`): overlapping passes told apart
-   *  (#1279). */
+  /** Each pass's spans and own shares (`GpuPassTiming.ownMs`): overlapping passes told apart. */
   const parPasse = new Map<string, { gpu: number[]; own: number[] }>()
   const blocs: Record<'visibilityMs' | 'materialsMs' | 'otherMs', number[]> = {
     visibilityMs: [],

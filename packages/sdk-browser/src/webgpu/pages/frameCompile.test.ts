@@ -1,4 +1,4 @@
-// No frame compiles a pipeline (#831): on a whole backend, every pipeline is compiled off the
+// No frame compiles a pipeline: on a whole backend, every pipeline is compiled off the
 // thread — at preparation, or at the frame entry after what needs it entered the scene, the frame
 // held meanwhile. A device whose compiles land a task later counts every synchronous one made while
 // an image renders: none, through a material that turns masked, a surface that comes to emit, a

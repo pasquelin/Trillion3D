@@ -11,8 +11,8 @@ export type CompositionSources = Record<'plain' | 'bloom', Record<ComposeInput, 
 
 /**
  * A program's composition pipelines, one per input (the flagless ones for a frame that reads no
- * as-is share, OMB-11): the plain ones, compiled with it, and those that blend the
- * chain's last bloom in (#963), compiled off the frame at the first that asks for them
+ * as-is share): the plain ones, compiled with it, and those that blend the
+ * chain's last bloom in, compiled off the frame at the first that asks for them
  * (`composesBloom`) — a scene without bloom never pays for them.
  */
 export async function createCompositions(

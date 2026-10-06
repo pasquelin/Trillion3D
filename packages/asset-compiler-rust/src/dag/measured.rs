@@ -1,4 +1,4 @@
-//! The error a group reduction publishes (#929).
+//! The error a group reduction publishes.
 //!
 //! The simplifier's quadric error, attributes weighed in, estimates how far the kept surface moves;
 //! on a curved surface it under-measures the chord sag (0.6 times the sampled Hausdorff distance

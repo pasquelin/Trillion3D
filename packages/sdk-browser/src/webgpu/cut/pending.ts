@@ -8,7 +8,7 @@ import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.t
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
  *
- * Two readers live off it, and both used to walk the whole cut to get, almost always, nothing:
+ * Two readers live off it, and neither walks the whole cut to get, almost always, nothing:
  * the held image, which refuses to hold while an awaited page can still change the cut, and the
  * list of addresses the host must go fetch. Fifteen thousand records re-read per image to answer
  * "none".
@@ -27,7 +27,7 @@ export function createCutPending(
   accepted: (rec: PageRec) => boolean = () => true,
   /** Changes whenever `accepted` may answer differently: the awaited list is rebuilt then only. */
   acceptedRevision: () => number = () => 0,
-  /** The first packed rank of a record: one record serves many placements (#1235). */
+  /** The first packed rank of a record: one record serves many placements. */
   rankOf: (rec: PageRec) => number = () => -1,
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */

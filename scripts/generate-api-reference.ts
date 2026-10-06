@@ -1,4 +1,4 @@
-// The two API files git never tracks (#683), from the declarations of the public entries: the
+// The two API files git never tracks, from the declarations of the public entries: the
 // portal's reference, one entry per export, family member and world member with its signature and
 // TSDoc; and the export inventory. `pnpm install` writes them, every reader rewrites them first
 // when a source is newer. The translations, `api.<language>.json`, are the translators' alone.

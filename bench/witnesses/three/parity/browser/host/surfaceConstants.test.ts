@@ -27,7 +27,7 @@ import {
   HOST_WRAP_REPEAT,
 } from '../../../../../../packages/sdk-browser/src/host/surfaceConstants.ts'
 
-// The engine path no longer names the host library to compare a sampler state or a blend
+// The engine path does not name the host library to compare a sampler state or a blend
 // equation; this test does, so that the names above stay the host's own numbers.
 test('the engine names the host surface constants by the values the host declares', () => {
   assert.deepEqual(

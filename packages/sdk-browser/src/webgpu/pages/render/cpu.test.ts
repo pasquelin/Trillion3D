@@ -185,7 +185,7 @@ test("the cache's changes reach the cut's residency before the cut reads it", ()
 })
 
 test('the drawn packed ranks are written into the array the GPU adopter and the rows hold', () => {
-  // Rebinding `run.drawnPacked` would leave them reading a list no image writes any more (#1235).
+  // Rebinding `run.drawnPacked` would leave them reading a list no image writes any more.
   const b = banc({ ready: true, resident: true }),
     held = b.run.drawnPacked
   assert.throws(() => image(b), /BENCH_STOP/)

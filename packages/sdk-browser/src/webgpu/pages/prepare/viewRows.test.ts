@@ -1,4 +1,4 @@
-// #1232: the page table is sized by what a view draws, never by the placements a scene repeats its
+// The page table is sized by what a view draws, never by the placements a scene repeats its
 // pages on. A scene placed twice as many times asks the same rows, the same corners and the same
 // draw words; only what its cut selects grows them.
 import test from 'node:test'

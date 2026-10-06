@@ -115,7 +115,7 @@ test('a drawable sequence that would repeat an id displays it only once', () => 
   // Kernel compaction writes strictly increasing ranks, hence without a duplicate: each live page
   // is visited once and its rank is that of its own prefix sum. The displayed list is now the one
   // the difference writes, which dedups by epoch mark — a damaged shown list therefore yields a
-  // page once and not twice, where the second pass used to copy it.
+  // page once and not twice.
   const b = banc([0, 1, 2])
   b.montre({
     uniforms: b.cut.uniforms,

@@ -12,7 +12,7 @@ import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * A MOVE BY NAME, whichever engine draws (#972): the node a name finds, and its local pose set so
+ * A MOVE BY NAME, whichever engine draws: the node a name finds, and its local pose set so
  * that its world is the one requested. WebGPU's move (`webgpu/pages/render/transform.ts`), WebGL2's
  * (`placement/autonomousPlacements.ts`) and a world's (`world/core/worldRuntime.ts`) pose alike.
  */

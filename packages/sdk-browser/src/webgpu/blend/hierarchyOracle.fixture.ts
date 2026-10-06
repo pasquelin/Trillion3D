@@ -1,5 +1,5 @@
-// Develop's frustum walk before the box tree (#981), verbatim: the oracle `hierarchy.test.ts`
-// ranks the same scene with (`orderBlendPasses`'s `cull`), the audit's CPU-17 equivalence harness.
+// The item-by-item frustum walk, verbatim: the oracle `hierarchy.test.ts` ranks the same
+// scene with (`orderBlendPasses`'s `cull`), the equivalence harness.
 import { notDrawn } from '../../placement/hidden.ts'
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
 import { paintOutcome, type blendSceneOf } from './plan.fixture.ts'

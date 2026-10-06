@@ -115,7 +115,7 @@ pub(super) fn compile_primitive(
     } else {
         None
     };
-    // Skin and morph pages share the GPU deformation stage before cut/raster (#357).
+    // Skin and morph pages share the GPU deformation stage before cut/raster.
     let unsplit = unsplit_material(material);
     let clustered_blend = !unsplit
         && material
@@ -146,7 +146,7 @@ pub(super) fn compile_primitive(
         )
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
-    // recorded source rank, so spatial clustering no longer scrambles the blend order.
+    // recorded source rank, so spatial clustering does not scramble the blend order.
     let dag_primitive = !unsplit;
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(

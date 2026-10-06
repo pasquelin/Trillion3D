@@ -9,7 +9,7 @@ import { createPageDraws } from './pageDraws.ts'
 
 // An instance copies the geometry of every record the model owns, and shares the one rows place,
 // as the store gives it (`geometry.ts`): moving or removing an instance leaves the model and the
-// other instances as they are. #1234: the draw state is keyed by packed index, in `PageDraws`.
+// other instances as they are. The draw state is keyed by packed index, in `PageDraws`.
 test('an instance changed or removed leaves the model and the other instances as they are', () => {
   const geometryOf = () => {
     const geometry = new G.Geometry()
@@ -102,7 +102,7 @@ test('an instance changed or removed leaves the model and the other instances as
 })
 
 // An instance of a large world copies its roots and bootstrap pages one by one: a spread of that
-// many arguments overflows the stack (#404, the crash `pages.ts` had).
+// many arguments overflows the stack (the crash `pages.ts` had).
 test('an instance of a world with 300,000 roots and bootstrap pages is added whole', () => {
   const count = 300_000
   const identity = { elements: new Float64Array(new G.Matrix4().toArray()) }

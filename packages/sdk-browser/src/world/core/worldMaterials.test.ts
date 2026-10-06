@@ -5,7 +5,7 @@ import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 
-// #335: a material written every frame on a value — a pulsing lamp, a colour picker — keeps its
+// A material written every frame on a value — a pulsing lamp, a colour picker — keeps its
 // entry, so its wearers keep their batch and the session is never opened again for it.
 test('600 frames of a live emissive intensity repaint one entry in place', () => {
   const table = createWorldMaterials()
@@ -43,7 +43,7 @@ test('a shared, blended or restructured entry is copied on write, never repainte
   assert.equal(table.takeRepainted().length, 1)
 })
 
-// #346: the blending mode decides the pass and the pipeline, so writing it opens the session again
+// The blending mode decides the pass and the pipeline, so writing it opens the session again
 // on a new entry; an additive surface is blended even when `transparent` is left false.
 test('a blending written at runtime is a new entry, and an additive one is never repainted', () => {
   const table = createWorldMaterials()
@@ -58,7 +58,7 @@ test('a blending written at runtime is a new entry, and an additive one is never
   assert.deepEqual(table.takeRepainted(), [])
 })
 
-// #360, #361: a map's sampling or placement written after the entry was made repaints the entry,
+// A map's sampling or placement written after the entry was made repaints the entry,
 // whose host texture the repaint then writes in place; a new vector for the offset is heard like
 // the one it replaced. Neither moves the texture's version: nothing is sent again.
 test('a map’s sampling or placement repaints its entry, a new offset vector heard too', () => {
@@ -89,7 +89,7 @@ test('a map’s sampling or placement repaints its entry, a new offset vector he
   }
 })
 
-// #402: a replaced vector kept its listener, so a write to it still repainted the texture.
+// A replaced vector kept its listener, so a write to it still repainted the texture.
 test('a replaced placement vector is let go, and writing the same one back moves nothing', () => {
   const map = new Texture({ width: 2, height: 2 })
   const old = map.repeat
@@ -104,8 +104,8 @@ test('a replaced placement vector is let go, and writing the same one back moves
   assert.equal(map.placement, placement + 1, 'the new vector is')
 })
 
-// #359: a dashed line's dash, gap and scale are values: written at run time, they repaint its
-// entry in place (#335); a mesh material's copy never gains a dash field it did not declare.
+// A dashed line's dash, gap and scale are values: written at run time, they repaint its
+// entry in place; a mesh material's copy never gains a dash field it did not declare.
 test('a dash, a gap or a scale written at run time repaints the entry in place', () => {
   const table = createWorldMaterials()
   const ink = material.lineDashed({ dashSize: 0.3, gapSize: 0.2 })

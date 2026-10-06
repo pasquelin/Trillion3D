@@ -20,7 +20,7 @@ impl Texels {
     /// The finest carried level of `texture`'s chain in `atlas`, when the stage baked one. A
     /// texture read by several materials has one chain each kind: with `coverage`, a coverage
     /// chain comes first, since its reduced levels keep level 0's coverage and a plain one's
-    /// do not (#44).
+    /// do not.
     fn of(
         previews: &[TexturePreview],
         texture: Option<u64>,

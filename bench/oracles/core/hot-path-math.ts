@@ -1,4 +1,4 @@
-// The hot-path math of sdk-core as it stood before #917, frozen: the oracles its rewrites must
+// The hot-path math of sdk-core frozen: the oracles its optimised forms must
 // match bit for bit (`packages/sdk-core/src/math/primitives/{cone,box}.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
 import { xorshiftRandom } from '../../core/measure.ts'
@@ -65,7 +65,7 @@ export function coneCases(seed: number) {
   }
 }
 
-/** `boxConeRejects` before #917: every length paid, then the verdict. */
+/** `boxConeRejects` unoptimised: every length paid, then the verdict. */
 export function boxConeRejectsBefore(
   axis: ArrayLike<number>,
   angle: number,
@@ -117,7 +117,7 @@ export function boxConeRejectsBefore(
   }
 }
 
-/** `frustumClipBox` before #917: the bounds stored in an array the plane's sign indexes. */
+/** `frustumClipBox` unoptimised: the bounds stored in an array the plane's sign indexes. */
 export function frustumClipBoxBefore(planes: ArrayLike<number>, box: ArrayLike<number>) {
   const bounds = [box[0], box[3], box[1], box[4], box[2], box[5]]
   const side = (p: number, forward: number) => {
@@ -132,7 +132,7 @@ export function frustumClipBoxBefore(planes: ArrayLike<number>, box: ArrayLike<n
   return 2
 }
 
-/** `boxTransform` before #917 on a non-empty box: the corners written out, then folded. */
+/** `boxTransform` unoptimised on a non-empty box: the corners written out, then folded. */
 export function boxTransformBefore(box: ArrayLike<number>, m: ArrayLike<number>) {
   const corners = new Float64Array(24),
     out = new Float64Array(6)

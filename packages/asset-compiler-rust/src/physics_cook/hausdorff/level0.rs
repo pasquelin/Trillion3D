@@ -1,6 +1,6 @@
 //! The distance of each cut a search tries to one fixed level 0: level 0's grid is built once for
 //! the whole search, not once per cut, and a cut's two sides are measured side by side on the
-//! compiler's pool. Each side and their maximum are the serial measure's, bit for bit (#956).
+//! compiler's pool. Each side and their maximum are the serial measure's, bit for bit.
 use super::{one_sided, Grid};
 
 pub(crate) struct Level0<'a>(Grid<'a>);

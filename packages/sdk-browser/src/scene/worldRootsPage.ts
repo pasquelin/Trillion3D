@@ -1,7 +1,7 @@
 /**
- * THE WORLD SUPER-ROOT PAGES AS THE ENGINES DRAW THEM (#1238).
+ * THE WORLD SUPER-ROOT PAGES AS THE ENGINES DRAW THEM.
  *
- * A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots; #23, #1237) is not a `WGP3`
+ * A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots) is not a `WGP3`
  * geometry page: it holds its vertices as three world-space `f32` and its triangles as `u16`
  * LOCAL indices. Neither engine can upload it as it stands — the WebGPU pool and its shader index
  * an `array<u32>`, WebGL2's cluster draw hard-codes `UNSIGNED_INT`

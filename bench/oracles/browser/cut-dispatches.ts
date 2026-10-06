@@ -14,7 +14,7 @@
  * count, since it was read indirectly, and everything that follows is shifted by that. What
  * surrounds the descent — prepare, candidates, mask, compaction, request sort — is the shipped
  * kernels, so the oracle follows their layout and their stages: the cut rule decides in the mask,
- * with no escalation round before it (#486).
+ * with no escalation round before it.
  */
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
@@ -93,7 +93,7 @@ export function resourcesBefore(
       buffer: storage(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     },
     // Sized by the shipped rule: the shipped stages address words past the frozen two queues —
-    // each page's last use sits behind a third (`lastUseWgsl.ts`, #477).
+    // each page's last use sits behind a third (`lastUseWgsl.ts`).
     flags: { buffer: storage(Math.max(16, dagFlagsWords(packed.nodeCount, pageCount) * 4)) },
     // The shipped `dagWanted` stages the camera's requests behind the drawn list, where the
     // shipped `dagSortRequests` reads them (`gpu/dag/shader/snapshotWgsl.ts`).

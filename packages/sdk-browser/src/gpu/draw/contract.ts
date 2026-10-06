@@ -28,8 +28,8 @@ export const BIN_BACK = 0,
 /**
  * The face modes a row's bin names: back, none, front. A cutout row's bin is its face mode's plus
  * this: its own slot, after the opaque ones of its half. An occluder slot, or a compacted tested
- * one, then draws its opaque rows with the stage that never discards — one cutout row no longer
- * takes the early depth reject from a whole slot —, and the depth they wrote rejects a hidden
+ * one, then draws its opaque rows with the stage that never discards — one cutout row does not
+ * take the early depth reject from a whole slot —, and the depth they wrote rejects a hidden
  * cutout fragment before it reads its page.
  */
 export const CULL_BINS = 3

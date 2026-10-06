@@ -1,7 +1,7 @@
 import { nanosecondsToMs } from './types.ts'
 
 /**
- * The device's idle between two consecutive images (#1451).
+ * The device's idle between two consecutive images.
  *
  * `hostGapMs` is the host time INSIDE one image, between two of its own submissions; an image that
  * submits once therefore always reports zero there. What the loop costs is the device's idle

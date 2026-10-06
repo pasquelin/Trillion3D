@@ -21,8 +21,8 @@ export const buildComputePipeline = (
     ? device.createComputePipelineAsync(descriptor)
     : Promise.resolve(device.createComputePipeline(descriptor))
 
-/** The compute stages of one module on one layout, by entry point, compiled together off the thread
- *  (#1362): prepare never builds its pipelines one after another. */
+/** The compute stages of one module on one layout, by entry point, compiled together off the
+ *  thread: prepare never builds its pipelines one after another. */
 export async function buildComputeStages<E extends string>(
   device: GPUDevice,
   layout: GPUPipelineLayout,
@@ -190,7 +190,7 @@ export function preparedPipelines<K, P>(
 }
 export type PreparedPipelines<K, P> = ReturnType<typeof preparedPipelines<K, P>>
 
-/** `pipeline`, its compile started now off the thread with nothing awaiting it (#1362) but
+/** `pipeline`, its compile started now off the thread with nothing awaiting it but
  *  prepare's end (`pipelinesSettled`): no frame is held on it, and a use before it lands compiles
  *  it at once. */
 export function started<P>(pipeline: PreparedPipeline<P>) {

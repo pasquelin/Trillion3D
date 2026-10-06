@@ -38,7 +38,7 @@ export async function servedScene(
     const range = prefix + triangles
     words[range + 1] = 1
     const parent = range + 2 + owners * 2
-    // No parent, no mesh (#966), then the bind world.
+    // No parent, no mesh, then the bind world.
     words[parent] = words[parent + 1] = 0xffffffff
     const view = new DataView(words.buffer),
       identity = proxyIdentity()

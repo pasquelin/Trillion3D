@@ -1,5 +1,5 @@
 // Lamp-shadow oracle, rewritten from the contracts: the world-space sphere of a cluster in eight
-// floats since 16729c858f — the transformed box centre as three split doubles (rounded high part
+// floats — the transformed box centre as three split doubles (rounded high part
 // at `base`, what it left at `base + 4`), the radius inflated term by term, then widened by the
 // centre's own split error and rounded UP to f32, so the sphere stays conservative.
 export const SPHERE_FLOATS = 8

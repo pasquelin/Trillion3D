@@ -77,7 +77,7 @@ test('no root: nothing is written', () => {
   assert.deepEqual([...buffer], [...Float32Array.from({ length: 16 }, (_, i) => i)])
 })
 
-// A host write while the eye moves (#831): whether a pose moved is read against the rebase in hand,
+// A host write while the eye moves: whether a pose moved is read against the rebase in hand,
 // at its own origin. Oracle: the rebase itself — a pose left alone compares unmoved after a full
 // rebase and after any number of translation-only ones, one changed beyond float32 compares moved.
 test('a pose left alone reads unmoved at the origin of the rebase in hand, a moved one moved', () => {

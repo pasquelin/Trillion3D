@@ -13,7 +13,7 @@ export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6]
 
 /** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
  *  The curve is the repository's (`packages/sdk-core/src/math/primitives/color.ts`), whose gap to the host library's rounded
- *  constants is measured and declared (#72); no beauty pass reads this path. */
+ *  constants is measured and declared; no beauty pass reads this path. */
 export function linearColor(surface: VisMaterial): [number, number, number] {
   const base = surface.baseColor
   return [srgbToLinear(base[0]), srgbToLinear(base[1]), srgbToLinear(base[2])]
@@ -82,7 +82,7 @@ export function copyPages<T>(target: T[], source: readonly T[]) {
   target.length = source.length
 }
 /** The same for packed ranks, from a typed list: `target` takes `source`'s live length. A typed
- *  buffer is grown and never shrunk, so `count` names its live ranks when it is shorter (`#1235`). */
+ *  buffer is grown and never shrunk, so `count` names its live ranks when it is shorter. */
 export function copyPacked(target: number[], source: ArrayLike<number>, count = source.length) {
   for (let i = 0; i < count; i++) target[i] = source[i]
   target.length = count

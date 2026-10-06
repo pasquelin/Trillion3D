@@ -1,4 +1,4 @@
-// #412: a world disposed takes out the canvas it made inside an element, never the host's own.
+// A world disposed takes out the canvas it made inside an element, never the host's own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolveWorldTarget } from './worldTarget.ts'

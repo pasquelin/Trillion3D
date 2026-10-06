@@ -40,7 +40,7 @@ fn file(sdna: &[u8], held: usize) -> Vec<u8> {
     out
 }
 
-// Finding 24: an SDNA that announces dimensions, a field size or a structure count the file does
+// An SDNA that announces dimensions, a field size or a structure count the file does
 // not carry is refused under its name. Products were stored unbounded: they overflowed — panic
 // in debug —, and the `STRC` count reserved before being trusted.
 #[test]
@@ -63,7 +63,7 @@ fn a_hostile_sdna_is_refused_by_name_never_by_panic() {
     }
 }
 
-// Finding 24: a view reads the fields of its block, and nothing else. A block shorter than the
+// A view reads the fields of its block, and nothing else. A block shorter than the
 // structure its header names yielded the next block's bytes as if they were its own.
 #[test]
 fn a_view_never_reads_past_the_end_of_its_block() {
@@ -78,7 +78,7 @@ fn a_view_never_reads_past_the_end_of_its_block() {
     );
 }
 
-// Finding 27: cancellation is reread inside a mesh. Checked between objects only, a scene of a
+// Cancellation is reread inside a mesh. Checked between objects only, a scene of a
 // single object of a million faces posed that million before stopping.
 #[test]
 fn a_raised_token_stops_a_mesh_before_its_last_face() {

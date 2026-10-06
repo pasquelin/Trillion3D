@@ -6,7 +6,7 @@ import type { PageDecodeCancel, PageDecodeRequest } from '../../../../sdk-core/s
  * Entry point of the decode worker. Platform adapter: this file is loaded only in a module
  * `Worker`, and it contains no decision — it receives a contract message, calls the shared
  * task, and returns its answer with its buffers transferred: the main thread receives the
- * worker's own decoded block, never a copy (#982).
+ * worker's own decoded block, never a copy.
  *
  * A dedicated worker's scope is not typed by the repository's DOM library; the minimal shape
  * this file needs is declared here rather than adding a whole library.

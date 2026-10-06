@@ -17,7 +17,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * What the nodes of one move call leave to do, done once for the call (#971, CPU-19): the moved
+ * What the nodes of one move call leave to do, done once for the call: the moved
  * roots' boxes reprojected in one pass, their rows alone rewritten (`movedRoot.ts`), the scene
  * revision bumped once, then each node's motion box declared to the shadow scheduler as its own
  * call would — two nodes far apart are two boxes, never the room between them —, save the roots

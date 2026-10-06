@@ -1,4 +1,4 @@
-// Inputs of the volume-equivalence bench (batch M2): drawn from a seed, and deliberately
+// Inputs of the volume-equivalence bench: drawn from a seed, and deliberately
 // hostile. Empty, inverted, point, infinite boxes, NaN or signed-zero bounds; placement
 // matrices with negative or non-uniform scale, singular, projective, full of NaN;
 // perspective and orthographic views in both depth conventions; boxes that contain

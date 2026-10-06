@@ -1,4 +1,4 @@
-// #1016: the bench street is read off the model, never a share of its box assumed open. Two
+// The bench street is read off the model, never a share of its box assumed open. Two
 // layouts: a courtyard open at its centre, and a street along one side of a covered hall.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -78,8 +78,8 @@ test('a model with no street to probe says why by name and walks its box', () =>
   assert.equal(found.street?.clearance, 3)
 })
 
-// #1016 review: the probe opened a second world and loaded the model again beside the one
-// `readBounds` had just loaded. The box and the street come from one world, closed once.
+// The probe opens no second world to load the model again beside the one
+// `readBounds` loaded. The box and the street come from one world, closed once.
 test('the box and the street are read on one world, which the probe closes', async () => {
   const fixture = await import('./streetWorld.fixture.ts')
   const { readBounds } = await import('../harness/page.ts')

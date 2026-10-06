@@ -1,6 +1,6 @@
 /**
  * The pages the WebGL2 autonomous records draw (`geometry.ts`): a page read from the cache, one
- * the host replaced (#837), or one cut again for a record's new class (#846), each checked against
+ * the host replaced, or one cut again for a record's new class, each checked against
  * its descriptor and its records' boxes before a record draws it.
  */
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
@@ -16,7 +16,7 @@ import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts'
 import type { PageDraws } from './pageDraws.ts'
 
 type PageStoreEnvironment = {
-  /** The engine's roots: whether a row places a page is its root's (#1235). */
+  /** The engine's roots: whether a row places a page is its root's. */
   roots: readonly ClusterRoot<PageRec>[]
   byUrl: Map<string, PageRec[]>
   descriptors: Map<string, GeometryPageDescriptor>
@@ -35,9 +35,9 @@ export function createPageStore(env: PageStoreEnvironment) {
   const { byUrl, descriptors, draws, colorMaterials, modifiedPages, state } = env
   const { release, setArray } = env
   /** The pages the host replaced, as it wrote them: a record that joins one later — a mount —
-   *  draws the host's page, never the cache's, and neither do the others then (#837). */
+   * draws the host's page, never the cache's, and neither do the others then. */
   const replaced = new Map<string, DecodedGeometryPage>()
-  /** Each record draws the host's page where it replaced it (#837, `read` as `host` writes it),
+  /** Each record draws the host's page where it replaced it (`read` as `host` writes it),
    *  else its class's recut (`pageOf`), else `read`. Rowed records share one geometry per page. */
   const storeRecords = (recs: readonly PageRec[], read?: DecodedGeometryPage, host = false) => {
     const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
@@ -61,7 +61,7 @@ export function createPageStore(env: PageStoreEnvironment) {
       release(rec, placed && drawnByOthers(rec))
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
         shared = placed ? rowed.get(data) : undefined,
-        // A dynamic page, its index alone: drawn over its primitive's own lists (#573).
+        // A dynamic page, its index alone: drawn over its primitive's own lists.
         source = dynamicSource(rec)
       if (!shared && !source) assertWithinBox(data, rec)
       const geometry =
@@ -125,8 +125,8 @@ export function createPageStore(env: PageStoreEnvironment) {
         if (data) storeGeometryPage(url, data)
       }
     },
-    /** Resident records draw their page again, as a class change cut it (#846): `read`, the
-     *  page's own, for those that draw it — or the host's, where it replaced that page (#837). */
+    /** Resident records draw their page again, as a class change cut it: `read`, the
+     * page's own, for those that draw it — or the host's, where it replaced that page. */
     restoreRecords: (recs: readonly PageRec[], read?: DecodedGeometryPage) =>
       storeRecords(recs, read),
     acceptGeometryPage,

@@ -91,7 +91,7 @@ test('the cluster-page flag rides the row without moving its material class', ()
   assert.equal(paged.flags, plain.flags | FLAG_CLUSTER_PAGE)
 })
 
-// Review of #389: whether a page runs the filter rule is the page's, read off its maps' headers,
+// Whether a page runs the filter rule is the page's, read off its maps' headers,
 // never tested per sample: a page whose maps are all at the default carries no `FLAG_SAMPLED`,
 // and its resolve class compiles the default read alone.
 test('a page takes the filter rule, and its class, only when one of its maps has a filter word', () => {
@@ -125,7 +125,7 @@ test('a page takes the filter rule, and its class, only when one of its maps has
   assert.equal(sampled.classKey, plain.classKey | CLASS_FEATURE.HAS_SAMPLING)
 })
 
-// #347: a page that carries `COLOR_0` — a runtime cut, a compiled glTF — is drawn with its vertex
+// A page that carries `COLOR_0` — a runtime cut, a compiled glTF — is drawn with its vertex
 // colours when its material asks for them, as the forward path draws it; any other row keeps the
 // flags and the class it had, so nothing it draws moves.
 test('a row multiplies by its vertex colours only when the material asks and the page has some', () => {

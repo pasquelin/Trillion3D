@@ -1,4 +1,4 @@
-// Batch M4a, replicateInstances.ts: world matrices of copies calculated by core's
+// replicateInstances.ts: world matrices of copies calculated by core's
 // `multiplyMatrix4`, flat bounds. Compared bit-by-bit (Object.is) to legacy path
 // (a matrix copy then a walk of the host group's graph), including hostile hierarchy.
 import test from 'node:test'
@@ -28,7 +28,7 @@ function hostileSource() {
   return { rootNode, a, b }
 }
 
-/** Legacy path, before batch M4a: a matrix copy then a walk of the host group's graph. */
+/** Host-graph path: a matrix copy then a walk of the host group's graph. */
 function referenceReplicate(graph: G.Object3D, count: 1 | 4 | 9 | 12) {
   const source = threeGraph(graph)
   source.updateMatrixWorld(true)

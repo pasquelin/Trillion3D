@@ -3,7 +3,7 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /**
  * A lower residency tier: pages a cut asked for below the camera's own — the pages ahead of the
- * camera (#488) —, in their order — highest replacement error first — each with the groups it
+ * camera —, in their order — highest replacement error first — each with the groups it
  * closes over (`../../page/cut/groupClosure.ts`), without repeats, and no longer than the pool. The
  * camera's tier is served first and pinned; a lower one only fills what the camera leaves
  * (`residentEnsurer.ts`).
@@ -48,7 +48,7 @@ export function createLowerTier(options: {
     /** True when the last report names this key: a page this tier still wants. */
     has: (key: number) => named.has(key),
     /** Bytes of the tier's tables, read in constant time: its keys, and one 8-byte slot per entry
-     *  of its list — bounded by the pool, never the catalogue (#483 rule 6). */
+     *  of its list — bounded by the pool, never the catalogue. */
     get hostBytes() {
       return named.byteLength + pages.length * 8
     },

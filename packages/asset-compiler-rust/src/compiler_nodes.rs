@@ -39,7 +39,7 @@ enum Visit {
 }
 
 /// Refuses a node hierarchy that closes on itself. World-matrix walk starts from
-/// parentless nodes: a closed cycle has none, so it was never walked and used to
+/// parentless nodes: a closed cycle has none, so it would never be walked and would
 /// go out published as-is, sending the consumer's walk into an endless loop. Every
 /// node is visited, not only those the rendered scene names, because the whole
 /// document is published. A parentless node outside the scene is not a cycle: it

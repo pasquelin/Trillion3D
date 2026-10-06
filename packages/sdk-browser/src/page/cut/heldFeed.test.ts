@@ -1,4 +1,4 @@
-// The cut rule's readiness follows the pool's residency feed (#483 rules 6 and 7, #486): a still
+// The cut rule's readiness follows the pool's residency feed: a still
 // view reads no page's residency, a change reads the pages that moved and no other, and a placement
 // that leaves the view lets its readiness go, the running total exact. Counted, never timed: every
 // residency answer a cut asks for, on the CPU cut and the WebGL2 image's cut.

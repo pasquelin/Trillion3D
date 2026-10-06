@@ -3,7 +3,7 @@ import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
 
 /**
- * WHERE EACH PAGE OF A DYNAMIC CUT HAS ITS VERTICES (#573), measured page by page as they are
+ * WHERE EACH PAGE OF A DYNAMIC CUT HAS ITS VERTICES, measured page by page as they are
  * rewritten: the box of its own vertices (`boxes`, local, `BOX_VALUES` a page) and how far the farthest of them lies on
  * an axis from where `rest` put it — the reach, whose most over the pages its roots' cuts grow
  * their rest bounds by. Every bound a page's row carries — its shadow sphere, its occlusion

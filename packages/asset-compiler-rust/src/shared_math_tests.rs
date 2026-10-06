@@ -124,7 +124,7 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
     );
 }
 
-// Audit of #940: `unit` and the oracle's `normalise` share one reciprocal division and keep
+// `unit` and the oracle's `normalise` share one reciprocal division and keep
 // their own guards — an infinite length is refused by the first, divided by the second.
 #[test]
 fn unit_and_the_oracle_normalise_keep_their_own_guards() {

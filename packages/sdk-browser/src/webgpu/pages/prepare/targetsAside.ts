@@ -21,7 +21,7 @@ import {
 
 /*
  * Targets of another render size or other members at the display's size in place are made BESIDE
- * those in place (#831): the frames go on drawing in the old ones — no frame held for the device's
+ * those in place: the frames go on drawing in the old ones — no frame held for the device's
  * answer, no history restarted — and the next frame's entry swaps them in (`swapAsideTargets`),
  * the old ones freed then. Both live at once, which the device's ledger counts: a set that does not
  * fit beside the one in place is refused, and the targets are asked the held way
@@ -43,7 +43,7 @@ export const asidePending = (rt: WebgpuPagesRuntime) => {
 
 /** Whether the targets `asked`, `asked.requestedBytes` of them, are asked aside: the main view's
  *  targets in place at the same display size, which the visibility pass goes on drawing into — the
- *  fallback draw cannot, below the display (#816) —, nothing asked of them otherwise, the room for
+ *  fallback draw cannot, below the display —, nothing asked of them otherwise, the room for
  *  both. */
 export function asksAside(rt: WebgpuPagesRuntime, asked: FrameSize & { requestedBytes: number }) {
   const { gpu, vis, views, capture } = rt

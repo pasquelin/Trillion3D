@@ -6,8 +6,8 @@ import {
   prefixSerial,
 } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
 
-// The multi-lane scan shader.ts carries since #923 produces exactly the same totals
-// (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)) it replaced. This
+// The multi-lane scan shader.ts carries produces exactly the same totals
+// (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)). This
 // file keeps the equivalence proof on hostile inputs: that is what authorizes the shipped kernel to
 // decide the indirect draw.
 

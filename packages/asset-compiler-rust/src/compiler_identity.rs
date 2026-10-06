@@ -96,16 +96,16 @@ mod tests {
     // Behaviour: the build script watches the source directory itself. Watched file by file, a
     // module created after the previous run is in no watch list, the script does not rerun and
     // the next build keeps the previous `implementation_hash` — a cache key that stands still
-    // while the compiler moves. The stale reuse #290 hit came from the cook running a binary it
-    // never rebuilt (#291); this is the same shape, one build earlier, and is closed here.
+    // while the compiler moves. A stale reuse also comes from a cook running a binary it
+    // never rebuilt; this is the same shape, one build earlier, and is closed here.
     #[test]
     fn the_build_script_watches_the_source_folder() {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
     }
 
     // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
-    // compiler's own, so a codec edit moves the key (#558). So does the cargo configuration, whose
-    // C++ flags change what the simplifier simplifies to (#415). Read from the list the build hashed.
+    // compiler's own, so a codec edit moves the key. So does the cargo configuration, whose
+    // C++ flags change what the simplifier simplifies to. Read from the list the build hashed.
     #[test]
     fn the_build_hashes_the_page_codec_and_the_cpp_flags() {
         let inputs: Vec<&str> =

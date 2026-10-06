@@ -1,6 +1,6 @@
 //! Shared formulas across native compiler stages.
 //!
-//! Single copy of calculations previously in multiple copies:
+//! Single copy of calculations shared by several stages:
 //! same float ops, same order, same precision as original location.
 //! Site with detail difference stays local rather than aligned.
 
@@ -112,7 +112,7 @@ pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f
 }
 
 /// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values), the
-/// Hausdorff grid's cell lookups (#977) and the DAG builder's maps. Its order is the same on every
+/// Hausdorff grid's cell lookups and the DAG builder's maps. Its order is the same on every
 /// run; an output still never follows it — a map is read by key, counted, or its entries sorted
 /// before they are written.
 #[derive(Default, Clone, Copy)]

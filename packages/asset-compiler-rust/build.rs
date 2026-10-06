@@ -51,7 +51,7 @@ fn physics_cook(output: &Path) -> String {
         .to_string();
     assert_eq!(commit.len(), 40, "Jolt submodule has no commit");
     let build = output.join("physics-cook");
-    // The cook writes the same bytes on every platform (#1352): the engine's cross-platform mode turns
+    // The cook writes the same bytes on every platform: the engine's cross-platform mode turns
     // off every fused multiply-add (`-ffp-contract=off`, `/fp:precise`), and an x86-64 build stays
     // on SSE 4.2, which every processor the compiler supports has, rather than assume AVX2. One
     // configuration, `Distribution`, named for the multi-configuration generator of Windows, whose

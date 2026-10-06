@@ -1,4 +1,4 @@
-// The resident proxy file (#957): the compiler's shared file comes back as the flat proxy it
+// The resident proxy file: the compiler's shared file comes back as the flat proxy it
 // simplified, bit for bit, and a file that places a triangle twice or names a shape it lacks is
 // refused before any ray reads it.
 import test from 'node:test'

@@ -1,6 +1,6 @@
-//! The paged cell index (#750): the cells' records lie in pages beside the tables, whose root has
+//! The paged cell index: the cells' records lie in pages beside the tables, whose root has
 //! the same bytes whatever the world, and a reused folder proves its cells through those pages.
-//! The manifest's root keeps its bytes too, and its primitives are read through index pages (#762).
+//! The manifest's root keeps its bytes too, and its primitives are read through index pages.
 //!
 //! Provenance: the grids of `partition.rs`; the committed open-world cell
 //! (`tests/fixtures/openworld-cell`) laid eight by eight, 250 m apart; a synthetic halving tree for
@@ -101,8 +101,8 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let meshes = MeshSlots::from([(0, vec!["a".repeat(SLOT_WIDTH)])]);
     let root = write_pages(&halving(0..12_000), &records, &bounds, &meshes, &directory);
     let root = root.expect("pages");
-    // The root names every page by its fingerprint: the pages of #750, each naming its mesh pages
-    // (#792), byte for byte.
+    // The root names every page by its fingerprint: the cell index's pages, each naming its
+    // mesh pages, byte for byte.
     let named = hash(&serde_json::to_vec(&root).expect("json"));
     let pages = "c6e64442f38810675ffe89f5c75d8d303dc20de30476b238c6b6abe077acf0fa";
     assert_eq!(
@@ -158,7 +158,7 @@ fn a_reused_folder_proves_its_cells_through_the_pages() {
     let slot = tables["partition"]["pages"][0].as_str().expect("slot");
     let page = format!("scene-page-{}.json", &slot[..64]);
     let old = serde_json::to_vec(&json!({"version": 3})).expect("json");
-    // A rebuild of the key writes the same mesh pages, whatever it found already built (#792).
+    // A rebuild of the key writes the same mesh pages, whatever it found already built.
     let mesh_pages = || read_json(&directory.join(MANIFEST_FILE))["pages"].clone();
     let built = mesh_pages();
     for (name, bytes, reason) in [

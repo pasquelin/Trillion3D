@@ -1,8 +1,7 @@
-//! A13 — The final key hashed every byte of the import manifest, metrics included.
-//! Conversion timing entered it: three compilations of the same files, with the
-//! same intermediate glTF bytes and the same import key, yielded three distinct
-//! final keys. The source path entered too — the compiling machine, not the
-//! compiled scene.
+//! The final key does not hash every byte of the import manifest, metrics included.
+//! Neither conversion timing nor the source path — the compiling machine, not the compiled
+//! scene — enters it: three compilations of the same files, with the same intermediate glTF
+//! bytes and the same import key, yield one final key.
 use super::*;
 use crate::tests::formats::usd::driver::{compile_layer, wrap, QUAD};
 

@@ -60,7 +60,7 @@ function blendLayout(device: GPUDevice) {
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       ...atlasLayoutEntries(b.data),
-      // Every normal a transparent reads is a float atlas (`../core/floatAtlas.ts`, #1410).
+      // Every normal a transparent reads is a float atlas (`../core/floatAtlas.ts`).
       {
         binding: b.normals,
         visibility: GPUShaderStage.VERTEX,
@@ -106,7 +106,7 @@ function blendLayout(device: GPUDevice) {
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
  *  that transmits; a reference
- *  session's water walks its mirror ray whole (`unboundedReflections`, #1279): the session's
+ *  session's water walks its mirror ray whole (`unboundedReflections`): the session's
  *  `context`. Both light with the code the scene's lights need, as the opaque resolve
  *  (`createForwardVariants`): `lit`, the key the first frame asks for. */
 export async function createWebgpuBlendPipelines(
@@ -127,14 +127,14 @@ export async function createWebgpuBlendPipelines(
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive)
   // Its code, transmission's, is imported by the first scene that transmits, glass or water, and
-  // awaited here as the scene's other resources are, before any frame (#1353). An import that
+  // awaited here as the scene's other resources are, before any frame. An import that
   // could not load is the scene's refusal (`FAMILY_LOAD_FAILED`), never a scene without its water.
   const waterCode = wantsWater ? await families.transmission.load() : undefined
   let waterRefused: Error | undefined
   // What the scene's materials and settings reach now (`reach.ts`): normal with any item (the
   // transmission slice draws on it under a diagnostic), every mode an item declares, the share set
   // drawn now, the display layers when a mode filters. A change compiles its own, off the frame.
-  // No item, no blend program (#1362).
+  // No item, no blend program.
   const declared = declaredBlendModes(items)
   const reach = createReach({
     modes: declared,
@@ -156,7 +156,7 @@ export async function createWebgpuBlendPipelines(
     }
     const label = `BLEND${variantLabel(key)}`
     const module = device.createShaderModule({ label, code: code })
-    // Two lazy sets (#365): with no reader of the share its slot stays empty, no target is bound.
+    // Two lazy sets: with no reader of the share its slot stays empty, no target is bound.
     const sets = [false, true].map((withShare) => ({
       perMode: pipelinesByMode(device, (mode) =>
         stageDescriptors(

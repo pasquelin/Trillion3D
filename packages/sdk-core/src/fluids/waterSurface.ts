@@ -70,7 +70,7 @@ export class WaterSurface {
   }
 
   /** The waves themselves, clocked at `time`: what the GPU deformation stage reads to draw a
-   *  mesh the surface carries (`mesh.waves`, #357), the very numbers buoyancy reads. */
+   *  mesh the surface carries (`mesh.waves`), the very numbers buoyancy reads. */
   get waveModel(): Waves {
     return this.waves
   }

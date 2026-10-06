@@ -1,4 +1,4 @@
-// #1232: the world roots are records read straight from their bytes (`worldRootsTable.ts`), as the
+// The world roots are records read straight from their bytes (`worldRootsTable.ts`), as the
 // cook writes them (`compiler_world_roots/records.rs`): every field back at its rank, a binary past
 // 4 GiB named whole, and a file that breaks its contract refused whole.
 import test from 'node:test'
@@ -26,7 +26,7 @@ test('the table reads every bundle, page, cell and object back at its record', (
     cells.map((_, at) => table.cells.objects(at)),
     cells.map((c) => c.objects),
   )
-  // Each object, by its rank, is found in its cell: an object root's `origin` names it (#1332).
+  // Each object, by its rank, is found in its cell: an object root's `origin` names it.
   const ranks = cells.flatMap((cell, at) => cell.objects.map(() => at))
   assert.deepEqual(
     ranks.map((_, object) => table.cells.cellOf(object)),
@@ -57,7 +57,7 @@ test('a binary past 4 GiB is named whole, its offsets in two words', () => {
 
 test('a table that breaks its contract is refused whole', () => {
   const broken: ((spec: ReturnType<typeof worldRootsFixture>['spec']) => void)[] = [
-    // Version 2 named an object root by its instance (#1332): an old cache is refused, cooked again.
+    // Version 2 named an object root by its instance: an old cache is refused, cooked again.
     (spec) => (spec.version = 2),
     (spec) => (spec.pinned = 0),
     (spec) => (spec.pinnedTopBytes += 1),

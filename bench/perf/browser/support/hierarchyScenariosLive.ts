@@ -1,4 +1,4 @@
-// Live hierarchy scenario (batch M3a): a scene that moves frame after frame, with everything the
+// Live hierarchy scenario: a scene that moves frame after frame, with everything the
 // reference update rule makes delicate — partial poses, hand-set local matrices with or without
 // automatic update, reparenting and detach (a detached subtree keeps stale matrices), removals
 // and additions, `updateWorldMatrix` on any node, `lookAt`, reads and frames in the middle. Each

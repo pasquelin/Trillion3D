@@ -1,5 +1,6 @@
-// #42: WebGL2 mips reduced as WebGPU's, weighted by alpha under the readers' rule. #709 sampled the
-// texture it drew into: refused, every level stayed a null allocation (alpha 0), every leaf cut.
+// WebGL2 mips reduced as WebGPU's, weighted by alpha under the readers' rule. A level that sampled
+// the texture it draws into would be refused, every level would stay a null allocation (alpha 0),
+// and every leaf would be cut.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WebglClusterTextures } from './textures.ts'
@@ -101,7 +102,7 @@ test('a chain follows the coverage rule of its readers, switched after its image
   assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction')
 })
 
-// Filed once by the census (hidden meshes too), its maps uploaded ahead (#840); reread per image.
+// Filed once by the census (hidden meshes too), its maps uploaded ahead; reread per image.
 test('a still scene files each surface once across frames, a hidden opaque one included', (t) => {
   const read = t.mock.method(CoverageReaders.prototype, 'read')
   const follow = t.mock.method(CoverageReaders.prototype, 'follow')
@@ -123,7 +124,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   draw.dispose()
 })
 
-// #443: a world texel map — `texture.data`, a file the loader decoded — is drawn on WebGL2 as on
+// A world texel map — `texture.data`, a file the loader decoded — is drawn on WebGL2 as on
 // WebGPU: uploaded as the bytes it holds, with the chain its filter reads (none: incomplete, black).
 test('a world texel map is uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128)
@@ -137,11 +138,11 @@ test('a world texel map is uploaded as stored, with its box chain', () => {
   draw.dispose()
   const uploaded = gl.of('texImage2D').map((args) => (args[8] as ArrayBufferView | null)?.buffer)
   assert.ok(uploaded.includes(pixels.buffer), 'uploaded as the bytes it holds')
-  assert.equal(gl.chains(), 'box', 'a normal map is data: the plain box chain (#42)')
+  assert.equal(gl.chains(), 'box', 'a normal map is data: the plain box chain')
 })
 
-// #769: where float targets blend, a masked chain counts each level — level 0 first — as points,
-// four a texel (#43), picks its `t` into the scratch's row under the level it holds, then reduces
+// Where float targets blend, a masked chain counts each level — level 0 first — as points,
+// four a texel, picks its `t` into the scratch's row under the level it holds, then reduces
 // it, and gives the blend function back; a new cutoff reduces it again. Elsewhere it keeps the median alone.
 test('a masked chain is counted at its cutoff where float targets blend, else keeps the median', () => {
   for (const extension of [{}, null]) {

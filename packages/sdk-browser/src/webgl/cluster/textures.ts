@@ -33,7 +33,7 @@ export class WebglClusterTextures {
     if (this.anisotropy)
       this.maxAnisotropy = gl.getParameter(this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number
   }
-  /** `reader`: a base or emissive map, its chain under its readers' rule (#42), as WebGPU's. */
+  /** `reader`: a base or emissive map, its chain under its readers' rule, as WebGPU's. */
   bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
     const gl = this.gl
     if (!texture) {

@@ -1,4 +1,4 @@
-// #834: an image WebGL2 draws below the display reads its materials a level coarser per halving,
+// An image WebGL2 draws below the display reads its materials a level coarser per halving,
 // `log2 s` (`upscaleMipBias`), through GLSL `texture(…, bias)`, so a texture keeps the texel density
 // it has at the display's size; a line keeps its display width. At the display's size, zero.
 import test from 'node:test'
@@ -41,7 +41,7 @@ function drawn(outputs: HostDrawOutput[], model: 'lambert' | 'standard' = 'lambe
     geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1))
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
-  // A polished physical surface, under the screen-reflection cutoff: it runs a source pass (#1341).
+  // A polished physical surface, under the screen-reflection cutoff: it runs a source pass.
   const mesh = new Mesh(geometry, new GraphSurface(model, { roughness: 0.2 }))
   mesh.frustumCulled = false
   scene.add(mesh)

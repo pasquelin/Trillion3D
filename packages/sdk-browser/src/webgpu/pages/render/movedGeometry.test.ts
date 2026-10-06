@@ -1,4 +1,4 @@
-// #573 on WebGPU: a dynamic geometry's rewrite hands its roots how far a vertex lies from where its
+// On WebGPU, a dynamic geometry's rewrite hands its roots how far a vertex lies from where its
 // pages are bounded, and each page's box where its vertices are (`noteRewritten`). Its roots hold
 // that reach as a deformation's — the GPU cut by its mark —, this rewrite's, not the farthest ever;
 // each page's record holds its box (`PageRec.moved`), which its row's sphere and corners read, and

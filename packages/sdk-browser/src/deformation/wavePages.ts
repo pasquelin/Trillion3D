@@ -56,7 +56,7 @@ type Group = { ranks: number[]; boxes: Float64Array }
 const plans = new WeakMap<DeformationFrame, { roots: number; groups: Group[] }>()
 
 /** A page `PageRec.moved` may bound: a leaf — no coarser form stands for it, it stands for none,
- *  so no level of a cut reads another's bounds —, of a geometry no rewrite bounds (#573). */
+ *  so no level of a cut reads another's bounds —, of a geometry no rewrite bounds. */
 const boundable = (rec: PageRec) =>
   (rec.level ?? 0) === 0 && rec.parentError == null && rec.sourceMesh?.geometry.usage !== 'dynamic'
 
@@ -111,9 +111,9 @@ function writeGroup(
 }
 
 /**
- * THE PAGES THE WAVES CARRY (#357): each page of a record set whose every placement the waves
+ * THE PAGES THE WAVES CARRY: each page of a record set whose every placement the waves
  * alone move is bounded where its vertices are this frame, as a rewritten dynamic page is
- * (`PageRec.moved`, #573) — its shadow sphere, its occlusion corners, its transparent corners —,
+ * (`PageRec.moved`) — its shadow sphere, its occlusion corners, its transparent corners —,
  * not by its rest box grown on every side by the crest of every wave: a sea's pages, tall by a
  * wave's height where they stand, bound the shadow pages they colour. The placements sharing the
  * records — the rows of one batch, parked ones too — take the union of theirs; a page drawn at

@@ -1,4 +1,4 @@
-// Lights each covered pixel walks against those that reach it (#1369), and the grid pass's work:
+// Lights each covered pixel walks against those that reach it, and the grid pass's work:
 // UE5's light grid — cells of `tileSize` pixels across and `gridSlices` slices of depth,
 // `gridSlicesPerOctave` to a doubling of the view depth —, the lights culled once per image against
 // each cell's own bounds, each pixel walking its cell's list (`lighting/tiles`, their oracle
@@ -20,19 +20,19 @@ import type { Light } from './lightTileCity.ts'
 
 /**
  * The rates the model prices the counts at, each from a number measured on develop:
- * - `pairNs`: the recette's 1.21 ms of develop's tile pass at 3456 × 2234, spread over its 6.048
+ * - `pairNs`: the measured 1.21 ms of the per-tile pass at 3456 × 2234, spread over its 6.048
  *   million tile × light pairs (each two slices tested, the tile's 256 depth reads and reductions
  *   folded in): 0.200 ns a light against a cell's bounds with its bookkeeping. The grid pass is
  *   charged one pair a column × light test and two a run solved (its at most eight section
  *   evaluations and two depths).
  * - `texelPs`: a texel read or written, the TAA resolve's 1.30 ms envelope over its 19 texels a
- *   display pixel (#1369's profile): 8.86 ps. The grid pass is charged two a list entry (its mark,
+ *   display pixel (the TAA profile): 8.86 ps. The grid pass is charged two a list entry (its mark,
  *   its write) and two a cell record.
  *   The resolve is charged its G-buffer texels (`RESOLVE_GBUFFER`) at the same rate, per texel
  *   whatever its bytes: no measured number prices a byte alone, so the bytes are counted, not
  *   priced.
  * - `inRangePs`, `outOfRangePs`: a listed light in and out of the pixel's range in the resolve's
- *   program with no shadow code, timed on the resolve (64 lamps, a million pixels, M2 Max, #1326,
+ *   program with no shadow code, timed on the resolve (64 lamps, a million pixels, M2 Max,
  *   docs/ENGINE.md): 27.8 and 10.6 ps a pixel.
  */
 export const LIGHTING_RATES = {
@@ -119,7 +119,7 @@ async function main() {
   })
   console.log(`200 lamps of range ${range} m, ${width} × ${height}: lights per covered pixel`)
   console.table(rows)
-  console.log("Develop's tile pass (#924) at the same size:", tilePassWork(width, height, 200))
+  console.log('The tile pass at the same size:', tilePassWork(width, height, 200))
   const [before, after] = [RESOLVE_GBUFFER.before, RESOLVE_GBUFFER.after].map(gbufferAccesses)
   console.log('G-buffer per covered pixel, develop then now:', before, after)
 }

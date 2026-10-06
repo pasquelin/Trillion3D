@@ -1,5 +1,5 @@
-// S7: the material depth pass is gone. Each class's fragment stage rejects, before any write, the
-// pixels the depth's `equal` test used to refuse it: the background, a page past the table, another
+// There is no material depth pass. Each class's fragment stage rejects, before any write, the
+// pixels a depth `equal` test would refuse it: the background, a page past the table, another
 // class (`classAdmits`). The same pixels are kept, so every texel is the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'

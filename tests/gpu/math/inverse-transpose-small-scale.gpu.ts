@@ -4,10 +4,10 @@
 // (defect 1) being scale-free, a tiny rotation was conformal on both sides and only the GPU took the
 // shortcut: it set the unrotated axis against the camera and culled faces that still faced it.
 //
-// The kernel runs on Dawn (`../dag/selectionKernel.ts`) as shipped and as it was before the fix,
+// The kernel runs on Dawn (`../dag/selectionKernel.ts`) as shipped and with the defect,
 // rebuilt by `substitutionBefore.ts`. A cull is judged against what the engine DRAWS
 // (`engineDraws.ts`), never against the raw orientation, which ignores the face the engine swaps
-// under a mirror: the two populations the old count mixed are kept apart.
+// under a mirror: the two populations the raw count mixes are kept apart.
 //
 //   node bench/dawn/proofs.ts tests/gpu/math/inverse-transpose-small-scale.gpu.ts
 import test from 'node:test'

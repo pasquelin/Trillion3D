@@ -1,4 +1,4 @@
-// #573: where each page of a dynamic cut has its vertices, measured as they are rewritten
+// Where each page of a dynamic cut has its vertices, measured as they are rewritten
 // (`createPageMotion`). Under random wave fields rewriting random ranges, every page's box is its own
 // vertices' box — a rewrite measures the pages it touches, the others keep a box their unmoved
 // vertices still fill —, and the reach is the farthest any vertex lies from rest. Each page's row,

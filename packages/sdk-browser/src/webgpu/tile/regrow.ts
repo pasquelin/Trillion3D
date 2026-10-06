@@ -7,7 +7,7 @@ import {
 } from './pageTable.ts'
 
 /**
- * An atlas's page table laid out again for `layouts` at `feedbackOffset` (#847): a texture was
+ * An atlas's page table laid out again for `layouts` at `feedbackOffset`: a texture was
  * appended to it, or the atlas before it grew. Each texture it held keeps its header words — tail
  * place, sampling, transform — and its entries — the tiles resident, the ancestors serving the
  * others —; only the head and the absolute level addresses move. The table is copied into a

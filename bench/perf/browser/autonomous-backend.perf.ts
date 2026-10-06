@@ -19,8 +19,8 @@ const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308]
 const geometry = new G.Geometry()
 const material = G.basicSurface()
 
-/** A record with the world the oracle reads on it, and the draw state the record carried before
- *  #1234; the engine now reads the latter from a `PageDraws` table. */
+/** A record with the world the oracle reads on it, and the draw state the engine reads from a
+ *  `PageDraws` table. */
 type PageRec = EngineRec & {
   matrix: G.Matrix4
   geometry?: Geometry
@@ -33,7 +33,7 @@ interface World {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
   shown: PageRec[]
-  /** The packed rank of each shown record (#1235). */
+  /** The packed rank of each shown record. */
   shownPacked: number[]
   desired: PageRec[]
   requested: PageRec[]

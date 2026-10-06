@@ -53,7 +53,7 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
     drawnGeometry: (Geometry | undefined)[] = [],
     drawnSurface: HostMaterials[] = []
   let rowsWritten = true
-  // The packed rank too: one record serves every row of its page (#1235), so the same records may
+  // The packed rank too: one record serves every row of its page, so the same records may
   // show other rows, whose matrices differ.
   const unchanged = (shown: readonly PageRec[], shownPacked: readonly number[]) => {
     if (rowsWritten || shown.length !== drawn.length) return false
@@ -85,7 +85,7 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
       rowsWritten = true
     },
     /** Draws `shown` — records placed by rows, each with its geometry, and the packed rank of each
-     *  instance (`shownPacked`, #1235) — this frame. */
+     *  instance (`shownPacked`) — this frame. */
     draw(shown: readonly PageRec[], shownPacked: readonly number[]) {
       if (unchanged(shown, shownPacked)) return
       const rootOfPacked = draws.placement.rootOfPacked

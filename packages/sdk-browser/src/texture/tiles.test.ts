@@ -42,7 +42,7 @@ test('a texture under 64 texels has no streamed level: everything is in the tail
 test('tail levels sit side by side on block boundaries, the 1×1 block ending in the gutter', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(tailOffset), [0, 64, 96, 112, 120, 124, 128])
   assert.equal(TILE_BORDER + tailOffset(6) + 4, TILE_PITCH)
-  // The tile grid rounded up to a power of two: a pool coordinate is exact in f32 (#26).
+  // The tile grid rounded up to a power of two: a pool coordinate is exact in f32.
   assert.equal(POOL_LAYER_SIDE, 4096)
   assert.ok(POOL_LAYER_SIDE >= 30 * TILE_PITCH && POOL_LAYER_SIDE / 2 < 30 * TILE_PITCH)
 })
@@ -104,7 +104,7 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
   assert.equal(small.clamp, 'scene')
 })
 
-// Behaviour (#726): the floor holds every tail of a lane, as the geometry pool holds its root
+// Behaviour: the floor holds every tail of a lane, as the geometry pool holds its root
 // cover: a budget under it is raised to it, by name; only a device too small for it refuses.
 test('a budget under the tails of a lane is raised to the layers they take, by name', () => {
   const demand = { color: lanes(5000, 0), data: lanes(0, 0) }
@@ -116,7 +116,7 @@ test('a budget under the tails of a lane is raised to the layers they take, by n
   assert.throws(() => texturePoolFor(1, device, demand, rgba8, tails), /TEXTURE_POOL_DEVICE_LIMIT/)
 })
 
-// Behaviour (#726): tails that fill whole layers leave a lane that streams one layer more at its
+// Behaviour: tails that fill whole layers leave a lane that streams one layer more at its
 // floor, never frozen at its tails; a lane with nothing to stream keeps only its tails' layers.
 test('a lane whose tails fill whole layers keeps a layer to stream into at its floor', () => {
   const full = { color: lanes(TILES_PER_LAYER, 0), data: lanes(0, 0) }

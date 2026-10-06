@@ -20,7 +20,7 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
 /** What the cut triangles are, beside faces (`DrawnTriangles`). */
 export type DrawnKind = { lines?: boolean; spriteRadius?: number }
 
-/** A dynamic primitive's held box (#573): six numbers, the least corner then the greatest. */
+/** A dynamic primitive's held box: six numbers, the least corner then the greatest. */
 export type HeldBox = Float64Array
 
 /** The box and ball of dynamic page `k`: its own corners where they were cut, as `boxes` holds them
@@ -48,7 +48,7 @@ function bounds(page: PageCutPayload['pages'][number], radius: number | undefine
 
 /** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
- *  With `boxes`, the primitive is dynamic (#573): index pages alone, no geometry page and no normal
+ * With `boxes`, the primitive is dynamic: index pages alone, no geometry page and no normal
  *  cone — its vertices, read as floats from the host geometry, are rewritten in place —, each page
  *  bounded by its own corners where they were cut (`restBounds`). */
 export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Float64Array) {

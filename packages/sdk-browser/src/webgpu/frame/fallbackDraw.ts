@@ -90,7 +90,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const rec = rows.packedRecs[i]!
     // A cluster drawn from its quantized page reads no float position, but the binding still needs
     // a buffer: the smallest one the engine holds stands in, and the shader never reads it. Any
-    // other cluster without its positions is skipped, as before.
+    // other cluster without its positions is skipped.
     const position = rec.geometryPage ? gpu.zeroUv : rows.packedPositions[i]
     if (!position) continue
     const group = bindGroupFor(rt, device, position),

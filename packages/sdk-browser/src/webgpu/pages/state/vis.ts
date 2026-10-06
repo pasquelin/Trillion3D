@@ -72,7 +72,7 @@ export interface WebgpuVisState {
   /**
    * Pipelines of coplanar layers above 0: same modules and same states as layer 0, plus the layer's
    * depth bias in hardware units. A scene with no stacked coplanar surface creates none and draws
-   * exactly as before.
+   * with layer 0 alone.
    */
   visLayerPipelines: Array<GPURenderPipeline | undefined>
   /** One more than the scene's deepest coplanar layer; 1 when there is none. */
@@ -103,7 +103,7 @@ export interface WebgpuVisState {
   shadeIdentity: WebgpuBindIdentity
   concatPos: GPUBuffer | undefined
   concatUv: GPUBuffer | undefined
-  /** The normal atlas's view (`../../core/floatAtlas.ts`, #1410). */
+  /** The normal atlas's view (`../../core/floatAtlas.ts`). */
   concatNrm: GPUTextureView | undefined
   /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined
@@ -115,7 +115,7 @@ export interface WebgpuVisState {
   shadeUniPacked: Float32Array<ArrayBuffer>
   visUniPacked: Float32Array<ArrayBuffer>
   geometryBlocks: Map<HostAttributes, GeometryBlock>
-  /** The session's GPU deformation, its records in the float pool's tail (#357). */
+  /** The session's GPU deformation, its records in the float pool's tail. */
   deformation: SessionDeformation | undefined
   mapLayer: Map<Texture, number>
   dataLayer: Map<Texture, number>

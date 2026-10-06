@@ -72,7 +72,7 @@ type Session = {
   ): boolean
   vertexBytes?(attributes: Attributes, ranges: VertexRange[]): number | undefined
 }
-/** Where `upload` hands a resource's rewritten ranges (#573), made once: `weigh` says the bytes
+/** Where `upload` hands a resource's rewritten ranges, made once: `weigh` says the bytes
  *  they send the GPU, the session's count else the lists' own; `write` marks its host geometry and
  *  hands them, with the resource's `reach` and its pages' `boxes` (`pageMotion.ts`), to the
  *  session — false while none draws it, `refused` when it cannot take them; `renewed` says a

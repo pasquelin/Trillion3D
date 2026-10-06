@@ -26,9 +26,9 @@ fn declared(case: &str, file: &[u8]) -> (registry::Transfer, Vec<&'static str>, 
     (transfer, notes, super::super::rgba8(decoded).into_raw())
 }
 
-// Reproduction of finding 56, KTX 2.0 half: the same payload, its format descriptor declaring a
-// linear then sRGB transfer function. Texels are the same and the declaration changes; the
-// driver previously assigned sRGB to both, so a linear texture was reread as if it carried the
+// KTX 2.0 half: the same payload, its format descriptor declaring a
+// linear then sRGB transfer function. Texels are the same and the declaration changes; a
+// driver assigning sRGB to both would reread a linear texture as if it carried the
 // curve.
 #[test]
 fn the_same_level_declared_linear_then_srgb_yields_two_transfers() {
@@ -82,7 +82,7 @@ fn rows(line: impl Fn(usize) -> [u8; 4]) -> Vec<u8> {
     (0..4).flat_map(|row| line(row).repeat(4)).collect()
 }
 
-// Reproduction of finding 57: the format descriptor raises the premultiplied-alpha flag, and
+// The format descriptor raises the premultiplied-alpha flag, and
 // the output contract asks for straight alpha. The driver did not read that flag: colours
 // already multiplied by their alpha came out as-is, then the preview premultiplied them a
 // second time. Each component is now divided by the texel's alpha, without dividing by zero.
@@ -120,7 +120,7 @@ fn the_descriptor_premultiplied_flag_brings_alpha_back_to_straight() {
     assert_eq!(declared("straight", &droit).2, level);
 }
 
-// Reproduction of finding 57, second half: the `KTXorientation` and `KTXswizzle` keys were
+// Second half: the `KTXorientation` and `KTXswizzle` keys were
 // ignored without a word. The format's default orientation is `rd` — to the right, downward —,
 // that of the contract; `ru` asks for a vertical flip, which the driver applies. Everything
 // else is counted by name, never applied the wrong way.

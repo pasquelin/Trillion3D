@@ -35,7 +35,7 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * pipeline and buffers without that order: a slot of the main class sets the main pipeline and the
  * paged group, an own slot sets its entry's, and the own entries' paint order is the one the CPU
  * ranked (`order.ts`). Draw primitives are rasterized instance by instance, in order: the paint
- * order is the one a draw per item used to give — without the draws.
+ * order is the one a draw per item gives — without the draws.
  *
  * The loop does no matrix product, no material read, no frustum test: an own entry wholly out of
  * view is not encoded at all, as it was not per item; a main slot holds too many entries to query
@@ -146,7 +146,7 @@ export function drawBlendPass(
       },
       // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
       ...(rt.vis.writesFeedback ? [feedbackAttachment(rt)] : []),
-      // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
+      // The share a debug view or the temporal pass reads; an empty slot otherwise.
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
       ...(filter ? filter.attachments() : []),

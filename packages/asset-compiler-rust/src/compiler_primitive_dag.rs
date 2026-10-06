@@ -95,7 +95,7 @@ pub(super) fn build_dag_primitive(
     );
     // The collider and the pages read the same DAG and neither reads what the other writes: they
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
-    // the serial cook's, and the cook's error still comes first (#956).
+    // the serial cook's, and the cook's error still comes first.
     let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
     let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
     let (collision, paged) = laps.join(

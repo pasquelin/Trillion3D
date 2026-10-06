@@ -1,4 +1,4 @@
-//! The audit's tree (`gen_meshes.py::vegetation`): the typical foliage asset.
+//! A tree: the typical foliage asset.
 use super::meshes::{gaussian, normalize, uniform, Mesh, V};
 use crate::tests::random::Xorshift;
 use std::f64::consts::TAU;

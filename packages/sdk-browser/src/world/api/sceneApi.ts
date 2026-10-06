@@ -115,10 +115,10 @@ export function createExplorerSceneApi(inputs: Inputs) {
         )
       active.growPlacements(from, to)
     },
-    /** Whether the active path mounts and unmounts resources in the open session (#572). */
+    /** Whether the active path mounts and unmounts resources in the open session. */
     mountsPlacements: () => !!getActive().mountPlacements,
     mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
-    /** A dynamic geometry's lists were rewritten in place (#573); false when the active path
+    /** A dynamic geometry's lists were rewritten in place; false when the active path
      *  cannot take it, and only a new session will draw them. */
     updateVertices: (...change: Parameters<NonNullable<RenderBackend['updateVertices']>>) => (
       check(),

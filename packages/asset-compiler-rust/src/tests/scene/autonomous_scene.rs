@@ -1,8 +1,7 @@
-//! A08: availability contract of the autonomous scene. The cache announced
-//! `autonomousScene` as soon as all its primitives were exact, then wrote a
-//! `scene.gltf` whose animations had vanished: the consumer chose that mode and
-//! lost motion without a word. A node animation is neither skinning nor morphing,
-//! nothing in the passes betrayed it.
+//! Availability contract of the autonomous scene. The cache must not
+//! announce `autonomousScene` as soon as all its primitives are exact when the `scene.gltf` it
+//! writes lost its animations: the consumer would choose that mode and lose motion without a
+//! word. A node animation is neither skinning nor morphing, so nothing in the passes betrays it.
 use super::*;
 
 /// Both arrays carried by the base fixture: nine position floats, three indices.
@@ -50,7 +49,7 @@ fn compile_scene(tag: &str, animated: bool) -> (Value, Option<Value>) {
     (result, written)
 }
 
-// Finding A08: a scene that carries a node animation is either rendered with its
+// A scene that carries a node animation is either rendered with its
 // animation, or declared out of autonomous mode under a named reason. What is
 // announced available must be.
 #[test]

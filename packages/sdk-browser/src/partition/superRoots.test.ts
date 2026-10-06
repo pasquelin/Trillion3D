@@ -1,4 +1,4 @@
-// The near/far choice of a cell is the cut's (#1332): its super-roots' bound read from the world
+// The near/far choice of a cell is the cut's: its super-roots' bound read from the world
 // DAG the cook publishes (`worldRootsDag`), and their projected error never below what the cut's
 // own certified bound gives any replacing sphere's point the frustum shows.
 import test from 'node:test'

@@ -54,13 +54,13 @@ export async function engineDraws(cases: Case[]) {
 }
 
 /**
- * The cut's culls against what the engine draws. The old count — "the raw orientation says facing
+ * The cut's culls against what the engine draws. The raw count — "the raw orientation says facing
  * and the cut culls" — is not silently replaced: it is kept as `raw` and split in two, and what the
  * raw orientation did NOT see is counted beside it.
  *   — `wrong`: the cut culls a cluster the engine draws fragments of. THE defect.
- *   — `rawDrawn`: the part of the old count that was a defect.
+ *   — `rawDrawn`: the part of the raw count that is a defect.
  *   — `rawUndrawn`: the part that was not — the engine draws nothing of it.
- *   — `missedByRaw`: defects the old count never saw, the raw orientation calling them facing away
+ *   — `missedByRaw`: defects the raw count never sees, the raw orientation calling them facing away
  *     while the engine draws them (the face swap under a mirror plays both ways).
  * Invariants: `raw = rawDrawn + rawUndrawn` and `wrong = rawDrawn + missedByRaw`.
  */

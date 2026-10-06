@@ -23,7 +23,7 @@ fn assert_cache_coherent(o: &Options) {
     }
 }
 
-/// A02: two concurrent compilations of same cache. Cache keeps single pointer per scope
+/// Two concurrent compilations of same cache. Cache keeps single pointer per scope
 /// and purges after each write: without mutual exclusion, one purge erases key and
 /// objects other just published. Each compilation must succeed or be refused,
 /// cache remaining readable in both cases.

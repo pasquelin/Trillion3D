@@ -42,9 +42,9 @@ type Inputs = {
  * it writes every surface the scene built from that entry — one per geometry variant — in place,
  * and the active engine reads them again at the next frame (`refreshMaterials`), no second upload
  * path and no new GPU memory. Moved to another draw class, opaque, masked or blended, its
- * drawables go where the open would put them (#846); an engine that lays that class out at open
+ * drawables go where the open would put them; an engine that lays that class out at open
  * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write. A page creates materials too
- * (#847), each a host surface of its own, set and read as a scene material is, that a drawable
+ *, each a host surface of its own, set and read as a scene material is, that a drawable
  * is given to wear (`assignMaterial`).
  */
 export function createExplorerMaterialApi(inputs: Inputs) {
@@ -160,7 +160,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       runtime.drop(id)
     },
     /** Drawable `primitive` (`mesh/primitive`, as the manifest names it) wears created material
-     *  `id` from the next frame, in its geometry's variant and its alpha mode's draw class (#846);
+     * `id` from the next frame, in its geometry's variant and its alpha mode's draw class;
      *  refused by name before any write. False when an engine only draws it in a new session. */
     assignMaterial(primitive: string, id: string) {
       check()

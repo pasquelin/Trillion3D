@@ -26,7 +26,7 @@ MAP_UNIFORMS[SUBSURFACE_UNIT] = 'subsurfaceUv'
 
 /** What a unit binds: the material's map, the texture bound for it (none: the fallback texel, or
  *  a map another unit binds), its encoding, its fallback texel, and whether the map's alpha has
- *  coverage readers (a base or emissive map, #42). */
+ * coverage readers (a base or emissive map). */
 type MapVisit = (
   unit: number,
   map: Texture | undefined,

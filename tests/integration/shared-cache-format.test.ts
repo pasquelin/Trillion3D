@@ -38,7 +38,7 @@ test('the compiler and the runtime number the cache format alike', () => {
   assert.equal(rustConstant('CLUSTERED_BLEND_FORMAT_VERSION'), CLUSTERED_BLEND_FORMAT_VERSION)
 })
 
-// #962: a block level file is laid out in the engine's tile records; the tile and its gutter are
+// A block level file is laid out in the engine's tile records; the tile and its gutter are
 // the same numbers on both sides, or every tile is cut at the wrong bytes.
 test('the compiler lays texture levels out as the runtime reads them', () => {
   assert.equal(

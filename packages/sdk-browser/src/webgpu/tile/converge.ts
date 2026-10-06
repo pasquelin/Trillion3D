@@ -36,7 +36,7 @@ const POSE_ROUNDS = 4
  * refuses, it does not spin on itself.
  *
  * Nothing is released here: a tile stays resident until the pool, full, yields the least looked-at
- * — the pool's rule. The barrier used to release what the last image had not named, and a
+ * — the pool's rule. A barrier that released what the last image had not named would let a
  * request that wavers from one image to the next — three tiles of a pane, named one image in seven
  * — entered and left on every capture, changed the resource revision and kept the image from
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
@@ -139,7 +139,7 @@ export async function settlePose(
     convergeStillPhase(rt, null)
   }
   // Tiles or shadow pages that landed during the barrier changed the raster: the still TAA
-  // average must restart from this residency, not mix the frames that were still loading (#25).
+  // average must restart from this residency, not mix the frames that were still loading.
   if (mustRestartTaaAfterSettle(served, drains)) restartTaaAverage(rt.gpu.temporal?.frame)
   const mask = unsettledMask(rt)
   if (served || drains || mask & (TEXTURES_PENDING | SHADOWS_PENDING))

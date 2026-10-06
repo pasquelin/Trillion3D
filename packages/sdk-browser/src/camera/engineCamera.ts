@@ -81,7 +81,7 @@ export type CameraOptics = {
     /** NDC shift along y, as `offsetX` along x. */ offsetY: number
   } | null
 }
-/** A sub-rectangle of a wider view drawn into a target of its own (#1281). */
+/** A sub-rectangle of a wider view drawn into a target of its own. */
 export type ViewTile = NonNullable<CameraOptics['viewTile']>
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
 const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 }
@@ -131,7 +131,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   return into
 }
 
-/** Scales and shifts `projection` so a tile of a wider view fills its target (#1281). */
+/** Scales and shifts `projection` so a tile of a wider view fills its target. */
 function applyViewTile(
   projection: Float64Array,
   tile: ViewTile | null | undefined,

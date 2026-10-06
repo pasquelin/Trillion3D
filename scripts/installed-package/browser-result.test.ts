@@ -1,4 +1,4 @@
-// The installed page's no-hole check can fail (#486, audit of #639): it compares what the engine
+// The installed page's no-hole check can fail: it compares what the engine
 // drew with the scene's own full-detail count, which no engine counter copies.
 import test from 'node:test'
 import assert from 'node:assert/strict'

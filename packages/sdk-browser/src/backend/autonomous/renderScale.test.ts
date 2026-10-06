@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { autonomousRenderScale } from './renderScale.ts'
 
-// #834: WebGL2 resamples, it never reconstructs, so it draws below the display only when a page
+// WebGL2 resamples, it never reconstructs, so it draws below the display only when a page
 // asks: its default minimum is 1, `'auto'` included, where WebGPU's is 0.5.
 test('the WebGL2 render scale has a default minimum of 1', () => {
   const bounds = (asked?: Parameters<typeof autonomousRenderScale>[0]['renderScale']) =>

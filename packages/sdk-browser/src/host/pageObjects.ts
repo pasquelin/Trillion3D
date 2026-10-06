@@ -165,7 +165,7 @@ export function hostPageSurface(material: Material, vertexColors: boolean) {
  * decoded page carries —, cloned once, then read from the shared cache. The only place a twin is
  * built: a page that decodes a colour attribute and a primitive the host repaints ask the same
  * cache, so one surface never holds two of them. A surface that reads colours already — a
- * coloured variant the open or an assignment gave (#847) — is its own twin, and nothing is cached.
+ * coloured variant the open or an assignment gave — is its own twin, and nothing is cached.
  */
 export function colouredTwin(
   cache: Map<HostMaterial, HostMaterial>,

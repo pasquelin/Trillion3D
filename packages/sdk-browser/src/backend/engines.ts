@@ -24,7 +24,7 @@ const loaded = (renderer: EngineRenderer) =>
   })
 
 /**
- * The engine's two renderers as the core holds them (#1353): each the factory of its family, a
+ * The engine's two renderers as the core holds them: each the factory of its family, a
  * chunk a page downloads only when it draws with that renderer. `chooseBackends` names one; the
  * session loads it beside the scene and calls it once it has arrived (`loadRenderers`).
  */

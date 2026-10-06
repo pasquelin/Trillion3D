@@ -10,7 +10,7 @@ import { readGeometryAhead } from '../row/pageSlots.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, pageOf } from './residentEnsurer.fixture.ts'
 
-test('a lower tier admitted by the WebGPU pool stays out of the loading total (#408)', async () => {
+test('a lower tier admitted by the WebGPU pool stays out of the loading total', async () => {
   // The streamer's read watch, over reads that land at once: what `onProgress` counts as `total`.
   const { read, watch } = createReadWatch(async () => new Uint8Array(4))
   const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } })
@@ -39,7 +39,7 @@ test('a lower tier admitted by the WebGPU pool stays out of the loading total (#
   assert.deepEqual(progress.reads(), { landed: 1, asked: 1 }, 'the view read the camera page alone')
 })
 
-test('a view read joining a prefetch in flight is counted and raises it (#408)', async () => {
+test('a view read joining a prefetch in flight is counted and raises it', async () => {
   let land = () => {}
   const priorities: (number | undefined)[] = []
   const bytes = new Promise<Uint8Array>((resolve) => (land = () => resolve(new Uint8Array(4))))

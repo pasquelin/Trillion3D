@@ -54,8 +54,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   const chain = createDifferenceChain()
   const dispatch = createDagDispatch(resources, state, fail, chain)
   const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined
-  // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
-  // before #1333, and the rows' flags go up as they are.
+  // A packed world DAG reads the scene's residency through its mirror; without a packed
+  // world DAG the rows' flags go up as they are.
   const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world })
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1)
@@ -102,7 +102,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       packed.worlds.set(next)
       frames.writeWorlds(next)
       if (stretched) frames.writeRows()
-      // Cuts in hand and in flight keep their revision and still name what to stream (#358).
+      // Cuts in hand and in flight keep their revision and still name what to stream.
       if (posesMoved) state.worldRevision++
       return true
     },

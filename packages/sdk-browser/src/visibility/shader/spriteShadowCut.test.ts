@@ -1,6 +1,6 @@
-// #364: a sprite casts no shadow. Its root carries `SPRITE_ROOT`, so the shadow raster leaves its
+// A sprite casts no shadow. Its root carries `SPRITE_ROOT`, so the shadow raster leaves its
 // rows out (`../../webgpu/shadow/bounds.ts`, `MOBILITY_SHADOWLESS`). Every other surface casts.
-// #456: a mesh set `castShadow = false` is left out the same way.
+// A mesh set `castShadow = false` is left out the same way.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'

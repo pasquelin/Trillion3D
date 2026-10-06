@@ -4,7 +4,7 @@ import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 
 /** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
  *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
- *  when no as-is pixel is in the frame, which the flagless resolve reads none of (OMB-11). */
+ *  when no as-is pixel is in the frame, which the flagless resolve reads none of. */
 export interface TaaInputs {
   current: GPUTextureView
   depth: GPUTextureView
@@ -21,7 +21,7 @@ export interface TaaInputs {
   /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers
   /** The page pool and the float pool — positions, texture coordinates — a deformed pixel's
-   *  triangle is read from (`deformWgsl.ts`, #357). */
+   *  triangle is read from (`deformWgsl.ts`). */
   pool: GPUBuffer
   positions: GPUBuffer
   uvs: GPUBuffer

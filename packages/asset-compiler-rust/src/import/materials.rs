@@ -15,7 +15,7 @@ pub(super) fn map_texture(map: &ufbx::MaterialMap, textures: &mut TextureTable) 
 }
 /// Which file a map talks about. Comparing **elements** is not enough: a material
 /// library makes one element per line, so `norm x.png` and `map_Bump x.png` — the
-/// same file, declared twice — used to pass as two different maps.
+/// same file, declared twice — would pass as two different maps.
 pub(super) fn texture_file(map: &ufbx::MaterialMap) -> Option<&str> {
     let texture = map.texture.as_ref()?;
     [

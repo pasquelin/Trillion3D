@@ -96,7 +96,7 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   lighting.dispose()
 })
 
-test('an image is composed with the share it read, one group per pair (#349)', async () => {
+test('an image is composed with the share it read, one group per pair', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device)
   const hdr = h.view()

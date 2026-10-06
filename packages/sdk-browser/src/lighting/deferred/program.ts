@@ -39,12 +39,12 @@ export interface DirectLightResources {
   surfaceCache?: GPUTextureView
   /** Resident proxy; absent, a zero substitute. */
   proxy?: GPUBuffer
-  narrow?: boolean // the narrow tile pass wrote the lists (`contractVariants.ts`, #849)
-  unshadowed?: boolean // no light declares a shadow, or no shadow raster: no shadow code (#1249)
-  rectless?: boolean // no light is a rectangle: no rectangle code (#1369)
+  narrow?: boolean // the narrow tile pass wrote the lists (`contractVariants.ts`)
+  unshadowed?: boolean // no light declares a shadow, or no shadow raster: no shadow code
+  rectless?: boolean // no light is a rectangle: no rectangle code
   sunless?: boolean // no shadowed light is a sun: no clipmap read (`ShadowKinds`)
   localless?: boolean // no shadowed light is a point or a spot: no local read (`ShadowKinds`)
-  receiver?: ReceiverResources // what the receiver offset reads (#1410)
+  receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
   lighting: string
@@ -52,10 +52,10 @@ export interface DeferredSources {
   label: string
   direct: boolean
   bounce?: boolean
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`, #33)
+  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`)
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
- *  the chain's last blend when it left it to the composition (#963). */
+ *  the chain's last blend when it left it to the composition. */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend }
 /** What the temporal pass resolves: the colour, its pixels' as-is share, the filtering layers. */
 export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
@@ -69,7 +69,7 @@ export interface DeferredBindings {
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>
 
 const HDR: GPUColorTargetState[] = [{ format: 'rgba16float' }]
-/** A deferred-pass program: its modules, its pipelines compiled together off the thread (#1362),
+/** A deferred-pass program: its modules, its pipelines compiled together off the thread,
  *  and the bind groups it keeps while its resources do not change. */
 export async function createDeferredProgram(
   device: GPUDevice,
@@ -116,7 +116,7 @@ export async function createDeferredProgram(
     compositions,
     /** The group reading the lit image and its surface flags, or `image` and its as-is share,
      *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. A frame
-     *  that reads no as-is share (`asIs` false, OMB-11) binds the colour alone. */
+     *  that reads no as-is share (`asIs` false) binds the colour alone. */
     composition(image?: ComposedImage, asIs = true) {
       const view = image?.color ?? boundHdr,
         // The flagless group is kept under its colour: no share view is ever a colour one.

@@ -23,11 +23,11 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
   let streamingError: string | null = null
   let streamingPromise: Promise<void> | null = null,
     backgroundFetchController: AbortController | undefined
-  // A `Set` rather than an array: insertion order is the same, membership no longer costs a
+  // A `Set` rather than an array: insertion order is the same, membership costs no
   // walk per added address, and the duplicate is dropped by the structure itself.
   const queuedFetch = new Set<string>()
   const decodeFailures = new Set<string>()
-  // Page arrivals no longer enter the frame that discovers them: the queue stacks them and a
+  // Page arrivals do not enter the frame that discovers them: the queue stacks them and a
   // single bounded drain, at the head of `render()`, makes them resident before selection of
   // the next frame. The ceiling is TIME — 2 ms of integration per frame, the one budget the cells
   // of a partitioned scene (`partitionFrame.ts`) and the engine's row records spend from too, in
@@ -58,7 +58,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     backgroundFetchController = controller
     // Each page is served the moment IT lands — decoded in the pool while the others still
     // travel —, not once the whole batch has: waiting for the slowest page, then decoding one
-    // page at a time, held every page of the batch behind it (#982).
+    // page at a time, held every page of the batch behind it.
     const land = async (url: string) => {
       if (geometryUrls.has(url)) {
         const bytes = streamer.getBytes(url)

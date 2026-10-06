@@ -105,7 +105,7 @@ test('a pool that holds the whole catalogue holds its pages at their own sizes, 
       homeBytes: 4000,
     })
   assert.deepEqual([pool(512 * MIB).slots, pool(512 * MIB).allocatedBytes], [10, 4000])
-  // Nine slots for ten pages: fixed slots, as before.
+  // Nine slots for ten pages: fixed slots.
   assert.deepEqual([pool(9 * 1500).slots, pool(9 * 1500).allocatedBytes], [9, 9 * 1500])
   // Exactly the scene in slots of the widest page: the homes.
   assert.equal(pool(10 * 1500).allocatedBytes, 4000)

@@ -7,10 +7,9 @@ import { witnessEncoder, cutResources, LIVE, CAND, DRAWN } from './encode.fixtur
 
 test('a frame opens one command, whatever the depth', () => {
   // What the GPU pays between two kernels is counted in COMMANDS, not threads: each compute pass
-  // and each copy outside a pass closes the current encoder and opens another. There used to be
-  // 3·depth+3 — 42 on the bench's depth-thirteen hierarchy — because each level dispatched
-  // indirectly and therefore had to arm its argument; then six, three arming copies cutting three
-  // passes. Descent dispatches flat and the arming is a dispatch of the pass: one pass, period.
+  // and each copy outside a pass closes the current encoder and opens another. A level dispatched
+  // indirectly would have to arm its argument: 3·depth+3 commands, 42 on a depth-thirteen
+  // hierarchy. Descent dispatches flat and the arming is a dispatch of the pass: one pass, period.
   for (const levelCount of [1, 3, 5]) {
     for (const residentCut of [true, false]) {
       const { encoder, copies, passes } = witnessEncoder()

@@ -19,7 +19,7 @@ export type MipChain = {
 
 /** Generates the mip chains of 2D textures: averaged colour, median alpha so that threshold
  * coverage survives every level, scaled to keep level 0's share at the cutoff when there is one.
- * A batch is one uniform write, one encoder and one submit (OMB-29, #961): each chain's passes are
+ * A batch is one uniform write, one encoder and one submit: each chain's passes are
  * the ones it had alone, in order, so every level holds the same bytes.
  * Commands are submitted without being awaited: the device queue runs them in order, therefore
  * before any copy that will read a level. */

@@ -1,4 +1,4 @@
-//! The `clusters` and `groups` of the world roots (#1238), written as `world-roots.dag`: every
+//! The `clusters` and `groups` of the world roots, written as `world-roots.dag`: every
 //! world cluster, object roots included, and the group list, published for the runtime's cut.
 use super::merge::world_dag;
 use super::records;

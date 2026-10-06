@@ -30,7 +30,7 @@ test('a plain frame draws with no family; pools, passes, guides, views and A/B n
   assert.ok(frameFamilies(held, 'beauty', true).includes('measurement'), 'an A/B layout')
 })
 
-test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn (#1353)", async () => {
+test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn", async () => {
   const held = { particles: [new ParticlePool({ capacity: 4 })] }
   const frames = frameQueue(),
     done: string[] = []

@@ -46,7 +46,7 @@ function joue(items: ReturnType<typeof item>[]) {
     end() {},
   }
   // Bind groups are rebuilt on the first pass, when lighting resources enter the key: the stub
-  // gives enough for construction to succeed. Pipeline order is no longer decided in the encode
+  // gives enough for construction to succeed. Pipeline order is not decided in the encode
   // loop: it is baked in the static plan, one entry per face, built with the scene. It is therefore
   // built here the way prepare does.
   const blendState = Object.assign(createWebgpuBlendState(), {
@@ -114,7 +114,7 @@ function joue(items: ReturnType<typeof item>[]) {
 
 test('an unpaged item keeps its draw: it carries its own buffers', () => {
   // Five items that are not paged: each reads its indices, positions and UVs, so each keeps its
-  // bind group and its draw — one run per entry, as before.
+  // bind group and its draw — one run per entry.
   const suite = joue([
     item(G.FRONT_SIDE),
     item(G.FRONT_SIDE),

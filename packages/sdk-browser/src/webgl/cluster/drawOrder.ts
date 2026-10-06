@@ -23,7 +23,7 @@ export type OrderedNode = Parameters<typeof depthOf>[0] & {
  * A list sorted again with as many nodes, every key a number and every surface already numbered,
  * starts from its last order, ties broken by index — the order a stable sort from the list's own
  * gives —: a camera that moved a little leaves it nearly sorted, and the sort walks it once
- * instead of sorting from scratch (#1198: 0.44 ms a frame for sponza's 1 465 pages).
+ * instead of sorting from scratch (0.44 ms a frame on a 1 465-page scene).
  */
 export function createDrawOrder(serial: (node: OrderedNode) => number | undefined = serialOf) {
   const ranks = new WeakMap<object, number>()

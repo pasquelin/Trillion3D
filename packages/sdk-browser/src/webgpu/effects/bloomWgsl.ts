@@ -8,7 +8,7 @@ import { bloomLevelWgsl, levelTap } from '../../effects/bloomLevel.ts'
  * - `down` filters the level above into this one with the 13-tap filter;
  * - `up` adds the level below, read through the tent, into this one (additive blending);
  * - `composite` blends the first level's sum into the image (`blendLevel`).
- * The filters stay f32 on a device granted `shader-f16` (#963): a bilinear tap is an f32 blend of
+ * The filters stay f32 on a device granted `shader-f16`: a bilinear tap is an f32 blend of
  * half texels that a half operand would round, which changes levels and pixels (`bloomHalf.test.ts`).
  */
 export const BLOOM_WGSL = `

@@ -133,7 +133,7 @@ export function flatCloth(jolt: Module, y: number, pins: number[], events = fals
 }
 
 /**
- * How far a written-back vertex may stray from the per-vertex chain it replaced (PHY-06, #975):
+ * How far a written-back vertex may stray from the per-vertex chain it replaces:
  * four float spacings at 32 m, the reach of the soft tests' scenes (2⁻¹⁹ m each), 7.6 µm; a tenth
  * of a pixel is millimetres at any distance the page draws a soft body from.
  */

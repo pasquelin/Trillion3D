@@ -24,10 +24,10 @@
 //! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7). The retry
 //! looks at every face but slivers, even one narrower than the error, which the published check
 //! exempts: a coarse face spanning a log of a chalet, 6 m long and 0.22 m wide, came out inside
-//! out at 0.78 m of error, its corners on the caps' normals (#415, #484). Refusing such a face
+//! out at 0.78 m of error, its corners on the caps' normals. Refusing such a face
 //! would refuse the cook; retrying it only costs a few locks. A face none of whose corner copies
 //! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
-//! its top kept its underside there, on the top's and the edges' normals (#484). One driver runs
+//! its top kept its underside there, on the top's and the edges' normals. One driver runs
 //! these retries for the endpoint and the solved reductions alike (`retries.rs`).
 use super::stopped::Stop;
 use super::*;

@@ -19,8 +19,8 @@ export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
  *
  * The render frame follows the eye: at each camera step, all sixteen floats of each world matrix
  * are rewritten while only their translation changes. Stretch depends only on the nine linear
- * coefficients — `maxStretch` reads only those — so a moved origin used to recompute it, yield
- * the exact same float, then push the whole frame buffer again. Zero returned here means "no
+ * coefficients — `maxStretch` reads only those — so recomputing it for a moved origin would
+ * yield the exact same float, then push the whole frame buffer again. Zero returned here means "no
  * stretch changed": the buffer has nothing to receive.
  */
 export function refreshWorldStretch(

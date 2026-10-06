@@ -1,6 +1,6 @@
-// #198: the row change keeps the hold mask's `rowsDirty` bit set until an image consumes it. Only the
-// visibility path used to, so the fallback draw — the image encoded while the visibility pass is not
-// ready — left it set, drawn rows or none. The submitted image now consumes it, on every path.
+// The row change keeps the hold mask's `rowsDirty` bit set until an image consumes it. Every
+// path consumes it, the fallback draw too — the image encoded while the visibility pass is not
+// ready — whether it drew rows or none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts'
@@ -58,8 +58,6 @@ async function fallbackConsumes(blendOnly: boolean) {
   }
 }
 
-test('#198: the fallback draw consumes the row change of the rows it drew', () =>
-  fallbackConsumes(false))
+test('the fallback draw consumes the row change of the rows it drew', () => fallbackConsumes(false))
 
-test('#198: the fallback draw with no drawable row consumes the row change', () =>
-  fallbackConsumes(true))
+test('the fallback draw with no drawable row consumes the row change', () => fallbackConsumes(true))

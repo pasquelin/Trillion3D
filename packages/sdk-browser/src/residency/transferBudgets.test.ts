@@ -18,7 +18,7 @@ test('the tile pass budgets are what the host declared, 16 MiB and 1 ms by defau
   assert.equal(textureTransferBytesFor(0), 1, 'a zero byte budget still lands one tile per pass')
 })
 
-// #847: a texture taken after open grows its lane only when its tail finds no free place — never
+// A texture taken after open grows its lane only when its tail finds no free place — never
 // by evicting a held tile —, under the budget and the device's layers, else refused by name.
 test('a lane takes a texture after open in a free place, else one layer more, else refused by name', () => {
   const lanes = { lossless: 1, rgba: 0, 'two-channel': 0 }

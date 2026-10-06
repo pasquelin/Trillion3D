@@ -1,4 +1,4 @@
-// The WebGL2 path's views (`views.ts`, #1096): one record per view for what a camera owns, one
+// The WebGL2 path's views (`views.ts`): one record per view for what a camera owns, one
 // switch that trades references, and the pool admitting the union of the views' requests under
 // its one budget (`poolUnion.ts`), the residency pinning that union (`residency.ts`).
 import test from 'node:test'
@@ -146,7 +146,7 @@ test('one view: the switch never runs, and the pins and the queue are its own li
   assert.deepEqual(live.viewport, [8, 8])
   assert.equal(replaced, 2, 'each switch replaced the view')
   assert.equal(views.others.length, 0)
-  // With one view, the pins and the queue are what the image keeps and asks for, as before views.
+  // With one view, the pins and the queue are what the image keeps and asks for.
   const page = (url: string, array?: Uint32Array) => ({ url, array }) as PageRec
   live.shown.push(page('a'), page('b', new Uint32Array(3)))
   live.requested.push(page('c'), page('b', new Uint32Array(3)), page('d'))

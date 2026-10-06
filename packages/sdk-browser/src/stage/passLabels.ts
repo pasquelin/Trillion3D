@@ -1,6 +1,6 @@
 // The labels of the GPU passes the profile names by their own word (`passTable.ts`): each pass
 // reads its label here, so the table and the passes share one word, and the table — which the
-// public profile reads, in the CDN core — holds none of the passes nor their shaders (#1353).
+// public profile reads, in the CDN core — holds none of the passes nor their shaders.
 
 /** What every pass of the virtual shadow maps' label opens with (`../vsm/`): all of them are timed
  *  with the Shadows stage, whatever their chunk or light. */

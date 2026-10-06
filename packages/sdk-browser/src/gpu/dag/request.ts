@@ -31,7 +31,7 @@ export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1
 export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1
 /** The highest error step of the visible tier. */
 export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1
-/** Quantization step: sixteen steps per error doubling, as before the tier bit, over thirty-two
+/** Quantization step: sixteen steps per error doubling, over thirty-two
  *  doublings — four billion pixels, past any finite error a screen projects; the near plane
  *  reached is `Infinity`, the tier's highest step. */
 export const REQUEST_PRIORITY_SCALE = 16

@@ -36,7 +36,7 @@ test('a surface with no feature WebGL2 lacks says nothing', async () => {
   assert.deepEqual(said, [])
 })
 
-// #558: a clearcoat set on a live surface without `needsUpdate` is read on the next draw.
+// A clearcoat set on a live surface without `needsUpdate` is read on the next draw.
 test('a clearcoat set without needsUpdate remains supported', async () => {
   const coat = new GraphSurface('physical')
   const view = session(new Scene().add(G.triangleMesh(coat)), new EffectChain())
@@ -49,7 +49,7 @@ test('a clearcoat set without needsUpdate remains supported', async () => {
   assert.deepEqual(said, [])
 })
 
-// #558: a surface the gate refuses stopped the whole frame; it alone is left out now, by name.
+// A surface the gate refuses stopped the whole frame; it alone is left out now, by name.
 test('a refused surface is left out alone, said once, the loop never stopped', async () => {
   const refused = new GraphSurface('standard', { alphaHash: true })
   const scene = new Scene().add(

@@ -1,4 +1,4 @@
-// #831: a rectangle light's form factor is the exact integral of the clamped cosine over the part of
+// A rectangle light's form factor is the exact integral of the clamped cosine over the part of
 // the rectangle above the horizon, in f32, near, cut by the horizon, far away and far from the
 // world's origin. The shipped `rectView`, `polygonFormFactor` and `ltcCorner` run in f32
 // (`../shaderRunF32.fixture.ts`) against the clipped polygon's integral in f64 (each edge cut at the

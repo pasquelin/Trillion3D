@@ -1,6 +1,6 @@
 // Bench of the WebGPU engine-prepare catalogue: the source-byte table and the texture diagnostic
-// counters, against their batch F oracles. (The normal cones it also measured are cooked by the
-// compiler since #272: the prepare no longer computes them.)
+// counters, against their oracles. (The normal cones are cooked by the compiler: the prepare does
+// not compute them.)
 import {
   materialsAndTangentsCount,
   indexSourceBytes,

@@ -5,7 +5,7 @@ import type { WebglCards } from './pass.ts'
 import type { WebglImpostors, createWebglImpostors } from './frame.ts'
 
 /**
- * THE WEBGL2 IMPOSTOR TIER, ITS CODE A FAMILY ON DEMAND (#1336), loaded as the WebGPU draw's
+ * THE WEBGL2 IMPOSTOR TIER, ITS CODE A FAMILY ON DEMAND, loaded as the WebGPU draw's
  * (`../../impostor/code.ts`): the tier (`frame.ts`) is made from the impostor family by the
  * backend's prepare of a cache with baked impostors, awaited beside its pages, so its first image
  * already plans and draws the cards, and the CDN core stays within its budget; the core lends it

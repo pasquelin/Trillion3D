@@ -47,7 +47,7 @@ export function largestScale(
   draws: InstanceRanks,
   scratch = new Matrix4(),
 ) {
-  // Over every instance: one record serves every placement of its primitive (#1235).
+  // Over every instance: one record serves every placement of its primitive.
   let scale = 0
   for (const rec of new Set(records))
     draws.forEachRank(rec, (packed) => {

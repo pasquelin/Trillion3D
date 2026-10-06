@@ -49,7 +49,7 @@ test('both stages read the visibility uniform, at the size of its struct', async
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!
-  // The fragment reads its texture level bias (#816).
+  // The fragment reads its texture level bias.
   assert.equal(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT)
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES)
 })

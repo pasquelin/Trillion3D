@@ -1,4 +1,4 @@
-// #1238: a world super-root page — raw world-space `f32` vertices and `u16` local indices — is not
+// A world super-root page — raw world-space `f32` vertices and `u16` local indices — is not
 // a `WGP3` page. Read at its world address from the cook's own fixture, every page becomes a decoded
 // page whose indices are widened to `u32` one-to-one, a position list in world space and no pose,
 // and it is uploaded and drawn by the WebGL2 cluster path unchanged.
@@ -36,7 +36,7 @@ function recordingGl() {
   return { gl: gl as unknown as WebGL2RenderingContext, uploads, draws }
 }
 
-test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit indexed (#1238)', async () => {
+test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit indexed', async () => {
   const { table, source } = worldRootsPageFixtureSource()
   assert.equal(table.pages.count, 4)
   for (let at = 0; at < table.pages.count; at++) {
@@ -74,7 +74,7 @@ test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit i
   }
 })
 
-test('a bundle of several pages resolves the one its offset names (#1238)', async () => {
+test('a bundle of several pages resolves the one its offset names', async () => {
   // The cooked fixture gives each page a bundle; a bundle of two proves the offset → page mapping:
   // the source picks the page whose `offset` the table lists, in binary order.
   const low = worldPage(0),
@@ -98,7 +98,7 @@ test('a bundle of several pages resolves the one its offset names (#1238)', asyn
   await assert.rejects(source.page(worldRootsPageAddress('', 0, 4)), /WORLD_PAGE_MISSING/)
 })
 
-test('a shared bundle read serves every caller, one aborting; no bundle, no page (#1238)', async () => {
+test('a shared bundle read serves every caller, one aborting; no bundle, no page', async () => {
   const { source, reads } = worldRootsPageFixtureSource(),
     address = worldRootsPageAddress('world-roots.bin', 1, 0)
   const [cancelled, kept, also] = await Promise.allSettled([
@@ -117,7 +117,7 @@ test('a shared bundle read serves every caller, one aborting; no bundle, no page
   assert.deepEqual(reads, [1], 'an unknown bundle reads nothing')
 })
 
-test('a bundle is fetched once for both WebGPU views of its page, asked apart (#1238)', async () => {
+test('a bundle is fetched once for both WebGPU views of its page, asked apart', async () => {
   const { source, reads } = worldRootsPageFixtureSource(),
     at = (bundle: number) => worldRootsPageAddress('world-roots.bin', bundle, 0)
   await source.read(at(1))
@@ -133,7 +133,7 @@ test('a bundle is fetched once for both WebGPU views of its page, asked apart (#
   assert.deepEqual(reads, [1, 2, 3, 1], 'a later request streams the bundle again')
 })
 
-test('a page owing its other WebGPU view holds its bundle within the pending budget (#1238)', async () => {
+test('a page owing its other WebGPU view holds its bundle within the pending budget', async () => {
   const { source, reads } = worldRootsPageFixtureSource(1),
     at = (bundle: number) => worldRootsPageAddress('world-roots.bin', bundle, 0)
   // Only `read` is asked of bundle 1 (a WebGL2 run, an evicted slot): bundle 2 owing a view next

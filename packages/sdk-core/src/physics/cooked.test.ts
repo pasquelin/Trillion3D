@@ -27,7 +27,7 @@ test('physics.json of each format read, cooked by this build, is read as it is',
 })
 
 test('another format, or none, is refused naming the version found and, one by one, those read', () => {
-  // Format 1, as the cook wrote it before #475: its dynamic `bodies`, no matter on an instance.
+  // Format 1, as the cook wrote it: its dynamic `bodies`, no matter on an instance.
   for (const [wrong, found] of [
     [{ ...file, formatVersion: 1, bodies: [] }, 1],
     [{ ...file, formatVersion: unread }, unread],

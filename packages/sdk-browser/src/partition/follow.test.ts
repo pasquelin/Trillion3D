@@ -1,4 +1,4 @@
-// #966 (from #558): a cooked open-world cell's node casts as its host mesh says. Its rows carry
+// A cooked open-world cell's node casts as its host mesh says. Its rows carry
 // the flag (`PlacementRows.shadowless`), which leaves the row out of every light cut
 // (`placement/update.test.ts`); a `castShadow` changed after the cell was placed rewrites them.
 import test from 'node:test'

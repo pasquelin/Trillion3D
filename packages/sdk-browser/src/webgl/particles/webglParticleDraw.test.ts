@@ -1,5 +1,5 @@
-// The CPU half of the WebGL2 particle draw (#844) on a strict fake GL: a blit into a depth copy
-// of another format than the drawing buffer's is refused, as drivers do. The GPU is the recette's.
+// The CPU half of the WebGL2 particle draw on a strict fake GL: a blit into a depth copy
+// of another format than the drawing buffer's is refused, as drivers do.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ParticlePool, type ParticlePoolSpec } from '../../../../sdk-core/src/fluids/particles.ts'

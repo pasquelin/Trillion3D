@@ -10,7 +10,7 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { createSessionDeformation } from './session.ts'
 
 /**
- * A WebGL2 session's deformation (#357): the records of its roots (`session.ts`), which the
+ * A WebGL2 session's deformation: the records of its roots (`session.ts`), which the
  * program reads as a texture of their own (`../webgl/cluster/deformation.ts`) — each record named
  * from float zero, so a page mesh carries its record's first float plus one (`wordOf`). Each image
  * (`update`), once its worlds are current, writes the records, sets each deformed root's reach
@@ -32,7 +32,7 @@ export function createWebglDeformation(
       },
     },
     deformedGeometries = new Set<Geometry>()
-  // Per placement, on the root: its pages are shared by every placement of the primitive (#1235).
+  // Per placement, on the root: its pages are shared by every placement of the primitive.
   for (const root of roots) root.deformRecord = session.wordOfWorld(root.world)
   for (const copy of copies) {
     const ids = copy.deformation?.softSourceIds

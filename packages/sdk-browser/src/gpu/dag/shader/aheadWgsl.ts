@@ -2,7 +2,7 @@ import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts'
 
 /**
  * The view AHEAD of the camera: what the camera cut also evaluates so the pages the camera is about
- * to need are asked for before they are on screen (#488).
+ * to need are asked for before they are on screen.
  *
  * The host writes it in the second uniform block (`../uniforms.ts`) and raises `ahead` in the first:
  * the eye moved by its velocity over the horizon (`view`), inside a frustum widened by the angle it

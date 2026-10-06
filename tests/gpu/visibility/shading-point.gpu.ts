@@ -31,7 +31,7 @@ test('the projection keeps planes and vertices, curves the interior, rises on it
   offset(0).forEach((value, i) => assert.ok(Math.abs(value - [0.135, 0.135, 0.36][i]) < 1e-6))
   // A flat patch, a vertex, and normals that carry no side: the point stays on its triangle.
   for (const row of [1, 2, 4]) assert.ok(none(row), `row ${row}: ${offset(row)}`)
-  // The same patch with its normals turned (#1344): the projection falls behind the side they
+  // The same patch with its normals turned: the projection falls behind the side they
   // face — under the surface a caster drew, which would shadow the pixel with its own depth —,
   // so the receiver keeps the triangle's point.
   assert.ok(none(3), `turned normals: the receiver keeps its triangle, not ${offset(3)}`)

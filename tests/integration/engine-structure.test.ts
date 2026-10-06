@@ -64,7 +64,7 @@ const POSE_LOCALE: Record<string, string> = {
 /**
  * Who READS the resolved world pose, and how it reaches them.
  *
- * Since batch M3b, the per-frame path no longer reads the pose on a host camera: per-frame input
+ * The per-frame path does not read the pose on a host camera: per-frame input
  * copies it ONCE into the engine camera (`readCameraWorld`), and downstream reads this structure —
  * `tests/integration/engine-without-three.test.ts` forbids these files from importing host library.
  * Only the contract and the oracle traversing host graph remain here.

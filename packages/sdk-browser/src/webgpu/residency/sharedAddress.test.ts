@@ -1,7 +1,7 @@
-// A cut delta of the estate's scale (#824): 2 754 primitives, 15.8 M triangles. Index pages are
+// A cut delta of the estate's scale: 2 754 primitives, 15.8 M triangles. Index pages are
 // content-addressed (`../row/pageSlots.ts`), so two primitives whose clusters carry the same index
 // bytes share one cache key while each cluster keeps its own level. A key weighed at one level
-// and released by a placement of another used to leave the wrong level list, drive its count
+// and released by a placement of another must not leave the wrong level list, drive its count
 // below zero and throw "Invalid array length" out of `applyCut`.
 import test from 'node:test'
 import assert from 'node:assert/strict'

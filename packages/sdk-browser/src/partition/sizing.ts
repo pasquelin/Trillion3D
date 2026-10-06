@@ -1,5 +1,5 @@
 /**
- * HOW MANY ROWS A PARTITIONED SCENE HOLDS AT ONCE (#404, #575), bound by the view and not by the
+ * HOW MANY ROWS A PARTITIONED SCENE HOLDS AT ONCE, bound by the view and not by the
  * world: moving content never runs a mesh short of rows, so it never reopens a session nor leaves
  * a node undrawn (CONTRIBUTING.md §Streaming, rule 10).
  *

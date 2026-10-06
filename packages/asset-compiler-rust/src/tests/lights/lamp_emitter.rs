@@ -92,7 +92,7 @@ fn the_parent_mesh_makes_an_envelope() {
 }
 
 // Behaviour: without an emissive body around it, the light declares no radius
-// and nothing is counted — the product is word for word that of before this lot.
+// and nothing is counted — the product is unchanged.
 #[test]
 fn without_an_emissive_body_the_field_stays_absent() {
     let (root, options) = scene(emissive(false), point_lamp(3.0), beside(lamp_node_beside()));
@@ -129,7 +129,7 @@ fn a_directional_never_receives_a_radius() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-// Behaviour: an envelope as wide as the range is no longer one. The radius is
+// Behaviour: an envelope as wide as the range is not one. The radius is
 // counted under its code and the field stays absent, rather than excluding
 // beyond what it contains.
 #[test]
@@ -156,7 +156,7 @@ fn the_emitter_sphere_fixture_yields_its_radius() {
     assert_eq!(lights["counts"]["light-emitter-radius-derived"], json!(1));
 }
 
-// #519: a lamp a hidden node hides (`KHR_node_visibility`) is off: it is not in `lights.json`.
+// A lamp a hidden node hides (`KHR_node_visibility`) is off: it is not in `lights.json`.
 #[test]
 fn a_lamp_under_a_hidden_node_is_off() {
     for (visible, count) in [(true, 1), (false, 0)] {

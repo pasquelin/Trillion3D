@@ -7,7 +7,7 @@ import { promisify } from 'node:util'
 import { brotliCompress, constants } from 'node:zlib'
 
 /** A scene cache's content-addressed object, geometry pages among them: binary, yet 11 to 24 %
- *  lighter in brotli (#921). The one rule the docs server (`docs/serve.ts`) and the deploy share. */
+ *  lighter in brotli. The one rule the docs server (`docs/serve.ts`) and the deploy share. */
 export const isCacheObject = (file: string) => /[\\/]objects[\\/][^\\/]+\.bin$/.test(file)
 
 const compress = promisify(brotliCompress)

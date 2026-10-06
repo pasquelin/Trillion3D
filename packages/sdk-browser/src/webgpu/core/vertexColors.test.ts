@@ -1,4 +1,4 @@
-// #347: WebGPU drew white where a material asks for vertex colours. The colours of the geometry
+// WebGPU drew white where a material asks for vertex colours. The colours of the geometry
 // read as floats ride at the tail of the UV buffer; these tests read that buffer as uploaded
 // and index it the way the shader's `vertColor` does.
 import test from 'node:test'

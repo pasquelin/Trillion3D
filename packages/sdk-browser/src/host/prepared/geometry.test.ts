@@ -4,7 +4,7 @@ import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDoc
 import { wireframe } from '../../../../sdk-core/src/world/geometry/lines.ts'
 import { preparedGeometries } from './geometry.ts'
 
-// #457: a quantized glTF gives the host normalised integer lists; the host has always read them at
+// A quantized glTF gives the host normalised integer lists; the host has always read them at
 // the value they stand for, never as the stored numbers a world geometry is read as.
 test('a prepared geometry is the host’s: its normalised lists are edged and turned at their value', async () => {
   // View 0: three Int16 positions (18 bytes, padded to 20); view 1: three Int8 normals.

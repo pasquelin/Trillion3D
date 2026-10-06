@@ -1,4 +1,4 @@
-// #1346: once nothing changes, the world stops drawing at any render scale — the rough reflection's
+// Once nothing changes, the world stops drawing at any render scale — the rough reflection's
 // still window (`REFLECTION_STILL_FRAMES`) closes, the TAA still average restarts on the settled
 // reflection (`restartTaaOnSettle`) and closes (`taaStillFrames`), and the hold takes over.
 import test from 'node:test'
@@ -74,7 +74,7 @@ for (const scale of [1, 0.75, 0.5])
       (frame: ReflectionHistoryFrame) => frame.epoch[0]++,
     ],
   ] as const)
-    test(`#1346: ${name} rests after its temporal phase cycle at render scale ${scale}`, () => {
+    test(`${name} rests after its temporal phase cycle at render scale ${scale}`, () => {
       const { frames, settled } = framesToRest(change, scale)
       assert.ok(settled > 0, 'the reflection settled')
       const still = taaStillFrames(upscalePhases(Math.round(DISPLAY[0] * scale), DISPLAY[0]))

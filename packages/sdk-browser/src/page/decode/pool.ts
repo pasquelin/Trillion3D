@@ -26,7 +26,7 @@ const workerError = (id: number): PageDecodeAnswer => ({
  * answers `PAGE_DECODE_WORKER`, and everything after that goes back to the fallback.
  *
  * A decoded page comes back by transfer: the main thread receives the worker's own buffer, with
- * no copy on either side (#982).
+ * no copy on either side.
  */
 export function createPageDecodePool(size: number) {
   const idle: Worker[] = [],

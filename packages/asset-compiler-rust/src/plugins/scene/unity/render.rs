@@ -108,7 +108,7 @@ impl Builder<'_, '_> {
     /// each imported object, the `fileID` and the name it carried in the file: only the part
     /// that carries that name is kept, with its transform in the model. Name missing from the
     /// table, or not found under that name in the model: the whole model is instantiated and
-    /// the fact is counted, as before.
+    /// the fact is counted.
     fn selected(&mut self, asset: &Path, file_id: i64, parts: Parts) -> Parts {
         if parts.nodes.len() < 2 {
             return parts;

@@ -117,7 +117,7 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
  * Rejects any cache this runtime cannot draw. The runtime reads one geometry model: a DAG of
  * clusters where every cluster carries its own screen-error band, or a whole mesh the compiler kept
  * outside the DAG (`shared-blend`), which carries no cluster at all. A cache whose clusters carry no
- * band — the old page tree — is refused by name here rather than half-read later.
+ * band is refused by name here rather than half-read later.
  */
 export function assertCacheIdentity(metadata: ClusterManifest) {
   // A manifest with a binary sidecar describes its clusters in columns; identity is a property of
@@ -169,8 +169,8 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
     )
-  // Texture levels of another version — before 6, block files not laid out in tile records
-  // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
+  // Texture levels of another version — before 6, block files not laid out in tile records —
+  // would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
   const { textures } = metadata
   if (textures && textures.version !== TEXTURE_PREVIEW_VERSION)
     throw new EngineError(

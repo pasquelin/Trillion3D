@@ -1,4 +1,4 @@
-// #364: a sprite is a picture that always faces the camera. The real
+// A sprite is a picture that always faces the camera. The real
 // text of both shaders and its CPU twin turn its quad toward the image, and every raster that
 // draws a sprite reads that one text.
 import test from 'node:test'
@@ -131,7 +131,7 @@ function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   return ids.filter((id) => id !== 0).length
 }
 
-// The issue's fixture: one sprite seen from the front, the side and behind covers the same pixel
+// One sprite seen from the front, the side and behind covers the same pixel
 // count, within 1 %; a sprite whose object is turned too, since its turn is not read.
 test('one sprite seen from the front, the side and behind covers the same pixels', () => {
   const front = covered([0, 0, 5])

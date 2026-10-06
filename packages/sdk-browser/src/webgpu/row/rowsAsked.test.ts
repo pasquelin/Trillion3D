@@ -1,4 +1,4 @@
-// #1232: the CPU cut counts every row it selects, the table holding them or not: that count, not the
+// The CPU cut counts every row it selects, the table holding them or not: that count, not the
 // placements, is what the table grows to (`../pages/prepare/growTables.ts`, `followCutRows`).
 import test from 'node:test'
 import assert from 'node:assert/strict'

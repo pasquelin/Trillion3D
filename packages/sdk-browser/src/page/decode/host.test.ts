@@ -1,4 +1,4 @@
-// Lot H2: the decode host — byte accounting, pool cap, startup never awaited, and `null` metrics
+// The decode host — byte accounting, pool cap, startup never awaited, and `null` metrics
 // until something is measured. Hostile inputs: a dead worker, a resident page whose shared buffer
 // must neither move nor be detached.
 //

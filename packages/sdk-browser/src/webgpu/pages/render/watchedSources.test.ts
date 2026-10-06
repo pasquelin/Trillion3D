@@ -1,6 +1,6 @@
-// CPU-12 (#919): an image hands the frame gate no new closure. The list of nodes the host may write
-// is read through `rt.watchedSources`, built once with the runtime; the audit measured 56 bytes per
-// image for the closure `renderWebgpuPages` used to build at each call. Its `renderClosure_bytesPerCall`
+// An image hands the frame gate no new closure. The list of nodes the host may write
+// is read through `rt.watchedSources`, built once with the runtime; a closure built at each call of
+// `renderWebgpuPages` would cost 56 bytes per image. Its `renderClosure_bytesPerCall`
 // harness is ported below on the real runtime.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -20,7 +20,7 @@ async function withRuntime(body: (rt: WebgpuPagesRuntime) => Promise<void> | voi
   }
 }
 
-/** The closure the audit found built per image: the drawn roots' first page, then the blend nodes. */
+/** The closure built per image: the drawn roots' first page, then the blend nodes. */
 const perImage = (rt: WebgpuPagesRuntime) => () => [
   ...rt.layout.selectionRoots.map((root) => root.pages[0]),
   ...rt.blendState.blendGpu,
@@ -46,8 +46,8 @@ test('every image hands the frame gate the runtime watched-sources closure, neve
   })
 })
 
-/** Bytes allocated per call of `fn`: the median heap growth of 9 runs of 10,000 calls (the audit's
- *  `allocPerCall`, without a forced collection; the median drops a run a scavenge crossed). */
+/** Bytes allocated per call of `fn`: the median heap growth of 9 runs of 10,000 calls
+ * (`allocPerCall`, without a forced collection; the median drops a run a scavenge crossed). */
 function bytesPerCall(fn: () => void, calls = 10_000) {
   for (let i = 0; i < 1000; i++) fn()
   const runs: number[] = []

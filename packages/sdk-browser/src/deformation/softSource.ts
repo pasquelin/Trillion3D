@@ -43,8 +43,7 @@ export function cookedSoftSource(model: Model, soft: CookedSoftBody): SoftSource
   return source
 }
 
-/** Copy the physics module's simulation result; normals and reach are simulation writeback
- *  (#573). */
+/** Copy the physics module's simulation result; normals and reach are simulation writeback. */
 export function receiveSoftSource(source: SoftSource, positions: Float32Array) {
   if (positions.length !== source.positions.length) return false
   source.positions.set(positions)

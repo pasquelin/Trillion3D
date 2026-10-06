@@ -35,7 +35,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
     return kernelUrls(fixture, 1, camera, resident, 'drawablePageIds').urls
   }
   // Every page of the fixture: the cut draws a group only once its members and the groups above
-  // it are resident (#486), and this DAG is small enough to hold whole.
+  // it are resident, and this DAG is small enough to hold whole.
   const wanted = dagPageUrls(dag)
   const before = open(pages, cache)
   await before.request(wanted)

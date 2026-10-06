@@ -6,10 +6,10 @@ import { webgpuPagesBackend } from '../pages.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 
-// #487: `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
+// `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
 // from what the budget leaves those buffers, so the two never sum past the declared pool, whatever
-// its value: a multiple of the slot, one byte off it, or the budget the recette halves.
+// its value: a multiple of the slot, one byte off it, or a budget halved.
 
 /** The coarse quad over three 24-byte slots, one root, its leaves streamed on demand. */
 function budgetedQuad(geometryPoolBytes: number) {
@@ -67,7 +67,7 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
     slot = geometryPoolAllocatedBytes! / geometryPoolSlots!
   assert.ok(floor > slot, 'vertex buffers are held beside the root slot')
   // The floor and one byte under it, one byte past it, a value off every 4-byte alignment, each
-  // slot boundary and one byte under it, and the two budgets #487 measured (the whole scene).
+  // slot boundary and one byte under it, and the two budgets of the whole scene.
   const budgets = [floor - 1, floor, floor + 1, floor + 37, 393_024, 393_048]
   for (const slots of [1, 2]) budgets.push(floor + slots * slot - 1, floor + slots * slot)
   let streamed = 0

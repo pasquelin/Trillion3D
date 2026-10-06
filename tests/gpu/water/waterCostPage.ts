@@ -1,5 +1,5 @@
-// Page of the water-cost measure (#232, `bench/runner/waterCost.ts`), run only when the recette
-// invokes it: no engine optimisation, no pass timing reconstruction.
+// Page of the water-cost measure (`bench/runner/waterCost.ts`), run only when
+// invoked: no engine optimisation, no pass timing reconstruction.
 import type {
   BackendDiagnostic,
   BackendFactory,

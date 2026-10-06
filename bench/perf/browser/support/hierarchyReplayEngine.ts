@@ -1,4 +1,4 @@
-// Replay of a hierarchy scenario (batch M3a) on the sdk-core hierarchy and camera, operation
+// Replay of a hierarchy scenario on the sdk-core hierarchy and camera, operation
 // by operation like `hierarchyReplayThree.ts`, which describes the operations. Same reads, in
 // the same order and under the same form: `compare` confronts them with `Object.is`.
 import {

@@ -49,7 +49,7 @@ test('a feature the URL forces off is neither asked for nor published', async ()
   assert.deepEqual(grantedGpuFeatures(device), ['depth-clip-control', 'texture-compression-bc'])
 })
 
-// #1248: the device carries the adapter's own colour bytes, whatever the engine's widest pass.
+// The device carries the adapter's own colour bytes, whatever the engine's widest pass.
 test("the device asks the adapter's own colour bytes per sample, above or below the water pass", async () => {
   const water = colorBytesPerSample(waterSurfaceTargets(true).map((target) => target.format))
   assert.ok(water > 32, "the water surface stage writes above WebGPU's default")

@@ -1,5 +1,5 @@
-// #840: sponza's WebGL2 frame submitted each of its 1 465 pages alone, twice with the reflection
-// capture. Pages placed in one arena that draw alike — one surface, one placement — are one
+// A WebGL2 frame would submit each of 1 465 pages alone, twice with a reflection capture. Pages
+// placed in one arena that draw alike — one surface, one placement — are one
 // submission, in the order they came; anything else breaks the run.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -76,7 +76,7 @@ function frame(scene: Scene) {
 }
 
 test('the pages of one surface at one placement are one submission, in their order', () => {
-  // Polished, under the screen-reflection cutoff: the view runs its source pass too (#1341).
+  // Polished, under the screen-reflection cutoff: the view runs its source pass too.
   const polished = { roughness: 0.2 }
   const [stone, wood] = [
     new GraphSurface('standard', polished),

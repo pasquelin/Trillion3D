@@ -1,9 +1,9 @@
-// The world stream's own code, a family on demand (`../host/families.ts`, #1238): the world pages
+// The world stream's own code, a family on demand (`../host/families.ts`): the world pages
 // named at their address in the cook's rank, and the server that reads each bundle once for every
-// caller and both WebGPU views of each page. Nothing draws from the world pages yet (#1332,
-// #1333), so a scene opens without it; it imports no engine code, so the CDN bundle makes one
-// chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
-// (`worldRootsPage.ts`, `worldSuperRoots.ts`).
+// caller and both WebGPU views of each page. Nothing draws from the world pages, so a scene opens
+// without it; it imports no engine code, so the CDN bundle makes one chunk of it alone
+// (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's (`worldRootsPage.ts`,
+// `worldSuperRoots.ts`).
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts'
 import type {
   WorldRoots,

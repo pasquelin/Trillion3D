@@ -1,4 +1,4 @@
-//! Coarse levels keep their shape and their normals (#484): a slab keeps the normal of each of its
+//! Coarse levels keep their shape and their normals: a slab keeps the normal of each of its
 //! faces, a thin part keeps its silhouette or leaves under its error, and the cook refuses a DAG
 //! whose error drops or whose normals turn their back on their faces.
 use super::*;

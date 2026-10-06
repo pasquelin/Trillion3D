@@ -33,7 +33,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const discontinuity = revision !== undefined && revision !== state.viewSeen
   // A convergence image remakes the last ordinary image, at its scale; it does not accumulate. A
   // capture's barrier makes resident what its still image will read: at that image's scale, one
-  // jitter phase after another (`stillPhase`), whatever the path before it (#1016).
+  // jitter phase after another (`stillPhase`), whatever the path before it.
   const converging = rt.run.textureConverging || !!rt.feedbackAB?.force
   if (converging) quiet = temporal.replay()
   // A view cut drops the history: after the replay, which brings back the checkpoint's own.
@@ -51,7 +51,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
     // targets made at the bounds' maximum (`allocated`): the resolve rebuilds the display's detail
     // from its jitter phases (`upscaleWgsl.ts`), averaged uniformly over their whole cycles before
     // the hold (`taaSettled`). The average is of one drawn size, its phases and jitter grid: the
-    // controller changing it, which still images only lower (#1343), restarts it at the new one.
+    // controller changing it, which still images only lower, restarts it at the new one.
     const scale = rt.scale.wanted(),
       { displaySize } = rt.gpu
     if (
@@ -93,7 +93,7 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
- * jitter, keeps the unjittered view-projection; `asIs` false reads no flags (OMB-11), and a frame
+ * jitter, keeps the unjittered view-projection; `asIs` false reads no flags, and a frame
  * drawn below the display is reconstructed to it. `share`, seeded when blends or particles draw,
  * holds the as-is share and the reactive value the blends, particles and water wrote
  * (`../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history.
@@ -168,7 +168,7 @@ export function convergeStillPhase(rt: WebgpuPagesRuntime, phase: number | null)
 }
 
 /** Quiet images drawn so far into still averages not yet whole (`stillDrawn`): the image still
- *  arriving, as a page landing is, so the interactive loop never pauses before it holds (#836). */
+ *  arriving, as a page landing is, so the interactive loop never pauses before it holds. */
 export const taaArrivals = (rt: WebgpuPagesRuntime) => rt.gpu.temporal?.frame.stillDrawn ?? 0
 
 /** Jitter phases a still image averages: one without temporal accumulation. */
@@ -197,7 +197,7 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
  * temporal antialiasing, switched off, or once the quiet images drawn close the still average's
  * whole cycles (`taaStillFrames`), every phase in it as often as every other. Read before the
  * image's entry, which a held image never makes: the image held is the last one drawn, and a
- * barrier's convergence image then replays it, to the bit (#26). A view that does not accumulate
+ * barrier's convergence image then replays it, to the bit. A view that does not accumulate
  * keeps the count.
  */
 export function taaSettled(rt: WebgpuPagesRuntime) {

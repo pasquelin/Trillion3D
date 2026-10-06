@@ -1,5 +1,5 @@
 // A camera stop releases the representation changes held during the move: their pages are drawn
-// again in the frame that marks them, with every other page it reads (#489) — none waits. Until then
+// again in the frame that marks them, with every other page it reads — none waits. Until then
 // they hold a depth of their extent and are read — never skipped to a coarser level or the far
 // proxy, which would drop the shadow. This proof walks the bench's street view of the generated
 // facade (`facade-7`: pale walls the sun cuts into sharp shadows, cast through the windows by walls

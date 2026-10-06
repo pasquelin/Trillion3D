@@ -1,4 +1,4 @@
-// #1369: the whole frame of the boss's case, counted stage by stage and priced at stated rates: every
+// The whole frame of the reference case, counted stage by stage and priced at stated rates: every
 // stage the profile names has its row, each row its count times its rate, and the frame their sum.
 import test from 'node:test'
 import assert from 'node:assert/strict'

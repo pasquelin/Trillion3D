@@ -1,6 +1,6 @@
-// #875: a paged transparent item read its vertices from host buffers built out of `source.bin`.
-// It now reads every attribute from its quantized geometry pages, as the opaque rows do, and only
-// the meshes the cut never sees — shared-blend and transmissive — keep buffers of their own.
+// A paged transparent item reads every attribute from its quantized geometry pages, as the opaque
+// rows do, not from host buffers built out of `source.bin`; only the meshes the cut never sees —
+// shared-blend and transmissive — keep buffers of their own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
