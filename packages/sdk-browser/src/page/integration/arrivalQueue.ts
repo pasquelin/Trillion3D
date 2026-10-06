@@ -23,7 +23,7 @@
  *
  * That ceiling is the frame's one integration budget (`./frameBudget.ts`, CONTRIBUTING.md
  * §Streaming rule 4), handed in by the session: its frame opens it, what else the frame
- * integrates before the drain — the cells of a partitioned scene (`scene/partition/cells.ts`) —
+ * integrates before the drain — the cells of a partitioned scene (`partition/cells.ts`) —
  * spends from it, the drain spends the rest, and the WebGPU row records written after it
  * (`webgpu/row/claims.ts`) whatever is left.
  */

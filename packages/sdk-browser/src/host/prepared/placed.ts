@@ -1,7 +1,7 @@
 /**
  * The host meshes a partitioned scene draws its cells' nodes with (#404): for each mesh the cells
  * place, one copy of each of its primitive meshes, hung on the scene root and placed by rows — its
- * association carries the instance buffer the cells write (`../../scene/partition/rows.ts`), so
+ * association carries the instance buffer the cells write (`../../partition/rows.ts`), so
  * its own pose is never read. It bounds itself by the box around every cell: the framing and the
  * bounds of a loaded model take the whole world, whichever cells are read.
  */
@@ -9,7 +9,7 @@ import { numbered } from '../graph/serial.ts';
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { HostBox, HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { placedMesh, type PlacedMesh, type RowLink } from '../../scene/partition/rows.ts';
+import { placedMesh, type PlacedMesh, type RowLink } from '../../partition/rows.ts';
 
 /** The placed mesh of each mesh rank the cells place, its host meshes added under `scene` and
  *  their links recorded in `ranks`; `parts` gives the primitive meshes built for a rank. */

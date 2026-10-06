@@ -16,7 +16,7 @@
  * A reach past it, or a parent scaled down or stretched more unevenly, asks a wider rung: the rows
  * grow in place where the engine takes it, else the owner opens the session again (`cells.ts`).
  */
-import { RUNGS, type TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { Stretch } from './boxes.ts';
 import { KEEP } from './plan.ts';
 

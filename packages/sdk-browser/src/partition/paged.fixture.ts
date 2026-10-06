@@ -3,8 +3,8 @@ import {
   RUNGS,
   tablePartition,
   type TableCell,
-} from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
+} from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { createCellIndex, type CellIndex, type IndexPage } from './cellIndex.ts';
 

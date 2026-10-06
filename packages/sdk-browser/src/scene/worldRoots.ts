@@ -37,7 +37,7 @@ import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 import { families } from '../host/families.ts';
 import { worldRootsPageSource } from './worldRootsPage.ts';
 import { worldRootDag } from './worldSuperRoots.ts';
-import { cellSuperRoots } from './partition/superRoots.ts';
+import { cellSuperRoots } from '../partition/superRoots.ts';
 
 /** The world pages' detached source, their DAG (#1238) and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`, #1332): nothing draws from them yet (#1333),

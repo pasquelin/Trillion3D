@@ -608,13 +608,13 @@ manifest's `files`: a reused folder proves them through the root.
 **The cell index at runtime** (#575). Before its first frame a session sizes its rows for its first
 camera (below), reads the index pages on its way and the cells within reach, and places them
 (`primePartitions`): the first frame reads the view's bytes, not the world's. Each frame walks the
-index from the root (`scene/partition/cellIndex.ts`): a page is boxed at the declared poses, and its
+index from the root (`partition/cellIndex.ts`): a page is boxed at the declared poses, and its
 content now lies within that box and those carried by the parents its cells hang under that moved
 since (`boxes.ts`); a page whose box meets the reach is read through the session's streamer (files
 entering its catalogue), decoded in the decode pool (`cellPage`), opened within the one integration
 budget, then its pages walked or cells tested; one past the keep sphere with no cell placed is
 closed, its files released. Work follows the reach, not the world's cell count. Cell files are
-parsed off the main thread too, by the pool's `cells` task (`scene/partition/cellDecode.ts`), into
+parsed off the main thread too, by the pool's `cells` task (`partition/cellDecode.ts`), into
 each node's ranks and local matrix, the rows placed within the same budget. A page or cell the pool
 refuses keeps its code across the thread (another version stays `UNSUPPORTED_SCENE_TABLES`) and
 names its file (`PageDecodeFailed.refusal`, `PageDecodeRequest.name`).
@@ -622,13 +622,13 @@ names its file (`PageDecodeFailed.refusal`, `PageDecodeRequest.name`).
 **The manifest held by the view** (#751). A WebGL2 world reads the manifest's root, head page and
 the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each placed cell holds
 its region page's mesh pages, counted once per cell, releasing them as it leaves, and a page no
-placed cell holds leaves the manifest with its primitives (`scene/partition/cellPages.ts`). The
+placed cell holds leaves the manifest with its primitives (`partition/cellPages.ts`). The
 session opens on the primitives listed, meshes without one left out, mounts each once its page is
 read (`mountPlacements`) and unmounts it when the page leaves (`world/scene/partitionMounts.ts`). A
 WebGPU world reads the whole manifest until its session grows in place (#216).
 
 **Reading the cells.** Each placed mesh is one host mesh per primitive, its instance buffer filled
-by the cells (`packages/sdk-browser/src/scene/partition/`): a placement takes a row at the world
+by the cells (`packages/sdk-browser/src/partition/`): a placement takes a row at the world
 matrix the engine composes for a child of its parent — a host node's bits — and
 parks it when its cell leaves. A page may move a core parent (`getObjectByName`): its rows are
 rewritten, and the cell's boxes are its parents' boxes under their current matrices (`boxes.ts`), so
@@ -750,7 +750,7 @@ Packed last in the one cut, the world DAG reads a mirror of the scene's residenc
 feeds the rows' flags through: a super-root resident while its bundle is held, an object root while
 its placed object (`origin`) is placed and its root cover resident, so the cut keeps a cell's
 super-root until its objects are drawable. A partition's plan reads the cut's own choice
-(`scene/partition/superRoots.ts`, `farCells.ts`), each cell's bound read once the world stream
+(`partition/superRoots.ts`, `farCells.ts`), each cell's bound read once the world stream
 opens (an object root's cell is its object's, `cells.cellOf`): a cell is held by its super-roots,
 its object pages unread, until their largest `parentError` projects past the pixel target on the
 frustum's diagonal; a placed cell gives its objects back once that error is within the target over

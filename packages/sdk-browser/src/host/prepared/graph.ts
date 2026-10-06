@@ -28,7 +28,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
 import { registerPagedSource } from './pagedSource.ts';
 import { bindSkins, clipsOf, movedNodes } from './motion.ts';
-import type { RowLink } from '../../scene/partition/rows.ts';
+import type { RowLink } from '../../partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts';

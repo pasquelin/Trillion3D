@@ -4,10 +4,10 @@
  * says (`castShadow`, #966) — a light cut leaves a shadowless row out. Before each frame, the rows
  * whose parent's world moved, or whose host mesh's `castShadow` changed, are written again.
  */
-import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { keepNumbers } from '../../../../sdk-core/src/math/primitives/vector.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
+import { MATRIX_VALUES, multiplyMatrix4 } from '../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { keepNumbers } from '../../../sdk-core/src/math/primitives/vector.ts';
+import { resolveCameraWorld } from '../camera/world.ts';
 import type { PlacedMesh, createTouchedRows } from './rows.ts';
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */

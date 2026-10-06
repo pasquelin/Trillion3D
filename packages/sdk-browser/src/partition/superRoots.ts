@@ -15,12 +15,12 @@
  * pixel past the target; where the cut, on a sphere astride the frustum's edge, would still descend,
  * the super-root stands in, as for any page not resident.
  */
-import type { WorldRootsCluster } from '../../../../sdk-core/src/manifest/worldRoots.ts';
-import type { SelectionUniforms } from '../../gpu/core/selection.ts';
-import { projectedErrorAt } from '../../page/selection/projection.ts';
-import { growSphere } from '../../page/cut/bounds.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
-import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts';
+import type { SelectionUniforms } from '../gpu/core/selection.ts';
+import { projectedErrorAt } from '../page/selection/projection.ts';
+import { growSphere } from '../page/cut/bounds.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts';
 import type { PartitionOptics } from './plan.ts';
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the

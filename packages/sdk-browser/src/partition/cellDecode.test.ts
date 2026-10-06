@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { pose } from '../../host/prepared/nodes.ts';
-import { configurePageDecoders, patientTask, releasePageDecoders } from '../../page/decode/host.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { pose } from '../host/prepared/nodes.ts';
+import { configurePageDecoders, patientTask, releasePageDecoders } from '../page/decode/host.ts';
 import {
   NodeDomWorker,
   withNodeWorkerShim,
-} from '../../../../../bench/oracles/browser/pageDecodeNodeWorker.ts';
+} from '../../../../bench/oracles/browser/pageDecodeNodeWorker.ts';
 import { cellRows, decodeCellFile } from './cellDecode.ts';
 
 const nodes = [

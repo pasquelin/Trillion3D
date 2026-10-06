@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts';
 import { absolutePrimitive } from '../../packages/sdk-browser/src/scene/absolutePrimitive.ts';
-import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
+import { cellHoldings } from '../../packages/sdk-browser/src/partition/cellPages.ts';
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';

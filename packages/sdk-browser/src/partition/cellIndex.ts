@@ -9,12 +9,9 @@
  * tested. A page past the keep sphere with no cell placed is closed again: the index holds the
  * pages the view reached, never the world's, and a frame's work follows what its sphere holds.
  */
-import type {
-  readCellPage,
-  TableCell,
-} from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { TableSlot } from '../../../../sdk-core/src/scene/core/tablePages.ts';
-import type { StreamPage } from '../../streaming/types.ts';
+import type { readCellPage, TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { TableSlot } from '../../../sdk-core/src/scene/core/tablePages.ts';
+import type { StreamPage } from '../streaming/types.ts';
 import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts';
 import { boxDistance } from './plan.ts';
 

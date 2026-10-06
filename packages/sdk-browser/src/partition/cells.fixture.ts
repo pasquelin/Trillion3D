@@ -1,14 +1,11 @@
-import {
-  readCellPage,
-  type TableCell,
-} from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { readCellPage, type TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { cellRows, decodeCellFile } from './cellDecode.ts';
 import { createPartitionCells, type PartitionCells } from './cells.ts';
 import { paged } from './paged.fixture.ts';
 import { placedMesh, type RowLink } from './rows.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
-import type { StreamPage } from '../../streaming/types.ts';
+import type { PlacementRows } from '../placement/rows.ts';
+import type { StreamPage } from '../streaming/types.ts';
 
 const BASE = 'https://cache.test/key/';
 

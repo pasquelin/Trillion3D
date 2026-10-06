@@ -4,8 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cellSuperRootError, cellSuperRoots } from './superRoots.ts';
-import { worldRootsDag } from '../../../../sdk-core/src/manifest/worldRoots.fixture.ts';
-import { projectedErrorAt } from '../../page/selection/projection.ts';
+import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import { projectedErrorAt } from '../page/selection/projection.ts';
 
 const lens = { pixelScale: [800, 600] as [number, number], pixelError: 1, near: 0.1, slope: 1 };
 /** Four object roots per cell, as the fixture's origins run. */

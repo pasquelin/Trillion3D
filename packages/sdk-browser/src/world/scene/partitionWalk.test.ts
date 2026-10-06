@@ -7,9 +7,9 @@ import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createPartitionCells } from '../../scene/partition/cells.ts';
-import { placedMesh } from '../../scene/partition/rows.ts';
-import { paged } from '../../scene/partition/paged.fixture.ts';
+import { createPartitionCells } from '../../partition/cells.ts';
+import { placedMesh } from '../../partition/rows.ts';
+import { paged } from '../../partition/paged.fixture.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts';
 

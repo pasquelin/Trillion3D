@@ -11,10 +11,10 @@ import {
   grownCapacity,
   growPlacementRows,
   type PlacementRows,
-} from '../../placement/rows.ts';
-import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
-import { EngineError } from '../../../../sdk-core/src/index.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+} from '../placement/rows.ts';
+import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts';
+import { EngineError } from '../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows };

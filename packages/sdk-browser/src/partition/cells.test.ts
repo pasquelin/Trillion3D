@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { pose } from '../../host/prepared/nodes.ts';
-import { chainWorld } from '../../../../../tests/kit/assert/chainWorld.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { pose } from '../host/prepared/nodes.ts';
+import { chainWorld } from '../../../../tests/kit/assert/chainWorld.ts';
+import type { PlacementRows } from '../placement/rows.ts';
 import { cellUrl, everywhere, io, noBudget, opened, settled, world } from './cells.fixture.ts';
 import { sizedWhole } from './cells.fixture.ts';
 

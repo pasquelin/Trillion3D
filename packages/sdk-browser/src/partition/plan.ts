@@ -20,17 +20,13 @@
  * The rows are sized when the session opens for every node that keep sphere can hold, wherever
  * the page moves the cells' parents (`sizing.ts`).
  */
-import {
-  invertMatrix4,
-  MATRIX_VALUES,
-  transformAffinePoint,
-} from '../../../../sdk-core/src/index.ts';
-import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
-import { drawnView, perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
-import type { CameraOptics } from '../../camera/engineCamera.ts';
+import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts';
+import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts';
+import { drawnView, perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts';
+import type { CameraOptics } from '../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
 import type { CellIndex, IndexPage } from './cellIndex.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 import { AHEAD } from './aheadShare.ts';
 
 const inverse = new Float64Array(MATRIX_VALUES),

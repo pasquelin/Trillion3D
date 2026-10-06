@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { openAll, paged } from './paged.fixture.ts';
 import { createCellIndex } from './cellIndex.ts';

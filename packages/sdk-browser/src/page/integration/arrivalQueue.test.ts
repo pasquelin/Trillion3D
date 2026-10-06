@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createPartitionCells } from '../../scene/partition/cells.ts';
-import { placedMesh } from '../../scene/partition/rows.ts';
-import { decodeHere, io, opened, settled } from '../../scene/partition/cells.fixture.ts';
-import { paged } from '../../scene/partition/paged.fixture.ts';
+import { createPartitionCells } from '../../partition/cells.ts';
+import { placedMesh } from '../../partition/rows.ts';
+import { decodeHere, io, opened, settled } from '../../partition/cells.fixture.ts';
+import { paged } from '../../partition/paged.fixture.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { createFrameBudget } from './frameBudget.ts';
 import { referenceArrivalQueue } from '../../../../../bench/oracles/browser/arrival-admission.ts';

@@ -3,7 +3,7 @@
 // read once, and the cells the cut draws by their super-roots are held far, their bundles held.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { createCellIndex } from './cellIndex.ts';
 import { createFarCells } from './farCells.ts';

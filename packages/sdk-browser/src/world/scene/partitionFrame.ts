@@ -6,23 +6,23 @@
  * (`createPartitionFrame`), the meshes whose primitive the view read since mounted in place
  * (`partitionMounts.ts`, #751).
  * The reach is the frame camera's far plane, never a number of the scene's
- * (`../../scene/partition/plan.ts`).
+ * (`../../partition/plan.ts`).
  */
 import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
-import type { PartitionCells } from '../../scene/partition/cells.ts';
-import { cellReach } from '../../scene/partition/plan.ts';
-import { lensSlope } from '../../scene/partition/superRoots.ts';
-import { cellHoldings } from '../../scene/partition/cellPages.ts';
+import type { PartitionCells } from '../../partition/cells.ts';
+import { cellReach } from '../../partition/plan.ts';
+import { lensSlope } from '../../partition/superRoots.ts';
+import { cellHoldings } from '../../partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
 import { createPartitionMounts } from './partitionMounts.ts';
 import { patientTask } from '../../page/decode/host.ts';
-import { cellRows, type CellRows } from '../../scene/partition/cellDecode.ts';
-import type { PageBody } from '../../scene/partition/cellIndex.ts';
+import { cellRows, type CellRows } from '../../partition/cellDecode.ts';
+import type { PageBody } from '../../partition/cellIndex.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 

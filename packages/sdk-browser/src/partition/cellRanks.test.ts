@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts';
 import { walked } from './paged.fixture.ts';
 
 test('a cell is numbered by its cook rank, whatever page the view opens first (#1237)', () => {

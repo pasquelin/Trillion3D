@@ -76,7 +76,7 @@ export type {
 export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts';
-export type { CellRows } from './scene/partition/cellDecode.ts';
+export type { CellRows } from './partition/cellDecode.ts';
 export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */

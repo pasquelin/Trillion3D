@@ -10,7 +10,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts';
 import { openWorldRoots } from './worldRoots.ts';
-import { cellSuperRoots } from './partition/superRoots.ts';
+import { cellSuperRoots } from '../partition/superRoots.ts';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 

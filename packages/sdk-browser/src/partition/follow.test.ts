@@ -3,8 +3,8 @@
 // (`placement/update.test.ts`); a `castShadow` changed after the cell was placed rewrites them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { object } from '../../../../sdk-core/src/world/object/index.ts';
-import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
+import { object } from '../../../sdk-core/src/world/object/index.ts';
+import { geometry } from '../../../sdk-core/src/world/geometry/index.ts';
 import { io, noBudget, opened, world } from './cells.fixture.ts';
 
 test("a cell's rows cast as their host mesh says, and follow its castShadow once changed", async () => {

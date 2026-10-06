@@ -89,7 +89,7 @@ export async function runPageDecodeTask(
       return done(request, started, { cut }, transfer);
     }
     if (request.op === 'cells') {
-      const { decodeCellFile } = await import('../../scene/partition/cellDecode.ts');
+      const { decodeCellFile } = await import('../../partition/cellDecode.ts');
       const cells = decodeCellFile(request.source, request.name);
       return done(request, started, { cells }, [cells.ranks, cells.locals]);
     }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { boxed, createCellBoxes, type Boxed } from './boxes.ts';
 
 /** A cell at the origin of the root, and one 5 km off under a core node. */

@@ -1,16 +1,16 @@
 /**
  * A PARTITION'S CELL FILE, READ OFF THE MAIN THREAD (#575). The decode pool's `cells` task
- * (`../../page/decode/task.ts`) parses the file, refuses one of another version and composes the
+ * (`../page/decode/task.ts`) parses the file, refuses one of another version and composes the
  * local matrix of each node as the engine composes a host node's; the main thread only copies
  * those matrices onto rows (`cells.ts`). Without a worker, the same function runs on the main
- * thread (`../../page/decode/host.ts`).
+ * thread (`../page/decode/host.ts`).
  */
-import { MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
-import type { PageDecodeDone } from '../../../../sdk-core/src/index.ts';
-import { assertCellNodes, type CellNode } from '../../../../sdk-core/src/scene/core/tableCell.ts';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { pose } from '../../host/prepared/nodes.ts';
-import { composeMatrix4 } from '../../../../sdk-core/src/math/matrix/matrix4Compose.ts';
+import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts';
+import type { PageDecodeDone } from '../../../sdk-core/src/index.ts';
+import { assertCellNodes, type CellNode } from '../../../sdk-core/src/scene/core/tableCell.ts';
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { pose } from '../host/prepared/nodes.ts';
+import { composeMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Compose.ts';
 
 const scratch = new Object3D();
 

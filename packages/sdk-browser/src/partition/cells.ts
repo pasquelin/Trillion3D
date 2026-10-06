@@ -17,12 +17,12 @@
  * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
  * place, else asks the owner to open the session again (`placement/growth.ts`).
  */
-import { RUNGS, type TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { StreamPage } from '../../streaming/types.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
+import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts';
+import type { PlacementRows } from '../placement/rows.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { StreamPage } from '../streaming/types.ts';
+import { resolveCameraWorld } from '../camera/world.ts';
 import { createCellBoxes } from './boxes.ts';
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts';
 import type { CellRows } from './cellDecode.ts';

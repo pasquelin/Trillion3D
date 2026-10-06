@@ -3,7 +3,7 @@
 //!
 //! After a frame, every cell the runtime holds has a box within the reach, widened by its keep
 //! margin, of the eye. In the frame of the parent a box hangs under, that sphere lies in a cube
-//! (`scene/partition/sizing.ts` gives its side), and any cube of side `s` lies in one window of
+//! (`partition/sizing.ts` gives its side), and any cube of side `s` lies in one window of
 //! side `1.5·s` whose corner is a multiple of `s/2` on every axis. The root lists, per mesh, the
 //! most nodes the cells of one parent that meet one such window place — each cell counted whole —,
 //! summed over the parents and never past every node, for a ladder of sides: the widest cell's

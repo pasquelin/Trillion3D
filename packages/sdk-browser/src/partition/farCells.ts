@@ -3,7 +3,7 @@
  *
  * As World Partition's streaming policy does each update, a frame's plan (`plan.ts`) chooses each
  * cell's state from the source's real data: placed, its objects read and drawn, or held far, drawn
- * by its super-roots — the world bundles its objects' roots need held (`../worldRoots.ts`), its
+ * by its super-roots — the world bundles its objects' roots need held (`../scene/worldRoots.ts`), its
  * object pages unread. That choice is the cut's, on the cut's own lens (`superRoots.ts`), and only
  * once the cut packs the world DAG (`GpuSelection.packsWorld`, #1333): until then no cell is ever
  * held far, since nothing would draw its super-roots, and the plan is the one it always was.
@@ -12,7 +12,7 @@
  * here on the first frame whose cut packs the world DAG: a load never reads the DAG file (#1232).
  * A far cell's bundles are held as a placed cell's are (`createCellPages`), counted once per cell.
  */
-import type { WorldRootsHold } from '../worldRoots.ts';
+import type { WorldRootsHold } from '../scene/worldRoots.ts';
 import { createCellPages } from './cellPages.ts';
 import { planCells, type SuperRootPlan } from './plan.ts';
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts';

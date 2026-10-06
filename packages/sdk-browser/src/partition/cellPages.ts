@@ -4,13 +4,13 @@
  * cells share stays read while one of them is placed. A cell that leaves releases them, and a page
  * no placed cell holds leaves the manifest with its primitives (`ManifestPages`). It holds the
  * same way the world bundles past the pinned top its objects' roots depend on (`world`,
- * `../worldRoots.ts`). A hold that failed holds nothing and is asked again at the next frame while
+ * `../scene/worldRoots.ts`). A hold that failed holds nothing and is asked again at the next frame while
  * its cell is placed. Without `pages` the manifest was read whole: every mesh the cells place has
  * its primitive from the open.
  */
-import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
+import type { ManifestPages } from '../../../sdk-core/src/manifest/paged.ts';
 import type { PlacedMesh } from './rows.ts';
-import type { WorldRootsHold } from '../worldRoots.ts';
+import type { WorldRootsHold } from '../scene/worldRoots.ts';
 
 /** What a placed cell holds from one source, counted per cell. */
 type Holder = Pick<WorldRootsHold, 'hold' | 'release'>;

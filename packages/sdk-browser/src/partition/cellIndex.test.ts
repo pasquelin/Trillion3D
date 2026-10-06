@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { createCellIndex } from './cellIndex.ts';
 import { createPartitionCells } from './cells.ts';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
+import type { ManifestPages } from '../../../sdk-core/src/manifest/paged.ts';
 import { createCellPages } from './cellPages.ts';
 
 /** Pages held by a count, as `openPagedManifest` holds them: a hold whose read fails undoes its own
