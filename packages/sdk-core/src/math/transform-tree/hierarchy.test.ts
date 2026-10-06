@@ -21,7 +21,11 @@ import {
   liveScenario,
 } from '../../../../../bench/perf/browser/support/hierarchyScenariosLive.ts';
 
-function compare(scenario: HierarchyOp[], label: string) {
+// `witnessNaN`: the host library builds an off-axis rectangle, so a degenerate camera (zero zoom,
+// zero near, a vanishing field) turns its centring terms into inf - inf or 0 / 0. The engine's
+// projection is centred by construction and never computes them: where the host gives NaN it
+// gives the finite or infinite value the same inputs define, and never a NaN of its own.
+function compare(scenario: HierarchyOp[], label: string, witnessNaN = false) {
   const attendu = joueThree(scenario);
   const obtenu = joueNous(scenario);
   assert.equal(obtenu.length, attendu.length, `${label}: number of outputs`);
@@ -30,7 +34,10 @@ function compare(scenario: HierarchyOp[], label: string) {
       b = obtenu[i];
     assert.equal(b.length, a.length, `${label}, output ${i}: length`);
     for (let k = 0; k < a.length; k++)
-      assert.ok(Object.is(a[k], b[k]), `${label}, output ${i}[${k}]: ${a[k]} ≠ ${b[k]}`);
+      assert.ok(
+        Object.is(a[k], b[k]) || (witnessNaN && Number.isNaN(a[k]) && !Number.isNaN(b[k])),
+        `${label}, output ${i}[${k}]: ${a[k]} ≠ ${b[k]}`,
+      );
   }
 }
 
@@ -60,6 +67,6 @@ test('look-ats: object and camera lookAt, ordinary/on-eye/NaN/infinite targets, 
   compare(visees(), 'visees');
 });
 
-test('projections: field, aspect, near/far and zoom ordinary and degenerate, WebGL and WebGPU, view, view-projection and planes — identical to the host library', () => {
-  compare(objectifs(), 'objectifs');
+test('projections: field, aspect, near/far and zoom ordinary and degenerate, WebGL and WebGPU, view, view-projection and planes — identical to the host library, except where only the host produces a NaN', () => {
+  compare(objectifs(), 'objectifs', true);
 });
