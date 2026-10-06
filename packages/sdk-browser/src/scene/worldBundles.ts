@@ -23,6 +23,7 @@ import {
   type WorldRoots,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue } from '../streaming/types.ts'
 import {
@@ -41,16 +42,12 @@ type WorldHold = { signal?: AbortSignal; priority?: number }
 /** The runs of `table`'s binary at `url` read through the session's queue (`bind`), each viewed,
  *  as it lands, on the bundles of `held` still on it. */
 function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
-  let queue: PageQueue | undefined
-  /** The session's queue: a cell holds only within a session, which binds it first. */
-  const bound = () => {
-    if (!queue) throw new Error('WORLD_ROOTS_UNBOUND: a cell holds within a session')
-    return queue
-  }
-  /** Bundles `[first, end)`, a page of the queue read at `priority`. */
-  const run = (first: number, end: number, priority = PRIORITY_VISIBLE) => {
+  let queue: PageQueue | undefined, bind!: (session: PageQueue) => void
+  /** The session's queue, once it binds it (`bind`): a hold asked before waits for it. */
+  const bound = new Promise<PageQueue>((resolve) => (bind = resolve))
+  /** Bundles `[first, end)`, a page of `queue` read at `priority`. */
+  const run = (queue: PageQueue, first: number, end: number, priority = PRIORITY_VISIBLE) => {
     const page = runPage(table, url, first, end),
-      queue = bound(),
       stop = new AbortController()
     queue.admit([page])
     const own = { first, end, url: page.url, stop } as Run
@@ -78,8 +75,8 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
   }
   /** `own` waited on by a hold as `asked`: its read joined at its priority — one more urgent lifts
    *  it in the queue — till its signal lets it go, then its bundles' pages in. */
-  const join = async (own: Run, { signal, priority = PRIORITY_VISIBLE }: WorldHold) => {
-    await bound().readBytes(own.url, signal, priority)
+  const join = async (queue: PageQueue, own: Run, asked: WorldHold) => {
+    await queue.readBytes(own.url, asked.signal, asked.priority ?? PRIORITY_VISIBLE)
     await own.landing
   }
   return {
@@ -87,13 +84,15 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
     /** The pages of `bundles`, held as `owns`, read as `asked`: their runs started (`startRuns`),
      *  the stopped ones they replace forsaken, and every run they wait on joined. */
     async read(bundles: readonly number[], owns: readonly Held[], asked: WorldHold) {
-      startRuns(bundles, owns, (first, end) => run(first, end, asked.priority)).forEach(forsake)
+      const session = queue ?? (await waited(bound, asked.signal))
+      const start = (first: number, end: number) => run(session, first, end, asked.priority)
+      startRuns(bundles, owns, start).forEach(forsake)
       const waits = new Set<Run>()
       for (const own of owns) if (own.run) waits.add(own.run)
-      await Promise.all([...waits].map((own) => join(own, asked)))
+      await Promise.all([...waits].map((own) => join(session, own, asked)))
     },
     bind(session: PageQueue) {
-      queue = session
+      bind((queue = session))
     },
   }
 }

@@ -10,6 +10,8 @@ import {
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
+import { openWorldRoots } from './worldRoots.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 
 type Dag = ReturnType<typeof worldRootsDag>
 
@@ -157,4 +159,16 @@ test("a page asked while its bundle's run transfers holds the bundle: its cell l
   land()
   assert.ok((await page).positions.length > 0, 'the page lands')
   assert.deepEqual([ranges.length, roots.held()], [2, []], 'its run read once, then let go')
+})
+
+test('a cell held before its world is bound waits for the bind, then reads', async (t) => {
+  const { manifest, ranges, table } = served(t)
+  const roots = (await openWorldRoots(manifest, 'http://world/'))!
+  const queue = createPageStreamer([], 'http://world/')
+  t.after(() => queue.dispose())
+  const held = roots.hold(1)
+  await new Promise(setImmediate)
+  roots.bind(queue)
+  await held
+  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)])
 })

@@ -1,6 +1,6 @@
 // A placed cell whose hold failed is asked again by the plan once the wait of the read that failed
 // it is over — the streamer's one clock, never frame after frame before —, at the priority its view
-// gives it then; one another read would meet again (a 404, a world not bound) is never asked again.
+// gives it then; one another read would meet again (a 404, a file that does not decode) is never asked again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -75,10 +75,10 @@ test('a failed hold is asked again once its own wait is over, at its priority th
   assert.deepEqual(priorities, [at([0, 0, 0]), at([5, 0, 0])], 'at the priority its view gives it')
 })
 
-test('a hold failed by no read — its world not bound — is never asked again: it would fail again', async (t) => {
+test('a hold failed by no read — a file that does not decode — is never asked again: it would fail again', async (t) => {
   const { priorities, frame, due } = await failing(
     t,
-    () => new Error('WORLD_ROOTS_UNBOUND: a cell holds within a session'),
+    () => new Error('INVALID_CACHE: a mesh page that does not decode'),
     () => true,
   )
   for (let at = 0; at <= 20_000; at += 1000) await frame(at)
