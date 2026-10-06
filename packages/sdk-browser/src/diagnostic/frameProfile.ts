@@ -3,6 +3,70 @@ import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.
 import { frameStatistics } from '../../../sdk-core/src/index.ts';
 import { STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts';
 
+/** The first limit the frame hits, in the order stutters, main thread, submit, streaming. */
+function diagnoseBottleneck(
+  stutters: number,
+  cpuFrameMs: number,
+  cpuSubmitMs: number | null,
+  pagesLoading: number,
+): Pick<TelemetryReport, 'bottleneck' | 'bottleneckMessage'> {
+  if (stutters > 0)
+    return {
+      bottleneck: 'memory_pressure',
+      bottleneckMessage: `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms)`,
+    };
+  if (cpuFrameMs > 16.6)
+    return {
+      bottleneck: 'cpu_bound',
+      bottleneckMessage: `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`,
+    };
+  if (cpuSubmitMs != null && cpuSubmitMs > 8)
+    return {
+      bottleneck: 'gpu_submit_bound',
+      bottleneckMessage: `⚠️ WebGPU submit choke (${cpuSubmitMs.toFixed(1)} ms)`,
+    };
+  if (pagesLoading > 20)
+    return {
+      bottleneck: 'streaming_bound',
+      bottleneckMessage: `⚠️ Network / streaming choke (${pagesLoading} pages in flight)`,
+    };
+  return { bottleneck: 'healthy', bottleneckMessage: '✅ Smooth pipeline (60+ FPS optimal)' };
+}
+
+/** The triangle block of the report: source, selected and submitted counts and the culled share. */
+function trianglesReport(
+  m: FrameMetrics | null | undefined,
+  sourceTriangles: number,
+): TelemetryReport['triangles'] {
+  const source = sourceTriangles || m?.triangles || 0;
+  const submitted = m?.submittedTriangles ?? m?.triangles ?? null;
+  const cullingRate =
+    source > 0 && submitted != null
+      ? Math.max(0, Math.min(100, (1 - submitted / source) * 100))
+      : null;
+  return {
+    source,
+    selected: m?.selectedTriangles ?? null,
+    submitted,
+    cullingRatePercent: cullingRate != null ? Math.round(cullingRate * 10) / 10 : null,
+  };
+}
+
+/** The streaming block of the report: page counts, bytes read and the cache hit rate. */
+function streamingReport(m: FrameMetrics | null | undefined): TelemetryReport['streaming'] {
+  const hits = m?.cacheHits ?? 0;
+  const misses = m?.cacheMisses ?? 0;
+  const cacheHitRate = hits + misses > 0 ? (hits / (hits + misses)) * 100 : null;
+  return {
+    residentPages: m?.residentPages ?? null,
+    pageLoads: m?.pageLoads ?? 0,
+    pageBytesReadMb: m?.pageBytesRead ? Math.round((m.pageBytesRead / (1024 * 1024)) * 10) / 10 : 0,
+    pagesRequested: m?.pagesRequested ?? null,
+    pagesLoading: m?.pagesLoading ?? null,
+    cacheHitRate: cacheHitRate != null ? Math.round(cacheHitRate * 10) / 10 : null,
+  };
+}
+
 /**
  * The frame report's code (#1353): what `EngineProfiler` (`telemetry.ts`) does once the debug code
  * has arrived — it watches frame after frame and says how smoothly the engine runs, and what slows
@@ -58,39 +122,17 @@ export class FrameProfile {
   getReport(): TelemetryReport {
     const stats = frameStatistics(this.orderedIntervals());
     const m = this.lastMetrics;
-    const sourceTri = this.sourceTriangles || m?.triangles || 0;
-    const selectedTri = m?.selectedTriangles ?? null;
-    const submittedTri = m?.submittedTriangles ?? m?.triangles ?? null;
-    const cullingRate =
-      sourceTri > 0 && submittedTri != null
-        ? Math.max(0, Math.min(100, (1 - submittedTri / sourceTri) * 100))
-        : null;
-
-    const hits = m?.cacheHits ?? 0;
-    const misses = m?.cacheMisses ?? 0;
-    const cacheHitRate = hits + misses > 0 ? (hits / (hits + misses)) * 100 : null;
-
     const cpuFrameMs = m?.cpuFrameMs ?? 0;
     const cpuSubmitMs = m?.cpuSubmitMs ?? null;
     const stutters = stats.stutters ?? 0;
     const pagesLoading = m?.pagesLoading ?? 0;
 
-    let bottleneck: TelemetryReport['bottleneck'] = 'healthy';
-    let bottleneckMessage = '✅ Smooth pipeline (60+ FPS optimal)';
-
-    if (stutters > 0) {
-      bottleneck = 'memory_pressure';
-      bottleneckMessage = `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms)`;
-    } else if (cpuFrameMs > 16.6) {
-      bottleneck = 'cpu_bound';
-      bottleneckMessage = `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`;
-    } else if (cpuSubmitMs != null && cpuSubmitMs > 8) {
-      bottleneck = 'gpu_submit_bound';
-      bottleneckMessage = `⚠️ WebGPU submit choke (${cpuSubmitMs.toFixed(1)} ms)`;
-    } else if (pagesLoading > 20) {
-      bottleneck = 'streaming_bound';
-      bottleneckMessage = `⚠️ Network / streaming choke (${pagesLoading} pages in flight)`;
-    }
+    const { bottleneck, bottleneckMessage } = diagnoseBottleneck(
+      stutters,
+      cpuFrameMs,
+      cpuSubmitMs,
+      pagesLoading,
+    );
 
     return {
       timestamp: Date.now(),
@@ -102,27 +144,13 @@ export class FrameProfile {
       cpuFrameMs: Math.round(cpuFrameMs * 100) / 100,
       cpuSubmitMs: cpuSubmitMs != null ? Math.round(cpuSubmitMs * 100) / 100 : null,
       vramMb: m?.vramBytes ? Math.round((m.vramBytes / (1024 * 1024)) * 10) / 10 : null,
-      triangles: {
-        source: sourceTri,
-        selected: selectedTri,
-        submitted: submittedTri,
-        cullingRatePercent: cullingRate != null ? Math.round(cullingRate * 10) / 10 : null,
-      },
+      triangles: trianglesReport(m, this.sourceTriangles),
       clusters: {
         total: this.totalClusters || m?.clusters || 0,
         visible: m?.clusters ?? null,
         frustumCulled: m?.frustumRejected ?? null,
       },
-      streaming: {
-        residentPages: m?.residentPages ?? null,
-        pageLoads: m?.pageLoads ?? 0,
-        pageBytesReadMb: m?.pageBytesRead
-          ? Math.round((m.pageBytesRead / (1024 * 1024)) * 10) / 10
-          : 0,
-        pagesRequested: m?.pagesRequested ?? null,
-        pagesLoading: m?.pagesLoading ?? null,
-        cacheHitRate: cacheHitRate != null ? Math.round(cacheHitRate * 10) / 10 : null,
-      },
+      streaming: streamingReport(m),
       bottleneck,
       bottleneckMessage,
     };
