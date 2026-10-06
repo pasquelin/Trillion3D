@@ -7,15 +7,17 @@ import assert from 'node:assert/strict';
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts';
 import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts';
 import { INVALIDATION_PAGES, RENDER_PAGES } from './boxCullPagesBefore.fixture.ts';
-import { handle, pageRect, run, tables, use } from './boxCullTables.fixture.ts';
-import { vsmInvalidationWgsl } from './invalidationWgsl.ts';
-import { vsmRenderCullWgsl } from './renderCullWgsl.ts';
-import { vsmLayout } from './resources.ts';
+import {
+  INVALIDATION,
+  RENDER,
+  handle,
+  pageRect,
+  run,
+  tables,
+  use,
+} from './boxCullTables.fixture.ts';
 import { inputs, sameBits } from './sameBits.fixture.ts';
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27);
-const INVALIDATION = vsmInvalidationWgsl(LAYOUT),
-  RENDER = vsmRenderCullWgsl(LAYOUT);
 /** The texts before: the old functions first, the shipped module after them for the rest. */
 const INVALIDATION_BEFORE = INVALIDATION_PAGES + INVALIDATION_BOX_CULL + INVALIDATION,
   RENDER_BEFORE = RENDER_PAGES + RENDER_BOX_CULL + INVALIDATION_PAGES + RENDER;

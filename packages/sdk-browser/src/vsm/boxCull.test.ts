@@ -7,15 +7,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Mat } from '../texture/shaderRun.fixture.ts';
 import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts';
-import { run } from './boxCullTables.fixture.ts';
-import { vsmInvalidationWgsl } from './invalidationWgsl.ts';
-import { vsmRenderCullWgsl } from './renderCullWgsl.ts';
-import { vsmLayout } from './resources.ts';
+import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts';
 import { inputs, sameBits } from './sameBits.fixture.ts';
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27);
-const INVALIDATION = vsmInvalidationWgsl(LAYOUT),
-  RENDER = vsmRenderCullWgsl(LAYOUT);
 const CULL_KEYS = ['clipLow', 'clipHigh', 'pastFar', 'pastNear', 'inMapView'];
 const CASES = 12000;
 
