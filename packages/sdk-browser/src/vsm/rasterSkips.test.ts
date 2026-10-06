@@ -71,7 +71,10 @@ test('the pool max writes only a greater depth, and every word ends the max of i
     let rises = 0,
       best = 0;
     for (const d of depths) {
-      if (d > best) (rises++, (best = d));
+      if (d > best) {
+        rises++;
+        best = d;
+      }
       run.join(d);
     }
     assert.equal(word[0], best, 'the max of the depths');
