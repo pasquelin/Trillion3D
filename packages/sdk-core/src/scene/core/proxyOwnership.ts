@@ -1,6 +1,43 @@
 import type { SceneProxyDescriptor } from '../../contracts/proxy.ts';
 import { invalidProxy } from './proxyError.ts';
 
+const refuse = (reason: string): never => {
+  throw invalidProxy(`Invalid proxy ownership: ${reason}`, {});
+};
+
+/** The owner groups cover the owners, in order, none empty; every triangle and owner names a real group or node. */
+function checkGroups(
+  d: SceneProxyDescriptor,
+  triangleGroups: Uint32Array,
+  groupOffsets: Uint32Array,
+  owners: Uint32Array,
+) {
+  if (groupOffsets[0] !== 0 || groupOffsets[d.groups] !== d.owners) refuse('group extent');
+  for (let i = 0; i < d.groups; i++)
+    if (groupOffsets[i] >= groupOffsets[i + 1]) refuse('empty or unordered owner group');
+  for (const group of triangleGroups) if (group >= d.groups) refuse('triangle group');
+  for (let i = 0; i < owners.length; i += 2) if (owners[i] >= d.instances) refuse('source node');
+}
+
+/** Every source node's parent chain ends at the root (-1), within range and without a cycle. */
+function checkSourceParents(instances: number, sourceParents: Int32Array) {
+  const visited = new Uint8Array(instances);
+  for (let node = 0; node < instances; node++) {
+    let parent = node;
+    while (parent !== -1 && visited[parent] !== 2) {
+      if (parent < 0 || parent >= instances) refuse('source parent rank');
+      if (visited[parent] === 1) refuse('source parent cycle');
+      visited[parent] = 1;
+      parent = sourceParents[parent];
+    }
+    parent = node;
+    while (parent !== -1 && visited[parent] === 1) {
+      visited[parent] = 2;
+      parent = sourceParents[parent];
+    }
+  }
+}
+
 /** Read the versioned ownership suffix, never infer owners from geometry or names. */
 export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffer, start: number) {
   let at = start;
@@ -20,29 +57,8 @@ export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffe
   const bytes = new DataView(buffer);
   const bindWorlds = new Float64Array(d.instances * 16);
   for (let i = 0; i < bindWorlds.length; i++) bindWorlds[i] = bytes.getFloat64(at + i * 8, true);
-  const refuse = (reason: string): never => {
-    throw invalidProxy(`Invalid proxy ownership: ${reason}`, {});
-  };
-  if (groupOffsets[0] !== 0 || groupOffsets[d.groups] !== d.owners) refuse('group extent');
-  for (let i = 0; i < d.groups; i++)
-    if (groupOffsets[i] >= groupOffsets[i + 1]) refuse('empty or unordered owner group');
-  for (const group of triangleGroups) if (group >= d.groups) refuse('triangle group');
-  for (let i = 0; i < owners.length; i += 2) if (owners[i] >= d.instances) refuse('source node');
-  const visited = new Uint8Array(d.instances);
-  for (let node = 0; node < d.instances; node++) {
-    let parent = node;
-    while (parent !== -1 && visited[parent] !== 2) {
-      if (parent < 0 || parent >= d.instances) refuse('source parent rank');
-      if (visited[parent] === 1) refuse('source parent cycle');
-      visited[parent] = 1;
-      parent = sourceParents[parent];
-    }
-    parent = node;
-    while (parent !== -1 && visited[parent] === 1) {
-      visited[parent] = 2;
-      parent = sourceParents[parent];
-    }
-  }
+  checkGroups(d, triangleGroups, groupOffsets, owners);
+  checkSourceParents(d.instances, sourceParents);
   for (const value of bindWorlds) if (!Number.isFinite(value)) refuse('non-finite bind matrix');
   for (const mesh of sourceMeshes) if (mesh < -1) refuse('source mesh');
   return { triangleGroups, groupOffsets, owners, bindWorlds, sourceParents, sourceMeshes };
